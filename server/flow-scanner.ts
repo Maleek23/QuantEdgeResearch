@@ -15,9 +15,9 @@ import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES } from './discord-service';
 import { getFullUniverse } from './ticker-universe';
 
-// 🛡️ QUALITY GATE: Only send B-grade or better to Discord (user requested)
-// B = 65+, B+ = 70+, A = 75+, A+ = 85+
-const DISCORD_ALERT_GRADES = VALID_DISCORD_GRADES; // ['B', 'B+', 'A', 'A+']
+// 🛡️ QUALITY GATE: Only send B+ and higher to Discord (user requested)
+// B+ = 85+, A- = 88+, A = 90+, A+ = 95+
+const DISCORD_ALERT_GRADES = VALID_DISCORD_GRADES; // ['A+', 'A', 'A-', 'B+']
 
 // Rate limiting for Discord alerts - prevent floods
 const alertQueue: { timestamp: number; symbol: string }[] = [];

@@ -7,15 +7,15 @@ import { isOptionsMarketOpen } from './paper-trading-service';
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
 
-// QUALITY GATE - A-GRADE MINIMUM (75+ confidence, 4+ signals)
+// QUALITY GATE - B+ GRADE MINIMUM (85+ confidence, 4+ signals)
 const MIN_SIGNALS_REQUIRED = 4;
-const MIN_CONFIDENCE_REQUIRED = 75;
+const MIN_CONFIDENCE_REQUIRED = 85;
 
 // Maximum option premium cost
 const MAX_PREMIUM_COST = 1000;
 
-// Valid grades for Discord alerts
-export const VALID_DISCORD_GRADES = ['A', 'A+'];
+// Valid grades for Discord alerts - B+ and above (user requested)
+export const VALID_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+'];
 
 // Color codes for Discord embeds
 const COLORS = {
@@ -582,13 +582,22 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
     // Skip if no meaningful content
     if (!description || description.length < 5) return;
     
+    // Build confidence display
+    const confidenceDisplay = flow.confidence 
+      ? `${flow.grade || getLetterGrade(flow.confidence)} (${flow.confidence}%)`
+      : flow.grade || 'N/A';
+    
     const embed: DiscordEmbed = {
-      title: `📊 Flow Alert: ${flow.symbol} ${gradeStr}`,
+      title: `📊 Flow Alert: ${flow.symbol} ${gradeStr} ${flow.confidence ? `${flow.confidence}%` : ''}`,
       description,
       color: flow.optionType === 'call' ? COLORS.LONG : COLORS.SHORT,
       fields: [],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      footer: { text: `Quant Edge Labs • Confidence: ${confidenceDisplay}` }
     };
+    
+    // Add confidence field first
+    embed.fields!.push({ name: '🎯 Confidence', value: confidenceDisplay, inline: true });
     
     // Only add volume/premium if they have real values
     if (flow.volume && flow.volume > 0) {
