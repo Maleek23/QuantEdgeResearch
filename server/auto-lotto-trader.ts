@@ -220,10 +220,12 @@ const SMALL_ACCOUNT_TICKERS = [
   'NVDA',  // AI leader - cheap puts/calls available
   'PLTR',  // AI/Tech - user favorite
   'SMCI',  // AI infrastructure
+  // 🏦 INDEX ETFs - SPX/QQQ calls
+  'SPY',   // S&P 500 - Friday 0DTE, cheap weekly calls
+  'QQQ',   // Nasdaq 100 - Tech-heavy index plays
+  'IWM',   // Small caps index
   // 🚀 MEME/HIGH GAMMA
   'TSLA',  // Fridays especially
-  'SPY',   // SPX proxy - Friday 0DTE
-  'IWM',   // Small caps index
   'NIO',   // EV play
   'INTC',  // Cheap options
   // 📈 MOMENTUM PLAYS
