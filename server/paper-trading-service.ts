@@ -227,7 +227,8 @@ async function getMarketContext(): Promise<{ spyDown: boolean; spyChange: number
 
 export async function executeTradeIdea(
   portfolioId: string,
-  tradeIdea: TradeIdea
+  tradeIdea: TradeIdea,
+  options?: { maxQuantity?: number }
 ): Promise<ExecuteTradeResult> {
   try {
     const portfolio = await storage.getPaperPortfolioById(portfolioId);
@@ -310,7 +311,9 @@ export async function executeTradeIdea(
       const maxAffordable = Math.floor(portfolio.cashBalance / contractCost);
       const maxBySpendLimit = Math.floor(maxAllowedSpend / contractCost);
       // Only buy what fits within spend limit AND what we can afford - NO forcing to 1
-      quantity = Math.min(MAX_CONTRACTS_PER_TRADE, maxBySpendLimit, maxAffordable);
+      // 💎 PLAYBOOK: Respect maxQuantity parameter (for Options Bot single-contract rule)
+      const maxAllowed = options?.maxQuantity ? Math.min(MAX_CONTRACTS_PER_TRADE, options.maxQuantity) : MAX_CONTRACTS_PER_TRADE;
+      quantity = Math.min(maxAllowed, maxBySpendLimit, maxAffordable);
       
       // Safety: ensure at least 1 contract (should always pass given prior checks)
       if (quantity < 1) {

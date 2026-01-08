@@ -196,6 +196,246 @@ const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
 const CRYPTO_MAX_POSITION_SIZE = 100;
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 💎 STRICT OPTIONS PLAYBOOK - Disciplined $300 Account Rules
+// Based on proven $200 trading playbook - treat capital like fragile glass
+// Goal: Get traction without blowing up. Follow these like law, not vibes.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 1️⃣ NON-NEGOTIABLE ACCOUNT RULES
+const OPTIONS_PLAYBOOK = {
+  // Position sizing
+  MAX_RISK_PER_TRADE: 35,       // $25-35 max risk per trade
+  MAX_CONTRACTS: 1,             // 1 contract max per trade
+  MAX_LOSS_PERCENT: 20,         // Max 20% loss per trade before stop out
+  
+  // Trade frequency limits
+  MAX_TRADES_PER_DAY: 1,        // Only 1 trade per day
+  MAX_CONSECUTIVE_RED_DAYS: 2,  // After 2 red days, pause for 2 days
+  PAUSE_DAYS_AFTER_RED: 2,      // Days to pause after hitting red day limit
+  
+  // Exit rules
+  STOP_LOSS_PERCENT: 18,        // -15-20% stop loss (use 18% center)
+  TAKE_PROFIT_PERCENT: 22,      // +20-25% take profit (use 22% center)
+  
+  // DTE rules (expiration)
+  MIN_DTE: 10,                  // Minimum 10 DTE
+  MAX_DTE: 21,                  // Maximum 21 DTE
+  
+  // Delta/Strike rules
+  MIN_DELTA: 0.35,              // Delta must be >= 0.35 (no gambling)
+  MAX_OTM_STRIKES: 1,           // ATM or 1 strike ITM only
+};
+
+// 2️⃣ ALLOWED TICKERS ONLY - Liquid, tight spreads, predictable behavior
+const OPTIONS_PLAYBOOK_TICKERS = [
+  'SPY',   // S&P 500 ETF
+  'QQQ',   // Nasdaq 100 ETF
+  'AAPL',  // Apple
+  'NVDA',  // NVIDIA
+  'TSLA',  // Tesla
+  'SOFI',  // SoFi
+  'HOOD',  // Robinhood
+];
+
+// 3️⃣ CONSECUTIVE RED DAY TRACKING
+interface PlaybookDayTracker {
+  date: string;
+  pnl: number;
+  tradesTaken: number;
+}
+
+const playbookDayHistory: PlaybookDayTracker[] = [];
+let playbookPauseUntil: Date | null = null;
+let playbookTodayTrades = 0;
+let playbookTodayDate = '';
+
+/**
+ * Check if Options Playbook allows trading today
+ * Returns: { allowed: boolean, reason: string }
+ */
+export function checkPlaybookTradingAllowed(): { allowed: boolean; reason: string } {
+  const today = formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+  
+  // Reset daily counter if new day
+  if (playbookTodayDate !== today) {
+    playbookTodayDate = today;
+    playbookTodayTrades = 0;
+  }
+  
+  // Check if we're in a forced pause period
+  if (playbookPauseUntil && new Date() < playbookPauseUntil) {
+    const daysLeft = Math.ceil((playbookPauseUntil.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    return {
+      allowed: false,
+      reason: `PLAYBOOK PAUSE: ${daysLeft} day(s) remaining after ${OPTIONS_PLAYBOOK.MAX_CONSECUTIVE_RED_DAYS} consecutive red days`
+    };
+  }
+  
+  // Check if max trades per day reached
+  if (playbookTodayTrades >= OPTIONS_PLAYBOOK.MAX_TRADES_PER_DAY) {
+    return {
+      allowed: false,
+      reason: `DAILY LIMIT: Already took ${playbookTodayTrades}/${OPTIONS_PLAYBOOK.MAX_TRADES_PER_DAY} trade(s) today`
+    };
+  }
+  
+  // Check consecutive red days
+  const recentDays = playbookDayHistory.slice(-OPTIONS_PLAYBOOK.MAX_CONSECUTIVE_RED_DAYS);
+  const consecutiveRedDays = recentDays.filter(d => d.pnl < 0).length;
+  
+  if (consecutiveRedDays >= OPTIONS_PLAYBOOK.MAX_CONSECUTIVE_RED_DAYS) {
+    // Set pause until 2 trading days from now
+    const pauseUntil = new Date();
+    pauseUntil.setDate(pauseUntil.getDate() + OPTIONS_PLAYBOOK.PAUSE_DAYS_AFTER_RED);
+    playbookPauseUntil = pauseUntil;
+    return {
+      allowed: false,
+      reason: `CONSECUTIVE RED DAYS: ${consecutiveRedDays} red days in a row, pausing for ${OPTIONS_PLAYBOOK.PAUSE_DAYS_AFTER_RED} days`
+    };
+  }
+  
+  return { allowed: true, reason: 'Playbook rules passed' };
+}
+
+/**
+ * Record end-of-day P&L for playbook tracking
+ */
+export function recordPlaybookDayPnL(pnl: number): void {
+  const today = formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+  
+  // Check if we already have today's entry
+  const existingIndex = playbookDayHistory.findIndex(d => d.date === today);
+  if (existingIndex >= 0) {
+    playbookDayHistory[existingIndex].pnl += pnl;
+    playbookDayHistory[existingIndex].tradesTaken = playbookTodayTrades;
+  } else {
+    playbookDayHistory.push({ date: today, pnl, tradesTaken: playbookTodayTrades });
+  }
+  
+  // Keep only last 10 days
+  while (playbookDayHistory.length > 10) {
+    playbookDayHistory.shift();
+  }
+  
+  logger.info(`📊 [PLAYBOOK] Day ${today} P&L: $${pnl.toFixed(2)} (${playbookTodayTrades} trades)`);
+}
+
+/**
+ * Increment daily trade counter
+ */
+export function incrementPlaybookDailyTrades(): void {
+  const today = formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd');
+  if (playbookTodayDate !== today) {
+    playbookTodayDate = today;
+    playbookTodayTrades = 0;
+  }
+  playbookTodayTrades++;
+  logger.info(`📊 [PLAYBOOK] Trade ${playbookTodayTrades}/${OPTIONS_PLAYBOOK.MAX_TRADES_PER_DAY} taken today`);
+}
+
+/**
+ * Validate option trade against strict playbook rules
+ * Returns: { valid: boolean, reason: string }
+ */
+export function validatePlaybookTrade(
+  symbol: string,
+  premium: number,
+  dte: number,
+  delta: number,
+  optionType: 'call' | 'put'
+): { valid: boolean; reason: string; setup?: string } {
+  // Check allowed ticker
+  if (!OPTIONS_PLAYBOOK_TICKERS.includes(symbol.toUpperCase())) {
+    return {
+      valid: false,
+      reason: `TICKER NOT ALLOWED: ${symbol} not in playbook list [${OPTIONS_PLAYBOOK_TICKERS.join(', ')}]`
+    };
+  }
+  
+  // Check premium/risk
+  const contractCost = premium * 100; // Options = 100 shares
+  if (contractCost > OPTIONS_PLAYBOOK.MAX_RISK_PER_TRADE) {
+    return {
+      valid: false,
+      reason: `RISK TOO HIGH: $${contractCost.toFixed(0)} > $${OPTIONS_PLAYBOOK.MAX_RISK_PER_TRADE} max`
+    };
+  }
+  
+  // Check DTE range
+  if (dte < OPTIONS_PLAYBOOK.MIN_DTE) {
+    return {
+      valid: false,
+      reason: `DTE TOO SHORT: ${dte} < ${OPTIONS_PLAYBOOK.MIN_DTE} min (no same-week expiration)`
+    };
+  }
+  if (dte > OPTIONS_PLAYBOOK.MAX_DTE) {
+    return {
+      valid: false,
+      reason: `DTE TOO LONG: ${dte} > ${OPTIONS_PLAYBOOK.MAX_DTE} max`
+    };
+  }
+  
+  // Check delta (must be >= 0.35)
+  const absDelta = Math.abs(delta);
+  if (absDelta < OPTIONS_PLAYBOOK.MIN_DELTA) {
+    return {
+      valid: false,
+      reason: `DELTA TOO LOW: ${absDelta.toFixed(2)} < ${OPTIONS_PLAYBOOK.MIN_DELTA} (gambling territory)`
+    };
+  }
+  
+  // Determine setup type based on market conditions
+  // This would be enhanced with VWAP check in real implementation
+  const setup = absDelta >= 0.45 ? 'Setup A: Trend Continuation' : 'Setup B: Key Level Reversal';
+  
+  return {
+    valid: true,
+    reason: `PLAYBOOK VALID: ${symbol} ${optionType.toUpperCase()} | DTE: ${dte} | Delta: ${absDelta.toFixed(2)} | Risk: $${contractCost.toFixed(0)}`,
+    setup
+  };
+}
+
+/**
+ * Get playbook-compliant stop loss and take profit levels
+ */
+export function getPlaybookExitLevels(entryPrice: number): { stopLoss: number; takeProfit: number } {
+  const stopLoss = entryPrice * (1 - OPTIONS_PLAYBOOK.STOP_LOSS_PERCENT / 100);
+  const takeProfit = entryPrice * (1 + OPTIONS_PLAYBOOK.TAKE_PROFIT_PERCENT / 100);
+  return { stopLoss, takeProfit };
+}
+
+/**
+ * Check if today is a slow/low-volatility day (should not trade)
+ * Returns true if market is choppy/slow and trading should be avoided
+ */
+export async function isSlowTradingDay(): Promise<{ isSlow: boolean; reason: string }> {
+  try {
+    const context = await getMarketContext();
+    
+    // Check for ranging/volatile market (choppy conditions)
+    if (context.regime === 'ranging') {
+      return {
+        isSlow: true,
+        reason: `Market regime: ${context.regime} - boredom is cheaper than losses`
+      };
+    }
+    
+    // Check for low volatility
+    if (context.score < 30) {
+      return {
+        isSlow: true,
+        reason: `Low market activity score: ${context.score}/100 - wait for power hour`
+      };
+    }
+    
+    return { isSlow: false, reason: 'Market conditions acceptable' };
+  } catch (error) {
+    // If we can't determine, assume it's okay to trade
+    return { isSlow: false, reason: 'Unable to determine market conditions' };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 💰 SMALL ACCOUNT LOTTO - $150 account for ultra-cheap plays
 // Targets: Cheap AI/Tech/Meme plays with high gamma potential
 // Entry: $5-100 per contract ($0.05-$1.00 premium) - TRUE LOTTOS
@@ -2696,6 +2936,41 @@ async function executeImmediateTrade(
       logger.debug(`💰 [SMALL ACCOUNT] Trade not eligible: ${opp.symbol} - ${smallAccountCheck.reason}`);
     }
     
+    // 💎 STRICT OPTIONS PLAYBOOK - Only applies to main Options Bot (not Small Account)
+    // These are disciplined rules to prevent account blowups
+    if (!isSmallAccountTrade) {
+      // Check if playbook allows trading today (consecutive red days, daily limit)
+      const playbookAllowed = checkPlaybookTradingAllowed();
+      if (!playbookAllowed.allowed) {
+        logger.info(`📊 [PLAYBOOK] ⛔ BLOCKED: ${playbookAllowed.reason}`);
+        return false;
+      }
+      
+      // Check for slow/choppy day conditions
+      const slowDayCheck = await isSlowTradingDay();
+      if (slowDayCheck.isSlow) {
+        logger.info(`📊 [PLAYBOOK] ⛔ SLOW DAY: ${slowDayCheck.reason}`);
+        return false;
+      }
+      
+      // Validate trade against strict playbook rules (ticker, DTE, delta, risk)
+      const playbookValidation = validatePlaybookTrade(
+        opp.symbol,
+        opp.price,
+        opp.daysToExpiry,
+        opp.delta,
+        opp.optionType as 'call' | 'put'
+      );
+      
+      if (!playbookValidation.valid) {
+        logger.info(`📊 [PLAYBOOK] ⛔ REJECTED: ${playbookValidation.reason}`);
+        return false;
+      }
+      
+      logger.info(`📊 [PLAYBOOK] ✅ VALIDATED: ${playbookValidation.reason}`);
+      logger.info(`📊 [PLAYBOOK] Setup Type: ${playbookValidation.setup}`);
+    }
+    
     // 🎯 UNIFIED ENTRY GATE CHECK - Apply session/regime filters before execution
     const direction = opp.optionType === 'call' ? 'long' : 'short';
     const estimatedTarget = opp.price * 2; // 100% gain target for lotto plays
@@ -2735,7 +3010,19 @@ async function executeImmediateTrade(
     
     // Use final engine-adjusted confidence for the trade idea
     const adjustedDecision = { ...decision, confidence: finalConfidence };
-    const ideaData = createTradeIdea(opp, adjustedDecision);
+    let ideaData = createTradeIdea(opp, adjustedDecision);
+    
+    // 💎 PLAYBOOK EXIT LEVELS - Override stop/target for main Options Bot with strict playbook rules
+    if (!isSmallAccountTrade) {
+      const playbookExits = getPlaybookExitLevels(opp.price);
+      ideaData = {
+        ...ideaData,
+        stopLoss: playbookExits.stopLoss,
+        targetPrice: playbookExits.takeProfit,
+        riskRewardRatio: (playbookExits.takeProfit - opp.price) / (opp.price - playbookExits.stopLoss),
+      };
+      logger.info(`📊 [PLAYBOOK] Exit levels applied: Stop=$${playbookExits.stopLoss.toFixed(2)} (-18%), Target=$${playbookExits.takeProfit.toFixed(2)} (+22%)`);
+    }
     
     // 🛑 DEDUPLICATION CHECK
     const existingSimilar = await storage.findSimilarTradeIdea(
@@ -2754,11 +3041,19 @@ async function executeImmediateTrade(
     }
     
     const savedIdea = await storage.createTradeIdea(ideaData);
-    const result = await executeTradeIdea(targetPortfolio.id, savedIdea as TradeIdea);
+    // 💎 PLAYBOOK: Enforce single-contract sizing for Options Bot (not Small Account)
+    const execOptions = isSmallAccountTrade ? undefined : { maxQuantity: OPTIONS_PLAYBOOK.MAX_CONTRACTS };
+    const result = await executeTradeIdea(targetPortfolio.id, savedIdea as TradeIdea, execOptions);
     
     if (result.success && result.position) {
       const portfolioLabel = isSmallAccountTrade ? '💰 SMALL ACCOUNT' : '🤖 BOT';
       logger.info(`${portfolioLabel} ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+      
+      // 📊 PLAYBOOK TRACKING - Increment daily trades for Options Bot
+      if (!isSmallAccountTrade) {
+        incrementPlaybookDailyTrades();
+        logger.info(`📊 [PLAYBOOK] Options trade recorded for today's limit`);
+      }
       
       // Send Discord notification with full analysis
       try {
@@ -3683,6 +3978,12 @@ export async function monitorLottoPositions(): Promise<void> {
             // Send Discord notification with Exit Intelligence context
             const portfolioType = await getPortfolioType(pos.portfolioId);
             
+            // 📊 PLAYBOOK - Track P&L for Options Bot (not Small Account)
+            if (portfolioType === 'options') {
+              recordPlaybookDayPnL(pnl);
+              logger.info(`📊 [PLAYBOOK] Options exit recorded: P&L $${pnl.toFixed(2)}`);
+            }
+            
             // 🔔 BROADCAST: Bot EXITED a trade
             broadcastBotEvent({
               eventType: 'exit',
@@ -3786,6 +4087,12 @@ export async function monitorLottoPositions(): Promise<void> {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const portfolioType2 = await getPortfolioType(pos.portfolioId);
           
+          // 📊 PLAYBOOK - Track P&L for Options Bot (not Small Account)
+          if (portfolioType2 === 'options') {
+            recordPlaybookDayPnL(pnl);
+            logger.info(`📊 [PLAYBOOK] Options exit recorded: P&L $${pnl.toFixed(2)}`);
+          }
+          
           // 🔔 BROADCAST: Bot EXITED a trade (dynamic exit)
           broadcastBotEvent({
             eventType: 'exit',
@@ -3849,6 +4156,12 @@ export async function monitorLottoPositions(): Promise<void> {
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const portfolioType3 = await getPortfolioType(pos.portfolioId);
+          
+          // 📊 PLAYBOOK - Track P&L for Options Bot (not Small Account)
+          if (portfolioType3 === 'options') {
+            recordPlaybookDayPnL(pnl);
+            logger.info(`📊 [PLAYBOOK] Options exit recorded: P&L $${pnl.toFixed(2)}`);
+          }
           
           // 🔔 BROADCAST: Bot EXITED a trade (stop/target hit)
           broadcastBotEvent({
