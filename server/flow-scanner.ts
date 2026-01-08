@@ -138,205 +138,144 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// EXPANDED FLOW SCAN UNIVERSE (150+ tickers) - Including quantum, nuclear, healthcare, and penny stocks
-// FOCUS: "Next Big Things" after AI - Quantum Computing, Nuclear Fusion, Healthcare Innovation
+// EXPANDED FLOW SCAN UNIVERSE (500+ tickers) - Comprehensive market coverage
+// Covers: Mega caps, Growth, Value, Sectors, ETFs, Penny stocks, and emerging themes
 const FLOW_SCAN_TICKERS = [
-  // === CORE HIGH-VOLUME TICKERS ===
-  'SPY', 'QQQ', 'IWM', 'XLF', 'XLE',  // ETFs
-  'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AMD',  // Mega caps
-  'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR',  // Popular
-  
-  // === 🔬 QUANTUM COMPUTING (NEXT BIG THING #1) ===
-  'IONQ',   // IonQ - Trapped ion quantum leader ($5-15 range)
-  'RGTI',   // Rigetti - Superconducting qubits ($1-10 range - TRUE PENNY LOTTO)
-  'QUBT',   // Quantum Computing Inc - Photonic quantum ($1-5 range - TRUE PENNY LOTTO)
-  'QBTS',   // D-Wave Quantum - Quantum annealing ($3-10 range - PENNY LOTTO)
-  'ARQQ',   // Arqit Quantum - Quantum encryption ($1-5 range - TRUE PENNY LOTTO)
-  'QMCO',   // Quantum-Si - Protein sequencing quantum ($1-3 range - TRUE PENNY LOTTO)
-  'QTUM',   // Defiance Quantum ETF - Quantum basket
-  'FORM',   // FormFactor - Quantum probe cards
-  'IBM',    // IBM - Major quantum player
-  'GOOG',   // Google - Sycamore processor
-  'HON',    // Honeywell - Quantinuum
-  
-  // === ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (NEXT BIG THING #2) ===
-  'NNE',    // Nano Nuclear Energy - Micro modular reactors ($10-30 range)
-  'OKLO',   // Oklo - Advanced fission/fusion ($10-40 range)
-  'SMR',    // NuScale Power - Small modular reactors ($10-25 range)
-  'LEU',    // Centrus Energy - Uranium/HALEU ($40-80 range)
-  'CCJ',    // Cameco - Uranium mining leader
-  'UEC',    // Uranium Energy Corp ($5-10 range)
-  'UUUU',   // Energy Fuels - Uranium + rare earths ($5-10 range)
-  'DNN',    // Denison Mines - Uranium developer ($1-3 range - TRUE PENNY)
-  'NXE',    // NexGen Energy - High-grade uranium
-  'BWXT',   // BWX Technologies - Nuclear components
-  'CEG',    // Constellation Energy - Nuclear fleet
-  'VST',    // Vistra - Nuclear power
-  'URG',    // Ur-Energy - Wyoming uranium ($1-3 range - TRUE PENNY)
-  'UROY',   // Uranium Royalty Corp - Uranium royalties
-  'LTBR',   // Lightbridge Corp - Nuclear fuel tech ($2-5 range - PENNY LOTTO)
-  
-  // === 🤖 AI & MACHINE LEARNING (CURRENT BIG THING) ===
-  'SOUN',   // SoundHound AI - Voice AI ($5-15 range)
-  'BBAI',   // BigBear.ai - AI analytics ($1-5 range - TRUE PENNY LOTTO)
-  'AI',     // C3.ai - Enterprise AI
-  'ZETA',   // Zeta Global - AI marketing tech ($15-35 range)
-  'PLTR',   // Palantir - AI/data analytics
-  'PATH',   // UiPath - AI automation
-  'SNOW',   // Snowflake - AI data cloud
-  'DDOG',   // Datadog - AI observability
-  'MDB',    // MongoDB - AI database
-  'ESTC',   // Elastic - AI search
-  'GTLB',   // GitLab - AI DevOps
-  'GFAI',   // Guardforce AI - Security AI ($0.50-2 range - TRUE PENNY LOTTO)
-  'VEEE',   // Twin Vee PowerCats - AI marine ($1-3 range - PENNY)
-  
-  // === 🚀 SPACE & SATELLITES ===
-  'ASTS',   // AST SpaceMobile - Space-based cellular ($10-30 range)
-  'RKLB',   // Rocket Lab - Small satellite launch ($10-25 range)
-  'LUNR',   // Intuitive Machines - Lunar landers ($5-15 range)
-  'RDW',    // Redwire - Space infrastructure ($3-10 range - PENNY LOTTO)
-  'SPCE',   // Virgin Galactic - Space tourism ($1-5 range - TRUE PENNY LOTTO)
-  'BKSY',   // BlackSky - Geospatial ($0.50-2 range - TRUE PENNY LOTTO)
-  'IRDM',   // Iridium - Satellite communications
-  // REMOVED: LLAP (delisted)
-  
-  // === 🧬 BIOTECH/GENE EDITING/HEALTHCARE (NEXT BIG THING #3) ===
-  'NVAX',   // Novavax - Vaccines ($5-20 range)
-  'MRNA',   // Moderna - mRNA tech
-  'BNTX',   // BioNTech - mRNA pioneer
-  'CRSP',   // CRISPR Therapeutics - Gene editing ($40-80 range)
-  'EDIT',   // Editas Medicine - Gene editing ($2-10 range - PENNY LOTTO)
-  'NTLA',   // Intellia Therapeutics - CRISPR ($15-40 range)
-  'BEAM',   // Beam Therapeutics - Base editing ($15-40 range)
-  // REMOVED: VERV, BLUE (delisted)
-  'INO',    // Inovio - DNA medicines ($1-5 range - TRUE PENNY LOTTO)
-  'SRNE',   // Sorrento Therapeutics ($0.20-1 range - ULTRA PENNY LOTTO)
-  'VXRT',   // Vaxart - Oral vaccines ($0.50-3 range - TRUE PENNY LOTTO)
-  'NKTR',   // Nektar Therapeutics - Immuno-oncology ($0.50-2 range - TRUE PENNY)
-  'ADVM',   // Adverum Biotech - Gene therapy ($1-5 range - TRUE PENNY LOTTO)
-  'FATE',   // Fate Therapeutics - Cell therapy ($1-5 range - TRUE PENNY LOTTO)
-  'GRTS',   // Gritstone bio - Cancer vaccines ($0.50-3 range - TRUE PENNY LOTTO)
-  'IMVT',   // Immunovant - Autoimmune ($15-40 range)
-  'RXRX',   // Recursion Pharma - AI drug discovery ($5-15 range)
-  
-  // === ⚡ CLEAN ENERGY & BATTERIES ===
-  'PLUG',   // Plug Power - Green hydrogen ($1-5 range - TRUE PENNY LOTTO)
-  'FCEL',   // FuelCell Energy ($0.50-3 range - TRUE PENNY LOTTO)
-  'BE',     // Bloom Energy - Solid oxide fuel cells
-  'ENPH',   // Enphase - Microinverters
-  'SEDG',   // SolarEdge - Solar inverters
-  'RUN',    // Sunrun - Residential solar
-  'ENVX',   // Enovix - Next-gen batteries ($5-15 range)
-  'QS',     // QuantumScape - Solid-state batteries ($3-10 range - PENNY LOTTO)
-  'STEM',   // Stem Inc - AI energy storage ($0.50-2 range - TRUE PENNY LOTTO)
-  'CLNE',   // Clean Energy Fuels ($2-5 range - TRUE PENNY)
-  'BLDP',   // Ballard Power - Fuel cells ($1-5 range - TRUE PENNY LOTTO)
-  'EOSE',   // Eos Energy - Battery storage ($1-5 range - PENNY LOTTO)
-  'FSLR',   // First Solar - Solar panels
-  'ARRY',   // Array Technologies - Solar tracking
-  'MAXN',   // Maxeon Solar ($3-10 range - PENNY LOTTO)
-  'NOVA',   // Sunnova Energy - Residential solar
-  
-  // === 🚗 EV & AUTONOMOUS ===
-  'RIVN',   // Rivian - Electric trucks ($10-20 range)
-  'LCID',   // Lucid - Luxury EV ($2-5 range - TRUE PENNY LOTTO)
-  'NIO',    // NIO - Chinese premium EV ($3-10 range - PENNY LOTTO)
-  'XPEV',   // XPeng - Chinese EV ($5-15 range)
-  'LI',     // Li Auto - Chinese hybrid EV
-  'CHPT',   // ChargePoint - EV charging ($0.50-3 range - TRUE PENNY LOTTO)
-  'BLNK',   // Blink Charging ($1-5 range - TRUE PENNY LOTTO)
-  'EVGO',   // EVgo - Fast charging ($2-8 range - PENNY)
-  // REMOVED: FFIE, GOEV (delisted)
-  'NKLA',   // Nikola - Hydrogen trucks ($0.50-3 range - TRUE PENNY LOTTO)
-  
-  // === 💳 FINTECH ===
-  'UPST',   // Upstart - AI lending ($30-80 range)
-  'AFRM',   // Affirm - BNPL
-  'XYZ',    // Block (formerly Square) - Payments
-  'PYPL',   // PayPal
-  'NU',     // Nu Holdings - Brazilian fintech
-  
-  // === 💰 CRYPTO MINERS ===
-  'CLSK',   // CleanSpark - BTC mining
-  'BTBT',   // Bit Digital ($2-5 range - TRUE PENNY)
-  'BITF',   // Bitfarms ($1-5 range - TRUE PENNY LOTTO)
-  'HUT',    // Hut 8 Mining
-  'CIFR',   // Cipher Mining ($3-8 range - PENNY LOTTO)
-  'WULF',   // TeraWulf - BTC mining ($3-8 range - PENNY LOTTO)
-  'IREN',   // Iris Energy - BTC mining
-  
-  // === 🔐 CYBERSECURITY ===
-  'CRWD',   // CrowdStrike
-  'S',      // SentinelOne
-  'ZS',     // Zscaler
-  'PANW',   // Palo Alto Networks
-  'NET',    // Cloudflare
-  'OKTA',   // Okta - Identity
-  
-  // === 💎 SEMICONDUCTORS ===
-  'SMCI',   // Super Micro Computer
-  'ARM',    // Arm Holdings
-  'AVGO',   // Broadcom
-  'MU',     // Micron
-  'AEHR',   // Aehr Test Systems ($5-20 range)
-  'WOLF',   // Wolfspeed - SiC ($5-20 range)
-  'LSCC',   // Lattice Semiconductor
-  
-  // === 🎮 GAMING/METAVERSE ===
-  'RBLX',   // Roblox
-  'U',      // Unity Software
-  'DKNG',   // DraftKings
-  
-  // === 🛡️ DEFENSE & DRONES ===
-  'RCAT',   // Red Cat Holdings - Drones ($2-8 range - PENNY LOTTO)
-  'JOBY',   // Joby Aviation - eVTOL ($3-10 range - PENNY LOTTO)
-  'ACHR',   // Archer Aviation - eVTOL ($3-10 range - PENNY LOTTO)
-  'KTOS',   // Kratos Defense - Drones
-  'AVAV',   // AeroVironment - Military drones
-  'UAVS',   // AgEagle Aerial - Drone tech ($0.10-1 range - ULTRA PENNY LOTTO)
-  
-  // === 🌿 CANNABIS ===
-  'TLRY',   // Tilray ($1-5 range - TRUE PENNY LOTTO)
-  'CGC',    // Canopy Growth ($2-10 range - PENNY LOTTO)
-  'SNDL',   // SNDL ($1-3 range - TRUE PENNY LOTTO)
-  
-  // === ⛏️ COMMODITIES/RARE EARTHS ===
-  'MP',     // MP Materials - Rare earths
-  'LAC',    // Lithium Americas
-  'ALB',    // Albemarle - Lithium
-  'FCX',    // Freeport-McMoRan - Copper
-  'UROY',   // Uranium Royalty Corp
-  'LI',     // Lithium stocks
-  'SLI',    // Standard Lithium ($1-5 range - TRUE PENNY LOTTO)
-  'PLL',    // Piedmont Lithium
+  // === 📈 MEGA CAP TECH (25) ===
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO', 'ORCL',
+  'ADBE', 'CRM', 'CSCO', 'ACN', 'IBM', 'INTC', 'TXN', 'QCOM', 'NOW', 'INTU',
+  'AMD', 'MU', 'AMAT', 'LRCX', 'ADI',
 
-  // === ☕ CONSUMER / RETAIL (POPULAR OPTIONS) ===
-  'SBUX',   // Starbucks - Coffee chain
-  'NKE',    // Nike - Athletic apparel
-  'MCD',    // McDonald's - Fast food
-  'COST',   // Costco - Warehouse retail
-  'TGT',    // Target - Retail
-  'WMT',    // Walmart - Retail giant
-  'HD',     // Home Depot - Home improvement
-  'LOW',    // Lowe's - Home improvement
-  'LULU',   // Lululemon - Athletic apparel
-  'CMG',    // Chipotle - Fast casual
-  'YUM',    // Yum Brands - KFC, Taco Bell
-  'BURL',   // Burlington - Off-price retail
-  'ROST',   // Ross Stores - Off-price retail
-  'TJX',    // TJ Maxx - Off-price retail
-  'UAA',    // Under Armour - Athletic apparel
-  'GPS',    // Gap - Apparel ($10-25 range)
+  // === 💵 FINANCIALS (40) ===
+  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'SPGI',
+  'ICE', 'CME', 'MCO', 'PNC', 'USB', 'TFC', 'COF', 'BK', 'STT', 'FITB',
+  'KEY', 'RF', 'CFG', 'HBAN', 'ZION', 'CMA', 'MTB', 'NTRS', 'DFS', 'SYF',
+  'ALLY', 'SOFI', 'HOOD', 'COIN', 'AFRM', 'UPST', 'PYPL', 'NU', 'XYZ', 'V', 'MA',
 
-  // === 📰 MEDIA / ENTERTAINMENT ===
-  'PARA',   // Paramount - Media ($10-20 range)
-  'WBD',    // Warner Bros Discovery - Media ($5-15 range)
-  'LYV',    // Live Nation - Concerts/Events
-  'SPOT',   // Spotify - Music streaming
-  'SNAP',   // Snapchat - Social media ($10-20 range)
-  'PINS',   // Pinterest - Social media
-  'MTCH'    // Match Group - Dating apps
+  // === 🏥 HEALTHCARE & PHARMA (45) ===
+  'JNJ', 'UNH', 'PFE', 'ABBV', 'MRK', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
+  'AMGN', 'GILD', 'VRTX', 'REGN', 'ISRG', 'MDT', 'SYK', 'BSX', 'ELV', 'CI',
+  'HUM', 'CVS', 'MCK', 'CAH', 'ABC', 'ZTS', 'DXCM', 'IDXX', 'IQV', 'A',
+  'MRNA', 'BNTX', 'NVAX', 'CRSP', 'EDIT', 'NTLA', 'BEAM', 'INO', 'VXRT', 'NKTR',
+  'IMVT', 'RXRX', 'HIMS', 'TDOC', 'DOCS',
+
+  // === 🏭 INDUSTRIALS (35) ===
+  'CAT', 'DE', 'HON', 'UNP', 'UPS', 'RTX', 'LMT', 'BA', 'GE', 'MMM',
+  'ETN', 'EMR', 'ITW', 'PH', 'CMI', 'PCAR', 'NSC', 'CSX', 'FDX', 'DAL',
+  'UAL', 'AAL', 'LUV', 'JBLU', 'ALK', 'SAVE', 'GD', 'NOC', 'TXT', 'HII',
+  'LHX', 'LDOS', 'KTOS', 'AVAV', 'AXON',
+
+  // === 🛒 CONSUMER DISCRETIONARY (45) ===
+  'AMZN', 'TSLA', 'HD', 'LOW', 'NKE', 'MCD', 'SBUX', 'TGT', 'COST', 'WMT',
+  'TJX', 'ROST', 'BURL', 'DG', 'DLTR', 'BBY', 'ULTA', 'LULU', 'GPS', 'ANF',
+  'AEO', 'URBN', 'FL', 'DKS', 'HIBB', 'ASO', 'BOOT', 'VFC', 'PVH', 'RL',
+  'GRMN', 'POOL', 'LKQ', 'ORO', 'CMG', 'YUM', 'DPZ', 'QSR', 'CAKE', 'DINE',
+  'PLAY', 'SIX', 'FUN', 'SEAS', 'MTN',
+
+  // === 🍔 CONSUMER STAPLES (25) ===
+  'PG', 'KO', 'PEP', 'PM', 'MO', 'MDLZ', 'CL', 'GIS', 'K', 'KHC',
+  'HSY', 'SJM', 'CPB', 'HRL', 'TSN', 'BG', 'ADM', 'INGR', 'STZ', 'TAP',
+  'BUD', 'SAM', 'MNST', 'CELH', 'KDP',
+
+  // === ⚡ ENERGY (35) ===
+  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PSX', 'OXY', 'PXD',
+  'DVN', 'FANG', 'HAL', 'BKR', 'MRO', 'APA', 'OVV', 'EQT', 'AR', 'RRC',
+  'SWN', 'CHK', 'CTRA', 'MTDR', 'PR', 'CHRD', 'SM', 'PDCE', 'GPOR', 'MGY',
+  'VTLE', 'ESTE', 'TRGP', 'WMB', 'KMI',
+
+  // === 🔌 UTILITIES & CLEAN ENERGY (40) ===
+  'NEE', 'DUK', 'SO', 'D', 'AEP', 'XEL', 'SRE', 'WEC', 'ED', 'EXC',
+  'PCG', 'EIX', 'AWK', 'ES', 'DTE', 'PPL', 'FE', 'AES', 'CEG', 'VST',
+  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'FSLR', 'RUN', 'NOVA', 'ARRY', 'MAXN',
+  'EOSE', 'ENVX', 'QS', 'STEM', 'CLNE', 'BLDP', 'BLNK', 'CHPT', 'EVGO', 'NKLA',
+
+  // === 🏠 REAL ESTATE (20) ===
+  'AMT', 'PLD', 'EQIX', 'CCI', 'PSA', 'SPG', 'O', 'WELL', 'DLR', 'AVB',
+  'EQR', 'VTR', 'ARE', 'BXP', 'SLG', 'VNO', 'KIM', 'REG', 'FRT', 'HST',
+
+  // === 📱 COMMUNICATION SERVICES (25) ===
+  'GOOGL', 'META', 'DIS', 'NFLX', 'CMCSA', 'VZ', 'T', 'TMUS', 'CHTR', 'PARA',
+  'WBD', 'FOXA', 'FOX', 'VIAC', 'DISH', 'LYV', 'SPOT', 'SNAP', 'PINS', 'MTCH',
+  'TTWO', 'EA', 'RBLX', 'DKNG', 'PENN',
+
+  // === 🔬 QUANTUM COMPUTING (15) ===
+  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'ARQQ', 'QMCO', 'QTUM', 'FORM', 'IBM', 'GOOG',
+  'HON', 'MSFT', 'AMZN', 'GOOGL', 'IQM',
+
+  // === ⚛️ NUCLEAR & URANIUM (20) ===
+  'NNE', 'OKLO', 'SMR', 'LEU', 'CCJ', 'UEC', 'UUUU', 'DNN', 'NXE', 'BWXT',
+  'CEG', 'VST', 'URG', 'UROY', 'LTBR', 'GEV', 'FLR', 'BWC', 'AEHR', 'AEIS',
+
+  // === 🤖 AI & SOFTWARE (40) ===
+  'PLTR', 'AI', 'SOUN', 'BBAI', 'PATH', 'SNOW', 'DDOG', 'MDB', 'ESTC', 'GTLB',
+  'TEAM', 'ZM', 'DOCU', 'TWLO', 'OKTA', 'ZS', 'CRWD', 'S', 'PANW', 'NET',
+  'FSLY', 'CFLT', 'NEWR', 'DT', 'SPLK', 'SUMO', 'ASAN', 'MNDY', 'BILL', 'COUP',
+  'VEEV', 'WDAY', 'HUBS', 'ZEN', 'RNG', 'FIVN', 'NICE', 'APPN', 'AGYS', 'PRFT',
+
+  // === 🚀 SPACE & SATELLITES (15) ===
+  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE', 'BKSY', 'IRDM', 'GSAT', 'VSAT', 'GILT',
+  'MAXR', 'SATS', 'VORB', 'ASTR', 'BA',
+
+  // === 🚗 EV & AUTONOMOUS (20) ===
+  'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSR', 'PSNY', 'VFS', 'HYLN',
+  'WKHS', 'RIDE', 'LEV', 'GOEV', 'NKLA', 'LAZR', 'MVIS', 'INVZ', 'LIDR', 'OUST',
+
+  // === 💰 CRYPTO & BLOCKCHAIN (15) ===
+  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'HUT', 'BITF', 'BTBT', 'CIFR', 'WULF',
+  'IREN', 'CORZ', 'ARBK', 'GREE', 'SDIG',
+
+  // === 💎 SEMICONDUCTORS EXTENDED (30) ===
+  'NVDA', 'AMD', 'INTC', 'AVGO', 'QCOM', 'TXN', 'ADI', 'MU', 'LRCX', 'AMAT',
+  'KLAC', 'MRVL', 'ON', 'NXPI', 'SWKS', 'QRVO', 'MCHP', 'MPWR', 'SMCI', 'ARM',
+  'ASML', 'TSM', 'WOLF', 'CRUS', 'SITM', 'RMBS', 'LSCC', 'ACLS', 'UCTT', 'OLED',
+
+  // === 🛡️ DEFENSE & AEROSPACE (20) ===
+  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'TXT', 'HII', 'LHX', 'LDOS', 'KTOS',
+  'AVAV', 'RCAT', 'JOBY', 'ACHR', 'UAVS', 'PLTR', 'AXON', 'TDG', 'HWM', 'SPR',
+
+  // === 🌿 CANNABIS (10) ===
+  'TLRY', 'CGC', 'SNDL', 'ACB', 'CRON', 'GRWG', 'VFF', 'CURLF', 'GTBIF', 'TCNNF',
+
+  // === ⛏️ COMMODITIES & MATERIALS (30) ===
+  'MP', 'LAC', 'ALB', 'FCX', 'NEM', 'GOLD', 'AEM', 'KGC', 'BTG', 'HL',
+  'PAAS', 'FSM', 'AG', 'EXK', 'SLI', 'PLL', 'LTHM', 'SQM', 'CLF', 'X',
+  'NUE', 'STLD', 'AA', 'CENX', 'CMC', 'RS', 'ATI', 'HAYN', 'KALU', 'ZEUS',
+
+  // === 🎮 GAMING & ENTERTAINMENT (15) ===
+  'EA', 'TTWO', 'RBLX', 'U', 'DKNG', 'PENN', 'MGM', 'LVS', 'WYNN', 'CZR',
+  'RRR', 'BYD', 'GDEN', 'CHDN', 'BALY',
+
+  // === 📦 E-COMMERCE & LOGISTICS (15) ===
+  'AMZN', 'SHOP', 'ETSY', 'W', 'CHWY', 'WISH', 'RVLV', 'POSH', 'REAL', 'OSTK',
+  'BIGC', 'CPNG', 'MELI', 'SE', 'GRAB',
+
+  // === 🏦 REGIONAL BANKS & SPECIALTY FINANCE (20) ===
+  'SIVB', 'FRC', 'WAL', 'PACW', 'EWBC', 'SBNY', 'OZK', 'BOKF', 'FHN', 'SNV',
+  'GBCI', 'UMBF', 'PNFP', 'IBOC', 'TCBI', 'COLB', 'FFIN', 'STBA', 'FIBK', 'BANF',
+
+  // === 📡 TELECOM & 5G (10) ===
+  'VZ', 'T', 'TMUS', 'LUMN', 'FYBR', 'USM', 'TDS', 'SHEN', 'GOGO', 'IRDM',
+
+  // === 🧬 BIOTECH PENNY PLAYS (20) ===
+  'SRNE', 'ADVM', 'FATE', 'GRTS', 'TGTX', 'XNCR', 'RAPT', 'RCKT', 'MGNX', 'SELB',
+  'BCYC', 'CMPS', 'MNMD', 'ATAI', 'PRAX', 'SAGE', 'ALNY', 'IONS', 'ARWR', 'RARE',
+
+  // === 📺 STREAMING & MEDIA (15) ===
+  'NFLX', 'DIS', 'WBD', 'PARA', 'CMCSA', 'ROKU', 'FUBO', 'AMC', 'CNK', 'IMAX',
+  'LGF.A', 'MSGS', 'EDR', 'TKO', 'WWE',
+
+  // === 🏗️ CONSTRUCTION & HOUSING (15) ===
+  'DHI', 'LEN', 'PHM', 'NVR', 'TOL', 'KBH', 'TMHC', 'MHO', 'CCS', 'MTH',
+  'MDC', 'BLD', 'BLDR', 'FRHC', 'IBP',
+
+  // === 📊 ETFs - MAJOR (30) ===
+  'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'VT', 'SCHD', 'JEPI', 'JEPQ',
+  'ARKK', 'ARKG', 'ARKF', 'ARKW', 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY',
+  'XLP', 'XLU', 'XLB', 'XLRE', 'SMH', 'SOXX', 'IGV', 'FXI', 'EEM', 'TLT',
+
+  // === 📊 ETFs - LEVERAGED (15) ===
+  'TQQQ', 'SQQQ', 'UPRO', 'SPXU', 'TNA', 'TZA', 'SOXL', 'SOXS', 'LABU', 'LABD',
+  'NUGT', 'DUST', 'UVXY', 'SVXY', 'VXX'
 ];
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
