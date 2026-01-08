@@ -14592,6 +14592,42 @@ CONSTRAINTS:
       
       const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
       
+      // Update open OPTIONS positions with live prices from Tradier
+      const { getOptionQuote } = await import("./tradier-api");
+      for (const pos of positions.filter(p => p.status === 'open' && p.assetType === 'option')) {
+        try {
+          // Build OCC symbol from position data
+          const symbol = pos.symbol.toUpperCase();
+          const strike = parseFloat(pos.strikePrice?.toString() || '0');
+          const expiry = pos.expirationDate;
+          const optType = pos.optionType?.toLowerCase() === 'put' ? 'P' : 'C';
+          
+          if (symbol && strike > 0 && expiry) {
+            // Format: AAPL260116C00200000 (symbol + YYMMDD + C/P + 8-digit strike)
+            const expDate = new Date(expiry);
+            const yy = String(expDate.getFullYear()).slice(-2);
+            const mm = String(expDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(expDate.getDate()).padStart(2, '0');
+            const strikeStr = String(Math.round(strike * 1000)).padStart(8, '0');
+            const occSymbol = `${symbol}${yy}${mm}${dd}${optType}${strikeStr}`;
+            
+            const quote = await getOptionQuote({ occSymbol });
+            if (quote && quote.last > 0) {
+              const currentPrice = quote.last;
+              const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+              const quantity = parseFloat(pos.quantity?.toString() || '1');
+              const direction = pos.direction || 'long';
+              const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+              const unrealizedPnL = pointDiff * 100 * quantity; // Options = 100 multiplier
+              
+              await storage.updatePaperPosition(pos.id, { currentPrice, unrealizedPnL });
+              pos.currentPrice = currentPrice;
+              pos.unrealizedPnL = unrealizedPnL;
+            }
+          }
+        } catch (e) { /* continue on quote error */ }
+      }
+      
       // Calculate stats
       const openPositions = positions.filter(p => p.status === 'open');
       const closedPositions = positions.filter(p => p.status === 'closed');
@@ -14704,11 +14740,45 @@ CONSTRAINTS:
         };
       }
       
-      // Get Small Account portfolio stats if available
+      // Get Small Account portfolio stats if available (update option prices first)
       let smallAccountStats = null;
       let smallAccountPositions: any[] = [];
       if (smallAccountPortfolio) {
         smallAccountPositions = await storage.getPaperPositionsByPortfolio(smallAccountPortfolio.id);
+        
+        // Update open Small Account OPTIONS with live prices from Tradier
+        for (const pos of smallAccountPositions.filter(p => p.status === 'open' && p.assetType === 'option')) {
+          try {
+            const symbol = pos.symbol.toUpperCase();
+            const strike = parseFloat(pos.strikePrice?.toString() || '0');
+            const expiry = pos.expirationDate;
+            const optType = pos.optionType?.toLowerCase() === 'put' ? 'P' : 'C';
+            
+            if (symbol && strike > 0 && expiry) {
+              const expDate = new Date(expiry);
+              const yy = String(expDate.getFullYear()).slice(-2);
+              const mm = String(expDate.getMonth() + 1).padStart(2, '0');
+              const dd = String(expDate.getDate()).padStart(2, '0');
+              const strikeStr = String(Math.round(strike * 1000)).padStart(8, '0');
+              const occSymbol = `${symbol}${yy}${mm}${dd}${optType}${strikeStr}`;
+              
+              const quote = await getOptionQuote({ occSymbol });
+              if (quote && quote.last > 0) {
+                const currentPrice = quote.last;
+                const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+                const quantity = parseFloat(pos.quantity?.toString() || '1');
+                const direction = pos.direction || 'long';
+                const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+                const unrealizedPnL = pointDiff * 100 * quantity;
+                
+                await storage.updatePaperPosition(pos.id, { currentPrice, unrealizedPnL });
+                pos.currentPrice = currentPrice;
+                pos.unrealizedPnL = unrealizedPnL;
+              }
+            }
+          } catch (e) { /* continue on quote error */ }
+        }
+        
         const smallOpen = smallAccountPositions.filter(p => p.status === 'open');
         const smallClosed = smallAccountPositions.filter(p => p.status === 'closed');
         const smallWithOutcome = smallClosed.filter(p => (p.realizedPnL || 0) !== 0);
@@ -14798,14 +14868,16 @@ CONSTRAINTS:
   // Can be polled frequently (every 3s) to show live unrealized P&L as prices change
   app.get("/api/auto-lotto-bot/realtime-pnl", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio } = await import("./auto-lotto-trader");
+      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio, getSmallAccountPortfolio } = await import("./auto-lotto-trader");
       const { getCryptoPrice: getRealtimeCryptoPrice, getFuturesPrice: getRealtimeFuturesPrice } = await import("./realtime-price-service");
       const { fetchCryptoPrice } = await import("./market-api");
       const { getFuturesPrice: getFallbackFuturesPrice } = await import("./futures-data-service");
+      const { getOptionQuote } = await import("./tradier-api");
       
       const optionsPortfolio = await getOptionsPortfolio();
       const futuresPortfolio = await getFuturesPortfolio();
       const cryptoPortfolio = await getCryptoPortfolio();
+      const smallAccountPortfolio = await getSmallAccountPortfolio();
       
       const positions: Array<{
         id: number;
@@ -14821,7 +14893,32 @@ CONSTRAINTS:
       
       let totalUnrealizedPnL = 0;
       
-      // Get open options positions
+      // Helper to fetch live option price
+      async function getLiveOptionPrice(pos: any): Promise<number | null> {
+        try {
+          const symbol = pos.symbol.toUpperCase();
+          const strike = parseFloat(pos.strikePrice?.toString() || '0');
+          const expiry = pos.expirationDate;
+          const optType = pos.optionType?.toLowerCase() === 'put' ? 'P' : 'C';
+          
+          if (symbol && strike > 0 && expiry) {
+            const expDate = new Date(expiry);
+            const yy = String(expDate.getFullYear()).slice(-2);
+            const mm = String(expDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(expDate.getDate()).padStart(2, '0');
+            const strikeStr = String(Math.round(strike * 1000)).padStart(8, '0');
+            const occSymbol = `${symbol}${yy}${mm}${dd}${optType}${strikeStr}`;
+            
+            const quote = await getOptionQuote({ occSymbol });
+            if (quote && quote.last > 0) {
+              return quote.last;
+            }
+          }
+        } catch (e) { /* continue */ }
+        return null;
+      }
+      
+      // Get open options positions with LIVE prices
       if (optionsPortfolio) {
         const optionsPositions = await storage.getPaperPositionsByPortfolio(optionsPortfolio.id);
         for (const pos of optionsPositions.filter(p => p.status === 'open')) {
@@ -14829,8 +14926,18 @@ CONSTRAINTS:
           const quantity = parseFloat(pos.quantity?.toString() || '1');
           const multiplier = pos.assetType === 'option' ? 100 : 1;
           const direction = pos.direction || 'long';
-          const currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
-          // For long positions, profit when price goes up; for short positions, profit when price goes down
+          
+          // Fetch live option price from Tradier
+          let currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
+          if (pos.assetType === 'option') {
+            const livePrice = await getLiveOptionPrice(pos);
+            if (livePrice !== null) {
+              currentPrice = livePrice;
+              // Update stored price for faster subsequent fetches
+              await storage.updatePaperPosition(pos.id, { currentPrice });
+            }
+          }
+          
           const priceDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
           const unrealizedPnL = priceDiff * quantity * multiplier;
           
@@ -14844,6 +14951,43 @@ CONSTRAINTS:
             currentPrice: Number(currentPrice),
             unrealizedPnL,
             portfolioType: 'options'
+          });
+          totalUnrealizedPnL += unrealizedPnL;
+        }
+      }
+      
+      // Get open SMALL ACCOUNT positions with LIVE prices
+      if (smallAccountPortfolio) {
+        const smallPositions = await storage.getPaperPositionsByPortfolio(smallAccountPortfolio.id);
+        for (const pos of smallPositions.filter(p => p.status === 'open')) {
+          const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+          const quantity = parseFloat(pos.quantity?.toString() || '1');
+          const multiplier = pos.assetType === 'option' ? 100 : 1;
+          const direction = pos.direction || 'long';
+          
+          // Fetch live option price from Tradier
+          let currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
+          if (pos.assetType === 'option') {
+            const livePrice = await getLiveOptionPrice(pos);
+            if (livePrice !== null) {
+              currentPrice = livePrice;
+              await storage.updatePaperPosition(pos.id, { currentPrice });
+            }
+          }
+          
+          const priceDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+          const unrealizedPnL = priceDiff * quantity * multiplier;
+          
+          positions.push({
+            id: pos.id,
+            symbol: pos.symbol,
+            assetType: pos.assetType || 'option',
+            direction,
+            quantity,
+            entryPrice: Number(entryPrice),
+            currentPrice: Number(currentPrice),
+            unrealizedPnL,
+            portfolioType: 'small_account'
           });
           totalUnrealizedPnL += unrealizedPnL;
         }
