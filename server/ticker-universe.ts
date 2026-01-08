@@ -152,6 +152,20 @@ export const ECOMMERCE_LOGISTICS = [
   'BIGC', 'CPNG', 'MELI', 'SE', 'GRAB'
 ];
 
+// === 🔥 HIGH-MOMENTUM MID-CAPS (20) ===
+// Volatile names that frequently have big moves - MUST track these
+export const HIGH_MOMENTUM_MIDCAPS = [
+  'CVNA', 'UPST', 'DASH', 'UBER', 'LYFT', 'ABNB', 'RBLX', 'SNAP', 'PINS', 'PTON',
+  'Z', 'ZG', 'OPEN', 'CLOV', 'FUBO', 'SOFI', 'AFRM', 'GME', 'AMC', 'BBBY'
+];
+
+// === 🇨🇳 CHINA ADRs (15) ===
+// Track due to volume surges and cross-market momentum
+export const CHINA_ADRS = [
+  'BABA', 'BIDU', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'BILI', 'TAL', 'EDU',
+  'FUTU', 'TIGR', 'YMM', 'DIDI', 'TME'
+];
+
 // === 🏦 REGIONAL BANKS (20) ===
 export const REGIONAL_BANKS = [
   'WAL', 'PACW', 'EWBC', 'OZK', 'BOKF', 'FHN', 'SNV',
@@ -193,7 +207,7 @@ export const LEVERAGED_ETFS = [
   'NUGT', 'DUST', 'UVXY', 'SVXY', 'VXX'
 ];
 
-// === FULL UNIVERSE (500+ unique tickers) ===
+// === FULL UNIVERSE (550+ unique tickers) ===
 export function getFullUniverse(): string[] {
   const allTickers = new Set([
     ...MEGA_CAP_TECH,
@@ -218,6 +232,8 @@ export function getFullUniverse(): string[] {
     ...COMMODITIES_MATERIALS,
     ...GAMING_ENTERTAINMENT,
     ...ECOMMERCE_LOGISTICS,
+    ...HIGH_MOMENTUM_MIDCAPS,  // Added: CVNA, DASH, UBER, LYFT, etc.
+    ...CHINA_ADRS,             // Added: BABA, BIDU, JD, PDD, NIO, etc.
     ...REGIONAL_BANKS,
     ...TELECOM_5G,
     ...BIOTECH_PENNY,
@@ -253,6 +269,8 @@ export function getSectorTickers(sector: string): string[] {
     'commodities': COMMODITIES_MATERIALS,
     'gaming': GAMING_ENTERTAINMENT,
     'ecommerce': ECOMMERCE_LOGISTICS,
+    'momentum': HIGH_MOMENTUM_MIDCAPS,  // CVNA, DASH, UBER, etc.
+    'china': CHINA_ADRS,                 // BABA, BIDU, JD, etc.
     'banks': REGIONAL_BANKS,
     'telecom': TELECOM_5G,
     'biotech': BIOTECH_PENNY,
@@ -337,6 +355,8 @@ export function getUniverseStats(): { total: number; sectors: Record<string, num
       'Commodities & Materials': COMMODITIES_MATERIALS.length,
       'Gaming & Entertainment': GAMING_ENTERTAINMENT.length,
       'E-Commerce & Logistics': ECOMMERCE_LOGISTICS.length,
+      'High-Momentum Mid-Caps': HIGH_MOMENTUM_MIDCAPS.length,  // CVNA, DASH, UBER, etc.
+      'China ADRs': CHINA_ADRS.length,                          // BABA, BIDU, JD, etc.
       'Regional Banks': REGIONAL_BANKS.length,
       'Telecom & 5G': TELECOM_5G.length,
       'Biotech Penny': BIOTECH_PENNY.length,
