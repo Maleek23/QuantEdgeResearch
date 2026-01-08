@@ -220,7 +220,8 @@ export async function getPremiumTrend(watchlistId: string): Promise<{
   change7d: number | null;
   change30d: number | null;
   isOpportunity: boolean;
-  history: Array<{ date: string; premium: number }>;
+  avg30d: number | null;
+  history: Array<{ date: string; premium: number; avgPremium30d?: number | null }>;
 }> {
   const history = await storage.getPremiumHistory(watchlistId, 90);
   
@@ -232,6 +233,7 @@ export async function getPremiumTrend(watchlistId: string): Promise<{
       change7d: null,
       change30d: null,
       isOpportunity: false,
+      avg30d: null,
       history: []
     };
   }
