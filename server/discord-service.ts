@@ -516,11 +516,15 @@ export async function sendReportNotificationToDiscord(report: any): Promise<void
 export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
 // Track recently sent quant ideas to prevent spam - key is "symbol:strike:optionType:expiry"
 const recentQuantIdeas = new Map<string, number>();
-const QUANT_IDEA_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours cooldown per unique idea (increased from 30 min)
+const QUANT_IDEA_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours cooldown per unique idea
 
-// Global QUANTFLOOR cooldown to prevent burst spam
+// Global QUANTFLOOR cooldown to prevent burst spam  
 let lastQuantFloorBatchTime = 0;
-const QUANTFLOOR_BATCH_COOLDOWN_MS = 30 * 60 * 1000; // 30 min between batch summaries
+const QUANTFLOOR_BATCH_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 HOURS between batch summaries
+
+// Daily symbol cache for quant ideas - never send same symbol twice in a day
+const dailyQuantSymbols = new Set<string>();
+let lastQuantDailyReset = 0;
 
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
@@ -529,7 +533,15 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
   try {
     const now = Date.now();
     
-    // Global cooldown - prevent batch spam
+    // Reset daily cache at 4 AM CT each day
+    const todayReset = new Date().setHours(4, 0, 0, 0);
+    if (todayReset > lastQuantDailyReset) {
+      dailyQuantSymbols.clear();
+      lastQuantDailyReset = todayReset;
+      logger.debug(`[DISCORD] Daily quant symbol cache reset`);
+    }
+    
+    // Global cooldown - prevent batch spam (2 hours)
     if (now - lastQuantFloorBatchTime < QUANTFLOOR_BATCH_COOLDOWN_MS) {
       logger.debug(`[DISCORD] Batch summary skipped - global cooldown (${Math.round((QUANTFLOOR_BATCH_COOLDOWN_MS - (now - lastQuantFloorBatchTime)) / 60000)}min remaining)`);
       return;
@@ -542,21 +554,27 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       }
     }
     
-    // Filter for quality: B+ grade minimum, confidence >= 85
+    // Filter for quality: A/A+ grade only (stricter), confidence >= 90
     const qualityIdeas = ideas.filter((i: any) => {
       const grade = i.grade || '';
       const confidence = i.confidence || 0;
-      return VALID_DISCORD_GRADES.includes(grade) && confidence >= MIN_CONFIDENCE_REQUIRED;
+      // Only A/A+ grades with 90%+ confidence
+      return ['A+', 'A'].includes(grade) && confidence >= 90;
     });
     
     // Don't send if no quality ideas
     if (qualityIdeas.length === 0) {
-      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - no B+ grade ideas`);
+      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - no A/A+ grade ideas`);
       return;
     }
     
-    // Filter out ideas that were sent recently (deduplication)
+    // Filter out ideas that were sent recently OR whose symbol was already sent today
     const newIdeas = qualityIdeas.filter((i: any) => {
+      // Skip if this symbol was already alerted today
+      if (dailyQuantSymbols.has(i.symbol)) {
+        return false;
+      }
+      
       const rawExpiry = i.expiryDate || i.expirationDate || '';
       const expiry = String(rawExpiry).split('T')[0];
       const key = `${i.symbol}:${i.strikePrice || ''}:${i.optionType || ''}:${expiry}`;
@@ -567,17 +585,19 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       
       // Mark as sent
       recentQuantIdeas.set(key, now);
+      dailyQuantSymbols.add(i.symbol); // Never send same symbol again today
       return true;
     });
     
     // Don't send if all ideas were duplicates
     if (newIdeas.length === 0) {
-      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - all ${qualityIdeas.length} quality ideas were duplicates`);
+      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - all ideas were duplicates or already sent today`);
       return;
     }
     
     // Update global cooldown
     lastQuantFloorBatchTime = now;
+    logger.info(`[DISCORD] Batch: Sending ${newIdeas.length} new ideas (daily cache: ${dailyQuantSymbols.size} symbols)`);
     
     // Limit to top 3 ideas to reduce spam
     const summary = newIdeas.slice(0, 3).map((i: any) => {
@@ -700,11 +720,15 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
 
 // Track recently alerted symbols to prevent duplicates - store timestamp AND last % change
 const recentAlertedSymbols = new Map<string, { timestamp: number; changePercent: number }>();
-const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes cooldown per symbol
-const GLOBAL_ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between ANY Market Movers alerts
-const MIN_CHANGE_DIFF_PCT = 10; // Only re-alert if % change differs by at least 10 points
-const MIN_NEW_MOVERS = 2; // Need at least 2 new symbols to trigger alert
+const ALERT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 HOURS cooldown per symbol (was 60 min)
+const GLOBAL_ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 HOURS between Market Movers alerts (was 30 min)
+const MIN_CHANGE_DIFF_PCT = 25; // Only re-alert if % change differs by 25+ points (was 10)
+const MIN_NEW_MOVERS = 3; // Need at least 3 NEW symbols to warrant alert (was 2)
 let lastMarketMoversAlertTime = 0;
+
+// Daily symbol cache - never alert same symbol twice in a trading day
+const dailyAlertedSymbols = new Set<string>();
+let lastDailyReset = 0;
 
 export async function sendMarketMoversAlertToDiscord(movers: {
   symbol: string;
@@ -723,7 +747,15 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   try {
     const now = Date.now();
     
-    // Global cooldown - don't spam Market Movers alerts
+    // Reset daily cache at 4 AM CT each day
+    const todayReset = new Date().setHours(4, 0, 0, 0);
+    if (todayReset > lastDailyReset) {
+      dailyAlertedSymbols.clear();
+      lastDailyReset = todayReset;
+      logger.debug(`[DISCORD] Daily symbol cache reset`);
+    }
+    
+    // Global cooldown - don't spam Market Movers alerts (2 hours)
     if (now - lastMarketMoversAlertTime < GLOBAL_ALERT_COOLDOWN_MS) {
       logger.debug(`[DISCORD] Market Movers alert skipped - global cooldown (${Math.round((GLOBAL_ALERT_COOLDOWN_MS - (now - lastMarketMoversAlertTime)) / 60000)}min remaining)`);
       return;
@@ -736,20 +768,21 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       }
     }
     
-    // Filter to only >5% moves AND are B+ or higher grade
-    // Also check if the move has changed significantly since last alert
-    const VALID_GRADES = ['A+', 'A', 'B+'];
+    // Filter to only >10% moves AND are A/A+ grade AND not alerted today
     const filteredMovers = movers.filter(m => {
       const absChange = Math.abs(m.changePercent);
-      if (absChange < 5) return false;
+      // Require at least 10% move (was 5%)
+      if (absChange < 10) return false;
       
-      // Only send B+ and above ratings to Discord
-      if (m.grade && !VALID_GRADES.includes(m.grade)) return false;
+      // Only send A/A+ ratings to Discord (stricter than B+)
+      if (!m.grade || !['A+', 'A'].includes(m.grade)) return false;
       
-      // Check if already alerted recently
+      // Skip if already alerted this symbol TODAY
+      if (dailyAlertedSymbols.has(m.symbol)) return false;
+      
+      // Check if already alerted recently with similar % change
       const prevAlert = recentAlertedSymbols.get(m.symbol);
       if (prevAlert) {
-        // Only re-alert if % change has moved significantly (±10 points)
         const changeDiff = Math.abs(m.changePercent - prevAlert.changePercent);
         if (changeDiff < MIN_CHANGE_DIFF_PCT) {
           return false; // Skip - not enough change since last alert
@@ -765,9 +798,13 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       return;
     }
     
-    // Mark these symbols as alerted with their current % change
-    filteredMovers.forEach(m => recentAlertedSymbols.set(m.symbol, { timestamp: now, changePercent: m.changePercent }));
+    // Mark these symbols as alerted with their current % change + add to daily cache
+    filteredMovers.forEach(m => {
+      recentAlertedSymbols.set(m.symbol, { timestamp: now, changePercent: m.changePercent });
+      dailyAlertedSymbols.add(m.symbol); // Never alert same symbol again today
+    });
     lastMarketMoversAlertTime = now;
+    logger.info(`[DISCORD] Market Movers: Alerting ${filteredMovers.length} new movers (daily cache: ${dailyAlertedSymbols.size} symbols)`);
     
     const surges = filteredMovers.filter(m => m.alertType === 'surge');
     const drops = filteredMovers.filter(m => m.alertType === 'drop');
