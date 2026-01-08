@@ -56,6 +56,24 @@ const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
 const alertedSignals = new Map<string, number>();
 const ALERT_COOLDOWN = 30 * 60 * 1000; // 30 minutes
 
+// Volume snapshot cache for incremental volume tracking
+// Key: symbol, Value: { volume at 3:30 PM, timestamp }
+const volumeSnapshotCache = new Map<string, {
+  volume: number;
+  timestamp: number;
+}>();
+
+// Options volume snapshot for power-hour delta tracking
+// Key: symbol, Value: { total options volume at 3:00 PM, sweepPremium, timestamp }
+const optionsVolumeSnapshotCache = new Map<string, {
+  callVolume: number;
+  putVolume: number;
+  topSweepPremium: number;
+  timestamp: number;
+}>();
+
+const SNAPSHOT_VALIDITY = 90 * 60 * 1000; // 90 minutes - reset for next trading day
+
 function getSignalKey(signal: PreMoveSignal): string {
   return `${signal.symbol}:${signal.signalType}:${signal.direction}`;
 }
@@ -95,13 +113,58 @@ function isInFinal30Minutes(): boolean {
   return hours === 15 && minutes >= 30;
 }
 
-// Detect late-day options sweeps
+// Take options volume snapshot at start of power hour (3:00 PM) for delta tracking
+export async function snapshotOptionsVolumeIfNeeded(ticker: string): Promise<void> {
+  const now = Date.now();
+  const cached = optionsVolumeSnapshotCache.get(ticker);
+  
+  if (cached && now - cached.timestamp < SNAPSHOT_VALIDITY) return;
+  
+  const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hours = etNow.getHours();
+  const minutes = etNow.getMinutes();
+  
+  // Snapshot window: 2:55 PM - 3:05 PM ET (start of power hour)
+  if (hours === 14 && minutes >= 55 || hours === 15 && minutes <= 5) {
+    try {
+      const options = await getTradierOptionsChainsByDTE(ticker);
+      if (!options || options.length === 0) return;
+      
+      let totalCallVol = 0;
+      let totalPutVol = 0;
+      let topPremium = 0;
+      
+      for (const opt of options) {
+        if (!opt.volume) continue;
+        const premium = opt.volume * (opt.last || opt.bid || 0) * 100;
+        if (opt.option_type === 'call') totalCallVol += opt.volume;
+        else totalPutVol += opt.volume;
+        if (premium > topPremium) topPremium = premium;
+      }
+      
+      optionsVolumeSnapshotCache.set(ticker, {
+        callVolume: totalCallVol,
+        putVolume: totalPutVol,
+        topSweepPremium: topPremium,
+        timestamp: now
+      });
+      logger.debug(`[PRE-MOVE] Options snapshot for ${ticker}: ${totalCallVol} calls, ${totalPutVol} puts`);
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+}
+
+// Detect late-day options sweeps with delta tracking
 export async function detectLateDaySweeps(ticker: string): Promise<PreMoveSignal | null> {
   if (!isInPowerHour()) return null;
   
   try {
     const options = await getTradierOptionsChainsByDTE(ticker);
     if (!options || options.length === 0) return null;
+    
+    const now = Date.now();
+    const snapshot = optionsVolumeSnapshotCache.get(ticker);
     
     // Look for large volume on short-dated options
     let totalCallVolume = 0;
@@ -126,24 +189,45 @@ export async function detectLateDaySweeps(ticker: string): Promise<PreMoveSignal
       }
     }
     
-    // Significant sweep: > $500k premium on a single strike
-    if (largestSweep.premium < 500000) return null;
+    // Calculate delta if we have a snapshot
+    let incrementalPremium = largestSweep.premium;
+    let hasIncrementalData = false;
+    let powerHourCallDelta = 0;
+    let powerHourPutDelta = 0;
+    
+    if (snapshot && now - snapshot.timestamp < SNAPSHOT_VALIDITY) {
+      powerHourCallDelta = totalCallVolume - snapshot.callVolume;
+      powerHourPutDelta = totalPutVolume - snapshot.putVolume;
+      
+      // Only count premium accumulated during power hour
+      if (snapshot.topSweepPremium > 0) {
+        incrementalPremium = Math.max(0, largestSweep.premium - snapshot.topSweepPremium);
+      }
+      hasIncrementalData = true;
+    }
+    
+    // Significant sweep: > $500k premium (or incremental premium during power hour)
+    if (incrementalPremium < 500000) return null;
     
     const direction = largestSweep.type === 'call' ? 'bullish' : 'bearish';
-    const confidence = Math.min(95, 70 + Math.floor(largestSweep.premium / 200000));
+    const confidence = Math.min(95, 70 + Math.floor(incrementalPremium / 200000));
     
     const quote = await getTradierQuote(ticker);
+    
+    const deltaInfo = hasIncrementalData 
+      ? ` (Power hour: +${powerHourCallDelta.toLocaleString()} calls, +${powerHourPutDelta.toLocaleString()} puts)`
+      : '';
     
     return {
       symbol: ticker,
       signalType: 'late_day_sweep',
       confidence,
       direction,
-      details: `🔥 POWER HOUR SWEEP: ${ticker} $${largestSweep.strike} ${largestSweep.type.toUpperCase()} - ${largestSweep.volume.toLocaleString()} contracts, $${(largestSweep.premium / 1000000).toFixed(2)}M premium`,
+      details: `🔥 POWER HOUR SWEEP: ${ticker} $${largestSweep.strike} ${largestSweep.type.toUpperCase()} - ${largestSweep.volume.toLocaleString()} contracts, $${(incrementalPremium / 1000000).toFixed(2)}M premium${deltaInfo}`,
       timestamp: new Date(),
       metrics: {
         currentPrice: quote?.last || 0,
-        optionPremium: largestSweep.premium
+        optionPremium: incrementalPremium
       }
     };
   } catch (e) {
@@ -152,7 +236,37 @@ export async function detectLateDaySweeps(ticker: string): Promise<PreMoveSignal
   }
 }
 
-// Detect volume spikes in final 30 minutes
+// Take volume snapshot at 3:30 PM for later comparison
+export async function snapshotVolumeIfNeeded(ticker: string): Promise<void> {
+  const now = Date.now();
+  const cached = volumeSnapshotCache.get(ticker);
+  
+  // Only take snapshot once per day (check if current snapshot is still valid)
+  if (cached && now - cached.timestamp < SNAPSHOT_VALIDITY) return;
+  
+  // Take snapshot around 3:30 PM ET (start of final 30 min window)
+  const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hours = etNow.getHours();
+  const minutes = etNow.getMinutes();
+  
+  // Snapshot window: 3:25 PM - 3:35 PM ET
+  if (hours === 15 && minutes >= 25 && minutes <= 35) {
+    try {
+      const quote = await getTradierQuote(ticker);
+      if (quote?.volume) {
+        volumeSnapshotCache.set(ticker, {
+          volume: quote.volume,
+          timestamp: now
+        });
+        logger.debug(`[PRE-MOVE] Volume snapshot for ${ticker}: ${quote.volume.toLocaleString()} shares`);
+      }
+    } catch (e) {
+      // Ignore errors for snapshots
+    }
+  }
+}
+
+// Detect volume spikes in final 30 minutes using incremental volume tracking
 export async function detectVolumeSpike(ticker: string): Promise<PreMoveSignal | null> {
   if (!isInFinal30Minutes()) return null;
   
@@ -160,27 +274,47 @@ export async function detectVolumeSpike(ticker: string): Promise<PreMoveSignal |
     const quote = await getTradierQuote(ticker);
     if (!quote || !quote.volume || !quote.average_volume) return null;
     
-    const volumeRatio = quote.volume / quote.average_volume;
+    const now = Date.now();
+    const snapshot = volumeSnapshotCache.get(ticker);
     
-    // Need at least 2x average volume
-    if (volumeRatio < 2) return null;
+    // Calculate incremental volume in final 30 minutes
+    let incrementalVolume = 0;
+    let incrementalRatio = 0;
+    let hasIncrementalData = false;
+    
+    if (snapshot && now - snapshot.timestamp < SNAPSHOT_VALIDITY && snapshot.timestamp < now) {
+      incrementalVolume = quote.volume - snapshot.volume;
+      
+      // Expected volume in 30 min is roughly 1/13 of daily average (6.5 hour trading day)
+      const expected30MinVolume = quote.average_volume / 13;
+      incrementalRatio = incrementalVolume / expected30MinVolume;
+      hasIncrementalData = true;
+      
+      // Need at least 2x expected volume for this 30-min window
+      if (incrementalRatio < 2) return null;
+    } else {
+      // Fallback to full-day comparison if no snapshot available
+      const volumeRatio = quote.volume / quote.average_volume;
+      if (volumeRatio < 2.5) return null; // Higher threshold for fallback
+      incrementalRatio = volumeRatio;
+    }
     
     // Price direction determines bullish/bearish
     const priceChange = quote.change_percentage || 0;
     const direction = priceChange > 0.5 ? 'bullish' : priceChange < -0.5 ? 'bearish' : 'neutral';
     
-    const confidence = Math.min(90, 60 + Math.floor(volumeRatio * 5));
+    const confidence = Math.min(90, 60 + Math.floor(incrementalRatio * 5));
     
     return {
       symbol: ticker,
       signalType: 'volume_spike',
       confidence,
       direction,
-      details: `📊 VOLUME SPIKE: ${ticker} trading at ${volumeRatio.toFixed(1)}x average volume in final 30 min. Price ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}%`,
+      details: `📊 ${hasIncrementalData ? 'LATE-DAY' : 'ELEVATED'} VOLUME: ${ticker} trading at ${incrementalRatio.toFixed(1)}x ${hasIncrementalData ? 'expected final 30-min' : 'average'} volume${hasIncrementalData ? ` (+${incrementalVolume.toLocaleString()} shares since 3:30)` : ''}. Price ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)}%`,
       timestamp: new Date(),
       metrics: {
         currentPrice: quote.last,
-        volumeRatio
+        volumeRatio: incrementalRatio
       }
     };
   } catch (e) {
@@ -308,6 +442,12 @@ export async function scanForPreMoveSignals(tickers: string[] = HIGH_PROFILE_TIC
     
     const batchPromises = batch.map(async (ticker) => {
       const tickerSignals: PreMoveSignal[] = [];
+      
+      // Take snapshots for incremental tracking (these are no-ops if already cached)
+      await Promise.all([
+        snapshotOptionsVolumeIfNeeded(ticker),
+        snapshotVolumeIfNeeded(ticker)
+      ]);
       
       // Run all detection algorithms in parallel
       const [sweep, volume, iv, contract] = await Promise.all([
