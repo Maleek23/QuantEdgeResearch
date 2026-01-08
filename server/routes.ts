@@ -2161,7 +2161,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Resend invite email
+  // Send/Resend invite email (both /send and /resend work)
+  app.post("/api/admin/invites/:id/send", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const invites = await storage.getAllBetaInvites();
+      const invite = invites.find(i => i.id === id);
+
+      if (!invite) {
+        return res.status(404).json({ error: "Invite not found" });
+      }
+
+      if (invite.status === 'redeemed') {
+        return res.status(400).json({ error: "Invite already redeemed" });
+      }
+
+      if (invite.status === 'revoked') {
+        return res.status(400).json({ error: "Invite was revoked" });
+      }
+
+      const emailResult = await sendBetaInviteEmail(invite.email, invite.token, {
+        tierOverride: invite.tierOverride || undefined,
+      });
+
+      if (emailResult.success) {
+        await storage.markBetaInviteSent(invite.id);
+        logger.info('Beta invite sent', { email: invite.email, inviteId: invite.id });
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: emailResult.error || "Failed to send email" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send invite" });
+    }
+  });
+
+  // Resend invite email (alias for /send)
   app.post("/api/admin/invites/:id/resend", requireAdminJWT, async (req, res) => {
     try {
       const { id } = req.params;
