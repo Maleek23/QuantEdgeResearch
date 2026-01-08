@@ -85,6 +85,10 @@ const GROWTH_STOCKS = [
   'SNOW', 'DDOG', 'MDB', 'CFLT', 'ESTC', 'NEWR', 'SPLK', 'SUMO', 'DT', 'GTLB',
   'APP', 'SOUN', 'IONQ', 'RKLB', 'SMR', 'OKLO', 'NNE', 'LEU', 'CCJ', 'UEC',
   'COIN', 'MARA', 'RIOT', 'HUT', 'CLSK', 'BITF', 'CORZ', 'IREN', 'BTBT', 'ARBK',
+  // High-Momentum Mid-Caps (big movers)
+  'CVNA', 'UPST', 'W', 'DASH', 'ABNB', 'UBER', 'LYFT', 'RBLX', 'U', 'SNAP',
+  // China ADRs
+  'BABA', 'BIDU', 'JD', 'PDD', 'LI', 'XPEV', 'NIO',
 ];
 
 const ETF_UNIVERSE = [

@@ -50,6 +50,7 @@ import {
   CheckCircle,
   FileText,
   AlertTriangle,
+  AlertCircle,
   Newspaper,
   Calendar as CalendarIcon,
   RefreshCw,

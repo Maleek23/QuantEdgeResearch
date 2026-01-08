@@ -42,7 +42,7 @@ interface ScannerStatus {
   };
 }
 
-// Expanded watchlist for options flow scanning (50+ high-volume optionable stocks)
+// Expanded watchlist for options flow scanning (80+ high-volume optionable stocks)
 const DEFAULT_OPTIONS_WATCHLIST = [
   // Major Indices & ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
@@ -61,7 +61,15 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   // Healthcare
   'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE',
   // Other High Volume
-  'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST'
+  'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST',
+  // High-Momentum Mid-Caps (frequently have big moves)
+  'CVNA', 'UPST', 'W', 'DASH', 'ABNB', 'UBER', 'LYFT', 'RBLX', 'U', 'SNAP',
+  // China ADRs (volume surge Jan 2026)
+  'BABA', 'BIDU', 'JD', 'PDD', 'LI', 'XPEV',
+  // Meme & Retail Favorites
+  'GME', 'AMC', 'BBBY', 'FUBO', 'OPEN', 'CLOV',
+  // Biotech High-Vol
+  'MRNA', 'BNTX', 'NVAX', 'SGEN', 'REGN'
 ];
 
 let scannerStatus: ScannerStatus = {
