@@ -4486,7 +4486,8 @@ export async function runFuturesBotScan(): Promise<void> {
                 signals: bestFuturesOpp.signals,
                 confidence: bestFuturesOpp.confidence,
                 riskRewardRatio: 2.0,
-                source: 'futures', // Route to #future-trade-id channel
+                source: 'futures',
+                portfolio: 'futures', // Display "Futures Portfolio" label, route to #future-trades
               });
               logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent to #future-trade-id`);
             } catch (discordError) {

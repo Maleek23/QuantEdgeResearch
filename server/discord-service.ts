@@ -95,7 +95,12 @@ export async function sendBotTradeEntryToDiscord(trade: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
-  const portfolioId = trade.portfolio || (trade.isSmallAccount ? 'small_account' : 'options');
+  // Auto-detect portfolio from assetType/source if not explicitly set
+  let portfolioId = trade.portfolio || (trade.isSmallAccount ? 'small_account' : 'options');
+  // Override to 'futures' if assetType or source indicates futures trade
+  if (trade.assetType === 'future' || trade.source === 'futures') {
+    portfolioId = 'futures';
+  }
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
   const isSmallAccount = trade.isSmallAccount || portfolioId === 'small_account';
   // Lotto branding only for actual lotto plays, NOT for small account portfolio
