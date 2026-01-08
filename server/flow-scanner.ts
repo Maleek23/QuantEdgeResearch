@@ -14,6 +14,7 @@ import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennySto
 import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES } from './discord-service';
 import { getFullUniverse } from './ticker-universe';
+import { validateFlowData, FlowValidationResult } from './flow-validation';
 
 // 🛡️ QUALITY GATE: Only send B+ and higher to Discord (user requested)
 // B+ = 85+, A- = 88+, A = 90+, A+ = 95+
@@ -280,6 +281,26 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       }
 
       if (isUnusual) {
+        // 🛡️ VALIDATION: Check if premium is rational vs underlying price
+        const validation = await validateFlowData({
+          symbol: ticker,
+          optionType: option.option_type as 'call' | 'put',
+          strike: option.strike,
+          premium: midPrice,
+          expiration: option.expiration_date,
+          impliedVol
+        });
+        
+        if (!validation.isValid) {
+          logger.warn(`🚫 [FLOW-VALIDATE] REJECTED ${ticker} ${option.option_type.toUpperCase()} $${option.strike} @ $${midPrice.toFixed(2)}: ${validation.reason}`);
+          continue; // Skip this option - it has stale/invalid data
+        }
+        
+        if (validation.status === 'flagged') {
+          reasons.push('⚠️ FLAGGED');
+          logger.info(`⚠️ [FLOW-VALIDATE] FLAGGED ${ticker} ${option.option_type.toUpperCase()} $${option.strike}: ${validation.reason}`);
+        }
+        
         unusualOptions.push({
           isWhaleFlow,
           isMegaWhale,
@@ -298,7 +319,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
           } : undefined
         });
 
-        logger.info(`📊 [FLOW] UNUSUAL: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} @ $${midPrice.toFixed(2)} - ${reasons.join(', ')}`);
+        logger.info(`📊 [FLOW] UNUSUAL: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} @ $${midPrice.toFixed(2)} - ${reasons.join(', ')} (Stock: $${validation.underlyingPrice?.toFixed(2) || 'N/A'})`);
       }
     }
 
