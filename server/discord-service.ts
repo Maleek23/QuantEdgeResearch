@@ -525,11 +525,14 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       }
     }
     
-    // Filter to only >5% moves that haven't been alerted recently
+    // Filter to only >5% moves that haven't been alerted recently AND are B+ or higher grade
+    const VALID_GRADES = ['A+', 'A', 'B+'];
     const filteredMovers = movers.filter(m => {
       const absChange = Math.abs(m.changePercent);
       if (absChange < 5) return false;
       if (recentAlertedSymbols.has(m.symbol)) return false;
+      // Only send B+ and above ratings to Discord
+      if (m.grade && !VALID_GRADES.includes(m.grade)) return false;
       return true;
     });
     
