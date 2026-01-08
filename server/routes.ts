@@ -13060,6 +13060,35 @@ CONSTRAINTS:
       
       logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
       
+      // Validate timeframe consistency - warn if AI detected different timeframe than user selected
+      let timeframeWarning: string | null = null;
+      const detectedTimeframe = analysis.timeframe?.toLowerCase() || '';
+      const userTimeframe = (timeframe || '').toLowerCase();
+      
+      if (userTimeframe && detectedTimeframe && !detectedTimeframe.includes('unknown')) {
+        // Map common variations to standard format for comparison
+        const normalizeTimeframe = (tf: string) => {
+          const tfLower = tf.toLowerCase().replace(/\s+/g, '');
+          if (tfLower.includes('1d') || tfLower.includes('daily') || tfLower.includes('day') || tfLower === '1d') return 'daily';
+          if (tfLower.includes('1w') || tfLower.includes('weekly') || tfLower.includes('week')) return 'weekly';
+          if (tfLower.includes('1m') && tfLower !== '1m' || tfLower.includes('monthly') || tfLower.includes('month')) return 'monthly';
+          if (tfLower.includes('4h') || tfLower.includes('4hour')) return '4hour';
+          if (tfLower.includes('1h') || tfLower.includes('1hour')) return '1hour';
+          if (tfLower.includes('15m') || tfLower.includes('15min')) return '15min';
+          if (tfLower.includes('5m') || tfLower.includes('5min')) return '5min';
+          if (tfLower.includes('1m') || tfLower.includes('1min')) return '1min';
+          return tfLower;
+        };
+        
+        const normalizedUser = normalizeTimeframe(userTimeframe);
+        const normalizedDetected = normalizeTimeframe(detectedTimeframe);
+        
+        if (normalizedUser !== normalizedDetected) {
+          timeframeWarning = `You selected "${timeframe}" but the chart appears to be "${analysis.timeframe}". Entry/target/stop levels are based on the detected timeframe. Please verify the chart timeframe matches your trading horizon.`;
+          logger.warn(`📊 Timeframe mismatch: user selected "${timeframe}", AI detected "${analysis.timeframe}"`);
+        }
+      }
+      
       // Validate AI analysis against current market price (already fetched above)
       let priceDiscrepancyWarning: string | null = null;
       let adjustedEntry: number | null = null;
@@ -13089,6 +13118,7 @@ CONSTRAINTS:
         ...analysis,
         currentPrice,
         priceDiscrepancyWarning,
+        timeframeWarning,
         adjustedLevels: adjustedEntry ? {
           entry: adjustedEntry,
           target: adjustedTarget,
@@ -13505,6 +13535,107 @@ CONSTRAINTS:
     } catch (error: any) {
       logger.error("Failed to send test watchlist alerts:", error);
       res.status(500).json({ error: error?.message || "Failed to send test alerts" });
+    }
+  });
+
+  // Send chart analysis to Trade Desk as actionable trade idea
+  app.post("/api/chart-analysis/send-to-trade-desk", async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1),
+        timeframe: z.string(),
+        sentiment: z.enum(["bullish", "bearish", "neutral"]),
+        confidence: z.number(),
+        entryPoint: z.number(),
+        targetPrice: z.number(),
+        stopLoss: z.number(),
+        riskRewardRatio: z.number(),
+        patterns: z.array(z.string()),
+        analysis: z.string(),
+        assetType: z.string().optional(),
+        optionType: z.string().optional(),
+        strikePrice: z.number().optional(),
+        expiryDate: z.string().optional(),
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid analysis data", details: parseResult.error.errors });
+      }
+      
+      const data = parseResult.data;
+      
+      // Create trade idea from chart analysis
+      const direction = data.sentiment === 'bullish' ? 'long' : data.sentiment === 'bearish' ? 'short' : 'long';
+      const holdingPeriod = data.timeframe.includes('1D') || data.timeframe.includes('1W') ? 'swing' : 'day';
+      
+      const tradeIdea = await storage.createTradeIdea({
+        symbol: data.symbol,
+        assetType: (data.assetType as 'stock' | 'option' | 'crypto' | 'futures') || 'stock',
+        direction,
+        entryPrice: data.entryPoint,
+        targetPrice: data.targetPrice,
+        stopLoss: data.stopLoss,
+        riskRewardRatio: data.riskRewardRatio,
+        confidenceScore: data.confidence,
+        qualitySignals: data.patterns,
+        probabilityBand: data.confidence >= 80 ? 'A' : data.confidence >= 60 ? 'B' : 'C',
+        catalyst: `Chart Analysis: ${data.patterns.slice(0, 2).join(', ')}`,
+        analysis: data.analysis,
+        sessionContext: `${data.timeframe} timeframe, ${data.sentiment} outlook`,
+        holdingPeriod,
+        source: 'chart_analysis',
+        optionType: data.optionType as 'call' | 'put' | undefined,
+        strikePrice: data.strikePrice,
+        expiryDate: data.expiryDate,
+        status: 'draft',
+      });
+      
+      res.json({ 
+        success: true, 
+        id: tradeIdea.id,
+        message: "Trade idea created from chart analysis" 
+      });
+    } catch (error: any) {
+      logger.error("Failed to create trade idea from chart analysis:", error);
+      res.status(500).json({ error: error?.message || "Failed to create trade idea" });
+    }
+  });
+
+  // Send chart analysis to Discord (alias for frontend compatibility)
+  app.post("/api/chart-analysis/send-to-discord", async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1),
+        timeframe: z.string().optional(),
+        sentiment: z.enum(["bullish", "bearish", "neutral"]),
+        confidence: z.number(),
+        entryPoint: z.number(),
+        targetPrice: z.number(),
+        stopLoss: z.number(),
+        patterns: z.array(z.string()),
+        analysis: z.string(),
+        riskRewardRatio: z.number(),
+        optionType: z.string().optional(),
+        strikePrice: z.number().optional(),
+        expiryDate: z.string().optional(),
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid analysis data" });
+      }
+      
+      const { sendChartAnalysisToDiscord } = await import("./discord-service");
+      const success = await sendChartAnalysisToDiscord(parseResult.data);
+      
+      res.json({ 
+        success, 
+        message: success ? "Chart analysis sent to Discord" : "Discord notifications are currently disabled" 
+      });
+    } catch (error: any) {
+      logger.error("Failed to send chart analysis to Discord:", error);
+      res.status(500).json({ error: error?.message || "Failed to send to Discord" });
     }
   });
 

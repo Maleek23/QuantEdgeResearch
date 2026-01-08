@@ -868,6 +868,7 @@ interface ChartAnalysisResult {
   timeframe: string;
   currentPrice?: number | null;
   priceDiscrepancyWarning?: string | null;
+  timeframeWarning?: string | null;
   adjustedLevels?: {
     entry: number;
     target: number;
@@ -2529,6 +2530,87 @@ export default function ChartAnalysis() {
     promoteMutation.mutate(savedTradeIdeaId);
   };
 
+  // Send analysis to Discord
+  const sendToDiscordMutation = useMutation({
+    mutationFn: async () => {
+      if (!analysisResult || !symbol) throw new Error("No analysis to send");
+      const response = await apiRequest('POST', '/api/chart-analysis/send-to-discord', {
+        symbol,
+        timeframe,
+        sentiment: analysisResult.sentiment,
+        confidence: analysisResult.confidence,
+        entryPoint: analysisResult.entryPoint,
+        targetPrice: analysisResult.targetPrice,
+        stopLoss: analysisResult.stopLoss,
+        riskRewardRatio: analysisResult.riskRewardRatio,
+        patterns: analysisResult.patterns,
+        analysis: analysisResult.analysis,
+        optionType: aiSuggestion?.optionType,
+        strikePrice: strikePrice ? parseFloat(strikePrice) : undefined,
+        expiryDate,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sent to Discord!",
+        description: "Analysis shared to Discord channel.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Discord Failed",
+        description: "Failed to send to Discord. Check webhook configuration.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Send to Trade Desk as actionable trade
+  const sendToTradeDeskMutation = useMutation({
+    mutationFn: async () => {
+      if (!analysisResult || !symbol) throw new Error("No analysis to send");
+      const response = await apiRequest('POST', '/api/chart-analysis/send-to-trade-desk', {
+        symbol,
+        timeframe,
+        sentiment: analysisResult.sentiment,
+        confidence: analysisResult.confidence,
+        entryPoint: analysisResult.entryPoint,
+        targetPrice: analysisResult.targetPrice,
+        stopLoss: analysisResult.stopLoss,
+        riskRewardRatio: analysisResult.riskRewardRatio,
+        patterns: analysisResult.patterns,
+        analysis: analysisResult.analysis,
+        assetType: aiSuggestion?.assetType || assetType,
+        optionType: aiSuggestion?.optionType || optionType,
+        strikePrice: strikePrice ? parseFloat(strikePrice) : undefined,
+        expiryDate,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sent to Trade Desk!",
+        description: `Trade idea created: ${data.id}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Trade Desk Failed",
+        description: "Failed to create trade idea. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSendToDiscord = () => {
+    sendToDiscordMutation.mutate();
+  };
+
+  const handleSendToTradeDesk = () => {
+    sendToTradeDeskMutation.mutate();
+  };
+
   const resetForm = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -2908,6 +2990,20 @@ export default function ChartAnalysis() {
                     </div>
                   )}
 
+                  {analysisResult.timeframeWarning && (
+                    <div className="glass-card rounded-xl border-l-2 border-l-purple-400 p-4" data-testid="alert-timeframe-warning">
+                      <div className="flex items-start gap-3">
+                        <Clock className="h-5 w-5 text-purple-500 mt-0.5 shrink-0" />
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-semibold text-purple-500">Timeframe Mismatch</p>
+                          <p className="text-sm text-muted-foreground">
+                            {analysisResult.timeframeWarning}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="glass-card rounded-xl p-4">
                     <div className="grid grid-cols-4 gap-3">
                       <div className="text-center p-3 rounded-lg bg-muted/30">
@@ -3127,45 +3223,78 @@ export default function ChartAnalysis() {
                     </Tabs>
                   </div>
 
-                  <div className="flex gap-3">
-                    {!savedTradeIdeaId && (
-                      <Button
-                        onClick={handleSaveDraft}
-                        disabled={saveDraftMutation.isPending}
-                        className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
-                        data-testid="button-save-draft"
-                      >
-                        {saveDraftMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Database className="h-4 w-4 mr-2" />
-                        )}
-                        Save as Draft
-                      </Button>
-                    )}
-                    {savedTradeIdeaId && !isPromoted && (
-                      <Button
-                        onClick={handlePromote}
-                        disabled={promoteMutation.isPending}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white"
-                        data-testid="button-publish"
-                      >
-                        {promoteMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4 mr-2" />
-                        )}
-                        Publish to Trade Ideas
-                      </Button>
-                    )}
-                    {isPromoted && (
-                      <Link href="/trade-ideas" className="flex-1">
-                        <Button className="w-full" variant="outline" data-testid="button-view-ideas">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View on Trade Ideas
+                  <div className="flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      {!savedTradeIdeaId && (
+                        <Button
+                          onClick={handleSaveDraft}
+                          disabled={saveDraftMutation.isPending}
+                          className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                          data-testid="button-save-draft"
+                        >
+                          {saveDraftMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Database className="h-4 w-4 mr-2" />
+                          )}
+                          Save as Draft
                         </Button>
-                      </Link>
-                    )}
+                      )}
+                      {savedTradeIdeaId && !isPromoted && (
+                        <Button
+                          onClick={handlePromote}
+                          disabled={promoteMutation.isPending}
+                          className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white"
+                          data-testid="button-publish"
+                        >
+                          {promoteMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4 mr-2" />
+                          )}
+                          Publish to Trade Ideas
+                        </Button>
+                      )}
+                      {isPromoted && (
+                        <Link href="/trade-ideas" className="flex-1">
+                          <Button className="w-full" variant="outline" data-testid="button-view-ideas">
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View on Trade Ideas
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleSendToTradeDesk}
+                        disabled={sendToTradeDeskMutation.isPending}
+                        variant="outline"
+                        className="flex-1 border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                        data-testid="button-send-trade-desk"
+                      >
+                        {sendToTradeDeskMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <ArrowRight className="h-4 w-4 mr-2" />
+                        )}
+                        Send to Trade Desk
+                      </Button>
+                      <Button
+                        onClick={handleSendToDiscord}
+                        disabled={sendToDiscordMutation.isPending}
+                        variant="outline"
+                        className="flex-1 border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
+                        data-testid="button-send-discord"
+                      >
+                        {sendToDiscordMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <SiDiscord className="h-4 w-4 mr-2" />
+                        )}
+                        Send to Discord
+                      </Button>
+                    </div>
                   </div>
                 </>
               ) : (
