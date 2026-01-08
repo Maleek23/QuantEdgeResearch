@@ -514,12 +514,46 @@ export async function sendReportNotificationToDiscord(report: any): Promise<void
   } catch (e) { logger.error(e); }
 }
 export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
+// Track recently sent quant ideas to prevent spam - key is "symbol:strike:optionType:expiry"
+const recentQuantIdeas = new Map<string, number>();
+const QUANT_IDEA_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes cooldown per unique idea
+
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
-    const summary = ideas.slice(0, 10).map((i: any) => {
+    const now = Date.now();
+    
+    // Clean up old entries
+    for (const [key, timestamp] of recentQuantIdeas) {
+      if (now - timestamp > QUANT_IDEA_COOLDOWN_MS) {
+        recentQuantIdeas.delete(key);
+      }
+    }
+    
+    // Filter out ideas that were sent recently (deduplication)
+    const newIdeas = ideas.filter((i: any) => {
+      const rawExpiry = i.expiryDate || i.expirationDate || '';
+      const expiry = String(rawExpiry).split('T')[0];
+      const key = `${i.symbol}:${i.strikePrice || ''}:${i.optionType || ''}:${expiry}`;
+      
+      if (recentQuantIdeas.has(key)) {
+        return false; // Skip - already sent this idea recently
+      }
+      
+      // Mark as sent
+      recentQuantIdeas.set(key, now);
+      return true;
+    });
+    
+    // Don't send if all ideas were duplicates
+    if (newIdeas.length === 0) {
+      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - all ${ideas.length} ideas were duplicates`);
+      return;
+    }
+    
+    const summary = newIdeas.slice(0, 10).map((i: any) => {
       const emoji = i.direction === 'long' ? '🟢' : '🔴';
       const optionType = i.optionType ? i.optionType.toUpperCase() : '';
       const strike = i.strikePrice ? `$${i.strikePrice}` : '';
@@ -541,7 +575,7 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        content: `📊 **${type || 'BATCH'}**: ${ideas.length} ideas\n${summary}` 
+        content: `📊 **${type || 'BATCH'}**: ${newIdeas.length} ideas\n${summary}` 
       }),
     });
   } catch (e) {}
@@ -623,9 +657,13 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   } catch (e) {}
 }
 
-// Track recently alerted symbols to prevent duplicates
-const recentAlertedSymbols = new Map<string, number>();
-const ALERT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+// Track recently alerted symbols to prevent duplicates - store timestamp AND last % change
+const recentAlertedSymbols = new Map<string, { timestamp: number; changePercent: number }>();
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes cooldown per symbol
+const GLOBAL_ALERT_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes between ANY Market Movers alerts
+const MIN_CHANGE_DIFF_PCT = 10; // Only re-alert if % change differs by at least 10 points
+const MIN_NEW_MOVERS = 2; // Need at least 2 new symbols to trigger alert
+let lastMarketMoversAlertTime = 0;
 
 export async function sendMarketMoversAlertToDiscord(movers: {
   symbol: string;
@@ -644,28 +682,51 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   try {
     const now = Date.now();
     
-    // Clean up old entries and filter out recently alerted symbols
-    for (const [symbol, timestamp] of recentAlertedSymbols) {
-      if (now - timestamp > ALERT_COOLDOWN_MS) {
+    // Global cooldown - don't spam Market Movers alerts
+    if (now - lastMarketMoversAlertTime < GLOBAL_ALERT_COOLDOWN_MS) {
+      logger.debug(`[DISCORD] Market Movers alert skipped - global cooldown (${Math.round((GLOBAL_ALERT_COOLDOWN_MS - (now - lastMarketMoversAlertTime)) / 60000)}min remaining)`);
+      return;
+    }
+    
+    // Clean up old entries
+    for (const [symbol, data] of recentAlertedSymbols) {
+      if (now - data.timestamp > ALERT_COOLDOWN_MS) {
         recentAlertedSymbols.delete(symbol);
       }
     }
     
-    // Filter to only >5% moves that haven't been alerted recently AND are B+ or higher grade
+    // Filter to only >5% moves AND are B+ or higher grade
+    // Also check if the move has changed significantly since last alert
     const VALID_GRADES = ['A+', 'A', 'B+'];
     const filteredMovers = movers.filter(m => {
       const absChange = Math.abs(m.changePercent);
       if (absChange < 5) return false;
-      if (recentAlertedSymbols.has(m.symbol)) return false;
+      
       // Only send B+ and above ratings to Discord
       if (m.grade && !VALID_GRADES.includes(m.grade)) return false;
+      
+      // Check if already alerted recently
+      const prevAlert = recentAlertedSymbols.get(m.symbol);
+      if (prevAlert) {
+        // Only re-alert if % change has moved significantly (±10 points)
+        const changeDiff = Math.abs(m.changePercent - prevAlert.changePercent);
+        if (changeDiff < MIN_CHANGE_DIFF_PCT) {
+          return false; // Skip - not enough change since last alert
+        }
+      }
+      
       return true;
     });
     
-    if (filteredMovers.length === 0) return;
+    // Need at least MIN_NEW_MOVERS to warrant an alert
+    if (filteredMovers.length < MIN_NEW_MOVERS) {
+      logger.debug(`[DISCORD] Market Movers skipped - only ${filteredMovers.length} new movers (need ${MIN_NEW_MOVERS}+)`);
+      return;
+    }
     
-    // Mark these symbols as alerted
-    filteredMovers.forEach(m => recentAlertedSymbols.set(m.symbol, now));
+    // Mark these symbols as alerted with their current % change
+    filteredMovers.forEach(m => recentAlertedSymbols.set(m.symbol, { timestamp: now, changePercent: m.changePercent }));
+    lastMarketMoversAlertTime = now;
     
     const surges = filteredMovers.filter(m => m.alertType === 'surge');
     const drops = filteredMovers.filter(m => m.alertType === 'drop');
