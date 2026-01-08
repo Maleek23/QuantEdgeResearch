@@ -137,6 +137,11 @@ app.use((req, res, next) => {
     startCatalystPolling(30); // Refresh catalyst data every 30 minutes
     log('📋 Catalyst Intelligence polling started - refreshing SEC filings and gov contracts every 30 minutes');
     
+    // Start Pre-Move Detection Scanner (power hour sweeps, volume spikes, IV expansion, defense contracts)
+    const { startPreMoveScanner } = await import('./pre-move-detection-service');
+    startPreMoveScanner();
+    log('🔮 Pre-Move Detection Scanner started - monitoring for late-day sweeps, volume spikes, IV expansion, and defense contracts');
+    
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {
       try {

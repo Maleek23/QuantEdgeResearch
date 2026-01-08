@@ -712,3 +712,100 @@ export async function sendMarketMoversAlertToDiscord(movers: {
     logger.error(`[DISCORD] Failed to send market movers alert: ${e}`);
   }
 }
+
+// Pre-Move Signal Alert - Detects potential moves before news/market close
+export async function sendPreMoveAlertToDiscord(signal: {
+  symbol: string;
+  signalType: string;
+  confidence: number;
+  direction: 'bullish' | 'bearish' | 'neutral';
+  details: string;
+  timestamp: Date;
+  metrics: {
+    currentPrice?: number;
+    volumeRatio?: number;
+    ivChange?: number;
+    optionPremium?: number;
+    contractValue?: number;
+  };
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  
+  // Only alert for B+ and above confidence (75%+)
+  if (signal.confidence < 75) return;
+  
+  try {
+    const grade = getLetterGrade(signal.confidence);
+    const gradeDisplay = `${grade} (${signal.confidence}%)`;
+    
+    // Signal type emoji mapping
+    const typeEmojis: Record<string, string> = {
+      'late_day_sweep': '🔥',
+      'volume_spike': '📊',
+      'iv_expansion': '⚡',
+      'defense_contract': '🇺🇸',
+      'unusual_accumulation': '🐋',
+      'sector_momentum': '📈'
+    };
+    
+    // Direction colors
+    const directionColors: Record<string, number> = {
+      'bullish': COLORS.LONG,
+      'bearish': COLORS.SHORT,
+      'neutral': COLORS.AI
+    };
+    
+    const emoji = typeEmojis[signal.signalType] || '⚠️';
+    const color = directionColors[signal.direction] || COLORS.QUANT;
+    
+    const fields: { name: string; value: string; inline?: boolean }[] = [
+      { name: '🎯 Confidence', value: gradeDisplay, inline: true },
+      { name: '📍 Direction', value: signal.direction.toUpperCase(), inline: true }
+    ];
+    
+    if (signal.metrics.currentPrice) {
+      fields.push({ name: '💵 Price', value: `$${signal.metrics.currentPrice.toFixed(2)}`, inline: true });
+    }
+    
+    if (signal.metrics.volumeRatio) {
+      fields.push({ name: '📊 Volume', value: `${signal.metrics.volumeRatio.toFixed(1)}x avg`, inline: true });
+    }
+    
+    if (signal.metrics.ivChange) {
+      fields.push({ name: '⚡ IV Change', value: `+${signal.metrics.ivChange.toFixed(1)}%`, inline: true });
+    }
+    
+    if (signal.metrics.optionPremium) {
+      fields.push({ name: '💰 Premium', value: `$${(signal.metrics.optionPremium / 1000000).toFixed(2)}M`, inline: true });
+    }
+    
+    if (signal.metrics.contractValue) {
+      fields.push({ name: '📋 Contract', value: `$${(signal.metrics.contractValue / 1000000).toFixed(1)}M`, inline: true });
+    }
+    
+    const embed: DiscordEmbed = {
+      title: `${emoji} PRE-MOVE ALERT: ${signal.symbol} [${grade}] ${signal.confidence}%`,
+      description: signal.details,
+      color,
+      fields,
+      footer: { text: `Quant Edge Labs Pre-Move Detection • ${gradeDisplay}` },
+      timestamp: signal.timestamp.toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content: `🚨 **PRE-MOVE SIGNAL**: ${signal.symbol} - ${signal.signalType.replace(/_/g, ' ').toUpperCase()}`,
+        embeds: [embed] 
+      }),
+    });
+    
+    logger.info(`[DISCORD] Sent pre-move alert: ${signal.symbol} ${signal.signalType} (${signal.confidence}%)`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send pre-move alert: ${e}`);
+  }
+}
