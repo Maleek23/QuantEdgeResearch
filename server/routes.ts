@@ -2243,6 +2243,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk approve waitlist entries
+  app.post("/api/admin/waitlist/approve", requireAdminJWT, async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs array is required" });
+      }
+
+      let updated = 0;
+      for (const id of ids) {
+        await storage.updateWaitlistStatus(id, 'approved');
+        updated++;
+      }
+
+      logger.info('Waitlist entries approved', { count: updated });
+      res.json({ success: true, updated });
+    } catch (error) {
+      logError(error as Error, { context: 'admin/waitlist/approve' });
+      res.status(500).json({ error: "Failed to approve waitlist entries" });
+    }
+  });
+
+  // Bulk reject waitlist entries
+  app.post("/api/admin/waitlist/reject", requireAdminJWT, async (req, res) => {
+    try {
+      const { ids } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs array is required" });
+      }
+
+      let updated = 0;
+      for (const id of ids) {
+        await storage.updateWaitlistStatus(id, 'rejected');
+        updated++;
+      }
+
+      logger.info('Waitlist entries rejected', { count: updated });
+      res.json({ success: true, updated });
+    } catch (error) {
+      logError(error as Error, { context: 'admin/waitlist/reject' });
+      res.status(500).json({ error: "Failed to reject waitlist entries" });
+    }
+  });
+
+  // Bulk send invites to waitlist entries (alias for bulk-invite)
+  app.post("/api/admin/waitlist/send-invites", requireAdminJWT, async (req, res) => {
+    try {
+      const { ids, tierOverride } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs array is required" });
+      }
+
+      const results = { sent: 0, failed: 0, errors: [] as string[] };
+      const entries = await storage.getAllWaitlistEntries();
+
+      for (const id of ids) {
+        const entry = entries.find(e => e.id === id);
+        if (!entry) continue;
+
+        const token = generateInviteToken();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const invite = await storage.createBetaInvite({
+          email: entry.email,
+          token,
+          tierOverride: tierOverride || undefined,
+          expiresAt,
+        });
+
+        const emailResult = await sendBetaInviteEmail(entry.email, token, { tierOverride });
+
+        if (emailResult.success) {
+          await storage.markBetaInviteSent(invite.id);
+          await storage.updateWaitlistStatus(id, 'invited', invite.id);
+          results.sent++;
+        } else {
+          results.failed++;
+          results.errors.push(`${entry.email}: ${emailResult.error}`);
+        }
+      }
+
+      logger.info('Bulk invites sent', results);
+      res.json(results);
+    } catch (error) {
+      logError(error as Error, { context: 'admin/waitlist/send-invites' });
+      res.status(500).json({ error: "Failed to send invites" });
+    }
+  });
+
   // Update waitlist status manually
   app.patch("/api/admin/waitlist/:id", requireAdminJWT, async (req, res) => {
     try {

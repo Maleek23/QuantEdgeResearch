@@ -1,0 +1,478 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AdminLayout } from "@/components/admin/admin-layout";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import {
+  UserPlus,
+  Search,
+  Mail,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Send,
+  RefreshCw,
+  Calendar,
+  Users,
+  ArrowRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+
+function getCSRFToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+interface WaitlistEntry {
+  id: string;
+  email: string;
+  source: string;
+  referralCode?: string;
+  status: 'pending' | 'approved' | 'invited' | 'joined' | 'rejected';
+  inviteSent: boolean;
+  convertedToUser: boolean;
+  createdAt: string;
+}
+
+function AdminWaitlistContent() {
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+
+  const { data: waitlistData, isLoading, refetch } = useQuery<{ waitlist: WaitlistEntry[] }>({
+    queryKey: ['/api/admin/waitlist'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/waitlist', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch waitlist');
+      return res.json();
+    }
+  });
+
+  const approveWaitlistMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch('/api/admin/waitlist/approve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids }),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to approve');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/waitlist'] });
+      toast({ title: "Waitlist entries approved" });
+      setSelectedIds(new Set());
+    },
+    onError: () => {
+      toast({ title: "Failed to approve entries", variant: "destructive" });
+    }
+  });
+
+  const sendInvitesMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch('/api/admin/waitlist/send-invites', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids }),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to send invites');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/waitlist'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
+      toast({ title: `Invites sent to ${data.sent || 0} users` });
+      setSelectedIds(new Set());
+      setShowInviteDialog(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to send invites", variant: "destructive" });
+    }
+  });
+
+  const rejectWaitlistMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch('/api/admin/waitlist/reject', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ids }),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to reject');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/waitlist'] });
+      toast({ title: "Waitlist entries rejected" });
+      setSelectedIds(new Set());
+    },
+    onError: () => {
+      toast({ title: "Failed to reject entries", variant: "destructive" });
+    }
+  });
+
+  const waitlist = waitlistData?.waitlist || [];
+
+  const filteredWaitlist = waitlist.filter((entry) => {
+    const matchesSearch = entry.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string, inviteSent: boolean, converted: boolean) => {
+    if (converted) {
+      return (
+        <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Joined
+        </Badge>
+      );
+    }
+    if (inviteSent) {
+      return (
+        <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+          <Send className="h-3 w-3 mr-1" />
+          Invited
+        </Badge>
+      );
+    }
+    const styles = {
+      pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      approved: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+      invited: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      joined: "bg-green-500/10 text-green-400 border-green-500/20",
+      rejected: "bg-red-500/10 text-red-400 border-red-500/20",
+    };
+    const icons = {
+      pending: <Clock className="h-3 w-3 mr-1" />,
+      approved: <CheckCircle2 className="h-3 w-3 mr-1" />,
+      invited: <Send className="h-3 w-3 mr-1" />,
+      joined: <CheckCircle2 className="h-3 w-3 mr-1" />,
+      rejected: <XCircle className="h-3 w-3 mr-1" />,
+    };
+    return (
+      <Badge variant="outline" className={cn(styles[status as keyof typeof styles] || styles.pending)}>
+        {icons[status as keyof typeof icons] || icons.pending}
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredWaitlist.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredWaitlist.map(e => e.id)));
+    }
+  };
+
+  const pendingCount = waitlist.filter(e => e.status === 'pending').length;
+  const approvedCount = waitlist.filter(e => e.status === 'approved' && !e.inviteSent).length;
+  const invitedCount = waitlist.filter(e => e.inviteSent && !e.convertedToUser).length;
+  const joinedCount = waitlist.filter(e => e.convertedToUser).length;
+
+  const selectedEntries = waitlist.filter(e => selectedIds.has(e.id));
+  const canApprove = selectedEntries.some(e => e.status === 'pending');
+  const canInvite = selectedEntries.some(e => (e.status === 'approved' || e.status === 'pending') && !e.inviteSent);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="bg-slate-900 border-slate-800">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-amber-400">{pendingCount}</p>
+              <p className="text-sm text-slate-400">Pending</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900 border-slate-800">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-400">{approvedCount}</p>
+              <p className="text-sm text-slate-400">Approved</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900 border-slate-800">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-cyan-400">{invitedCount}</p>
+              <p className="text-sm text-slate-400">Invited</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900 border-slate-800">
+          <CardContent className="p-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-400">{joinedCount}</p>
+              <p className="text-sm text-slate-400">Joined</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-cyan-400" />
+                Waitlist Management
+              </CardTitle>
+              <CardDescription className="text-slate-500">
+                {filteredWaitlist.length} entries {statusFilter !== 'all' && `(${statusFilter})`}
+              </CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  placeholder="Search emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-slate-800 border-slate-700 text-white w-full sm:w-64"
+                  data-testid="input-search-waitlist"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-36 bg-slate-800 border-slate-700 text-white" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="invited">Invited</SelectItem>
+                  <SelectItem value="joined">Joined</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                className="border-slate-700 text-slate-300"
+                data-testid="button-refresh-waitlist"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {selectedIds.size > 0 && (
+            <div className="mb-4 p-3 bg-slate-800 rounded-lg flex flex-wrap items-center gap-3">
+              <span className="text-sm text-slate-400">
+                {selectedIds.size} selected
+              </span>
+              {canApprove && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => approveWaitlistMutation.mutate(Array.from(selectedIds))}
+                  disabled={approveWaitlistMutation.isPending}
+                  className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                  data-testid="button-bulk-approve"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                  Approve
+                </Button>
+              )}
+              {canInvite && (
+                <Button
+                  size="sm"
+                  onClick={() => setShowInviteDialog(true)}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                  data-testid="button-bulk-invite"
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  Send Invites
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => rejectWaitlistMutation.mutate(Array.from(selectedIds))}
+                disabled={rejectWaitlistMutation.isPending}
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                data-testid="button-bulk-reject"
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Reject
+              </Button>
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Skeleton key={i} className="h-16 bg-slate-800" />
+              ))}
+            </div>
+          ) : filteredWaitlist.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No waitlist entries found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-800 hover:bg-transparent">
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={selectedIds.size === filteredWaitlist.length && filteredWaitlist.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        data-testid="checkbox-select-all"
+                      />
+                    </TableHead>
+                    <TableHead className="text-slate-400">Email</TableHead>
+                    <TableHead className="text-slate-400">Status</TableHead>
+                    <TableHead className="text-slate-400">Source</TableHead>
+                    <TableHead className="text-slate-400">Joined</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredWaitlist.map((entry) => (
+                    <TableRow 
+                      key={entry.id} 
+                      className={cn(
+                        "border-slate-800",
+                        selectedIds.has(entry.id) && "bg-slate-800/50"
+                      )}
+                      data-testid={`row-waitlist-${entry.id}`}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(entry.id)}
+                          onCheckedChange={() => toggleSelect(entry.id)}
+                          data-testid={`checkbox-${entry.id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-slate-500" />
+                          <span className="text-white">{entry.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(entry.status, entry.inviteSent, entry.convertedToUser)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-slate-400 border-slate-600">
+                          {entry.source}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-400 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(entry.createdAt), 'MMM d, yyyy')}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Send Beta Invites</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              This will create invite codes and send emails to the selected waitlist entries.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-center gap-2 p-3 bg-slate-800 rounded-lg">
+              <Users className="h-5 w-5 text-cyan-400" />
+              <span className="text-white">{selectedIds.size} users will receive invites</span>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowInviteDialog(false)}
+              className="border-slate-700 text-slate-300"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => sendInvitesMutation.mutate(Array.from(selectedIds))}
+              disabled={sendInvitesMutation.isPending}
+              className="bg-cyan-600 hover:bg-cyan-700"
+              data-testid="button-confirm-send-invites"
+            >
+              {sendInvitesMutation.isPending ? "Sending..." : "Send Invites"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default function AdminWaitlist() {
+  return (
+    <AdminLayout>
+      <AdminWaitlistContent />
+    </AdminLayout>
+  );
+}

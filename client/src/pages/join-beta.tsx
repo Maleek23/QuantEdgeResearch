@@ -83,7 +83,7 @@ export default function JoinBeta() {
 
   useEffect(() => {
     const params = new URLSearchParams(search);
-    const code = params.get("code");
+    const code = params.get("code") || params.get("invite");
     if (code) {
       verifyForm.setValue("token", code.toUpperCase());
     }

@@ -31,6 +31,11 @@ const MarketPage = lazy(() => import("@/pages/market"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
+const AdminOverview = lazy(() => import("@/pages/admin/overview"));
+const AdminUsers = lazy(() => import("@/pages/admin/users"));
+const AdminInvites = lazy(() => import("@/pages/admin/invites"));
+const AdminWaitlist = lazy(() => import("@/pages/admin/waitlist"));
+const AdminSystem = lazy(() => import("@/pages/admin/system"));
 const AdminReports = lazy(() => import("@/pages/admin-reports"));
 const AdminSecurity = lazy(() => import("@/pages/admin-security"));
 const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
@@ -164,12 +169,17 @@ function Router() {
       <Route path="/my-account" component={withBetaProtection(MyAccountPage)} />
       <Route path="/settings" component={withBetaProtection(SettingsPage)} />
       <Route path="/pricing" component={Pricing} />
-      <Route path="/admin" component={AdminPanel} />
+      <Route path="/admin" component={AdminOverview} />
+      <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/invites" component={AdminInvites} />
+      <Route path="/admin/waitlist" component={AdminWaitlist} />
+      <Route path="/admin/system" component={AdminSystem} />
       <Route path="/admin/reports" component={AdminReports} />
       <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/admin/win-loss" component={AdminWinLoss} />
       <Route path="/admin/credits" component={AdminCredits} />
       <Route path="/admin/beta-invites" component={AdminBetaInvites} />
+      <Route path="/admin/old" component={AdminPanel} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
@@ -280,7 +290,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/admin', '/admin/reports', '/admin/security', '/admin/credits', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>
