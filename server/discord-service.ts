@@ -7,6 +7,10 @@ import { isOptionsMarketOpen } from './paper-trading-service';
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
 
+// STRICT MODE - Only allow premium A/A+ alerts through
+// Disables: batch summaries, market movers, flow alerts to QUANTFLOOR
+const STRICT_PREMIUM_ONLY = true;
+
 // QUALITY GATE - B+ GRADE MINIMUM (85+ confidence, 4+ signals)
 const MIN_SIGNALS_REQUIRED = 4;
 const MIN_CONFIDENCE_REQUIRED = 85;
@@ -527,7 +531,8 @@ const dailyQuantSymbols = new Set<string>();
 let lastQuantDailyReset = 0;
 
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
-  if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
+  // In strict mode, batch summaries are disabled - only premium trades go through
+  if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !ideas || ideas.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
@@ -636,7 +641,8 @@ let lastFlowAlertTime = 0;
 const FLOW_GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
 
 export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
-  if (DISCORD_DISABLED) return;
+  // In strict mode, flow alerts are disabled - only premium trades go through
+  if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
@@ -740,7 +746,8 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   grade?: string;
   confidence?: number;
 }[]): Promise<void> {
-  if (DISCORD_DISABLED || !movers || movers.length === 0) return;
+  // In strict mode, market movers are disabled - only premium trades go through
+  if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !movers || movers.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
