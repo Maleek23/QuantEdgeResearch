@@ -500,6 +500,7 @@ export interface IStorage {
 
   // Beta Waitlist
   getWaitlistEntry(email: string): Promise<BetaWaitlist | null>;
+  getWaitlistEntryById(id: string): Promise<BetaWaitlist | null>;
   createWaitlistEntry(entry: InsertBetaWaitlist): Promise<BetaWaitlist>;
   markWaitlistDiscordNotified(id: string): Promise<void>;
   getWaitlistCount(): Promise<number>;
@@ -3724,6 +3725,11 @@ export class DatabaseStorage implements IStorage {
   // ========== BETA WAITLIST ==========
   async getWaitlistEntry(email: string): Promise<BetaWaitlist | null> {
     const result = await db.select().from(betaWaitlist).where(eq(betaWaitlist.email, email));
+    return result[0] || null;
+  }
+
+  async getWaitlistEntryById(id: string): Promise<BetaWaitlist | null> {
+    const result = await db.select().from(betaWaitlist).where(eq(betaWaitlist.id, id));
     return result[0] || null;
   }
 

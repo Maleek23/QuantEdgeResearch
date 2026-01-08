@@ -133,6 +133,28 @@ function AdminInvitesContent() {
     }
   });
 
+  const resendInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch(`/api/admin/invites/${inviteId}/resend`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to resend invite');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
+      toast({ title: "Invite email resent successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to resend invite email", variant: "destructive" });
+    }
+  });
+
   const revokeInviteMutation = useMutation({
     mutationFn: async (inviteId: string) => {
       const csrfToken = getCSRFToken();
@@ -391,8 +413,22 @@ function AdminInvitesContent() {
                               onClick={() => sendInviteMutation.mutate(invite.id)}
                               disabled={sendInviteMutation.isPending}
                               data-testid={`button-send-${invite.id}`}
+                              title="Send invite email"
                             >
                               <Send className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {invite.status === 'sent' && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-amber-400 hover:text-amber-300"
+                              onClick={() => resendInviteMutation.mutate(invite.id)}
+                              disabled={resendInviteMutation.isPending}
+                              data-testid={`button-resend-${invite.id}`}
+                              title="Resend invite email"
+                            >
+                              <RefreshCw className="h-4 w-4" />
                             </Button>
                           )}
                           {['pending', 'sent'].includes(invite.status) && (
@@ -402,6 +438,7 @@ function AdminInvitesContent() {
                               className="h-8 w-8 text-red-400 hover:text-red-300"
                               onClick={() => revokeInviteMutation.mutate(invite.id)}
                               data-testid={`button-revoke-${invite.id}`}
+                              title="Revoke invite"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

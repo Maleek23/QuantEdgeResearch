@@ -2371,6 +2371,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Resend invite for waitlist entry
+  app.post("/api/admin/waitlist/:id/resend-invite", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get waitlist entry by ID (targeted lookup)
+      const entry = await storage.getWaitlistEntryById(id);
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Waitlist entry not found" });
+      }
+
+      if (!entry.inviteSent) {
+        return res.status(400).json({ error: "No invite has been sent to this entry yet" });
+      }
+
+      // Find the invite for this email (targeted lookup)
+      const invite = await storage.getBetaInviteByEmail(entry.email);
+      
+      if (!invite || !['pending', 'sent'].includes(invite.status)) {
+        return res.status(404).json({ error: "No active invite found for this entry" });
+      }
+
+      // Resend the email
+      const emailResult = await sendBetaInviteEmail(entry.email, invite.token);
+      
+      if (emailResult.success) {
+        await storage.markBetaInviteSent(invite.id);
+        logger.info('Invite email resent from waitlist', { email: entry.email, inviteId: invite.id });
+        res.json({ success: true, message: "Invite email resent successfully" });
+      } else {
+        res.status(500).json({ error: emailResult.error || "Failed to resend email" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'admin/waitlist/resend-invite' });
+      res.status(500).json({ error: "Failed to resend invite" });
+    }
+  });
+
   // Update waitlist status manually
   app.patch("/api/admin/waitlist/:id", requireAdminJWT, async (req, res) => {
     try {

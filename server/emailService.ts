@@ -36,8 +36,26 @@ export async function sendBetaInviteEmail(
   try {
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
+      replyTo: 'support@quantedgelabs.net',
       to: email,
-      subject: `You're Invited to ${APP_NAME} Beta!`,
+      subject: `Your ${APP_NAME} Beta Invitation`,
+      text: `You've been invited to join ${APP_NAME}!
+
+Congratulations! You've been selected to join the exclusive beta of ${APP_NAME} — an institutional-grade quantitative trading research platform.
+
+${options?.personalMessage ? `Personal Message: "${options.personalMessage}"\n\n` : ''}
+Accept your invitation here: ${inviteLink}
+
+What you'll get access to:
+- AI-Powered Market Analysis (Claude, GPT-4, Gemini)
+- Quantitative Signal Engine (RSI, VWAP, ADX)
+- Real-Time Chart Analysis & Pattern Recognition
+- Professional Trading Journal & Analytics
+
+This invite expires in 7 days. Questions? Join our Discord community at https://discord.gg/3QF8QEKkYq
+
+${APP_NAME} - For Educational & Research Purposes Only
+`,
       html: `
 <!DOCTYPE html>
 <html>

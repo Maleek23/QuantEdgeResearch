@@ -44,6 +44,7 @@ import {
   Calendar,
   Users,
   ArrowRight,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -151,6 +152,29 @@ function AdminWaitlistContent() {
     },
     onError: () => {
       toast({ title: "Failed to reject entries", variant: "destructive" });
+    }
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: async (waitlistId: string) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
+      const res = await fetch(`/api/admin/waitlist/${waitlistId}/resend-invite`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to resend invite');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/waitlist'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/invites'] });
+      toast({ title: "Invite email resent successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to resend invite email", variant: "destructive" });
     }
   });
 
@@ -384,6 +408,7 @@ function AdminWaitlistContent() {
                     <TableHead className="text-slate-400">Status</TableHead>
                     <TableHead className="text-slate-400">Source</TableHead>
                     <TableHead className="text-slate-400">Joined</TableHead>
+                    <TableHead className="text-slate-400 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -421,6 +446,37 @@ function AdminWaitlistContent() {
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(entry.createdAt), 'MMM d, yyyy')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {entry.inviteSent && !entry.convertedToUser && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-amber-400 hover:text-amber-300"
+                              onClick={() => resendInviteMutation.mutate(entry.id)}
+                              disabled={resendInviteMutation.isPending}
+                              data-testid={`button-resend-${entry.id}`}
+                              title="Resend invite email"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {!entry.inviteSent && entry.status === 'pending' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-cyan-400 hover:text-cyan-300"
+                              onClick={() => sendInvitesMutation.mutate([entry.id])}
+                              disabled={sendInvitesMutation.isPending}
+                              data-testid={`button-invite-${entry.id}`}
+                              title="Send invite"
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Invite
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
