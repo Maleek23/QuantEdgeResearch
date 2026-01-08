@@ -10271,6 +10271,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🚀 Market Movers Scanner - Top Gainers, Losers, After-Hours Surges
+  app.get("/api/market-movers", async (_req, res) => {
+    try {
+      const { getTopMovers } = await import('./market-scanner');
+      const session = getTradingSession();
+      
+      // Expanded stock universe - 100+ symbols including after-hours movers
+      const EXPANDED_UNIVERSE = [
+        // Defense & Aerospace (after-hours active)
+        'LMT', 'RTX', 'NOC', 'GD', 'BA', 'HII', 'LHX',
+        // AI/Tech (high volatility)
+        'PLTR', 'IONQ', 'RGTI', 'QBTS', 'NVDA', 'AMD', 'SMCI', 'ARM', 'MRVL',
+        // Crypto miners
+        'MARA', 'RIOT', 'CLSK', 'HUT', 'COIN', 'BITF', 'IREN',
+        // Energy Storage
+        'EOSE', 'PLUG', 'FCEL', 'BE', 'SEDG', 'ENPH',
+        // Space & Satellite
+        'SATL', 'LUNR', 'RDW', 'RKLB', 'SPCE', 'ASTR', 'ASTS', 'BKSY',
+        // Biotech (high vol)
+        'MRNA', 'BNTX', 'CRSP', 'EDIT', 'BEAM', 'NTLA', 'VRTX',
+        // EV & Clean Energy
+        'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSLY', 'CHPT',
+        // Nuclear
+        'CCJ', 'LEU', 'UUUU', 'SMR', 'NNE', 'DNN',
+        // Small caps / Penny (high movement potential)
+        'SOFI', 'LCID', 'SNDL', 'TLRY', 'CGC', 'ACB',
+        // Mega caps (benchmark)
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA',
+        // Financials
+        'JPM', 'BAC', 'GS', 'MS', 'WFC', 'C',
+        // Semiconductors
+        'INTC', 'MU', 'QCOM', 'AVGO', 'TXN', 'ON', 'AMAT',
+        // Retail & Consumer
+        'WMT', 'TGT', 'COST', 'HD', 'LOW', 'DG',
+        // Healthcare
+        'JNJ', 'PFE', 'UNH', 'CVS', 'LLY', 'ABBV',
+        // Industrial
+        'CAT', 'DE', 'UPS', 'FDX', 'MMM', 'HON',
+        // Energy
+        'XOM', 'CVX', 'OXY', 'COP', 'SLB', 'HAL',
+        // REITs
+        'O', 'AMT', 'PLD', 'SPG', 'VICI',
+      ];
+      
+      // Fetch top movers from existing market scanner with expanded limit
+      const { gainers, losers } = await getTopMovers('day', 'all', 100);
+      
+      // Format for API response
+      const topGainers = gainers.slice(0, 10).map(stock => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.currentPrice,
+        change: stock.dayChange,
+        changePercent: stock.dayChangePercent,
+        volume: stock.volume,
+        avgVolume: stock.avgVolume || 0,
+        volumeRatio: stock.avgVolume ? stock.volume / stock.avgVolume : 0,
+        marketCap: stock.marketCap || 0,
+      }));
+      
+      const topLosers = losers.slice(0, 10).map(stock => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.currentPrice,
+        change: stock.dayChange,
+        changePercent: stock.dayChangePercent,
+        volume: stock.volume,
+        avgVolume: stock.avgVolume || 0,
+        volumeRatio: stock.avgVolume ? stock.volume / stock.avgVolume : 0,
+        marketCap: stock.marketCap || 0,
+      }));
+      
+      // Volume spikes (sorted by volume ratio)
+      const volumeSpikes = [...gainers, ...losers]
+        .filter(s => s.avgVolume && s.volume / s.avgVolume > 1.5)
+        .sort((a, b) => (b.volume / (b.avgVolume || 1)) - (a.volume / (a.avgVolume || 1)))
+        .slice(0, 10)
+        .map(stock => ({
+          symbol: stock.symbol,
+          name: stock.name,
+          price: stock.currentPrice,
+          change: stock.dayChange,
+          changePercent: stock.dayChangePercent,
+          volume: stock.volume,
+          avgVolume: stock.avgVolume || 0,
+          volumeRatio: stock.avgVolume ? stock.volume / stock.avgVolume : 0,
+          marketCap: stock.marketCap || 0,
+        }));
+      
+      // Build high-alert movers (stocks with >5% moves)
+      const highAlertMovers = [...gainers, ...losers]
+        .filter(s => Math.abs(s.dayChangePercent) > 5)
+        .sort((a, b) => Math.abs(b.dayChangePercent) - Math.abs(a.dayChangePercent))
+        .slice(0, 10)
+        .map(stock => ({
+          symbol: stock.symbol,
+          name: stock.name,
+          price: stock.currentPrice,
+          change: stock.dayChange,
+          changePercent: stock.dayChangePercent,
+          volume: stock.volume,
+          avgVolume: stock.avgVolume || 0,
+          volumeRatio: stock.avgVolume ? stock.volume / stock.avgVolume : 0,
+          marketCap: stock.marketCap || 0,
+          alertReason: stock.dayChangePercent > 0 ? 'Major surge' : 'Major drop',
+        }));
+      
+      // Get news for top movers
+      const topSymbols = [...new Set([
+        ...topGainers.slice(0, 3).map(q => q.symbol),
+        ...highAlertMovers.slice(0, 3).map(q => q.symbol),
+      ])];
+      
+      let catalystNews: any[] = [];
+      try {
+        const { fetchAlphaVantageNews } = await import('./news-service');
+        const newsData = await fetchAlphaVantageNews(10, topSymbols.join(','));
+        catalystNews = newsData.slice(0, 5).map((n: any) => ({
+          title: n.title,
+          summary: n.summary?.substring(0, 150),
+          tickers: n.tickers || [],
+          sentiment: n.overall_sentiment_label,
+          time: n.time_published,
+        }));
+      } catch (e) {
+        // News fetch failed, continue without
+      }
+      
+      logger.info(`[MOVERS] Scanned ${gainers.length + losers.length} stocks: ${topGainers.length} gainers, ${highAlertMovers.length} high-alert`);
+      
+      // Send Discord alerts for major movers (>5% moves)
+      if (highAlertMovers.length > 0) {
+        try {
+          const { sendMarketMoversAlertToDiscord } = await import('./discord-service');
+          const alertMovers = highAlertMovers.map(m => ({
+            symbol: m.symbol,
+            name: m.name,
+            price: m.price,
+            changePercent: m.changePercent,
+            volume: m.volume,
+            alertType: (m.changePercent > 0 ? 'surge' : 'drop') as 'surge' | 'drop',
+          }));
+          await sendMarketMoversAlertToDiscord(alertMovers);
+        } catch (e) {
+          // Discord alert failed, continue without
+        }
+      }
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        session: session,
+        scannedCount: gainers.length + losers.length,
+        topGainers,
+        topLosers,
+        volumeSpikes,
+        highAlertMovers,
+        catalystNews,
+        alerts: [
+          ...topGainers.filter(q => q.changePercent > 5).map(q => ({
+            type: 'surge',
+            symbol: q.symbol,
+            message: `${q.symbol} surging +${q.changePercent.toFixed(1)}%`,
+            priority: 'high',
+          })),
+          ...highAlertMovers.map(q => ({
+            type: 'major_move',
+            symbol: q.symbol,
+            message: `${q.symbol} ${q.changePercent > 0 ? '+' : ''}${q.changePercent.toFixed(1)}% - ${q.alertReason}`,
+            priority: 'high',
+          })),
+        ],
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-movers' });
+      res.status(500).json({ error: "Failed to scan market movers" });
+    }
+  });
+
   // Market Context - Full market overview with VIX, SPY, trading session
   app.get("/api/market-context", async (_req, res) => {
     try {

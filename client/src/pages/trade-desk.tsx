@@ -437,6 +437,153 @@ function BestSetupsCard() {
   );
 }
 
+// Market Movers Card - Shows top surging/dropping stocks
+interface MarketMover {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  avgVolume: number;
+  volumeRatio: number;
+  marketCap: number;
+  alertReason?: string;
+}
+
+interface MarketMoversResponse {
+  timestamp: string;
+  session: string;
+  scannedCount: number;
+  topGainers: MarketMover[];
+  topLosers: MarketMover[];
+  volumeSpikes: MarketMover[];
+  highAlertMovers: MarketMover[];
+  catalystNews: any[];
+  alerts: any[];
+}
+
+function MarketMoversCard() {
+  const [tab, setTab] = useState<'gainers' | 'losers' | 'alerts'>('gainers');
+  
+  const { data: movers, isLoading, isError } = useQuery<MarketMoversResponse>({
+    queryKey: ['/api/market-movers'],
+    refetchInterval: 120000,
+    staleTime: 60000,
+  });
+
+  const displayData = tab === 'gainers' 
+    ? movers?.topGainers || [] 
+    : tab === 'losers' 
+    ? movers?.topLosers || []
+    : movers?.highAlertMovers || [];
+
+  return (
+    <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent" data-testid="card-market-movers">
+      <CardHeader className="py-3 px-4 border-b border-cyan-500/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-400">
+            <Flame className="h-4 w-4" />
+            Market Movers
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('gainers')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'gainers' ? "bg-green-500/20 text-green-400" : "text-muted-foreground"
+              )}
+              data-testid="button-movers-gainers"
+            >
+              <ArrowUpRight className="h-3 w-3 mr-1" />
+              Gainers
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('losers')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'losers' ? "bg-red-500/20 text-red-400" : "text-muted-foreground"
+              )}
+              data-testid="button-movers-losers"
+            >
+              <ArrowDownRight className="h-3 w-3 mr-1" />
+              Losers
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('alerts')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'alerts' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
+              )}
+              data-testid="button-movers-alerts"
+            >
+              <Zap className="h-3 w-3 mr-1" />
+              Hot
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {movers?.scannedCount || 0} stocks scanned • {movers?.session || 'Market'} session
+        </p>
+      </CardHeader>
+      <CardContent className="p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-6 text-muted-foreground" data-testid="movers-error-state">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-400" />
+            <p className="text-sm">Failed to load market movers</p>
+            <p className="text-xs mt-1">Try refreshing the page</p>
+          </div>
+        ) : displayData.length > 0 ? (
+          <div className="space-y-1.5" data-testid={`movers-list-${tab}`}>
+            {displayData.slice(0, 8).map((stock, idx) => (
+              <div 
+                key={stock.symbol} 
+                className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30 hover-elevate cursor-pointer"
+                data-testid={`mover-row-${stock.symbol}-${idx}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-5 text-center text-xs text-muted-foreground font-mono">{idx + 1}</span>
+                  <div>
+                    <span className="font-mono font-semibold text-sm" data-testid={`text-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                    <p className="text-xs text-muted-foreground truncate max-w-[120px]">{stock.name}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="font-mono text-sm" data-testid={`text-price-${stock.symbol}`}>${stock.price.toFixed(2)}</span>
+                  <p className={cn(
+                    "text-xs font-mono font-semibold",
+                    stock.changePercent > 0 ? "text-green-400" : "text-red-400"
+                  )} data-testid={`text-change-${stock.symbol}`}>
+                    {stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground" data-testid="movers-empty-state">
+            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No market movers found</p>
+            <p className="text-xs mt-1">Check back during market hours</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
   const searchString = useSearch();
@@ -1644,8 +1791,11 @@ export default function TradeDeskPage() {
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
 
-      {/* Best Setups Panel */}
-      <BestSetupsCard />
+      {/* Best Setups and Market Movers - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <BestSetupsCard />
+        <MarketMoversCard />
+      </div>
 
       {/* Engine Filter Tabs - Premium Design */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">

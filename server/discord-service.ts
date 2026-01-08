@@ -496,3 +496,84 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
     });
   } catch (e) {}
 }
+
+// Track recently alerted symbols to prevent duplicates
+const recentAlertedSymbols = new Map<string, number>();
+const ALERT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+
+export async function sendMarketMoversAlertToDiscord(movers: {
+  symbol: string;
+  name: string;
+  price: number;
+  changePercent: number;
+  volume: number;
+  alertType: 'surge' | 'drop' | 'volume_spike';
+}[]): Promise<void> {
+  if (DISCORD_DISABLED || !movers || movers.length === 0) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  
+  try {
+    const now = Date.now();
+    
+    // Clean up old entries and filter out recently alerted symbols
+    for (const [symbol, timestamp] of recentAlertedSymbols) {
+      if (now - timestamp > ALERT_COOLDOWN_MS) {
+        recentAlertedSymbols.delete(symbol);
+      }
+    }
+    
+    // Filter to only >5% moves that haven't been alerted recently
+    const filteredMovers = movers.filter(m => {
+      const absChange = Math.abs(m.changePercent);
+      if (absChange < 5) return false;
+      if (recentAlertedSymbols.has(m.symbol)) return false;
+      return true;
+    });
+    
+    if (filteredMovers.length === 0) return;
+    
+    // Mark these symbols as alerted
+    filteredMovers.forEach(m => recentAlertedSymbols.set(m.symbol, now));
+    
+    const surges = filteredMovers.filter(m => m.alertType === 'surge');
+    const drops = filteredMovers.filter(m => m.alertType === 'drop');
+    
+    if (surges.length === 0 && drops.length === 0) return;
+    
+    const fields: { name: string; value: string; inline?: boolean }[] = [];
+    
+    if (surges.length > 0) {
+      const surgeList = surges.slice(0, 5).map(s => 
+        `**${s.symbol}** +${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`
+      ).join('\n');
+      fields.push({ name: 'Major Surges', value: surgeList, inline: false });
+    }
+    
+    if (drops.length > 0) {
+      const dropList = drops.slice(0, 3).map(s => 
+        `**${s.symbol}** ${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`
+      ).join('\n');
+      fields.push({ name: 'Major Drops', value: dropList, inline: false });
+    }
+    
+    const embed: DiscordEmbed = {
+      title: 'Market Movers Alert',
+      description: `${filteredMovers.length} stocks with >5% moves detected`,
+      color: surges.length > drops.length ? COLORS.LONG : COLORS.SHORT,
+      fields,
+      footer: { text: 'Quant Edge Labs Real-time Scanner' },
+      timestamp: new Date().toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+    
+    logger.info(`[DISCORD] Sent market movers alert: ${surges.length} surges, ${drops.length} drops`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send market movers alert: ${e}`);
+  }
+}
