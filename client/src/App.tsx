@@ -35,6 +35,7 @@ const AdminReports = lazy(() => import("@/pages/admin-reports"));
 const AdminSecurity = lazy(() => import("@/pages/admin-security"));
 const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
 const AdminCredits = lazy(() => import("@/pages/admin-credits"));
+const AdminBetaInvites = lazy(() => import("@/pages/admin-beta-invites"));
 const About = lazy(() => import("@/pages/about"));
 const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
@@ -162,6 +163,7 @@ function Router() {
       <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/admin/win-loss" component={AdminWinLoss} />
       <Route path="/admin/credits" component={AdminCredits} />
+      <Route path="/admin/beta-invites" component={AdminBetaInvites} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}

@@ -2002,6 +2002,22 @@ export default function AdminPanel() {
             {/* Waitlist Management Tab */}
             <TabsContent value="waitlist">
               <CardContent className="space-y-6">
+                {/* Quick Link to Dedicated Page */}
+                <div className="flex items-center justify-between p-4 rounded-lg border border-cyan-600/30 bg-gradient-to-br from-cyan-900/10 to-blue-900/10">
+                  <div>
+                    <h3 className="font-medium">Looking for a cleaner view?</h3>
+                    <p className="text-sm text-muted-foreground">Use the dedicated Beta Invite Manager for a streamlined experience</p>
+                  </div>
+                  <Button 
+                    onClick={() => setLocation('/admin/beta-invites')}
+                    className="bg-cyan-600 hover:bg-cyan-500"
+                    data-testid="button-open-beta-invites"
+                  >
+                    Open Beta Manager
+                    <ExternalLink className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+
                 {/* Email Service Status */}
                 <div className="flex items-center justify-between p-4 rounded-lg border border-slate-700/50 bg-muted/20">
                   <div className="flex items-center gap-3">
