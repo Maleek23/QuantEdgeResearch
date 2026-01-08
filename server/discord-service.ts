@@ -479,21 +479,66 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
     });
   } catch (e) {}
 }
+// Flow alert cooldown to prevent spam (15 min per symbol)
+const flowAlertCooldown = new Map<string, number>();
+const FLOW_ALERT_COOLDOWN_MS = 15 * 60 * 1000;
+
 export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   if (DISCORD_DISABLED) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
+  
+  // Skip alerts with missing data (N/A spam prevention)
+  if (!flow.symbol) return;
+  
+  // Skip if this symbol was alerted recently (spam prevention)
+  const now = Date.now();
+  const lastAlert = flowAlertCooldown.get(flow.symbol);
+  if (lastAlert && now - lastAlert < FLOW_ALERT_COOLDOWN_MS) return;
+  
+  // Only alert for B+ or higher grades
+  const VALID_GRADES = ['A+', 'A', 'A-', 'B+'];
+  if (flow.grade && !VALID_GRADES.includes(flow.grade)) return;
+  
   try {
+    // Build description based on available data
+    const optionType = flow.optionType?.toUpperCase() || '';
+    const strike = flow.strikePrice ? `$${flow.strikePrice}` : '';
+    const expiry = flow.expiryDate ? `exp ${flow.expiryDate.split('T')[0]}` : '';
+    const entry = flow.entryPrice ? `@ $${Number(flow.entryPrice).toFixed(2)}` : '';
+    const target = flow.targetPrice ? `Target: $${Number(flow.targetPrice).toFixed(2)}` : '';
+    const rr = flow.riskReward ? `R:R ${flow.riskReward}:1` : '';
+    const gradeStr = flow.grade ? `[${flow.grade}]` : '';
+    
+    const description = `${optionType} ${strike} ${entry} ${expiry}\n${target} ${rr}`.trim();
+    
+    // Skip if no meaningful content
+    if (!description || description.length < 5) return;
+    
     const embed: DiscordEmbed = {
-      title: `📊 Unusual Flow: ${flow.symbol}`,
-      description: flow.description || 'Unusual options activity detected',
-      color: flow.type === 'call' ? COLORS.LONG : COLORS.SHORT,
-      fields: [
-        { name: 'Volume', value: String(flow.volume || 'N/A'), inline: true },
-        { name: 'Premium', value: `$${flow.premium?.toFixed(0) || 'N/A'}`, inline: true }
-      ],
+      title: `📊 Flow Alert: ${flow.symbol} ${gradeStr}`,
+      description,
+      color: flow.optionType === 'call' ? COLORS.LONG : COLORS.SHORT,
+      fields: [],
       timestamp: new Date().toISOString()
     };
+    
+    // Only add volume/premium if they have real values
+    if (flow.volume && flow.volume > 0) {
+      embed.fields!.push({ name: 'Volume', value: flow.volume.toLocaleString(), inline: true });
+    }
+    if (flow.premium && flow.premium > 0) {
+      embed.fields!.push({ name: 'Premium', value: `$${(flow.premium / 1000).toFixed(0)}k`, inline: true });
+    }
+    
+    // Mark as alerted
+    flowAlertCooldown.set(flow.symbol, now);
+    
+    // Clean up old cooldowns
+    for (const [sym, ts] of flowAlertCooldown) {
+      if (now - ts > FLOW_ALERT_COOLDOWN_MS) flowAlertCooldown.delete(sym);
+    }
+    
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
