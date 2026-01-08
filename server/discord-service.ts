@@ -508,6 +508,8 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   changePercent: number;
   volume: number;
   alertType: 'surge' | 'drop' | 'volume_spike';
+  grade?: string;
+  confidence?: number;
 }[]): Promise<void> {
   if (DISCORD_DISABLED || !movers || movers.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
@@ -544,16 +546,20 @@ export async function sendMarketMoversAlertToDiscord(movers: {
     const fields: { name: string; value: string; inline?: boolean }[] = [];
     
     if (surges.length > 0) {
-      const surgeList = surges.slice(0, 5).map(s => 
-        `**${s.symbol}** +${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`
-      ).join('\n');
+      const surgeList = surges.slice(0, 5).map(s => {
+        const gradeStr = s.grade ? ` [${s.grade}]` : '';
+        const confStr = s.confidence ? ` ${s.confidence}%` : '';
+        return `**${s.symbol}**${gradeStr}${confStr} +${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`;
+      }).join('\n');
       fields.push({ name: 'Major Surges', value: surgeList, inline: false });
     }
     
     if (drops.length > 0) {
-      const dropList = drops.slice(0, 3).map(s => 
-        `**${s.symbol}** ${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`
-      ).join('\n');
+      const dropList = drops.slice(0, 3).map(s => {
+        const gradeStr = s.grade ? ` [${s.grade}]` : '';
+        const confStr = s.confidence ? ` ${s.confidence}%` : '';
+        return `**${s.symbol}**${gradeStr}${confStr} ${s.changePercent.toFixed(1)}% @ $${s.price.toFixed(2)}`;
+      }).join('\n');
       fields.push({ name: 'Major Drops', value: dropList, inline: false });
     }
     

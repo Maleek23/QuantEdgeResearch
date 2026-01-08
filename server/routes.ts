@@ -10401,18 +10401,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[MOVERS] Scanned ${gainers.length + losers.length} stocks: ${topGainers.length} gainers, ${highAlertMovers.length} high-alert`);
       
-      // Send Discord alerts for major movers (>5% moves)
+      // Send Discord alerts for major movers (>5% moves) with grade and confidence
       if (highAlertMovers.length > 0) {
         try {
           const { sendMarketMoversAlertToDiscord } = await import('./discord-service');
-          const alertMovers = highAlertMovers.map(m => ({
-            symbol: m.symbol,
-            name: m.name,
-            price: m.price,
-            changePercent: m.changePercent,
-            volume: m.volume,
-            alertType: (m.changePercent > 0 ? 'surge' : 'drop') as 'surge' | 'drop',
-          }));
+          const alertMovers = highAlertMovers.map(m => {
+            const absChange = Math.abs(m.changePercent);
+            const volRatio = m.volumeRatio || 1;
+            
+            // Calculate confidence based on move size and volume
+            let confidence = 60;
+            if (absChange >= 10) confidence += 25;
+            else if (absChange >= 7) confidence += 15;
+            else if (absChange >= 5) confidence += 5;
+            if (volRatio >= 2) confidence += 10;
+            else if (volRatio >= 1.5) confidence += 5;
+            confidence = Math.min(confidence, 95);
+            
+            // Calculate grade based on confidence
+            let grade = 'C';
+            if (confidence >= 90) grade = 'A+';
+            else if (confidence >= 85) grade = 'A';
+            else if (confidence >= 80) grade = 'B+';
+            else if (confidence >= 75) grade = 'B';
+            else if (confidence >= 70) grade = 'C+';
+            
+            return {
+              symbol: m.symbol,
+              name: m.name,
+              price: m.price,
+              changePercent: m.changePercent,
+              volume: m.volume,
+              alertType: (m.changePercent > 0 ? 'surge' : 'drop') as 'surge' | 'drop',
+              grade,
+              confidence,
+            };
+          });
           await sendMarketMoversAlertToDiscord(alertMovers);
         } catch (e) {
           // Discord alert failed, continue without
