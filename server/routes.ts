@@ -18920,6 +18920,170 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================================================
+  // OPTIONS ANALYZER ROUTES
+  // ============================================================================
+
+  // GET /api/options-analyzer/expirations/:symbol - Get available expirations
+  app.get("/api/options-analyzer/expirations/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+      
+      const { TRADIER_API_KEY } = process.env;
+      if (!TRADIER_API_KEY) {
+        return res.status(500).json({ error: "Tradier API not configured" });
+      }
+      
+      const baseUrl = 'https://api.tradier.com/v1';
+      const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${upperSymbol}`, {
+        headers: {
+          'Authorization': `Bearer ${TRADIER_API_KEY}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!expResponse.ok) {
+        return res.status(404).json({ error: `No options found for ${upperSymbol}` });
+      }
+      
+      const expData = await expResponse.json();
+      const expirations: string[] = expData.expirations?.date || [];
+      
+      // Calculate DTE for each expiration
+      const now = new Date();
+      const expirationsWithDTE = expirations.map(exp => {
+        const expDate = new Date(exp + 'T16:00:00-05:00');
+        const dte = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return { date: exp, dte };
+      });
+      
+      res.json({ symbol: upperSymbol, expirations: expirationsWithDTE });
+    } catch (error: any) {
+      logger.error("Error fetching expirations", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to fetch expirations" });
+    }
+  });
+
+  // GET /api/options-analyzer/chain/:symbol - Get options chain
+  app.get("/api/options-analyzer/chain/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { expiration } = req.query;
+      const upperSymbol = symbol.toUpperCase();
+      
+      const { getTradierQuote, getTradierOptionsChain } = await import("./tradier-api");
+      
+      // Get stock quote
+      const quote = await getTradierQuote(upperSymbol);
+      if (!quote) {
+        return res.status(404).json({ error: `Quote not found for ${upperSymbol}` });
+      }
+      
+      const stockPrice = quote.last || quote.close || 0;
+      
+      // Get options chain
+      const chain = await getTradierOptionsChain(upperSymbol, expiration as string | undefined);
+      if (!chain || chain.length === 0) {
+        return res.status(404).json({ error: `No options chain found for ${upperSymbol}` });
+      }
+      
+      // Process chain for display
+      const processedChain = chain.map((opt: any) => ({
+        symbol: opt.symbol,
+        strike: opt.strike,
+        optionType: opt.option_type,
+        expiration: opt.expiration_date,
+        bid: opt.bid || 0,
+        ask: opt.ask || 0,
+        mid: ((opt.bid || 0) + (opt.ask || 0)) / 2,
+        last: opt.last || 0,
+        volume: opt.volume || 0,
+        openInterest: opt.open_interest || 0,
+        delta: opt.greeks?.delta || 0,
+        gamma: opt.greeks?.gamma || 0,
+        theta: opt.greeks?.theta || 0,
+        vega: opt.greeks?.vega || 0,
+        iv: (opt.greeks?.mid_iv || opt.greeks?.ask_iv || 0) * 100,
+        inTheMoney: opt.option_type === 'call' 
+          ? opt.strike < stockPrice 
+          : opt.strike > stockPrice
+      }));
+      
+      res.json({
+        symbol: upperSymbol,
+        stockPrice,
+        stockChange: quote.change || 0,
+        stockChangePercent: quote.change_percentage || 0,
+        chain: processedChain
+      });
+    } catch (error: any) {
+      logger.error("Error fetching options chain", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to fetch options chain" });
+    }
+  });
+
+  // POST /api/options-analyzer/deep-analysis - Run deep analysis on a specific option
+  app.post("/api/options-analyzer/deep-analysis", async (req, res) => {
+    try {
+      const { symbol, strike, expiration, optionType } = req.body;
+      
+      if (!symbol || !strike || !expiration || !optionType) {
+        return res.status(400).json({ error: "Missing required fields: symbol, strike, expiration, optionType" });
+      }
+      
+      const { analyzeOption, formatAnalysisReport } = await import("./deep-options-analyzer");
+      
+      const analysis = await analyzeOption(
+        symbol.toUpperCase(),
+        parseFloat(strike),
+        expiration,
+        optionType.toLowerCase() as 'call' | 'put'
+      );
+      
+      if (!analysis) {
+        return res.status(404).json({ error: "Failed to analyze option - not found or invalid" });
+      }
+      
+      res.json({
+        analysis,
+        report: formatAnalysisReport(analysis)
+      });
+    } catch (error: any) {
+      logger.error("Error running deep analysis", { error, body: req.body });
+      res.status(500).json({ error: "Failed to run deep analysis" });
+    }
+  });
+
+  // GET /api/options-analyzer/quick-quote - Get quick option quote
+  app.get("/api/options-analyzer/quick-quote", async (req, res) => {
+    try {
+      const { symbol, strike, expiration, optionType } = req.query;
+      
+      if (!symbol || !strike || !expiration || !optionType) {
+        return res.status(400).json({ error: "Missing required query params" });
+      }
+      
+      const { getOptionQuote } = await import("./tradier-api");
+      
+      const quote = await getOptionQuote({
+        underlying: (symbol as string).toUpperCase(),
+        expiryDate: expiration as string,
+        optionType: (optionType as string).toLowerCase() as 'call' | 'put',
+        strike: parseFloat(strike as string)
+      });
+      
+      if (!quote) {
+        return res.status(404).json({ error: "Option quote not found" });
+      }
+      
+      res.json(quote);
+    } catch (error: any) {
+      logger.error("Error fetching quick quote", { error });
+      res.status(500).json({ error: "Failed to fetch quick quote" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
