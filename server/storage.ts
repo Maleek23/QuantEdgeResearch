@@ -86,6 +86,8 @@ import type {
   InsertTradeDiagnostics,
   BotLearningState,
   InsertBotLearningState,
+  PremiumHistoryRecord,
+  InsertPremiumHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -130,6 +132,7 @@ import {
   betaInvites,
   tradeDiagnostics,
   botLearningState,
+  premiumHistory,
 } from "@shared/schema";
 
 // ========================================
@@ -341,6 +344,12 @@ export interface IStorage {
   addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem>;
   updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined>;
   removeFromWatchlist(id: string): Promise<boolean>;
+  getWatchlistItemsWithPremiumTracking(): Promise<WatchlistItem[]>;
+  updateWatchlistPremium(id: string, data: { lastPremium: number; lastPremiumDate: string; avgPremium: number; premiumPercentile: number }): Promise<WatchlistItem | undefined>;
+
+  // Premium History
+  getPremiumHistory(watchlistId: string, days?: number): Promise<PremiumHistoryRecord[]>;
+  createPremiumSnapshot(snapshot: InsertPremiumHistory): Promise<PremiumHistoryRecord>;
 
   // Options Data
   getOptionsBySymbol(symbol: string): Promise<OptionsData[]>;
@@ -1431,6 +1440,50 @@ export class MemStorage implements IStorage {
     return this.watchlist.delete(id);
   }
 
+  async getWatchlistItemsWithPremiumTracking(): Promise<WatchlistItem[]> {
+    return Array.from(this.watchlist.values()).filter(item => item.trackPremiums);
+  }
+
+  async updateWatchlistPremium(id: string, data: { lastPremium: number; lastPremiumDate: string; avgPremium: number; premiumPercentile: number }): Promise<WatchlistItem | undefined> {
+    const item = this.watchlist.get(id);
+    if (!item) return undefined;
+    const updated = { ...item, ...data };
+    this.watchlist.set(id, updated);
+    return updated;
+  }
+
+  // Premium History Methods (in-memory stub)
+  private premiumHistoryStore: Map<string, PremiumHistoryRecord[]> = new Map();
+
+  async getPremiumHistory(watchlistId: string, days: number = 90): Promise<PremiumHistoryRecord[]> {
+    return this.premiumHistoryStore.get(watchlistId) || [];
+  }
+
+  async createPremiumSnapshot(snapshot: InsertPremiumHistory): Promise<PremiumHistoryRecord> {
+    const record: PremiumHistoryRecord = { 
+      id: randomUUID(),
+      watchlistId: snapshot.watchlistId,
+      symbol: snapshot.symbol,
+      optionType: snapshot.optionType,
+      strikePrice: snapshot.strikePrice,
+      expirationDate: snapshot.expirationDate,
+      premium: snapshot.premium,
+      underlyingPrice: snapshot.underlyingPrice ?? null,
+      impliedVolatility: snapshot.impliedVolatility ?? null,
+      delta: snapshot.delta ?? null,
+      snapshotDate: snapshot.snapshotDate,
+      snapshotTime: snapshot.snapshotTime ?? null,
+      premiumChange: snapshot.premiumChange ?? null,
+      premiumChangeDollar: snapshot.premiumChangeDollar ?? null,
+      avgPremium30d: snapshot.avgPremium30d ?? null,
+      percentileRank: snapshot.percentileRank ?? null,
+    };
+    const existing = this.premiumHistoryStore.get(snapshot.watchlistId) || [];
+    existing.unshift(record);
+    this.premiumHistoryStore.set(snapshot.watchlistId, existing.slice(0, 365)); // Keep 1 year
+    return record;
+  }
+
   // Options Data Methods
   async getOptionsBySymbol(symbol: string): Promise<OptionsData[]> {
     return Array.from(this.optionsData.values()).filter((o) => o.symbol === symbol);
@@ -2438,6 +2491,38 @@ export class DatabaseStorage implements IStorage {
   async removeFromWatchlist(id: string): Promise<boolean> {
     const result = await db.delete(watchlistTable).where(eq(watchlistTable.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getWatchlistItemsWithPremiumTracking(): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlistTable).where(eq(watchlistTable.trackPremiums, true));
+  }
+
+  async updateWatchlistPremium(id: string, data: { lastPremium: number; lastPremiumDate: string; avgPremium: number; premiumPercentile: number }): Promise<WatchlistItem | undefined> {
+    const [updated] = await db.update(watchlistTable)
+      .set(data)
+      .where(eq(watchlistTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Premium History Methods
+  async getPremiumHistory(watchlistId: string, days: number = 90): Promise<PremiumHistoryRecord[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+    
+    return await db.select()
+      .from(premiumHistory)
+      .where(and(
+        eq(premiumHistory.watchlistId, watchlistId),
+        gte(premiumHistory.snapshotDate, cutoffStr)
+      ))
+      .orderBy(desc(premiumHistory.snapshotDate));
+  }
+
+  async createPremiumSnapshot(snapshot: InsertPremiumHistory): Promise<PremiumHistoryRecord> {
+    const [created] = await db.insert(premiumHistory).values(snapshot).returning();
+    return created;
   }
 
   // Options Data Methods

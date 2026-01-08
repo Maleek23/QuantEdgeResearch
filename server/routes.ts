@@ -9791,6 +9791,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Premium Tracking Routes
+  app.get("/api/watchlist/:id/premium-history", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 90;
+      const history = await storage.getPremiumHistory(req.params.id, days);
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/:id/premium-history' });
+      res.status(500).json({ error: "Failed to fetch premium history" });
+    }
+  });
+
+  app.get("/api/watchlist/:id/premium-trend", async (req, res) => {
+    try {
+      const { getPremiumTrend } = await import('./premium-tracking-service');
+      const trend = await getPremiumTrend(req.params.id);
+      res.json(trend);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/:id/premium-trend' });
+      res.status(500).json({ error: "Failed to fetch premium trend" });
+    }
+  });
+
+  app.post("/api/watchlist/track-premiums", requireAdminJWT, async (_req, res) => {
+    try {
+      const { trackAllPremiums } = await import('./premium-tracking-service');
+      const result = await trackAllPremiums();
+      res.json({
+        message: `Tracked ${result.tracked} items, ${result.failed} failed`,
+        ...result
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/track-premiums' });
+      res.status(500).json({ error: "Failed to track premiums" });
+    }
+  });
+
   // Watchlist Grading Routes
   app.get("/api/watchlist/graded", async (req: any, res) => {
     try {

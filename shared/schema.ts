@@ -471,11 +471,54 @@ export const watchlist = pgTable("watchlist", {
   // Alert Tracking
   lastAlertSent: text("last_alert_sent"), // Timestamp of last alert to prevent spam
   alertCount: integer("alert_count").default(0), // Track how many alerts sent
+  
+  // Premium Tracking (for year-round option monitoring)
+  trackPremiums: boolean("track_premiums").default(false), // Enable premium tracking for this symbol
+  preferredStrike: real("preferred_strike"), // Target strike price to track
+  preferredExpiry: text("preferred_expiry"), // Target expiry (e.g., "2026-01" for Jan 2026 LEAPs)
+  preferredOptionType: text("preferred_option_type").$type<'call' | 'put'>().default('call'),
+  lastPremium: real("last_premium"), // Most recent premium snapshot
+  lastPremiumDate: text("last_premium_date"), // When premium was last checked
+  premiumAlertThreshold: real("premium_alert_threshold"), // Alert when premium drops below this
+  avgPremium: real("avg_premium"), // Rolling average premium for comparison
+  premiumPercentile: real("premium_percentile"), // Current premium percentile (lower = cheaper opportunity)
 });
 
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
 export type WatchlistItem = typeof watchlist.$inferSelect;
+
+// Premium History - Track option premiums over time for watchlist symbols
+export const premiumHistory = pgTable("premium_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  watchlistId: varchar("watchlist_id").notNull(), // Link to watchlist item
+  symbol: text("symbol").notNull(),
+  
+  // Option details
+  optionType: text("option_type").$type<'call' | 'put'>().notNull(),
+  strikePrice: real("strike_price").notNull(),
+  expirationDate: text("expiration_date").notNull(), // YYYY-MM-DD
+  
+  // Premium snapshot
+  premium: real("premium").notNull(), // Option price at snapshot time
+  underlyingPrice: real("underlying_price"), // Stock price at time of snapshot
+  impliedVolatility: real("implied_volatility"), // IV at snapshot
+  delta: real("delta"), // Greeks snapshot
+  
+  // Tracking metadata
+  snapshotDate: text("snapshot_date").notNull(), // YYYY-MM-DD
+  snapshotTime: text("snapshot_time"), // HH:MM CT
+  
+  // Analytics
+  premiumChange: real("premium_change"), // % change from previous snapshot
+  premiumChangeDollar: real("premium_change_dollar"), // $ change from previous
+  avgPremium30d: real("avg_premium_30d"), // 30-day average for comparison
+  percentileRank: real("percentile_rank"), // Where current premium sits vs history (0-100, lower = cheaper)
+});
+
+export const insertPremiumHistorySchema = createInsertSchema(premiumHistory).omit({ id: true });
+export type InsertPremiumHistory = z.infer<typeof insertPremiumHistorySchema>;
+export type PremiumHistoryRecord = typeof premiumHistory.$inferSelect;
 
 // Catalyst/News
 export const catalysts = pgTable("catalysts", {
