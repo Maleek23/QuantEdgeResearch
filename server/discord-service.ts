@@ -153,8 +153,13 @@ export async function sendBotTradeEntryToDiscord(trade: {
       ? `**${directionEmoji} ${directionLabel}** - ${trade.analysis}`
       : `**${directionEmoji} ${directionLabel}** - ${meta.name} position opened.`;
 
+    // Format grade with confidence
+    const gradeWithConfidence = trade.confidence 
+      ? `${grade} (${trade.confidence}%)` 
+      : grade || 'N/A';
+
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''}`,
+      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''} [${grade}] ${trade.confidence || ''}%`,
       description: cleanAnalysis,
       color: isSmallAccount ? 0xfbbf24 : color,
       fields: [
@@ -162,11 +167,11 @@ export async function sendBotTradeEntryToDiscord(trade: {
         { name: '🎯 Target', value: trade.targetPrice ? `$${trade.targetPrice.toFixed(2)}` : 'N/A', inline: true },
         { name: '🛑 Stop', value: trade.stopLoss ? `$${trade.stopLoss.toFixed(2)}` : 'N/A', inline: true },
         { name: '⚖️ R:R', value: trade.riskRewardRatio ? `${trade.riskRewardRatio.toFixed(1)}:1` : 'N/A', inline: true },
-        { name: '🎯 Grade', value: grade || 'N/A', inline: true },
+        { name: '🎯 Grade', value: gradeWithConfidence, inline: true },
         { name: '📊 Details', value: deltaDisplay || `Qty: ${trade.quantity}`, inline: true }
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • ${meta.name}${grade ? ` | Grade: ${grade}` : ''}` }
+      footer: { text: `Quant Edge Labs • ${meta.name} | ${gradeWithConfidence}` }
     };
 
     if (trade.expiryDate) {
