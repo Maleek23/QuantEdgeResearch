@@ -888,6 +888,7 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   signals?: string[];
   analysis?: string;
   source?: string;
+  directionReason?: string;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
@@ -903,7 +904,7 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   try {
     const isCall = trade.optionType === 'call';
     const directionEmoji = isCall ? '🟢' : '🔴';
-    const directionLabel = isCall ? 'LONG' : 'SHORT';
+    const directionLabel = isCall ? 'BULLISH' : 'BEARISH';
     const sourceLabel = trade.source?.toUpperCase() || 'QUANT';
     
     // Calculate R:R and multiplier
@@ -933,10 +934,74 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
     // Format signals
     const signalsDisplay = trade.signals?.slice(0, 4).join(', ') || 'Technical confluence';
     
-    // Build premium embed format
+    // 🎯 DIRECTION REASONING - Why CALL vs PUT
+    // This explains the directional thesis based on trade type and signals
+    let directionReason = trade.directionReason || '';
+    if (!directionReason) {
+      const signalsList = trade.signals || [];
+      const signalsLower = signalsList.map(s => s.toLowerCase()).join(' ');
+      
+      if (trade.tradeType === 'day') {
+        // Day trade: Need clear intraday momentum reason
+        if (isCall) {
+          if (signalsLower.includes('breakout') || signalsLower.includes('break')) {
+            directionReason = 'Intraday breakout above resistance - momentum continuation expected';
+          } else if (signalsLower.includes('oversold') || signalsLower.includes('rsi')) {
+            directionReason = 'Oversold bounce setup - expecting quick reversal to mean';
+          } else if (signalsLower.includes('volume') || signalsLower.includes('flow')) {
+            directionReason = 'Heavy call flow + volume spike - institutional buying detected';
+          } else if (signalsLower.includes('vwap') || signalsLower.includes('reclaim')) {
+            directionReason = 'VWAP reclaim - bulls taking control intraday';
+          } else {
+            directionReason = 'Bullish intraday momentum + technical alignment';
+          }
+        } else {
+          if (signalsLower.includes('breakdown') || signalsLower.includes('break')) {
+            directionReason = 'Intraday breakdown below support - selling pressure accelerating';
+          } else if (signalsLower.includes('overbought') || signalsLower.includes('rsi')) {
+            directionReason = 'Overbought rejection - expecting pullback to mean';
+          } else if (signalsLower.includes('volume') || signalsLower.includes('flow')) {
+            directionReason = 'Heavy put flow + volume spike - institutional selling detected';
+          } else if (signalsLower.includes('vwap') || signalsLower.includes('reject')) {
+            directionReason = 'VWAP rejection - bears defending key level';
+          } else {
+            directionReason = 'Bearish intraday momentum + technical breakdown';
+          }
+        }
+      } else {
+        // Swing trade: Need sustained directional thesis
+        if (isCall) {
+          if (signalsLower.includes('trend') || signalsLower.includes('uptrend')) {
+            directionReason = 'Strong uptrend continuation - higher highs/lows pattern intact';
+          } else if (signalsLower.includes('support') || signalsLower.includes('bounce')) {
+            directionReason = 'Key support hold + bullish divergence - reversal setup';
+          } else if (signalsLower.includes('earnings') || signalsLower.includes('catalyst')) {
+            directionReason = 'Positive catalyst + sector strength - swing higher expected';
+          } else if (signalsLower.includes('accumulation') || signalsLower.includes('institutional')) {
+            directionReason = 'Institutional accumulation pattern - multi-day upside expected';
+          } else {
+            directionReason = 'Multi-day bullish setup with technical + fundamental confluence';
+          }
+        } else {
+          if (signalsLower.includes('trend') || signalsLower.includes('downtrend')) {
+            directionReason = 'Downtrend continuation - lower highs/lows pattern intact';
+          } else if (signalsLower.includes('resistance') || signalsLower.includes('rejection')) {
+            directionReason = 'Key resistance rejection + bearish divergence - fade setup';
+          } else if (signalsLower.includes('earnings') || signalsLower.includes('catalyst')) {
+            directionReason = 'Negative catalyst + sector weakness - swing lower expected';
+          } else if (signalsLower.includes('distribution') || signalsLower.includes('selling')) {
+            directionReason = 'Institutional distribution pattern - multi-day downside expected';
+          } else {
+            directionReason = 'Multi-day bearish setup with technical + fundamental confluence';
+          }
+        }
+      }
+    }
+    
+    // Build premium embed format with direction reasoning
     const embed: DiscordEmbed = {
-      title: `${directionEmoji} ${sourceLabel} ${directionLabel}`,
-      description: `**[${trade.grade}] ${trade.confidence}% Conviction**\n\n**TRADE:** ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} (${tradeTypeLabel})`,
+      title: `${directionEmoji} ${sourceLabel} ${directionLabel} ${trade.optionType.toUpperCase()}`,
+      description: `**[${trade.grade}] ${trade.confidence}% Conviction**\n\n**TRADE:** ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} (${tradeTypeLabel})\n\n**WHY ${trade.optionType.toUpperCase()}:** ${directionReason}`,
       color: isCall ? COLORS.LONG : COLORS.SHORT,
       fields: [
         { name: '📊 GREEKS', value: `Delta: ${deltaDisplay}\nDTE: ${dteDisplay}`, inline: true },
@@ -961,7 +1026,7 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
       }),
     });
     
-    logger.info(`[DISCORD] Sent premium options alert: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} [${trade.grade}]`);
+    logger.info(`[DISCORD] Sent premium options alert: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} [${trade.grade}] - ${directionReason}`);
   } catch (e) {
     logger.error(`[DISCORD] Failed to send premium options alert: ${e}`);
   }
