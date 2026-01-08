@@ -419,6 +419,28 @@ export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Prom
 export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {}
 export async function sendAnnualBreakoutsToDiscord(items: any[]): Promise<any> { return { success: true }; }
 export async function sendCryptoBotTradeToDiscord(trade: any): Promise<void> {}
+export async function sendReportNotificationToDiscord(report: any): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  try {
+    const embed: DiscordEmbed = {
+      title: `📊 Platform Report: ${report.period || 'daily'}`,
+      description: report.summary || 'New platform report available',
+      color: COLORS.LONG,
+      fields: [
+        { name: 'Period', value: report.period || 'daily', inline: true },
+        { name: 'Date', value: report.reportDate || new Date().toISOString().split('T')[0], inline: true }
+      ],
+      timestamp: new Date().toISOString()
+    };
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+  } catch (e) { logger.error(e); }
+}
 export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
