@@ -12,7 +12,7 @@ export function generateInviteToken(): string {
 }
 
 export function getInviteLink(token: string): string {
-  return `${APP_URL}/signup?invite=${token}`;
+  return `${APP_URL}/join-beta?code=${token}`;
 }
 
 export async function sendBetaInviteEmail(

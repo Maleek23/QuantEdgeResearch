@@ -851,6 +851,267 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== BETA ONBOARDING FLOW (For New Users) ==========
+  
+  // Step 1: Verify invite code - validates email + token without creating account
+  // This is for new users who haven't registered yet
+  app.post("/api/beta/verify-code", adminLimiter, async (req: Request, res: Response) => {
+    try {
+      const { email, token } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      if (!token || typeof token !== 'string' || token.length < 4) {
+        return res.status(400).json({ error: "Invalid invite code format" });
+      }
+      
+      const emailLower = email.toLowerCase().trim();
+      const sanitizedToken = token.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      
+      // Find the invite by token
+      const invite = await storage.getBetaInviteByToken(sanitizedToken);
+      
+      if (!invite) {
+        logger.warn('Beta verification failed - code not found', { email: emailLower });
+        return res.status(400).json({ error: "Invalid invite code" });
+      }
+      
+      // Check if invite matches email
+      if (invite.email.toLowerCase() !== emailLower) {
+        logger.warn('Beta verification failed - email mismatch', { 
+          providedEmail: emailLower, 
+          inviteEmail: invite.email 
+        });
+        return res.status(400).json({ error: "This invite code was sent to a different email" });
+      }
+      
+      // Check if already redeemed
+      if (invite.status === 'redeemed') {
+        return res.status(400).json({ error: "This invite code has already been used" });
+      }
+      
+      // Check if expired
+      if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+        await storage.updateBetaInviteStatus(invite.id, 'expired');
+        return res.status(400).json({ error: "This invite code has expired" });
+      }
+      
+      // Check if revoked
+      if (invite.status === 'revoked') {
+        return res.status(400).json({ error: "This invite code is no longer valid" });
+      }
+      
+      // Store verification in session for onboarding step
+      (req.session as any).betaVerified = {
+        inviteId: invite.id,
+        email: emailLower,
+        token: sanitizedToken,
+        verifiedAt: new Date().toISOString(),
+      };
+      
+      logger.info('Beta code verified successfully', { email: emailLower, inviteId: invite.id });
+      
+      res.json({ 
+        success: true,
+        message: "Invite code verified! Complete your profile to continue.",
+        email: emailLower,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'beta/verify-code' });
+      res.status(500).json({ error: "Failed to verify invite code" });
+    }
+  });
+  
+  // Step 2: Complete onboarding - creates account with password and onboarding data
+  app.post("/api/beta/onboard", adminLimiter, async (req: Request, res: Response) => {
+    try {
+      const betaVerified = (req.session as any).betaVerified;
+      
+      if (!betaVerified) {
+        return res.status(400).json({ 
+          error: "Please verify your invite code first",
+          requiresVerification: true 
+        });
+      }
+      
+      // Verify the session hasn't expired (15 minute window)
+      const verifiedAt = new Date(betaVerified.verifiedAt);
+      const now = new Date();
+      const diffMinutes = (now.getTime() - verifiedAt.getTime()) / (1000 * 60);
+      if (diffMinutes > 15) {
+        delete (req.session as any).betaVerified;
+        return res.status(400).json({ 
+          error: "Verification expired. Please verify your code again.",
+          requiresVerification: true 
+        });
+      }
+      
+      const { 
+        occupation, 
+        tradingExperienceLevel, 
+        knowledgeFocus, 
+        investmentGoals, 
+        riskTolerance, 
+        referralSource, 
+        password,
+        firstName,
+        lastName 
+      } = req.body;
+      
+      // Validate required fields
+      if (!password || password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      
+      if (!occupation || !tradingExperienceLevel || !investmentGoals || !riskTolerance || !referralSource) {
+        return res.status(400).json({ error: "Please complete all required fields" });
+      }
+      
+      if (!knowledgeFocus || !Array.isArray(knowledgeFocus) || knowledgeFocus.length === 0) {
+        return res.status(400).json({ error: "Please select at least one area of focus" });
+      }
+      
+      const email = betaVerified.email;
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        // User exists, update them with beta access instead of creating new
+        const bcrypt = await import('bcrypt');
+        const passwordHash = await bcrypt.hash(password, 10);
+        
+        await storage.updateUser(existingUser.id, {
+          passwordHash,
+          firstName: firstName || existingUser.firstName,
+          lastName: lastName || existingUser.lastName,
+          hasBetaAccess: true,
+          betaInviteId: betaVerified.inviteId,
+          occupation,
+          tradingExperienceLevel,
+          knowledgeFocus,
+          investmentGoals,
+          riskTolerance,
+          referralSource,
+          onboardingCompletedAt: new Date(),
+        });
+        
+        // Mark invite as redeemed
+        await storage.redeemBetaInvite(betaVerified.token);
+        
+        // Update waitlist if they were on it
+        const waitlistEntry = await storage.getWaitlistEntry(email);
+        if (waitlistEntry) {
+          await storage.updateWaitlistStatus(waitlistEntry.id, 'joined', betaVerified.inviteId);
+        }
+        
+        // Log the user in
+        (req.session as any).userId = existingUser.id;
+        delete (req.session as any).betaVerified;
+        
+        const updatedUser = await storage.getUser(existingUser.id);
+        
+        logger.info('Existing user completed beta onboarding', { 
+          userId: existingUser.id, 
+          email,
+          inviteId: betaVerified.inviteId 
+        });
+        
+        return res.json({ 
+          success: true,
+          message: "Welcome to the beta!",
+          user: sanitizeUser(updatedUser!),
+        });
+      }
+      
+      // Create new user with beta access
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(password, 10);
+      
+      const newUser = await storage.upsertUser({
+        email,
+        passwordHash,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        subscriptionTier: 'free',
+        hasBetaAccess: true,
+        betaInviteId: betaVerified.inviteId,
+        occupation,
+        tradingExperienceLevel,
+        knowledgeFocus,
+        investmentGoals,
+        riskTolerance,
+        referralSource,
+        onboardingCompletedAt: new Date(),
+      });
+      
+      // Mark invite as redeemed
+      await storage.redeemBetaInvite(betaVerified.token);
+      
+      // Update waitlist if they were on it
+      const waitlistEntry = await storage.getWaitlistEntry(email);
+      if (waitlistEntry) {
+        await storage.updateWaitlistStatus(waitlistEntry.id, 'joined', betaVerified.inviteId);
+      }
+      
+      // Log the new user in
+      (req.session as any).userId = newUser.id;
+      delete (req.session as any).betaVerified;
+      
+      logger.info('New user completed beta onboarding', { 
+        userId: newUser.id, 
+        email,
+        inviteId: betaVerified.inviteId 
+      });
+      
+      // Send welcome email via Resend if configured
+      const resendKey = process.env.RESEND_API_KEY;
+      if (resendKey) {
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(resendKey);
+          
+          await resend.emails.send({
+            from: 'Quant Edge Labs <beta@quantedgelabs.com>',
+            to: email,
+            subject: 'Welcome to the Quant Edge Labs Beta!',
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #0891b2;">Welcome to the Lab, ${firstName || 'Trader'}!</h1>
+                <p>Your beta access is now active. You have access to:</p>
+                <ul>
+                  <li><strong>Auto-Lotto Bot</strong> - Live automated trading data across Options, Futures, Crypto, and Small Account portfolios</li>
+                  <li><strong>Elite Trading Engine</strong> - Institutional-grade entry validation matching top 1% trader standards</li>
+                  <li><strong>Research Tools</strong> - Chart analysis, market scanner, and trade ideas</li>
+                </ul>
+                <p>Start exploring: <a href="https://quantedgelabs.replit.app/automations" style="color: #0891b2;">View Automations Hub</a></p>
+                <p style="color: #666; font-size: 12px;">
+                  <strong>Educational Disclaimer:</strong> This platform is for research and educational purposes only. 
+                  Past performance is not indicative of future results. Never risk more than you can afford to lose.
+                </p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="color: #888; font-size: 12px;">Quant Edge Labs - Institutional-Grade Research for Individual Traders</p>
+              </div>
+            `,
+          });
+          logger.info('Welcome email sent', { email });
+        } catch (emailError) {
+          logger.error('Failed to send welcome email', { error: emailError, email });
+        }
+      }
+      
+      res.json({ 
+        success: true,
+        message: "Welcome to the beta!",
+        user: sanitizeUser(newUser),
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'beta/onboard' });
+      res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  });
+
   // Quick dev login - creates test user if needed and logs in
   app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
     try {
@@ -4833,9 +5094,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 🛡️ COMPLIANCE: Minimum paper trades required before live trading
   const REQUIRED_PAPER_TRADES = 20;
 
-  // Get auto-lotto trading bot stats (public endpoint)
-  app.get("/api/auto-lotto/stats", async (_req: any, res) => {
+  // Get auto-lotto trading bot stats (beta access required)
+  app.get("/api/auto-lotto/stats", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if user has beta access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (!hasBetaAccess) {
+        return res.json({
+          active: false,
+          requiresBetaAccess: true,
+          message: "Join the beta program to access bot trading data",
+          portfolio: null,
+          openPositions: 0,
+          closedPositions: 0,
+          totalPnL: 0,
+          winRate: 0,
+        });
+      }
+      
       const { getLottoStats } = await import('./auto-lotto-trader');
       const stats = await getLottoStats();
       
@@ -4871,9 +5151,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 🎯 Real-Time Exit Intelligence - Live position analysis with dynamic exit predictions
-  app.get("/api/auto-lotto/exit-intelligence", async (req: any, res) => {
+  // 🎯 Real-Time Exit Intelligence - Live position analysis with dynamic exit predictions (beta access required)
+  app.get("/api/auto-lotto/exit-intelligence", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if user has beta access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (!hasBetaAccess) {
+        return res.json({
+          portfolioId: null,
+          positions: [],
+          lastRefresh: new Date().toISOString(),
+          marketStatus: 'closed',
+          requiresBetaAccess: true,
+          message: 'Join the beta program to access exit intelligence'
+        });
+      }
+      
       const exitIntelligence = await getAutoLottoExitIntelligence();
       
       if (!exitIntelligence) {
@@ -4894,9 +5191,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 📊 Performance Summary - Rolling win rates and symbol leaderboard
-  app.get("/api/auto-lotto/performance-summary", async (_req: any, res) => {
+  // 📊 Performance Summary - Rolling win rates and symbol leaderboard (beta access required)
+  app.get("/api/auto-lotto/performance-summary", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if user has beta access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (!hasBetaAccess) {
+        return res.json({
+          allTime: { trades: 0, wins: 0, losses: 0, winRate: '0', totalPnL: 0 },
+          last30Days: { trades: 0, wins: 0, losses: 0, winRate: '0', totalPnL: 0 },
+          last7Days: { trades: 0, wins: 0, losses: 0, winRate: '0', totalPnL: 0 },
+          topSymbols: [],
+          worstSymbols: [],
+          requiresBetaAccess: true,
+          message: 'Join the beta program to access performance data'
+        });
+      }
+      
       // Get all auto-lotto portfolios (same filter as bot-status)
       const portfolios = await storage.getAllPaperPortfolios();
       const autoLottoPortfolios = portfolios.filter(p => 
@@ -10023,9 +10338,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard: Get all paper portfolios (public for dashboard widget)
-  app.get("/api/paper-portfolios", async (_req, res) => {
+  // Dashboard: Get all paper portfolios (beta access required)
+  app.get("/api/paper-portfolios", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if user has beta access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (!hasBetaAccess) {
+        return res.json({
+          portfolios: [],
+          requiresBetaAccess: true,
+          message: 'Join the beta program to access portfolio data'
+        });
+      }
+      
       const portfolios = await storage.getAllPaperPortfolios();
       // Filter to only auto-lotto portfolios and format response
       const autoLottoPortfolios = portfolios.filter(p => 
@@ -10040,9 +10369,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard: Get bot status (public for dashboard widget)
-  app.get("/api/auto-lotto/bot-status", async (_req, res) => {
+  // Dashboard: Get bot status (beta access required)
+  app.get("/api/auto-lotto/bot-status", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if user has beta access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (!hasBetaAccess) {
+        return res.json({
+          isRunning: false,
+          openPositions: 0,
+          todayTrades: 0,
+          todayPnL: 0,
+          marketStatus: 'closed',
+          requiresBetaAccess: true,
+          message: 'Join the beta program to access bot status'
+        });
+      }
+      
       const portfolios = await storage.getAllPaperPortfolios();
       // Get ALL auto-lotto portfolios
       const autoLottoPortfolios = portfolios.filter(p => 
@@ -14051,41 +14398,63 @@ CONSTRAINTS:
         };
       }
       
-      // All authenticated users can see bot trades (platform-wide automated trades)
-      // isAdmin controls whether to show additional admin-only features
-      res.json({
-        portfolio: {
-          name: portfolio.name,
-          startingCapital: portfolio.startingCapital,
-          cashBalance: portfolio.cashBalance,
-          totalValue: portfolio.totalValue,
-          totalPnL: portfolio.totalPnL,
-          createdAt: portfolio.createdAt,
-        },
-        futuresPortfolio: futuresStats,
-        cryptoPortfolio: cryptoStats,
-        smallAccountPortfolio: smallAccountStats,
-        // Show trades to all authenticated users (these are platform bot trades, not user-specific)
-        positions: positions.slice(0, 50),
-        futuresPositions: futuresPositions.slice(0, 20),
-        cryptoPositions: cryptoPositions.slice(0, 20),
-        smallAccountPositions: smallAccountPositions.slice(0, 20),
-        stats: {
-          openPositions: openPositions.length,
-          closedPositions: closedPositions.length,
-          wins,
-          losses,
-          // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
-          winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
-          winRateNote: hasStatisticalValidity ? null : `Note: Based on ${closedPositions.length} trades (min 20 recommended)`,
-          totalRealizedPnL,
-          totalUnrealizedPnL,
-          sampleSize: closedPositions.length,
-          hasStatisticalValidity,
-        },
-        botStatus: 'running',
-        isAdmin,
-      });
+      // Check if user has beta access (admin or explicit beta access)
+      const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
+      
+      if (hasBetaAccess) {
+        // Admin/Beta users get full access to bot trading data
+        res.json({
+          portfolio: {
+            name: portfolio.name,
+            startingCapital: portfolio.startingCapital,
+            cashBalance: portfolio.cashBalance,
+            totalValue: portfolio.totalValue,
+            totalPnL: portfolio.totalPnL,
+            createdAt: portfolio.createdAt,
+          },
+          futuresPortfolio: futuresStats,
+          cryptoPortfolio: cryptoStats,
+          smallAccountPortfolio: smallAccountStats,
+          positions: positions.slice(0, 50),
+          futuresPositions: futuresPositions.slice(0, 20),
+          cryptoPositions: cryptoPositions.slice(0, 20),
+          smallAccountPositions: smallAccountPositions.slice(0, 20),
+          stats: {
+            openPositions: openPositions.length,
+            closedPositions: closedPositions.length,
+            wins,
+            losses,
+            winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
+            winRateNote: hasStatisticalValidity ? null : `Note: Based on ${closedPositions.length} trades (min 20 recommended)`,
+            totalRealizedPnL,
+            totalUnrealizedPnL,
+            sampleSize: closedPositions.length,
+            hasStatisticalValidity,
+          },
+          botStatus: 'running',
+          isAdmin,
+          hasBetaAccess: true,
+        });
+      } else {
+        // Non-beta users: show that bot exists but no trading data
+        // They need to join the beta to see live trading data
+        res.json({
+          portfolio: null,
+          futuresPortfolio: null,
+          cryptoPortfolio: null,
+          smallAccountPortfolio: null,
+          positions: [],
+          futuresPositions: [],
+          cryptoPositions: [],
+          smallAccountPositions: [],
+          stats: null,
+          botStatus: 'running',
+          isAdmin: false,
+          hasBetaAccess: false,
+          requiresBetaAccess: true,
+          message: 'Join the beta program to access live bot trading data',
+        });
+      }
 
     } catch (error: any) {
       logger.error("Error fetching auto-lotto bot data", { error });

@@ -100,3 +100,39 @@ The Auto-Lotto Bot now features an **Elite Trading Engine Gate** - institutional
 - **Performance Summary Consistency**: `/api/auto-lotto/performance-summary` now uses `exitTime OR closedAt` for position close detection and includes all portfolio types (options, futures, crypto, prop firm).
 - **P&L Calculation Fix**: Dashboard now uses `totalValue` field for accurate P&L display instead of `cashBalance`.
 - **Bot Activity Status**: Correctly displays "SCANNING" during market hours and "MARKET CLOSED" during after hours.
+
+### Beta Onboarding System (Jan 2026)
+Complete invite-only beta access system with email-based onboarding:
+
+**User Flow:**
+1. User joins waitlist via public form
+2. Admin sends invite via `/api/admin/waitlist/:id/invite` or `/api/admin/invites`
+3. User receives email with link to `/join-beta?code={token}`
+4. User enters email + code for verification (15min session expiry)
+5. User completes onboarding questionnaire with password creation
+6. Account created with `hasBetaAccess: true`
+7. Welcome email sent via Resend
+8. User auto-logged in and redirected to Automations Hub
+
+**Onboarding Data Collected:**
+- `occupation` - professional background
+- `tradingExperienceLevel` - beginner/intermediate/advanced/professional
+- `knowledgeFocus` - array of interests (stocks/options/futures/crypto/forex/technical_analysis)
+- `investmentGoals` - income/growth/speculation/hedging
+- `riskTolerance` - conservative/moderate/aggressive/very_aggressive
+- `referralSource` - how they found the platform
+
+**Protected Endpoints (Beta Access Required):**
+- `/api/auto-lotto-bot` - main bot data endpoint
+- `/api/auto-lotto/stats` - bot statistics
+- `/api/auto-lotto/exit-intelligence` - position exit analysis
+- `/api/auto-lotto/performance-summary` - rolling win rates
+- `/api/auto-lotto/bot-status` - dashboard widget data
+- `/api/paper-portfolios` - portfolio listing
+
+**Security Features:**
+- 7-day invite expiry
+- Session-based code verification (15min window)
+- bcrypt password hashing
+- Rate limiting on public beta endpoints
+- Failed attempt logging

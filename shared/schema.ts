@@ -47,12 +47,38 @@ export const users = pgTable("users", {
   hasBetaAccess: boolean("has_beta_access").default(false), // True if user has redeemed invite or is grandfathered
   betaInviteId: varchar("beta_invite_id"), // Which invite they used to join
   
+  // Onboarding fields (captured during beta signup)
+  occupation: varchar("occupation"),
+  tradingExperienceLevel: varchar("trading_experience_level"), // 'beginner' | 'intermediate' | 'advanced' | 'professional'
+  knowledgeFocus: text("knowledge_focus").array(), // ['stocks', 'options', 'futures', 'crypto', 'forex']
+  investmentGoals: varchar("investment_goals"), // 'income' | 'growth' | 'speculation' | 'hedging'
+  riskTolerance: varchar("risk_tolerance"), // 'conservative' | 'moderate' | 'aggressive' | 'very_aggressive'
+  referralSource: varchar("referral_source"), // How they heard about us
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+// Onboarding form validation schema (for beta signup)
+export const betaOnboardingSchema = z.object({
+  occupation: z.string().min(1, "Occupation is required"),
+  tradingExperienceLevel: z.enum(['beginner', 'intermediate', 'advanced', 'professional']),
+  knowledgeFocus: z.array(z.string()).min(1, "Select at least one area"),
+  investmentGoals: z.enum(['income', 'growth', 'speculation', 'hedging']),
+  riskTolerance: z.enum(['conservative', 'moderate', 'aggressive', 'very_aggressive']),
+  referralSource: z.string().min(1, "Please tell us how you heard about us"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export type BetaOnboarding = z.infer<typeof betaOnboardingSchema>;
 
 // Market Session Type
 export type MarketSession = 'pre-market' | 'rth' | 'after-hours' | 'closed';
