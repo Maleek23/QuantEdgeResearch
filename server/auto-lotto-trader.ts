@@ -196,17 +196,17 @@ const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
 const CRYPTO_MAX_POSITION_SIZE = 100;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 💰 SMALL ACCOUNT LOTTO - $150 account for ultra-cheap A+ plays only
-// Targets: TSLA, SPX (Fridays), BMNR, SMCI, SNDK (Thursdays), IWM
-// Entry: $20-100 per contract ($0.20-$1.00 premium)
-// Grade: A+ ONLY - highest conviction plays
+// 💰 SMALL ACCOUNT LOTTO - $150 account for ultra-cheap plays
+// Targets: Cheap AI/Tech/Meme plays with high gamma potential
+// Entry: $5-100 per contract ($0.05-$1.00 premium) - TRUE LOTTOS
+// Grade: B+ or higher (85%+ confidence) - High conviction but not ultra-strict
 // ═══════════════════════════════════════════════════════════════════════════
 const SMALL_ACCOUNT_STARTING_CAPITAL = 150;
 const SMALL_ACCOUNT_MAX_POSITION = 30; // $30 max per trade (20% of $150)
-const SMALL_ACCOUNT_MIN_PREMIUM = 20; // $0.20 minimum (avoid penny options)
+const SMALL_ACCOUNT_MIN_PREMIUM = 5; // $0.05 minimum - allow true lotto plays!
 const SMALL_ACCOUNT_MAX_PREMIUM = 100; // $1.00 max premium
-const SMALL_ACCOUNT_GRADE_THRESHOLD = 90; // A+ only (90%+ confidence)
-const SMALL_ACCOUNT_MIN_DTE = 5; // Minimum 5 DTE - avoid theta crush on small accounts
+const SMALL_ACCOUNT_GRADE_THRESHOLD = 85; // B+ or higher (85%+ confidence)
+const SMALL_ACCOUNT_MIN_DTE = 3; // Minimum 3 DTE - allow closer expiries for small account lottos
 
 // 🛡️ GENERAL DTE PROTECTION - All portfolios
 // Lower threshold for regular accounts, stricter for small accounts
@@ -214,15 +214,24 @@ const GENERAL_MIN_DTE = 3; // Regular accounts: minimum 3 DTE (avoid 0-2 DTE the
 
 // Priority tickers for Small Account - cheap options, high potential
 const SMALL_ACCOUNT_TICKERS = [
+  // 🤖 AI/QUANTUM - User's focus
+  'QUBT',  // Quantum computing - user active
+  'AI',    // C3.ai - user active  
+  'NVDA',  // AI leader - cheap puts/calls available
+  'PLTR',  // AI/Tech - user favorite
+  'SMCI',  // AI infrastructure
+  // 🚀 MEME/HIGH GAMMA
   'TSLA',  // Fridays especially
   'SPY',   // SPX proxy - Friday 0DTE
-  'BMNR',  // Small cap mover
-  'SMCI',  // AI play
-  'SNDK',  // Thursdays
   'IWM',   // Small caps index
-  'INTC',  // Cheap options
   'NIO',   // EV play
-  'PLTR',  // AI/Tech
+  'INTC',  // Cheap options
+  // 📈 MOMENTUM PLAYS
+  'BMNR',  // Small cap mover
+  'SNDK',  // Thursdays
+  'AMD',   // Semi plays
+  'MARA',  // Crypto proxy
+  'RIOT',  // Crypto mining
 ];
 
 // Prop Firm Mode - Conservative settings for Topstep/funded evaluations
@@ -1429,7 +1438,7 @@ export async function getSmallAccountPortfolio(): Promise<PaperPortfolio | null>
 
 /**
  * Check if a trade qualifies for Small Account
- * Requirements: A+ grade (90%+), $0.20-$1.00 premium, priority ticker, 5+ DTE
+ * Requirements: B+ grade (85%+), $0.05-$1.00 premium, priority ticker, 3+ DTE
  */
 export function isSmallAccountEligible(
   ticker: string,
@@ -1437,19 +1446,19 @@ export function isSmallAccountEligible(
   premiumCents: number,
   daysToExpiry?: number
 ): { eligible: boolean; reason: string } {
-  // Must be A+ grade (90%+ confidence)
+  // Must be B+ grade or higher (85%+ confidence)
   if (confidence < SMALL_ACCOUNT_GRADE_THRESHOLD) {
-    return { eligible: false, reason: `Grade ${confidence.toFixed(0)}% < ${SMALL_ACCOUNT_GRADE_THRESHOLD}% (A+ required)` };
+    return { eligible: false, reason: `Grade ${confidence.toFixed(0)}% < ${SMALL_ACCOUNT_GRADE_THRESHOLD}% (B+ required)` };
   }
   
-  // 🛡️ THETA PROTECTION: Minimum 5 DTE for small accounts - avoid theta crush
+  // 🛡️ THETA PROTECTION: Minimum 3 DTE for small accounts - avoid theta crush
   if (daysToExpiry !== undefined && daysToExpiry < SMALL_ACCOUNT_MIN_DTE) {
     return { eligible: false, reason: `${daysToExpiry} DTE < ${SMALL_ACCOUNT_MIN_DTE} minimum (theta crush risk)` };
   }
   
-  // Premium must be in range ($0.20 - $1.00)
+  // Premium must be in range ($0.05 - $1.00) - TRUE LOTTO range
   if (premiumCents < SMALL_ACCOUNT_MIN_PREMIUM) {
-    return { eligible: false, reason: `Premium $${(premiumCents/100).toFixed(2)} < $0.20 minimum` };
+    return { eligible: false, reason: `Premium $${(premiumCents/100).toFixed(2)} < $0.05 minimum` };
   }
   if (premiumCents > SMALL_ACCOUNT_MAX_PREMIUM) {
     return { eligible: false, reason: `Premium $${(premiumCents/100).toFixed(2)} > $1.00 maximum` };
@@ -1460,7 +1469,7 @@ export function isSmallAccountEligible(
     return { eligible: false, reason: `${ticker} not in small account priority list` };
   }
   
-  return { eligible: true, reason: 'A+ setup on priority ticker with cheap premium and safe DTE' };
+  return { eligible: true, reason: 'B+ setup on priority ticker with lotto premium and safe DTE' };
 }
 
 /**
