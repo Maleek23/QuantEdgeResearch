@@ -1721,13 +1721,25 @@ export interface FundamentalData {
   fetchedAt: string;
 }
 
+// Fundamental data cache to avoid rate limiting (15 minute TTL)
+const fundamentalCache = new Map<string, { data: FundamentalData; timestamp: number }>();
+const FUNDAMENTAL_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Fetch comprehensive fundamental data from Yahoo Finance
  * Uses multiple quoteSummary modules for complete coverage
  * Includes retry logic with exponential backoff for rate limiting
+ * Caches results for 15 minutes to avoid rate limits
  */
 export async function fetchFundamentalData(symbol: string): Promise<FundamentalData | null> {
   const upperSymbol = symbol.toUpperCase();
+  
+  // Check cache first
+  const cached = fundamentalCache.get(upperSymbol);
+  if (cached && Date.now() - cached.timestamp < FUNDAMENTAL_CACHE_TTL_MS) {
+    logger.debug(`[FUNDAMENTALS] Cache hit for ${upperSymbol}`);
+    return cached.data;
+  }
   
   // User agent rotation to reduce rate limiting
   const userAgents = [
@@ -1775,7 +1787,10 @@ export async function fetchFundamentalData(symbol: string): Promise<FundamentalD
           const result = data?.quoteSummary?.result?.[0];
           
           if (result) {
-            return parseFundamentalResult(upperSymbol, result);
+            const fundamentalData = parseFundamentalResult(upperSymbol, result);
+            // Cache the result
+            fundamentalCache.set(upperSymbol, { data: fundamentalData, timestamp: Date.now() });
+            return fundamentalData;
           }
         } else if (response.status === 401 || response.status === 429) {
           // Rate limited - retry

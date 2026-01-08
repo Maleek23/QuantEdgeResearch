@@ -238,21 +238,21 @@ function calculateGrade(
     if (prices.length >= 5) {
       rsi2 = calculateRSI(prices, 2);
       if (rsi2 < 10) {
-        score += 20;
+        score += 15;
         signals.push(`RSI2 Extreme Oversold (${rsi2.toFixed(0)})`);
       } else if (rsi2 < 25) {
-        score += 12;
+        score += 10;
         signals.push(`RSI2 Oversold (${rsi2.toFixed(0)})`);
       } else if (rsi2 > 95) {
-        // Extreme overbought - major penalty, likely pullback imminent
-        score -= 30;
-        signals.push(`RSI2 EXTREME Overbought (${rsi2.toFixed(0)}) - Pullback Risk`);
-      } else if (rsi2 > 90) {
-        score -= 22;
-        signals.push(`RSI2 Extreme Overbought (${rsi2.toFixed(0)})`);
-      } else if (rsi2 > 75) {
+        // Extreme overbought - moderate penalty (reduced from -30)
         score -= 12;
-        signals.push(`RSI2 Overbought (${rsi2.toFixed(0)})`);
+        signals.push(`RSI2 Overbought (${rsi2.toFixed(0)}) - Extended`);
+      } else if (rsi2 > 90) {
+        score -= 8;
+        signals.push(`RSI2 High (${rsi2.toFixed(0)})`);
+      } else if (rsi2 > 75) {
+        score -= 5;
+        signals.push(`RSI2 Elevated (${rsi2.toFixed(0)})`);
       }
     }
   } catch (e) {
@@ -285,17 +285,13 @@ function calculateGrade(
       }
     }
     
-    // EXHAUSTION DETECTION: High momentum + extreme RSI = overextended, pullback likely
-    // This prevents grading stretched moves as "Strong"
+    // EXHAUSTION DETECTION: High momentum + extreme RSI = overextended
+    // Reduced penalties to not overly punish trending stocks
     if (rsi2 !== null && momentum5d !== null) {
-      if (rsi2 > 90 && momentum5d > 15) {
-        // Parabolic move - extremely stretched, high reversal risk
-        score -= 20;
-        signals.push(`EXHAUSTION: Parabolic Move (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
-      } else if (rsi2 > 85 && momentum5d > 10) {
-        // Very stretched move
-        score -= 12;
-        signals.push(`Exhaustion Warning (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
+      if (rsi2 > 90 && momentum5d > 20) {
+        // Parabolic move - stretched (reduced penalty)
+        score -= 8;
+        signals.push(`Extended Move (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
       } else if (rsi2 < 10 && momentum5d < -15) {
         // Panic selling - potential bounce
         score += 10;
@@ -595,6 +591,33 @@ function calculateGrade(
     score += 3;
   } else if (assetType === 'future') {
     score += 2;
+  }
+  
+  // FUNDAMENTAL QUALITY FLOOR: Quality stocks shouldn't get F grades
+  // If fundamentals show a quality company, enforce a minimum score
+  if (assetType === 'stock' && fundamentals) {
+    let fundamentalQuality = 0;
+    
+    // Count quality fundamental signals
+    if (profitMargin !== null && profitMargin > 10) fundamentalQuality++;
+    if (returnOnEquity !== null && returnOnEquity > 15) fundamentalQuality++;
+    if (revenueGrowth !== null && revenueGrowth > 5) fundamentalQuality++;
+    if (earningsGrowth !== null && earningsGrowth > 0) fundamentalQuality++;
+    if (eps !== null && eps > 0) fundamentalQuality++;
+    if (recommendationKey && ['strong_buy', 'buy'].includes(recommendationKey.toLowerCase())) fundamentalQuality++;
+    if (fairValueUpside !== null && fairValueUpside > 0) fundamentalQuality++;
+    
+    // Apply quality floor based on fundamental strength
+    if (fundamentalQuality >= 5) {
+      // Strong fundamentals: minimum C grade (55)
+      score = Math.max(score, 55);
+      if (!signals.some(s => s.includes('Quality Floor'))) {
+        signals.push(`Quality Floor Applied (${fundamentalQuality} fundamentals)`);
+      }
+    } else if (fundamentalQuality >= 3) {
+      // Moderate fundamentals: minimum D grade (45)
+      score = Math.max(score, 45);
+    }
   }
   
   score = Math.max(0, Math.min(100, score));
