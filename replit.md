@@ -62,6 +62,38 @@ Key features include:
 
 ## Recent Updates (Jan 2026)
 
+### Elite Trading Engine Gate (Jan 2026)
+The Auto-Lotto Bot now features an **Elite Trading Engine Gate** - institutional-grade validation designed to match top 1% trader standards:
+
+**Core Capabilities:**
+1. **IV Rank Analysis** - Blocks entry when IV Rank >85% (extreme), penalizes >70% (overpriced premium), bonuses <30% (cheap premium)
+2. **Confluence Scoring** - REQUIRES 70%+ confluence (elite threshold, upgraded from 50%). 85%+ gets significant conviction bonus
+3. **Fundamental Alignment** - Direction must align with fundamental bias. LONG on bearish stocks blocked without 80%+ confluence
+4. **Catalyst Intelligence** - Blocks entry within 3 days of earnings (IV crush zone), boosts for gov contracts, M&A, insider buying
+5. **Scenario Planning** - Calculates expected value based on win probability and R/R assumptions
+6. **Edge Detection** - Identifies asymmetric opportunities: high momentum + cheap IV, catalyst boosts
+
+**Thresholds:**
+- `ELITE_CONFLUENCE_MIN = 70%` - Minimum confluence required for entry
+- `ELITE_CONFLUENCE_STRONG = 85%` - Strong setup threshold (+12 confidence bonus)
+- `IV_RANK_EXTREME = 85%` - Block entry (premium 2-3x overpriced)
+- `IV_RANK_EXPENSIVE = 70%` - Penalty zone (-15 confidence)
+- `IV_RANK_CHEAP = 30%` - Bonus zone (+8 confidence)
+- `EARNINGS_DANGER_DAYS = 3` - Block entry (IV crush zone)
+
+**Recommendation Levels (Position Sizing Guidance):**
+- 90%+ confidence: `ELITE BUY: Top 1% setup - full position`
+- 80-89%: `STRONG BUY: Excellent conditions - 75% position`
+- 70-79%: `BUY: Good conditions - 50% position`
+- 55-69%: `CAUTIOUS: Reduced edge - 25% position`
+- <55%: `WEAK: Marginal edge - consider skipping`
+
+**Anti-Over-Penalization:**
+- Trades passing 70%+ confluence get confidence floor at 55%
+- Trades passing 85%+ confluence get confidence floor at 65%
+- Scenario planning is ADVISORY only (no auto-blocks)
+- Recommendation guides position sizing, doesn't force additional blocks
+
 ### Dashboard Accuracy Fixes
 - **Market Calendar Fix**: Fixed `getETTime()` and `getETDateString()` functions to use actual current ET time instead of hardcoded test data. Fixed `isUSMarketOpen()` to correctly return `isOpen: false` after 4PM ET (was incorrectly returning `isOpen: true` for "Late Session").
 - **Bot Status Aggregation**: `/api/auto-lotto/bot-status` now aggregates data from ALL auto-lotto portfolios (Options, Futures, Crypto, Small Account, Prop Firm) instead of looking for a single non-existent "Auto-Lotto Bot" portfolio.

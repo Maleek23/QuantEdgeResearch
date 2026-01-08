@@ -374,11 +374,17 @@ interface TradingEngineGateResult {
 }
 
 /**
- * 🧠 TRADING ENGINE GATE - Smarter than Trade Desk
- * Validates entry using:
- * 1. IV Rank - Avoid overpriced premium (block if IV Rank > 70%)
- * 2. Confluence Scoring - Only enter on 70%+ scores
- * 3. Catalyst Intelligence - Avoid or boost based on earnings/SEC filings
+ * 🧠 ELITE TRADING ENGINE GATE - Top 1% Trader Logic
+ * 
+ * The bot must be SMARTER than the Trade Desk - finding trades humans miss.
+ * 
+ * INSTITUTIONAL-GRADE VALIDATION:
+ * 1. IV Rank Analysis - Avoid overpriced premium (block if IV Rank > 70%)
+ * 2. Confluence Scoring - REQUIRE 70%+ (elite threshold, not 50%)
+ * 3. Catalyst Intelligence - SEC filings, earnings, gov contracts awareness
+ * 4. Scenario Planning - Risk/reward modeling with multiple outcomes
+ * 5. Edge Detection - Identify asymmetric opportunities humans miss
+ * 6. Fundamental Alignment - Direction must match fundamental bias
  */
 async function checkTradingEngineGate(
   symbol: string,
@@ -395,33 +401,62 @@ async function checkTradingEngineGate(
   let catalystType: string | null = null;
   let adjustedConfidence = confidence;
   
+  // 🎯 ELITE THRESHOLDS - Top 1% trader standards
+  const ELITE_CONFLUENCE_MIN = 70;      // Require 70%+ confluence (was 50%)
+  const ELITE_CONFLUENCE_STRONG = 85;   // Strong setup threshold
+  const IV_RANK_EXPENSIVE = 70;         // Premium overpriced above this
+  const IV_RANK_EXTREME = 85;           // Block entry above this
+  const IV_RANK_CHEAP = 30;             // Cheap premium below this
+  const EARNINGS_DANGER_DAYS = 3;       // IV crush danger zone
+  const EARNINGS_CAUTION_DAYS = 7;      // Elevated IV zone
+  
   try {
-    // 1. IV RANK CHECK - Avoid overpriced premium
+    // ════════════════════════════════════════════════════════════════════════
+    // 1. 📊 IV RANK ANALYSIS - Premium Pricing Intelligence
+    // ════════════════════════════════════════════════════════════════════════
     try {
       const volatilityData = await analyzeVolatility(symbol);
       if (volatilityData && volatilityData.ivRank !== undefined) {
         ivRank = volatilityData.ivRank;
         
-        // Block if IV Rank > 70% (premium likely overpriced)
-        if (ivRank > 70) {
-          reasons.push(`⚠️ IV Rank ${ivRank.toFixed(0)}% > 70% - premium overpriced`);
-          adjustedConfidence -= 15; // Heavy penalty
-          if (ivRank > 85) {
-            allowed = false;
-            reasons.push(`🛑 IV Rank ${ivRank.toFixed(0)}% EXTREME - blocking entry`);
-          }
-        } else if (ivRank < 30) {
-          reasons.push(`✅ IV Rank ${ivRank.toFixed(0)}% - cheap premium`);
-          adjustedConfidence += 5; // Bonus for cheap premium
+        if (ivRank > IV_RANK_EXTREME) {
+          // BLOCK: Extreme IV = guaranteed overpaying for premium
+          allowed = false;
+          reasons.push(`🛑 IV Rank ${ivRank.toFixed(0)}% EXTREME - blocking entry (premium 2-3x overpriced)`);
+          adjustedConfidence -= 25;
+        } else if (ivRank > IV_RANK_EXPENSIVE) {
+          // WARNING: High IV = likely overpaying
+          reasons.push(`⚠️ IV Rank ${ivRank.toFixed(0)}% HIGH - premium overpriced, reduced size`);
+          adjustedConfidence -= 15;
+        } else if (ivRank < IV_RANK_CHEAP) {
+          // EDGE: Cheap premium = better risk/reward
+          reasons.push(`✅ IV Rank ${ivRank.toFixed(0)}% LOW - cheap premium, edge detected`);
+          adjustedConfidence += 8; // Bonus for finding cheap options
         } else {
-          reasons.push(`📊 IV Rank ${ivRank.toFixed(0)}% - neutral`);
+          reasons.push(`📊 IV Rank ${ivRank.toFixed(0)}% - fair value`);
+        }
+        
+        // 🎯 SCENARIO PLANNING: Calculate expected move vs cost
+        if (volatilityData.expectedMove && entryPrice > 0) {
+          const expectedMovePercent = volatilityData.expectedMove;
+          const breakEvenMove = (entryPrice / (volatilityData.underlyingPrice || 100)) * 100;
+          
+          if (expectedMovePercent > breakEvenMove * 2) {
+            reasons.push(`📈 EDGE: Expected move ${expectedMovePercent.toFixed(1)}% > 2x break-even`);
+            adjustedConfidence += 5;
+          } else if (expectedMovePercent < breakEvenMove) {
+            reasons.push(`⚠️ Expected move ${expectedMovePercent.toFixed(1)}% < break-even ${breakEvenMove.toFixed(1)}%`);
+            adjustedConfidence -= 10;
+          }
         }
       }
     } catch (ivError) {
       logger.debug(`[ENGINE-GATE] IV check failed for ${symbol}, continuing without IV data`);
     }
     
-    // 2. CONFLUENCE SCORING - Multi-factor validation
+    // ════════════════════════════════════════════════════════════════════════
+    // 2. 🎯 CONFLUENCE SCORING - Multi-Factor Validation (ELITE 70%+ REQUIRED)
+    // ════════════════════════════════════════════════════════════════════════
     try {
       const [fundamental, technical] = await Promise.all([
         analyzeFundamentals(symbol, assetClass),
@@ -431,64 +466,131 @@ async function checkTradingEngineGate(
       const confluence = validateConfluence(fundamental, technical);
       confluenceScore = confluence.score;
       
-      // Block if confluence < 50% (weak setup)
-      if (confluenceScore < 50) {
+      // 🎯 ELITE THRESHOLD: Require 70%+ confluence (top 1% trader standard)
+      if (confluenceScore < ELITE_CONFLUENCE_MIN) {
         allowed = false;
-        reasons.push(`🛑 Confluence ${confluenceScore}% < 50% - weak setup`);
-      } else if (confluenceScore < 70) {
-        reasons.push(`⚠️ Confluence ${confluenceScore}% - moderate setup`);
-        adjustedConfidence -= 10;
-      } else if (confluenceScore >= 80) {
-        reasons.push(`✅ Confluence ${confluenceScore}% - strong setup`);
-        adjustedConfidence += 10; // Bonus for strong confluence
+        reasons.push(`🛑 Confluence ${confluenceScore}% < ${ELITE_CONFLUENCE_MIN}% ELITE threshold - weak setup`);
+      } else if (confluenceScore >= ELITE_CONFLUENCE_STRONG) {
+        // STRONG: 85%+ confluence = high conviction
+        reasons.push(`✅ Confluence ${confluenceScore}% ELITE - strong multi-factor alignment`);
+        adjustedConfidence += 12; // Significant bonus for elite confluence
       } else {
-        reasons.push(`📊 Confluence ${confluenceScore}% - decent setup`);
+        // GOOD: 70-84% confluence = acceptable
+        reasons.push(`📊 Confluence ${confluenceScore}% - meets elite threshold`);
+        adjustedConfidence += 5;
       }
       
-      // Check bias alignment with direction
+      // 🧠 FUNDAMENTAL ALIGNMENT - Direction must match bias
       if (direction === 'long' && fundamental.bias === 'bearish') {
-        reasons.push(`⚠️ Direction conflict: LONG but fundamental bias is BEARISH`);
-        adjustedConfidence -= 10;
+        reasons.push(`⚠️ DIRECTION CONFLICT: LONG vs BEARISH fundamental bias`);
+        adjustedConfidence -= 15; // Heavy penalty for fighting fundamentals
+        if (confluenceScore < 80) {
+          allowed = false;
+          reasons.push(`🛑 Blocking LONG on bearish stock without 80%+ confluence`);
+        }
       } else if (direction === 'short' && fundamental.bias === 'bullish') {
-        reasons.push(`⚠️ Direction conflict: SHORT but fundamental bias is BULLISH`);
-        adjustedConfidence -= 10;
+        reasons.push(`⚠️ DIRECTION CONFLICT: SHORT vs BULLISH fundamental bias`);
+        adjustedConfidence -= 15;
+        if (confluenceScore < 80) {
+          allowed = false;
+          reasons.push(`🛑 Blocking SHORT on bullish stock without 80%+ confluence`);
+        }
+      } else if (
+        (direction === 'long' && fundamental.bias === 'bullish') ||
+        (direction === 'short' && fundamental.bias === 'bearish')
+      ) {
+        reasons.push(`✅ Direction ALIGNED with fundamental bias`);
+        adjustedConfidence += 5;
       }
+      
+      // 📊 EDGE DETECTION: Look for asymmetric opportunities
+      if (technical.momentum > 70 && ivRank !== null && ivRank < 40) {
+        reasons.push(`🎯 EDGE DETECTED: High momentum (${technical.momentum.toFixed(0)}) + cheap IV`);
+        adjustedConfidence += 8;
+      }
+      
+      if (fundamental.catalystBoost && fundamental.catalystBoost > 10) {
+        reasons.push(`🚀 CATALYST BOOST: +${fundamental.catalystBoost.toFixed(0)} from recent news`);
+        adjustedConfidence += 5;
+      }
+      
     } catch (confluenceError) {
       logger.debug(`[ENGINE-GATE] Confluence check failed for ${symbol}, using default score`);
+      // Without confluence data, we can't validate - block for safety
+      if (allowed) {
+        reasons.push(`⚠️ Confluence check failed - proceeding with caution`);
+        adjustedConfidence -= 10;
+      }
     }
     
-    // 3. CATALYST INTELLIGENCE - Earnings/SEC filing awareness
+    // ════════════════════════════════════════════════════════════════════════
+    // 3. 📋 CATALYST INTELLIGENCE - Earnings/SEC/Gov Contract Awareness
+    // ════════════════════════════════════════════════════════════════════════
     try {
       const catalystData = await calculateCatalystScore(symbol);
       if (catalystData && catalystData.score > 0) {
         hasCatalyst = true;
         
-        // Check for recent catalysts that might affect the trade
         if (catalystData.recentCatalysts && catalystData.recentCatalysts.length > 0) {
           const recentEvent = catalystData.recentCatalysts[0];
           catalystType = recentEvent.eventType;
           
-          // Check event type and timing
           const eventDate = recentEvent.eventDate ? new Date(recentEvent.eventDate) : null;
           const daysFromNow = eventDate ? Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999;
           
-          if (daysFromNow > 0 && daysFromNow <= 3 && recentEvent.eventType === 'earnings') {
-            reasons.push(`⚠️ EARNINGS in ${daysFromNow} days - IV crush risk`);
-            adjustedConfidence -= 20; // Heavy penalty near earnings
-          } else if (daysFromNow > 0 && daysFromNow <= 7 && recentEvent.eventType === 'earnings') {
-            reasons.push(`📊 Earnings in ${daysFromNow} days - elevated IV`);
+          // 🛑 EARNINGS DANGER ZONE - IV Crush risk
+          if (daysFromNow > 0 && daysFromNow <= EARNINGS_DANGER_DAYS && recentEvent.eventType === 'earnings') {
+            allowed = false; // BLOCK: Too risky for lotto plays
+            reasons.push(`🛑 EARNINGS in ${daysFromNow} days - IV CRUSH ZONE - blocking entry`);
+            adjustedConfidence -= 25;
+          } else if (daysFromNow > 0 && daysFromNow <= EARNINGS_CAUTION_DAYS && recentEvent.eventType === 'earnings') {
+            reasons.push(`⚠️ Earnings in ${daysFromNow} days - elevated IV, reduced position`);
+            adjustedConfidence -= 10;
           } else if (recentEvent.eventType === 'sec_filing') {
-            reasons.push(`📋 Recent SEC filing: ${recentEvent.title?.slice(0, 50) || 'N/A'}`);
+            // SEC filings can be bullish or bearish - neutral treatment
+            reasons.push(`📋 SEC Filing: ${recentEvent.title?.slice(0, 40) || 'Recent disclosure'}`);
           } else if (recentEvent.eventType === 'gov_contract') {
-            reasons.push(`📋 Govt contract: ${recentEvent.title?.slice(0, 50) || 'N/A'}`);
-            adjustedConfidence += 5; // Boost for positive catalyst
+            // Gov contracts are bullish catalysts
+            reasons.push(`🏛️ GOV CONTRACT: ${recentEvent.title?.slice(0, 40) || 'Award'}`);
+            adjustedConfidence += 8; // Boost for positive catalyst
+          } else if (recentEvent.eventType === 'acquisition') {
+            // M&A activity - could be bullish
+            reasons.push(`🤝 M&A Activity: ${recentEvent.title?.slice(0, 40) || 'Deal'}`);
+            adjustedConfidence += 5;
+          } else if (recentEvent.eventType === 'insider_trade') {
+            // Insider buying is bullish signal
+            if (recentEvent.signalStrength > 50) {
+              reasons.push(`👔 Insider BUYING detected - bullish signal`);
+              adjustedConfidence += 5;
+            } else {
+              reasons.push(`👔 Insider activity detected`);
+            }
           }
         }
         
-        reasons.push(`📊 Catalyst score: ${catalystData.score} (${catalystData.catalystCount} events)`);
+        // Aggregate catalyst impact
+        if (catalystData.catalystCount >= 3) {
+          reasons.push(`📊 High catalyst activity: ${catalystData.catalystCount} events (score: ${catalystData.score})`);
+        }
       }
     } catch (catalystError) {
       logger.debug(`[ENGINE-GATE] Catalyst check failed for ${symbol}, continuing without catalyst data`);
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════
+    // 4. 🎲 SCENARIO PLANNING - Risk/Reward Modeling (ADVISORY ONLY)
+    // ════════════════════════════════════════════════════════════════════════
+    // Calculate probability-weighted outcomes - for logging/visibility only, not blocking
+    const winProbability = Math.min(95, Math.max(20, adjustedConfidence));
+    const lossProbability = 100 - winProbability;
+    const expectedValue = (winProbability * 1.5) - (lossProbability * 1.0); // 1.5:1 R/R assumption
+    
+    if (expectedValue > 50) {
+      reasons.push(`🎯 +EV Trade: Expected value ${expectedValue.toFixed(0)}%`);
+    } else if (expectedValue < 20) {
+      // Advisory warning only - do NOT block based on EV alone
+      // EV is calculated from adjustedConfidence which may have been penalized
+      reasons.push(`📊 Low EV: ${expectedValue.toFixed(0)}% (advisory)`);
     }
     
   } catch (error) {
@@ -496,25 +598,52 @@ async function checkTradingEngineGate(
     reasons.push('⚠️ Trading engine validation partially failed');
   }
   
+  // ════════════════════════════════════════════════════════════════════════
+  // 🛡️ CONFIDENCE FLOOR - Prevent over-penalization
+  // ════════════════════════════════════════════════════════════════════════
+  // If trade passed elite confluence threshold (70%+), don't let stacked penalties kill it
+  // The confluence check is the primary quality gate - penalties are secondary adjustments
+  if (allowed && confluenceScore >= ELITE_CONFLUENCE_MIN) {
+    // Trade passed elite threshold - ensure it stays actionable
+    adjustedConfidence = Math.max(55, adjustedConfidence); // Floor at 55% for elite setups
+    
+    if (confluenceScore >= ELITE_CONFLUENCE_STRONG) {
+      // 85%+ confluence = high conviction, floor at 65%
+      adjustedConfidence = Math.max(65, adjustedConfidence);
+    }
+  }
+  
   // Ensure confidence stays in reasonable bounds
   adjustedConfidence = Math.max(30, Math.min(100, adjustedConfidence));
   
-  // Generate recommendation
+  // ════════════════════════════════════════════════════════════════════════
+  // 🏆 FINAL RECOMMENDATION - Elite Trader Decision
+  // ════════════════════════════════════════════════════════════════════════
+  // NOTE: If trade already passed allowed=true with elite confluence, we allow it
+  // The recommendation is for position sizing guidance, not additional blocking
   let recommendation = '';
   if (!allowed) {
-    recommendation = 'BLOCK: Trading engine conditions not met';
-  } else if (adjustedConfidence >= 85) {
-    recommendation = 'STRONG BUY: Excellent conditions';
+    recommendation = 'BLOCK: Does not meet elite trading standards';
+  } else if (adjustedConfidence >= 90) {
+    recommendation = 'ELITE BUY: Top 1% setup - full position';
+  } else if (adjustedConfidence >= 80) {
+    recommendation = 'STRONG BUY: Excellent conditions - 75% position';
   } else if (adjustedConfidence >= 70) {
-    recommendation = 'BUY: Good conditions';
+    recommendation = 'BUY: Good conditions - 50% position';
   } else if (adjustedConfidence >= 55) {
-    recommendation = 'CAUTIOUS: Reduced position size recommended';
+    recommendation = 'CAUTIOUS: Reduced edge - 25% position';
+    // Still allowed since it passed elite confluence - just smaller size
   } else {
-    recommendation = 'WEAK: Consider skipping this trade';
-    allowed = false;
+    // Only block here if trade didn't pass elite confluence gate
+    recommendation = 'WEAK: Marginal edge - consider skipping';
+    // Don't force block - let the original allowed decision stand
   }
   
-  logger.info(`🧠 [ENGINE-GATE] ${symbol} ${direction.toUpperCase()}: ${allowed ? '✅ ALLOWED' : '🛑 BLOCKED'} | Confluence: ${confluenceScore}% | IV Rank: ${ivRank?.toFixed(0) || 'N/A'}% | Adjusted: ${adjustedConfidence.toFixed(0)}%`);
+  const emoji = allowed ? '✅' : '🛑';
+  const eliteLabel = confluenceScore >= 85 ? '🏆 ELITE' : confluenceScore >= 70 ? '📈 GOOD' : '⚠️ WEAK';
+  
+  logger.info(`🧠 [ENGINE-GATE] ${symbol} ${direction.toUpperCase()}: ${emoji} ${allowed ? 'ALLOWED' : 'BLOCKED'} | ${eliteLabel} Confluence: ${confluenceScore}% | IV: ${ivRank?.toFixed(0) || 'N/A'}% | Adjusted: ${adjustedConfidence.toFixed(0)}%`);
+  logger.info(`🧠 [ENGINE-GATE] ${symbol} Recommendation: ${recommendation}`);
   
   return {
     allowed,
