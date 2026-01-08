@@ -237,10 +237,16 @@ export async function sendBotTradeExitToDiscord(exit: {
       ? (exitPrice - exit.entryPrice) / exit.entryPrice * 100 
       : 0;
     
+    // Determine portfolio label based on portfolioId
+    const portfolioLabel = portfolioId === 'small_account' ? '💰 SMALL ACCOUNT' 
+      : portfolioId === 'futures' ? '📈 FUTURES'
+      : portfolioId === 'crypto' ? '₿ CRYPTO'
+      : '🤖 BOT';
+    
     const embed: DiscordEmbed = {
-      title: `${isProfit ? '🎉' : '💀'} ${exit.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} EXIT: ${exit.symbol} (${isProfit ? 'PROFIT' : 'LOSS'})`,
+      title: `${isProfit ? '🎉' : '💀'} ${portfolioLabel} EXIT: ${exit.symbol} (${isProfit ? 'PROFIT' : 'LOSS'})`,
       description: `**${meta.name}** closed position - ${exitReason}`,
-      color: exit.isSmallAccount ? 0xfbbf24 : color,
+      color: portfolioId === 'small_account' ? 0xfbbf24 : portfolioId === 'futures' ? 0x3b82f6 : color,
       fields: [
         { name: '💵 Entry', value: `$${exit.entryPrice.toFixed(2)}`, inline: true },
         { name: '🚪 Exit', value: `$${exitPrice.toFixed(2)}`, inline: true },

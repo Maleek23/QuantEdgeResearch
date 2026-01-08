@@ -1500,6 +1500,37 @@ export async function isSmallAccountPortfolioAsync(portfolioId: string): Promise
   return smallAccountPortfolio?.id === portfolioId;
 }
 
+/**
+ * Check if a portfolioId belongs to the Futures portfolio
+ */
+export async function isFuturesPortfolioAsync(portfolioId: string): Promise<boolean> {
+  if (!futuresPortfolio) {
+    await getFuturesPortfolio();
+  }
+  return futuresPortfolio?.id === portfolioId;
+}
+
+/**
+ * Check if a portfolioId belongs to the Crypto portfolio
+ */
+export async function isCryptoPortfolioAsync(portfolioId: string): Promise<boolean> {
+  if (!cryptoPortfolio) {
+    await getCryptoPortfolio();
+  }
+  return cryptoPortfolio?.id === portfolioId;
+}
+
+/**
+ * Determine the portfolio type for notifications
+ * Returns: 'small_account' | 'futures' | 'crypto' | 'options'
+ */
+export async function getPortfolioType(portfolioId: string): Promise<'small_account' | 'futures' | 'crypto' | 'options'> {
+  if (await isSmallAccountPortfolioAsync(portfolioId)) return 'small_account';
+  if (await isFuturesPortfolioAsync(portfolioId)) return 'futures';
+  if (await isCryptoPortfolioAsync(portfolioId)) return 'crypto';
+  return 'options';
+}
+
 // Cache for crypto prices to handle rate limiting
 let cryptoPriceCache: Map<string, { price: number; change24h: number; volume: number; marketCap: number }> = new Map();
 let lastCryptoPriceFetch: number = 0;
@@ -3648,7 +3679,7 @@ export async function monitorLottoPositions(): Promise<void> {
             recordExitCooldown(pos.symbol, pos.optionType || undefined, pos.strikePrice || undefined, pnl >= 0);
             
             // Send Discord notification with Exit Intelligence context
-            const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+            const portfolioType = await getPortfolioType(pos.portfolioId);
             
             // 🔔 BROADCAST: Bot EXITED a trade
             broadcastBotEvent({
@@ -3659,7 +3690,7 @@ export async function monitorLottoPositions(): Promise<void> {
               price: exitPrice,
               quantity: pos.quantity,
               pnl,
-              portfolio: isSmallAcct ? 'small_account' : 'options',
+              portfolio: portfolioType,
               reason: `EXIT-INTEL: ${exitIntelligence.exitReason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
             });
             
@@ -3673,8 +3704,9 @@ export async function monitorLottoPositions(): Promise<void> {
               quantity: pos.quantity,
               realizedPnL: pnl,
               exitReason: `🧠 EXIT INTEL: ${exitIntelligence.exitReason} (${exitIntelligence.exitProbability}% confidence)`,
-              isSmallAccount: isSmallAcct,
-              source: 'quant',
+              portfolio: portfolioType,
+              isSmallAccount: portfolioType === 'small_account',
+              source: portfolioType === 'small_account' ? 'small_account' : 'quant',
             });
             
             logger.info(`🧠 [EXIT-INTEL] ✅ AUTO-EXITED ${pos.symbol} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
@@ -3748,9 +3780,9 @@ export async function monitorLottoPositions(): Promise<void> {
           // 🛡️ Record exit cooldown to prevent immediate re-entry
           recordExitCooldown(pos.symbol, pos.optionType || undefined, pos.strikePrice || undefined, pnl >= 0);
           
-          // Send Discord notification for exit - route to QUANTFLOOR + OPTIONSTRADES
+          // Send Discord notification for exit - route to correct portfolio
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
-          const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+          const portfolioType2 = await getPortfolioType(pos.portfolioId);
           
           // 🔔 BROADCAST: Bot EXITED a trade (dynamic exit)
           broadcastBotEvent({
@@ -3761,7 +3793,7 @@ export async function monitorLottoPositions(): Promise<void> {
             price: exitPrice,
             quantity: pos.quantity,
             pnl,
-            portfolio: isSmallAcct ? 'small_account' : 'options',
+            portfolio: portfolioType2,
             reason: `${exitSignal.exitType}: ${exitSignal.reason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
           });
           
@@ -3775,8 +3807,9 @@ export async function monitorLottoPositions(): Promise<void> {
             quantity: pos.quantity,
             realizedPnL: pnl,
             exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
-            isSmallAccount: isSmallAcct,
-            source: isSmallAcct ? 'small_account' : 'quant', // Route Small Account trades separately
+            portfolio: portfolioType2,
+            isSmallAccount: portfolioType2 === 'small_account',
+            source: portfolioType2 === 'small_account' ? 'small_account' : 'quant',
           });
           
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol} | P&L: $${pnl.toFixed(2)}`);
@@ -3813,7 +3846,7 @@ export async function monitorLottoPositions(): Promise<void> {
         
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
-          const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+          const portfolioType3 = await getPortfolioType(pos.portfolioId);
           
           // 🔔 BROADCAST: Bot EXITED a trade (stop/target hit)
           broadcastBotEvent({
@@ -3824,7 +3857,7 @@ export async function monitorLottoPositions(): Promise<void> {
             price: pos.exitPrice ?? pos.currentPrice ?? undefined,
             quantity: pos.quantity,
             pnl,
-            portfolio: isSmallAcct ? 'small_account' : 'options',
+            portfolio: portfolioType3,
             reason: `${pos.exitReason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
           });
           
@@ -3838,8 +3871,9 @@ export async function monitorLottoPositions(): Promise<void> {
             quantity: pos.quantity,
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
-            isSmallAccount: isSmallAcct,
-            source: isSmallAcct ? 'small_account' : 'quant', // Route Small Account trades separately
+            portfolio: portfolioType3,
+            isSmallAccount: portfolioType3 === 'small_account',
+            source: portfolioType3 === 'small_account' ? 'small_account' : 'quant',
           });
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {

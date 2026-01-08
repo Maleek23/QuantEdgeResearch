@@ -15,7 +15,7 @@ export interface BotNotification {
   quantity?: number;
   confidence?: number;
   reason?: string;
-  portfolio?: 'options' | 'small_account';
+  portfolio?: 'options' | 'small_account' | 'futures' | 'crypto';
   pnl?: number;
   timestamp: string;
 }
