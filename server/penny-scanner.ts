@@ -96,8 +96,13 @@ export async function scanSubPennyMoonshots(): Promise<PennyMoonshotCandidate[]>
   const candidates: PennyMoonshotCandidate[] = [];
   const batchSize = 8;
   
+  const { checkAndMarkScanned } = await import('./scan-deduper');
   for (let i = 0; i < SUB_PENNY_TICKERS.length; i += batchSize) {
-    const batch = SUB_PENNY_TICKERS.slice(i, i + batchSize);
+    const batch = SUB_PENNY_TICKERS.slice(i, i + batchSize).filter(symbol => {
+      const scanCheck = checkAndMarkScanned(symbol, 'penny-sub');
+      return !scanCheck.shouldSkip;
+    });
+    if (batch.length === 0) continue;
     
     const batchResults = await Promise.all(
       batch.map(async (symbol) => {

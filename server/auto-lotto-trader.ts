@@ -3251,6 +3251,14 @@ export async function runAutonomousBotScan(): Promise<void> {
       
   // 🎯 LOG TICKERS being scanned
   logger.info(`🎯 [BOT] Scanning ticker ${tickerIndex}/${combinedTickers.length}: ${ticker}`);
+  
+      // 🛡️ GLOBAL SCAN DEDUP - Skip if recently scanned by ANY scanner
+      const { checkAndMarkScanned } = await import('./scan-deduper');
+      const scanCheck = checkAndMarkScanned(ticker, 'options-bot');
+      if (scanCheck.shouldSkip) {
+        logger.debug(`🤖 [BOT] ⏭️ Skipped ${ticker} - ${scanCheck.reason}`);
+        continue;
+      }
       
       // REMOVED: No longer blocking symbols with open positions
       // Bot can now PYRAMID into winning positions or add new setups on same symbol

@@ -581,7 +581,14 @@ export async function runLottoScanner(): Promise<void> {
     const allCandidates: LottoCandidate[] = [];
     
     // Scan all tickers for lotto plays
+    const { checkAndMarkScanned } = await import('./scan-deduper');
     for (const ticker of LOTTO_SCAN_TICKERS) {
+      // 🛡️ GLOBAL SCAN DEDUP - Skip if recently scanned by ANY scanner
+      const scanCheck = checkAndMarkScanned(ticker, 'lotto');
+      if (scanCheck.shouldSkip) {
+        logger.debug(`🎰 [LOTTO] ⏭️ Skipped ${ticker} - ${scanCheck.reason}`);
+        continue;
+      }
       const candidates = await scanForLottoPlays(ticker);
       allCandidates.push(...candidates);
     }
