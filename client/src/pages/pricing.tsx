@@ -7,6 +7,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SEOHead } from "@/components/seo-head";
+import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
+import quantEdgeLogoUrl from "@assets/q_1767502987714.png";
 
 interface PlanFeature {
   name: string;
@@ -155,9 +157,23 @@ export default function Pricing() {
   const currentTier = userTier?.tier || 'free';
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#050b16] py-12 px-4 sm:px-6 lg:px-8">
       <SEOHead pageKey="pricing" />
-      <div className="max-w-7xl mx-auto">
+      <FloatingBubblesBackground />
+      
+      {/* Header with Logo */}
+      <div className="max-w-7xl mx-auto mb-8 relative z-10">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <Link href="/">
+            <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" />
+          </Link>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent italic">
+            Quant Edge Labs
+          </h2>
+        </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Risk Acknowledgment */}
         <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
           <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
@@ -197,11 +213,11 @@ export default function Pricing() {
         </div>
 
         {/* Hero Header - Glassmorphism */}
-        <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8 mb-12">
+        <div className="relative overflow-hidden rounded-xl bg-[#0a1525]/90 border border-white/10 backdrop-blur-xl p-6 sm:p-8 mb-12">
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
           <div className="relative z-10 text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">
                 Research Platform
               </p>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30" data-testid="badge-beta">
@@ -209,13 +225,13 @@ export default function Pricing() {
               </span>
             </div>
             <h1 
-              className="text-2xl sm:text-3xl font-semibold mb-3"
+              className="text-3xl sm:text-4xl font-bold mb-4 text-white"
               data-testid="text-pricing-header"
             >
               Choose Your Plan
             </h1>
             <p 
-              className="text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+              className="text-slate-400 max-w-2xl mx-auto leading-relaxed"
               data-testid="text-pricing-subtext"
             >
               Start with Free to explore the platform, then upgrade to Advanced for unlimited access and real-time data. Beta pricing - lock in these rates before launch.

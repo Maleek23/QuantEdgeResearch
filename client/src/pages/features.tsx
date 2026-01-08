@@ -28,26 +28,31 @@ import {
   Eye,
   Layers
 } from "lucide-react";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import quantEdgeLogoUrl from "@assets/q_1767502987714.png";
+import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
 
 export default function Features() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#050b16]">
       <SEOHead 
         pageKey="features"
         title="Platform Features | Quant Edge Labs"
         description="Explore all Quant Edge Labs features: AI Engine, Quant Engine, Flow Scanner, Chart Analysis, Auto-Lotto Bot, Performance Analytics, and more."
       />
       
+      {/* Floating Bubbles Background */}
+      <FloatingBubblesBackground />
+      
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#050b16]/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
-            <Link href="/" className="flex-shrink-0" data-testid="link-logo">
+            <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
               <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
+              <span className="hidden sm:block text-lg font-semibold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -112,16 +117,18 @@ export default function Features() {
       </header>
 
       {/* Hero */}
-      <section className="pt-24 pb-12" data-testid="features-hero">
-        <div className="container mx-auto px-6">
+      <section className="pt-28 pb-16 relative z-10" data-testid="features-hero">
+        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="container mx-auto px-6 relative">
           <div className="text-center max-w-3xl mx-auto">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-4">
               Complete Platform Overview
             </p>
-            <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
-              Everything You Get with Quant Edge Labs
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-white">
+              Everything You Get with{" "}
+              <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-slate-400 leading-relaxed">
               A comprehensive research platform combining AI analysis, quantitative signals, 
               institutional flow detection, and full performance transparency.
             </p>

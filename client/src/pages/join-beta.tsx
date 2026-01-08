@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, Mail, Key, User, Shield, ArrowRight, ArrowLeft } from "lucide-react";
+import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 
 const verifyCodeSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -160,19 +162,24 @@ export default function JoinBeta() {
 
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center">
+      <div className="min-h-screen bg-[#050b16] flex items-center justify-center p-4">
+        <FloatingBubblesBackground />
+        <Card className="w-full max-w-md text-center bg-[#0a1525]/90 border-white/10 backdrop-blur-xl relative z-10">
           <CardHeader>
-            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-500" />
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-400" />
             </div>
-            <CardTitle className="text-2xl" data-testid="text-welcome-title">Welcome to the Lab!</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl text-white" data-testid="text-welcome-title">Welcome to the Lab!</CardTitle>
+            <CardDescription className="text-slate-400">
               Your beta access is now active. Redirecting you to the Automations Hub...
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate("/automations")} className="w-full" data-testid="button-go-automations">
+            <Button 
+              onClick={() => navigate("/automations")} 
+              className="w-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
+              data-testid="button-go-automations"
+            >
               Go to Automations Hub
             </Button>
           </CardContent>
@@ -182,37 +189,50 @@ export default function JoinBeta() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-join-beta-title">Join the Beta</h1>
-          <p className="text-muted-foreground">
+    <div className="min-h-screen bg-[#050b16] flex items-center justify-center p-4">
+      <FloatingBubblesBackground />
+      <div className="w-full max-w-lg relative z-10">
+        {/* Logo Header */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <img 
+              src={quantEdgeLabsLogoUrl} 
+              alt="Quant Edge Labs" 
+              className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" 
+            />
+            <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent italic">
+              Quant Edge Labs
+            </h2>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2" data-testid="text-join-beta-title">Join the Beta</h1>
+          <p className="text-slate-400">
             {step === "verify" 
               ? "Enter your email and the access code you received" 
               : "Complete your profile to get started"}
           </p>
         </div>
 
+        {/* Progress Steps */}
         <div className="flex justify-center mb-6">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === "verify" ? "bg-primary text-primary-foreground" : "bg-green-500 text-white"}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step === "verify" ? "bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950" : "bg-green-500/20 border border-green-500/50 text-green-400"}`}>
               {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
             </div>
-            <div className="w-16 h-0.5 bg-border" />
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === "onboard" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+            <div className={`w-16 h-0.5 transition-all ${step === "onboard" ? "bg-cyan-500" : "bg-slate-700"}`} />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step === "onboard" ? "bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950" : "bg-slate-800 border border-slate-700 text-slate-500"}`}>
               2
             </div>
           </div>
         </div>
 
         {step === "verify" ? (
-          <Card>
+          <Card className="bg-[#0a1525]/90 border-white/10 backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Key className="w-5 h-5 text-cyan-400" />
                 Verify Your Access
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-slate-400">
                 Enter the email address where you received your invite and the access code.
               </CardDescription>
             </CardHeader>
@@ -268,7 +288,7 @@ export default function JoinBeta() {
 
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
                     disabled={verifyMutation.isPending}
                     data-testid="button-verify-code"
                   >
@@ -282,25 +302,25 @@ export default function JoinBeta() {
                 </form>
               </Form>
 
-              <div className="mt-6 pt-4 border-t text-center text-sm text-muted-foreground">
+              <div className="mt-6 pt-4 border-t border-white/10 text-center text-sm text-slate-500">
                 <p>Don't have an invite code?</p>
-                <Button variant="ghost" onClick={() => navigate("/")} data-testid="button-join-waitlist">
+                <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" onClick={() => navigate("/")} data-testid="button-join-waitlist">
                   Join the Waitlist
                 </Button>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="bg-[#0a1525]/90 border-white/10 backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <User className="w-5 h-5 text-cyan-400" />
                 Complete Your Profile
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-slate-400">
                 Tell us about yourself so we can personalize your experience.
                 <br />
-                <span className="text-xs text-muted-foreground">Signing up as: {verifiedEmail}</span>
+                <span className="text-xs text-slate-500">Signing up as: {verifiedEmail}</span>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -476,8 +496,8 @@ export default function JoinBeta() {
                     )}
                   />
 
-                  <div className="border-t pt-4">
-                    <h3 className="font-medium mb-3">Create Your Password</h3>
+                  <div className="border-t border-white/10 pt-4">
+                    <h3 className="font-medium mb-3 text-white">Create Your Password</h3>
                     <div className="space-y-4">
                       <FormField
                         control={onboardingForm.control}
@@ -513,6 +533,7 @@ export default function JoinBeta() {
                     <Button 
                       type="button" 
                       variant="outline" 
+                      className="border-slate-600 text-slate-300 hover:bg-slate-800"
                       onClick={() => setStep("verify")}
                       data-testid="button-back"
                     >
@@ -521,7 +542,7 @@ export default function JoinBeta() {
                     </Button>
                     <Button 
                       type="submit" 
-                      className="flex-1" 
+                      className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
                       disabled={onboardMutation.isPending}
                       data-testid="button-complete-signup"
                     >
@@ -539,7 +560,7 @@ export default function JoinBeta() {
           </Card>
         )}
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-slate-500 mt-6">
           By signing up, you agree that this platform is for educational and research purposes only.
           <br />
           Past performance is not indicative of future results.
