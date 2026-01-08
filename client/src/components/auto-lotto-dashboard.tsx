@@ -960,6 +960,44 @@ export function AutoLottoDashboard() {
             </Card>
           </div>
 
+          {/* Open Positions - Most Visible Section */}
+          <Card className="bg-slate-900/60 border-amber-500/30" data-testid="card-open-positions">
+            <CardHeader className="pb-2 border-b border-amber-500/20">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-amber-400" />
+                  Bot Open Positions
+                  <Badge variant="outline" className="text-xs font-mono border-amber-500/40 text-amber-400 animate-pulse">
+                    {allPositions.filter(p => p.status === 'open').length} LIVE
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Click any portfolio above for full details
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {allPositions.filter(p => p.status === 'open').length > 0 ? (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {allPositions.filter(p => p.status === 'open').slice(0, 10).map((position) => (
+                    <TradeHistoryRow key={position.id} position={position} />
+                  ))}
+                  {allPositions.filter(p => p.status === 'open').length > 10 && (
+                    <div className="text-center text-xs text-muted-foreground py-2">
+                      + {allPositions.filter(p => p.status === 'open').length - 10} more open positions
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No open positions</p>
+                  <p className="text-xs mt-1">Bot is hunting for new setups...</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Session Heatmap */}
           <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-session-heatmap">
             <CardHeader className="pb-2">
