@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions } from "@shared/schema";
+import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions, symbolBehaviorProfiles, confidenceCalibration, historicalIntelligenceSummary } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
@@ -89,6 +89,7 @@ import {
   getCompanyContext,
 } from './multi-factor-analysis';
 import { getMarketContext, getTradingSession } from './market-context-service';
+import { historicalIntelligenceService } from './historical-intelligence-service';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
 
@@ -8439,6 +8440,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Auto-Lotto Bot performance error:", error);
       res.status(500).json({ error: "Failed to fetch Auto-Lotto Bot performance" });
+    }
+  });
+
+  // ============================================================================
+  // 📊 HISTORICAL TRADE INTELLIGENCE - Learning from 3,000+ trade ideas
+  // ============================================================================
+  
+  // Get comprehensive historical performance stats (beta/admin only)
+  app.get("/api/historical-intelligence/stats", requireBetaAccess, async (_req, res) => {
+    try {
+      const stats = await historicalIntelligenceService.calculatePerformanceStats();
+      res.json(stats);
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch historical intelligence stats" });
+    }
+  });
+  
+  // Get symbol behavior profile (beta/admin only)
+  app.get("/api/historical-intelligence/symbol/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const intelligence = await historicalIntelligenceService.getSymbolIntelligence(symbol.toUpperCase());
+      res.json(intelligence);
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching symbol intelligence:", error);
+      res.status(500).json({ error: "Failed to fetch symbol intelligence" });
+    }
+  });
+  
+  // Get all symbol behavior profiles (paginated, beta/admin only)
+  app.get("/api/historical-intelligence/profiles", requireBetaAccess, async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const sortBy = (req.query.sortBy as string) || 'totalIdeas';
+      const sortOrder = (req.query.sortOrder as string) || 'desc';
+      const minTrades = parseInt(req.query.minTrades as string) || 1;
+      
+      const profiles = await db.select().from(symbolBehaviorProfiles);
+      
+      // Filter by minimum trades
+      let filtered = profiles.filter(p => p.closedIdeas >= minTrades);
+      
+      // Sort
+      filtered.sort((a, b) => {
+        const aVal = (a as any)[sortBy] || 0;
+        const bVal = (b as any)[sortBy] || 0;
+        return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+      });
+      
+      // Paginate
+      const paginated = filtered.slice(offset, offset + limit);
+      
+      res.json({
+        profiles: paginated,
+        total: filtered.length,
+        limit,
+        offset
+      });
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching profiles:", error);
+      res.status(500).json({ error: "Failed to fetch symbol profiles" });
+    }
+  });
+  
+  // Get confidence calibration data (beta/admin only)
+  app.get("/api/historical-intelligence/calibration", requireBetaAccess, async (_req, res) => {
+    try {
+      const calibration = await db.select().from(confidenceCalibration);
+      res.json(calibration);
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching calibration:", error);
+      res.status(500).json({ error: "Failed to fetch confidence calibration" });
+    }
+  });
+  
+  // Get historical intelligence summary (beta/admin only)
+  app.get("/api/historical-intelligence/summary", requireBetaAccess, async (_req, res) => {
+    try {
+      const summary = await db.select().from(historicalIntelligenceSummary);
+      res.json(summary[0] || null);
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching summary:", error);
+      res.status(500).json({ error: "Failed to fetch intelligence summary" });
+    }
+  });
+  
+  // Get confidence adjustment for a new trade idea (beta/admin only)
+  app.post("/api/historical-intelligence/confidence-adjustment", requireBetaAccess, async (req, res) => {
+    try {
+      const { symbol, catalyst, direction } = req.body;
+      if (!symbol) {
+        return res.status(400).json({ error: "Missing required field: symbol" });
+      }
+      
+      // Use defaults for catalyst and direction if not provided
+      const adjustment = await historicalIntelligenceService.getConfidenceAdjustment(
+        symbol.toUpperCase(),
+        catalyst || '',
+        direction || 'long'
+      );
+      res.json(adjustment);
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error calculating confidence adjustment:", error);
+      res.status(500).json({ error: "Failed to calculate confidence adjustment" });
+    }
+  });
+  
+  // Trigger full intelligence refresh (admin only)
+  app.post("/api/historical-intelligence/refresh", requireAdminJWT, async (_req, res) => {
+    try {
+      logger.info("[HIST-INTEL] Starting full intelligence refresh...");
+      const result = await historicalIntelligenceService.fullRefresh();
+      res.json({
+        success: true,
+        message: `Refreshed ${result.profilesUpdated} symbol profiles`,
+        ...result
+      });
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error during refresh:", error);
+      res.status(500).json({ error: "Failed to refresh historical intelligence" });
+    }
+  });
+  
+  // Update single symbol profile (admin only)
+  app.post("/api/historical-intelligence/symbol/:symbol/refresh", requireAdminJWT, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await historicalIntelligenceService.updateSymbolProfile(symbol.toUpperCase());
+      if (profile) {
+        res.json({ success: true, profile });
+      } else {
+        res.status(404).json({ error: "No trade data found for symbol" });
+      }
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error updating symbol profile:", error);
+      res.status(500).json({ error: "Failed to update symbol profile" });
+    }
+  });
+  
+  // Get top performing symbols (beta/admin only)
+  app.get("/api/historical-intelligence/top-performers", requireBetaAccess, async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+      const minTrades = parseInt(req.query.minTrades as string) || 3;
+      
+      const profiles = await db.select().from(symbolBehaviorProfiles);
+      
+      const qualified = profiles
+        .filter(p => p.closedIdeas >= minTrades)
+        .sort((a, b) => (b.overallWinRate || 0) - (a.overallWinRate || 0))
+        .slice(0, limit);
+      
+      res.json({
+        topPerformers: qualified.map(p => ({
+          symbol: p.symbol,
+          winRate: p.overallWinRate,
+          trades: p.closedIdeas,
+          wins: p.wins,
+          losses: p.losses,
+          totalPnL: p.totalPnL,
+          profitFactor: p.profitFactor,
+          bestCatalyst: p.bestCatalystType,
+          bestCatalystWinRate: p.bestCatalystWinRate
+        }))
+      });
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching top performers:", error);
+      res.status(500).json({ error: "Failed to fetch top performers" });
+    }
+  });
+  
+  // Get catalyst performance breakdown (beta/admin only)
+  app.get("/api/historical-intelligence/catalyst-performance", requireBetaAccess, async (_req, res) => {
+    try {
+      const stats = await historicalIntelligenceService.calculatePerformanceStats();
+      res.json({
+        catalysts: stats.byCatalyst,
+        topCatalysts: stats.byCatalyst.slice(0, 5),
+        worstCatalysts: stats.byCatalyst.slice(-5).reverse()
+      });
+    } catch (error) {
+      logger.error("[HIST-INTEL] Error fetching catalyst performance:", error);
+      res.status(500).json({ error: "Failed to fetch catalyst performance" });
     }
   });
 

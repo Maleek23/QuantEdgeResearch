@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye
+  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -45,6 +45,7 @@ const automationItems: NavItem[] = [
 // Analytics - performance and analysis tools (Data Audit is now part of Performance page)
 const analyticsItems: NavItem[] = [
   { title: "Performance", url: "/performance", icon: Target },
+  { title: "Historical Intel", url: "/historical-intelligence", icon: Brain, badge: "NEW" },
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
 ];
 

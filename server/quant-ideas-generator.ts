@@ -18,6 +18,7 @@ import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
 import { validateTradeWithChart, analyzeChart } from './chart-analysis';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
+import { historicalIntelligenceService } from './historical-intelligence-service';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Timing windows based on proven day-trading patterns
@@ -947,11 +948,30 @@ export async function generateQuantIdeas(
     riskRewardRatio = Math.min(riskRewardRatio, 99.9); // Cap at reasonable max
 
     // Calculate confidence score and quality signals (v3.0: simplified)
-    const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
+    let { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
       data, 
       normalizedSignal, 
       riskRewardRatio
     );
+    
+    // v4.0: Historical Intelligence Adjustment - Adjust confidence based on symbol's historical performance
+    try {
+      const histAdjustment = await historicalIntelligenceService.getConfidenceAdjustment(
+        data.symbol,
+        catalyst,
+        normalizedSignal.direction
+      );
+      if (histAdjustment.adjustment !== 0) {
+        const originalScore = confidenceScore;
+        confidenceScore = Math.max(0, Math.min(100, confidenceScore + histAdjustment.adjustment));
+        logger.info(`[HIST-INTEL] ${data.symbol}: Adjusted confidence ${originalScore.toFixed(0)} → ${confidenceScore.toFixed(0)} (${histAdjustment.adjustment > 0 ? '+' : ''}${histAdjustment.adjustment}): ${histAdjustment.reason}`);
+        qualitySignals.push(`Historical: ${histAdjustment.adjustment > 0 ? '+' : ''}${histAdjustment.adjustment}pts`);
+      }
+    } catch (error) {
+      // Don't block idea generation if historical lookup fails
+      logger.debug(`[HIST-INTEL] Could not get historical adjustment for ${data.symbol}: ${error}`);
+    }
+    
     const probabilityBand = getProbabilityBand(confidenceScore);
 
     // 🚫 QUALITY FILTER: RELAXED for idea generation

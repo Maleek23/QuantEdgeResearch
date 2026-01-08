@@ -2106,3 +2106,204 @@ export const betaInvites = pgTable("beta_invites", {
 export const insertBetaInviteSchema = createInsertSchema(betaInvites).omit({ id: true, createdAt: true, sentAt: true, redeemedAt: true, status: true });
 export type InsertBetaInvite = z.infer<typeof insertBetaInviteSchema>;
 export type BetaInvite = typeof betaInvites.$inferSelect;
+
+// ============================================================================
+// HISTORICAL TRADE INTELLIGENCE - Learning from 3,000+ trade ideas
+// ============================================================================
+
+// Catalyst categories for tracking response patterns
+export type CatalystCategory = 'earnings' | 'fda_approval' | 'government_contract' | 'merger_acquisition' | 'product_launch' | 'analyst_upgrade' | 'analyst_downgrade' | 'insider_buying' | 'insider_selling' | 'technical_breakout' | 'momentum_surge' | 'sector_rotation' | 'macro_event' | 'ai_news' | 'quantum_news' | 'crypto_news' | 'other';
+
+// Symbol Behavior Profiles - Track how each ticker responds to catalysts
+export const symbolBehaviorProfiles = pgTable("symbol_behavior_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull().unique(),
+  
+  // Overall Statistics
+  totalIdeas: integer("total_ideas").notNull().default(0),
+  closedIdeas: integer("closed_ideas").notNull().default(0),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  breakevens: integer("breakevens").notNull().default(0),
+  
+  // Win Rate Metrics
+  overallWinRate: real("overall_win_rate").default(0), // 0-100%
+  longWinRate: real("long_win_rate").default(0), // Win rate for long positions
+  shortWinRate: real("short_win_rate").default(0), // Win rate for short positions
+  optionsWinRate: real("options_win_rate").default(0), // Win rate for options trades
+  
+  // Profit Metrics
+  totalPnL: real("total_pnl").default(0), // Total realized P&L
+  avgWinAmount: real("avg_win_amount").default(0), // Average $ win
+  avgLossAmount: real("avg_loss_amount").default(0), // Average $ loss
+  avgWinPercent: real("avg_win_percent").default(0), // Average % gain on wins
+  avgLossPercent: real("avg_loss_percent").default(0), // Average % loss on losses
+  profitFactor: real("profit_factor").default(0), // Total wins / Total losses
+  
+  // Confidence Calibration
+  avgConfidenceScore: real("avg_confidence_score").default(0), // Average predicted confidence
+  actualWinRateVsPredicted: real("actual_win_rate_vs_predicted").default(0), // Calibration (100 = perfect)
+  
+  // Best Catalyst Performance
+  bestCatalystType: varchar("best_catalyst_type").$type<CatalystCategory>(),
+  bestCatalystWinRate: real("best_catalyst_win_rate").default(0),
+  worstCatalystType: varchar("worst_catalyst_type").$type<CatalystCategory>(),
+  worstCatalystWinRate: real("worst_catalyst_win_rate").default(0),
+  
+  // Session/Timing Performance
+  bestSessionPhase: varchar("best_session_phase").$type<SessionPhase>(),
+  bestSessionWinRate: real("best_session_win_rate").default(0),
+  
+  // Volatility Performance
+  bestVolatilityRegime: varchar("best_volatility_regime").$type<VolatilityRegime>(),
+  bestVolatilityWinRate: real("best_volatility_win_rate").default(0),
+  
+  // Sector & Classification
+  sector: varchar("sector"),
+  industry: varchar("industry"),
+  avgVolume: real("avg_volume"),
+  marketCap: varchar("market_cap"), // 'mega', 'large', 'mid', 'small', 'micro', 'nano'
+  
+  // Timestamps
+  lastTradeDate: timestamp("last_trade_date"),
+  profileUpdatedAt: timestamp("profile_updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSymbolBehaviorProfileSchema = createInsertSchema(symbolBehaviorProfiles).omit({ id: true, createdAt: true, profileUpdatedAt: true });
+export type InsertSymbolBehaviorProfile = z.infer<typeof insertSymbolBehaviorProfileSchema>;
+export type SymbolBehaviorProfile = typeof symbolBehaviorProfiles.$inferSelect;
+
+// Symbol Catalyst Responses - Track individual catalyst events and outcomes
+export const symbolCatalystResponses = pgTable("symbol_catalyst_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull(),
+  tradeIdeaId: varchar("trade_idea_id").notNull(), // Link to original trade idea
+  
+  // Catalyst Details
+  catalystCategory: varchar("catalyst_category").$type<CatalystCategory>().notNull(),
+  catalystText: text("catalyst_text"), // Original catalyst description
+  catalystDate: timestamp("catalyst_date").notNull(),
+  
+  // Trade Details
+  direction: varchar("direction").notNull(), // 'long' | 'short'
+  assetType: varchar("asset_type").$type<AssetType>().notNull(),
+  entryPrice: real("entry_price").notNull(),
+  targetPrice: real("target_price").notNull(),
+  stopLoss: real("stop_loss").notNull(),
+  confidenceScore: real("confidence_score"),
+  
+  // Outcome
+  outcomeStatus: varchar("outcome_status").$type<OutcomeStatus>(),
+  exitPrice: real("exit_price"),
+  pnlPercent: real("pnl_percent"),
+  pnlDollars: real("pnl_dollars"),
+  holdingTimeMinutes: integer("holding_time_minutes"),
+  
+  // Context at Entry
+  volatilityRegime: varchar("volatility_regime").$type<VolatilityRegime>(),
+  sessionPhase: varchar("session_phase").$type<SessionPhase>(),
+  marketCondition: varchar("market_condition"), // 'bullish', 'bearish', 'neutral'
+  
+  // Price Movement Analysis
+  maxFavorableMove: real("max_favorable_move"), // Highest % move in our direction
+  maxAdverseMove: real("max_adverse_move"), // Worst % move against us
+  timeToMaxFavorable: integer("time_to_max_favorable"), // Minutes to peak
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSymbolCatalystResponseSchema = createInsertSchema(symbolCatalystResponses).omit({ id: true, createdAt: true });
+export type InsertSymbolCatalystResponse = z.infer<typeof insertSymbolCatalystResponseSchema>;
+export type SymbolCatalystResponse = typeof symbolCatalystResponses.$inferSelect;
+
+// Confidence Calibration - Track predicted vs actual outcomes by confidence band
+export const confidenceCalibration = pgTable("confidence_calibration", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Confidence Band
+  confidenceBandMin: real("confidence_band_min").notNull(), // e.g., 80
+  confidenceBandMax: real("confidence_band_max").notNull(), // e.g., 85
+  bandLabel: varchar("band_label").notNull(), // e.g., "80-85"
+  
+  // Predictions at this confidence level
+  totalPredictions: integer("total_predictions").notNull().default(0),
+  closedPredictions: integer("closed_predictions").notNull().default(0),
+  correctPredictions: integer("correct_predictions").notNull().default(0),
+  
+  // Accuracy Metrics
+  actualWinRate: real("actual_win_rate").default(0), // What actually happened
+  expectedWinRate: real("expected_win_rate").default(0), // What confidence predicted
+  calibrationError: real("calibration_error").default(0), // Difference (negative = overconfident)
+  
+  // Profit at this level
+  avgPnLPercent: real("avg_pnl_percent").default(0),
+  avgPnLDollars: real("avg_pnl_dollars").default(0),
+  
+  // Breakdown by source
+  aiPredictions: integer("ai_predictions").default(0),
+  aiWinRate: real("ai_win_rate").default(0),
+  quantPredictions: integer("quant_predictions").default(0),
+  quantWinRate: real("quant_win_rate").default(0),
+  
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertConfidenceCalibrationSchema = createInsertSchema(confidenceCalibration).omit({ id: true, createdAt: true, lastUpdated: true });
+export type InsertConfidenceCalibration = z.infer<typeof insertConfidenceCalibrationSchema>;
+export type ConfidenceCalibration = typeof confidenceCalibration.$inferSelect;
+
+// Historical Intelligence Summary - Aggregate stats for quick access
+export const historicalIntelligenceSummary = pgTable("historical_intelligence_summary", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Overall Stats
+  totalIdeasGenerated: integer("total_ideas_generated").notNull().default(0),
+  totalIdeasClosed: integer("total_ideas_closed").notNull().default(0),
+  overallWinRate: real("overall_win_rate").default(0),
+  overallProfitFactor: real("overall_profit_factor").default(0),
+  totalRealizedPnL: real("total_realized_pnl").default(0),
+  
+  // By Source
+  aiIdeas: integer("ai_ideas").default(0),
+  aiWinRate: real("ai_win_rate").default(0),
+  quantIdeas: integer("quant_ideas").default(0),
+  quantWinRate: real("quant_win_rate").default(0),
+  flowIdeas: integer("flow_ideas").default(0),
+  flowWinRate: real("flow_win_rate").default(0),
+  
+  // By Asset Type
+  stockWinRate: real("stock_win_rate").default(0),
+  optionsWinRate: real("options_win_rate").default(0),
+  cryptoWinRate: real("crypto_win_rate").default(0),
+  futuresWinRate: real("futures_win_rate").default(0),
+  
+  // By Direction
+  longWinRate: real("long_win_rate").default(0),
+  shortWinRate: real("short_win_rate").default(0),
+  
+  // Top Performers
+  topSymbolsByWinRate: jsonb("top_symbols_by_win_rate").$type<{symbol: string, winRate: number, trades: number}[]>(),
+  topCatalystsByWinRate: jsonb("top_catalysts_by_win_rate").$type<{catalyst: string, winRate: number, trades: number}[]>(),
+  bestTimeOfDay: varchar("best_time_of_day"), // 'morning', 'midday', 'afternoon', 'overnight'
+  
+  // Confidence Calibration Summary
+  confidenceCalibrationScore: real("confidence_calibration_score").default(0), // 0-100, 100 = perfect
+  avgOverconfidence: real("avg_overconfidence").default(0), // Positive = overconfident
+  
+  // ML Model Performance
+  mlModelVersion: varchar("ml_model_version"),
+  mlModelAccuracy: real("ml_model_accuracy").default(0),
+  lastMlTrainingDate: timestamp("last_ml_training_date"),
+  
+  // Metadata
+  dataRangeStart: timestamp("data_range_start"),
+  dataRangeEnd: timestamp("data_range_end"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertHistoricalIntelligenceSummarySchema = createInsertSchema(historicalIntelligenceSummary).omit({ id: true, createdAt: true, lastUpdated: true });
+export type InsertHistoricalIntelligenceSummary = z.infer<typeof insertHistoricalIntelligenceSummarySchema>;
+export type HistoricalIntelligenceSummary = typeof historicalIntelligenceSummary.$inferSelect;
