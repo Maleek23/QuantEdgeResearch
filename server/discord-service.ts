@@ -516,7 +516,11 @@ export async function sendReportNotificationToDiscord(report: any): Promise<void
 export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
 // Track recently sent quant ideas to prevent spam - key is "symbol:strike:optionType:expiry"
 const recentQuantIdeas = new Map<string, number>();
-const QUANT_IDEA_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes cooldown per unique idea
+const QUANT_IDEA_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours cooldown per unique idea (increased from 30 min)
+
+// Global QUANTFLOOR cooldown to prevent burst spam
+let lastQuantFloorBatchTime = 0;
+const QUANTFLOOR_BATCH_COOLDOWN_MS = 30 * 60 * 1000; // 30 min between batch summaries
 
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
@@ -525,6 +529,12 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
   try {
     const now = Date.now();
     
+    // Global cooldown - prevent batch spam
+    if (now - lastQuantFloorBatchTime < QUANTFLOOR_BATCH_COOLDOWN_MS) {
+      logger.debug(`[DISCORD] Batch summary skipped - global cooldown (${Math.round((QUANTFLOOR_BATCH_COOLDOWN_MS - (now - lastQuantFloorBatchTime)) / 60000)}min remaining)`);
+      return;
+    }
+    
     // Clean up old entries
     for (const [key, timestamp] of recentQuantIdeas) {
       if (now - timestamp > QUANT_IDEA_COOLDOWN_MS) {
@@ -532,8 +542,21 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       }
     }
     
+    // Filter for quality: B+ grade minimum, confidence >= 85
+    const qualityIdeas = ideas.filter((i: any) => {
+      const grade = i.grade || '';
+      const confidence = i.confidence || 0;
+      return VALID_DISCORD_GRADES.includes(grade) && confidence >= MIN_CONFIDENCE_REQUIRED;
+    });
+    
+    // Don't send if no quality ideas
+    if (qualityIdeas.length === 0) {
+      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - no B+ grade ideas`);
+      return;
+    }
+    
     // Filter out ideas that were sent recently (deduplication)
-    const newIdeas = ideas.filter((i: any) => {
+    const newIdeas = qualityIdeas.filter((i: any) => {
       const rawExpiry = i.expiryDate || i.expirationDate || '';
       const expiry = String(rawExpiry).split('T')[0];
       const key = `${i.symbol}:${i.strikePrice || ''}:${i.optionType || ''}:${expiry}`;
@@ -549,11 +572,15 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
     
     // Don't send if all ideas were duplicates
     if (newIdeas.length === 0) {
-      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - all ${ideas.length} ideas were duplicates`);
+      logger.debug(`[DISCORD] ${type || 'BATCH'} summary skipped - all ${qualityIdeas.length} quality ideas were duplicates`);
       return;
     }
     
-    const summary = newIdeas.slice(0, 10).map((i: any) => {
+    // Update global cooldown
+    lastQuantFloorBatchTime = now;
+    
+    // Limit to top 3 ideas to reduce spam
+    const summary = newIdeas.slice(0, 3).map((i: any) => {
       const emoji = i.direction === 'long' ? '🟢' : '🔴';
       const optionType = i.optionType ? i.optionType.toUpperCase() : '';
       const strike = i.strikePrice ? `$${i.strikePrice}` : '';
@@ -580,9 +607,13 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
     });
   } catch (e) {}
 }
-// Flow alert cooldown to prevent spam (15 min per symbol)
+// Flow alert cooldown to prevent spam (45 min per symbol - increased from 15 min)
 const flowAlertCooldown = new Map<string, number>();
-const FLOW_ALERT_COOLDOWN_MS = 15 * 60 * 1000;
+const FLOW_ALERT_COOLDOWN_MS = 45 * 60 * 1000;
+
+// Global flow alert cooldown (1 alert per 10 min max)
+let lastFlowAlertTime = 0;
+const FLOW_GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
 
 export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   if (DISCORD_DISABLED) return;
@@ -592,14 +623,23 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   // Skip alerts with missing data (N/A spam prevention)
   if (!flow.symbol) return;
   
-  // Skip if this symbol was alerted recently (spam prevention)
   const now = Date.now();
+  
+  // Global cooldown - max 1 flow alert per 10 min
+  if (now - lastFlowAlertTime < FLOW_GLOBAL_COOLDOWN_MS) {
+    logger.debug(`[DISCORD] Flow alert for ${flow.symbol} skipped - global cooldown`);
+    return;
+  }
+  
+  // Skip if this symbol was alerted recently (spam prevention)
   const lastAlert = flowAlertCooldown.get(flow.symbol);
   if (lastAlert && now - lastAlert < FLOW_ALERT_COOLDOWN_MS) return;
   
-  // Only alert for B+ or higher grades
-  const VALID_GRADES = ['A+', 'A', 'A-', 'B+'];
-  if (flow.grade && !VALID_GRADES.includes(flow.grade)) return;
+  // Only alert for B+ or higher grades  
+  if (flow.grade && !VALID_DISCORD_GRADES.includes(flow.grade)) return;
+  
+  // Require minimum confidence of 85%
+  if (flow.confidence && flow.confidence < MIN_CONFIDENCE_REQUIRED) return;
   
   try {
     // Build description based on available data
@@ -641,8 +681,9 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
       embed.fields!.push({ name: 'Premium', value: `$${(flow.premium / 1000).toFixed(0)}k`, inline: true });
     }
     
-    // Mark as alerted
+    // Mark as alerted and update global cooldown
     flowAlertCooldown.set(flow.symbol, now);
+    lastFlowAlertTime = now;
     
     // Clean up old cooldowns
     for (const [sym, ts] of flowAlertCooldown) {
