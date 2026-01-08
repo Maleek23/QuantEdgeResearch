@@ -1,5 +1,6 @@
 import { logger } from './logger';
 import { getFullUniverse, getSectorTickers, PREMIUM_WATCHLIST, LOTTO_ELIGIBLE } from './ticker-universe';
+import { getExpandedUniverse, getNewMoverSymbols, getDiscoveryStatus } from './mover-discovery';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_SCREENER_API = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved";
@@ -99,7 +100,7 @@ const ETF_UNIVERSE = [
   'TQQQ', 'SQQQ', 'UPRO', 'SPXU', 'TNA', 'TZA', 'SOXL', 'SOXS', 'LABU', 'LABD',
 ];
 
-export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' | 'etf' | 'premium' | 'lotto' = 'all'): string[] {
+export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' | 'etf' | 'premium' | 'lotto' | 'expanded' | 'static' = 'all'): string[] {
   switch (category) {
     case 'sp500':
       return SP500_SYMBOLS;
@@ -113,10 +114,40 @@ export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' 
       return PREMIUM_WATCHLIST;
     case 'lotto':
       return LOTTO_ELIGIBLE;
+    case 'static':
+      // Use only static universe (800+ tickers) - no dynamic movers
+      return getFullUniverse();
+    case 'expanded':
     case 'all':
     default:
-      // Use unified ticker universe (500+ tickers)
-      return getFullUniverse();
+      // Use expanded universe (static 800+ tickers + dynamically discovered movers)
+      // This ensures scanners can find stocks like CVNA even if not in static list
+      return getExpandedUniverse();
+  }
+}
+
+/**
+ * Trigger mover discovery scan - call this periodically during market hours
+ * to discover new movers NOT in the static ticker universe
+ */
+export async function runMoverDiscovery(): Promise<{ newMovers: string[]; totalDiscovered: number }> {
+  logger.info('[SCANNER] Running dynamic mover discovery...');
+  
+  try {
+    const newMovers = await getNewMoverSymbols();
+    const status = getDiscoveryStatus();
+    
+    if (newMovers.length > 0) {
+      logger.info(`[SCANNER] Discovered ${newMovers.length} new movers not in static universe: ${newMovers.slice(0, 5).join(', ')}${newMovers.length > 5 ? '...' : ''}`);
+    }
+    
+    return {
+      newMovers,
+      totalDiscovered: status.discoveredCount
+    };
+  } catch (error) {
+    logger.error('[SCANNER] Mover discovery failed:', error);
+    return { newMovers: [], totalDiscovered: 0 };
   }
 }
 

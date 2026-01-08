@@ -13,7 +13,7 @@ import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES } from './discord-service';
-import { getFullUniverse } from './ticker-universe';
+import { getExpandedUniverse } from './mover-discovery';
 import { validateFlowData, FlowValidationResult } from './flow-validation';
 
 // 🛡️ QUALITY GATE: Only send B+ and higher to Discord (user requested)
@@ -140,8 +140,9 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// UNIFIED FLOW SCAN UNIVERSE (500+ tickers) - Shared across all platform scanners
-const FLOW_SCAN_TICKERS = getFullUniverse();
+// UNIFIED FLOW SCAN UNIVERSE (800+ tickers + dynamic movers) - Shared across all platform scanners
+// Uses expanded universe that includes dynamically discovered movers from Yahoo Finance
+const FLOW_SCAN_TICKERS = getExpandedUniverse();
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
 // NOTE: Tradier Sandbox doesn't provide average_volume data, so we use absolute volume

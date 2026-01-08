@@ -1443,5 +1443,41 @@ app.use((req, res, next) => {
     });
     
     log('💰 Premium Tracker started - tracking option premiums at 4:30 PM CT weekdays');
+    
+    // ============================================================================
+    // DYNAMIC MOVER DISCOVERY - Find stocks NOT in static universe that are moving
+    // Runs every 15 minutes during market hours to catch emerging movers
+    // ============================================================================
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay();
+        const hour = ctTime.getHours();
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Only run during extended market hours (8 AM - 5 PM CT)
+        if (hour < 8 || hour > 17) {
+          return;
+        }
+        
+        logger.info('🔍 [MOVER-DISCOVERY] Running dynamic mover discovery scan...');
+        
+        const { runMoverDiscovery } = await import('./market-scanner');
+        const result = await runMoverDiscovery();
+        
+        if (result.newMovers.length > 0) {
+          logger.info(`🔍 [MOVER-DISCOVERY] Found ${result.newMovers.length} new movers not in static universe`);
+        }
+        
+      } catch (error: any) {
+        logger.error('🔍 [MOVER-DISCOVERY] Failed to run mover discovery:', error);
+      }
+    });
+    
+    log('🔍 Mover Discovery started - scanning for emerging movers every 15 min during market hours');
   });
 })();

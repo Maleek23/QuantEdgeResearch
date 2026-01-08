@@ -1,14 +1,18 @@
 /**
- * UNIFIED TICKER UNIVERSE (500+ tickers)
+ * UNIFIED TICKER UNIVERSE (800+ tickers)
  * Shared across all scanners: Flow Scanner, Market Scanner, Lotto Scanner, Auto-Lotto Trader
  * This ensures comprehensive market coverage across all platform features
+ * 
+ * ALSO: Dynamic mover scanner (mover-discovery.ts) fetches real-time most-active
+ * stocks from Yahoo Finance to catch movers NOT in this static list.
  */
 
-// === 📈 MEGA CAP TECH (25) ===
+// === 📈 MEGA CAP TECH (35) ===
 export const MEGA_CAP_TECH = [
   'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO', 'ORCL',
   'ADBE', 'CRM', 'CSCO', 'ACN', 'IBM', 'INTC', 'TXN', 'QCOM', 'NOW', 'INTU',
-  'AMD', 'MU', 'AMAT', 'LRCX', 'ADI'
+  'AMD', 'MU', 'AMAT', 'LRCX', 'ADI', 'NFLX', 'PYPL', 'UBER', 'ABNB', 'SHOP',
+  'SQ', 'SNAP', 'PINS', 'TWTR', 'ZM'
 ];
 
 // === 💵 FINANCIALS (40) ===
@@ -152,18 +156,46 @@ export const ECOMMERCE_LOGISTICS = [
   'BIGC', 'CPNG', 'MELI', 'SE', 'GRAB'
 ];
 
-// === 🔥 HIGH-MOMENTUM MID-CAPS (20) ===
+// === 🔥 HIGH-MOMENTUM MID-CAPS (60) ===
 // Volatile names that frequently have big moves - MUST track these
 export const HIGH_MOMENTUM_MIDCAPS = [
+  // Retail favorites with explosive moves
   'CVNA', 'UPST', 'DASH', 'UBER', 'LYFT', 'ABNB', 'RBLX', 'SNAP', 'PINS', 'PTON',
-  'Z', 'ZG', 'OPEN', 'CLOV', 'FUBO', 'SOFI', 'AFRM', 'GME', 'AMC', 'BBBY'
+  'Z', 'ZG', 'OPEN', 'CLOV', 'FUBO', 'SOFI', 'AFRM', 'GME', 'AMC', 'KOSS',
+  // High-beta growth names
+  'TTD', 'ROKU', 'CRSP', 'BILL', 'HUBS', 'VEEV', 'WDAY', 'OKTA', 'TWLO', 'DOCU',
+  // SPACs turned movers
+  'DWAC', 'LUCID', 'CCIV', 'IPOF', 'PSTH', 'SPCE', 'NKLA', 'QS', 'CHPT', 'FSR',
+  // High short interest / squeeze candidates
+  'BYND', 'SPWR', 'BBAI', 'VRM', 'RIDE', 'GOEV', 'REV', 'EXPR', 'PRTY', 'BGFV',
+  // Recent IPOs / hot names
+  'RDDT', 'ARM', 'BIRK', 'CART', 'IBKR', 'GTLB', 'DUOL', 'BROS', 'RIVN', 'LCID'
 ];
 
-// === 🇨🇳 CHINA ADRs (15) ===
+// === 🇨🇳 CHINA ADRs (25) ===
 // Track due to volume surges and cross-market momentum
 export const CHINA_ADRS = [
   'BABA', 'BIDU', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'BILI', 'TAL', 'EDU',
-  'FUTU', 'TIGR', 'YMM', 'DIDI', 'TME'
+  'FUTU', 'TIGR', 'YMM', 'DIDI', 'TME', 'BEKE', 'KC', 'ZTO', 'IQ', 'VNET',
+  'QFIN', 'LU', 'MNSO', 'VIPS', 'WB'
+];
+
+// === 📊 SMALL-CAP MOVERS (50) ===
+// Small caps with high relative volume that can move 10%+ in a day
+export const SMALL_CAP_MOVERS = [
+  'FFIE', 'MULN', 'GFAI', 'NRXP', 'TPST', 'CXAI', 'PRPH', 'MGAM', 'AULT', 'SXTC',
+  'TOP', 'TCON', 'TRVN', 'VERI', 'VTNR', 'WISA', 'WRAP', 'XELA', 'ZIVO', 'ARDS',
+  'APDN', 'ATNF', 'BFRG', 'BHAT', 'BNGO', 'BPTH', 'BTCS', 'CEMI', 'CFRX', 'CLVR',
+  'DARE', 'DGLY', 'DLPN', 'DMAQ', 'DPRO', 'EAST', 'ELLO', 'ERYP', 'ESPR', 'EVFM',
+  'FBIO', 'FGEN', 'FLNT', 'FNGR', 'FRGE', 'GEVO', 'GLBE', 'GNPX', 'GOVX', 'GROY'
+];
+
+// === 🏆 TOP VOLUME STOCKS (30) ===
+// The most traded stocks by daily volume - always liquid, always moving
+export const TOP_VOLUME_STOCKS = [
+  'TSLA', 'AAPL', 'NVDA', 'AMZN', 'AMD', 'META', 'MSFT', 'AMC', 'GOOGL', 'PLTR',
+  'BAC', 'BABA', 'GOOG', 'MARA', 'INTC', 'SOFI', 'NIO', 'COIN', 'NFLX', 'F',
+  'T', 'VZ', 'PFE', 'WFC', 'C', 'XOM', 'GM', 'RIOT', 'CLSK', 'HUT'
 ];
 
 // === 🏦 REGIONAL BANKS (20) ===
@@ -207,7 +239,7 @@ export const LEVERAGED_ETFS = [
   'NUGT', 'DUST', 'UVXY', 'SVXY', 'VXX'
 ];
 
-// === FULL UNIVERSE (550+ unique tickers) ===
+// === FULL UNIVERSE (800+ unique tickers) ===
 export function getFullUniverse(): string[] {
   const allTickers = new Set([
     ...MEGA_CAP_TECH,
@@ -232,8 +264,10 @@ export function getFullUniverse(): string[] {
     ...COMMODITIES_MATERIALS,
     ...GAMING_ENTERTAINMENT,
     ...ECOMMERCE_LOGISTICS,
-    ...HIGH_MOMENTUM_MIDCAPS,  // Added: CVNA, DASH, UBER, LYFT, etc.
-    ...CHINA_ADRS,             // Added: BABA, BIDU, JD, PDD, NIO, etc.
+    ...HIGH_MOMENTUM_MIDCAPS,  // CVNA, DASH, UBER, LYFT, GME, AMC, etc.
+    ...CHINA_ADRS,             // BABA, BIDU, JD, PDD, NIO, etc.
+    ...SMALL_CAP_MOVERS,       // Penny stocks that can move 10%+ daily
+    ...TOP_VOLUME_STOCKS,      // Most traded by volume
     ...REGIONAL_BANKS,
     ...TELECOM_5G,
     ...BIOTECH_PENNY,
@@ -271,6 +305,8 @@ export function getSectorTickers(sector: string): string[] {
     'ecommerce': ECOMMERCE_LOGISTICS,
     'momentum': HIGH_MOMENTUM_MIDCAPS,  // CVNA, DASH, UBER, etc.
     'china': CHINA_ADRS,                 // BABA, BIDU, JD, etc.
+    'smallcap': SMALL_CAP_MOVERS,        // Penny stocks with big moves
+    'topvolume': TOP_VOLUME_STOCKS,      // Most traded stocks
     'banks': REGIONAL_BANKS,
     'telecom': TELECOM_5G,
     'biotech': BIOTECH_PENNY,
@@ -355,8 +391,10 @@ export function getUniverseStats(): { total: number; sectors: Record<string, num
       'Commodities & Materials': COMMODITIES_MATERIALS.length,
       'Gaming & Entertainment': GAMING_ENTERTAINMENT.length,
       'E-Commerce & Logistics': ECOMMERCE_LOGISTICS.length,
-      'High-Momentum Mid-Caps': HIGH_MOMENTUM_MIDCAPS.length,  // CVNA, DASH, UBER, etc.
-      'China ADRs': CHINA_ADRS.length,                          // BABA, BIDU, JD, etc.
+      'High-Momentum Mid-Caps': HIGH_MOMENTUM_MIDCAPS.length,
+      'China ADRs': CHINA_ADRS.length,
+      'Small-Cap Movers': SMALL_CAP_MOVERS.length,
+      'Top Volume Stocks': TOP_VOLUME_STOCKS.length,
       'Regional Banks': REGIONAL_BANKS.length,
       'Telecom & 5G': TELECOM_5G.length,
       'Biotech Penny': BIOTECH_PENNY.length,
