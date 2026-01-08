@@ -1147,9 +1147,9 @@ export function AutoLottoDashboard() {
 
       {/* Portfolio Trades Modal */}
       <Dialog open={selectedPortfolio !== null} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700" data-testid="modal-portfolio-trades">
+        <DialogContent className="max-w-2xl bg-background border border-border shadow-2xl" data-testid="modal-portfolio-trades">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
+            <DialogTitle className="flex items-center gap-3 text-foreground">
               <div className={cn(
                 "p-2 rounded-lg border",
                 selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
@@ -1162,7 +1162,7 @@ export function AutoLottoDashboard() {
                 {selectedPortfolio === 'crypto' && <DollarSign className="h-4 w-4" />}
                 {selectedPortfolio === 'smallAccount' && <Zap className="h-4 w-4" />}
               </div>
-              <span data-testid="text-modal-title">{selectedInfo?.name}</span>
+              <span data-testid="text-modal-title">{selectedInfo?.name || 'Portfolio'}</span>
             </DialogTitle>
             <DialogDescription className="flex items-center gap-4 pt-2">
               <span className="text-muted-foreground">
@@ -1178,7 +1178,7 @@ export function AutoLottoDashboard() {
           </DialogHeader>
 
           <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as 'open' | 'closed' | 'all')} className="mt-2">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-800/40">
+            <TabsList className="grid w-full grid-cols-3 bg-muted/50">
               <TabsTrigger value="open" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400" data-testid="tab-open">
                 Open ({openCount})
               </TabsTrigger>
