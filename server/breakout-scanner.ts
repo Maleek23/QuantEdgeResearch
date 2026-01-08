@@ -25,6 +25,19 @@ interface BreakoutSignal {
   suggestedTarget: number;
   riskRewardRatio: number;
   timestamp: string;
+  // Hourly confirmation fields
+  hourlyConfirmed: boolean;
+  hourlyMomentum: 'strong' | 'moderate' | 'weak' | 'none';
+  hourlyBarsAboveResistance: number;
+  hourlyHigherLows: boolean;
+}
+
+interface HourlyConfirmation {
+  confirmed: boolean;
+  momentum: 'strong' | 'moderate' | 'weak' | 'none';
+  barsAboveLevel: number;
+  higherLows: boolean;
+  hourlyRSI?: number;
 }
 
 interface ScannerConfig {
@@ -91,6 +104,84 @@ function calculateAverageVolume(bars: OHLCBar[], lookback: number): number {
   if (volumes.length === 0) return 0;
   
   return volumes.reduce((a, b) => a + b, 0) / volumes.length;
+}
+
+/**
+ * Check hourly confirmation for breakout
+ * Requires: price staying above resistance, higher lows pattern, momentum
+ */
+async function checkHourlyConfirmation(
+  symbol: string,
+  resistanceLevel: number,
+  isBreakout: boolean
+): Promise<HourlyConfirmation> {
+  try {
+    // Fetch last 24 hours of hourly data
+    const hourlyData = await fetchOHLCData(symbol, '1h', 24);
+    
+    if (!hourlyData || !hourlyData.closes || hourlyData.closes.length < 6) {
+      return { confirmed: false, momentum: 'none', barsAboveLevel: 0, higherLows: false };
+    }
+    
+    const closes = hourlyData.closes;
+    const lows = hourlyData.lows;
+    const lastBars = closes.slice(-6); // Last 6 hours
+    const lastLows = lows.slice(-6);
+    
+    // Count bars above/below the level
+    let barsAboveLevel = 0;
+    if (isBreakout) {
+      barsAboveLevel = lastBars.filter(c => c > resistanceLevel).length;
+    } else {
+      // For breakdown, count bars below support
+      barsAboveLevel = lastBars.filter(c => c < resistanceLevel).length;
+    }
+    
+    // Check for higher lows pattern (bullish) or lower highs (bearish)
+    let higherLows = true;
+    for (let i = 1; i < lastLows.length; i++) {
+      if (isBreakout) {
+        if (lastLows[i] < lastLows[i - 1] * 0.998) { // Allow 0.2% tolerance
+          higherLows = false;
+          break;
+        }
+      } else {
+        // For breakdown, check lower highs
+        const highs = hourlyData.highs.slice(-6);
+        if (highs[i] > highs[i - 1] * 1.002) {
+          higherLows = false;
+          break;
+        }
+      }
+    }
+    
+    // Calculate hourly momentum
+    const priceChange = ((closes[closes.length - 1] - closes[closes.length - 6]) / closes[closes.length - 6]) * 100;
+    let momentum: 'strong' | 'moderate' | 'weak' | 'none' = 'none';
+    
+    if (isBreakout) {
+      if (priceChange > 2) momentum = 'strong';
+      else if (priceChange > 0.5) momentum = 'moderate';
+      else if (priceChange > 0) momentum = 'weak';
+    } else {
+      if (priceChange < -2) momentum = 'strong';
+      else if (priceChange < -0.5) momentum = 'moderate';
+      else if (priceChange < 0) momentum = 'weak';
+    }
+    
+    // Confirmation requires: 4+ bars above level AND (higher lows OR strong momentum)
+    const confirmed = barsAboveLevel >= 4 && (higherLows || momentum === 'strong' || momentum === 'moderate');
+    
+    return {
+      confirmed,
+      momentum,
+      barsAboveLevel,
+      higherLows
+    };
+  } catch (error) {
+    console.log(`[BreakoutScanner] Hourly confirmation unavailable for ${symbol}`);
+    return { confirmed: false, momentum: 'none', barsAboveLevel: 0, higherLows: false };
+  }
 }
 
 // Determine breakout strength (volume ratio of 1 means no volume data)
@@ -184,6 +275,21 @@ export async function scanSymbolForBreakout(
       confidence += 10;
     }
     
+    // Check hourly confirmation
+    const hourlyConfirm = await checkHourlyConfirmation(
+      symbol, 
+      isBreakout ? resistance : support,
+      isBreakout
+    );
+    
+    // Hourly confirmation bonus
+    if (hourlyConfirm.confirmed) {
+      confidence += 15;
+    }
+    if (hourlyConfirm.momentum === 'strong') {
+      confidence += 5;
+    }
+    
     return {
       symbol,
       signalType,
@@ -198,7 +304,12 @@ export async function scanSymbolForBreakout(
       suggestedStopLoss: stopLoss,
       suggestedTarget: target,
       riskRewardRatio,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // Hourly confirmation data
+      hourlyConfirmed: hourlyConfirm.confirmed,
+      hourlyMomentum: hourlyConfirm.momentum,
+      hourlyBarsAboveResistance: hourlyConfirm.barsAboveLevel,
+      hourlyHigherLows: hourlyConfirm.higherLows
     };
   } catch (error) {
     console.error(`[BreakoutScanner] Error scanning ${symbol}:`, error);
