@@ -90,6 +90,7 @@ import {
 } from './multi-factor-analysis';
 import { getMarketContext, getTradingSession } from './market-context-service';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
+import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -9911,6 +9912,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'POST /api/volatility-analysis/batch' });
       res.status(500).json({ error: "Failed to analyze volatility batch" });
+    }
+  });
+
+  // ==========================================================================
+  // 🎯 TRADING ENGINE - Integrated Fundamental + Technical Analysis
+  // ==========================================================================
+
+  // Trading Engine - Full analysis with confluence validation and trade structure
+  app.get("/api/trading-engine/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetClass = (req.query.asset as AssetClass) || 'stock';
+      const accountSize = parseInt(req.query.account as string) || 1000;
+
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const validAssets: AssetClass[] = ['stock', 'options', 'futures', 'crypto'];
+      if (!validAssets.includes(assetClass)) {
+        return res.status(400).json({ error: "Invalid asset class. Use: stock, options, futures, crypto" });
+      }
+
+      const result = await runTradingEngine(symbol.toUpperCase(), assetClass, accountSize);
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/trading-engine/:symbol' });
+      res.status(500).json({ error: "Failed to run trading engine analysis" });
+    }
+  });
+
+  // Trading Engine - Scan multiple symbols for setups
+  app.get("/api/trading-engine/scan/:assetClass", marketDataLimiter, async (req, res) => {
+    try {
+      const { assetClass } = req.params;
+      const symbolsParam = req.query.symbols as string;
+
+      const validAssets: AssetClass[] = ['stock', 'options', 'futures', 'crypto'];
+      if (!validAssets.includes(assetClass as AssetClass)) {
+        return res.status(400).json({ error: "Invalid asset class" });
+      }
+
+      // Default symbols per asset class
+      let symbols: string[] = [];
+      if (symbolsParam) {
+        symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase()).slice(0, 10);
+      } else {
+        switch (assetClass) {
+          case 'stock':
+            symbols = ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'TSLA'];
+            break;
+          case 'options':
+            symbols = ['SPY', 'QQQ', 'TSLA', 'NVDA', 'AMD'];
+            break;
+          case 'futures':
+            symbols = ['ES', 'NQ', 'GC', 'CL'];
+            break;
+          case 'crypto':
+            symbols = ['BTC', 'ETH', 'SOL'];
+            break;
+        }
+      }
+
+      const results = await scanSymbols(symbols, assetClass as AssetClass);
+      res.json({
+        assetClass,
+        scanned: symbols.length,
+        actionable: results.filter(r => r.actionable).length,
+        results,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/trading-engine/scan/:assetClass' });
+      res.status(500).json({ error: "Failed to scan symbols" });
+    }
+  });
+
+  // Trading Engine - Quick fundamental analysis
+  app.get("/api/trading-engine/fundamental/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetClass = (req.query.asset as AssetClass) || 'stock';
+
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol required" });
+      }
+
+      const result = await analyzeFundamentals(symbol.toUpperCase(), assetClass);
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/trading-engine/fundamental/:symbol' });
+      res.status(500).json({ error: "Failed to analyze fundamentals" });
+    }
+  });
+
+  // Trading Engine - Quick technical analysis
+  app.get("/api/trading-engine/technical/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol required" });
+      }
+
+      const result = await analyzeTechnicals(symbol.toUpperCase());
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/trading-engine/technical/:symbol' });
+      res.status(500).json({ error: "Failed to analyze technicals" });
     }
   });
 

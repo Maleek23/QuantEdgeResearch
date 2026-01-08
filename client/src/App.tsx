@@ -61,6 +61,7 @@ const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
+const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -110,6 +111,7 @@ function Router() {
         <Redirect to="/trade-desk" />
       </Route>
       <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
+      <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />

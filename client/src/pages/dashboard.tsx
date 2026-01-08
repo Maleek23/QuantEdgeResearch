@@ -10,8 +10,8 @@ import { format } from "date-fns";
 import { Link } from "wouter";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";
 import { WinRateWidget } from "@/components/win-rate-widget";
-import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
 import { IVRankWidget } from "@/components/iv-rank-widget";
+import { TradingEngineWidget } from "@/components/trading-engine-widget";
 
 function BotActivityMonitor() {
   const { data: botStatus } = useQuery<{
@@ -211,8 +211,8 @@ export default function Dashboard() {
           <WinRateWidget />
           <BotActivityMonitor />
           <PaperPortfolios />
+          <TradingEngineWidget />
           <IVRankWidget />
-          <QuickLinks />
         </div>
       </div>
     </div>
