@@ -14051,111 +14051,42 @@ CONSTRAINTS:
         };
       }
       
-      if (isAdmin) {
-        // Admin gets full access
-        res.json({
-          portfolio: {
-            name: portfolio.name,
-            startingCapital: portfolio.startingCapital,
-            cashBalance: portfolio.cashBalance,
-            totalValue: portfolio.totalValue,
-            totalPnL: portfolio.totalPnL,
-            createdAt: portfolio.createdAt,
-          },
-          futuresPortfolio: futuresStats,
-          cryptoPortfolio: cryptoStats,
-          smallAccountPortfolio: smallAccountStats,
-          positions: positions.slice(0, 50),
-          futuresPositions: futuresPositions.slice(0, 20),
-          cryptoPositions: cryptoPositions.slice(0, 20),
-          smallAccountPositions: smallAccountPositions.slice(0, 20),
-          stats: {
-            openPositions: openPositions.length,
-            closedPositions: closedPositions.length,
-            wins,
-            losses,
-            // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
-            winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
-            winRateNote: null,
-            totalRealizedPnL,
-            totalUnrealizedPnL,
-            sampleSize: closedPositions.length,
-            hasStatisticalValidity: true,
-          },
-          botStatus: 'running',
-          isAdmin: true,
-        });
-      } else {
-        // Non-admin: show portfolio stats (hide positions but show metrics)
-        res.json({
-          portfolio: {
-            name: portfolio.name,
-            startingCapital: portfolio.startingCapital,
-            cashBalance: portfolio.cashBalance,
-            totalValue: portfolio.totalValue,
-            totalPnL: portfolio.totalPnL,
-            createdAt: portfolio.createdAt,
-          },
-          futuresPortfolio: futuresStats ? {
-            name: futuresStats.name,
-            startingCapital: futuresStats.startingCapital,
-            cashBalance: futuresStats.cashBalance,
-            totalValue: futuresStats.totalValue,
-            totalPnL: futuresStats.totalPnL,
-            openPositions: futuresStats.openPositions,
-            winRate: futuresStats.winRate,
-          } : null,
-          cryptoPortfolio: cryptoStats ? {
-            name: cryptoStats.name,
-            startingCapital: cryptoStats.startingCapital,
-            cashBalance: cryptoStats.cashBalance,
-            totalValue: cryptoStats.totalValue,
-            totalPnL: cryptoStats.totalPnL,
-            openPositions: cryptoStats.openPositions,
-            winRate: cryptoStats.winRate,
-          } : null,
-          smallAccountPortfolio: smallAccountStats ? {
-            name: smallAccountStats.name,
-            startingCapital: smallAccountStats.startingCapital,
-            cashBalance: smallAccountStats.cashBalance,
-            totalValue: smallAccountStats.totalValue,
-            totalPnL: smallAccountStats.totalPnL,
-            openPositions: smallAccountStats.openPositions,
-            winRate: smallAccountStats.winRate,
-          } : null,
-          positions: [], // Never show positions to non-admin
-          futuresPositions: [],
-          cryptoPositions: [],
-          smallAccountPositions: [],
-          stats: hasStatisticalValidity ? {
-            openPositions: openPositions.length,
-            closedPositions: closedPositions.length,
-            wins,
-            losses,
-            // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
-            winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
-            winRateNote: null,
-            totalRealizedPnL,
-            totalUnrealizedPnL,
-            sampleSize: closedPositions.length,
-            hasStatisticalValidity: true,
-          } : {
-            // Below sample threshold: show only that bot exists, no performance data
-            openPositions: null,
-            closedPositions: closedPositions.length,
-            wins: null,
-            losses: null,
-            winRate: null,
-            winRateNote: `Performance data available after ${MINIMUM_SAMPLE_SIZE} trades (${closedPositions.length}/${MINIMUM_SAMPLE_SIZE})`,
-            totalRealizedPnL: null,
-            totalUnrealizedPnL: null,
-            sampleSize: closedPositions.length,
-            hasStatisticalValidity: false,
-          },
-          botStatus: 'running',
-          isAdmin: false,
-        });
-      }
+      // All authenticated users can see bot trades (platform-wide automated trades)
+      // isAdmin controls whether to show additional admin-only features
+      res.json({
+        portfolio: {
+          name: portfolio.name,
+          startingCapital: portfolio.startingCapital,
+          cashBalance: portfolio.cashBalance,
+          totalValue: portfolio.totalValue,
+          totalPnL: portfolio.totalPnL,
+          createdAt: portfolio.createdAt,
+        },
+        futuresPortfolio: futuresStats,
+        cryptoPortfolio: cryptoStats,
+        smallAccountPortfolio: smallAccountStats,
+        // Show trades to all authenticated users (these are platform bot trades, not user-specific)
+        positions: positions.slice(0, 50),
+        futuresPositions: futuresPositions.slice(0, 20),
+        cryptoPositions: cryptoPositions.slice(0, 20),
+        smallAccountPositions: smallAccountPositions.slice(0, 20),
+        stats: {
+          openPositions: openPositions.length,
+          closedPositions: closedPositions.length,
+          wins,
+          losses,
+          // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
+          winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
+          winRateNote: hasStatisticalValidity ? null : `Note: Based on ${closedPositions.length} trades (min 20 recommended)`,
+          totalRealizedPnL,
+          totalUnrealizedPnL,
+          sampleSize: closedPositions.length,
+          hasStatisticalValidity,
+        },
+        botStatus: 'running',
+        isAdmin,
+      });
+
     } catch (error: any) {
       logger.error("Error fetching auto-lotto bot data", { error });
       res.status(500).json({ error: "Failed to fetch bot data" });
