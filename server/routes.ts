@@ -89,6 +89,7 @@ import {
   getCompanyContext,
 } from './multi-factor-analysis';
 import { getMarketContext, getTradingSession } from './market-context-service';
+import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -9837,6 +9838,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/market-context' });
       res.status(500).json({ error: "Failed to get market context" });
+    }
+  });
+
+  // 📊 Volatility Analysis - IV Rank, IV Percentile, RV, Strategy Selection
+  app.get("/api/volatility-analysis/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const analysis = await analyzeVolatility(symbol.toUpperCase());
+      if (!analysis) {
+        return res.status(404).json({ error: `Unable to analyze volatility for ${symbol}` });
+      }
+
+      // Get market context for strategy selection
+      const marketContext = await getMarketContext();
+      const strategyRec = selectStrategy(marketContext.regime, analysis, 'stock');
+
+      res.json({
+        ...analysis,
+        marketRegime: marketContext.regime,
+        strategyRecommendation: strategyRec,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/volatility-analysis/:symbol' });
+      res.status(500).json({ error: "Failed to analyze volatility" });
+    }
+  });
+
+  // 📊 Quick IV Check - Fast IV rank for trading decisions
+  app.get("/api/iv-check/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const result = await quickIVCheck(symbol.toUpperCase());
+      if (!result) {
+        return res.status(404).json({ error: `Unable to check IV for ${symbol}` });
+      }
+
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/iv-check/:symbol' });
+      res.status(500).json({ error: "Failed to check IV" });
+    }
+  });
+
+  // 📊 Batch Volatility Analysis - Analyze multiple symbols
+  app.post("/api/volatility-analysis/batch", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbols } = req.body;
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: "symbols array required" });
+      }
+
+      // Limit batch size
+      const limitedSymbols = symbols.slice(0, 10).map((s: string) => s.toUpperCase());
+      const results = await batchVolatilityAnalysis(limitedSymbols);
+
+      // Convert Map to object for JSON
+      const response: Record<string, any> = {};
+      results.forEach((analysis, symbol) => {
+        response[symbol] = analysis;
+      });
+
+      res.json(response);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/volatility-analysis/batch' });
+      res.status(500).json({ error: "Failed to analyze volatility batch" });
     }
   });
 
