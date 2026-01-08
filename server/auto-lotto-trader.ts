@@ -230,6 +230,7 @@ const OPTIONS_PLAYBOOK = {
 const OPTIONS_PLAYBOOK_TICKERS = [
   'SPY',   // S&P 500 ETF
   'QQQ',   // Nasdaq 100 ETF
+  'IWM',   // Russell 2000 ETF - Small caps index
   'AAPL',  // Apple
   'NVDA',  // NVIDIA
   'TSLA',  // Tesla
