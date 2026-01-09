@@ -618,7 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login - Authenticate existing user
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, password, rememberMe } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
@@ -632,6 +632,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store userId in session
       (req.session as any).userId = user.id;
+      
+      // Extend session to 30 days if "Remember Me" is checked
+      if (rememberMe) {
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+      }
       
       // Track login for analytics
       const userAgent = req.headers['user-agent'] || '';
