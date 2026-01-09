@@ -166,22 +166,96 @@ const SIGNAL_WEIGHTS: Record<string, number> = {
 };
 
 /**
- * Calculate confidence score from signals
+ * Signal Correlation Groups
+ * Signals in the same group are considered redundant - only the highest-weight one gets full value
+ * Others in the group get 50% penalty regardless of arrival order
+ */
+const SIGNAL_CORRELATION_GROUPS: string[][] = [
+  ['RSI_OVERSOLD', 'STOCHASTIC_OVERSOLD', 'SUPPORT_BOUNCE'],
+  ['RSI_OVERBOUGHT', 'STOCHASTIC_OVERBOUGHT', 'RESISTANCE_REJECTION'],
+  ['VOLUME_SURGE', 'UNUSUAL_VOLUME', 'LARGE_PREMIUM'],
+  ['MACD_BULLISH_CROSS', 'GOLDEN_CROSS'],
+  ['MACD_BEARISH_CROSS', 'DEATH_CROSS'],
+  ['BREAKOUT', 'ASCENDING_TRIANGLE', 'BULL_FLAG', 'CUP_HANDLE'],
+  ['BREAKDOWN', 'DESCENDING_TRIANGLE', 'BEAR_FLAG', 'HEAD_SHOULDERS'],
+  ['UNUSUAL_CALL_FLOW', 'SWEEP_DETECTED'],
+  ['UNUSUAL_PUT_FLOW', 'SWEEP_DETECTED'],
+  ['TOP_GAINER', 'MARKET_SCANNER_MOVER'],
+  ['TOP_LOSER', 'MARKET_SCANNER_MOVER'],
+];
+
+const CORRELATION_PENALTY = 0.5; // Reduce correlated signal weight by 50%
+
+/**
+ * Build a lookup map: signal -> group index
+ */
+function getSignalGroupMap(): Map<string, number> {
+  const map = new Map<string, number>();
+  SIGNAL_CORRELATION_GROUPS.forEach((group, idx) => {
+    group.forEach(signal => map.set(signal, idx));
+  });
+  return map;
+}
+
+const SIGNAL_GROUP_MAP = getSignalGroupMap();
+
+/**
+ * Calculate confidence score from signals with saturation curve and correlation penalties
  */
 function calculateConfidence(source: IdeaSource, signals: IdeaSignal[]): number {
   let confidence = SOURCE_BASE_CONFIDENCE[source] || 50;
   
+  // Track which correlation groups have been used and their highest weight
+  const groupHighestWeight = new Map<number, number>();
+  const signalWeights: { type: string; weight: number; groupIdx: number | undefined }[] = [];
+  
+  // First pass: collect all signals and their groups
   for (const signal of signals) {
     const weight = signal.weight || SIGNAL_WEIGHTS[signal.type] || 5;
-    confidence += weight;
+    const groupIdx = SIGNAL_GROUP_MAP.get(signal.type);
+    signalWeights.push({ type: signal.type, weight, groupIdx });
+    
+    if (groupIdx !== undefined) {
+      const currentMax = groupHighestWeight.get(groupIdx) || 0;
+      if (weight > currentMax) {
+        groupHighestWeight.set(groupIdx, weight);
+      }
+    }
   }
   
-  // Bonus for multiple confirming signals
-  if (signals.length >= 3) {
-    confidence += 5; // Confluence bonus
+  // Second pass: apply correlation penalties (only highest in each group gets full weight)
+  let totalSignalWeight = 0;
+  const groupUsed = new Set<number>();
+  
+  for (const { type, weight, groupIdx } of signalWeights) {
+    let adjustedWeight = weight;
+    
+    if (groupIdx !== undefined) {
+      const highestInGroup = groupHighestWeight.get(groupIdx) || weight;
+      if (groupUsed.has(groupIdx)) {
+        // Not the first in this group - apply penalty
+        adjustedWeight *= CORRELATION_PENALTY;
+      } else if (weight < highestInGroup) {
+        // First but not highest - apply penalty, save highest for later
+        adjustedWeight *= CORRELATION_PENALTY;
+      }
+      groupUsed.add(groupIdx);
+    }
+    
+    totalSignalWeight += adjustedWeight;
   }
-  if (signals.length >= 5) {
-    confidence += 5; // Strong confluence
+  
+  // Apply saturation curve: diminishing returns beyond 3 signals
+  // decay_factor = 1 / (1 + 0.1 × (signal_count - 3))
+  // At 3 signals: factor = 1.0, At 5 signals: factor = 0.83, At 8 signals: factor = 0.67
+  const signalCount = signals.filter(s => (s.weight || SIGNAL_WEIGHTS[s.type] || 0) > 0).length;
+  const saturationFactor = signalCount <= 3 ? 1.0 : 1 / (1 + 0.1 * (signalCount - 3));
+  
+  confidence += totalSignalWeight * saturationFactor;
+  
+  // Bonus for multiple confirming signals (reduced due to saturation curve)
+  if (signals.length >= 3 && signals.length <= 5) {
+    confidence += 5; // Confluence bonus only for 3-5 signals
   }
   
   // Cap at 0-100

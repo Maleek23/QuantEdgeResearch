@@ -118,7 +118,7 @@ export async function analyzeTrade(position: PaperPosition): Promise<TradeDiagno
     const saved = await storage.createTradeDiagnostics(diagnostics);
     
     if (outcome === 'loss') {
-      await applyRemediationToLearningState(analysis, position.symbol);
+      await applyRemediationToLearningState(analysis, position.symbol, pnlPercent);
       
       if (similarLossCount >= 2) {
         await sendLossPatternAlert(position, analysis, similarLossCount);
@@ -175,9 +175,29 @@ function classifyLoss(
   }
   
   if (exitTrigger === 'stop_loss' && Math.abs(pnlPercent) < 15 && daysHeld < 1) {
-    categories.push('stop_too_tight');
-    notes.push(`Quick stop-out suggests stop was too tight or noisy entry`);
-    remediation.adjustStopMultiplier = 1.1;
+    // Regime-aware stop adjustment for quick stop-outs
+    // Use market regime from snapshot or infer from regime name
+    const regime = exitSnapshot.marketRegime || entrySnapshot.marketRegime || 'ranging';
+    const isTrending = regime === 'trending_up' || regime === 'trending_down';
+    const isRanging = regime === 'ranging';
+    
+    if (isRanging) {
+      // Ranging market - stop was genuinely too tight
+      categories.push('stop_too_tight');
+      notes.push(`Quick stop-out in ranging market (regime: ${regime}) - stop was too tight`);
+      remediation.adjustStopMultiplier = 1.1; // Loosen by 10%
+    } else if (isTrending) {
+      // Trending market - don't fight the trend, be more selective
+      categories.push('direction_wrong');
+      notes.push(`Quick stop-out in trending market (regime: ${regime}) - wrong side of trend`);
+      remediation.adjustConfidenceThreshold = 15; // Much more selective
+      remediation.adjustStopMultiplier = 0.95; // Actually tighten
+    } else {
+      // Transitional/volatile regime
+      categories.push('stop_too_tight');
+      notes.push(`Quick stop-out in volatile/transitional market (regime: ${regime})`);
+      remediation.adjustConfidenceThreshold = 5;
+    }
   }
   
   if (position.optionType && daysToExpiry <= 3 && pnlPercent < -15) {
@@ -273,7 +293,8 @@ async function countSimilarLosses(patternHash: string): Promise<number> {
 
 async function applyRemediationToLearningState(
   analysis: TradeAnalysis,
-  symbol: string
+  symbol: string,
+  pnlPercent: number = 0
 ): Promise<void> {
   try {
     let learningState = await storage.getBotLearningState(BOT_LEARNING_ID);
@@ -317,16 +338,42 @@ async function applyRemediationToLearningState(
         confidenceBoost: 0,
         lossStreak: 0,
         winRate: 50,
+        recentLossMagnitudes: [],
       };
     }
     symbolAdj[symbol].lossStreak = (symbolAdj[symbol].lossStreak || 0) + 1;
     symbolAdj[symbol].confidenceBoost = Math.max(-20, (symbolAdj[symbol].confidenceBoost || 0) - 3);
     
+    // Track recent loss magnitudes for dynamic cooldown
+    const recentLosses = symbolAdj[symbol].recentLossMagnitudes || [];
+    recentLosses.push(pnlPercent);
+    if (recentLosses.length > 5) recentLosses.shift(); // Keep last 5
+    symbolAdj[symbol].recentLossMagnitudes = recentLosses;
+    
+    // Dynamic cooldown based on loss magnitude
     if (symbolAdj[symbol].lossStreak >= 3) {
+      const avgLossMagnitude = recentLosses.reduce((a: number, b: number) => a + b, 0) / recentLosses.length;
       const avoidUntil = new Date();
-      avoidUntil.setDate(avoidUntil.getDate() + 3);
-      symbolAdj[symbol].avoidUntil = avoidUntil.toISOString();
-      logger.info(`[LOSS-ANALYZER] 🚫 Avoiding ${symbol} until ${avoidUntil.toISOString().split('T')[0]} after 3 consecutive losses`);
+      
+      let cooldownDays: number;
+      if (avgLossMagnitude <= -15) {
+        // Severe losses (avg > 15% loss) - 3 day cooldown
+        cooldownDays = 3;
+        logger.info(`[LOSS-ANALYZER] 🚫 SEVERE: Avoiding ${symbol} for 3 days (avg loss: ${avgLossMagnitude.toFixed(1)}%)`);
+      } else if (avgLossMagnitude <= -8) {
+        // Moderate losses (avg 8-15% loss) - 1 day cooldown
+        cooldownDays = 1;
+        logger.info(`[LOSS-ANALYZER] ⚠️ MODERATE: Avoiding ${symbol} for 1 day (avg loss: ${avgLossMagnitude.toFixed(1)}%)`);
+      } else {
+        // Small losses (avg < 8% loss) - no cooldown, just confidence penalty
+        cooldownDays = 0;
+        logger.info(`[LOSS-ANALYZER] 📉 MINOR: ${symbol} had 3 small losses (avg: ${avgLossMagnitude.toFixed(1)}%) - confidence penalty only`);
+      }
+      
+      if (cooldownDays > 0) {
+        avoidUntil.setDate(avoidUntil.getDate() + cooldownDays);
+        symbolAdj[symbol].avoidUntil = avoidUntil.toISOString();
+      }
     }
     
     updates.symbolAdjustments = symbolAdj;

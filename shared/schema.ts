@@ -792,6 +792,7 @@ export const botLearningState = pgTable("bot_learning_state", {
       avoidUntil?: string;        // ISO date to avoid until
       lossStreak: number;         // Consecutive losses on this symbol
       winRate: number;            // Historical win rate on this symbol
+      recentLossMagnitudes?: number[];  // Last 5 loss percentages for dynamic cooldown
     };
   }>().default({}),
   

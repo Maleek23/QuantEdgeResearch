@@ -192,19 +192,70 @@ Each signal type adds/subtracts points. These values are defined in `SIGNAL_WEIG
 | MULTI_SIGNAL_CONFLUENCE | +15 |
 | CROSS_ENGINE_AGREEMENT | +12 |
 
+### Signal Correlation Groups
+
+Signals in the same group are considered redundant. Only the **highest-weight signal in each group** gets full credit; all others receive a **50% penalty**. This is order-independent.
+
+| Correlation Group | Signals (highest weight gets 100%, others get 50%) |
+|-------------------|---------------------------------------------------|
+| Mean Reversion Oversold | RSI_OVERSOLD, STOCHASTIC_OVERSOLD, SUPPORT_BOUNCE |
+| Mean Reversion Overbought | RSI_OVERBOUGHT, STOCHASTIC_OVERBOUGHT, RESISTANCE_REJECTION |
+| Volume Signals | VOLUME_SURGE, UNUSUAL_VOLUME, LARGE_PREMIUM |
+| Bullish Momentum Crosses | MACD_BULLISH_CROSS, GOLDEN_CROSS |
+| Bearish Momentum Crosses | MACD_BEARISH_CROSS, DEATH_CROSS |
+| Bullish Breakout Patterns | BREAKOUT, ASCENDING_TRIANGLE, BULL_FLAG, CUP_HANDLE |
+| Bearish Breakdown Patterns | BREAKDOWN, DESCENDING_TRIANGLE, BEAR_FLAG, HEAD_SHOULDERS |
+| Bullish Options Flow | UNUSUAL_CALL_FLOW, SWEEP_DETECTED |
+| Bearish Options Flow | UNUSUAL_PUT_FLOW, SWEEP_DETECTED |
+| Gainer Momentum | TOP_GAINER, MARKET_SCANNER_MOVER |
+| Loser Momentum | TOP_LOSER, MARKET_SCANNER_MOVER |
+
+### Saturation Curve
+
+Diminishing returns beyond 3 signals to prevent grade inflation:
+
+```typescript
+// Positive signals only (excluding risk penalties)
+signalCount = count(signals where weight > 0)
+
+// Saturation factor decreases with more signals
+saturationFactor = signalCount <= 3 ? 1.0 : 1 / (1 + 0.1 × (signalCount - 3))
+
+// Effect on final signal contribution:
+// 3 signals: factor = 1.00 (100% weight)
+// 4 signals: factor = 0.91 (91% weight)
+// 5 signals: factor = 0.83 (83% weight)
+// 6 signals: factor = 0.77 (77% weight)
+// 8 signals: factor = 0.67 (67% weight)
+```
+
 ### Confluence Bonus
 
-Additional bonuses for multiple confirming signals:
-- 3+ signals: +5 points
-- 5+ signals: +10 points total
+Additional bonuses for 3-5 confirming signals only:
+- 3-5 signals: +5 points
+- >5 signals: No additional bonus (saturation curve applies)
 
 ### Final Confidence Formula
 
-```
+```typescript
+// Step 1: Calculate total signal weight with correlation penalties
+totalWeight = 0
+appliedSignals = Set()
+for each signal:
+  weight = SIGNAL_WEIGHTS[signal.type]
+  if (primary signal already applied && signal is correlated):
+    weight *= 0.5  // Correlation penalty
+  totalWeight += weight
+  appliedSignals.add(signal.type)
+
+// Step 2: Apply saturation curve
+adjustedWeight = totalWeight × saturationFactor
+
+// Step 3: Calculate final confidence
 confidence = BASE_CONFIDENCE[source]
-           + Σ(signal_weight)
-           + confluence_bonus
-           + loss_adjustment  // from Loss Analyzer
+           + adjustedWeight
+           + confluenceBonus  // +5 for 3-5 signals only
+           + lossAdjustment   // from Loss Analyzer
 
 confidence = clamp(confidence, 0, 100)
 ```
@@ -528,9 +579,29 @@ Action: adjustStopMultiplier = 0.85 (tighten stop by 15%)
 
 Trigger: Gave back profit (peak > 20%, closed negative)
 Action: adjustStopMultiplier = 0.9 (tighten by 10%)
+```
 
-Trigger: Quick stop-out (< 15% loss in < 1 day)
-Action: adjustStopMultiplier = 1.1 (loosen by 10%)
+**Regime-Aware Quick Stop-Out Adjustment:**
+```typescript
+// Quick stop-out (< 15% loss in < 1 day) - response depends on market regime
+const regime = exitSnapshot.marketRegime || 'ranging'
+const isTrending = regime === 'trending_up' || regime === 'trending_down'
+const isRanging = regime === 'ranging'
+
+if (quickStopOut && isRanging) {
+  // Ranging market - stop was genuinely too tight
+  category = 'stop_too_tight'
+  adjustStopMultiplier = 1.1  // Loosen by 10%
+} else if (quickStopOut && isTrending) {
+  // Trending market - wrong side of trend
+  category = 'direction_wrong'
+  adjustConfidenceThreshold = +15  // Much more selective
+  adjustStopMultiplier = 0.95      // Tighten by 5%
+} else {
+  // Transitional/volatile regime
+  category = 'stop_too_tight'
+  adjustConfidenceThreshold = +5
+}
 ```
 
 **Confidence Threshold Adjustments:**
@@ -543,6 +614,9 @@ Action: adjustConfidenceThreshold = +10
 
 Trigger: Low confidence entry (< 65)
 Action: adjustConfidenceThreshold = +10
+
+Trigger: Quick stop-out in trending market (ADX >= 25)
+Action: adjustConfidenceThreshold = +15
 ```
 
 ### Learning State Formulas
@@ -576,13 +650,42 @@ avoidUntil = null  // Clear cooldown
 
 ### Symbol Avoidance System
 
-When a symbol has **3+ consecutive losses**:
+**Magnitude-Based Dynamic Cooldown:**
+
+When a symbol has **3+ consecutive losses**, cooldown duration scales with loss severity:
+
 ```typescript
+// Track recent loss magnitudes (last 5 losses)
+recentLosses.push(pnlPercent)
+if (recentLosses.length > 5) recentLosses.shift()
+
 if (lossStreak >= 3) {
-  avoidUntil = now + 3 days
-  shouldAvoid = true
+  avgLossMagnitude = sum(recentLosses) / recentLosses.length
+  
+  if (avgLossMagnitude <= -15) {
+    // Severe losses - 3 day cooldown
+    cooldownDays = 3
+  } else if (avgLossMagnitude <= -8) {
+    // Moderate losses - 1 day cooldown
+    cooldownDays = 1
+  } else {
+    // Small losses (< 8%) - no cooldown, confidence penalty only
+    cooldownDays = 0
+  }
+  
+  if (cooldownDays > 0) {
+    avoidUntil = now + cooldownDays
+    shouldAvoid = true
+  }
 }
 ```
+
+**Cooldown Tiers:**
+| Avg Loss Magnitude | Cooldown Duration | Rationale |
+|--------------------|-------------------|-----------|
+| ≤ -15% | 3 days | Severe losses need full pattern reset |
+| -8% to -15% | 1 day | Moderate losses need brief cooling |
+| > -8% | 0 days | Small losses handled via confidence penalty |
 
 **Integration Points:**
 - **Universal Idea Generator**: HARD BLOCKS idea generation when `shouldAvoid=true`
