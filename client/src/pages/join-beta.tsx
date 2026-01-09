@@ -75,18 +75,23 @@ export default function JoinBeta() {
   const [step, setStep] = useState<"verify" | "onboard" | "success">("verify");
   const [verifiedEmail, setVerifiedEmail] = useState("");
 
+  // Parse invite code from URL immediately
+  const urlParams = new URLSearchParams(search);
+  const initialCode = urlParams.get("code") || urlParams.get("invite") || "";
+
   const verifyForm = useForm<VerifyCodeForm>({
     resolver: zodResolver(verifyCodeSchema),
-    defaultValues: { email: "", token: "" },
+    defaultValues: { email: "", token: initialCode.trim() },
   });
 
+  // Also update if URL changes after initial load
   useEffect(() => {
     const params = new URLSearchParams(search);
     const code = params.get("code") || params.get("invite");
     if (code) {
       verifyForm.setValue("token", code.trim());
     }
-  }, [search, verifyForm]);
+  }, [search]);
 
   const onboardingForm = useForm<OnboardingForm>({
     resolver: zodResolver(onboardingSchema),
