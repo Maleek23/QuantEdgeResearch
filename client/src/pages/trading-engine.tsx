@@ -133,35 +133,35 @@ function BotActivityMonitor() {
   const status = getStatusDisplay();
 
   return (
-    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-700/60 shadow-2xl overflow-hidden" data-testid="card-bot-monitor">
-      <div className="h-1 bg-slate-800">
+    <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden" data-testid="card-bot-monitor">
+      <div className="h-1 bg-muted">
         <div 
-          className={cn("h-full transition-all duration-1000", isMarketOpen ? "bg-cyan-500 w-full animate-pulse" : "bg-slate-700 w-0")} 
+          className={cn("h-full transition-all duration-1000", isMarketOpen ? "bg-primary w-full animate-pulse" : "bg-muted-foreground/30 w-0")} 
         />
       </div>
-      <CardHeader className="pb-2 border-b border-slate-800/50 mb-4">
+      <CardHeader className="pb-2 border-b border-border/50 mb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-tighter flex items-center gap-2">
-            <Zap className="h-4 w-4 text-cyan-400" />
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
             Autonomous Execution Engine
           </CardTitle>
-          <Badge variant="outline" className={cn("text-[10px] font-mono", status.textColor, "border-slate-700/60")}>
+          <Badge variant="outline" className={cn("text-[10px] font-mono", status.textColor)}>
             {status.label}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-2">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="p-3 rounded-md bg-slate-800/40 border border-slate-700/30">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Active</div>
-            <div className="text-2xl font-mono font-bold text-slate-50">{openPositions}</div>
+          <div className="p-3 rounded-md bg-muted/40 border border-border/30">
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Active</div>
+            <div className="text-2xl font-mono font-bold">{openPositions}</div>
           </div>
-          <div className="p-3 rounded-md bg-slate-800/40 border border-slate-700/30">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Volume</div>
-            <div className="text-2xl font-mono font-bold text-slate-50">{todayTrades}</div>
+          <div className="p-3 rounded-md bg-muted/40 border border-border/30">
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Volume</div>
+            <div className="text-2xl font-mono font-bold">{todayTrades}</div>
           </div>
-          <div className="p-3 rounded-md bg-slate-800/40 border border-slate-700/30">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Net P&L</div>
+          <div className="p-3 rounded-md bg-muted/40 border border-border/30">
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Net P&L</div>
             <div className={cn("text-2xl font-mono font-bold",
               todayPnL >= 0 ? "text-green-400" : "text-red-400"
             )}>
@@ -172,14 +172,14 @@ function BotActivityMonitor() {
         
         <div className="flex gap-2">
           <Link href="/automations" className="flex-1">
-            <Button size="sm" variant="outline" className="w-full text-xs h-9 bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 hover:border-cyan-500/40 transition-all">
+            <Button size="sm" variant="outline" className="w-full text-xs h-9 transition-all">
               Execution Logs <ChevronRight className="h-3 w-3 ml-1" />
             </Button>
           </Link>
           <Button 
             size="sm" 
             variant="outline" 
-            className="w-10 h-9 bg-slate-800/50 border-slate-700 hover:border-cyan-500/40"
+            className="w-10 h-9"
             onClick={() => window.location.reload()}
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -262,9 +262,9 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
   const symbols = hotSymbols?.slice(0, 10) || [];
 
   return (
-    <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-700/60 shadow-2xl" data-testid="card-hot-symbols">
-      <CardHeader className="pb-2 border-b border-slate-800/50 mb-4">
-        <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-tighter flex items-center gap-2">
+    <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl" data-testid="card-hot-symbols">
+      <CardHeader className="pb-2 border-b border-border/50 mb-4">
+        <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter flex items-center gap-2">
           <Flame className="h-4 w-4 text-orange-400 animate-pulse" />
           Attention Convergence
         </CardTitle>
@@ -276,13 +276,13 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
               key={s.symbol}
               onClick={() => onSelectSymbol(s.symbol)}
               className={cn(
-                "flex flex-col gap-1 p-3 rounded-md transition-all duration-200 text-left border border-slate-700/30 bg-slate-800/30 hover:bg-slate-700/40 hover:border-cyan-500/40",
+                "flex flex-col gap-1 p-3 rounded-md transition-all duration-200 text-left border border-border/30 bg-muted/30 hover:bg-muted/50 hover:border-primary/40",
                 s.convergenceLevel >= 2 && "border-amber-500/40 bg-amber-500/5"
               )}
               data-testid={`hot-symbol-${s.symbol}`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-base text-slate-50 tracking-tight">{s.symbol}</span>
+                <span className="font-mono font-bold text-base tracking-tight">{s.symbol}</span>
                 {s.convergenceLevel >= 2 && (
                   <Badge variant="outline" className="text-[10px] h-4 text-amber-400 border-amber-400/50 px-1 font-mono uppercase">
                     HIGH
@@ -292,16 +292,16 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
               <div className="flex items-center justify-between mt-1">
                 <div className="flex gap-1">
                   {s.sources.slice(0, 3).map((source, i) => (
-                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-cyan-500/50" title={source} />
+                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50" title={source} />
                   ))}
                 </div>
-                <span className="text-[10px] font-mono text-slate-400">{s.heatScore.toFixed(0)}pts</span>
+                <span className="text-[10px] font-mono text-muted-foreground">{s.heatScore.toFixed(0)}pts</span>
               </div>
             </button>
           ))}
         </div>
         {symbols.length === 0 && (
-          <div className="text-sm text-slate-400 text-center py-6 font-mono">
+          <div className="text-sm text-muted-foreground text-center py-6 font-mono">
             Scanning for convergence...
           </div>
         )}
@@ -497,11 +497,11 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-900/50 border-slate-800/50 backdrop-blur-md h-64 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-cyan-500/50" />
+        <Card className="bg-card/50 border-border/50 backdrop-blur-md h-64 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
         </Card>
-        <Card className="bg-slate-900/50 border-slate-800/50 backdrop-blur-md h-64 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-cyan-500/50" />
+        <Card className="bg-card/50 border-border/50 backdrop-blur-md h-64 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
         </Card>
       </div>
     );
@@ -509,15 +509,15 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
 
   if (error || !data) {
     return (
-      <Card className="bg-slate-900/80 border-red-500/30 backdrop-blur-xl">
+      <Card className="bg-card/80 border-red-500/30 backdrop-blur-xl">
         <CardContent className="py-16 text-center">
           <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-400 animate-pulse" />
-          <h3 className="text-xl font-bold text-slate-50 mb-2">Engine Execution Fault</h3>
-          <p className="text-slate-400 font-mono text-sm max-w-md mx-auto">
+          <h3 className="text-xl font-bold mb-2">Engine Execution Fault</h3>
+          <p className="text-muted-foreground font-mono text-sm max-w-md mx-auto">
             The quantitative engine failed to synthesize data for {symbol}. 
             Check API connectivity and market data availability.
           </p>
-          <Button variant="outline" size="sm" className="mt-8 border-slate-700 hover:border-cyan-500/50 bg-slate-800/50" onClick={() => refetch()}>
+          <Button variant="outline" size="sm" className="mt-8" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             RESET ENGINE
           </Button>
@@ -530,33 +530,33 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
     if (alignment === 'strong') return 'bg-green-500/10 text-green-400 border-green-500/30';
     if (alignment === 'moderate') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
     if (alignment === 'conflict') return 'bg-red-500/10 text-red-400 border-red-500/30';
-    return 'bg-slate-800 text-slate-400';
+    return 'bg-muted text-muted-foreground';
   };
 
   return (
     <div className="space-y-6">
       <Card className={cn(
-        "bg-slate-900/80 backdrop-blur-2xl border-slate-700/60 shadow-2xl overflow-hidden transition-all duration-500",
+        "bg-card/80 backdrop-blur-2xl border-border/60 shadow-2xl overflow-hidden transition-all duration-500",
         data.actionable ? "ring-1 ring-green-500/20 shadow-green-500/5" : ""
       )}>
-        <div className={cn("h-1", data.actionable ? "bg-green-500" : "bg-slate-700")}></div>
+        <div className={cn("h-1", data.actionable ? "bg-green-500" : "bg-muted")}></div>
         <CardHeader className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h2 className="text-4xl font-bold font-mono tracking-tighter text-slate-50">{data.symbol}</h2>
-                <Badge variant="outline" className="text-[10px] font-mono border-slate-700 text-slate-400 uppercase">{data.assetClass}</Badge>
+                <h2 className="text-4xl font-bold font-mono tracking-tighter">{data.symbol}</h2>
+                <Badge variant="outline" className="text-[10px] font-mono uppercase">{data.assetClass}</Badge>
                 {data.actionable && (
-                  <Badge className="bg-green-500 text-slate-950 font-bold px-2 py-0.5 animate-pulse">
+                  <Badge className="bg-green-500 text-green-950 font-bold px-2 py-0.5 animate-pulse">
                     READY
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-slate-400 max-w-2xl leading-relaxed mt-2">{data.summary}</p>
+              <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed mt-2">{data.summary}</p>
             </div>
-            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-xl border border-slate-700/30 backdrop-blur-md">
+            <div className="flex items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border/30 backdrop-blur-md">
               <div className="text-right">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Confluence Score</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Confluence Score</div>
                 <div className={cn("text-3xl font-bold font-mono tabular-nums", 
                   data.confluence.score >= 80 ? "text-green-400" : 
                   data.confluence.score >= 60 ? "text-amber-400" : "text-red-400"
@@ -575,11 +575,11 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
         <CardContent className="px-6 pb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-cyan-500" />
+              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <CheckCircle2 className="h-3 w-3 text-primary" />
                 Execution Checkmarks
               </h4>
-              <div className="space-y-3 bg-slate-800/30 p-4 rounded-lg border border-slate-700/20">
+              <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/20">
                 {data.confluence.checks.map((check, i) => (
                   <div key={i} className="flex items-start gap-3 group">
                     <div className={cn(
@@ -593,8 +593,8 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="text-[11px] font-bold text-slate-300 uppercase tracking-tight">{check.name}</div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">{check.detail}</div>
+                      <div className="text-[11px] font-bold uppercase tracking-tight">{check.name}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{check.detail}</div>
                     </div>
                   </div>
                 ))}
@@ -658,30 +658,30 @@ export default function TradingEnginePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-[1600px] mx-auto p-4 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl shadow-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-              <Target className="h-6 w-6 text-cyan-400" />
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <Target className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-50 flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Command Center
-                <Badge variant="outline" className="text-[10px] font-mono border-cyan-500/30 text-cyan-400 px-1.5 h-4">HYBRID ENGINE</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary px-1.5 h-4">HYBRID ENGINE</Badge>
               </h1>
-              <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mt-1">
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mt-1">
                 {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? '🟢 SESSION ACTIVE' : '🔴 SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end px-4 border-r border-slate-800">
-              <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Engine Latency</span>
+            <div className="hidden md:flex flex-col items-end px-4 border-r border-border">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Engine Latency</span>
               <span className="text-sm font-mono text-green-400">14ms</span>
             </div>
             <Link href="/trade-desk">
-              <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 h-10 shadow-lg shadow-cyan-500/10" data-testid="link-trade-desk">
+              <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 h-10 shadow-lg" data-testid="link-trade-desk">
                 Trade Desk
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -691,25 +691,25 @@ export default function TradingEnginePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
-            <Card className="bg-slate-900/70 backdrop-blur-xl border-slate-700/60 shadow-2xl overflow-hidden">
-              <div className="bg-slate-800/40 border-b border-slate-700/40 p-4 flex items-center justify-between">
+            <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">
+              <div className="bg-muted/40 border-b border-border/40 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-800 rounded border border-slate-700/50">
-                    <Search className="h-4 w-4 text-slate-400" />
+                  <div className="p-2 bg-muted rounded border border-border/50">
+                    <Search className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Symbol Analysis</h3>
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Symbol Analysis</h3>
                 </div>
                 <div className="flex gap-2">
-                  <Badge variant="secondary" className="bg-slate-800 text-slate-400 border-slate-700 text-[10px]">NQ1!</Badge>
-                  <Badge variant="secondary" className="bg-slate-800 text-slate-400 border-slate-700 text-[10px]">ES1!</Badge>
+                  <Badge variant="secondary" className="text-[10px]">NQ1!</Badge>
+                  <Badge variant="secondary" className="text-[10px]">ES1!</Badge>
                 </div>
               </div>
               <CardContent className="p-6">
                 <div className="flex flex-wrap gap-4 items-end mb-6">
                   <div className="flex-1 min-w-[240px]">
                     <div className="flex justify-between mb-1.5 px-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ticker Entry</label>
-                      <span className="text-[10px] text-cyan-500 font-mono">Real-time data enabled</span>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ticker Entry</label>
+                      <span className="text-[10px] text-primary font-mono">Real-time data enabled</span>
                     </div>
                     <div className="relative group">
                       <Input
@@ -717,27 +717,28 @@ export default function TradingEnginePage() {
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         placeholder="ENTER SYMBOL (E.G. NVDA, QQQ, BTC)"
-                        className="h-12 bg-slate-800/50 border-slate-700 text-slate-50 font-mono tracking-widest placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-cyan-500/10 transition-all pl-10"
+                        className="h-12 bg-muted/50 border-border font-mono tracking-widest placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-primary/10 transition-all pl-10"
                         data-testid="input-symbol"
                       />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     </div>
                   </div>
                   <div className="w-[180px]">
                     <div className="mb-1.5 px-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Asset Class</label>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asset Class</label>
                     </div>
                     <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
-                      <TabsList className="grid grid-cols-2 h-12 bg-slate-800/50 border border-slate-700 p-1">
-                        <TabsTrigger value="stock" className="text-[10px] font-bold uppercase data-[state=active]:bg-slate-700 data-[state=active]:text-cyan-400" data-testid="tab-stock">Stock</TabsTrigger>
-                        <TabsTrigger value="options" className="text-[10px] font-bold uppercase data-[state=active]:bg-slate-700 data-[state=active]:text-cyan-400" data-testid="tab-options">Opt</TabsTrigger>
+                      <TabsList className="grid grid-cols-2 h-12 bg-muted/50 border border-border p-1">
+                        <TabsTrigger value="stock" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-stock">Stock</TabsTrigger>
+                        <TabsTrigger value="options" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-options">Opt</TabsTrigger>
                       </TabsList>
                     </Tabs>
                   </div>
                   <Button 
                     onClick={handleSearch}
                     disabled={!searchInput.trim()}
-                    className="h-12 px-8 bg-slate-800 border border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300 font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                    variant="outline"
+                    className="h-12 px-8 font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95"
                     data-testid="button-analyze"
                   >
                     Run Scan
