@@ -15805,6 +15805,59 @@ CONSTRAINTS:
     }
   });
 
+  // GET /api/auto-lotto-bot/status - Bot status for dashboard
+  app.get("/api/auto-lotto-bot/status", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio, getSmallAccountPortfolio } = await import("./auto-lotto-trader");
+      const optionsPortfolio = await getOptionsPortfolio();
+      const futuresPortfolio = await getFuturesPortfolio();
+      const cryptoPortfolio = await getCryptoPortfolio();
+      const smallAccountPortfolio = await getSmallAccountPortfolio();
+      
+      // Aggregate stats from all portfolios
+      const portfolios = [optionsPortfolio, futuresPortfolio, cryptoPortfolio, smallAccountPortfolio].filter(Boolean);
+      let totalProfit = 0;
+      let wins = 0;
+      let losses = 0;
+      let openPositions = 0;
+      let todayTrades = 0;
+      const today = new Date().toDateString();
+      
+      for (const portfolio of portfolios) {
+        if (!portfolio) continue;
+        const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        
+        for (const pos of positions) {
+          if (pos.status === 'open') {
+            openPositions++;
+          } else if (pos.status === 'closed') {
+            totalProfit += pos.realizedPnL || 0;
+            if ((pos.realizedPnL || 0) > 0) wins++;
+            else losses++;
+          }
+          
+          if (new Date(pos.createdAt).toDateString() === today) {
+            todayTrades++;
+          }
+        }
+      }
+      
+      const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
+      
+      res.json({
+        isActive: true,
+        lastScan: new Date().toISOString(),
+        todayTrades,
+        totalProfit: Math.round(totalProfit * 100) / 100,
+        winRate: Math.round(winRate * 10) / 10,
+        openPositions,
+      });
+    } catch (error: any) {
+      logger.error("Error fetching bot status", { error });
+      res.status(500).json({ error: "Failed to fetch bot status" });
+    }
+  });
+
   // GET /api/auto-lotto-bot/realtime-pnl - Lightweight endpoint for real-time P&L updates
   // Can be polled frequently (every 3s) to show live unrealized P&L as prices change
   app.get("/api/auto-lotto-bot/realtime-pnl", isAuthenticated, async (req: any, res: Response) => {
