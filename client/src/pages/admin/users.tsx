@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -38,11 +41,16 @@ import {
   Shield,
   User,
   Trash2,
-  Edit,
+  Eye,
   Mail,
   Calendar,
   CheckCircle2,
   XCircle,
+  Briefcase,
+  TrendingUp,
+  Target,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -57,9 +65,27 @@ interface UserData {
   email: string;
   firstName?: string;
   lastName?: string;
+  profileImageUrl?: string;
   subscriptionTier: string;
+  subscriptionStatus?: string;
   hasBetaAccess: boolean;
+  betaInviteId?: string;
+  occupation?: string;
+  tradingExperienceLevel?: string;
+  knowledgeFocus?: string[];
+  investmentGoals?: string;
+  riskTolerance?: string;
+  referralSource?: string;
+  onboardingCompletedAt?: string;
+  discordUsername?: string;
+  stripeCustomerId?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+interface UserDetails {
+  user: UserData;
+  watchlistCount: number;
 }
 
 function AdminUsersContent() {
@@ -67,6 +93,7 @@ function AdminUsersContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [tierFilter, setTierFilter] = useState<string>("all");
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery<UserData[]>({
     queryKey: ['/api/admin/users'],
@@ -154,6 +181,29 @@ function AdminUsersContent() {
   };
 
   const userToDelete = users?.find(u => u.id === deleteUserId);
+  const selectedUser = users?.find(u => u.id === selectedUserId);
+
+  const getExperienceBadge = (level?: string) => {
+    const labels: Record<string, { label: string; color: string }> = {
+      beginner: { label: "Beginner", color: "bg-green-500/10 text-green-400 border-green-500/20" },
+      intermediate: { label: "Intermediate", color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
+      advanced: { label: "Advanced", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+      professional: { label: "Professional", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+    };
+    const config = labels[level || ""] || { label: level || "Unknown", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+    return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
+  };
+
+  const getRiskBadge = (risk?: string) => {
+    const labels: Record<string, { label: string; color: string }> = {
+      conservative: { label: "Conservative", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+      moderate: { label: "Moderate", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
+      aggressive: { label: "Aggressive", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+      very_aggressive: { label: "Very Aggressive", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+    };
+    const config = labels[risk || ""] || { label: risk || "Unknown", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+    return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
+  };
 
   return (
     <div className="space-y-6">
@@ -280,15 +330,26 @@ function AdminUsersContent() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          onClick={() => setDeleteUserId(user.id)}
-                          data-testid={`button-delete-${user.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                            onClick={() => setSelectedUserId(user.id)}
+                            data-testid={`button-view-${user.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            onClick={() => setDeleteUserId(user.id)}
+                            data-testid={`button-delete-${user.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -332,6 +393,188 @@ function AdminUsersContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={!!selectedUserId} onOpenChange={() => setSelectedUserId(null)}>
+        <SheetContent className="bg-slate-900 border-slate-700 w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="text-white flex items-center gap-2">
+              <User className="h-5 w-5 text-cyan-400" />
+              User Details
+            </SheetTitle>
+            <SheetDescription className="text-slate-400">
+              View complete user profile and activity
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedUser && (
+            <ScrollArea className="h-[calc(100vh-120px)] mt-6 pr-4">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 border border-cyan-500/20 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-cyan-400">
+                      {selectedUser.firstName?.[0] || selectedUser.email[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white">
+                      {selectedUser.firstName && selectedUser.lastName 
+                        ? `${selectedUser.firstName} ${selectedUser.lastName}` 
+                        : selectedUser.email.split('@')[0]}
+                    </h3>
+                    <p className="text-slate-400 flex items-center gap-1 text-sm">
+                      <Mail className="h-3 w-3" />
+                      {selectedUser.email}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {getTierBadge(selectedUser.subscriptionTier)}
+                      {selectedUser.hasBetaAccess && (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                          Beta Access
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-cyan-400" />
+                    Profile Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-slate-500 mb-1">Occupation</p>
+                      <p className="text-sm text-white">{selectedUser.occupation || "Not specified"}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-slate-500 mb-1">Referral Source</p>
+                      <p className="text-sm text-white">{selectedUser.referralSource || "Not specified"}</p>
+                    </div>
+                    {selectedUser.discordUsername && (
+                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 col-span-2">
+                        <p className="text-xs text-slate-500 mb-1">Discord</p>
+                        <p className="text-sm text-white">{selectedUser.discordUsername}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-cyan-400" />
+                    Trading Profile
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <span className="text-sm text-slate-400">Experience Level</span>
+                      {getExperienceBadge(selectedUser.tradingExperienceLevel)}
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <span className="text-sm text-slate-400">Risk Tolerance</span>
+                      {getRiskBadge(selectedUser.riskTolerance)}
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-slate-500 mb-2">Investment Goals</p>
+                      <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                        <Target className="h-3 w-3 mr-1" />
+                        {selectedUser.investmentGoals?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Not specified"}
+                      </Badge>
+                    </div>
+                    {selectedUser.knowledgeFocus && selectedUser.knowledgeFocus.length > 0 && (
+                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                        <p className="text-xs text-slate-500 mb-2">Knowledge Focus</p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedUser.knowledgeFocus.map((focus) => (
+                            <Badge key={focus} variant="outline" className="bg-slate-700/50 text-slate-300 border-slate-600 text-xs">
+                              {focus.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-cyan-400" />
+                    Account Timeline
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400 flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        Joined
+                      </span>
+                      <span className="text-white">
+                        {selectedUser.createdAt ? format(new Date(selectedUser.createdAt), 'MMM d, yyyy') : 'Unknown'}
+                      </span>
+                    </div>
+                    {selectedUser.onboardingCompletedAt && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400 flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Onboarding Completed
+                        </span>
+                        <span className="text-white">
+                          {format(new Date(selectedUser.onboardingCompletedAt), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                    )}
+                    {selectedUser.updatedAt && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400 flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          Last Updated
+                        </span>
+                        <span className="text-white">
+                          {format(new Date(selectedUser.updatedAt), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedUser.stripeCustomerId && (
+                  <>
+                    <Separator className="bg-slate-700" />
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-cyan-400" />
+                        Billing
+                      </h4>
+                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                        <p className="text-xs text-slate-500 mb-1">Stripe Customer ID</p>
+                        <p className="text-xs font-mono text-slate-400">{selectedUser.stripeCustomerId}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="pt-4">
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedUserId(null);
+                      setDeleteUserId(selectedUser.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete User
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
