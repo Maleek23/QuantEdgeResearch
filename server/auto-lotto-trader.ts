@@ -91,7 +91,7 @@ interface BotPreferences {
     optionsAllocation: 40,
     futuresAllocation: 30,
     cryptoAllocation: 30,
-    minConfidenceScore: 60, // Reasonable threshold
+    minConfidenceScore: 80, // A- grade minimum (was 60 allowing C-grade garbage)
     minRiskRewardRatio: 1.0, // At least 1:1 R:R
     tradePreMarket: true,
     tradeRegularHours: true,
@@ -137,7 +137,7 @@ export async function getBotPreferences(): Promise<BotPreferences> {
         optionsAllocation: 40,
         futuresAllocation: 30,
         cryptoAllocation: 30,
-        minConfidenceScore: 60, // Reasonable threshold
+        minConfidenceScore: 80, // A- grade minimum (no more C-grade trades)
         minRiskRewardRatio: 1.0, // At least 1:1 R:R 
         tradePreMarket: true,
         tradeRegularHours: true,
@@ -2480,7 +2480,7 @@ function checkSymbolPerformance(symbol: string): { allowed: boolean; reason: str
  * BOT DECISION ENGINE
  * The bot evaluates each opportunity and decides whether to enter based on its own criteria
  */
-function makeBotDecision(
+async function makeBotDecision(
   quote: {
     change_percentage: number;
     volume: number;
@@ -2492,7 +2492,7 @@ function makeBotDecision(
     low: number;
   },
   opportunity: LottoOpportunity
-): BotDecision {
+): Promise<BotDecision> {
   const signals: string[] = [];
   let score = 50;
   
@@ -2642,24 +2642,22 @@ function makeBotDecision(
   const grade = getLetterGrade(boostedScore);
   const hasAnalysisBoost = analysisBoost > 0;
   
-  // DTE-aware entry criteria (lowered for more aggressive entry while maintaining safety)
-  // Day trades (0-2 DTE): 55 - lowered from 65 for more entries
-  // Weekly trades (3-7 DTE): 50 - moderate conviction
-  // Swing trades (8-21 DTE): 45 - time is on our side
-  // Monthly swings (22-45 DTE): 40 - even more time to be right
+  // DTE-aware entry criteria - ALL MUST BE A-GRADE (80+) NOW!
+  // Higher DTE gets small discount since time is on our side, but still strict
   const isDayTrade = opportunity.daysToExpiry <= 2;
   const isWeekly = opportunity.daysToExpiry > 2 && opportunity.daysToExpiry <= 7;
   const isSwingTrade = opportunity.daysToExpiry >= 8 && opportunity.daysToExpiry <= 21;
   const isMonthlySwing = opportunity.daysToExpiry > 21;
   
-  // 🛡️ PROPER ENTRY THRESHOLDS - Conservative to protect capital
-  // Day trades need stronger conviction (short time to be right)
-  // Swings can be more relaxed (time to recover)
-  let minScoreForEntry = 60; // Default - requires good conviction
-  if (isDayTrade) minScoreForEntry = 65; // Day trades need stronger signals
-  else if (isWeekly) minScoreForEntry = 55; // Weekly - moderate conviction
-  else if (isSwingTrade) minScoreForEntry = 50; // Swings have time buffer
-  else if (isMonthlySwing) minScoreForEntry = 45; // Monthly swings - most forgiving
+  // 🛡️ STRICT A-GRADE ENTRY THRESHOLDS - Only take the best!
+  // All trades require A-grade minimum (80+), with slight DTE adjustments
+  // Day trades need highest conviction (short time to be right)
+  // Swings get small discount but still must be A-grade territory
+  let minScoreForEntry = 80; // Default - A- grade minimum
+  if (isDayTrade) minScoreForEntry = 85; // Day trades need A or better
+  else if (isWeekly) minScoreForEntry = 82; // Weekly - still A-grade
+  else if (isSwingTrade) minScoreForEntry = 80; // Swings - A- minimum
+  else if (isMonthlySwing) minScoreForEntry = 78; // Monthly swings - slight discount for time value
   
   // Require at least 1 positive signal to enter (already relaxed)
   const positiveSignals = signals.filter(s => 
@@ -2707,32 +2705,75 @@ function makeBotDecision(
     };
   }
   
-  // Enter on A, B, or C+ grades with boosted score
+  // 🛡️ LOSS ANALYZER PENALTY - Check if symbol has recent losses and apply adjustment
+  const symbolAdjustment = await getSymbolAdjustment(opportunity.symbol);
+  let adjustedScore = boostedScore;
+  const penaltyReasons: string[] = [];
+  
+  // If symbol should be avoided entirely due to repeated losses, skip it
+  if (symbolAdjustment.shouldAvoid) {
+    return {
+      action: 'skip',
+      reason: `Symbol ${opportunity.symbol} on loss cooldown (${symbolAdjustment.lossStreak} consecutive losses) - avoiding`,
+      confidence: boostedScore,
+      signals: [...signals, 'LOSS_COOLDOWN_BLOCK']
+    };
+  }
+  
+  if (symbolAdjustment.confidenceBoost < 0) {
+    // Apply penalty from loss analyzer (negative boost = reduce confidence)
+    const penalty = Math.abs(symbolAdjustment.confidenceBoost);
+    adjustedScore = Math.max(0, boostedScore - penalty);
+    penaltyReasons.push(`LOSS_PENALTY:-${penalty}pts (streak: ${symbolAdjustment.lossStreak})`);
+    signals.push(`LOSS_HISTORY_PENALTY`);
+  } else if (symbolAdjustment.confidenceBoost > 0) {
+    // Symbol has been winning - apply boost
+    adjustedScore = Math.min(100, boostedScore + symbolAdjustment.confidenceBoost);
+    penaltyReasons.push(`WIN_BOOST:+${symbolAdjustment.confidenceBoost}pts`);
+  }
+  
+  // Recalculate grade after loss penalty
+  const adjustedGrade = getLetterGrade(adjustedScore);
+  
+  // Enter on A grades ONLY with adjusted score - NO MORE B OR C GRADE TRADES!
   const entryReason = hasAnalysisBoost 
-    ? `${grade} grade (${score}+${analysisBoost}=${boostedScore}) ANALYSIS_BOOST: ${boostReasons.join(', ')}`
-    : `${grade} grade (${boostedScore}) - ${signals.slice(0, 3).join(', ')}`;
+    ? `${adjustedGrade} grade (${score}+${analysisBoost}=${boostedScore}${penaltyReasons.length ? ', ' + penaltyReasons.join(', ') : ''}) ANALYSIS_BOOST: ${boostReasons.join(', ')}`
+    : `${adjustedGrade} grade (${adjustedScore}) - ${signals.slice(0, 3).join(', ')}`;
     
-  // Accept only B- through A+ grades - quality trades only (no C grades)
-  const validEntryGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
-  if (boostedScore >= minScoreForEntry && validEntryGrades.includes(grade)) {
+  // 🎯 STRICT ENTRY GATE: A- or better ONLY
+  // Must satisfy BOTH:
+  // 1. A-grade classification (A+, A, A-)
+  // 2. DTE-specific minimum score (78-85 depending on expiry)
+  // No more B-grade or C-grade garbage - only take the best setups!
+  const validEntryGrades = ['A+', 'A', 'A-'];
+  
+  // Check both grade AND DTE-specific threshold
+  const meetsGradeRequirement = validEntryGrades.includes(adjustedGrade);
+  const meetsDTEThreshold = adjustedScore >= minScoreForEntry;
+  
+  if (meetsGradeRequirement && meetsDTEThreshold) {
     return {
       action: 'enter',
-      reason: entryReason,
-      confidence: boostedScore,
-      signals: hasAnalysisBoost ? [...signals, ...boostReasons] : signals
+      reason: `${entryReason} | DTE: ${opportunity.daysToExpiry} (min: ${minScoreForEntry})`,
+      confidence: adjustedScore,
+      signals: hasAnalysisBoost ? [...signals, ...boostReasons, ...penaltyReasons] : [...signals, ...penaltyReasons]
     };
-  } else if (boostedScore >= 50) {
+  } else if (adjustedScore >= 70) {
+    // B-grade or A-grade below DTE threshold - watch but don't enter
+    const failReason = !meetsGradeRequirement 
+      ? `${adjustedGrade} grade not A-tier` 
+      : `score ${adjustedScore} < DTE threshold ${minScoreForEntry}`;
     return {
       action: 'wait',
-      reason: `${grade} grade (${boostedScore}) needs higher score for entry (min: ${minScoreForEntry})`,
-      confidence: boostedScore,
+      reason: `${adjustedGrade} grade (${adjustedScore}) - ${failReason}`,
+      confidence: adjustedScore,
       signals
     };
   } else {
     return {
       action: 'skip',
-      reason: `${grade} grade (${boostedScore}) too weak - ${signals.slice(0, 2).join(', ')}`,
-      confidence: boostedScore,
+      reason: `${adjustedGrade} grade (${adjustedScore}) too weak - only A-grade trades allowed`,
+      confidence: adjustedScore,
       signals
     };
   }
@@ -3394,7 +3435,7 @@ export async function runAutonomousBotScan(): Promise<void> {
         const quote = await getTradierQuote(ticker);
         if (!quote) continue;
         
-        let decision = makeBotDecision(quote, opp);
+        let decision = await makeBotDecision(quote, opp);
         
         // Apply performance boost for preferred symbols
         if (symbolCheck.boost > 0) {
