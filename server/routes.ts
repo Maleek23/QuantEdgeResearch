@@ -4888,6 +4888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 📨 Share trade idea to Discord - manual trigger for audit page
+  // Manual shares bypass grade/deduplication filters since user explicitly requested it
   app.post("/api/trade-ideas/:id/share-discord", isAuthenticated, async (req, res) => {
     try {
       const idea = await storage.getTradeIdeaById(req.params.id);
@@ -4896,9 +4897,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { sendTradeIdeaToDiscord } = await import("./discord-service");
-      await sendTradeIdeaToDiscord(idea);
+      // Force bypass filters for manual user-initiated shares
+      await sendTradeIdeaToDiscord(idea, { forceBypassFilters: true });
       
-      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by user`);
+      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by user (manual share)`);
       res.json({ success: true, message: `Shared ${idea.symbol} trade to Discord` });
     } catch (error: any) {
       logger.error("Failed to share trade idea to Discord:", error);

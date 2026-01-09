@@ -462,11 +462,13 @@ export function meetsQualityThreshold(idea: any): boolean {
   return confidence >= MIN_CONFIDENCE_REQUIRED && signalCount >= MIN_SIGNALS_REQUIRED;
 }
 
-export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
+export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // RELEVANCE CHECK: Validate option play is still actionable
-  if (idea.assetType === 'option') {
+  const forceBypass = options?.forceBypassFilters ?? false;
+  
+  // RELEVANCE CHECK: Validate option play is still actionable (skip if force bypass)
+  if (!forceBypass && idea.assetType === 'option') {
     const relevanceCheck = isOptionPlayStillRelevant({
       symbol: idea.symbol,
       expiryDate: (idea as any).expiryDate || (idea as any).expiry,
@@ -483,25 +485,30 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     }
   }
   
-  // STRICT GRADE FILTER: Only A/A+ trades go to Discord
-  const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
-  if (!VALID_DISCORD_GRADES.includes(grade)) {
-    logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in A/A+ tier`);
-    return;
+  // STRICT GRADE FILTER: Only A/A+ trades go to Discord (skip if force bypass for manual shares)
+  if (!forceBypass) {
+    const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
+    if (!VALID_DISCORD_GRADES.includes(grade)) {
+      logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in A/A+ tier`);
+      return;
+    }
   }
   
-  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times
+  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times (skip if force bypass)
   const direction = idea.direction || 'long';
   const assetType = idea.assetType || 'stock';
-  if (!shouldSendTradeIdea(idea.symbol, direction, assetType)) {
+  if (!forceBypass && !shouldSendTradeIdea(idea.symbol, direction, assetType)) {
     logger.debug(`[DISCORD] Skipped duplicate ${idea.symbol} ${direction} ${assetType} - sent within last 4 hours`);
     return;
   }
   
   const webhookUrl = idea.assetType === 'option' 
-    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
-    : process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl) return;
+    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
+  if (!webhookUrl) {
+    logger.warn(`[DISCORD] No webhook URL configured for ${idea.symbol} (${idea.assetType})`);
+    return;
+  }
   try {
     const isLong = idea.direction === 'long';
     const color = isLong ? COLORS.LONG : COLORS.SHORT;
