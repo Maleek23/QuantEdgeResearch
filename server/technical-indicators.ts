@@ -1348,3 +1348,322 @@ export function analyzeVolumeFlow(volume: number[], close: number[], high: numbe
     signals
   };
 }
+
+// =====================================================
+// FIBONACCI RETRACEMENT & SWING TRADE VALIDATION
+// Based on professional swing trading methodology
+// =====================================================
+
+/**
+ * Calculate Fibonacci Retracement Levels
+ * Key levels: 0.236, 0.382, 0.5, 0.618, 0.786
+ * Used for identifying potential support/resistance zones
+ */
+export function calculateFibonacciLevels(
+  high: number[],
+  low: number[],
+  close: number[],
+  lookback: number = 50
+): {
+  swingHigh: number;
+  swingLow: number;
+  levels: { ratio: number; price: number; label: string }[];
+  currentLevel: string;
+  trend: 'uptrend' | 'downtrend';
+} {
+  const recentHigh = high.slice(-lookback);
+  const recentLow = low.slice(-lookback);
+  const currentPrice = close[close.length - 1];
+  
+  const swingHigh = Math.max(...recentHigh);
+  const swingLow = Math.min(...recentLow);
+  const range = swingHigh - swingLow;
+  
+  // Find most recent trend direction based on swing high/low positions
+  const highIdx = recentHigh.indexOf(swingHigh);
+  const lowIdx = recentLow.indexOf(swingLow);
+  const trend = highIdx > lowIdx ? 'uptrend' : 'downtrend';
+  
+  // Calculate Fibonacci retracement levels
+  const fibRatios = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+  const fibLabels = ['0%', '23.6%', '38.2%', '50%', '61.8%', '78.6%', '100%'];
+  
+  const levels = fibRatios.map((ratio, i) => {
+    // In uptrend, levels go down from high; in downtrend, up from low
+    const price = trend === 'uptrend'
+      ? swingHigh - (range * ratio)
+      : swingLow + (range * ratio);
+    return { ratio, price: Number(price.toFixed(2)), label: fibLabels[i] };
+  });
+  
+  // Determine which Fib level the current price is near
+  let currentLevel = 'middle';
+  for (let i = 0; i < levels.length - 1; i++) {
+    const lower = Math.min(levels[i].price, levels[i + 1].price);
+    const upper = Math.max(levels[i].price, levels[i + 1].price);
+    if (currentPrice >= lower && currentPrice <= upper) {
+      currentLevel = `${fibLabels[i]}-${fibLabels[i + 1]}`;
+      break;
+    }
+  }
+  
+  return { swingHigh, swingLow, levels, currentLevel, trend };
+}
+
+/**
+ * Swing Trade Validation
+ * Validates if current setup meets quality swing trade criteria
+ * Based on professional methodology:
+ * - Support/resistance confirmation
+ * - Volume confirmation on bounce
+ * - Momentum shift (higher low)
+ * - RSI/MACD divergence
+ */
+export function validateSwingSetup(
+  prices: number[],
+  high: number[],
+  low: number[],
+  volume: number[]
+): {
+  isValid: boolean;
+  score: number;
+  direction: 'long' | 'short' | 'none';
+  signals: string[];
+  entry: { price: number; trigger: string } | null;
+  invalidation: number;
+  targets: number[];
+  warnings: string[];
+} {
+  const signals: string[] = [];
+  const warnings: string[] = [];
+  let bullScore = 0;
+  let bearScore = 0;
+  const currentPrice = prices[prices.length - 1];
+  
+  // 1. Support/Resistance Analysis
+  const srLevels = detectSupportResistanceLevels(high, low, prices);
+  if (srLevels.pricePosition === 'near_support') {
+    bullScore += 25;
+    signals.push(`Near Support ($${srLevels.nearestSupport})`);
+  } else if (srLevels.pricePosition === 'near_resistance') {
+    bearScore += 25;
+    signals.push(`Near Resistance ($${srLevels.nearestResistance})`);
+  }
+  
+  // 2. Fibonacci Level Analysis
+  const fib = calculateFibonacciLevels(high, low, prices);
+  const nearFib382 = fib.levels.find(l => l.ratio === 0.382);
+  const nearFib618 = fib.levels.find(l => l.ratio === 0.618);
+  
+  if (nearFib382 && Math.abs(currentPrice - nearFib382.price) / currentPrice < 0.02) {
+    bullScore += 20;
+    signals.push(`At Fib 38.2% ($${nearFib382.price})`);
+  }
+  if (nearFib618 && Math.abs(currentPrice - nearFib618.price) / currentPrice < 0.02) {
+    bullScore += 15;
+    signals.push(`At Fib 61.8% ($${nearFib618.price})`);
+  }
+  
+  // 3. Market Structure (Higher Lows for Long, Lower Highs for Short)
+  const structure = analyzeMarketStructure(high, low, prices);
+  if (structure.higherLows >= 1 && fib.trend === 'downtrend') {
+    bullScore += 25;
+    signals.push('Higher Low Formed (Reversal Signal)');
+  }
+  if (structure.lowerHighs >= 1 && fib.trend === 'uptrend') {
+    bearScore += 25;
+    signals.push('Lower High Formed (Reversal Signal)');
+  }
+  
+  // 4. RSI Oversold/Overbought with Divergence
+  const rsi = calculateRSI(prices, 14);
+  const prevRsi = prices.length > 20 ? calculateRSI(prices.slice(0, -5), 14) : rsi;
+  
+  if (rsi < 35 && rsi > prevRsi) {
+    bullScore += 20;
+    signals.push(`RSI Oversold Bounce (${rsi.toFixed(0)})`);
+  }
+  if (rsi > 65 && rsi < prevRsi) {
+    bearScore += 20;
+    signals.push(`RSI Overbought Rejection (${rsi.toFixed(0)})`);
+  }
+  
+  // 5. Volume Confirmation (Volume spike on reversal candle)
+  if (volume.length >= 20) {
+    const avgVol = volume.slice(-20).reduce((a, b) => a + b, 0) / 20;
+    const lastVol = volume[volume.length - 1];
+    const priceChange = prices[prices.length - 1] - prices[prices.length - 2];
+    
+    if (lastVol > avgVol * 1.5 && priceChange > 0 && srLevels.pricePosition === 'near_support') {
+      bullScore += 20;
+      signals.push('Volume Surge at Support (Buyers Stepped In)');
+    }
+    if (lastVol > avgVol * 1.5 && priceChange < 0 && srLevels.pricePosition === 'near_resistance') {
+      bearScore += 20;
+      signals.push('Volume Surge at Resistance (Sellers Stepped In)');
+    }
+  }
+  
+  // 6. MACD Momentum Shift
+  const macd = calculateMACD(prices);
+  const prevMacd = prices.length > 30 ? calculateMACD(prices.slice(0, -3)) : macd;
+  
+  if (macd.histogram > 0 && prevMacd.histogram < 0) {
+    bullScore += 15;
+    signals.push('MACD Histogram Turned Positive');
+  }
+  if (macd.histogram < 0 && prevMacd.histogram > 0) {
+    bearScore += 15;
+    signals.push('MACD Histogram Turned Negative');
+  }
+  
+  // 7. Candlestick Pattern Confirmation
+  // Note: Using close prices for both open/close since we may not have OHLC data
+  // The pattern detection still works for momentum/reversal signals
+  if (prices.length >= 6 && high.length >= 5 && low.length >= 5) {
+    const candles: CandleData = {
+      open: prices.slice(-6, -1),  // Previous 5 closes as proxy for opens
+      high: high.slice(-5),
+      low: low.slice(-5),
+      close: prices.slice(-5)
+    };
+    try {
+      const patterns = detectCandlestickPatterns(candles);
+      for (const p of patterns) {
+        if (p.type === 'bullish' && p.strength === 'strong') {
+          bullScore += 20;
+          signals.push(`${p.name} (Bullish Reversal)`);
+        } else if (p.type === 'bearish' && p.strength === 'strong') {
+          bearScore += 20;
+          signals.push(`${p.name} (Bearish Reversal)`);
+        }
+      }
+    } catch (patternError) {
+      // Pattern detection failed - continue without candlestick patterns
+    }
+  }
+  
+  // Determine direction and validity
+  const totalScore = Math.max(bullScore, bearScore);
+  const direction = bullScore > bearScore + 20 ? 'long' 
+    : bearScore > bullScore + 20 ? 'short' 
+    : 'none';
+  
+  // Swing trade requires at least 60 points of confluence
+  const isValid = totalScore >= 60 && direction !== 'none';
+  
+  // Calculate entry, invalidation, and targets
+  let entry: { price: number; trigger: string } | null = null;
+  let invalidation = 0;
+  let targets: number[] = [];
+  
+  if (direction === 'long') {
+    // Entry on strength - reclaim of key level
+    const entryLevel = nearFib382 ? nearFib382.price : srLevels.nearestSupport;
+    entry = {
+      price: Number((entryLevel * 1.01).toFixed(2)), // Enter slightly above level
+      trigger: `Reclaim of $${entryLevel.toFixed(2)}`
+    };
+    invalidation = Number((srLevels.nearestSupport * 0.98).toFixed(2)); // 2% below support
+    // Targets: resistance levels and Fib extensions
+    targets = [
+      srLevels.nearestResistance,
+      fib.swingHigh,
+      Number((fib.swingHigh * 1.1).toFixed(2))
+    ];
+    
+    // Warnings
+    if (fib.trend === 'downtrend') {
+      warnings.push('Counter-trend trade (downtrend) - use smaller size');
+    }
+    if (structure.breakOfStructure) {
+      warnings.push('Recent break of structure - volatility expected');
+    }
+  } else if (direction === 'short') {
+    const entryLevel = nearFib382 ? nearFib382.price : srLevels.nearestResistance;
+    entry = {
+      price: Number((entryLevel * 0.99).toFixed(2)), // Enter slightly below level
+      trigger: `Breakdown of $${entryLevel.toFixed(2)}`
+    };
+    invalidation = Number((srLevels.nearestResistance * 1.02).toFixed(2)); // 2% above resistance
+    targets = [
+      srLevels.nearestSupport,
+      fib.swingLow,
+      Number((fib.swingLow * 0.9).toFixed(2))
+    ];
+    
+    if (fib.trend === 'uptrend') {
+      warnings.push('Counter-trend trade (uptrend) - use smaller size');
+    }
+  }
+  
+  return {
+    isValid,
+    score: totalScore,
+    direction,
+    signals,
+    entry,
+    invalidation,
+    targets,
+    warnings
+  };
+}
+
+/**
+ * Options Strike Selection Helper
+ * Based on professional options trading methodology:
+ * - Slightly ITM or ATM for higher probability
+ * - Avoid far OTM "lottery" plays for swing trades
+ * - Consider IV rank for strategy selection
+ */
+export function recommendStrikeSelection(
+  currentPrice: number,
+  direction: 'long' | 'short',
+  ivRank: number,
+  daysToExpiry: number
+): {
+  recommendedStrike: 'ITM' | 'ATM' | 'OTM';
+  strikeOffset: number; // Percentage from current price
+  reasoning: string;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  let recommendedStrike: 'ITM' | 'ATM' | 'OTM' = 'ATM';
+  let strikeOffset = 0;
+  let reasoning = '';
+  
+  // High IV = sell premium (OTM credit spreads)
+  // Low IV = buy premium (ITM/ATM directional)
+  
+  if (ivRank > 50) {
+    // High IV environment
+    recommendedStrike = 'OTM';
+    strikeOffset = direction === 'long' ? -5 : 5; // OTM puts for shorts, OTM calls for longs
+    reasoning = 'High IV - consider selling premium or OTM for cheaper entry';
+    warnings.push('High IV - premium is expensive, consider spreads');
+  } else if (ivRank > 25) {
+    // Medium IV
+    recommendedStrike = 'ATM';
+    strikeOffset = 0;
+    reasoning = 'Medium IV - ATM provides balance of delta and cost';
+  } else {
+    // Low IV - buy premium, go ITM for higher delta
+    recommendedStrike = 'ITM';
+    strikeOffset = direction === 'long' ? 3 : -3; // ITM calls for longs, ITM puts for shorts
+    reasoning = 'Low IV - premium is cheap, ITM for higher probability';
+  }
+  
+  // DTE considerations
+  if (daysToExpiry < 7) {
+    warnings.push('Less than 7 DTE - theta decay accelerating');
+    if (recommendedStrike !== 'ITM') {
+      recommendedStrike = 'ITM';
+      strikeOffset = direction === 'long' ? 5 : -5;
+      reasoning += '. Short DTE - go deeper ITM for higher delta';
+    }
+  } else if (daysToExpiry > 45) {
+    warnings.push('Long-dated option - consider LEAPS strategy');
+  }
+  
+  return { recommendedStrike, strikeOffset, reasoning, warnings };
+}

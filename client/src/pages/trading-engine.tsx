@@ -636,7 +636,12 @@ export default function TradingEnginePage() {
   const [searchInput, setSearchInput] = useState('');
   const [assetClass, setAssetClass] = useState<AssetClass>('stock');
 
-  const { data: marketContext } = useQuery<{ marketStatus: string; regime: string; vixLevel: number }>({
+  const { data: marketContext } = useQuery<{ 
+    shouldTrade: boolean; 
+    regime: string; 
+    vixLevel: number | null;
+    tradingSession: string;
+  }>({
     queryKey: ['/api/market-context'],
     refetchInterval: 30000,
   });
@@ -666,7 +671,7 @@ export default function TradingEnginePage() {
                 <Badge variant="outline" className="text-[10px] font-mono border-cyan-500/30 text-cyan-400 px-1.5 h-4">HYBRID ENGINE</Badge>
               </h1>
               <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mt-1">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.marketStatus === 'open' ? '🟢 SESSION ACTIVE' : '🔴 SESSION CLOSED'}
+                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? '🟢 SESSION ACTIVE' : '🔴 SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
               </p>
             </div>
           </div>

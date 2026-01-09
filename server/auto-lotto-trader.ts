@@ -27,7 +27,10 @@ import {
   detectCandlestickPatterns,
   calculateRSI,
   calculateADX,
-  determineMarketRegime
+  determineMarketRegime,
+  validateSwingSetup,
+  calculateFibonacciLevels,
+  recommendStrikeSelection
 } from "./technical-indicators";
 import { 
   analyzeTrade, 
@@ -808,6 +811,72 @@ async function checkTradingEngineGate(
         reasons.push(`⚠️ Confluence check failed - proceeding with caution`);
         adjustedConfidence -= 10;
       }
+    }
+    
+    // ════════════════════════════════════════════════════════════════════════
+    // 2.5 📐 SWING TRADE VALIDATION - Fibonacci & Volume Confirmation
+    // ════════════════════════════════════════════════════════════════════════
+    // For swing trades (multi-day holds), apply professional swing criteria:
+    // - Support/resistance confirmation
+    // - Fib retracement levels
+    // - Volume confirmation on bounce
+    // - Higher low / lower high structure
+    try {
+      // If technical data is available, validate swing setup
+      const technical = await analyzeTechnicals(symbol);
+      if (technical && technical.prices && technical.prices.length >= 20 &&
+          technical.highs && technical.lows && technical.volume) {
+        
+        const swingValidation = validateSwingSetup(
+          technical.prices,
+          technical.highs,
+          technical.lows,
+          technical.volume
+        );
+        
+        if (swingValidation.isValid) {
+          // Strong swing setup detected - boost confidence
+          reasons.push(`📐 SWING SETUP VALID: Score ${swingValidation.score} (${swingValidation.signals.slice(0, 2).join(', ')})`);
+          
+          // Check direction alignment
+          if ((swingValidation.direction === 'long' && direction === 'long') ||
+              (swingValidation.direction === 'short' && direction === 'short')) {
+            adjustedConfidence += 12;
+            reasons.push(`✅ Swing direction ALIGNED with trade direction`);
+            
+            // Log entry/exit levels for the bot
+            if (swingValidation.entry) {
+              reasons.push(`📍 Entry trigger: ${swingValidation.entry.trigger}`);
+            }
+            if (swingValidation.targets.length > 0) {
+              reasons.push(`🎯 Swing targets: $${swingValidation.targets[0].toFixed(2)}`);
+            }
+          } else if (swingValidation.direction !== 'none' && 
+                     swingValidation.direction !== direction) {
+            // Direction conflict with swing analysis
+            adjustedConfidence -= 10;
+            reasons.push(`⚠️ Swing analysis suggests ${swingValidation.direction.toUpperCase()}, not ${direction.toUpperCase()}`);
+          }
+          
+          // Apply Fib level analysis
+          const fibLevels = calculateFibonacciLevels(technical.highs, technical.lows, technical.prices);
+          const fib382 = fibLevels.levels.find(l => l.ratio === 0.382);
+          const fib618 = fibLevels.levels.find(l => l.ratio === 0.618);
+          if (fib382 || fib618) {
+            reasons.push(`📐 Fib levels: ${fibLevels.currentLevel} (${fibLevels.trend})`);
+          }
+          
+          // Log warnings
+          for (const warning of swingValidation.warnings.slice(0, 2)) {
+            reasons.push(`⚠️ ${warning}`);
+          }
+        } else if (swingValidation.score > 0 && swingValidation.score < 60) {
+          // Weak swing setup - advisory warning
+          reasons.push(`📊 Swing score: ${swingValidation.score}% (needs 60%+ for high-probability)`);
+        }
+      }
+    } catch (swingError) {
+      logger.debug(`[ENGINE-GATE] Swing validation failed for ${symbol}, continuing without swing data`);
     }
     
     // ════════════════════════════════════════════════════════════════════════
