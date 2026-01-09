@@ -105,6 +105,20 @@ Key features include:
 ### Integration Points
 All scanners and bots MUST use `getLetterGrade(confidenceScore)` from `shared/grading.ts` to assign grades. UI components should display the stored `probabilityBand` rather than recalculating.
 
+## Documentation
+
+### CALCULATIONS.md
+Comprehensive reference of ALL platform calculations, scoring systems, and algorithms:
+- Unified grading system with full academic scale
+- Confidence score formulas with signal weights
+- Technical indicators (RSI, MACD, ATR, ADX, Bollinger, VWAP, Ichimoku)
+- Market regime detection logic
+- Risk calculations and position sizing
+- Loss analysis and symbol avoidance rules
+- **Orphaned/underutilized features audit**
+
+See `CALCULATIONS.md` for the complete technical reference.
+
 ## Future Plans
 
 ### Content Studio (Planned)
