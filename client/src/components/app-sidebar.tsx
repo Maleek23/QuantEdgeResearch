@@ -32,11 +32,10 @@ interface NavItem {
 
 // Trading - core trading tools
 const tradingItems: NavItem[] = [
-  { title: "Trading Engine", url: "/trading-engine", icon: Activity },
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Command Center", url: "/trading-engine", icon: Activity, badge: "NEW" },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Bullish Trends", url: "/bullish-trends", icon: TrendingUp, badge: "NEW" },
+  { title: "Bullish Trends", url: "/bullish-trends", icon: TrendingUp },
 ];
 
 // Automations - Trading bots + Market Scanner consolidated

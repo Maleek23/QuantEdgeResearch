@@ -5,6 +5,7 @@ import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
 import { validateTradeWithChart } from "./chart-analysis";
 import { getMarketContext, getTradingSession, type TradingSession } from "./market-context-service";
+import { recordSymbolAttention } from "./attention-tracking-service";
 
 // Penny stock tickers to emphasize during evening "Tomorrow's Playbook" sessions
 const PENNY_STOCK_TICKERS = [
@@ -446,6 +447,17 @@ Generate swing trade and lotto option ideas with asymmetric risk/reward. Include
           qualitySignals, // Array of verified signal labels
         });
         savedIdeas.push(tradeIdea);
+        
+        // 🎯 CONVERGENCE TRACKING: Record AI idea for heat map
+        try {
+          await recordSymbolAttention(processedIdea.symbol, 'trade_idea', 'idea', {
+            direction: processedIdea.direction === 'long' ? 'bullish' : 'bearish',
+            confidence: finalConfidence,
+            message: `AI ${processedIdea.direction.toUpperCase()} idea: ${processedIdea.catalyst?.slice(0, 50) || 'Market analysis'}`
+          });
+        } catch (attentionErr) {
+          logger.debug(`[AUTO-GEN] Attention tracking failed:`, attentionErr);
+        }
       }
 
       // Send Discord notification for batch

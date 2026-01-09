@@ -11,6 +11,7 @@ import { storage } from './storage';
 import { isLottoCandidate, calculateLottoTargets, getLottoThresholds } from './lotto-detector';
 import { sendLottoToDiscord } from './discord-service';
 import { getLetterGrade } from './grading';
+import { recordSymbolAttention } from './attention-tracking-service';
 
 /**
  * Calculate quality signals for lotto plays based on underlying momentum and option characteristics
@@ -636,6 +637,18 @@ export async function runLottoScanner(): Promise<void> {
       if (idea) {
         const createdIdea = await storage.createTradeIdea(idea);
         successCount++;
+        
+        // 🎯 CONVERGENCE TRACKING: Record lotto play for heat map
+        try {
+          await recordSymbolAttention(candidate.underlying, 'trade_idea', 'idea', {
+            direction: candidate.optionType === 'call' ? 'bullish' : 'bearish',
+            confidence: createdIdea.confidenceScore || 60,
+            grade: (createdIdea as any).grade || 'B',
+            message: `Lotto ${candidate.optionType.toUpperCase()} $${candidate.strike} @ $${candidate.lastPrice.toFixed(2)}`
+          });
+        } catch (attentionErr) {
+          logger.debug(`🎰 [LOTTO] Attention tracking failed:`, attentionErr);
+        }
         
         // ✅ RE-ENABLED: Lotto Discord notifications (user wants multi-channel alerts)
         // Lottos now go to both #lotto AND #quantbot channels

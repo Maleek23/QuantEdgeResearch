@@ -10,6 +10,7 @@
 
 import { logger } from './logger';
 import { storage } from './storage';
+import { recordSymbolAttention } from './attention-tracking-service';
 
 interface OptionsFlow {
   id: string;
@@ -250,6 +251,19 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   scannerStatus.todayFlows = unusualFlows.slice(0, 50); // Keep top 50
   
   logger.info(`[OPTIONS-FLOW] Found ${unusualFlows.length} unusual flows`);
+  
+  // 🎯 CONVERGENCE TRACKING: Record unusual flow for heat map
+  for (const flow of unusualFlows.slice(0, 10)) {
+    try {
+      await recordSymbolAttention(flow.symbol, 'ml_signal', 'scan', {
+        direction: flow.sentiment === 'bullish' ? 'bullish' : flow.sentiment === 'bearish' ? 'bearish' : undefined,
+        confidence: Math.min(100, flow.unusualScore),
+        message: `${flow.flowType.toUpperCase()} ${flow.optionType.toUpperCase()} $${flow.strikePrice} - $${(flow.premium / 1000).toFixed(0)}k premium`
+      });
+    } catch (attentionErr) {
+      logger.debug(`[OPTIONS-FLOW] Attention tracking failed:`, attentionErr);
+    }
+  }
   
   // Send alerts for top flows
   if (unusualFlows.length > 0) {
