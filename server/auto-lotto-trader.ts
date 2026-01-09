@@ -369,7 +369,8 @@ export function incrementPlaybookDailyTrades(): void {
 }
 
 /**
- * Validate option trade against strict playbook rules
+ * Validate option trade against playbook rules
+ * NOTE: Ticker restriction REMOVED - bot can trade ANY ticker from scanners/trade desk
  * Returns: { valid: boolean, reason: string }
  */
 export function validatePlaybookTrade(
@@ -379,13 +380,8 @@ export function validatePlaybookTrade(
   delta: number,
   optionType: 'call' | 'put'
 ): { valid: boolean; reason: string; setup?: string } {
-  // Check allowed ticker
-  if (!OPTIONS_PLAYBOOK_TICKERS.includes(symbol.toUpperCase())) {
-    return {
-      valid: false,
-      reason: `TICKER NOT ALLOWED: ${symbol} not in playbook list [${OPTIONS_PLAYBOOK_TICKERS.join(', ')}]`
-    };
-  }
+  // NO TICKER RESTRICTION - Bot trades whatever scanners/trade desk/bullish trend finds
+  // The 800+ ticker universe, dynamic movers, and convergence signals drive selection
   
   // Check premium/risk
   const contractCost = premium * 100; // Options = 100 shares
