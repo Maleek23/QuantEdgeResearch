@@ -6,14 +6,25 @@ import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicator
 import { recordSymbolAttention } from './attention-tracking-service';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
-const YAHOO_QUOTE_API = "https://query2.finance.yahoo.com/v7/finance/quote";
+const TRADIER_API = "https://api.tradier.com/v1";
+const TRADIER_API_KEY = process.env.TRADIER_API_KEY;
 
 const USER_BULLISH_WATCHLIST = [
-  'INTC', 'ZETA', 'RIVN', 'SOFI', 'ONDS', 'RKLB', 'ASTS', 'NVO', 'NBIS', 'IREN',
-  'CIFR', 'PATH', 'UPST', 'PL', 'OUST', 'SERV', 'UAMY', 'UUU', 'NAK', 'USAR', 'HIMS',
-  'PLTR', 'IONQ', 'SMR', 'OKLO', 'APP', 'SOUN', 'MARA', 'RIOT', 'COIN', 'HOOD',
+  // Nuclear & Energy
+  'OKLO', 'NNE', 'SMR', 'LEU', 'CCJ', 'UEC', 'DNN', 'URG', 'BWXT',
+  // Defense & Aerospace
+  'LMT', 'NOC', 'RTX', 'GD', 'BA', 'HII', 'LHX', 'TXT', 'HWM',
+  // Space & Satellites
+  'RKLB', 'ASTS', 'LUNR', 'RDW', 'MNTS', 'LLAP', 'SPCE', 'PL', 'OUST',
+  // Crypto & Fintech
+  'MARA', 'RIOT', 'CLSK', 'IREN', 'CIFR', 'COIN', 'HOOD', 'SOFI', 'AFRM', 'NU',
+  // AI & Quantum
+  'PLTR', 'RGTI', 'NBIS', 'IONQ', 'QBTS', 'ARQQ', 'QUBT', 'LAES', 'SOUN', 'APP',
+  // Tech Leaders & Growth
   'CVNA', 'DASH', 'UBER', 'ABNB', 'CRWD', 'NET', 'SNOW', 'DDOG', 'ARM', 'SMCI',
-  'AFRM', 'NU', 'DKNG', 'TTD', 'ROKU', 'SQ', 'SHOP', 'MELI', 'NNE', 'LEU', 'CCJ', 'UEC'
+  'TTD', 'ROKU', 'SQ', 'SHOP', 'MELI', 'DKNG', 'HIMS', 'RIVN', 'PATH', 'UPST', 'ZETA',
+  // Speculative
+  'INTC', 'SERV', 'UAMY', 'UUU', 'NAK', 'USAR', 'ONDS', 'NVO'
 ];
 
 const SECTOR_CATEGORIES: Record<string, TrendCategory> = {
@@ -57,33 +68,105 @@ interface HistoricalData {
 
 async function fetchQuotes(symbols: string[]): Promise<QuoteData[]> {
   try {
-    const chunks = [];
-    for (let i = 0; i < symbols.length; i += 50) {
-      chunks.push(symbols.slice(i, i + 50));
+    // Use Tradier API (more reliable than Yahoo)
+    if (!TRADIER_API_KEY) {
+      logger.warn('[BULLISH] No Tradier API key, falling back to limited Yahoo data');
+      return await fetchQuotesYahooFallback(symbols);
     }
     
     const results: QuoteData[] = [];
+    const symbolList = symbols.join(',');
     
-    for (const chunk of chunks) {
-      const url = `${YAHOO_QUOTE_API}?symbols=${chunk.join(',')}`;
+    try {
+      const url = `${TRADIER_API}/markets/quotes?symbols=${symbolList}`;
       const response = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: {
+          'Authorization': `Bearer ${TRADIER_API_KEY}`,
+          'Accept': 'application/json'
+        }
       });
       
-      if (!response.ok) continue;
-      
-      const data = await response.json();
-      const quotes = data.quoteResponse?.result || [];
-      results.push(...quotes);
-      
-      await new Promise(r => setTimeout(r, 200));
+      if (response.ok) {
+        const data = await response.json();
+        const quotes = data.quotes?.quote || [];
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+        
+        for (const q of quotesArray) {
+          if (q && q.symbol && typeof q.last === 'number') {
+            results.push({
+              symbol: q.symbol,
+              shortName: q.description,
+              longName: q.description,
+              regularMarketPrice: q.last || q.close || 0,
+              regularMarketPreviousClose: q.prevclose || q.close || 0,
+              regularMarketChange: q.change || 0,
+              regularMarketChangePercent: q.change_percentage || 0,
+              regularMarketVolume: q.volume || 0,
+              averageDailyVolume10Day: q.average_volume || 0,
+              averageDailyVolume3Month: q.average_volume || 0,
+              fiftyTwoWeekHigh: q.week_52_high || 0,
+              fiftyTwoWeekLow: q.week_52_low || 0,
+            });
+          }
+        }
+        
+        logger.info(`[BULLISH] Tradier fetched ${results.length}/${symbols.length} quotes`);
+        return results;
+      } else {
+        logger.warn(`[BULLISH] Tradier quotes failed: ${response.status}`);
+      }
+    } catch (tradierError) {
+      logger.warn('[BULLISH] Tradier API error, falling back to Yahoo', { error: tradierError });
     }
     
-    return results;
+    // Fallback to Yahoo if Tradier fails
+    return await fetchQuotesYahooFallback(symbols);
   } catch (error) {
     logger.error('[BULLISH] Failed to fetch quotes', { error });
     return [];
   }
+}
+
+async function fetchQuotesYahooFallback(symbols: string[]): Promise<QuoteData[]> {
+  const results: QuoteData[] = [];
+  
+  // Fetch quotes one at a time with delays to avoid rate limiting
+  for (const symbol of symbols.slice(0, 20)) { // Limit to 20 to avoid rate limits
+    try {
+      const url = `${YAHOO_FINANCE_API}/${symbol}?interval=1d&range=5d`;
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const result = data.chart?.result?.[0];
+        const meta = result?.meta;
+        
+        if (meta) {
+          results.push({
+            symbol: meta.symbol,
+            shortName: meta.symbol,
+            longName: meta.symbol,
+            regularMarketPrice: meta.regularMarketPrice || 0,
+            regularMarketPreviousClose: meta.chartPreviousClose || meta.previousClose || 0,
+            regularMarketChange: (meta.regularMarketPrice || 0) - (meta.chartPreviousClose || meta.regularMarketPrice || 0),
+            regularMarketChangePercent: meta.chartPreviousClose ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100 : 0,
+            regularMarketVolume: meta.regularMarketVolume || 0,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+          });
+        }
+      }
+      
+      await new Promise(r => setTimeout(r, 300));
+    } catch (err) {
+      // Skip individual failures
+    }
+  }
+  
+  logger.info(`[BULLISH] Yahoo fallback fetched ${results.length} quotes`);
+  return results;
 }
 
 async function fetchHistoricalData(symbol: string, period = '3mo'): Promise<HistoricalData | null> {
@@ -326,9 +409,12 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
         recordSymbolAttention(
           quote.symbol,
           'bullish_trend',
-          momentumScore,
-          'bullish',
-          { trendPhase, trendStrength, isBreakout, isNewHigh }
+          'alert',
+          { 
+            confidence: momentumScore, 
+            direction: 'bullish',
+            message: `Momentum ${momentumScore}% | ${trendPhase} phase | ${trendStrength} trend${isBreakout ? ' | BREAKOUT' : ''}${isNewHigh ? ' | NEW HIGH' : ''}`
+          }
         );
       }
       

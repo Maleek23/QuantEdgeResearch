@@ -1494,5 +1494,53 @@ app.use((req, res, next) => {
     });
     
     log('🔍 Mover Discovery started - scanning for emerging movers every 15 min during market hours');
+    
+    // ============================================================================
+    // BULLISH TREND SCANNER - Track momentum stocks and breakouts
+    // Runs every 30 minutes during market hours + initial scan on startup
+    // ============================================================================
+    
+    // Initial scan on startup (delayed by 30 seconds to let server stabilize)
+    setTimeout(async () => {
+      try {
+        logger.info('📈 [BULLISH-TRENDS] Running initial bullish trend scan...');
+        const { scanBullishTrends } = await import('./bullish-trend-scanner');
+        const results = await scanBullishTrends();
+        logger.info(`📈 [BULLISH-TRENDS] Initial scan complete: ${results.length} stocks analyzed`);
+      } catch (error: any) {
+        logger.error('📈 [BULLISH-TRENDS] Initial scan failed:', error);
+      }
+    }, 30000);
+    
+    // Schedule regular scans every 30 minutes
+    cron.default.schedule('*/30 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay();
+        const hour = ctTime.getHours();
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Only run during market hours (8 AM - 5 PM CT)
+        if (hour < 8 || hour > 17) {
+          return;
+        }
+        
+        logger.info('📈 [BULLISH-TRENDS] Running scheduled bullish trend scan...');
+        
+        const { scanBullishTrends } = await import('./bullish-trend-scanner');
+        const results = await scanBullishTrends();
+        
+        logger.info(`📈 [BULLISH-TRENDS] Scan complete: ${results.length} stocks analyzed`);
+        
+      } catch (error: any) {
+        logger.error('📈 [BULLISH-TRENDS] Scheduled scan failed:', error);
+      }
+    });
+    
+    log('📈 Bullish Trend Scanner started - analyzing momentum stocks every 30 min during market hours');
   });
 })();
