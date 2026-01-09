@@ -4610,10 +4610,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // 🔒 DEDUPLICATION: Limit to max 3 active ideas per symbol to reduce clutter
+      // 🔒 DEDUPLICATION: Limit max active ideas per symbol to reduce clutter
       // For options, dedupe by symbol+strike+expiry to show distinct setups
       // Keep highest confidence ideas, most recent within same confidence tier
-      const MAX_IDEAS_PER_SYMBOL = 3;
+      // 10 per symbol allows multiple sources (scanner, bullish, watchlist, flow) to all be visible
+      const MAX_IDEAS_PER_SYMBOL = 10;
       
       const deduplicatedIdeas = (() => {
         // Separate open ideas (need dedup) from closed (no dedup needed)
