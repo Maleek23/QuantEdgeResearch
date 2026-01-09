@@ -88,6 +88,8 @@ import type {
   InsertBotLearningState,
   PremiumHistoryRecord,
   InsertPremiumHistory,
+  PasswordResetToken,
+  InsertPasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -133,6 +135,7 @@ import {
   tradeDiagnostics,
   botLearningState,
   premiumHistory,
+  passwordResetTokens,
 } from "@shared/schema";
 
 // ========================================
@@ -528,6 +531,12 @@ export interface IStorage {
   getBotLearningState(id: string): Promise<BotLearningState | null>;
   createBotLearningState(state: InsertBotLearningState): Promise<BotLearningState>;
   updateBotLearningState(id: string, updates: Partial<BotLearningState>): Promise<BotLearningState | null>;
+
+  // Password Reset Tokens
+  createPasswordResetToken(userId: string, email: string, token: string): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | null>;
+  markPasswordResetTokenUsed(id: string): Promise<void>;
+  invalidateUserResetTokens(userId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -3871,6 +3880,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(botLearningState.id, id))
       .returning();
     return updated || null;
+  }
+
+  // ========== PASSWORD RESET TOKENS ==========
+  async createPasswordResetToken(userId: string, email: string, token: string): Promise<PasswordResetToken> {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+    const [created] = await db.insert(passwordResetTokens).values({
+      userId,
+      email,
+      token,
+      expiresAt,
+    }).returning();
+    return created;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | null> {
+    const result = await db.select().from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.token, token),
+        eq(passwordResetTokens.used, false),
+        gte(passwordResetTokens.expiresAt, new Date())
+      ));
+    return result[0] || null;
+  }
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.id, id));
+  }
+
+  async invalidateUserResetTokens(userId: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.userId, userId));
   }
 }
 

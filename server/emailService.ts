@@ -312,3 +312,94 @@ export async function sendWelcomeEmail(
 export function isEmailServiceConfigured(): boolean {
   return !!resend;
 }
+
+export async function sendPasswordResetEmail(
+  email: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!resend) {
+    console.warn('[Email] Resend not configured - RESEND_API_KEY missing');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  const resetLink = `${APP_URL}/reset-password?token=${token}`;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `${APP_NAME} <${FROM_EMAIL}>`,
+      replyTo: 'support@quantedgelabs.net',
+      to: email,
+      subject: `Reset your ${APP_NAME} password`,
+      headers: {
+        'List-Unsubscribe': '<mailto:unsubscribe@quantedgelabs.net>',
+        'X-Priority': '3',
+      },
+      text: `Password Reset Request
+
+You requested to reset your password for ${APP_NAME}.
+
+Click here to reset your password: ${resetLink}
+
+This link expires in 1 hour. If you didn't request this, you can safely ignore this email.
+
+${APP_NAME} - For Educational & Research Purposes Only
+`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #050b16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #050b16; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(180deg, #0a1628 0%, #050b16 100%); border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.15); overflow: hidden;">
+          
+          <tr>
+            <td style="padding: 40px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: #22d3ee; margin-bottom: 16px;">
+                Password Reset Request
+              </div>
+              <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+                You requested to reset your password. Click the button below to create a new password.
+              </p>
+              <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">
+                Reset Password
+              </a>
+              <p style="color: #64748b; font-size: 12px; margin-top: 24px;">
+                This link expires in 1 hour. If you didn't request this, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 24px 40px; border-top: 1px solid #334155; text-align: center;">
+              <p style="color: #475569; font-size: 11px; margin: 0;">
+                ${APP_NAME} • For Educational & Research Purposes Only
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error('[Email] Failed to send password reset email:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[Email] Password reset email sent:', data?.id);
+    return { success: true };
+  } catch (err) {
+    console.error('[Email] Error sending password reset email:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}

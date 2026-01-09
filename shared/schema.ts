@@ -2108,6 +2108,24 @@ export type InsertBetaInvite = z.infer<typeof insertBetaInviteSchema>;
 export type BetaInvite = typeof betaInvites.$inferSelect;
 
 // ============================================================================
+// PASSWORD RESET TOKENS - Secure password recovery
+// ============================================================================
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  email: varchar("email").notNull(),
+  token: varchar("token").unique().notNull(),
+  used: boolean("used").default(false),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true, used: true });
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+// ============================================================================
 // HISTORICAL TRADE INTELLIGENCE - Learning from 3,000+ trade ideas
 // ============================================================================
 

@@ -39,7 +39,8 @@ import { autoIdeaGenerator } from "./auto-idea-generator";
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
-import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
+import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPassword } from "./userAuth";
+import { randomBytes } from "crypto";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
@@ -556,6 +557,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email and password are required" });
       }
       
+      // Normalize email to lowercase to prevent duplicate accounts
+      const emailLower = email.toLowerCase().trim();
+      
       if (password.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
@@ -580,7 +584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Determine subscription tier (use invite's tier override if available)
       const tierOverride = validatedInvite?.tierOverride || 'free';
       
-      const user = await createUser(email, password, firstName, lastName);
+      const user = await createUser(emailLower, password, firstName, lastName);
       
       if (!user) {
         return res.status(409).json({ error: "An account with this email already exists" });
@@ -624,7 +628,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email and password are required" });
       }
       
-      const user = await authenticateUser(email, password);
+      // Normalize email to lowercase for consistent lookup
+      const emailLower = email.toLowerCase().trim();
+      
+      const user = await authenticateUser(emailLower, password);
       
       if (!user) {
         return res.status(401).json({ error: "Invalid email or password" });
@@ -681,6 +688,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'auth/logout' });
       res.status(500).json({ error: "Failed to log out" });
+    }
+  });
+
+  // Password Reset - Request reset email
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const emailLower = email.toLowerCase().trim();
+      
+      // Always return success to prevent email enumeration attacks
+      const user = await getUserByEmail(emailLower);
+      
+      if (user) {
+        // Invalidate any existing tokens for this user
+        await storage.invalidateUserResetTokens(user.id);
+        
+        // Generate secure token
+        const token = randomBytes(32).toString('hex');
+        
+        // Store the token
+        await storage.createPasswordResetToken(user.id, emailLower, token);
+        
+        // Send the email
+        const { sendPasswordResetEmail } = await import('./emailService');
+        await sendPasswordResetEmail(emailLower, token);
+        
+        logger.info('Password reset requested', { email: emailLower });
+      }
+      
+      // Always return success to prevent email enumeration
+      res.json({ success: true, message: "If an account exists with that email, you will receive a password reset link." });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/forgot-password' });
+      res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  // Password Reset - Reset password with token
+  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and new password are required" });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      // Find and validate the token
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken) {
+        return res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
+      }
+      
+      // Hash the new password
+      const passwordHash = await hashPassword(password);
+      
+      // Update the user's password
+      await storage.updateUser(resetToken.userId, { passwordHash });
+      
+      // Mark token as used
+      await storage.markPasswordResetTokenUsed(resetToken.id);
+      
+      // Invalidate all other tokens for this user
+      await storage.invalidateUserResetTokens(resetToken.userId);
+      
+      logger.info('Password reset successful', { userId: resetToken.userId });
+      
+      res.json({ success: true, message: "Password has been reset successfully. You can now log in." });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/reset-password' });
+      res.status(500).json({ error: "Failed to reset password" });
     }
   });
 
