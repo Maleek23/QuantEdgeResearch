@@ -1522,9 +1522,14 @@ app.use((req, res, next) => {
     setTimeout(async () => {
       try {
         logger.info('📈 [BULLISH-TRENDS] Running initial bullish trend scan...');
-        const { scanBullishTrends } = await import('./bullish-trend-scanner');
+        const { scanBullishTrends, ingestBullishTrendsToTradeDesk } = await import('./bullish-trend-scanner');
         const results = await scanBullishTrends();
         logger.info(`📈 [BULLISH-TRENDS] Initial scan complete: ${results.length} stocks analyzed`);
+        
+        // Ingest strong trends to Trade Desk
+        logger.info('📈 [BULLISH-TRENDS] Running initial Trade Desk ingestion...');
+        const ingestionResult = await ingestBullishTrendsToTradeDesk();
+        logger.info(`📈 [BULLISH-TRENDS] Ingested ${ingestionResult.ingested} ideas to Trade Desk (${ingestionResult.skipped} skipped)`);
       } catch (error: any) {
         logger.error('📈 [BULLISH-TRENDS] Initial scan failed:', error);
       }
@@ -1549,10 +1554,14 @@ app.use((req, res, next) => {
         
         logger.info('📈 [BULLISH-TRENDS] Running scheduled bullish trend scan...');
         
-        const { scanBullishTrends } = await import('./bullish-trend-scanner');
+        const { scanBullishTrends, ingestBullishTrendsToTradeDesk } = await import('./bullish-trend-scanner');
         const results = await scanBullishTrends();
         
         logger.info(`📈 [BULLISH-TRENDS] Scan complete: ${results.length} stocks analyzed`);
+        
+        // Ingest strong trends to Trade Desk
+        const ingestionResult = await ingestBullishTrendsToTradeDesk();
+        logger.info(`📈 [BULLISH-TRENDS] Ingested ${ingestionResult.ingested} ideas to Trade Desk (${ingestionResult.skipped} skipped)`);
         
       } catch (error: any) {
         logger.error('📈 [BULLISH-TRENDS] Scheduled scan failed:', error);

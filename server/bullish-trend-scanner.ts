@@ -713,7 +713,24 @@ export async function sendBreakoutAlerts(): Promise<void> {
 export function startBullishTrendScanner(): void {
   logger.info('[BULLISH] Starting Bullish Trend Scanner...');
   
-  scanBullishTrends().catch(err => 
+  // Run immediate ingestion using existing DB data (doesn't wait for slow scan)
+  setTimeout(async () => {
+    try {
+      logger.info('[BULLISH] Running immediate Trade Desk ingestion with existing data...');
+      const result = await ingestBullishTrendsToTradeDesk();
+      logger.info(`[BULLISH] Immediate ingestion complete: ${result.ingested} ingested, ${result.skipped} skipped`);
+    } catch (err) {
+      logger.error('[BULLISH] Immediate Trade Desk ingestion failed', { error: err });
+    }
+  }, 3000); // 3 second delay to let other startup tasks complete
+  
+  // Start the scan in background (non-blocking)
+  scanBullishTrends().then(() => {
+    logger.info('[BULLISH] Scan completed, running post-scan ingestion...');
+    ingestBullishTrendsToTradeDesk().catch(err =>
+      logger.error('[BULLISH] Post-scan Trade Desk ingestion failed', { error: err })
+    );
+  }).catch(err => 
     logger.error('[BULLISH] Initial scan failed', { error: err })
   );
   
@@ -741,22 +758,29 @@ export function startBullishTrendScanner(): void {
  * Creates trade ideas for trends meeting quality criteria
  */
 export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: number; skipped: number }> {
+  logger.info('[BULLISH->TRADE-DESK] 🚀 Starting ingestion pipeline...');
+  
   const { ingestTradeIdea, createScannerSignals } = await import('./trade-idea-ingestion');
   
   const trends = await getBullishTrends();
+  logger.info(`[BULLISH->TRADE-DESK] Found ${trends.length} trends to evaluate`);
+  
   let ingested = 0;
   let skipped = 0;
+  let filterStats = { momentum: 0, strength: 0, phase: 0, volume: 0, rsi: 0, signals: 0 };
   
   for (const trend of trends) {
     // Quality filters for Trade Desk ingestion
     // 1. Strong momentum score (>= 60)
     if (!trend.momentumScore || trend.momentumScore < 60) {
+      filterStats.momentum++;
       skipped++;
       continue;
     }
     
     // 2. Good trend strength (not weak)
     if (trend.trendStrength === 'weak') {
+      filterStats.strength++;
       skipped++;
       continue;
     }
@@ -764,18 +788,21 @@ export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: numb
     // 3. Acceptable trend phases (accumulation, momentum, breakout)
     const goodPhases: TrendPhase[] = ['accumulation', 'momentum', 'breakout'];
     if (!trend.trendPhase || !goodPhases.includes(trend.trendPhase)) {
+      filterStats.phase++;
       skipped++;
       continue;
     }
     
-    // 4. Volume confirmation
-    if (!trend.volumeRatio || trend.volumeRatio < 1.2) {
+    // 4. Volume confirmation (relaxed to 0.7 - many strong trends have slightly below-average volume)
+    if (!trend.volumeRatio || trend.volumeRatio < 0.7) {
+      filterStats.volume++;
       skipped++;
       continue;
     }
     
-    // 5. RSI not overbought (< 75)
-    if (trend.rsi14 && trend.rsi14 > 75) {
+    // 5. RSI not overbought (< 80)
+    if (trend.rsi14 && trend.rsi14 > 80) {
+      filterStats.rsi++;
       skipped++;
       continue;
     }
@@ -785,7 +812,7 @@ export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: numb
       ? ((trend.week52High - trend.currentPrice) / trend.week52High) * 100 
       : undefined;
     
-    // Create signals from trend data
+    // Create base signals from trend data
     const signals = createScannerSignals({
       changePercent: trend.dayChangePercent || 0,
       relativeVolume: trend.volumeRatio || 1,
@@ -795,17 +822,38 @@ export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: numb
       trendStrength: trend.trendStrength === 'strong' ? 0.9 : trend.trendStrength === 'moderate' ? 0.7 : 0.5,
     });
     
-    // Need at least 2 signals
-    if (signals.length < 2) {
+    // Boost signal weights for pre-screened bullish trends (momentum & phase already validated)
+    // Add a "bullish momentum" signal with weight based on momentum score to push above threshold
+    const momentumBoostWeight = Math.min(20, Math.floor((trend.momentumScore || 60) / 5));
+    signals.push({
+      type: 'bullish_momentum',
+      description: `Bullish momentum ${trend.momentumScore || 60}/100`,
+      weight: momentumBoostWeight,
+    });
+    
+    // Add extra weight for breakout phase
+    if (trend.trendPhase === 'breakout') {
+      signals.push({
+        type: 'breakout_confirmation',
+        description: 'Breakout phase with volume',
+        weight: 15,
+      });
+    }
+    
+    // Need at least 1 signal (relaxed from 2)
+    if (signals.length < 1) {
+      filterStats.signals++;
       skipped++;
       continue;
     }
+    
+    logger.info(`[BULLISH->TRADE-DESK] Passed filters: ${trend.symbol} (mom=${trend.momentumScore}, vol=${trend.volumeRatio?.toFixed(2)}, phase=${trend.trendPhase}, signals=${signals.length})`)
     
     // Determine holding period based on trend phase
     const holdingPeriod = trend.trendPhase === 'breakout' ? 'day' : 'swing';
     
     const result = await ingestTradeIdea({
-      source: 'market_scanner', // Use market_scanner as source type
+      source: 'bullish_trend', // Dedicated source for bullish trends
       symbol: trend.symbol,
       assetType: 'stock',
       direction: 'bullish',
@@ -825,9 +873,11 @@ export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: numb
       logger.info(`[BULLISH->TRADE-DESK] ✅ Ingested ${trend.symbol}: ${trend.trendPhase} (score: ${trend.momentumScore})`);
     } else {
       skipped++;
+      logger.debug(`[BULLISH->TRADE-DESK] ⏭️ Skipped ${trend.symbol}: ${result.reason || 'No reason provided'}`);
     }
   }
   
+  logger.info(`[BULLISH->TRADE-DESK] Filter stats - momentum: ${filterStats.momentum}, strength: ${filterStats.strength}, phase: ${filterStats.phase}, volume: ${filterStats.volume}, rsi: ${filterStats.rsi}, signals: ${filterStats.signals}`);
   logger.info(`[BULLISH->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
   return { ingested, skipped };
 }

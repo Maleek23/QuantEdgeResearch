@@ -24,6 +24,7 @@ const INGESTION_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between same symbol
 // Source-specific minimum confidence thresholds
 const SOURCE_THRESHOLDS: Record<IdeaSource, number> = {
   market_scanner: 65,      // Market movers need decent setup
+  bullish_trend: 60,       // Bullish trends pre-screened (lower threshold)
   watchlist: 70,           // Watchlist items need good grade
   options_flow: 75,        // Flow needs high confidence
   chart_analysis: 70,      // Chart patterns need confirmation

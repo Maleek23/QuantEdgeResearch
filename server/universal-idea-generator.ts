@@ -18,6 +18,7 @@ import { getTradierQuote } from "./tradier-api";
 export type IdeaSource = 
   | 'watchlist'           // From user's watchlist
   | 'market_scanner'      // From market scanner movers
+  | 'bullish_trend'       // From bullish trend scanner
   | 'options_flow'        // From unusual options activity
   | 'social_sentiment'    // From CT Tracker / social mentions
   | 'chart_analysis'      // From technical chart patterns
@@ -324,16 +325,28 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
         : currentPrice * (2 - stopMultiplier)
     );
     
+    // Calculate risk/reward ratio
+    const potentialGain = input.direction === 'bullish' 
+      ? targetPrice - currentPrice 
+      : currentPrice - targetPrice;
+    const potentialRisk = input.direction === 'bullish' 
+      ? currentPrice - stopLoss 
+      : stopLoss - currentPrice;
+    const riskRewardRatio = potentialRisk > 0 ? potentialGain / potentialRisk : 2.0;
+    
     // Build signal descriptions (include loss warning if applicable)
     const signalDescriptions = input.signals.map(s => s.description || s.type);
     if (lossWarningSignal) {
       signalDescriptions.push(lossWarningSignal);
     }
-    const technicalSignals = input.technicalSignals || signalDescriptions;
     
     // Generate analysis text
     const analysis = input.analysis || `${getEngineType(input.source)} signal detected: ${signalDescriptions.slice(0, 3).join(', ')}. ` +
       `${input.direction === 'bullish' ? 'Bullish' : 'Bearish'} setup with ${confidence}% confidence.`;
+    
+    // Determine session context based on current time
+    const hour = new Date().getHours();
+    const sessionContext = hour < 9 ? 'pre-market' : hour < 16 ? 'regular' : 'after-hours';
     
     const idea: InsertTradeIdea = {
       symbol: input.symbol.toUpperCase(),
@@ -342,10 +355,12 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       entryPrice: currentPrice,
       targetPrice,
       stopLoss,
+      riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
       confidenceScore: confidence,
       probabilityBand: grade,
       holdingPeriod,
       timestamp: new Date().toISOString(),
+      sessionContext,
       
       // Option fields
       optionType: input.optionType || null,
@@ -355,7 +370,6 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       // Analysis
       catalyst: input.catalyst || `${getEngineType(input.source)} detected ${input.direction} signal`,
       analysis,
-      technicalSignals,
       qualitySignals: signalDescriptions,
       
       // Engine tracking
