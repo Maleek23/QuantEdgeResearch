@@ -1,294 +1,299 @@
-# Quant Edge Labs Design Guidelines
+# Quant Edge Labs Design Guidelines v2.0
 
 ## Brand Identity
-**Tagline**: "Multiple Engines, One Edge"
-**Mission**: Dual-engine quantitative research platform combining AI analysis with quantitative validation for transparent, auditable trading research.
+**Tagline**: "Multiple Engines, One Edge"  
+**Mission**: Institutional-grade quantitative research platform combining AI analysis with quantitative validation for transparent, auditable trading research.
 
-## Design Philosophy: Tech-Minimalist
+## Design Philosophy: Terminal-Institutional
 
-**Core Aesthetic**: Terminal-inspired institutional trading interface with surgical precision. Think Bloomberg Terminal meets Linear's restraint meets Vercel's clean engineering aesthetic.
+**Core Aesthetic**: Bloomberg Terminal meets institutional trading floors. Think: multi-monitor trading desks, data-dense displays, surgical precision, zero distractions.
 
 **Guiding Principles**:
-1. **Data-Dense, Not Cluttered**: Maximum information, minimum decoration
-2. **Monospace Authority**: Numbers demand JetBrains Mono - no exceptions
-3. **Surgical Cyan Accents**: One primary accent color, used sparingly
-4. **Restrained Glass**: Subtle depth, never distracting
-5. **Grid Discipline**: Align everything to an invisible 8px grid
-6. **Transparency = Trust**: Performance data always visible, always auditable
+1. **Information Dominance**: Maximum data visibility, hierarchical clarity
+2. **Monospace Authority**: All numerical data in JetBrains Mono—no exceptions
+3. **Layered Depth**: Strategic glassmorphism creates UI hierarchy without clutter
+4. **Grid Discipline**: 8px base grid, mathematical precision in spacing
+5. **Real-Time Awareness**: Live indicators, status badges, timestamp everywhere
+6. **Institutional Trust**: Performance transparency, audit trails, compliance-first
 
-## Typography
+---
+
+## Typography System
 
 **Font Stack**:
-- **Primary**: Inter - clean, professional, exceptional readability
-- **Data/Code**: JetBrains Mono - ALL numerical content, metrics, prices, percentages
+- **Primary**: Inter (UI text, labels, descriptions)
+- **Data/Numerical**: JetBrains Mono (metrics, prices, percentages, timestamps)
 
-**Hierarchy** (use consistently across all pages):
-| Element | Class | Usage |
-|---------|-------|-------|
-| Hero/H1 | `text-4xl sm:text-5xl font-bold tracking-tight` | Landing hero only |
-| Page Title | `text-2xl sm:text-3xl font-semibold` | Dashboard headers |
-| Section Title | `text-xl font-semibold` | Card headers, sections |
-| Body | `text-base leading-relaxed` | Paragraphs, descriptions |
-| Data Large | `text-2xl font-bold font-mono tabular-nums` | Key metrics |
-| Data Medium | `text-lg font-semibold font-mono` | Secondary metrics |
-| Data Small | `text-sm font-mono` | Table cells, inline data |
-| Label | `text-xs font-medium uppercase tracking-wider text-muted-foreground` | Metric labels |
+**Hierarchy**:
+| Element | Class | Context |
+|---------|-------|---------|
+| Dashboard Title | `text-3xl font-bold tracking-tight` | Command Center header |
+| Section Header | `text-xl font-semibold` | Engine panels, metric groups |
+| Subsection | `text-base font-semibold` | Card titles, table headers |
+| Body Text | `text-sm leading-relaxed` | Descriptions, alerts |
+| Large Metric | `text-3xl font-bold font-mono tabular-nums` | Primary KPIs |
+| Medium Metric | `text-xl font-semibold font-mono tabular-nums` | Secondary metrics |
+| Small Metric | `text-sm font-mono tabular-nums` | Table data, inline values |
+| Label | `text-xs font-medium uppercase tracking-wider text-slate-400` | Metric labels |
+| Timestamp | `text-xs font-mono text-slate-500` | Last updated, event times |
 
-## Color System
+---
 
-### Dark Mode Palette (Default)
+## Color System (Dark Mode Primary)
+
+### Base Palette
 ```
-Background:     slate-950 (#020617) / hsl(0 0% 4%)
-Surface 1:      slate-900 (#0f172a)
-Surface 2:      slate-800 (#1e293b)
-Border:         slate-700 (#334155)
-Border Subtle:  slate-800 (#1e293b)
+Background:     slate-950 (#020617)
+Surface Deep:   slate-900 (#0f172a)
+Surface Mid:    slate-800 (#1e293b)
+Surface Light:  slate-700 (#334155)
+Border Strong:  slate-600 (#475569)
+Border Subtle:  slate-700/40
 Text Primary:   slate-50 (#f8fafc)
+Text Secondary: slate-300 (#cbd5e1)
 Text Muted:     slate-400 (#94a3b8)
 ```
 
-### Light Mode Palette
+### Accent Colors
 ```
-Background:     slate-50 (#f8fafc) / hsl(220 14% 96%)
-Surface 1:      white (#ffffff)
-Surface 2:      slate-100 (#f1f5f9)
-Border:         slate-200 (#e2e8f0) / hsl(220 13% 88%)
-Border Subtle:  slate-100 (#f1f5f9)
-Text Primary:   slate-900 (#0f172a) / hsl(220 15% 15%)
-Text Muted:     slate-500 (#64748b) / hsl(220 10% 45%)
-```
-
-### Accent Colors (Both Modes)
-```
-Primary:        cyan-500 (#06b6d4) - CTAs, active states, links
-Primary Hover:  cyan-400 (#22d3ee) dark / cyan-600 (#0891b2) light
-Success:        green-400 (#4ade80) dark / green-600 (#16a34a) light
-Danger:         red-400 (#f87171) dark / red-600 (#dc2626) light
-Warning:        amber-400 (#fbbf24) dark / amber-600 (#d97706) light
+Primary Action: cyan-500 (#06b6d4)
+Primary Hover:  cyan-400 (#22d3ee)
+Success:        green-400 (#4ade80) / green-500 backgrounds
+Danger:         red-400 (#f87171) / red-500 backgrounds
+Warning:        amber-400 (#fbbf24) / amber-500 backgrounds
+Info:           blue-400 (#60a5fa)
 ```
 
-### Light Mode Guidelines
-- Use semantic color tokens (`bg-background`, `text-foreground`) rather than hardcoded colors
-- Shadows are more visible in light mode - use `shadow-sm` instead of `shadow-md`
-- Glass effects: reduce opacity (bg-white/60 instead of bg-slate-900/60)
-- Borders are more prominent - use `border-slate-200` or `border` default
-- Engine colors remain the same (purple, blue, cyan) but may need darker variants for contrast
+### Engine Identity Colors
+```
+AI Engine:      purple-400 (#c084fc) / purple-500/15 backgrounds
+Quant Engine:   blue-400 (#60a5fa) / blue-500/15 backgrounds
+Flow Engine:    cyan-400 (#22d3ee) / cyan-500/15 backgrounds
+```
 
-**Data Visualization**:
-- Bullish: `text-green-400` / `bg-green-500/10`
-- Bearish: `text-red-400` / `bg-red-500/10`
-- Neutral: `text-cyan-400` / `bg-cyan-500/10`
-- AI Engine: `text-purple-400` / `bg-purple-500/10`
-- Quant Engine: `text-blue-400` / `bg-blue-500/10`
-- Flow Engine: `text-cyan-400` / `bg-cyan-500/10`
+### Status Indicators
+```
+Active/Live:    green-400 with pulse animation
+Processing:     amber-400 with pulse
+Idle:           slate-400
+Error:          red-400 with pulse
+```
 
-## Glass Effects (Restrained)
+---
 
-Use glass effects for depth hierarchy, not decoration:
+## Glassmorphism System (Enhanced)
 
-```css
-/* Primary cards - subtle blur */
-.glass-card: bg-slate-900/60 backdrop-blur-md border border-slate-700/50
+### Tier 1: Primary Cards (Command Center Panels)
+```
+Background: bg-slate-900/70
+Backdrop: backdrop-blur-xl
+Border: border border-slate-700/60
+Shadow: shadow-2xl shadow-black/20
+```
 
-/* Elevated surfaces - light glass */
-.glass-elevated: bg-slate-800/40 backdrop-blur-sm border border-slate-700/30
+### Tier 2: Nested Components (Engine Status, Metrics)
+```
+Background: bg-slate-800/50
+Backdrop: backdrop-blur-md
+Border: border border-slate-700/40
+Shadow: shadow-lg shadow-black/10
+```
 
-/* Stats containers - minimal */
-.stat-glass: bg-slate-800/30 border border-slate-700/40
+### Tier 3: Data Containers (Stats, Tables)
+```
+Background: bg-slate-800/30
+Backdrop: backdrop-blur-sm
+Border: border border-slate-700/30
+Shadow: none
+```
 
-/* Subtle backgrounds */
-.glass-subtle: bg-slate-900/30 backdrop-blur-sm
+### Tier 4: Hover States (Interactive Elements)
+```
+Background: bg-slate-700/40
+Border: border-cyan-500/40
+Transition: transition-all duration-200
 ```
 
 **Rules**:
-- Never stack multiple glass layers
-- Glass blur should be subtle (md or less)
-- Avoid heavy shadows on glass elements
+- Never exceed 3 glass layers deep
+- Heavier blur (xl, 2xl) reserved for top-level panels
+- Borders must be semi-transparent for depth perception
+- Shadows enhance separation, use sparingly
+
+---
 
 ## Layout System
 
-**Spacing Scale** (8px base):
-- `gap-2` (8px): Tight inline elements
-- `gap-4` (16px): Related items, card content
-- `gap-6` (24px): Card to card, sections
-- `gap-8` (32px): Major section breaks
-- `p-4`: Compact cards
-- `p-6`: Standard cards
-- `py-12 lg:py-16`: Page sections
+**Spacing Scale (8px base)**:
+- `gap-2` (8px): Inline badges, tight elements
+- `gap-4` (16px): Card internal spacing
+- `gap-6` (24px): Between major components
+- `gap-8` (32px): Panel separation
+- `p-6`: Standard card padding
+- `p-8`: Large panel padding
+- `py-4`: Compact vertical sections
 
-**Grid System**:
+**Command Center Grid**:
 ```
-Dashboard:      grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
-Data Tables:    Full-width, overflow-x-auto on mobile
-Split View:     grid-cols-1 lg:grid-cols-3 (main 2 + sidebar 1)
-Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
+Main Layout:    grid grid-cols-1 lg:grid-cols-12 gap-6
+Left Panel:     lg:col-span-8 (engine status, analysis)
+Right Sidebar:  lg:col-span-4 (live metrics, alerts)
+Metrics Strip:  grid-cols-2 md:grid-cols-4 gap-4
+Engine Panels:  grid-cols-1 md:grid-cols-3 gap-6
 ```
 
-**Responsive Breakpoints**:
-- Mobile: < 640px (stack everything)
-- Tablet: 640-1024px (2-column grids)
-- Desktop: > 1024px (full layouts)
+**Responsive Strategy**:
+- Mobile (<640px): Single column, priority stacking
+- Tablet (640-1024px): Two-column grids
+- Desktop (>1024px): Full 12-column grid system
+
+---
 
 ## Component Patterns
 
-### Cards
-```tsx
-<Card className="glass-card rounded-lg p-6">
-  <div className="flex items-center justify-between mb-4">
-    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-      Label
-    </span>
-    <Icon className="h-4 w-4 text-muted-foreground" />
-  </div>
-  <p className="text-2xl font-bold font-mono tabular-nums">
-    Value
-  </p>
-</Card>
+### Engine Status Card
+```
+Structure:
+- Glass Tier 1 container
+- Header: Engine name badge + status indicator (pulse)
+- Metrics row: Win rate, accuracy, last signal (mono)
+- Recent signals table (scrollable, max-height)
+- Footer: Last updated timestamp
 ```
 
-### Metric Display
-```tsx
-<div className="stat-glass rounded-lg p-4">
-  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-    Win Rate
-  </p>
-  <p className="text-2xl font-bold font-mono text-green-400">
-    65.2%
-  </p>
-</div>
+### Real-Time Ticker
+```
+Placement: Top of Command Center
+Style: Full-width bg-slate-900/90 backdrop-blur-md border-b border-slate-700/50
+Content: Scrolling market data (mono font), live price updates
+Height: py-3
 ```
 
-### Engine Badges
-```tsx
-// AI Engine
-<Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30">
-  AI
-</Badge>
-
-// Quant Engine
-<Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">
-  Quant
-</Badge>
-
-// Flow Engine
-<Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
-  Flow
-</Badge>
+### Trading Signal Panel
 ```
+Layout: Two-column (Signal info | Action buttons)
+Signal Badge: Color-coded by engine (purple/blue/cyan)
+Confidence Meter: Progress bar with percentage
+Action Area: Glass button with blurred bg, primary cyan accent
+```
+
+### Performance Metrics Grid
+```
+Cards: 4-column grid on desktop
+Glass: Tier 3 (subtle)
+Content: Large mono number + small label + trend indicator (↑/↓)
+Accent: Color-coded by metric type (green/red/cyan)
+```
+
+### Alert/Notification Panel
+```
+Container: Tier 2 glass, fixed height with scroll
+Items: Stacked alerts with timestamp, icon, brief message
+Priority: Border accent (red/amber/cyan) based on severity
+Animation: Fade-in for new alerts
+```
+
+---
+
+## Command Center Visual Hierarchy
+
+**Priority 1 (Immediate Attention)**:
+- Real-time ticker (top)
+- Engine status indicators (pulse animations)
+- Critical alerts (red/amber accents)
+
+**Priority 2 (Active Monitoring)**:
+- Trading signals panel
+- Performance metrics grid
+- Live data tables
+
+**Priority 3 (Context/Reference)**:
+- Historical charts
+- Audit logs
+- System settings
+
+**Hierarchy Implementation**:
+- Use glass tier levels (1=highest priority, 3=lowest)
+- Larger typography for critical data
+- Pulse animations only on live/active elements
+- Cyan accents draw eye to actionable items
+
+---
+
+## Interactive Elements
 
 ### Buttons
-```tsx
-// Primary - Cyan accent
-<Button className="bg-cyan-500 hover:bg-cyan-400 text-slate-950">
-  Action
-</Button>
+```
+Primary: bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg
+Secondary: border border-slate-600 hover:border-cyan-500 bg-slate-800/50
+Ghost: hover:bg-slate-800/50
+Disabled: opacity-50 cursor-not-allowed
 
-// Secondary - Outline
-<Button variant="outline" className="border-slate-700 hover:border-cyan-500">
-  Secondary
-</Button>
-
-// Ghost - Minimal
-<Button variant="ghost">
-  Ghost
-</Button>
+On Images/Glass: backdrop-blur-md bg-slate-900/60 border-slate-700/60
 ```
 
-## Landing Page Structure
+### Badges
+```
+Engine AI: bg-purple-500/15 text-purple-400 border-purple-500/40
+Engine Quant: bg-blue-500/15 text-blue-400 border-blue-500/40
+Engine Flow: bg-cyan-500/15 text-cyan-400 border-cyan-500/40
+Status Live: bg-green-500/15 text-green-400 border-green-500/40
+```
 
-**Hero Section**:
-- Tagline: "Multiple Engines, One Edge"
-- Subline: Brief value proposition (1 line)
-- Stats strip: 3-4 key metrics in mono font
-- CTAs: Primary "Get Started" + Secondary "View Performance"
-- Background: Subtle grid pattern or vector lines (no heavy images)
+### Data Tables
+```
+Header: bg-slate-800/50 text-xs uppercase tracking-wider
+Row: hover:bg-slate-800/30 border-b border-slate-800/50
+Cell: font-mono for numbers, text-sm
+Zebra Striping: Optional, subtle bg-slate-900/30 on alternates
+```
 
-**Trust Section** (required on all public pages):
-- Data sources: Yahoo Finance, Tradier, CoinGecko, Alpha Vantage
-- Compliance badge: "Educational Research Only"
-- Performance transparency note
-
-**Features**:
-- Two-column "Engine | Outcome" matrix
-- Monochrome icons (lucide-react)
-- Brief descriptions, no marketing fluff
-
-## Required Elements
-
-**Every Page Must Have**:
-1. Consistent header with "QuantEdge" branding
-2. Theme toggle (light/dark)
-3. Educational disclaimer (footer or prominent placement)
-4. Consistent spacing and typography
-
-**Dashboard Pages Must Have**:
-1. Page title with current date/context
-2. Key metrics visible above fold
-3. Clear data hierarchy (most important first)
-4. Loading states (skeleton components)
-
-**Data Display Rules**:
-1. All numbers use `font-mono tabular-nums`
-2. Positive values: `text-green-600 dark:text-green-400`
-3. Negative values: `text-red-600 dark:text-red-400`
-4. Percentages include % symbol
-5. Currency includes $ symbol
-6. Large numbers use compact notation (1.2K, 3.5M)
-7. All accent colors must use light/dark variants for readability:
-   - Cyan: `text-cyan-600 dark:text-cyan-400`
-   - Purple: `text-purple-600 dark:text-purple-400`
-   - Amber: `text-amber-600 dark:text-amber-400`
+---
 
 ## Animation Guidelines
 
 **Allowed**:
-- `transition-colors duration-200` for hover states
-- `transition-opacity duration-300` for fade-in
-- Skeleton loading animations
-- Subtle pulse for live indicators (`animate-pulse`)
+- Pulse for live indicators: `animate-pulse` (green-400)
+- Fade-in for new data: `transition-opacity duration-300`
+- Hover state color shifts: `transition-colors duration-200`
+- Skeleton loaders for async data
+- Chart/graph transitions (chart.js default animations)
 
 **Forbidden**:
-- Heavy JS animations
-- Bouncing or scaling effects
-- Color gradient animations
+- Bouncing effects
+- Rotating elements
+- Excessive motion (causes distraction)
 - Auto-playing carousels
-- Excessive motion
+
+---
+
+## Required Elements
+
+**Command Center Must Include**:
+1. Real-time ticker (market data feed)
+2. Engine status dashboard (3 engines visible)
+3. Live performance metrics strip
+4. Recent signals/trades table
+5. Alert notification panel
+6. Last updated timestamps on all data
+7. Educational disclaimer footer
+
+**Every Data Display**:
+1. Timestamp (font-mono, text-xs)
+2. Source indicator (badge or label)
+3. Loading state (skeleton)
+4. Error state (red accent, retry action)
+
+---
 
 ## Accessibility
 
-- All interactive elements: min 44x44px touch target
-- Color contrast: WCAG AA minimum (4.5:1 for text)
-- Focus states: visible `ring-2 ring-cyan-500`
-- Screen reader labels on icon-only buttons
-- Semantic HTML (nav, main, article, section)
+- Touch targets: min 44x44px
+- Focus rings: `ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-950`
+- WCAG AA contrast (4.5:1 minimum)
+- Screen reader labels on icon buttons
+- Keyboard navigation support (Tab, Arrow keys for tables)
 
 ---
 
-## Change Log
-
-| Date | Change | Impacted Views |
-|------|--------|----------------|
-| 2025-12-31 | Tech-minimalist redesign, established brand guidelines | All pages |
-| 2025-12-31 | Added "Multiple Engines, One Edge" tagline | Landing, Headers |
-| 2025-12-31 | Standardized typography hierarchy | All pages |
-| 2025-12-31 | Defined engine color system | Trade cards, badges |
-| 2025-12-31 | Replaced features grid with Engine→Outcome matrix | Landing page |
-| 2025-12-31 | Added grid background pattern to hero | Landing page |
-| 2025-12-31 | Created terminal-style stats strip | Landing page |
-| 2025-12-31 | Added .graph-grid CSS utility for platform-wide use | All pages |
-| 2025-12-31 | Simplified AuthHeader (removed glass styling) | App layout |
-| 2025-12-31 | Simplified Footer (minimal, monospace) | App layout |
-| 2025-12-31 | Simplified Sidebar header (QE badge + tagline) | App sidebar |
-| 2025-12-31 | Applied graph-grid background to MainContentWrapper | All authenticated pages |
-| 2026-01-03 | Performance page redesign: 3-tier layout (Executive Overview KPI strip, Engine Accordion, simplified Data Audit), 62% code reduction | Performance page |
-| 2026-01-03 | Light mode optimization: theme-aware glass utilities, semantic color tokens, accent color light/dark variants | All pages |
-
----
-
-## Documentation Process
-
-When making UI changes:
-1. Check this file for existing patterns
-2. Apply consistent styling from guidelines
-3. Update Change Log with date, change, and impacted views
-4. Update replit.md if architectural changes made
+**Change Log**: 2026-01-03 | Command Center revamp: Enhanced glassmorphism tier system, real-time ticker, engine status panels, institutional visual hierarchy, pulse animations for live indicators.
