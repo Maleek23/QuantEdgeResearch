@@ -189,9 +189,9 @@ export default function JoinBeta() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0a0a0a] flex items-start justify-center py-8 px-6 relative overflow-y-auto">
       {/* Subtle gradient accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="w-full max-w-lg relative z-10">
         
