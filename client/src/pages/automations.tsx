@@ -45,7 +45,14 @@ import {
   ArrowRight,
   Brain,
   Calculator,
-  Search
+  Search,
+  Shield,
+  AlertTriangle,
+  TrendingDown,
+  Timer,
+  Crosshair,
+  Layers,
+  ToggleLeft
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
@@ -377,6 +384,16 @@ interface BotPreferences {
   optionsPreferredSymbols?: string[];
   futuresPreferredContracts?: string[];
   cryptoPreferredCoins?: string[];
+  stopLossPercent?: number;
+  takeProfitPercent?: number;
+  trailingStopPercent?: number;
+  maxDrawdownPercent?: number;
+  kellyFraction?: 'full' | 'half' | 'quarter';
+  circuitBreakerEnabled?: boolean;
+  circuitBreakerLosses?: number;
+  cooldownMinutes?: number;
+  requireConfluence?: boolean;
+  minConfluenceScore?: number;
 }
 
 interface BotPosition {
@@ -516,6 +533,34 @@ export default function AutomationsPage() {
   const [futuresAlloc, setFuturesAlloc] = useState(30);
   const [cryptoAlloc, setCryptoAlloc] = useState(30);
   const [maxPositionSize, setMaxPositionSize] = useState(100);
+  
+  // Per-trade risk controls
+  const [stopLossPercent, setStopLossPercent] = useState(25);
+  const [takeProfitPercent, setTakeProfitPercent] = useState(50);
+  const [trailingStopPercent, setTrailingStopPercent] = useState(0);
+  
+  // Account-level risk controls
+  const [dailyLossLimit, setDailyLossLimit] = useState(100);
+  const [maxConcurrentTrades, setMaxConcurrentTrades] = useState(3);
+  const [maxDrawdownPercent, setMaxDrawdownPercent] = useState(20);
+  const [riskTolerance, setRiskTolerance] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
+  
+  // Advanced controls
+  const [kellyFraction, setKellyFraction] = useState<'full' | 'half' | 'quarter'>('half');
+  const [circuitBreakerEnabled, setCircuitBreakerEnabled] = useState(true);
+  const [circuitBreakerLosses, setCircuitBreakerLosses] = useState(3);
+  const [cooldownMinutes, setCooldownMinutes] = useState(30);
+  const [requireConfluence, setRequireConfluence] = useState(true);
+  const [minConfluenceScore, setMinConfluenceScore] = useState(70);
+  
+  // Options-specific settings
+  const [optionsPreferredDte, setOptionsPreferredDte] = useState(7);
+  const [optionsMaxDte, setOptionsMaxDte] = useState(30);
+  const [optionsMinDelta, setOptionsMinDelta] = useState(0.20);
+  const [optionsMaxDelta, setOptionsMaxDelta] = useState(0.40);
+  const [enableOptions, setEnableOptions] = useState(true);
+  const [enableFutures, setEnableFutures] = useState(true);
+  const [enableCrypto, setEnableCrypto] = useState(true);
 
   // Sync local state with fetched preferences
   useEffect(() => {
@@ -524,6 +569,26 @@ export default function AutomationsPage() {
       setFuturesAlloc(botPreferences.futuresAllocation || 30);
       setCryptoAlloc(botPreferences.cryptoAllocation || 30);
       setMaxPositionSize(botPreferences.maxPositionSize || 100);
+      setStopLossPercent(botPreferences.stopLossPercent ?? 25);
+      setTakeProfitPercent(botPreferences.takeProfitPercent ?? 50);
+      setTrailingStopPercent(botPreferences.trailingStopPercent ?? 0);
+      setDailyLossLimit(botPreferences.dailyLossLimit || 100);
+      setMaxConcurrentTrades(botPreferences.maxConcurrentTrades || 3);
+      setMaxDrawdownPercent(botPreferences.maxDrawdownPercent ?? 20);
+      setRiskTolerance(botPreferences.riskTolerance || 'moderate');
+      setKellyFraction(botPreferences.kellyFraction || 'half');
+      setCircuitBreakerEnabled(botPreferences.circuitBreakerEnabled ?? true);
+      setCircuitBreakerLosses(botPreferences.circuitBreakerLosses ?? 3);
+      setCooldownMinutes(botPreferences.cooldownMinutes ?? 30);
+      setRequireConfluence(botPreferences.requireConfluence ?? true);
+      setMinConfluenceScore(botPreferences.minConfluenceScore ?? 70);
+      setOptionsPreferredDte(botPreferences.optionsPreferredDte ?? 7);
+      setOptionsMaxDte(botPreferences.optionsMaxDte ?? 30);
+      setOptionsMinDelta(botPreferences.optionsMinDelta ?? 0.20);
+      setOptionsMaxDelta(botPreferences.optionsMaxDelta ?? 0.40);
+      setEnableOptions(botPreferences.enableOptions ?? true);
+      setEnableFutures(botPreferences.enableFutures ?? true);
+      setEnableCrypto(botPreferences.enableCrypto ?? true);
     }
   }, [botPreferences]);
 
@@ -1093,157 +1158,392 @@ export default function AutomationsPage() {
           <ExpiryPatternInsights />
         </TabsContent>
 
-        {/* Settings Tab - Clean, Trade Desk inspired design */}
+        {/* Settings Tab - Professional Risk Controls */}
         <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Settings className="w-5 h-5 text-cyan-400" />
-                    Bot Allocation Settings
-                  </CardTitle>
-                  <CardDescription>Configure how your capital is distributed across trading strategies</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setOptionsAlloc(40);
-                      setFuturesAlloc(30);
-                      setCryptoAlloc(30);
-                      setMaxPositionSize(100);
-                    }}
-                    data-testid="button-reset-defaults"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Reset
-                  </Button>
-                  <Button 
-                    onClick={() => updatePreferences.mutate({
-                      optionsAllocation: optionsAlloc,
-                      futuresAllocation: futuresAlloc,
-                      cryptoAllocation: cryptoAlloc,
-                      maxPositionSize: maxPositionSize,
-                    })}
-                    disabled={updatePreferences.isPending}
-                    data-testid="button-save-settings"
-                  >
-                    {updatePreferences.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Save Settings
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Allocation Sliders */}
-              <div className="space-y-6">
-                <div className="space-y-3">
+          {/* Save Button Header */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Shield className="w-6 h-6 text-cyan-400" />
+                Professional Risk Controls
+              </h2>
+              <p className="text-sm text-muted-foreground">Configure comprehensive risk management for all trading strategies</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setOptionsAlloc(40); setFuturesAlloc(30); setCryptoAlloc(30);
+                  setMaxPositionSize(100); setStopLossPercent(25); setTakeProfitPercent(50);
+                  setTrailingStopPercent(0); setDailyLossLimit(100); setMaxConcurrentTrades(3);
+                  setMaxDrawdownPercent(20); setRiskTolerance('moderate'); setKellyFraction('half');
+                  setCircuitBreakerEnabled(true); setCircuitBreakerLosses(3); setCooldownMinutes(30);
+                  setOptionsPreferredDte(7); setOptionsMaxDte(30); setOptionsMinDelta(0.20); setOptionsMaxDelta(0.40);
+                }}
+                data-testid="button-reset-defaults"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset All
+              </Button>
+              <Button 
+                onClick={() => updatePreferences.mutate({
+                  optionsAllocation: optionsAlloc, futuresAllocation: futuresAlloc, cryptoAllocation: cryptoAlloc,
+                  maxPositionSize, stopLossPercent, takeProfitPercent, trailingStopPercent,
+                  dailyLossLimit, maxConcurrentTrades, maxDrawdownPercent, riskTolerance, kellyFraction,
+                  circuitBreakerEnabled, circuitBreakerLosses, cooldownMinutes, requireConfluence, minConfluenceScore,
+                  optionsPreferredDte, optionsMaxDte, optionsMinDelta, optionsMaxDelta,
+                  enableOptions, enableFutures, enableCrypto,
+                })}
+                disabled={updatePreferences.isPending}
+                data-testid="button-save-settings"
+              >
+                {updatePreferences.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                Save All Settings
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Per-Trade Risk Controls */}
+            <Card className="border-red-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-red-400">
+                  <Target className="w-4 h-4" />
+                  Per-Trade Risk Controls
+                </CardTitle>
+                <CardDescription className="text-xs">Define exit rules for every position</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                      <LineChart className="w-4 h-4 text-cyan-400" />
-                      Options Allocation
+                    <Label className="text-sm flex items-center gap-2">
+                      <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                      Stop Loss
                     </Label>
-                    <span className="font-mono text-cyan-400">{optionsAlloc}%</span>
+                    <span className="font-mono text-red-400 text-sm">-{stopLossPercent}%</span>
                   </div>
-                  <Slider
-                    value={[optionsAlloc]}
-                    onValueChange={([v]) => setOptionsAlloc(v)}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                    data-testid="slider-options-allocation"
-                  />
+                  <Slider value={[stopLossPercent]} onValueChange={([v]) => setStopLossPercent(v)} min={5} max={50} step={5} data-testid="slider-stop-loss" />
+                  <p className="text-[10px] text-muted-foreground">Auto-exit when position loses this percentage</p>
                 </div>
-
-                <div className="space-y-3">
+                
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-blue-400" />
-                      Futures Allocation
+                    <Label className="text-sm flex items-center gap-2">
+                      <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+                      Take Profit
                     </Label>
-                    <span className="font-mono text-blue-400">{futuresAlloc}%</span>
+                    <span className="font-mono text-green-400 text-sm">+{takeProfitPercent}%</span>
                   </div>
-                  <Slider
-                    value={[futuresAlloc]}
-                    onValueChange={([v]) => setFuturesAlloc(v)}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                    data-testid="slider-futures-allocation"
-                  />
+                  <Slider value={[takeProfitPercent]} onValueChange={([v]) => setTakeProfitPercent(v)} min={10} max={200} step={10} data-testid="slider-take-profit" />
+                  <p className="text-[10px] text-muted-foreground">Auto-exit when position gains this percentage</p>
                 </div>
-
-                <div className="space-y-3">
+                
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2">
-                      <Bitcoin className="w-4 h-4 text-orange-400" />
-                      Crypto Allocation
+                    <Label className="text-sm flex items-center gap-2">
+                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                      Trailing Stop
                     </Label>
-                    <span className="font-mono text-orange-400">{cryptoAlloc}%</span>
+                    <span className="font-mono text-amber-400 text-sm">{trailingStopPercent === 0 ? 'OFF' : `-${trailingStopPercent}%`}</span>
                   </div>
-                  <Slider
-                    value={[cryptoAlloc]}
-                    onValueChange={([v]) => setCryptoAlloc(v)}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                    data-testid="slider-crypto-allocation"
-                  />
+                  <Slider value={[trailingStopPercent]} onValueChange={([v]) => setTrailingStopPercent(v)} min={0} max={30} step={5} data-testid="slider-trailing-stop" />
+                  <p className="text-[10px] text-muted-foreground">Lock in profits with dynamic stop (0 = disabled)</p>
                 </div>
-              </div>
 
-              {/* Total indicator */}
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/30">
-                <span className="text-sm text-muted-foreground">Total Allocation</span>
-                <span className={`font-mono font-bold ${optionsAlloc + futuresAlloc + cryptoAlloc === 100 ? 'text-green-400' : 'text-amber-400'}`}>
-                  {optionsAlloc + futuresAlloc + cryptoAlloc}%
-                </span>
-              </div>
+                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 mt-4">
+                  <div className="flex items-center gap-2 text-xs">
+                    <Shield className="w-3.5 h-3.5 text-red-400" />
+                    <span className="font-medium text-red-400">Risk/Reward Ratio</span>
+                    <span className="font-mono ml-auto">{(takeProfitPercent / stopLossPercent).toFixed(2)}:1</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Position Size */}
-              <div className="space-y-3 pt-4 border-t border-border/30">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-green-400" />
-                    Max Position Size
+            {/* Account-Level Risk Limits */}
+            <Card className="border-amber-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-amber-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  Account-Level Limits
+                </CardTitle>
+                <CardDescription className="text-xs">Protect your account from excessive losses</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                      Max Position Size
+                    </Label>
+                    <span className="font-mono text-green-400 text-sm">${maxPositionSize}</span>
+                  </div>
+                  <Slider value={[maxPositionSize]} onValueChange={([v]) => setMaxPositionSize(v)} min={25} max={500} step={25} data-testid="slider-max-position" />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                      Daily Loss Limit
+                    </Label>
+                    <span className="font-mono text-red-400 text-sm">${dailyLossLimit}</span>
+                  </div>
+                  <Slider value={[dailyLossLimit]} onValueChange={([v]) => setDailyLossLimit(v)} min={25} max={500} step={25} data-testid="slider-daily-loss" />
+                  <p className="text-[10px] text-muted-foreground">Stop all trading when daily losses hit this limit</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                      Max Concurrent Trades
+                    </Label>
+                    <span className="font-mono text-cyan-400 text-sm">{maxConcurrentTrades}</span>
+                  </div>
+                  <Slider value={[maxConcurrentTrades]} onValueChange={([v]) => setMaxConcurrentTrades(v)} min={1} max={10} step={1} data-testid="slider-max-trades" />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      Max Drawdown
+                    </Label>
+                    <span className="font-mono text-amber-400 text-sm">{maxDrawdownPercent}%</span>
+                  </div>
+                  <Slider value={[maxDrawdownPercent]} onValueChange={([v]) => setMaxDrawdownPercent(v)} min={5} max={50} step={5} data-testid="slider-max-drawdown" />
+                  <p className="text-[10px] text-muted-foreground">Halt trading if portfolio drops by this amount</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Capital Allocation */}
+            <Card className="border-cyan-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-cyan-400">
+                  <Wallet className="w-4 h-4" />
+                  Capital Allocation
+                </CardTitle>
+                <CardDescription className="text-xs">Distribute capital across strategies</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <LineChart className="w-3.5 h-3.5 text-cyan-400" />
+                      Options
+                    </Label>
+                    <span className="font-mono text-cyan-400 text-sm">{optionsAlloc}%</span>
+                  </div>
+                  <Slider value={[optionsAlloc]} onValueChange={([v]) => setOptionsAlloc(v)} max={100} step={5} data-testid="slider-options-allocation" />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
+                      Futures
+                    </Label>
+                    <span className="font-mono text-blue-400 text-sm">{futuresAlloc}%</span>
+                  </div>
+                  <Slider value={[futuresAlloc]} onValueChange={([v]) => setFuturesAlloc(v)} max={100} step={5} data-testid="slider-futures-allocation" />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <Bitcoin className="w-3.5 h-3.5 text-orange-400" />
+                      Crypto
+                    </Label>
+                    <span className="font-mono text-orange-400 text-sm">{cryptoAlloc}%</span>
+                  </div>
+                  <Slider value={[cryptoAlloc]} onValueChange={([v]) => setCryptoAlloc(v)} max={100} step={5} data-testid="slider-crypto-allocation" />
+                </div>
+
+                <div className={cn("p-3 rounded-lg border mt-2", 
+                  optionsAlloc + futuresAlloc + cryptoAlloc === 100 
+                    ? "bg-green-500/5 border-green-500/20" 
+                    : "bg-amber-500/5 border-amber-500/20"
+                )}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Total Allocation</span>
+                    <span className={cn("font-mono font-bold", 
+                      optionsAlloc + futuresAlloc + cryptoAlloc === 100 ? "text-green-400" : "text-amber-400"
+                    )}>
+                      {optionsAlloc + futuresAlloc + cryptoAlloc}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Advanced Controls */}
+            <Card className="border-purple-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-purple-400">
+                  <Brain className="w-4 h-4" />
+                  Advanced Controls
+                </CardTitle>
+                <CardDescription className="text-xs">Circuit breakers and position sizing</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-2">
+                    <Calculator className="w-3.5 h-3.5 text-purple-400" />
+                    Kelly Position Sizing
                   </Label>
-                  <span className="font-mono text-green-400">${maxPositionSize}</span>
+                  <Select value={kellyFraction} onValueChange={(v) => setKellyFraction(v as any)}>
+                    <SelectTrigger data-testid="select-kelly-fraction">
+                      <SelectValue placeholder="Select fraction" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Full Kelly (Aggressive)</SelectItem>
+                      <SelectItem value="half">Half Kelly (Recommended)</SelectItem>
+                      <SelectItem value="quarter">Quarter Kelly (Conservative)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Optimal position sizing based on edge and win rate</p>
                 </div>
-                <Slider
-                  value={[maxPositionSize]}
-                  onValueChange={([v]) => setMaxPositionSize(v)}
-                  min={25}
-                  max={500}
-                  step={25}
-                  className="w-full"
-                  data-testid="slider-max-position"
-                />
-                <p className="text-xs text-muted-foreground">Maximum dollar amount per trade position</p>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                    Risk Profile
+                  </Label>
+                  <Select value={riskTolerance} onValueChange={(v) => setRiskTolerance(v as any)}>
+                    <SelectTrigger data-testid="select-risk-tolerance">
+                      <SelectValue placeholder="Select profile" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conservative">Conservative (Lower risk)</SelectItem>
+                      <SelectItem value="moderate">Moderate (Balanced)</SelectItem>
+                      <SelectItem value="aggressive">Aggressive (Higher risk)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <span className="text-sm">Circuit Breaker</span>
+                  </div>
+                  <Switch checked={circuitBreakerEnabled} onCheckedChange={setCircuitBreakerEnabled} data-testid="switch-circuit-breaker" />
+                </div>
+                
+                {circuitBreakerEnabled && (
+                  <div className="space-y-2 pl-4 border-l-2 border-red-500/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Consecutive losses to trigger</Label>
+                      <span className="font-mono text-red-400 text-sm">{circuitBreakerLosses}</span>
+                    </div>
+                    <Slider value={[circuitBreakerLosses]} onValueChange={([v]) => setCircuitBreakerLosses(v)} min={2} max={10} step={1} data-testid="slider-circuit-losses" />
+                    
+                    <div className="flex items-center justify-between mt-2">
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Timer className="w-3 h-3" />
+                        Cooldown period
+                      </Label>
+                      <span className="font-mono text-amber-400 text-sm">{cooldownMinutes}min</span>
+                    </div>
+                    <Slider value={[cooldownMinutes]} onValueChange={([v]) => setCooldownMinutes(v)} min={15} max={120} step={15} data-testid="slider-cooldown" />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30 mt-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm">Require Confluence</span>
+                  </div>
+                  <Switch checked={requireConfluence} onCheckedChange={setRequireConfluence} data-testid="switch-confluence" />
+                </div>
+                
+                {requireConfluence && (
+                  <div className="space-y-2 pl-4 border-l-2 border-cyan-500/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-muted-foreground">Minimum confluence score</Label>
+                      <span className="font-mono text-cyan-400 text-sm">{minConfluenceScore}%</span>
+                    </div>
+                    <Slider value={[minConfluenceScore]} onValueChange={([v]) => setMinConfluenceScore(v)} min={50} max={95} step={5} data-testid="slider-confluence-score" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Options Strategy Settings */}
+          <Card className="border-cyan-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-cyan-400">
+                <LineChart className="w-4 h-4" />
+                Options Strategy Configuration
+              </CardTitle>
+              <CardDescription className="text-xs">Fine-tune options selection criteria</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Preferred DTE</Label>
+                    <span className="font-mono text-cyan-400 text-sm">{optionsPreferredDte}d</span>
+                  </div>
+                  <Slider value={[optionsPreferredDte]} onValueChange={([v]) => setOptionsPreferredDte(v)} min={1} max={45} step={1} data-testid="slider-preferred-dte" />
+                  <p className="text-[10px] text-muted-foreground">Target days to expiration</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Max DTE</Label>
+                    <span className="font-mono text-amber-400 text-sm">{optionsMaxDte}d</span>
+                  </div>
+                  <Slider value={[optionsMaxDte]} onValueChange={([v]) => setOptionsMaxDte(v)} min={7} max={90} step={7} data-testid="slider-max-dte" />
+                  <p className="text-[10px] text-muted-foreground">Maximum days to expiration</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Min Delta</Label>
+                    <span className="font-mono text-green-400 text-sm">{optionsMinDelta.toFixed(2)}</span>
+                  </div>
+                  <Slider value={[optionsMinDelta * 100]} onValueChange={([v]) => setOptionsMinDelta(v / 100)} min={5} max={50} step={5} data-testid="slider-min-delta" />
+                  <p className="text-[10px] text-muted-foreground">Minimum delta for entries</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Max Delta</Label>
+                    <span className="font-mono text-purple-400 text-sm">{optionsMaxDelta.toFixed(2)}</span>
+                  </div>
+                  <Slider value={[optionsMaxDelta * 100]} onValueChange={([v]) => setOptionsMaxDelta(v / 100)} min={20} max={80} step={5} data-testid="slider-max-delta" />
+                  <p className="text-[10px] text-muted-foreground">Maximum delta for entries</p>
+                </div>
               </div>
 
               {/* Bot Enable Toggles */}
-              <div className="space-y-3 pt-4 border-t border-border/30">
-                <Label className="text-sm">Active Strategies</Label>
+              <div className="mt-6 pt-4 border-t border-border/30">
+                <Label className="text-sm mb-3 block">Active Trading Bots</Label>
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <span className="text-sm">Options Bot</span>
-                    <Badge variant={botPreferences?.enableOptions ? "default" : "secondary"} className={botPreferences?.enableOptions ? "bg-cyan-600" : ""}>
-                      {botPreferences?.enableOptions ? "ON" : "OFF"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <LineChart className="w-4 h-4 text-cyan-400" />
+                      <span className="text-sm">Options Bot</span>
+                    </div>
+                    <Switch checked={enableOptions} onCheckedChange={setEnableOptions} data-testid="switch-options-bot" />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <span className="text-sm">Futures Bot</span>
-                    <Badge variant={botPreferences?.enableFutures ? "default" : "secondary"} className={botPreferences?.enableFutures ? "bg-blue-600" : ""}>
-                      {botPreferences?.enableFutures ? "ON" : "OFF"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      <span className="text-sm">Futures Bot</span>
+                    </div>
+                    <Switch checked={enableFutures} onCheckedChange={setEnableFutures} data-testid="switch-futures-bot" />
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <span className="text-sm">Crypto Bot</span>
-                    <Badge variant={botPreferences?.enableCrypto ? "default" : "secondary"} className={botPreferences?.enableCrypto ? "bg-orange-600" : ""}>
-                      {botPreferences?.enableCrypto ? "ON" : "OFF"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Bitcoin className="w-4 h-4 text-orange-400" />
+                      <span className="text-sm">Crypto Bot</span>
+                    </div>
+                    <Switch checked={enableCrypto} onCheckedChange={setEnableCrypto} data-testid="switch-crypto-bot" />
                   </div>
                 </div>
               </div>
