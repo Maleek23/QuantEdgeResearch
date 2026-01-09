@@ -16,6 +16,7 @@
 import { storage } from './storage';
 import { logger } from './logger';
 import { getLetterGrade, getAcademicGrade } from './grading';
+import { recordSymbolAttention } from './attention-tracking-service';
 import {
   calculateRSI,
   calculateMACD,
@@ -729,6 +730,20 @@ export async function gradeAndUpdateWatchlistItem(itemId: string): Promise<boole
     });
     
     logger.info(`[GRADE] Updated ${item.symbol} with grade ${grade.gradeLetter} (Tier ${grade.tier})`);
+    
+    // 🎯 CONVERGENCE TRACKING: Record high-grade items for heat map
+    if (['S', 'A'].includes(grade.tier)) {
+      try {
+        await recordSymbolAttention(item.symbol, 'watchlist_grade', 'grade', {
+          grade: grade.gradeLetter,
+          confidence: grade.gradeScore,
+          message: `Watchlist grade: ${grade.gradeLetter} (Tier ${grade.tier})`
+        });
+      } catch (err) {
+        // Silently ignore attention tracking errors
+      }
+    }
+    
     return true;
   } catch (error) {
     logger.error(`[GRADE] Failed to grade item ${itemId}:`, error);

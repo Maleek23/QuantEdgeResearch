@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import { eq, desc, and, gte, sql, inArray } from "drizzle-orm";
 import { log } from "./vite";
+import { recordSymbolAttention } from "./attention-tracking-service";
 
 const SEC_EDGAR_BASE_URL = "https://data.sec.gov";
 const USA_SPENDING_BASE_URL = "https://api.usaspending.gov/api/v2";
@@ -170,6 +171,17 @@ export async function fetchSECFilingsForTicker(ticker: string, filingTypes: SECF
       filings.push(inserted);
       
       await createCatalystFromFiling(inserted);
+      
+      // 🎯 CONVERGENCE TRACKING: Record SEC filings for heat map
+      try {
+        await recordSymbolAttention(ticker, 'catalyst_alert', 'alert', {
+          direction: sentiment.sentiment === 'bullish' ? 'bullish' : sentiment.sentiment === 'bearish' ? 'bearish' : undefined,
+          confidence: 50 + sentiment.score,
+          message: `SEC ${formType}: ${sentiment.tags.join(', ')}`
+        });
+      } catch (err) {
+        // Silently ignore attention tracking errors
+      }
       
       log(`[CATALYST] Inserted SEC filing: ${formType} for ${ticker}`, 'intel');
     }

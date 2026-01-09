@@ -9,6 +9,7 @@
 
 import { logger } from './logger';
 import { getFullUniverse } from './ticker-universe';
+import { recordSymbolAttention } from './attention-tracking-service';
 
 // Cache for discovered movers (refreshed every scan)
 let discoveredMovers: Set<string> = new Set();
@@ -208,6 +209,20 @@ export async function discoverMovers(): Promise<DiscoveredMover[]> {
     newDiscoveries.slice(0, 10).forEach(m => {
       logger.info(`  - ${m.symbol}: ${m.changePercent.toFixed(1)}% (${m.source})`);
     });
+  }
+  
+  // 🎯 CONVERGENCE TRACKING: Record significant movers for heat map
+  const significantMovers = allMovers.filter(m => Math.abs(m.changePercent) >= 5 || m.relativeVolume >= 3);
+  for (const mover of significantMovers.slice(0, 20)) {
+    try {
+      await recordSymbolAttention(mover.symbol, 'mover_discovery', 'discovery', {
+        changePercent: mover.changePercent,
+        direction: mover.changePercent >= 0 ? 'bullish' : 'bearish',
+        message: `${mover.source.replace('_', ' ')}: ${mover.changePercent >= 0 ? '+' : ''}${mover.changePercent.toFixed(1)}%`
+      });
+    } catch (err) {
+      // Silently ignore attention tracking errors
+    }
   }
   
   logger.info(`[MOVER-DISCOVERY] Total movers discovered: ${allMovers.length}, New discoveries: ${newDiscoveries.length}`);

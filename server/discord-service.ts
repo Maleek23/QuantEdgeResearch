@@ -587,7 +587,10 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   }
   
   // DEDUPLICATION: Prevent same lotto from being sent multiple times
-  const direction = idea.direction || 'long';
+  // Include option type AND strike to prevent spam of same option
+  const optionTypeLower = ((idea as any).optionType || 'call').toLowerCase();
+  const strikeKey = (idea as any).strikePrice ? `_${(idea as any).strikePrice}` : '';
+  const direction = `${optionTypeLower}${strikeKey}`; // e.g. "put_25" or "call_100"
   const assetType = 'lotto';
   if (!shouldSendTradeIdea(idea.symbol, direction, assetType)) {
     logger.debug(`[DISCORD] Skipped duplicate lotto ${idea.symbol} ${direction} - sent within last 4 hours`);
@@ -643,7 +646,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     
     // Mark as sent to prevent duplicate alerts
     markTradeIdeaSent(idea.symbol, direction, assetType);
-    logger.info(`[DISCORD] Sent lotto: ${idea.symbol} ${direction}`);
+    logger.info(`[DISCORD] Sent lotto: ${idea.symbol} ${optionTypeLower.toUpperCase()}${strikeKey}`);
   } catch (e) {
     logger.warn(`[DISCORD] Lotto notification error: ${e}`);
   }
