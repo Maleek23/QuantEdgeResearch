@@ -91,43 +91,37 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
     // Realistic 3x-5x target (average 4x)
     targetMultiplier = 4;
     dteCategory = '0DTE';
-    logger.info(`[LOTTO] 🔥 0DTE play - using 4x target (${dte}d remaining)`);
+    // Debug level to reduce log verbosity - called per option contract
   } else if (dte <= 2) {
     // 1-2 DTE: Overnight/weekend plays
     // Medium 5x-10x target (average 7x)
     targetMultiplier = 7;
     dteCategory = '1-2DTE';
-    logger.info(`[LOTTO] ⚡ Short-term play - using 7x target (${dte}d remaining)`);
   } else if (dte <= 7) {
     // 3-7 DTE: Full weekly lotto potential
     // High 10x-20x target (average 15x)
     targetMultiplier = 15;
     dteCategory = '3-7DTE';
-    logger.info(`[LOTTO] 🎰 Weekly lotto - using 15x target (${dte}d remaining)`);
   } else if (dte <= 14) {
     // 8-14 DTE: Short swing trade
     // More conservative 2.5x-3x target
     targetMultiplier = 2.5;
     dteCategory = 'swing';
-    logger.info(`[LOTTO] 📊 Short swing - using 2.5x target (${dte}d remaining)`);
   } else if (dte <= 21) {
     // 15-21 DTE: Standard swing trade
     // Conservative 2x target - time is on our side
     targetMultiplier = 2;
     dteCategory = 'swing';
-    logger.info(`[LOTTO] 📊 Swing trade - using 2x target (${dte}d remaining)`);
   } else if (dte <= 30) {
     // 22-30 DTE: Monthly swing
     // Lower target but more time - 1.75x
     targetMultiplier = 1.75;
     dteCategory = 'monthly';
-    logger.info(`[LOTTO] 📈 Monthly swing - using 1.75x target (${dte}d remaining)`);
   } else {
     // 31-45 DTE: Long monthly position
     // Conservative 1.5x target - maximum time
     targetMultiplier = 1.5;
     dteCategory = 'monthly';
-    logger.info(`[LOTTO] 📈 Long monthly - using 1.5x target (${dte}d remaining)`);
   }
   
   const targetPrice = entryPrice * targetMultiplier;

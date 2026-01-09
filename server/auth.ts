@@ -13,7 +13,7 @@ function getJWTSecret(): string {
 
 const JWT_SECRET = getJWTSecret();
 
-const JWT_EXPIRES_IN = '24h'; // Admin sessions last 24 hours
+const JWT_EXPIRES_IN = '7d'; // Admin sessions last 7 days for better cross-device persistence
 
 export interface AdminTokenPayload {
   isAdmin: true;

@@ -1503,11 +1503,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const token = generateAdminToken();
         
         // Set secure HTTP-only cookie (primary auth method)
+        // Use longer expiry (7 days) and lax sameSite for better cross-device persistence
+        const rememberMe = req.body.rememberMe !== false; // Default to remember
         res.cookie('admin_token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+          sameSite: 'lax', // Allow cookie on same-site navigation
+          maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 7 days or 24 hours
         });
         
         logger.info('Admin logged in successfully', { ip: clientIp });
@@ -15182,7 +15184,15 @@ CONSTRAINTS:
         });
       }
       
-      const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      const rawPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      
+      // Deduplicate positions by ID to prevent showing duplicates
+      const seenIds = new Set<string>();
+      const positions = rawPositions.filter(pos => {
+        if (seenIds.has(pos.id)) return false;
+        seenIds.add(pos.id);
+        return true;
+      });
       
       // Update open OPTIONS positions with live prices from Tradier
       const { getOptionQuote } = await import("./tradier-api");
@@ -15247,7 +15257,14 @@ CONSTRAINTS:
       if (futuresPortfolio) {
         // Update futures positions with live prices before returning data
         const { getFuturesPrice } = await import("./futures-data-service");
-        futuresPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
+        const rawFuturesPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
+        // Deduplicate futures positions
+        const seenFuturesIds = new Set<string>();
+        futuresPositions = rawFuturesPositions.filter(pos => {
+          if (seenFuturesIds.has(pos.id)) return false;
+          seenFuturesIds.add(pos.id);
+          return true;
+        });
         
         // Update open futures positions with current prices
         for (const pos of futuresPositions.filter(p => p.status === 'open')) {
@@ -15294,7 +15311,14 @@ CONSTRAINTS:
       let cryptoPositions: any[] = [];
       if (cryptoPortfolio) {
         const { fetchCryptoPrice } = await import("./market-api");
-        cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
+        const rawCryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
+        // Deduplicate crypto positions
+        const seenCryptoIds = new Set<string>();
+        cryptoPositions = rawCryptoPositions.filter(pos => {
+          if (seenCryptoIds.has(pos.id)) return false;
+          seenCryptoIds.add(pos.id);
+          return true;
+        });
         
         // Update open crypto positions with current prices
         for (const pos of cryptoPositions.filter(p => p.status === 'open')) {
@@ -15336,7 +15360,14 @@ CONSTRAINTS:
       let smallAccountStats = null;
       let smallAccountPositions: any[] = [];
       if (smallAccountPortfolio) {
-        smallAccountPositions = await storage.getPaperPositionsByPortfolio(smallAccountPortfolio.id);
+        const rawSmallAccountPositions = await storage.getPaperPositionsByPortfolio(smallAccountPortfolio.id);
+        // Deduplicate small account positions
+        const seenSmallAccountIds = new Set<string>();
+        smallAccountPositions = rawSmallAccountPositions.filter(pos => {
+          if (seenSmallAccountIds.has(pos.id)) return false;
+          seenSmallAccountIds.add(pos.id);
+          return true;
+        });
         
         // Update open Small Account OPTIONS with live prices from Tradier
         for (const pos of smallAccountPositions.filter(p => p.status === 'open' && p.assetType === 'option')) {
@@ -15448,10 +15479,10 @@ CONSTRAINTS:
           futuresPortfolio: futuresStats,
           cryptoPortfolio: cryptoStats,
           smallAccountPortfolio: smallAccountStats,
-          positions: positions.slice(0, 50),
-          futuresPositions: futuresPositions.slice(0, 20),
-          cryptoPositions: cryptoPositions.slice(0, 20),
-          smallAccountPositions: smallAccountPositions.slice(0, 20),
+          positions: positions.slice(0, 200), // Increased to show more historical data
+          futuresPositions: futuresPositions.slice(0, 100),
+          cryptoPositions: cryptoPositions.slice(0, 100),
+          smallAccountPositions: smallAccountPositions.slice(0, 100),
           stats: {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
