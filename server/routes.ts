@@ -33,7 +33,9 @@ import {
   marketDataLimiter,
   adminLimiter,
   researchAssistantLimiter,
-  ideaGenerationOnDemandLimiter
+  ideaGenerationOnDemandLimiter,
+  authLimiter,
+  passwordResetLimiter,
 } from "./rate-limiter";
 import { autoIdeaGenerator } from "./auto-idea-generator";
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
@@ -619,8 +621,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Login - Authenticate existing user
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
+  // Login - Authenticate existing user (with brute force protection)
+  app.post("/api/auth/login", authLimiter, async (req: Request, res: Response) => {
     try {
       const { email, password, rememberMe } = req.body;
       
@@ -691,8 +693,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Password Reset - Request reset email
-  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+  // Password Reset - Request reset email (rate limited to prevent abuse)
+  app.post("/api/auth/forgot-password", passwordResetLimiter, async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
       
@@ -730,7 +732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Password Reset - Reset password with token
+  // Password Reset - Reset password with token (no rate limit - token uniqueness prevents abuse)
   app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
     try {
       const { token, password } = req.body;
@@ -2144,9 +2146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Waitlist entry not found" });
       }
 
-      // Check if already invited
+      // Check if already invited (getBetaInviteByEmail only returns pending/sent invites)
       const existingInvite = await storage.getBetaInviteByEmail(entry.email);
-      if (existingInvite && existingInvite.status !== 'expired' && existingInvite.status !== 'revoked') {
+      if (existingInvite) {
         return res.status(400).json({ error: "Invite already sent to this email" });
       }
 
@@ -2193,9 +2195,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email is required" });
       }
 
-      // Check if already has active invite
+      // Check if already has active invite (getBetaInviteByEmail only returns pending/sent invites)
       const existingInvite = await storage.getBetaInviteByEmail(email);
-      if (existingInvite && existingInvite.status !== 'expired' && existingInvite.status !== 'revoked') {
+      if (existingInvite) {
         return res.status(400).json({ error: "Active invite already exists for this email" });
       }
 
@@ -2332,12 +2334,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "IDs array is required" });
       }
 
-      const results = { sent: 0, failed: 0, errors: [] as string[] };
+      const results = { sent: 0, failed: 0, skipped: 0, errors: [] as string[] };
       const entries = await storage.getAllWaitlistEntries();
 
       for (const id of ids) {
         const entry = entries.find(e => e.id === id);
         if (!entry) continue;
+
+        // Check for existing active invite - skip if already has one (getBetaInviteByEmail only returns pending/sent)
+        const existingInvite = await storage.getBetaInviteByEmail(entry.email);
+        if (existingInvite) {
+          results.skipped++;
+          continue;
+        }
 
         const token = generateInviteToken();
         const expiresAt = new Date();
@@ -2425,12 +2434,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "IDs array is required" });
       }
 
-      const results = { sent: 0, failed: 0, errors: [] as string[] };
+      const results = { sent: 0, failed: 0, skipped: 0, errors: [] as string[] };
       const entries = await storage.getAllWaitlistEntries();
 
       for (const id of ids) {
         const entry = entries.find(e => e.id === id);
         if (!entry) continue;
+
+        // Check for existing active invite - skip if already has one (getBetaInviteByEmail only returns pending/sent)
+        const existingInvite = await storage.getBetaInviteByEmail(entry.email);
+        if (existingInvite) {
+          results.skipped++;
+          continue;
+        }
 
         const token = generateInviteToken();
         const expiresAt = new Date();

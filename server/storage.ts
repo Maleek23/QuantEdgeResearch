@@ -3794,8 +3794,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBetaInviteByEmail(email: string): Promise<BetaInvite | null> {
+    // Return the most recent ACTIVE invite (pending or sent) for this email
+    // This ensures duplicate invite prevention works correctly
     const result = await db.select().from(betaInvites)
-      .where(eq(betaInvites.email, email))
+      .where(and(
+        eq(betaInvites.email, email.toLowerCase().trim()),
+        or(
+          eq(betaInvites.status, 'pending'),
+          eq(betaInvites.status, 'sent')
+        )
+      ))
       .orderBy(desc(betaInvites.createdAt));
     return result[0] || null;
   }

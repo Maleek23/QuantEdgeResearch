@@ -74,6 +74,8 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 const JoinBeta = lazy(() => import("@/pages/join-beta"));
 const InviteWelcome = lazy(() => import("@/pages/invite-welcome"));
 const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
+const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
 
 function PageLoader() {
   return (
@@ -127,6 +129,8 @@ function Router() {
       <Route path="/historical-intelligence" component={withBetaProtection(HistoricalIntelligence)} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/join-beta" component={JoinBeta} />
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />

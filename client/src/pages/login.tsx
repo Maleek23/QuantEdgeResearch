@@ -241,18 +241,25 @@ export default function Login() {
                   control={form.control}
                   name="rememberMe"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="border-slate-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-                          data-testid="checkbox-remember-me"
-                        />
-                      </FormControl>
-                      <FormLabel className="text-sm text-slate-400 font-normal cursor-pointer">
-                        Remember me for 30 days
-                      </FormLabel>
+                    <FormItem className="flex flex-row items-center justify-between space-y-0">
+                      <div className="flex flex-row items-center space-x-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            className="border-slate-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                            data-testid="checkbox-remember-me"
+                          />
+                        </FormControl>
+                        <FormLabel className="text-sm text-slate-400 font-normal cursor-pointer">
+                          Remember me
+                        </FormLabel>
+                      </div>
+                      <Link href="/forgot-password">
+                        <span className="text-sm text-cyan-400 hover:text-cyan-300 cursor-pointer" data-testid="link-forgot-password">
+                          Forgot password?
+                        </span>
+                      </Link>
                     </FormItem>
                   )}
                 />

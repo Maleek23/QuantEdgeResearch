@@ -148,3 +148,48 @@ export const ideaGenerationOnDemandLimiter = rateLimit({
     });
   },
 });
+
+// Auth rate limiter - Strict limits to prevent brute force attacks
+// 5 login attempts per 15 minutes per IP
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: 'Too many login attempts. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  skipSuccessfulRequests: true, // Only count failed attempts
+  handler: (req, res) => {
+    logger.warn('Auth rate limit exceeded - potential brute force', {
+      ip: req.ip,
+      path: req.path,
+      email: req.body?.email,
+    });
+    res.status(429).json({
+      error: 'Too many login attempts',
+      message: 'You have exceeded the login attempt limit. Please wait 15 minutes before trying again.',
+      retryAfter: Math.ceil(15 * 60 * 1000 / 1000),
+    });
+  },
+});
+
+// Password reset rate limiter - 3 requests per hour to prevent abuse
+export const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: 'Too many password reset requests. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  handler: (req, res) => {
+    logger.warn('Password reset rate limit exceeded', {
+      ip: req.ip,
+      email: req.body?.email,
+    });
+    res.status(429).json({
+      error: 'Too many reset requests',
+      message: 'You have exceeded the password reset limit. Please try again in an hour.',
+      retryAfter: Math.ceil(60 * 60 * 1000 / 1000),
+    });
+  },
+});
