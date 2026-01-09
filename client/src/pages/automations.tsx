@@ -680,11 +680,32 @@ export default function AutomationsPage() {
     },
   });
 
-  // Only show loading spinner on INITIAL load, not during refetches (prevents flickering)
-  if (isPending && !status) {
+  // Show loading spinner during initial load OR when no data is available
+  // This prevents blank screen scenarios when API returns cached/empty response
+  if (isPending || (!status && !botData && !cryptoData)) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
+        <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
+          {/* Loading Header Skeleton */}
+          <div className="rounded-xl bg-slate-900/60 backdrop-blur-md border border-slate-700/50 p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-64" />
+                <Skeleton className="h-4 w-96" />
+              </div>
+              <Skeleton className="h-8 w-24" />
+            </div>
+          </div>
+          {/* Loading Tabs Skeleton */}
+          <Skeleton className="h-12 w-full max-w-md" />
+          {/* Loading Content Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40" />)}
+          </div>
+          <div className="flex items-center justify-center pt-8">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+          </div>
+        </div>
       </div>
     );
   }
