@@ -1098,4 +1098,47 @@
       transition: none !important;
     }
   }
+
+  /* Layout Density Classes */
+  .density-compact {
+    --density-spacing: 0.5rem;
+    --density-padding: 0.75rem;
+    --density-gap: 0.5rem;
+    --density-text-sm: 0.75rem;
+    --density-text-base: 0.875rem;
+  }
+
+  .density-comfortable {
+    --density-spacing: 1rem;
+    --density-padding: 1rem;
+    --density-gap: 0.75rem;
+    --density-text-sm: 0.875rem;
+    --density-text-base: 1rem;
+  }
+
+  .density-spacious {
+    --density-spacing: 1.5rem;
+    --density-padding: 1.5rem;
+    --density-gap: 1rem;
+    --density-text-sm: 0.875rem;
+    --density-text-base: 1.125rem;
+  }
+
+  .density-compact .card-content,
+  .density-compact .panel-content {
+    padding: var(--density-padding);
+  }
+
+  .density-compact .grid-gap {
+    gap: var(--density-gap);
+  }
+
+  .density-spacious .card-content,
+  .density-spacious .panel-content {
+    padding: var(--density-padding);
+  }
+
+  .density-spacious .grid-gap {
+    gap: var(--density-gap);
+  }
 }

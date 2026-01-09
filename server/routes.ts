@@ -12020,6 +12020,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User-Specific Preferences (for logged-in users)
+  app.get("/api/user/:userId/preferences", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const prefs = await storage.getUserPreferencesByUserId(userId);
+      if (!prefs) {
+        // Return defaults if no preferences exist yet
+        return res.json({
+          layoutDensity: 'comfortable',
+          sidebarCollapsed: false,
+          dashboardPreset: 'default',
+          favoritePages: [],
+          theme: 'dark',
+          compactMode: false,
+        });
+      }
+      res.json(prefs);
+    } catch (error) {
+      console.error("User preferences fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch user preferences" });
+    }
+  });
+
+  app.patch("/api/user/:userId/preferences", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const validated = insertUserPreferencesSchema.partial().parse(req.body);
+      const prefs = await storage.updateUserPreferencesByUserId(userId, validated);
+      res.json(prefs);
+    } catch (error: any) {
+      console.error("User preferences update error:", error);
+      res.status(400).json({ 
+        error: "Invalid preferences data",
+        details: error.message || error.toString()
+      });
+    }
+  });
+
+  // User Page Layouts API
+  app.get("/api/user/:userId/layouts", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const layouts = await storage.getUserPageLayouts(userId);
+      res.json(layouts);
+    } catch (error) {
+      console.error("Layouts fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch layouts" });
+    }
+  });
+
+  app.get("/api/user/:userId/layouts/:pageId", async (req, res) => {
+    try {
+      const { userId, pageId } = req.params;
+      const layout = await storage.getUserPageLayout(userId, pageId);
+      if (!layout) {
+        return res.status(404).json({ error: "Layout not found" });
+      }
+      res.json(layout);
+    } catch (error) {
+      console.error("Layout fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch layout" });
+    }
+  });
+
+  app.put("/api/user/:userId/layouts/:pageId", async (req, res) => {
+    try {
+      const { userId, pageId } = req.params;
+      const layout = await storage.saveUserPageLayout({
+        userId,
+        pageId,
+        layoutName: req.body.layoutName || 'default',
+        widgets: req.body.widgets || [],
+        columns: req.body.columns || 12,
+        rowHeight: req.body.rowHeight || 60,
+        panelSizes: req.body.panelSizes || null,
+        isDefault: req.body.isDefault || false,
+      });
+      res.json(layout);
+    } catch (error: any) {
+      console.error("Layout save error:", error);
+      res.status(400).json({ 
+        error: "Failed to save layout",
+        details: error.message || error.toString()
+      });
+    }
+  });
+
+  app.delete("/api/user/:userId/layouts/:pageId", async (req, res) => {
+    try {
+      const { userId, pageId } = req.params;
+      await storage.deleteUserPageLayout(userId, pageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Layout delete error:", error);
+      res.status(500).json({ error: "Failed to delete layout" });
+    }
+  });
+
+  // Layout Presets (admin-defined templates)
+  app.get("/api/layout-presets/:pageId", async (req, res) => {
+    try {
+      const { pageId } = req.params;
+      const presets = await storage.getLayoutPresets(pageId);
+      res.json(presets);
+    } catch (error) {
+      console.error("Presets fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch presets" });
+    }
+  });
+
   // Quantitative Analysis for Single Symbol
   app.get("/api/quant/analyze/:symbol", async (req, res) => {
     try {

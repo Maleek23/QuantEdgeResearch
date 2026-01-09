@@ -20,6 +20,8 @@ import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { BotNotificationPopup } from "@/components/bot-notification-popup";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/protected-route";
+import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
+import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -282,6 +284,7 @@ function AuthHeader() {
             </Tooltip>
           </>
         )}
+        <PersonalizationToolbar compact className="hidden sm:flex" />
         <ThemeToggle />
       </div>
     </header>
@@ -324,16 +327,18 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
           <RealtimePricesProvider>
-            <ScrollParticles />
-            <SidebarProvider style={style as React.CSSProperties}>
-              <div className="flex h-screen w-full">
-                <AppSidebar />
-                <MainContentWrapper />
-              </div>
-            </SidebarProvider>
-            <AIChatbotPopup />
-            <BotNotificationPopup />
-            <Toaster />
+            <PreferencesProvider>
+              <ScrollParticles />
+              <SidebarProvider style={style as React.CSSProperties}>
+                <div className="flex h-screen w-full">
+                  <AppSidebar />
+                  <MainContentWrapper />
+                </div>
+              </SidebarProvider>
+              <AIChatbotPopup />
+              <BotNotificationPopup />
+              <Toaster />
+            </PreferencesProvider>
           </RealtimePricesProvider>
         </TooltipProvider>
       </ThemeProvider>
