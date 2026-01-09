@@ -2412,3 +2412,85 @@ export const layoutPresets = pgTable("layout_presets", {
 export const insertLayoutPresetSchema = createInsertSchema(layoutPresets).omit({ id: true, createdAt: true });
 export type InsertLayoutPreset = z.infer<typeof insertLayoutPresetSchema>;
 export type LayoutPreset = typeof layoutPresets.$inferSelect;
+
+// ==========================================
+// BULLISH TREND TRACKER
+// ==========================================
+
+export type TrendStrength = 'weak' | 'moderate' | 'strong' | 'explosive';
+export type TrendPhase = 'accumulation' | 'breakout' | 'momentum' | 'distribution';
+export type TrendCategory = 'growth' | 'turnaround' | 'momentum' | 'speculative' | 'sector_rotation';
+
+// Bullish Trends - Tracked momentum stocks with technical indicators
+export const bullishTrends = pgTable("bullish_trends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull(),
+  name: varchar("name"),
+  sector: varchar("sector"),
+  category: text("category").$type<TrendCategory>().default('momentum'),
+  
+  // Current Price Data
+  currentPrice: real("current_price"),
+  previousClose: real("previous_close"),
+  dayChange: real("day_change"),
+  dayChangePercent: real("day_change_percent"),
+  weekChangePercent: real("week_change_percent"),
+  monthChangePercent: real("month_change_percent"),
+  
+  // Technical Indicators
+  rsi14: real("rsi_14"),
+  rsi2: real("rsi_2"),
+  macdSignal: varchar("macd_signal"), // 'bullish_cross', 'bearish_cross', 'bullish', 'bearish'
+  
+  // Moving Averages
+  sma20: real("sma_20"),
+  sma50: real("sma_50"),
+  sma200: real("sma_200"),
+  priceVsSma20: real("price_vs_sma_20"), // Percent above/below
+  priceVsSma50: real("price_vs_sma_50"),
+  priceVsSma200: real("price_vs_sma_200"),
+  
+  // Volume Analysis
+  currentVolume: real("current_volume"),
+  avgVolume: real("avg_volume"),
+  volumeRatio: real("volume_ratio"), // Current vs Avg
+  
+  // Momentum Metrics
+  trendStrength: text("trend_strength").$type<TrendStrength>().default('moderate'),
+  trendPhase: text("trend_phase").$type<TrendPhase>().default('momentum'),
+  momentumScore: integer("momentum_score"), // 0-100 composite score
+  
+  // Key Levels
+  week52High: real("week_52_high"),
+  week52Low: real("week_52_low"),
+  percentFrom52High: real("percent_from_52_high"),
+  percentFrom52Low: real("percent_from_52_low"),
+  resistanceLevel: real("resistance_level"),
+  supportLevel: real("support_level"),
+  
+  // Classification
+  isBreakout: boolean("is_breakout").default(false), // Breaking out of resistance
+  isHighVolume: boolean("is_high_volume").default(false), // Volume > 2x average
+  isAboveMAs: boolean("is_above_mas").default(false), // Above all major MAs
+  isNewHigh: boolean("is_new_high").default(false), // Near 52-week high
+  
+  // User Management
+  addedManually: boolean("added_manually").default(false),
+  addedBy: varchar("added_by"), // User ID if manually added
+  notes: text("notes"),
+  
+  // Alerts
+  alertSent: boolean("alert_sent").default(false),
+  lastAlertDate: timestamp("last_alert_date"),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  discoveredAt: timestamp("discovered_at").defaultNow(),
+  lastScannedAt: timestamp("last_scanned_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBullishTrendSchema = createInsertSchema(bullishTrends).omit({ id: true, createdAt: true, updatedAt: true, discoveredAt: true });
+export type InsertBullishTrend = z.infer<typeof insertBullishTrendSchema>;
+export type BullishTrend = typeof bullishTrends.$inferSelect;
