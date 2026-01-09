@@ -1292,6 +1292,13 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
     return;
   }
   
+  // DEDUPLICATION: Prevent same symbol/optionType/strike from being sent multiple times
+  const direction = trade.optionType === 'call' ? 'long' : 'short';
+  if (!shouldSendTradeIdea(trade.symbol, direction, 'option', trade.optionType, trade.strikePrice)) {
+    logger.info(`[DISCORD] ⏭️ Skipped duplicate premium alert: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} - sent within last 4 hours`);
+    return;
+  }
+  
   // Premium options alerts go to OPTIONSTRADES channel, not QUANTFLOOR
   const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
@@ -1421,6 +1428,8 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
       }),
     });
     
+    // Mark as sent to prevent duplicate alerts (4-hour cooldown)
+    markTradeIdeaSent(trade.symbol, direction, 'option', trade.optionType, trade.strikePrice);
     logger.info(`[DISCORD] Sent premium options alert: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} [${trade.grade}] - ${directionReason}`);
   } catch (e) {
     logger.error(`[DISCORD] Failed to send premium options alert: ${e}`);
