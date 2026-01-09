@@ -78,136 +78,84 @@ ${APP_NAME} - For Educational & Research Purposes Only
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Beta Invitation - ${APP_NAME}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #050b16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  
-  <!-- Main wrapper - minimal top padding -->
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #050b16; padding: 16px 20px;">
+<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0a; padding: 48px 24px;">
     <tr>
       <td align="center">
-        
-        <!-- Main email card -->
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(180deg, #0a1628 0%, #050b16 100%); border-radius: 16px; border: 1px solid rgba(6, 182, 212, 0.15); overflow: hidden;">
+        <table width="520" cellpadding="0" cellspacing="0" style="max-width: 520px;">
           
-          <!-- Logo Header - First thing visible -->
+          <!-- Logo -->
           <tr>
-            <td style="padding: 28px 40px 20px; text-align: center;">
-              <!-- Stylized Q Logo Mark -->
-              <table cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
-                <tr>
-                  <td style="width: 64px; height: 64px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%); border-radius: 14px; text-align: center; vertical-align: middle; box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);">
-                    <span style="font-size: 36px; font-weight: 900; color: #ffffff; font-family: Arial, sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Q</span>
-                  </td>
-                </tr>
-              </table>
-              <!-- Brand Name - Large and prominent -->
-              <h1 style="margin: 0 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: #22d3ee; font-family: Arial, sans-serif;">
-                QUANT EDGE
-              </h1>
-              <p style="color: #3b82f6; font-size: 16px; font-weight: 600; margin: 0 0 8px; letter-spacing: 4px; font-family: Arial, sans-serif;">LABS</p>
-              <p style="color: #64748b; font-size: 11px; margin: 0; letter-spacing: 1px;">Multiple Engines, One Edge</p>
+            <td style="padding: 0 0 32px; text-align: center;">
+              <span style="font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">QUANT EDGE</span>
+              <span style="color: #525252; margin: 0 8px;">|</span>
+              <span style="font-size: 14px; font-weight: 500; color: #737373; letter-spacing: 2px;">LABS</span>
             </td>
           </tr>
 
-          <!-- Exclusive Badge -->
+          <!-- Main Content Card -->
           <tr>
-            <td style="padding: 0 40px 20px; text-align: center;">
-              <span style="display: inline-block; background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%); border: 1px solid rgba(6, 182, 212, 0.25); color: #22d3ee; padding: 10px 24px; border-radius: 50px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Exclusive Beta Access</span>
-            </td>
-          </tr>
-
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 0 40px 24px;">
-              <h2 style="color: #f1f5f9; font-size: 28px; font-weight: 700; margin: 0 0 16px; text-align: center;">
+            <td style="background: #141414; border: 1px solid #262626; border-radius: 12px; padding: 40px;">
+              
+              <!-- Header -->
+              <h1 style="color: #fafafa; font-size: 24px; font-weight: 600; margin: 0 0 8px; text-align: center;">
                 You're Invited
-              </h2>
-              
-              ${tierBadge ? `<div style="text-align: center; margin-bottom: 16px;">${tierBadge}</div>` : ''}
-              
-              <p style="color: #94a3b8; font-size: 15px; line-height: 1.6; margin: 0; text-align: center;">
-                You've been selected to join the exclusive beta of our institutional-grade quantitative trading research platform.
+              </h1>
+              <p style="color: #737373; font-size: 14px; margin: 0 0 32px; text-align: center;">
+                Join the beta of our quantitative trading platform.
               </p>
               
+              ${tierBadge ? `<div style="text-align: center; margin-bottom: 24px;">${tierBadge}</div>` : ''}
+              
               ${options?.personalMessage ? `
-              <div style="background: rgba(6, 182, 212, 0.08); border-left: 3px solid #06b6d4; padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 20px 0 0;">
-                <p style="color: #64748b; font-size: 10px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Personal Note</p>
-                <p style="color: #e2e8f0; font-size: 14px; margin: 0; font-style: italic;">"${options.personalMessage}"</p>
+              <div style="background: #1a1a1a; border-left: 2px solid #22d3ee; padding: 16px; margin: 0 0 24px;">
+                <p style="color: #a3a3a3; font-size: 13px; margin: 0; font-style: italic;">"${options.personalMessage}"</p>
               </div>
               ` : ''}
-            </td>
-          </tr>
 
-          <!-- CTA Button -->
-          <tr>
-            <td style="padding: 0 40px 28px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px;">
                 <tr>
                   <td align="center">
-                    <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: #ffffff; text-decoration: none; padding: 16px 44px; border-radius: 10px; font-size: 15px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(6, 182, 212, 0.35);">
+                    <a href="${inviteLink}" style="display: inline-block; background: #22d3ee; color: #0a0a0a; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 14px; font-weight: 600;">
                       Accept Invitation
                     </a>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
 
-          <!-- Features - Compact -->
-          <tr>
-            <td style="padding: 0 40px 24px;">
-              <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(51, 65, 85, 0.4); border-radius: 12px; padding: 20px;">
-                <p style="color: #94a3b8; font-size: 11px; font-weight: 600; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">What You Get</p>
-                <table width="100%" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td style="padding: 6px 0; color: #cbd5e1; font-size: 13px;">
-                      <span style="color: #22d3ee; margin-right: 8px;">&#10003;</span> AI Analysis (Claude, GPT-4, Gemini)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: #cbd5e1; font-size: 13px;">
-                      <span style="color: #22d3ee; margin-right: 8px;">&#10003;</span> Quantitative Signals (RSI, VWAP, ADX)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: #cbd5e1; font-size: 13px;">
-                      <span style="color: #22d3ee; margin-right: 8px;">&#10003;</span> Real-Time Chart Pattern Detection
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: #cbd5e1; font-size: 13px;">
-                      <span style="color: #22d3ee; margin-right: 8px;">&#10003;</span> Professional Trading Journal
-                    </td>
-                  </tr>
-                </table>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Fallback Link -->
-          <tr>
-            <td style="padding: 0 40px 20px; text-align: center;">
-              <p style="color: #475569; font-size: 11px; margin: 0;">
-                Can't click? Copy: <span style="color: #06b6d4; word-break: break-all;">${inviteLink}</span>
-              </p>
+              <!-- Features -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #262626; padding-top: 24px;">
+                <tr>
+                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
+                    <span style="color: #22d3ee; margin-right: 12px;">+</span>AI-powered analysis
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
+                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Quantitative signals
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
+                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Chart pattern detection
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
+                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Trading journal
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 20px 40px; background: rgba(0, 0, 0, 0.15); border-top: 1px solid rgba(51, 65, 85, 0.25);">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center">
-                    <p style="color: #64748b; font-size: 12px; margin: 0 0 8px;">
-                      Expires in <span style="color: #22d3ee;">7 days</span> &bull; 
-                      <a href="https://discord.gg/3QF8QEKkYq" style="color: #06b6d4; text-decoration: none;">Join Discord</a>
-                    </p>
-                    <p style="color: #334155; font-size: 10px; margin: 0;">
-                      ${APP_NAME} &bull; Educational & Research Only
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding: 24px 0 0; text-align: center;">
+              <p style="color: #525252; font-size: 12px; margin: 0;">
+                Expires in 7 days
+              </p>
             </td>
           </tr>
 

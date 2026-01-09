@@ -87,7 +87,7 @@ export default function JoinBeta() {
     const params = new URLSearchParams(search);
     const code = params.get("code") || params.get("invite");
     if (code) {
-      verifyForm.setValue("token", code.toUpperCase());
+      verifyForm.setValue("token", code.trim());
     }
   }, [search, verifyForm]);
 
@@ -109,7 +109,10 @@ export default function JoinBeta() {
 
   const verifyMutation = useMutation({
     mutationFn: async (data: VerifyCodeForm) => {
-      const response = await apiRequest("POST", "/api/beta/verify-code", data);
+      const response = await apiRequest("POST", "/api/beta/verify-code", {
+        email: data.email.trim().toLowerCase(),
+        token: data.token.trim().toLowerCase(),
+      });
       return response.json();
     },
     onSuccess: (data) => {

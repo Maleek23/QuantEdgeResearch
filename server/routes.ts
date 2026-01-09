@@ -965,7 +965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const emailLower = email.toLowerCase().trim();
-      const sanitizedToken = token.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const sanitizedToken = token.trim().toLowerCase();
       
       // Find the invite by token
       const invite = await storage.getBetaInviteByToken(sanitizedToken);
