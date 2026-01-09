@@ -3,9 +3,83 @@ import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
 import { isOptionsMarketOpen } from './paper-trading-service';
+import { formatInTimeZone } from 'date-fns-tz';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
+
+// OPTIONS PLAY RELEVANCE VALIDATION
+// Prevents sending outdated, expired, or stale options alerts
+interface OptionPlayValidation {
+  symbol: string;
+  expiryDate?: string | null;
+  strikePrice?: number | null;
+  optionType?: string | null;
+  entryPrice?: number;
+  generatedAt?: Date | string;
+  assetType?: string | null;
+}
+
+function isOptionPlayStillRelevant(play: OptionPlayValidation): { valid: boolean; reason: string } {
+  const now = new Date();
+  const chicagoTime = formatInTimeZone(now, 'America/Chicago', 'HH:mm');
+  const [hours, mins] = chicagoTime.split(':').map(Number);
+  const marketMinutes = hours * 60 + mins;
+  
+  // Market hours in minutes: 8:30 AM = 510, 3:00 PM = 900
+  const MARKET_OPEN = 8 * 60 + 30;  // 8:30 AM CT
+  const MARKET_CLOSE = 15 * 60;      // 3:00 PM CT
+  const SAFE_0DTE_CUTOFF = MARKET_OPEN + 60; // First hour only for 0 DTE
+  
+  // Check 1: Only validate options
+  if (play.assetType && play.assetType !== 'option') {
+    return { valid: true, reason: 'Not an option, no expiry validation needed' };
+  }
+  
+  // Check 2: Expired options - never send
+  if (play.expiryDate) {
+    const expiry = new Date(play.expiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    
+    if (expiry < today) {
+      return { valid: false, reason: `Option expired on ${play.expiryDate}` };
+    }
+    
+    // Check 3: 0 DTE plays - only valid before market open + 1 hour
+    const isToday = expiry.getTime() === today.getTime();
+    if (isToday) {
+      // 0 DTE: Only send in pre-market or first hour of trading
+      if (marketMinutes > SAFE_0DTE_CUTOFF) {
+        return { valid: false, reason: `0 DTE option after ${Math.floor(SAFE_0DTE_CUTOFF / 60)}:${(SAFE_0DTE_CUTOFF % 60).toString().padStart(2, '0')} CT cutoff` };
+      }
+      
+      // 0 DTE after 2 PM - absolutely never
+      if (marketMinutes >= 14 * 60) {
+        return { valid: false, reason: '0 DTE option too close to expiry (after 2 PM)' };
+      }
+    }
+  }
+  
+  // Check 4: Worthless options - don't send if price is too low
+  const minPrice = 0.05; // $5 minimum for options
+  if (play.entryPrice !== undefined && play.entryPrice < minPrice) {
+    return { valid: false, reason: `Option price $${play.entryPrice} below $${minPrice} minimum` };
+  }
+  
+  // Check 5: Stale plays - don't send if generated more than 30 minutes ago
+  if (play.generatedAt) {
+    const generatedTime = new Date(play.generatedAt);
+    const ageMinutes = (now.getTime() - generatedTime.getTime()) / (1000 * 60);
+    
+    if (ageMinutes > 30) {
+      return { valid: false, reason: `Play is ${Math.round(ageMinutes)} minutes old (max 30 min)` };
+    }
+  }
+  
+  return { valid: true, reason: 'Play passes all relevance checks' };
+}
 
 // STRICT MODE - Only allow premium A/A+ alerts through
 // Disables: batch summaries, market movers, flow alerts to QUANTFLOOR
@@ -132,6 +206,21 @@ export async function sendBotTradeEntryToDiscord(trade: {
   signals?: string[] | null;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
+
+  // RELEVANCE CHECK: Validate option play is still actionable (not expired, not stale, not 0 DTE after cutoff)
+  const relevanceCheck = isOptionPlayStillRelevant({
+    symbol: trade.symbol,
+    expiryDate: trade.expiryDate,
+    strikePrice: trade.strikePrice,
+    optionType: trade.optionType,
+    entryPrice: trade.entryPrice,
+    assetType: trade.assetType,
+  });
+  
+  if (!relevanceCheck.valid) {
+    logger.info(`[DISCORD] ⛔ BLOCKED outdated alert: ${trade.symbol} ${trade.optionType} $${trade.strikePrice} - ${relevanceCheck.reason}`);
+    return;
+  }
 
   // STRICT GRADE FILTER: Only A/A+ bot entries go to Discord
   const grade = trade.confidence ? getLetterGrade(trade.confidence) : 'D';
@@ -376,6 +465,24 @@ export function meetsQualityThreshold(idea: any): boolean {
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
   
+  // RELEVANCE CHECK: Validate option play is still actionable
+  if (idea.assetType === 'option') {
+    const relevanceCheck = isOptionPlayStillRelevant({
+      symbol: idea.symbol,
+      expiryDate: (idea as any).expiryDate || (idea as any).expiry,
+      strikePrice: (idea as any).strikePrice || (idea as any).strike,
+      optionType: (idea as any).optionType,
+      entryPrice: idea.entryPrice,
+      assetType: idea.assetType,
+      generatedAt: idea.timestamp,
+    });
+    
+    if (!relevanceCheck.valid) {
+      logger.info(`[DISCORD] ⛔ BLOCKED outdated trade idea: ${idea.symbol} - ${relevanceCheck.reason}`);
+      return;
+    }
+  }
+  
   // STRICT GRADE FILTER: Only A/A+ trades go to Discord
   const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
   if (!VALID_DISCORD_GRADES.includes(grade)) {
@@ -448,6 +555,22 @@ export async function sendChartAnalysisToDiscord(analysis: any): Promise<boolean
 
 export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
+  
+  // RELEVANCE CHECK: Validate lotto option is still actionable (critical for 0 DTE plays)
+  const relevanceCheck = isOptionPlayStillRelevant({
+    symbol: idea.symbol,
+    expiryDate: (idea as any).expiryDate || (idea as any).expirationDate,
+    strikePrice: (idea as any).strikePrice,
+    optionType: (idea as any).optionType,
+    entryPrice: idea.entryPrice,
+    assetType: 'option',
+    generatedAt: idea.timestamp,
+  });
+  
+  if (!relevanceCheck.valid) {
+    logger.info(`[DISCORD] ⛔ BLOCKED outdated lotto: ${idea.symbol} - ${relevanceCheck.reason}`);
+    return;
+  }
   
   // STRICT GRADE FILTER: Only A/A+ lotto trades go to Discord
   const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
@@ -1080,6 +1203,21 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   directionReason?: string;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
+  
+  // RELEVANCE CHECK: Validate option play is still actionable (critical - prevents 0 DTE after cutoff)
+  const relevanceCheck = isOptionPlayStillRelevant({
+    symbol: trade.symbol,
+    expiryDate: trade.expiryDate,
+    strikePrice: trade.strikePrice,
+    optionType: trade.optionType,
+    entryPrice: trade.entryPrice,
+    assetType: 'option',
+  });
+  
+  if (!relevanceCheck.valid) {
+    logger.info(`[DISCORD] ⛔ BLOCKED outdated premium alert: ${trade.symbol} ${trade.optionType} $${trade.strikePrice} - ${relevanceCheck.reason}`);
+    return;
+  }
   
   // Only send A+ and A grades with this premium format
   if (!['A+', 'A'].includes(trade.grade)) {
