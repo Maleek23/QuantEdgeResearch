@@ -15,7 +15,17 @@ This document provides a comprehensive reference of ALL calculations, scoring sy
 8. [Timing Intelligence](#timing-intelligence)
 9. [Loss Analysis](#loss-analysis)
 10. [ML Intelligence](#ml-intelligence)
-11. [Orphaned/Underutilized Features](#orphanedunderutilized-features)
+11. [Auto-Lotto Bot](#auto-lotto-bot)
+12. [Scanners](#scanners)
+13. [Risk Engine (Advanced)](#risk-engine-advanced)
+14. [Quantitative Engine](#quantitative-engine)
+15. [ADX Momentum Detection](#adx-momentum-detection)
+16. [VIX-Based Signal Filtering](#vix-based-signal-filtering)
+17. [Weekly Signal Recalibration](#weekly-signal-recalibration)
+18. [Correlation Position Caps](#correlation-position-caps)
+19. [Options Analysis](#options-analysis)
+20. [Backtesting Service](#backtesting-service)
+21. [Orphaned/Underutilized Features](#orphanedunderutilized-features)
 
 ---
 
@@ -725,6 +735,427 @@ if (lossStreak >= 3) {
 ML predictions boost/reduce confidence:
 - Aligned direction: +20 points
 - Opposite direction: -20 points
+
+---
+
+## Auto-Lotto Bot
+
+**Source File:** `server/auto-lotto-trader.ts`
+
+### Overview
+
+The Auto-Lotto Bot is an autonomous trading system that scans markets, analyzes opportunities, and executes trades based on configurable preferences and risk controls.
+
+### Kill Switches (Environment Variables)
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `ENABLE_AUTO_LOTTO` | `true` | Master kill switch for options bot |
+| `ENABLE_CRYPTO_BOT` | `true` | Kill switch for crypto trading |
+| `ENABLE_FUTURES_BOT` | `true` | Kill switch for futures trading |
+| `ENABLE_ML_PREDICTIONS` | `true` | Enable/disable ML confidence adjustments |
+| `ENABLE_VIX_FILTERING` | `true` | Enable/disable VIX-based signal filtering |
+
+### Entry Logic
+
+1. **Session Gating**: Check if current trading session is favorable
+2. **Market Context**: Analyze SPY/QQQ/VIX for overall conditions
+3. **Portfolio Check**: Verify available cash and position limits
+4. **Signal Scanning**: Scan top movers for confluence
+5. **Confidence Calculation**: Apply ML + VIX adjustments
+6. **Entry Gate**: Validate via Unified Entry Gate System
+
+### Entry Requirements
+
+| Parameter | Conservative | Moderate | Aggressive |
+|-----------|--------------|----------|------------|
+| Min Confidence | 85% | 80% | 75% |
+| Min R:R Ratio | 1.5 | 1.0 | 0.8 |
+| Max Position Size | $300 | $500 | $750 |
+| Max Concurrent | 15 | 20 | 30 |
+
+### DTE-Aware Exit Strategy
+
+| DTE Range | Stop-Loss | Profit Target | Action |
+|-----------|-----------|---------------|--------|
+| 0 DTE | -15% | +25% | Aggressive stops |
+| 1-2 DTE | -20% | +40% | Moderate stops |
+| 3-5 DTE | -25% | +50% | Standard stops |
+| 6+ DTE | -30% | +75% | Wide stops |
+
+### Risk Controls
+
+- **Daily Loss Limit**: Stops trading after $2000 daily loss
+- **Consecutive Loss Guard**: Pauses after 3 consecutive losses
+- **Correlation Caps**: Max 3 positions per sector
+- **Position Size Limits**: Max 10% of portfolio per trade
+
+---
+
+## Scanners
+
+### Breakout Scanner
+
+**Source File:** `server/breakout-scanner.ts`
+
+Detects resistance/support level breaks with volume confirmation.
+
+**Detection Logic:**
+```
+Breakout = (CurrentPrice > Resistance × 1.02) AND (Volume > Avg × 1.5)
+Breakdown = (CurrentPrice < Support × 0.98) AND (Volume > Avg × 1.5)
+```
+
+**Confirmation Requirements:**
+- Price must break level by at least 2%
+- Volume must be 1.5x average
+- Consecutive close above/below level preferred
+
+### Bullish Trend Scanner
+
+**Source File:** `server/bullish-trend-scanner.ts`
+
+Identifies stocks in momentum phases using phase analysis.
+
+**Phase Classification:**
+| Phase | Criteria | Score |
+|-------|----------|-------|
+| Accumulation | Low volume, price basing | +5 |
+| Markup | Price rising, volume increasing | +15 |
+| Distribution | High volume, price stalling | -5 |
+| Decline | Price falling, selling pressure | -15 |
+
+**Momentum Score:**
+```
+MomentumScore = (RSI_Signal × 2) + (MACD_Signal × 2) + (ADX_Signal × 1.5) + PhaseBonus
+```
+
+### Market Scanner
+
+**Source File:** `server/market-scanner.ts`
+
+Scans for day trade and swing opportunities with universe expansion.
+
+**Modes:**
+- **Day Trade**: High volatility, RSI extremes, volume spikes
+- **Swing**: Trend continuation, breakouts, support bounces
+
+**Universe Selection:**
+- Static ticker list (800+ symbols)
+- Dynamic mover discovery (real-time gainers/losers)
+- Combined for comprehensive coverage
+
+### Mover Discovery
+
+**Source File:** `server/mover-discovery.ts`
+
+Fetches real-time most-active stocks from Yahoo Finance.
+
+**Schedule:** Every 15 minutes during market hours (8 AM - 5 PM CT)
+
+**Criteria:**
+- Top gainers (>5% daily move)
+- Top losers (<-5% daily move)
+- Volume leaders (>5x average)
+
+### Options Flow Scanner
+
+**Source File:** `server/options-flow-scanner.ts`
+
+Detects unusual options activity indicating institutional interest.
+
+**Detection Thresholds:**
+| Metric | Threshold | Weight |
+|--------|-----------|--------|
+| Premium | >$100K | +15 |
+| OI vs Volume | Vol > 2x OI | +10 |
+| Sweep | >5 exchanges | +12 |
+| Near ITM | Delta 0.4-0.6 | +8 |
+
+---
+
+## Risk Engine (Advanced)
+
+**Source File:** `server/risk-engine.ts`
+
+### Value at Risk (VaR)
+
+```
+VaR_95 = μ - 1.645σ × PortfolioValue
+VaR_99 = μ - 2.326σ × PortfolioValue
+```
+
+Where:
+- μ = Mean daily return
+- σ = Standard deviation of returns
+
+### Conditional VaR (CVaR / Expected Shortfall)
+
+```
+CVaR_95 = E[Loss | Loss > VaR_95]
+```
+
+Average of losses beyond the VaR threshold.
+
+### Kelly Criterion
+
+```
+Kelly = (WinRate × AvgWin - (1 - WinRate) × AvgLoss) / AvgWin
+
+Position Sizing:
+- Full Kelly: Kelly × PortfolioValue
+- Half Kelly: Kelly × 0.5 × PortfolioValue (recommended)
+- Quarter Kelly: Kelly × 0.25 × PortfolioValue (conservative)
+```
+
+### Sharpe Ratio
+
+```
+Sharpe = (PortfolioReturn - RiskFreeRate) / StandardDeviation
+```
+
+Annualized with √252 scaling.
+
+### Sortino Ratio
+
+```
+Sortino = (PortfolioReturn - RiskFreeRate) / DownsideDeviation
+```
+
+Only penalizes negative volatility.
+
+### Circuit Breakers
+
+| Condition | Threshold | Action |
+|-----------|-----------|--------|
+| Daily Loss | >5% portfolio | Halt trading |
+| Max Drawdown | >15% | Reduce position sizes 50% |
+| Consecutive Losses | >5 | Pause for cooldown |
+| VIX Spike | >35 | Halt new positions |
+
+### VIX Caching
+
+Real VIX is fetched and cached every 5 minutes via `updateVIXCache()`. The `getCachedVIX()` function provides synchronous access for risk calculations.
+
+---
+
+## Quantitative Engine
+
+**Source File:** `server/quantitative-engine.ts`
+
+### RSI(2) Mean Reversion
+
+```
+Entry Long: RSI(2) < 10 AND Close > 200 SMA
+Entry Short: RSI(2) > 90 AND Close < 200 SMA
+Exit: RSI(2) crosses 50
+```
+
+### VWAP Institutional Flow
+
+```
+Bullish: Price < VWAP AND Volume Surge
+Bearish: Price > VWAP AND Volume Surge
+```
+
+### Volume Spike Early Entry
+
+```
+Signal: CurrentVolume > 3 × AverageVolume
+Confirmation: Price in top/bottom 20% of range
+```
+
+### ADX Regime Filtering
+
+```
+Trending: ADX > 25 → Use momentum strategies
+Ranging: ADX < 20 → Use mean reversion
+Developing: 20-25 → Mixed approach
+```
+
+---
+
+## ADX Momentum Detection
+
+**Source File:** `server/technical-indicators.ts`
+
+### Function: `detectADXMomentum()`
+
+Determines if trend is accelerating or decaying using ADX slope analysis.
+
+**Parameters:**
+- `period`: ADX calculation period (default 14)
+- `lookback`: Periods to compare (default 5)
+
+**Returns:**
+| Momentum | ADX Delta | Confidence Multiplier |
+|----------|-----------|----------------------|
+| Accelerating | > +3 | 1.15 (boost 15%) |
+| Stable | -3 to +3 | 1.0 (no change) |
+| Decaying | < -3 | 0.8-0.9 (reduce 10-20%) |
+
+**Trading Recommendations:**
+- `enter_trend`: ADX rising, >25 strength
+- `hold`: Stable trend conditions
+- `exit_trend`: ADX falling, trend weakening
+- `wait`: Unclear conditions
+
+---
+
+## VIX-Based Signal Filtering
+
+**Source File:** `server/universal-idea-generator.ts`
+
+### Signal Strength Multipliers
+
+| VIX Level | Mean Reversion Signals | Volatility Signals |
+|-----------|------------------------|-------------------|
+| ≤15 (Low) | 1.1x boost | 0.9x reduce |
+| 16-20 (Normal) | 1.0x | 1.0x |
+| 21-30 (Elevated) | 0.7x reduce | 1.15x boost |
+| >30 (High) | 0.5x strong reduce | 1.1x boost |
+
+**Mean Reversion Signals:**
+- RSI_OVERSOLD, RSI_OVERBOUGHT
+- STOCHASTIC_OVERSOLD, STOCHASTIC_OVERBOUGHT
+- SUPPORT_BOUNCE, RESISTANCE_REJECTION
+
+**Volatility Signals:**
+- VOLUME_SURGE, UNUSUAL_VOLUME
+- SWEEP_DETECTED, BREAKOUT, BREAKDOWN
+
+---
+
+## Weekly Signal Recalibration
+
+**Source File:** `server/signal-weight-recalibration.ts`
+
+### Overview
+
+Analyzes actual trade outcomes weekly to adjust signal weights dynamically.
+
+### Recalibration Logic
+
+```
+For each signal with 5+ trades:
+  winRate = wins / (wins + losses)
+  
+  if winRate >= 70%: adjustment = +2
+  if winRate >= 60%: adjustment = +1
+  if winRate <= 40%: adjustment = -1
+  if winRate <= 30%: adjustment = -2
+```
+
+### Constraints
+
+- Max adjustment per week: ±2 points
+- Cumulative adjustment cap: ±10 points
+- Minimum trades required: 5 per signal
+
+### API
+
+```typescript
+runWeeklyRecalibration(): Promise<RecalibrationResult>
+getAdjustedSignalWeight(signalType: string): number
+getAllSignalWeights(): Record<string, number>
+resetRecalibration(): void
+```
+
+---
+
+## Correlation Position Caps
+
+**Source File:** `server/correlation-position-caps.ts`
+
+### Correlation Groups
+
+| Group | Symbols |
+|-------|---------|
+| mega_tech | AAPL, MSFT, GOOGL, AMZN, META, NVDA |
+| semiconductor | AMD, INTC, NVDA, AVGO, QCOM, MU |
+| ev_clean | TSLA, RIVN, LCID, NIO, PLUG, FCEL |
+| fintech | SQ, PYPL, COIN, SOFI, AFRM |
+| biotech | MRNA, BNTX, PFE, JNJ |
+| energy | XOM, CVX, OXY, SLB |
+| crypto | BTC, ETH, SOL, DOGE |
+| meme | GME, AMC, BB |
+| index | SPY, QQQ, IWM, DIA |
+
+### Limits
+
+| Parameter | Default |
+|-----------|---------|
+| Max positions per group | 3 |
+| Max portfolio exposure per group | 25% |
+| Max single position size | 10% |
+
+### Validation
+
+```typescript
+checkCorrelationCaps(portfolioId, symbol, positionSize): CorrelationCheckResult
+```
+
+Returns `allowed: false` with reason if limits exceeded.
+
+---
+
+## Options Analysis
+
+**Source File:** `server/deep-options-analyzer.ts`
+
+### Greeks Analysis
+
+| Greek | Formula | Interpretation |
+|-------|---------|----------------|
+| Delta | ∂V/∂S | Price sensitivity |
+| Gamma | ∂²V/∂S² | Delta change rate |
+| Theta | ∂V/∂t | Time decay |
+| Vega | ∂V/∂σ | IV sensitivity |
+
+### IV Percentile
+
+```
+IV_Percentile = (# days IV < current) / Total days × 100
+```
+
+| Percentile | Interpretation | Strategy |
+|------------|----------------|----------|
+| >80% | High IV | Sell premium |
+| 20-80% | Normal IV | Direction plays |
+| <20% | Low IV | Buy premium |
+
+### Delta Targeting
+
+```
+For Lottos: Target 0.15-0.25 delta
+For Swings: Target 0.40-0.60 delta
+For Hedges: Target 0.70-0.90 delta
+```
+
+---
+
+## Backtesting Service
+
+**Source File:** `server/backtesting-service.ts`
+
+### Methodology
+
+1. Load historical price data for specified period
+2. Apply strategy rules at each bar
+3. Track hypothetical entries/exits
+4. Calculate performance metrics
+
+### Metrics Calculated
+
+| Metric | Formula |
+|--------|---------|
+| Win Rate | Wins / Total Trades |
+| Profit Factor | Gross Profit / Gross Loss |
+| Max Drawdown | Max(Peak - Trough) / Peak |
+| Sharpe | Annualized(Return / StdDev) |
+| Average Win | Sum(Wins) / # Wins |
+| Average Loss | Sum(Losses) / # Losses |
+| Expectancy | (WinRate × AvgWin) - (LossRate × AvgLoss) |
 
 ---
 

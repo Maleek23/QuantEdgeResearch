@@ -2016,6 +2016,12 @@ function analyzeCryptoOpportunity(
  * Now uses user preferences for position limits and coin selection
  */
 export async function runCryptoBotScan(): Promise<void> {
+  // 🛡️ KILL SWITCH - Check if crypto bot is disabled via environment variable
+  if (process.env.ENABLE_CRYPTO_BOT === 'false') {
+    logger.info('🪙 [CRYPTO BOT] ⛔ DISABLED via ENABLE_CRYPTO_BOT=false');
+    return;
+  }
+  
   logger.info(`🪙 [CRYPTO BOT] Starting crypto scan...`);
   
   try {
@@ -3250,6 +3256,12 @@ async function executeImmediateTrade(
  */
 export async function runAutonomousBotScan(): Promise<void> {
   try {
+    // 🛡️ KILL SWITCH - Check if bot is disabled via environment variable
+    if (process.env.ENABLE_AUTO_LOTTO === 'false') {
+      logger.info('🤖 [BOT] ⛔ AUTO-LOTTO DISABLED via ENABLE_AUTO_LOTTO=false');
+      return;
+    }
+    
     // Load user preferences
     const prefs = await getBotPreferences();
     
@@ -4393,6 +4405,12 @@ export async function monitorLottoPositions(): Promise<void> {
  * Now uses user preferences for position limits and trading parameters
  */
 export async function runFuturesBotScan(): Promise<void> {
+  // 🛡️ KILL SWITCH - Check if futures bot is disabled via environment variable
+  if (process.env.ENABLE_FUTURES_BOT === 'false') {
+    logger.info('🔮 [FUTURES-BOT] ⛔ DISABLED via ENABLE_FUTURES_BOT=false');
+    return;
+  }
+  
   try {
     // Load user preferences
     const prefs = await getBotPreferences();
