@@ -3570,11 +3570,9 @@ export async function runAutonomousBotScan(): Promise<void> {
           }
         }
         
-        // 🧠 ADAPTIVE LEARNING: Apply learning adjustments
-        const symbolAdj = await getSymbolAdjustment(ticker);
+        // 🧠 ADAPTIVE LEARNING: Apply learning adjustments (symbolAdj already applied in makeBotDecision)
+        // NOTE: getSymbolAdjustment was already called and applied in makeBotDecision() - don't double-apply!
         const adaptiveParams = await getAdaptiveParameters();
-        
-        decision.confidence += symbolAdj.confidenceBoost;
         
         // 🤖 ML INTELLIGENCE: Enhance confidence with ML signals
         try {
