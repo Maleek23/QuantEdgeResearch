@@ -670,7 +670,8 @@ export async function sendBreakoutAlerts(): Promise<void> {
   const breakouts = await getBreakoutStocks();
   const newBreakouts = breakouts.filter(b => !b.alertSent);
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  // QUANTFLOOR restricted to announcements only - breakout alerts go to general URL
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   for (const breakout of newBreakouts) {

@@ -1086,9 +1086,10 @@ const STRATEGY_SESSION_RULES: Record<StrategyType, {
   blockedSessions: TradingSession[];
 }> = {
   lotto: {
-    allowedSessions: ['opening_drive', 'mid_morning', 'afternoon', 'power_hour'],
+    // PAPER TRADING: Allow all sessions to collect data - apply confidence penalty instead
+    allowedSessions: ['opening_drive', 'mid_morning', 'lunch_lull', 'afternoon', 'power_hour'],
     preferredSessions: ['opening_drive', 'power_hour'],
-    blockedSessions: ['lunch_lull'], // Low volume kills lottos
+    blockedSessions: [], // Removed lunch_lull block for paper trading data collection
   },
   daytrade: {
     allowedSessions: ['opening_drive', 'mid_morning', 'afternoon', 'power_hour'],

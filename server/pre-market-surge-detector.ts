@@ -145,7 +145,8 @@ async function sendPreMarketSurgeAlert(alert: SurgeAlert): Promise<void> {
     return;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+  // QUANTFLOOR restricted to announcements only - surge alerts go to general URL
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('[PRE-MARKET] No Discord webhook configured for pre-market alerts');

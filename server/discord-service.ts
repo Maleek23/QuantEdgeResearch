@@ -502,9 +502,10 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     return;
   }
   
+  // QUANTFLOOR restricted to announcements only - trade ideas go to dedicated channels
   const webhookUrl = idea.assetType === 'option' 
-    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
+    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
+    : process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) {
     logger.warn(`[DISCORD] No webhook URL configured for ${idea.symbol} (${idea.assetType})`);
     return;
@@ -700,10 +701,10 @@ export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: s
   } catch (e) {}
 }
 
-// Send generic Discord alert
+// Send generic Discord alert - QUANTFLOOR restricted to announcements only
 export async function sendDiscordAlert(content: string, type: 'info' | 'warn' | 'error' = 'info'): Promise<void> {
   if (DISCORD_DISABLED) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
 
   try {
@@ -734,6 +735,7 @@ export async function sendAnnualBreakoutsToDiscord(items: any[]): Promise<any> {
 export async function sendCryptoBotTradeToDiscord(trade: any): Promise<void> {}
 export async function sendReportNotificationToDiscord(report: any): Promise<void> {
   if (DISCORD_DISABLED) return;
+  // Reports are allowed to QUANTFLOOR as announcements
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
@@ -769,8 +771,9 @@ let lastQuantDailyReset = 0;
 
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   // In strict mode, batch summaries are disabled - only premium trades go through
+  // QUANTFLOOR restricted - batch summaries go to general URL only
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !ideas || ideas.length === 0) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
     const now = Date.now();
@@ -879,8 +882,9 @@ const FLOW_GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
 
 export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   // In strict mode, flow alerts are disabled - only premium trades go through
+  // QUANTFLOOR restricted - flow alerts go to general URL only
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   // Skip alerts with missing data (N/A spam prevention)
@@ -984,8 +988,9 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   confidence?: number;
 }[]): Promise<void> {
   // In strict mode, market movers are disabled - only premium trades go through
+  // QUANTFLOOR restricted - market movers go to general URL only
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !movers || movers.length === 0) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   try {
@@ -1114,7 +1119,8 @@ export async function sendPreMoveAlertToDiscord(signal: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  // QUANTFLOOR restricted - pre-move signals go to general URL only
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   // Only alert for B+ and above confidence (75%+)
@@ -1235,7 +1241,8 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
     return;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // Premium options alerts go to OPTIONSTRADES channel, not QUANTFLOOR
+  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   try {
