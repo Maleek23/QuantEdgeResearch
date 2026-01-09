@@ -12,6 +12,10 @@ import { MarketOverviewWidget } from "@/components/market-overview-widget";
 import { WinRateWidget } from "@/components/win-rate-widget";
 import { IVRankWidget } from "@/components/iv-rank-widget";
 import { TradingEngineWidget } from "@/components/trading-engine-widget";
+import { TwoColumnLayout } from "@/components/ui/resizable-dashboard";
+import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
+import { usePageLayout } from "@/hooks/use-page-layout";
+import { usePreferences } from "@/contexts/preferences-context";
 
 function BotActivityMonitor() {
   const { data: botStatus } = useQuery<{
@@ -172,11 +176,30 @@ export default function Dashboard() {
     queryKey: ['/api/market-context'],
     refetchInterval: 30000,
   });
+  const { densityClass } = usePreferences();
+  const pageLayout = usePageLayout({ pageId: "dashboard" });
+
+  const leftPanelContent = (
+    <div className="p-4 space-y-4">
+      <MarketOverviewWidget />
+      <TradingEngineWidget />
+      <WinRateWidget />
+    </div>
+  );
+
+  const rightPanelContent = (
+    <div className="p-4 space-y-4">
+      <BotActivityMonitor />
+      <PaperPortfolios />
+      <IVRankWidget />
+      <QuickLinks />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-[1600px] mx-auto p-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={cn("min-h-screen bg-background flex flex-col", densityClass)}>
+      <div className="max-w-[1600px] mx-auto w-full flex-1 flex flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-border/50">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-cyan-400" />
@@ -187,6 +210,11 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <PersonalizationToolbar
+              onSave={pageLayout.save}
+              onReset={pageLayout.resetToDefault}
+              isDirty={pageLayout.isDirty}
+            />
             <Button 
               variant="outline" 
               size="sm" 
@@ -206,13 +234,24 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex-1 hidden lg:block">
+          <TwoColumnLayout
+            pageId="dashboard"
+            leftPanel={leftPanelContent}
+            rightPanel={rightPanelContent}
+            leftDefaultSize={65}
+            leftMinSize={40}
+            rightMinSize={25}
+          />
+        </div>
+        <div className="lg:hidden p-4 space-y-4">
           <MarketOverviewWidget />
           <WinRateWidget />
           <BotActivityMonitor />
           <PaperPortfolios />
           <TradingEngineWidget />
           <IVRankWidget />
+          <QuickLinks />
         </div>
       </div>
     </div>
