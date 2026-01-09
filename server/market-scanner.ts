@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { getFullUniverse, getSectorTickers, PREMIUM_WATCHLIST, LOTTO_ELIGIBLE } from './ticker-universe';
 import { getExpandedUniverse, getNewMoverSymbols, getDiscoveryStatus } from './mover-discovery';
+import { recordSymbolAttention } from './attention-tracking-service';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_SCREENER_API = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved";
@@ -727,6 +728,17 @@ export async function generateSmartWatchlist(
   const sortedPicks = candidates
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+  
+  // Record attention events for top picks (high-scoring only)
+  for (const pick of sortedPicks.filter(p => p.score >= 70)) {
+    recordSymbolAttention(
+      pick.symbol,
+      'market_scanner',
+      pick.score,
+      pick.direction === 'long' ? 'bullish' : 'bearish',
+      { timeframe, changePercent: pick.changePercent, volumeRatio: pick.volumeRatio }
+    );
+  }
   
   watchlistCache.set(cacheKey, { data: sortedPicks, timestamp: Date.now() });
   logger.info(`[SCANNER] Generated ${sortedPicks.length} smart watchlist picks for ${timeframe}`);

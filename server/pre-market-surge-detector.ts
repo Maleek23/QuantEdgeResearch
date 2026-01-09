@@ -1,11 +1,19 @@
 import { logger } from './logger';
 
 const PRE_MARKET_WATCHLIST = [
-  'OKLO', 'NNE', 'SMR', 'RKLB', 'ASTS', 'IREN', 'CIFR', 'MARA', 'RIOT', 'CLSK',
-  'PLTR', 'RGTI', 'NBIS', 'BWXT', 'LEU', 'CCJ', 'UEC', 'DNN', 'URG',
+  // Nuclear & Energy
+  'OKLO', 'NNE', 'SMR', 'LEU', 'CCJ', 'UEC', 'DNN', 'URG', 'BWXT',
+  // Defense & Aerospace (Lockheed, Northrop, RTX, General Dynamics, Boeing, etc.)
+  'LMT', 'NOC', 'RTX', 'GD', 'BA', 'HII', 'LHX', 'TXT', 'HWM',
+  // Space & Satellites
+  'RKLB', 'ASTS', 'LUNR', 'RDW', 'MNTS', 'LLAP', 'SPCE',
+  // Crypto & Fintech
+  'MARA', 'RIOT', 'CLSK', 'IREN', 'CIFR',
+  // AI & Quantum
+  'PLTR', 'RGTI', 'NBIS', 'IONQ', 'QBTS', 'ARQQ', 'QUBT', 'LAES',
+  // Tech Leaders
   'INTC', 'ZETA', 'RIVN', 'SOFI', 'ARM', 'APP', 'TSLA', 'NVDA', 'AMD',
-  'IONQ', 'QBTS', 'ARQQ', 'QUBT', 'LAES',
-  'LUNR', 'RDW', 'MNTS', 'LLAP', 'SPCE',
+  // EV & Battery
   'KULR', 'QS', 'SLDP', 'MVST',
 ];
 

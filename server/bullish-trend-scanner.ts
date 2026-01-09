@@ -3,6 +3,7 @@ import { bullishTrends, type BullishTrend, type TrendStrength, type TrendPhase, 
 import { eq, desc, and } from 'drizzle-orm';
 import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
+import { recordSymbolAttention } from './attention-tracking-service';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_QUOTE_API = "https://query2.finance.yahoo.com/v7/finance/quote";
@@ -318,6 +319,17 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
           .values(trendData as any)
           .returning();
         results.push(inserted);
+      }
+      
+      // Record attention for bullish trend detection (momentum score 70+)
+      if (momentumScore >= 70) {
+        recordSymbolAttention(
+          quote.symbol,
+          'bullish_trend',
+          momentumScore,
+          'bullish',
+          { trendPhase, trendStrength, isBreakout, isNewHigh }
+        );
       }
       
       await new Promise(r => setTimeout(r, 100));
