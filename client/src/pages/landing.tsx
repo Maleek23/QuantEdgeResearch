@@ -36,7 +36,6 @@ import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
-import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
@@ -74,19 +73,15 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050b16] dark:bg-[#050b16]">
+    <div className="min-h-screen bg-background">
       <SEOHead pageKey="landing" />
       
-      {/* Floating Bubbles Background */}
-      <FloatingBubblesBackground />
-      
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#050b16]/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
-            <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
+            <Link href="/" className="flex-shrink-0" data-testid="link-logo">
               <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
-              <span className="hidden sm:block text-lg font-semibold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -150,37 +145,33 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Modern & Sleek */}
-      <section className="relative min-h-[85vh] flex items-center pt-20" data-testid="hero-section">
-        {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-radial from-cyan-500/10 via-transparent to-transparent blur-3xl pointer-events-none" />
+      {/* Hero Section - Clean & Technical */}
+      <section className="relative min-h-[70vh] flex items-center pt-16" data-testid="hero-section">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
             {/* Left: Copy */}
-            <div className="text-center lg:text-left">
-              
-              {/* Beta Badge */}
-              <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-5 py-2 mb-8 backdrop-blur-sm">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-sm font-semibold text-cyan-400 uppercase tracking-wider">Closed Beta</span>
+            <div>
+              <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                <span className="text-sm font-mono text-cyan-400">LIVE BETA</span>
               </div>
               
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white" data-testid="text-hero-headline">
-                Institutional-Grade
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
+                Multiple Engines<span className="text-cyan-400">.</span>
                 <br />
-                <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Trading Research</span>
+                One Edge<span className="text-cyan-400">.</span>
               </h1>
               
-              <p className="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 mb-10 leading-relaxed" data-testid="text-hero-subheadline">
+              <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
                 Five-engine research platform. AI, Quant, Flow, Chart, and Futures signals converge for higher-conviction setups.
-                <span className="text-slate-300"> Every signal verified. Every outcome tracked.</span>
+                Every signal verified. Every outcome tracked.
               </p>
               
-              <div className="flex flex-wrap justify-center lg:justify-start gap-4">
+              <div className="flex flex-wrap gap-4">
                 <Button 
-                  className="bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 hover:from-cyan-400 hover:to-cyan-300 h-14 px-10 text-lg font-bold shadow-lg shadow-cyan-500/30 rounded-xl"
+                  className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-12 px-8 text-base font-semibold shadow-lg shadow-cyan-500/20"
                   onClick={() => setWaitlistOpen(true)}
                   data-testid="button-join-waitlist"
                 >
@@ -188,11 +179,11 @@ export default function Landing() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-slate-600 bg-slate-800/50 backdrop-blur-sm h-14 px-8 text-lg font-semibold gap-3 rounded-xl hover:bg-slate-700/50 text-white"
+                  className="border-slate-700 h-12 px-8 text-base font-semibold gap-2"
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                   data-testid="button-join-discord"
                 >
-                  <SiDiscord className="h-5 w-5 text-[#5865F2]" />
+                  <SiDiscord className="h-5 w-5" />
                   Join Discord
                 </Button>
               </div>
@@ -200,17 +191,14 @@ export default function Landing() {
             
             {/* Right: Product Preview Panel */}
             <div className="hidden lg:block">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-purple-500/10 to-cyan-500/20 rounded-3xl blur-xl" />
-                <HeroProductPanel className="w-full relative z-10" />
-              </div>
+              <HeroProductPanel className="w-full" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Strip - Glass Style */}
-      <div className="border-y border-white/5 bg-[#0a1020]/80 backdrop-blur-xl py-8" data-testid="stats-strip">
+      {/* Stats Strip - Terminal Style */}
+      <div className="border-y border-slate-800 bg-slate-950 py-6" data-testid="stats-strip">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="stat-glass rounded-lg p-4">
@@ -248,15 +236,14 @@ export default function Landing() {
       </div>
 
       {/* Platform Capabilities - Visual Cards */}
-      <section className="py-16 lg:py-24 relative" id="features" data-testid="section-features">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050b16] via-[#0a1525] to-[#050b16]" />
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="text-center mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-3">
+      <section className="py-12 lg:py-20 bg-slate-900/30" id="features" data-testid="section-features">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Platform Capabilities
             </p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 text-white">Five Engines. Complete Coverage.</h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-lg">
+            <h2 className="text-2xl lg:text-3xl font-bold mb-3">Five Engines. Complete Coverage.</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Every angle analyzed. Every signal tracked. Every outcome measured.
             </p>
           </div>
