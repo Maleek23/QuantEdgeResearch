@@ -31,8 +31,10 @@ export async function sendBetaInviteEmail(
     personalMessage?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  logger.info('[EMAIL] sendBetaInviteEmail called', { to: email, hasToken: !!token, hasTier: !!options?.tierOverride });
+  
   if (!resend) {
-    console.warn('[Email] Resend not configured - RESEND_API_KEY missing');
+    logger.warn('[EMAIL] Resend not configured - RESEND_API_KEY missing');
     return { success: false, error: 'Email service not configured' };
   }
 
