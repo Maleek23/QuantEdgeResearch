@@ -255,12 +255,10 @@ export async function sendBotTradeEntryToDiscord(trade: {
   // User request: Trades applicable to multiple channels should go to all of them
   
   if (source === 'futures' || trade.assetType === 'future') {
-    // Futures go to #future-trades channel
+    // Futures go to #future-trades channel ONLY (User request: stop sending futures to quant ai bot)
     const fw = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
     if (fw) webhookUrls.push(fw);
-    // Also send to quantbot channel for bot activity visibility
-    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (qw && qw !== fw) webhookUrls.push(qw);
+    // Removed quantbot from futures routing
   } else if (isSmallAccount) {
     // Small Account entries go to #quantbot (bot activity)
     const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
@@ -756,7 +754,34 @@ export async function sendReportNotificationToDiscord(report: any): Promise<void
     });
   } catch (e) { logger.error(e); }
 }
-export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
+export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {
+  if (DISCORD_DISABLED || ideas.length === 0) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  try {
+    const embed: DiscordEmbed = {
+      title: `🔮 FUTURES TRADE ALERTS - ${ideas.length} New Setups`,
+      description: ideas.map((i: any) => {
+        const emoji = i.direction === 'long' ? '🟢' : '🔴';
+        const priceStr = i.entryPrice != null ? `$${Number(i.entryPrice).toFixed(2)}` : 'N/A';
+        return `${emoji} **${i.symbol}** @ ${priceStr} [${i.grade || 'N/A'}]`;
+      }).join('\n'),
+      fields: [],
+      color: COLORS.QUANT,
+      timestamp: new Date().toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send futures trades: ${e}`);
+  }
+}
 // Track recently sent quant ideas to prevent spam - key is "symbol:strike:optionType:expiry"
 const recentQuantIdeas = new Map<string, number>();
 const QUANT_IDEA_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours cooldown per unique idea

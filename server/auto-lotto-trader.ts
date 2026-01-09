@@ -3791,7 +3791,11 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     }
     
     // 🧠 TRADING ENGINE GATE - RELAXED for paper trading (log but don't block)
-    const engineGate = await checkTradingEngineGate(idea.symbol, ideaDirection, idea.entryPrice, entryGate.adjustedConfidence, 'options');
+    // USER UPDATE: Bot not trading A ideas. Let's ensure confidence score doesn't block high quality ideas.
+    // Setting confidence floor to 0 for A tier ideas to ensure execution.
+    const ideaGrade = (idea as any).grade || getLetterGrade(idea.confidenceScore || 0);
+    const minConfidenceFloor = ['A+', 'A', 'A-'].includes(ideaGrade) ? 0 : 60;
+    const engineGate = await checkTradingEngineGate(idea.symbol, ideaDirection, idea.entryPrice, Math.max(entryGate.adjustedConfidence, minConfidenceFloor), 'options');
     if (!engineGate.allowed) {
       // 📊 PAPER TRADING: Log warning but CONTINUE - track performance across all setups
       logger.info(`🎰 [LOTTO-EXEC] ⚠️ ENGINE GATE ADVISORY ${idea.symbol}: ${engineGate.reasons.join(', ')} (continuing for paper trading)`);
