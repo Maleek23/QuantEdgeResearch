@@ -10665,6 +10665,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // BULLISH TREND TRACKER ROUTES
+  // ==========================================
+
+  // Get all tracked bullish trends
+  app.get("/api/bullish-trends", async (_req, res) => {
+    try {
+      const { getBullishTrends } = await import('./bullish-trend-scanner');
+      const trends = await getBullishTrends();
+      res.json(trends);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bullish-trends' });
+      res.status(500).json({ error: "Failed to fetch bullish trends" });
+    }
+  });
+
+  // Get top momentum stocks
+  app.get("/api/bullish-trends/top", async (req, res) => {
+    try {
+      const { getTopMomentumStocks } = await import('./bullish-trend-scanner');
+      const limit = parseInt(req.query.limit as string) || 10;
+      const top = await getTopMomentumStocks(limit);
+      res.json(top);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bullish-trends/top' });
+      res.status(500).json({ error: "Failed to fetch top momentum stocks" });
+    }
+  });
+
+  // Get breakout stocks
+  app.get("/api/bullish-trends/breakouts", async (_req, res) => {
+    try {
+      const { getBreakoutStocks } = await import('./bullish-trend-scanner');
+      const breakouts = await getBreakoutStocks();
+      res.json(breakouts);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bullish-trends/breakouts' });
+      res.status(500).json({ error: "Failed to fetch breakout stocks" });
+    }
+  });
+
+  // Add stock to bullish trend tracker
+  app.post("/api/bullish-trends/add", isAuthenticated, async (req: any, res) => {
+    try {
+      const { addBullishStock } = await import('./bullish-trend-scanner');
+      const { symbol, notes, category } = req.body;
+      
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const userId = req.user?.id || req.session?.userId;
+      const result = await addBullishStock(symbol, userId, notes, category);
+      
+      if (!result) {
+        return res.status(404).json({ error: `Could not find data for ${symbol}` });
+      }
+      
+      logger.info(`[BULLISH] Added ${symbol} to trend tracker by user ${userId}`);
+      res.status(201).json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/bullish-trends/add' });
+      res.status(500).json({ error: "Failed to add stock to trend tracker" });
+    }
+  });
+
+  // Remove stock from bullish trend tracker
+  app.delete("/api/bullish-trends/:symbol", isAuthenticated, async (req, res) => {
+    try {
+      const { removeBullishStock } = await import('./bullish-trend-scanner');
+      const { symbol } = req.params;
+      
+      const success = await removeBullishStock(symbol);
+      if (success) {
+        logger.info(`[BULLISH] Removed ${symbol} from trend tracker`);
+        res.json({ success: true, message: `${symbol} removed from trend tracker` });
+      } else {
+        res.status(500).json({ error: `Failed to remove ${symbol}` });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'DELETE /api/bullish-trends/:symbol' });
+      res.status(500).json({ error: "Failed to remove from trend tracker" });
+    }
+  });
+
+  // Force scan bullish trends (admin)
+  app.post("/api/bullish-trends/scan", requireAdminJWT, async (_req, res) => {
+    try {
+      const { scanBullishTrends } = await import('./bullish-trend-scanner');
+      const results = await scanBullishTrends();
+      res.json({ 
+        success: true, 
+        message: `Scanned ${results.length} bullish trends`,
+        count: results.length 
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/bullish-trends/scan' });
+      res.status(500).json({ error: "Failed to scan bullish trends" });
+    }
+  });
+
+  // Send breakout alerts to Discord (admin)
+  app.post("/api/bullish-trends/send-alerts", requireAdminJWT, async (_req, res) => {
+    try {
+      const { sendBreakoutAlerts } = await import('./bullish-trend-scanner');
+      await sendBreakoutAlerts();
+      res.json({ success: true, message: "Breakout alerts sent" });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/bullish-trends/send-alerts' });
+      res.status(500).json({ error: "Failed to send breakout alerts" });
+    }
+  });
+
   // Send regular watchlist to QuantBot Discord channel
   app.post("/api/watchlist/send-quantbot", async (req: any, res) => {
     try {

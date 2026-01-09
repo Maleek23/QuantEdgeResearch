@@ -35,6 +35,7 @@ const tradingItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
+  { title: "Bullish Trends", url: "/bullish-trends", icon: TrendingUp, badge: "NEW" },
 ];
 
 // Automations - Trading bots + Market Scanner consolidated

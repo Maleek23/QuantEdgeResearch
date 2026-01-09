@@ -124,6 +124,11 @@ app.use((req, res, next) => {
     pennyScanner.start();
     log('🚀 Penny Moonshot Scanner started - scanning at 4:00 AM, 9:30 AM, 8:00 PM CT weekdays');
     
+    // Start Bullish Trend Scanner (tracks momentum stocks every 15 min during market hours)
+    const { startBullishTrendScanner } = await import('./bullish-trend-scanner');
+    startBullishTrendScanner();
+    log('📈 Bullish Trend Scanner started - tracking momentum stocks every 15 minutes during market hours');
+    
     // Initialize real-time price feeds with WebSocket broadcast (Coinbase for crypto, Databento for futures)
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
