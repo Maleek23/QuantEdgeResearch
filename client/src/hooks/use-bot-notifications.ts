@@ -24,6 +24,8 @@ interface UseBotNotificationsOptions {
   autoConnect?: boolean;
 }
 
+const LOOKING_DEDUP_MS = 5 * 60 * 1000; // 5 minute cooldown for "looking" notifications per symbol
+
 export function useBotNotifications(options: UseBotNotificationsOptions = {}) {
   const { maxNotifications = 10, autoConnect = true } = options;
   
@@ -32,6 +34,7 @@ export function useBotNotifications(options: UseBotNotificationsOptions = {}) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recentLookingRef = useRef<Map<string, number>>(new Map());
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -52,6 +55,25 @@ export function useBotNotifications(options: UseBotNotificationsOptions = {}) {
         try {
           const data = JSON.parse(event.data) as BotNotification;
           if (data.type === 'bot_event') {
+            // Deduplicate "looking" notifications - only show once per symbol every 5 mins
+            if (data.eventType === 'looking') {
+              const now = Date.now();
+              const lastSeen = recentLookingRef.current.get(data.symbol);
+              if (lastSeen && now - lastSeen < LOOKING_DEDUP_MS) {
+                console.log(`[BOT-WS] Skipping duplicate looking notification for ${data.symbol}`);
+                return; // Skip duplicate
+              }
+              recentLookingRef.current.set(data.symbol, now);
+              
+              // Clean up old entries every so often
+              if (recentLookingRef.current.size > 50) {
+                const cutoff = now - LOOKING_DEDUP_MS;
+                recentLookingRef.current.forEach((time, symbol) => {
+                  if (time < cutoff) recentLookingRef.current.delete(symbol);
+                });
+              }
+            }
+            
             const notification = {
               ...data,
               id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
