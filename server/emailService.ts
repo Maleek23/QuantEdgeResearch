@@ -38,7 +38,11 @@ export async function sendBetaInviteEmail(
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       replyTo: 'support@quantedgelabs.net',
       to: email,
-      subject: `Your ${APP_NAME} Beta Invitation`,
+      subject: `Your invitation to ${APP_NAME}`,
+      headers: {
+        'List-Unsubscribe': '<mailto:unsubscribe@quantedgelabs.net>',
+        'X-Priority': '3',
+      },
       text: `You've been invited to join ${APP_NAME}!
 
 Congratulations! You've been selected to join the exclusive beta of ${APP_NAME} — an institutional-grade quantitative trading research platform.
