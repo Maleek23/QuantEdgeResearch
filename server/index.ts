@@ -129,6 +129,11 @@ app.use((req, res, next) => {
     startBullishTrendScanner();
     log('📈 Bullish Trend Scanner started - tracking momentum stocks every 15 minutes during market hours');
     
+    // Start Pre-Market Surge Detector (4:00 AM - 9:30 AM ET, every 5 minutes)
+    const { startPreMarketSurgeDetector } = await import('./pre-market-surge-detector');
+    startPreMarketSurgeDetector();
+    log('🌅 Pre-Market Surge Detector started - monitoring for big moves every 5 minutes (4 AM - 9:30 AM ET)');
+    
     // Initialize real-time price feeds with WebSocket broadcast (Coinbase for crypto, Databento for futures)
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
