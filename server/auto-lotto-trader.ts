@@ -51,6 +51,7 @@ import {
 } from "./trading-engine";
 import { analyzeVolatility } from "./volatility-analysis-service";
 import { getCatalystsForSymbol, getUpcomingCatalysts, calculateCatalystScore } from "./catalyst-intelligence-service";
+import { checkCorrelationCaps } from "./correlation-position-caps";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -2183,6 +2184,22 @@ export async function runCryptoBotScan(): Promise<void> {
       return;
     }
     
+    // 🔗 CORRELATION POSITION CAPS - Prevent concentrated sector risk
+    // Use final computed position size (quantity * price)
+    const allocationAmt = portfolio.cashBalance * (prefs.cryptoAllocation / 100);
+    const maxPositionValue = Math.min(prefs.maxPositionSize, allocationAmt, portfolio.cashBalance);
+    const cryptoQuantity = maxPositionValue > 0 ? maxPositionValue / bestOpp.price : 0;
+    const actualCryptoExposure = cryptoQuantity * bestOpp.price; // Notional exposure
+    if (actualCryptoExposure > 10) { // Min $10 to avoid noise
+      const correlationCheck = await checkCorrelationCaps(portfolio.id, bestOpp.symbol, actualCryptoExposure);
+      if (!correlationCheck.allowed) {
+        logger.info(`🪙 [CRYPTO BOT] 🔗 CORRELATION BLOCKED: ${bestOpp.symbol} - ${correlationCheck.reason}`);
+        return;
+      }
+    } else {
+      logger.warn(`🪙 [CRYPTO BOT] 🔗 Skipped correlation check - exposure too low: $${actualCryptoExposure.toFixed(2)}`);
+    }
+    
     // Calculate position size using preferences (maxPositionSize or allocation % of balance)
     // CRITICAL: Ensure we don't exceed available cash
     const allocationAmount = portfolio.cashBalance * (prefs.cryptoAllocation / 100);
@@ -3116,6 +3133,21 @@ async function executeImmediateTrade(
       
       logger.info(`📊 [PLAYBOOK] ✅ VALIDATED: ${playbookValidation.reason}`);
       logger.info(`📊 [PLAYBOOK] Setup Type: ${playbookValidation.setup}`);
+    }
+    
+    // 🔗 CORRELATION POSITION CAPS - Prevent concentrated sector risk
+    // Position size = premium per contract × 100 (multiplier) × quantity (1 contract default)
+    const contractQuantity = 1;
+    const premiumPerContract = opp.price * 100; // Options multiplier
+    const actualPositionExposure = premiumPerContract * contractQuantity;
+    if (actualPositionExposure > 0) {
+      const correlationCheck = await checkCorrelationCaps(targetPortfolio.id, opp.symbol, actualPositionExposure);
+      if (!correlationCheck.allowed) {
+        logger.info(`🔗 [CORRELATION] ⛔ BLOCKED: ${opp.symbol} - ${correlationCheck.reason}`);
+        return false;
+      }
+    } else {
+      logger.warn(`🔗 [CORRELATION] Skipped check - zero exposure for ${opp.symbol}`);
     }
     
     // 🎯 UNIFIED ENTRY GATE CHECK - Apply session/regime filters before execution
@@ -4575,6 +4607,18 @@ export async function runFuturesBotScan(): Promise<void> {
         if (bestFuturesOpp.confidence < prefs.minConfidenceScore) {
           logger.info(`🔮 [FUTURES-BOT] Confidence ${bestFuturesOpp.confidence}% < min ${prefs.minConfidenceScore}% - skipping`);
           return;
+        }
+        
+        // 🔗 CORRELATION POSITION CAPS - Prevent concentrated sector risk
+        // For futures, use margin as the exposure measure (reflects risk capital committed)
+        if (marginRequired > 10) { // Min $10 to avoid noise
+          const futuresCorrelationCheck = await checkCorrelationCaps(portfolio.id, bestFuturesOpp.symbol, marginRequired);
+          if (!futuresCorrelationCheck.allowed) {
+            logger.info(`🔮 [FUTURES-BOT] 🔗 CORRELATION BLOCKED: ${bestFuturesOpp.symbol} - ${futuresCorrelationCheck.reason}`);
+            return;
+          }
+        } else {
+          logger.warn(`🔮 [FUTURES-BOT] 🔗 Skipped correlation check - margin too low: $${marginRequired.toFixed(2)}`);
         }
         
         if (marginRequired <= portfolio.cashBalance && marginRequired >= 10) {

@@ -1232,6 +1232,14 @@ These modules exist but may need better integration:
 | Options Enrichment | `server/options-enricher.ts` |
 | Timing Intelligence | `server/timing-intelligence.ts` |
 | Risk Engine | `server/risk-engine.ts` |
+| Correlation Position Caps | `server/correlation-position-caps.ts` |
+| Signal Weight Recalibration | `server/signal-weight-recalibration.ts` |
+| Breakout Scanner | `server/breakout-scanner.ts` |
+| Bullish Trend Scanner | `server/bullish-trend-scanner.ts` |
+| Market Scanner | `server/market-scanner.ts` |
+| Mover Discovery | `server/mover-discovery.ts` |
+| Backtesting Service | `server/backtesting-service.ts` |
+| Quantitative Engine | `server/quantitative-engine.ts` |
 
 ---
 

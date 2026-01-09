@@ -24,6 +24,14 @@ import { getLetterGrade } from "./grading";
 const ML_PREDICTIONS_ENABLED = process.env.ENABLE_ML_PREDICTIONS !== 'false';
 const VIX_FILTERING_ENABLED = process.env.ENABLE_VIX_FILTERING !== 'false';
 
+// Log kill switch status at startup
+if (!ML_PREDICTIONS_ENABLED) {
+  logger.info('[UNIVERSAL-IDEA] ⛔ ML predictions DISABLED via ENABLE_ML_PREDICTIONS=false');
+}
+if (!VIX_FILTERING_ENABLED) {
+  logger.info('[UNIVERSAL-IDEA] ⛔ VIX filtering DISABLED via ENABLE_VIX_FILTERING=false');
+}
+
 // Cache for VIX to avoid repeated API calls
 let cachedVIX: { value: number; expires: number } | null = null;
 const VIX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -388,6 +396,7 @@ async function getMLConfidenceEnhancement(
   prices?: number[]
 ): Promise<{ boost: number; signal: string | null }> {
   if (!ML_PREDICTIONS_ENABLED) {
+    logger.debug(`[UNIVERSAL-IDEA] ML enhancement skipped for ${symbol} - kill switch active`);
     return { boost: 0, signal: null };
   }
   
@@ -532,7 +541,12 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     const currentPrice: number = price;
     
     // Fetch current VIX for signal filtering
-    const currentVIX = VIX_FILTERING_ENABLED ? await getCurrentVIX() : 20;
+    let currentVIX = 20;
+    if (VIX_FILTERING_ENABLED) {
+      currentVIX = await getCurrentVIX();
+    } else {
+      logger.debug(`[UNIVERSAL-IDEA] VIX filtering skipped for ${input.symbol} - kill switch active, using default VIX=20`);
+    }
     
     // Calculate confidence from all signals with VIX filtering and loss adjustment
     let confidence = await calculateConfidenceWithVIX(input.source, input.signals, currentVIX);
