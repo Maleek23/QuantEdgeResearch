@@ -7,15 +7,12 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, Mail, Key, User, Shield, ArrowRight, ArrowLeft } from "lucide-react";
-import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
-import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
 
 const verifyCodeSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -65,10 +62,10 @@ const INVESTMENT_GOALS = [
 ];
 
 const RISK_TOLERANCES = [
-  { value: "conservative", label: "Conservative - Preserve capital" },
-  { value: "moderate", label: "Moderate - Balanced approach" },
-  { value: "aggressive", label: "Aggressive - Higher risk tolerance" },
-  { value: "very_aggressive", label: "Very Aggressive - Max risk for max reward" },
+  { value: "conservative", label: "Conservative" },
+  { value: "moderate", label: "Moderate" },
+  { value: "aggressive", label: "Aggressive" },
+  { value: "very_aggressive", label: "Very Aggressive" },
 ];
 
 export default function JoinBeta() {
@@ -119,7 +116,7 @@ export default function JoinBeta() {
       setVerifiedEmail(data.email);
       setStep("onboard");
       toast({
-        title: "Code Verified!",
+        title: "Code Verified",
         description: "Complete your profile to get started.",
       });
     },
@@ -140,7 +137,7 @@ export default function JoinBeta() {
     onSuccess: () => {
       setStep("success");
       toast({
-        title: "Welcome to the Beta!",
+        title: "Welcome!",
         description: "Your account is now active.",
       });
       setTimeout(() => navigate("/automations"), 2000);
@@ -165,78 +162,61 @@ export default function JoinBeta() {
 
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-[#050b16] flex items-center justify-center p-4">
-        <FloatingBubblesBackground />
-        <Card className="w-full max-w-md text-center bg-[#0a1525]/90 border-white/10 backdrop-blur-xl relative z-10">
-          <CardHeader>
-            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-400" />
-            </div>
-            <CardTitle className="text-2xl text-white" data-testid="text-welcome-title">Welcome to the Lab!</CardTitle>
-            <CardDescription className="text-slate-400">
-              Your beta access is now active. Redirecting you to the Automations Hub...
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={() => navigate("/automations")} 
-              className="w-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
-              data-testid="button-go-automations"
-            >
-              Go to Automations Hub
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-6 w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            <CheckCircle className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h1 className="text-2xl font-semibold text-white mb-2" data-testid="text-welcome-title">Welcome!</h1>
+          <p className="text-neutral-500 mb-6">Your account is active. Redirecting...</p>
+          <Button 
+            onClick={() => navigate("/automations")} 
+            className="bg-cyan-400 hover:bg-cyan-300 text-black font-semibold"
+            data-testid="button-go-automations"
+          >
+            Go to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050b16] flex items-center justify-center p-4">
-      <FloatingBubblesBackground />
-      <div className="w-full max-w-lg relative z-10">
-        {/* Logo Header */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <img 
-              src={quantEdgeLabsLogoUrl} 
-              alt="Quant Edge Labs" 
-              className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" 
-            />
-            <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent italic">
-              Quant Edge Labs
-            </h2>
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+      <div className="w-full max-w-lg">
+        
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <span className="text-2xl font-bold text-white tracking-tight">QUANT EDGE</span>
+            <span className="text-neutral-600">|</span>
+            <span className="text-sm font-medium text-neutral-500 tracking-widest">LABS</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2" data-testid="text-join-beta-title">Join the Beta</h1>
-          <p className="text-slate-400">
-            {step === "verify" 
-              ? "Enter your email and the access code you received" 
-              : "Complete your profile to get started"}
+          <h1 className="text-xl font-semibold text-white mb-1" data-testid="text-join-beta-title">
+            {step === "verify" ? "Verify Access" : "Complete Profile"}
+          </h1>
+          <p className="text-neutral-500 text-sm">
+            {step === "verify" ? "Enter your email and access code" : "Tell us about yourself"}
           </p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step === "verify" ? "bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950" : "bg-green-500/20 border border-green-500/50 text-green-400"}`}>
-              {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
-            </div>
-            <div className={`w-16 h-0.5 transition-all ${step === "onboard" ? "bg-cyan-500" : "bg-slate-700"}`} />
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step === "onboard" ? "bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950" : "bg-slate-800 border border-slate-700 text-slate-500"}`}>
-              2
-            </div>
+        {/* Progress */}
+        <div className="flex justify-center items-center gap-3 mb-8">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === "verify" ? "bg-cyan-400 text-black" : "bg-emerald-500/20 text-emerald-400"}`}>
+            {step !== "verify" ? <CheckCircle className="w-4 h-4" /> : "1"}
+          </div>
+          <div className={`w-12 h-px ${step === "onboard" ? "bg-cyan-400" : "bg-neutral-800"}`} />
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === "onboard" ? "bg-cyan-400 text-black" : "bg-neutral-800 text-neutral-600"}`}>
+            2
           </div>
         </div>
 
         {step === "verify" ? (
-          <Card className="bg-[#0a1525]/90 border-white/10 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Key className="w-5 h-5 text-cyan-400" />
-                Verify Your Access
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Enter the email address where you received your invite and the access code.
+          <Card className="bg-[#141414] border-neutral-800">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-white text-lg">Enter Your Details</CardTitle>
+              <CardDescription className="text-neutral-500">
+                Use the email where you received your invite.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -247,17 +227,14 @@ export default function JoinBeta() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email Address</FormLabel>
+                        <FormLabel className="text-neutral-300">Email</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                            <Input 
-                              placeholder="you@example.com" 
-                              className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" 
-                              data-testid="input-verify-email"
-                              {...field} 
-                            />
-                          </div>
+                          <Input 
+                            placeholder="you@example.com" 
+                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-600"
+                            data-testid="input-verify-email"
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -269,21 +246,15 @@ export default function JoinBeta() {
                     name="token"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Access Code</FormLabel>
+                        <FormLabel className="text-neutral-300">Access Code</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Shield className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                            <Input 
-                              placeholder="XXXX-XXXX" 
-                              className="pl-10 uppercase font-mono tracking-wider bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" 
-                              data-testid="input-verify-token"
-                              {...field} 
-                            />
-                          </div>
+                          <Input 
+                            placeholder="Enter your invite code"
+                            className="font-mono bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-600"
+                            data-testid="input-verify-token"
+                            {...field} 
+                          />
                         </FormControl>
-                        <FormDescription>
-                          The code from your invite email (case-insensitive)
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -291,7 +262,7 @@ export default function JoinBeta() {
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
+                    className="w-full h-11 bg-cyan-400 hover:bg-cyan-300 text-black font-semibold"
                     disabled={verifyMutation.isPending}
                     data-testid="button-verify-code"
                   >
@@ -300,44 +271,50 @@ export default function JoinBeta() {
                     ) : (
                       <ArrowRight className="w-4 h-4 mr-2" />
                     )}
-                    Verify Code
+                    Verify
                   </Button>
                 </form>
               </Form>
-
-              <div className="mt-6 pt-4 border-t border-white/10 text-center text-sm text-slate-500">
-                <p>Don't have an invite code?</p>
-                <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" onClick={() => navigate("/")} data-testid="button-join-waitlist">
-                  Join the Waitlist
-                </Button>
-              </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-[#0a1525]/90 border-white/10 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <User className="w-5 h-5 text-cyan-400" />
-                Complete Your Profile
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Tell us about yourself so we can personalize your experience.
-                <br />
-                <span className="text-xs text-slate-500">Signing up as: {verifiedEmail}</span>
-              </CardDescription>
+          <Card className="bg-[#141414] border-neutral-800">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-white text-lg">Your Profile</CardTitle>
+                  <CardDescription className="text-neutral-500">
+                    {verifiedEmail}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setStep("verify")}
+                  className="text-neutral-400 hover:text-white"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <Form {...onboardingForm}>
                 <form onSubmit={onboardingForm.handleSubmit((data) => onboardMutation.mutate(data))} className="space-y-4">
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={onboardingForm.control}
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First Name</FormLabel>
+                          <FormLabel className="text-neutral-300">First Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="John" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-first-name" {...field} />
+                            <Input 
+                              className="bg-neutral-900 border-neutral-700 text-white"
+                              data-testid="input-first-name"
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -348,9 +325,13 @@ export default function JoinBeta() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last Name</FormLabel>
+                          <FormLabel className="text-neutral-300">Last Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Doe" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-last-name" {...field} />
+                            <Input 
+                              className="bg-neutral-900 border-neutral-700 text-white"
+                              data-testid="input-last-name"
+                              {...field} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -363,32 +344,82 @@ export default function JoinBeta() {
                     name="occupation"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Occupation</FormLabel>
+                        <FormLabel className="text-neutral-300">Occupation</FormLabel>
                         <FormControl>
-                          <Input placeholder="Software Engineer, Trader, Student..." className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-occupation" {...field} />
+                          <Input 
+                            placeholder="e.g. Software Engineer"
+                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-600"
+                            data-testid="input-occupation"
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={onboardingForm.control}
+                      name="tradingExperienceLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-neutral-300">Experience</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white" data-testid="select-experience">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {EXPERIENCE_LEVELS.map(level => (
+                                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={onboardingForm.control}
+                      name="riskTolerance"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-neutral-300">Risk Tolerance</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white" data-testid="select-risk">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {RISK_TOLERANCES.map(risk => (
+                                <SelectItem key={risk.value} value={risk.value}>{risk.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={onboardingForm.control}
-                    name="tradingExperienceLevel"
+                    name="investmentGoals"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Trading Experience</FormLabel>
+                        <FormLabel className="text-neutral-300">Investment Goal</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-experience">
-                              <SelectValue placeholder="Select your experience level" />
+                            <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white" data-testid="select-goals">
+                              <SelectValue />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {EXPERIENCE_LEVELS.map(level => (
-                              <SelectItem key={level.value} value={level.value}>
-                                {level.label}
-                              </SelectItem>
+                            {INVESTMENT_GOALS.map(goal => (
+                              <SelectItem key={goal.value} value={goal.value}>{goal.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -402,29 +433,31 @@ export default function JoinBeta() {
                     name="knowledgeFocus"
                     render={() => (
                       <FormItem>
-                        <FormLabel>Areas of Interest</FormLabel>
-                        <div className="grid grid-cols-2 gap-2">
+                        <FormLabel className="text-neutral-300">Areas of Interest</FormLabel>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
                           {KNOWLEDGE_AREAS.map((area) => (
                             <FormField
                               key={area.value}
                               control={onboardingForm.control}
                               name="knowledgeFocus"
                               render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                                <FormItem className="flex items-center space-x-2 space-y-0">
                                   <FormControl>
                                     <Checkbox
                                       checked={field.value?.includes(area.value)}
                                       onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, area.value])
-                                          : field.onChange(field.value?.filter((v: string) => v !== area.value));
+                                        const updated = checked
+                                          ? [...(field.value || []), area.value]
+                                          : field.value?.filter((v: string) => v !== area.value) || [];
+                                        field.onChange(updated);
                                       }}
+                                      className="border-neutral-600"
                                       data-testid={`checkbox-${area.value}`}
                                     />
                                   </FormControl>
-                                  <Label className="text-sm font-normal cursor-pointer">
+                                  <FormLabel className="text-sm text-neutral-400 font-normal cursor-pointer">
                                     {area.label}
-                                  </Label>
+                                  </FormLabel>
                                 </FormItem>
                               )}
                             />
@@ -437,81 +470,40 @@ export default function JoinBeta() {
 
                   <FormField
                     control={onboardingForm.control}
-                    name="investmentGoals"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Investment Goals</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-goals">
-                              <SelectValue placeholder="Select your primary goal" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {INVESTMENT_GOALS.map(goal => (
-                              <SelectItem key={goal.value} value={goal.value}>
-                                {goal.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={onboardingForm.control}
-                    name="riskTolerance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Risk Tolerance</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-risk">
-                              <SelectValue placeholder="Select your risk tolerance" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {RISK_TOLERANCES.map(risk => (
-                              <SelectItem key={risk.value} value={risk.value}>
-                                {risk.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={onboardingForm.control}
                     name="referralSource"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>How did you hear about us?</FormLabel>
+                        <FormLabel className="text-neutral-300">How did you find us?</FormLabel>
                         <FormControl>
-                          <Input placeholder="Twitter, Discord, Friend, etc." className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-referral" {...field} />
+                          <Input 
+                            placeholder="e.g. Twitter, friend referral"
+                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-600"
+                            data-testid="input-referral"
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="border-t border-white/10 pt-4">
-                    <h3 className="font-medium mb-3 text-white">Create Your Password</h3>
+                  <div className="border-t border-neutral-800 pt-4 mt-4">
+                    <p className="text-neutral-400 text-sm mb-4">Create your password</p>
                     <div className="space-y-4">
                       <FormField
                         control={onboardingForm.control}
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password</FormLabel>
+                            <FormLabel className="text-neutral-300">Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="••••••••" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-password" {...field} />
+                              <Input 
+                                type="password"
+                                className="bg-neutral-900 border-neutral-700 text-white"
+                                data-testid="input-password"
+                                {...field} 
+                              />
                             </FormControl>
-                            <FormDescription>At least 8 characters</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -521,9 +513,14 @@ export default function JoinBeta() {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirm Password</FormLabel>
+                            <FormLabel className="text-neutral-300">Confirm Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="••••••••" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-confirm-password" {...field} />
+                              <Input 
+                                type="password"
+                                className="bg-neutral-900 border-neutral-700 text-white"
+                                data-testid="input-confirm-password"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -532,41 +529,27 @@ export default function JoinBeta() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="border-slate-600 text-slate-300 hover:bg-slate-800"
-                      onClick={() => setStep("verify")}
-                      data-testid="button-back"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 font-bold hover:from-cyan-400 hover:to-cyan-300" 
-                      disabled={onboardMutation.isPending}
-                      data-testid="button-complete-signup"
-                    >
-                      {onboardMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                      )}
-                      Complete Signup
-                    </Button>
-                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 bg-cyan-400 hover:bg-cyan-300 text-black font-semibold mt-4"
+                    disabled={onboardMutation.isPending}
+                    data-testid="button-complete-signup"
+                  >
+                    {onboardMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Complete Sign Up
+                  </Button>
                 </form>
               </Form>
             </CardContent>
           </Card>
         )}
 
-        <p className="text-center text-xs text-slate-500 mt-6">
-          By signing up, you agree that this platform is for educational and research purposes only.
-          <br />
-          Past performance is not indicative of future results.
+        <p className="text-center text-neutral-600 text-xs mt-6">
+          For educational and research purposes only.
         </p>
       </div>
     </div>

@@ -40,7 +40,7 @@ export async function sendBetaInviteEmail(
 
   const inviteLink = getInviteLink(token);
   const tierBadge = options?.tierOverride 
-    ? `<span style="background: linear-gradient(135deg, #06b6d4, #3b82f6); color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">${options.tierOverride} Access</span>`
+    ? `<span style="background: #262626; color: #22d3ee; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">${options.tierOverride} Access</span>`
     : '';
 
   try {
