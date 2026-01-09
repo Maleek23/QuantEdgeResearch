@@ -271,3 +271,67 @@ export function getDiscoveryStatus() {
 export function isDiscoveredMover(symbol: string): boolean {
   return discoveredMovers.has(symbol) && !getFullUniverse().includes(symbol);
 }
+
+/**
+ * Ingest significant movers into Trade Desk via centralized ingestion
+ * Creates trade ideas for movers meeting quality criteria
+ */
+export async function ingestMoversToTradeDesk(): Promise<{ ingested: number; skipped: number }> {
+  const { ingestTradeIdea, createScannerSignals } = await import('./trade-idea-ingestion');
+  
+  const movers = await discoverMovers();
+  let ingested = 0;
+  let skipped = 0;
+  
+  // Filter for significant movers only
+  const significantMovers = movers.filter(m => 
+    Math.abs(m.changePercent) >= 4 && 
+    m.relativeVolume >= 1.5 &&
+    m.price >= 2 // Skip penny stocks
+  );
+  
+  for (const mover of significantMovers.slice(0, 20)) {
+    const direction = mover.changePercent >= 0 ? 'bullish' : 'bearish';
+    
+    // Create signals based on mover characteristics
+    const signals = createScannerSignals({
+      changePercent: Math.abs(mover.changePercent),
+      relativeVolume: mover.relativeVolume,
+      breakout: Math.abs(mover.changePercent) >= 6 && mover.relativeVolume >= 2,
+    });
+    
+    // Need at least 2 signals
+    if (signals.length < 2) {
+      skipped++;
+      continue;
+    }
+    
+    // Determine holding period based on move size
+    const holdingPeriod = Math.abs(mover.changePercent) >= 8 ? 'day' : 'swing';
+    
+    const sourceLabel = mover.source.replace('_', ' ');
+    const result = await ingestTradeIdea({
+      source: 'market_scanner',
+      symbol: mover.symbol,
+      assetType: 'stock',
+      direction,
+      signals,
+      holdingPeriod,
+      currentPrice: mover.price,
+      catalyst: `${sourceLabel}: ${mover.changePercent >= 0 ? '+' : ''}${mover.changePercent.toFixed(1)}% with ${mover.relativeVolume.toFixed(1)}x volume`,
+      analysis: `${mover.name || mover.symbol} discovered via ${sourceLabel}. ` +
+        `${mover.isNewDiscovery ? 'NEW DISCOVERY - not in static universe! ' : ''}` +
+        `Price: $${mover.price.toFixed(2)}, Volume: ${mover.relativeVolume.toFixed(1)}x average.`,
+    });
+    
+    if (result.success) {
+      ingested++;
+      logger.info(`[DISCOVERY->TRADE-DESK] ✅ Ingested ${mover.symbol}: ${mover.changePercent.toFixed(1)}% (${sourceLabel})`);
+    } else {
+      skipped++;
+    }
+  }
+  
+  logger.info(`[DISCOVERY->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
+  return { ingested, skipped };
+}

@@ -10400,6 +10400,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Aggregate trade ideas from ALL sources into Trade Desk
+  app.post("/api/trade-ideas/ingest-all", requireAdminJWT, async (_req, res) => {
+    try {
+      const results: Record<string, { ingested: number; skipped: number }> = {};
+      
+      // 1. Ingest from Market Scanner movers
+      try {
+        const { ingestMoversToTradeDesk } = await import('./market-scanner');
+        results.market_scanner = await ingestMoversToTradeDesk('day', 4, 1.5);
+      } catch (err) {
+        logger.error('[INGEST-ALL] Market scanner failed:', err);
+        results.market_scanner = { ingested: 0, skipped: 0 };
+      }
+      
+      // 2. Ingest from Bullish Trend Scanner
+      try {
+        const { ingestBullishTrendsToTradeDesk } = await import('./bullish-trend-scanner');
+        results.bullish_trends = await ingestBullishTrendsToTradeDesk();
+      } catch (err) {
+        logger.error('[INGEST-ALL] Bullish trends failed:', err);
+        results.bullish_trends = { ingested: 0, skipped: 0 };
+      }
+      
+      // 3. Ingest from Watchlist (S/A grades)
+      try {
+        const { ingestWatchlistToTradeDesk } = await import('./watchlist-grading-service');
+        results.watchlist = await ingestWatchlistToTradeDesk();
+      } catch (err) {
+        logger.error('[INGEST-ALL] Watchlist failed:', err);
+        results.watchlist = { ingested: 0, skipped: 0 };
+      }
+      
+      // 4. Ingest from Mover Discovery
+      try {
+        const { ingestMoversToTradeDesk: ingestDiscoveredMovers } = await import('./mover-discovery');
+        results.mover_discovery = await ingestDiscoveredMovers();
+      } catch (err) {
+        logger.error('[INGEST-ALL] Mover discovery failed:', err);
+        results.mover_discovery = { ingested: 0, skipped: 0 };
+      }
+      
+      // Calculate totals
+      const totalIngested = Object.values(results).reduce((sum, r) => sum + r.ingested, 0);
+      const totalSkipped = Object.values(results).reduce((sum, r) => sum + r.skipped, 0);
+      
+      logger.info(`[INGEST-ALL] Complete: ${totalIngested} ingested, ${totalSkipped} skipped across all sources`);
+      
+      res.json({
+        success: true,
+        message: `Ingested ${totalIngested} trade ideas from all sources`,
+        totalIngested,
+        totalSkipped,
+        bySource: results
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/trade-ideas/ingest-all' });
+      res.status(500).json({ error: "Failed to ingest trade ideas from all sources" });
+    }
+  });
+
   // Annual Breakout Watchlist Routes
   app.get("/api/annual-watchlist", async (_req, res) => {
     try {

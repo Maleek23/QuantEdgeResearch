@@ -726,12 +726,108 @@ export function startBullishTrendScanner(): void {
       scanBullishTrends().catch(err => 
         logger.error('[BULLISH] Scheduled scan failed', { error: err })
       );
-      // DISABLED: Individual breakout alerts spam Discord - use daily preview instead
-      // sendBreakoutAlerts().catch(err =>
-      //   logger.error('[BULLISH] Alert sending failed', { error: err })
-      // );
+      // Ingest strong trends to Trade Desk
+      ingestBullishTrendsToTradeDesk().catch(err =>
+        logger.error('[BULLISH] Trade Desk ingestion failed', { error: err })
+      );
     }
   }, 15 * 60 * 1000);
   
-  logger.info('[BULLISH] Scanner started - scanning every 15 minutes during market hours (alerts disabled, use daily preview)');
+  logger.info('[BULLISH] Scanner started - scanning every 15 minutes during market hours');
+}
+
+/**
+ * Ingest strong bullish trends into Trade Desk
+ * Creates trade ideas for trends meeting quality criteria
+ */
+export async function ingestBullishTrendsToTradeDesk(): Promise<{ ingested: number; skipped: number }> {
+  const { ingestTradeIdea, createScannerSignals } = await import('./trade-idea-ingestion');
+  
+  const trends = await getBullishTrends();
+  let ingested = 0;
+  let skipped = 0;
+  
+  for (const trend of trends) {
+    // Quality filters for Trade Desk ingestion
+    // 1. Strong momentum score (>= 60)
+    if (!trend.momentumScore || trend.momentumScore < 60) {
+      skipped++;
+      continue;
+    }
+    
+    // 2. Good trend strength (not weak)
+    if (trend.trendStrength === 'weak') {
+      skipped++;
+      continue;
+    }
+    
+    // 3. Acceptable trend phases (accumulation, momentum, breakout)
+    const goodPhases: TrendPhase[] = ['accumulation', 'momentum', 'breakout'];
+    if (!trend.trendPhase || !goodPhases.includes(trend.trendPhase)) {
+      skipped++;
+      continue;
+    }
+    
+    // 4. Volume confirmation
+    if (!trend.volumeRatio || trend.volumeRatio < 1.2) {
+      skipped++;
+      continue;
+    }
+    
+    // 5. RSI not overbought (< 75)
+    if (trend.rsi14 && trend.rsi14 > 75) {
+      skipped++;
+      continue;
+    }
+    
+    // Calculate distance from 52-week high
+    const distanceFromHigh = trend.week52High && trend.currentPrice 
+      ? ((trend.week52High - trend.currentPrice) / trend.week52High) * 100 
+      : undefined;
+    
+    // Create signals from trend data
+    const signals = createScannerSignals({
+      changePercent: trend.dayChangePercent || 0,
+      relativeVolume: trend.volumeRatio || 1,
+      rsi: trend.rsi14 || 50,
+      nearHigh: distanceFromHigh !== undefined && distanceFromHigh < 5,
+      breakout: trend.trendPhase === 'breakout',
+      trendStrength: trend.trendStrength === 'strong' ? 0.9 : trend.trendStrength === 'moderate' ? 0.7 : 0.5,
+    });
+    
+    // Need at least 2 signals
+    if (signals.length < 2) {
+      skipped++;
+      continue;
+    }
+    
+    // Determine holding period based on trend phase
+    const holdingPeriod = trend.trendPhase === 'breakout' ? 'day' : 'swing';
+    
+    const result = await ingestTradeIdea({
+      source: 'market_scanner', // Use market_scanner as source type
+      symbol: trend.symbol,
+      assetType: 'stock',
+      direction: 'bullish',
+      signals,
+      holdingPeriod,
+      currentPrice: trend.currentPrice || undefined,
+      catalyst: `${trend.trendStrength} ${trend.trendPhase} trend with ${(trend.momentumScore || 0).toFixed(0)} momentum`,
+      analysis: `${trend.name || trend.symbol} showing ${trend.trendStrength} bullish momentum. ${
+        trend.trendPhase === 'breakout' ? 'Breaking out with volume confirmation.' : 
+        trend.trendPhase === 'accumulation' ? 'Accumulation phase detected.' :
+        'In active momentum phase.'
+      } RSI: ${trend.rsi14?.toFixed(0) || 'N/A'}, Volume: ${trend.volumeRatio?.toFixed(1)}x avg.`,
+    });
+    
+    if (result.success) {
+      ingested++;
+      logger.info(`[BULLISH->TRADE-DESK] ✅ Ingested ${trend.symbol}: ${trend.trendPhase} (score: ${trend.momentumScore})`);
+    } else {
+      skipped++;
+    }
+  }
+  
+  logger.info(`[BULLISH->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
+  return { ingested, skipped };
 }

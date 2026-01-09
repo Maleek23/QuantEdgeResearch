@@ -745,3 +745,121 @@ export async function generateSmartWatchlist(
   
   return sortedPicks;
 }
+
+/**
+ * Ingest top movers from Market Scanner into Trade Desk
+ * This creates trade ideas for high-quality movers with strong setups
+ */
+export async function ingestMoversToTradeDesk(
+  timeframe: 'day' | 'week' = 'day',
+  minChangePercent: number = 4,
+  minVolumeRatio: number = 1.5
+): Promise<{ ingested: number; skipped: number }> {
+  const { ingestTradeIdea, createScannerSignals } = await import('./trade-idea-ingestion');
+  
+  const movers = await getTopMovers(timeframe, 'all', 30);
+  let ingested = 0;
+  let skipped = 0;
+  
+  const holdingPeriod = timeframe === 'day' ? 'day' : 'swing';
+  
+  // Process gainers (bullish setups)
+  for (const stock of movers.gainers) {
+    const changePercent = timeframe === 'day' ? stock.dayChangePercent : (stock.weekChangePercent || 0);
+    const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+    
+    // Quality filter: minimum move + volume
+    if (Math.abs(changePercent) < minChangePercent || volumeRatio < minVolumeRatio) {
+      skipped++;
+      continue;
+    }
+    
+    // Skip penny stocks under $2
+    if (stock.currentPrice < 2) {
+      skipped++;
+      continue;
+    }
+    
+    const signals = createScannerSignals({
+      changePercent,
+      relativeVolume: volumeRatio,
+      nearHigh: stock.week52High ? stock.currentPrice >= stock.week52High * 0.95 : false,
+      breakout: changePercent > 6 && volumeRatio > 2,
+    });
+    
+    // Need at least 2 signals
+    if (signals.length < 2) {
+      skipped++;
+      continue;
+    }
+    
+    const result = await ingestTradeIdea({
+      source: 'market_scanner',
+      symbol: stock.symbol,
+      assetType: 'stock',
+      direction: 'bullish',
+      signals,
+      holdingPeriod,
+      currentPrice: stock.currentPrice,
+      catalyst: `${timeframe === 'day' ? 'Day' : 'Week'} mover: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}% with ${volumeRatio.toFixed(1)}x volume`,
+      analysis: `${stock.name} is showing strong ${timeframe} momentum with elevated volume. ${stock.week52High && stock.currentPrice >= stock.week52High * 0.95 ? 'Trading near 52-week highs.' : ''}`,
+    });
+    
+    if (result.success) {
+      ingested++;
+      logger.info(`[SCANNER->TRADE-DESK] ✅ Ingested ${stock.symbol}: ${changePercent.toFixed(1)}% (${holdingPeriod})`);
+    } else {
+      skipped++;
+    }
+  }
+  
+  // Process losers (potential bounce plays - bearish then reversal)
+  for (const stock of movers.losers.slice(0, 10)) {
+    const changePercent = timeframe === 'day' ? stock.dayChangePercent : (stock.weekChangePercent || 0);
+    const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+    
+    // For losers, look for oversold bounces - bigger drops with volume
+    if (changePercent > -5 || volumeRatio < 1.5) {
+      skipped++;
+      continue;
+    }
+    
+    if (stock.currentPrice < 5) {
+      skipped++;
+      continue;
+    }
+    
+    const signals = createScannerSignals({
+      changePercent: Math.abs(changePercent), // Use absolute for signal strength
+      relativeVolume: volumeRatio,
+      rsi: 25, // Assume oversold on big drops
+    });
+    
+    if (signals.length < 2) {
+      skipped++;
+      continue;
+    }
+    
+    const result = await ingestTradeIdea({
+      source: 'market_scanner',
+      symbol: stock.symbol,
+      assetType: 'stock',
+      direction: 'bullish', // Bounce play - looking for reversal
+      signals,
+      holdingPeriod: 'swing', // Bounce plays need time
+      currentPrice: stock.currentPrice,
+      catalyst: `Oversold bounce candidate: ${changePercent.toFixed(1)}% drop with ${volumeRatio.toFixed(1)}x volume`,
+      analysis: `${stock.name} is oversold after a significant drop. Watching for reversal confirmation.`,
+    });
+    
+    if (result.success) {
+      ingested++;
+      logger.info(`[SCANNER->TRADE-DESK] ✅ Ingested bounce play ${stock.symbol}: ${changePercent.toFixed(1)}%`);
+    } else {
+      skipped++;
+    }
+  }
+  
+  logger.info(`[SCANNER->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
+  return { ingested, skipped };
+}

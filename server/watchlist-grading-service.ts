@@ -1078,3 +1078,84 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
     skipped: skippedSymbols,
   };
 }
+
+/**
+ * Ingest high-grade watchlist items into Trade Desk via centralized ingestion
+ * Uses the trade-idea-ingestion module for deduplication and quality gates
+ */
+export async function ingestWatchlistToTradeDesk(): Promise<{ ingested: number; skipped: number }> {
+  const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+  
+  const items = await storage.getAllWatchlist();
+  let ingested = 0;
+  let skipped = 0;
+  
+  // Only process S and A tier items
+  const highGradeItems = items.filter(item => 
+    item.tier && ['S', 'A'].includes(item.tier) && item.gradeScore && item.gradeScore >= 70
+  );
+  
+  for (const item of highGradeItems) {
+    // Parse grade inputs for signals
+    let gradeInputs: any = {};
+    try {
+      gradeInputs = item.gradeInputs ? JSON.parse(item.gradeInputs as string) : {};
+    } catch {
+      gradeInputs = {};
+    }
+    
+    // Build signals from grade components with proper IdeaSignal format
+    const signals: Array<{ type: string; weight: number; description: string }> = [];
+    const components = gradeInputs.components || {};
+    
+    if (components.trend && components.trend.score >= 15) {
+      signals.push({ type: 'trend_strength', weight: Math.min(20, components.trend.score), description: 'Strong trend alignment' });
+    }
+    if (components.momentum && components.momentum.score >= 10) {
+      signals.push({ type: 'momentum', weight: Math.min(15, components.momentum.score), description: 'Positive momentum indicators' });
+    }
+    if (components.volume && components.volume.score >= 10) {
+      signals.push({ type: 'volume_confirmation', weight: Math.min(15, components.volume.score), description: 'Above average volume' });
+    }
+    if (components.riskReward && components.riskReward.score >= 15) {
+      signals.push({ type: 'risk_reward', weight: Math.min(15, components.riskReward.score), description: 'Favorable risk/reward ratio' });
+    }
+    if (components.confluence && components.confluence.score >= 5) {
+      signals.push({ type: 'confluence', weight: Math.min(10, components.confluence.score), description: 'Multiple factor confluence' });
+    }
+    
+    // Must have at least 2 signals
+    if (signals.length < 2) {
+      signals.push({ type: 'high_grade', weight: 15, description: `High watchlist grade: ${item.tier}` });
+      signals.push({ type: 'watchlist_conviction', weight: 10, description: 'Manual watchlist conviction' });
+    }
+    
+    // Default to bullish for watchlist items (no direction property exists)
+    const direction = 'bullish';
+    const assetType = item.assetType === 'option' ? 'option' : item.assetType === 'crypto' ? 'crypto' : 'stock';
+    
+    const result = await ingestTradeIdea({
+      source: 'watchlist',
+      symbol: item.symbol,
+      assetType,
+      direction,
+      signals,
+      holdingPeriod: 'swing',
+      currentPrice: item.currentPrice || undefined,
+      targetPrice: item.targetPrice || undefined,
+      catalyst: `${item.tier}-Tier Watchlist Grade (Score: ${item.gradeScore})`,
+      analysis: `${item.symbol} rated ${item.gradeLetter} (Tier ${item.tier}) with score ${item.gradeScore}/100. ` +
+        (gradeInputs.signals?.slice(0, 2)?.join(' | ') || 'High conviction setup.'),
+    });
+    
+    if (result.success) {
+      ingested++;
+      logger.info(`[WATCHLIST->TRADE-DESK] ✅ Ingested ${item.symbol}: ${item.tier}-Tier (${item.gradeScore}/100)`);
+    } else {
+      skipped++;
+    }
+  }
+  
+  logger.info(`[WATCHLIST->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
+  return { ingested, skipped };
+}
