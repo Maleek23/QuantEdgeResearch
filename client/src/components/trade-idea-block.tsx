@@ -420,6 +420,36 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </TooltipContent>
               </Tooltip>
 
+              {/* Quality Grade Badge - Shows stored grade from bot generation (A+, A, B, C, etc.) */}
+              {idea.probabilityBand && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-xs h-5 font-bold px-2 cursor-help whitespace-nowrap",
+                        idea.probabilityBand === 'A+' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
+                        idea.probabilityBand === 'A' && "bg-green-500/20 text-green-400 border-green-500/40",
+                        idea.probabilityBand === 'A-' && "bg-green-500/15 text-green-300 border-green-500/30",
+                        (idea.probabilityBand === 'B+' || idea.probabilityBand === 'B' || idea.probabilityBand === 'B-') && "bg-blue-500/20 text-blue-400 border-blue-500/40",
+                        (idea.probabilityBand === 'C+' || idea.probabilityBand === 'C' || idea.probabilityBand === 'C-') && "bg-amber-500/20 text-amber-400 border-amber-500/40",
+                        (idea.probabilityBand === 'D' || idea.probabilityBand === 'D-' || idea.probabilityBand === 'F') && "bg-red-500/20 text-red-400 border-red-500/40"
+                      )}
+                      data-testid={`badge-grade-${idea.symbol}`}
+                    >
+                      {idea.probabilityBand}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-medium">Quality Grade: {idea.probabilityBand}</p>
+                    <p className="text-xs text-muted-foreground">Assigned by scanner at generation time</p>
+                    {idea.confidenceScore && (
+                      <p className="text-xs">Confidence: {Math.round(idea.confidenceScore)}%</p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               {/* Signal Strength Badge - Shows consensus, not probability */}
               <SignalStrengthBadge
                 signalCount={idea.qualitySignals?.length || 0}

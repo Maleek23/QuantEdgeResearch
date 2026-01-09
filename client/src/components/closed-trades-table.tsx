@@ -243,21 +243,24 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                         <p className="font-semibold">{selectedTrade.holdingPeriod.toUpperCase()}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Signal Grade</p>
+                        <p className="text-muted-foreground text-xs">Quality Grade</p>
                         <div className="flex flex-col gap-1">
-                          {(() => {
-                            const signalGrade = getSignalGrade(selectedTrade.qualitySignals);
-                            return (
-                              <>
-                                <Badge variant="outline" className={cn("w-fit", signalGrade.color)}>
-                                  {signalGrade.label}
-                                </Badge>
-                                <div className="text-xs text-muted-foreground">
-                                  {signalGrade.description}
-                                </div>
-                              </>
-                            );
-                          })()}
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "w-fit font-bold",
+                              selectedTrade.probabilityBand === 'A+' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
+                              selectedTrade.probabilityBand === 'A' && "bg-green-500/20 text-green-400 border-green-500/40",
+                              (selectedTrade.probabilityBand === 'B+' || selectedTrade.probabilityBand === 'B') && "bg-blue-500/20 text-blue-400 border-blue-500/40",
+                              (selectedTrade.probabilityBand === 'C+' || selectedTrade.probabilityBand === 'C') && "bg-amber-500/20 text-amber-400 border-amber-500/40",
+                              (selectedTrade.probabilityBand === 'D' || selectedTrade.probabilityBand === 'F') && "bg-red-500/20 text-red-400 border-red-500/40"
+                            )}
+                          >
+                            {selectedTrade.probabilityBand || 'C'}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground">
+                            Assigned by scanner ({selectedTrade.confidenceScore ? `${Math.round(selectedTrade.confidenceScore)}% confidence` : 'default'})
+                          </div>
                         </div>
                       </div>
                       <div>

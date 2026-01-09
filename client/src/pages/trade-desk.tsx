@@ -1293,23 +1293,24 @@ export default function TradeDeskPage() {
       filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
     }
 
-    // 2. Grade filter - NOW uses signal-based grading (matches Discord cards)
+    // 2. Grade filter - Use stored probabilityBand (backend-assigned grade)
     // 'quality' = A+, A, B, C (excludes D/F) - default for cleaner trade desk
     if (gradeFilter !== 'all') {
       filtered = filtered.filter(idea => {
         if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
         
-        // Use signal-based grade for consistency with Discord cards
-        const signalGrade = getSignalGrade(idea.qualitySignals);
+        // Use the stored grade from backend (probabilityBand), NOT recalculated getSignalGrade
+        const storedGrade = idea.probabilityBand || 'C';
         
         // Quality filter: Show only A+, A, B, C - exclude D and F grades
         if (gradeFilter === 'quality') {
-          return true; // Keep enabled for now to see everything
+          const qualityGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
+          return qualityGrades.includes(storedGrade);
         }
-        if (gradeFilter === 'A') return signalGrade.grade === 'A+' || signalGrade.grade === 'A';
-        if (gradeFilter === 'B') return signalGrade.grade === 'B';
-        if (gradeFilter === 'C') return signalGrade.grade === 'C';
-        if (gradeFilter === 'D') return signalGrade.grade === 'D';
+        if (gradeFilter === 'A') return storedGrade === 'A+' || storedGrade === 'A' || storedGrade === 'A-';
+        if (gradeFilter === 'B') return storedGrade === 'B+' || storedGrade === 'B' || storedGrade === 'B-';
+        if (gradeFilter === 'C') return storedGrade === 'C+' || storedGrade === 'C' || storedGrade === 'C-';
+        if (gradeFilter === 'D') return storedGrade === 'D+' || storedGrade === 'D' || storedGrade === 'D-' || storedGrade === 'F';
         return true;
       });
     }
