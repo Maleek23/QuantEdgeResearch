@@ -160,20 +160,6 @@ export default function Landing() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left: Copy */}
             <div className="text-center lg:text-left">
-              {/* Brand Logo & Name */}
-              <div className="flex items-center justify-center lg:justify-start gap-4 mb-8">
-                <img 
-                  src={quantEdgeLabsLogoUrl} 
-                  alt="Quant Edge Labs" 
-                  className="h-16 w-16 object-contain drop-shadow-[0_0_20px_rgba(0,212,255,0.4)]" 
-                />
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent italic tracking-wide">
-                    Quant Edge Labs
-                  </h2>
-                  <p className="text-sm text-slate-400 tracking-widest">Multiple Engines, One Edge</p>
-                </div>
-              </div>
               
               {/* Beta Badge */}
               <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full px-5 py-2 mb-8 backdrop-blur-sm">
