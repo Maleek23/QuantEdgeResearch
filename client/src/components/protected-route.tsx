@@ -48,7 +48,7 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
       setIsRedeeming(true);
       try {
         const response = await apiRequest("POST", "/api/beta/redeem", { 
-          token: inviteCode.trim().toUpperCase() 
+          token: inviteCode.trim().toLowerCase() 
         });
         
         if (response.ok) {
@@ -92,9 +92,9 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Input
-                placeholder="Enter invite code (e.g., BETA-XXXX)"
+                placeholder="Enter invite code"
                 value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                onChange={(e) => setInviteCode(e.target.value)}
                 className="text-center font-mono text-lg tracking-wider"
                 data-testid="input-invite-code"
               />
