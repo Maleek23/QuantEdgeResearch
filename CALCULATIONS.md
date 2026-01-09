@@ -110,56 +110,73 @@ Each idea source starts with a base confidence:
 
 ### Signal Weight System
 
-Each signal type adds/subtracts points:
+Each signal type adds/subtracts points. These values are defined in `SIGNAL_WEIGHTS` in `server/universal-idea-generator.ts`:
 
-**Bullish Technical Signals:**
+**Technical Signals:**
 | Signal | Weight |
 |--------|--------|
-| RSI_OVERSOLD | +8 |
-| RSI2_EXTREME_OVERSOLD | +12 |
-| MACD_BULLISH_CROSSOVER | +10 |
+| RSI_OVERSOLD | +12 |
+| RSI_OVERBOUGHT | +10 |
+| MACD_BULLISH_CROSS | +10 |
+| MACD_BEARISH_CROSS | +10 |
 | GOLDEN_CROSS | +15 |
-| PRICE_ABOVE_VWAP | +5 |
+| DEATH_CROSS | +12 |
+| ABOVE_VWAP | +8 |
+| BELOW_VWAP | +8 |
 | VOLUME_SURGE | +10 |
-| SUPPORT_BOUNCE | +8 |
 | BREAKOUT | +12 |
+| BREAKDOWN | +10 |
+| SUPPORT_BOUNCE | +12 |
+| RESISTANCE_REJECTION | +10 |
 
-**Bearish Technical Signals:**
+**Momentum Signals:**
 | Signal | Weight |
 |--------|--------|
-| RSI_OVERBOUGHT | +8 |
-| RSI2_EXTREME_OVERBOUGHT | +12 |
-| MACD_BEARISH_CROSSOVER | +10 |
-| DEATH_CROSS | +15 |
-| PRICE_BELOW_VWAP | +5 |
-| BREAKDOWN | +12 |
-
-**Pattern Signals:**
-| Signal | Weight |
-|--------|--------|
-| BULL_FLAG | +10 |
-| BEAR_FLAG | +10 |
-| CUP_HANDLE | +12 |
-| HEAD_SHOULDERS | +12 |
-| DOUBLE_BOTTOM | +10 |
-| DOUBLE_TOP | +10 |
+| MARKET_SCANNER_MOVER | +8 |
+| TOP_GAINER | +10 |
+| TOP_LOSER | +8 |
+| UNUSUAL_VOLUME | +10 |
+| SECTOR_LEADER | +8 |
 
 **Options Flow Signals:**
 | Signal | Weight |
 |--------|--------|
-| UNUSUAL_CALL_VOLUME | +8 |
-| UNUSUAL_PUT_VOLUME | +8 |
-| SWEEP_DETECTED | +12 |
-| BLOCK_TRADE | +10 |
-| WHALE_ACTIVITY | +15 |
+| UNUSUAL_CALL_FLOW | +12 |
+| UNUSUAL_PUT_FLOW | +10 |
+| SWEEP_DETECTED | +15 |
+| LARGE_PREMIUM | +12 (dynamic: +5 to +15 based on size) |
+| DARK_POOL_PRINT | +14 |
 
-**Sentiment Signals:**
+**Social/Sentiment Signals:**
 | Signal | Weight |
 |--------|--------|
-| POSITIVE_SENTIMENT | +5 |
-| NEGATIVE_SENTIMENT | +5 |
-| INFLUENCER_MENTION | +8 |
-| NEWS_CATALYST | +7 |
+| TRENDING_TICKER | +8 |
+| INFLUENCER_MENTION | +10 |
+| SENTIMENT_BULLISH | +8 |
+| SENTIMENT_BEARISH | +6 |
+| HIGH_ENGAGEMENT | +6 |
+
+**Chart Pattern Signals:**
+| Signal | Weight |
+|--------|--------|
+| BULL_FLAG | +10 |
+| BEAR_FLAG | +8 |
+| HEAD_SHOULDERS | +12 |
+| DOUBLE_BOTTOM | +12 |
+| DOUBLE_TOP | +10 |
+| ASCENDING_TRIANGLE | +10 |
+| DESCENDING_TRIANGLE | +8 |
+| CUP_HANDLE | +14 |
+
+**Fundamental Signals:**
+| Signal | Weight |
+|--------|--------|
+| EARNINGS_BEAT | +10 |
+| REVENUE_BEAT | +8 |
+| UPGRADE | +12 |
+| DOWNGRADE | +8 |
+| INSIDER_BUYING | +15 |
+| INSTITUTIONAL_ACCUMULATION | +12 |
 
 **Risk Signals (Negative):**
 | Signal | Weight |
@@ -168,12 +185,6 @@ Each signal type adds/subtracts points:
 | LOW_LIQUIDITY | -8 |
 | PENNY_STOCK | -3 |
 | EARNINGS_SOON | -6 |
-
-**Convergence Bonuses:**
-| Signal | Weight |
-|--------|--------|
-| MULTI_SIGNAL_CONFLUENCE | +15 |
-| CROSS_ENGINE_AGREEMENT | +12 |
 
 ### Confluence Bonus
 
@@ -547,44 +558,58 @@ ML predictions boost/reduce confidence:
 
 ## Orphaned/Underutilized Features
 
-These features were built but may not be fully connected or utilized:
+These features were built but may not be fully connected or utilized.
 
-### Confirmed Orphaned (Not Imported Anywhere)
+**Note:** Many modules appear orphaned in static analysis but are actually:
+1. Dynamically imported via `await import('./module')` for lazy-loading
+2. Used in scheduled tasks or cron jobs
+3. Referenced by the frontend but not the server
 
-| Module | Description | Status |
-|--------|-------------|--------|
-| `pre-market-surge-detector.ts` | Detects pre-market volume surges | **NOT USED** |
-| `wallet-sync-service.ts` | Syncs external wallets | **NOT USED** |
-| `watch-suggestions.ts` | AI watchlist suggestions | **NOT USED** |
-| `ct-ingestion-service.ts` | CT Tracker ingestion | **NOT USED** |
-| `penny-scanner.ts` | Penny stock scanner | **NOT USED** |
-| `scan-deduper.ts` | Deduplicates scan results | **NOT USED** |
-| `error-sanitizer.ts` | Error message sanitization | **NOT USED** |
-| `api-retry.ts` | API retry logic | **NOT USED** |
+### Confirmed Orphaned (No References Found)
 
-### Dynamically Imported (Used But Lazy-Loaded)
+| Module | Description | Recommendation |
+|--------|-------------|----------------|
+| `wallet-sync-service.ts` | External wallet syncing | Remove or integrate |
+| `ct-ingestion-service.ts` | CT Tracker data ingestion | Remove or connect to scheduler |
+| `api-retry.ts` | Generic API retry logic | Integrate into API calls or remove |
+
+### Dynamically Imported (Lazy-Loaded)
+
+These modules ARE used but are dynamically imported via `await import()`:
 
 | Module | Import Location | Usage |
 |--------|-----------------|-------|
-| `auto-lotto-trader.ts` | index.ts, lotto-scanner.ts | Autonomous bot |
-| `backtesting-service.ts` | routes.ts | Backtesting API |
+| `auto-lotto-trader.ts` | index.ts, lotto-scanner.ts | Autonomous trading bot |
+| `backtesting-service.ts` | routes.ts | Backtesting API endpoints |
 | `ml-intelligence-service.ts` | routes.ts, auto-lotto-trader | ML predictions |
-| `polymarket-service.ts` | index.ts, routes.ts | Prediction markets |
-| `social-sentiment-scanner.ts` | routes.ts | Social sentiment |
-| `weekly-picks-generator.ts` | index.ts, routes.ts | Premium picks |
-| `deep-options-analyzer.ts` | Various | Options analysis |
-| `breakout-scanner.ts` | Various | Breakout detection |
+| `polymarket-service.ts` | index.ts, routes.ts | Prediction market scanning |
+| `social-sentiment-scanner.ts` | routes.ts | Social sentiment analysis |
+| `weekly-picks-generator.ts` | index.ts, routes.ts | Premium weekly picks |
+| `deep-options-analyzer.ts` | Various | Deep options analysis |
+| `breakout-scanner.ts` | Various | Breakout pattern detection |
+| `penny-scanner.ts` | routes.ts, index.ts | Penny stock scanning |
+| `pre-market-surge-detector.ts` | index.ts | Pre-market volume detection |
+
+### Frontend-Connected Modules
+
+| Module | Frontend Component | Purpose |
+|--------|-------------------|---------|
+| `watch-suggestions.ts` | `client/src/components/watch-suggestions.tsx` | AI watchlist suggestions |
 
 ### Potentially Underutilized
 
-| Module | Issue |
-|--------|-------|
-| `dynamic-signal-weights.ts` | May not be actively adapting |
-| `expiry-pattern-service.ts` | Unclear if connected to bot |
-| `premium-tracking-service.ts` | May not be displayed in UI |
-| `performance-validation-service.ts` | May not be running |
-| `futures-research-service.ts` | Limited futures coverage |
-| `quant-mean-reversion-bot.ts` | Separate from main auto-lotto |
+These modules exist but may need better integration:
+
+| Module | Issue | Recommendation |
+|--------|-------|----------------|
+| `dynamic-signal-weights.ts` | Weight adaptation may not be running | Connect to scheduled updates |
+| `expiry-pattern-service.ts` | Unclear bot connection | Verify integration with auto-lotto |
+| `premium-tracking-service.ts` | UI display uncertain | Add dashboard widget |
+| `performance-validation-service.ts` | May not be scheduled | Add to validation pipeline |
+| `futures-research-service.ts` | Limited coverage | Expand futures support |
+| `quant-mean-reversion-bot.ts` | Separate from auto-lotto | Consider consolidation |
+| `scan-deduper.ts` | Utility functions available | Ensure called by scanners |
+| `error-sanitizer.ts` | Error handling utility | Integrate into error middleware |
 
 ---
 
