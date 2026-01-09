@@ -10706,6 +10706,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get sector heat map - comprehensive view of all sectors with heat scores
+  app.get("/api/bullish-trends/heat-map", async (_req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT 
+          symbol, 
+          heat_score, 
+          distinct_sources, 
+          source_breakdown,
+          convergence_level,
+          last_direction,
+          recent_touches_1h,
+          recent_touches_24h,
+          CASE 
+            WHEN symbol IN ('NNE', 'LEU', 'OKLO', 'SMR', 'CCJ', 'UEC', 'DNN', 'BWXT', 'UUUU', 'URG', 'URA', 'UAMY', 'LTBR') THEN 'NUCLEAR'
+            WHEN symbol IN ('LMT', 'RTX', 'NOC', 'GD', 'BA', 'PLTR', 'LDOS', 'LHX', 'HII', 'TXT', 'TDG', 'HWM', 'GE', 'KTOS', 'AVAV') THEN 'DEFENSE'
+            WHEN symbol IN ('LUNR', 'RKLB', 'ASTS', 'SPCE', 'RDW', 'JOBY', 'ACHR', 'PL', 'MNTS', 'GSAT', 'IRDM', 'VSAT') THEN 'SPACE'
+            WHEN symbol IN ('MARA', 'RIOT', 'COIN', 'MSTR', 'CLSK', 'BITF', 'HIVE', 'HUT', 'BTBT', 'CIFR', 'IREN') THEN 'CRYPTO'
+            WHEN symbol IN ('NVDA', 'AMD', 'INTC', 'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML', 'TSM', 'LRCX', 'AMAT', 'KLAC') THEN 'SEMIS'
+            WHEN symbol IN ('PLTR', 'AI', 'SOUN', 'IONQ', 'RGTI', 'QUBT', 'UPST', 'BBAI', 'QBTS', 'ARQQ', 'PATH') THEN 'AI_QUANTUM'
+            WHEN symbol IN ('TSLA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'NFLX', 'CRM', 'ORCL', 'ADBE', 'NOW') THEN 'MEGA_TECH'
+            WHEN symbol IN ('SPY', 'QQQ', 'IWM', 'DIA', 'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'UVXY', 'VXX') THEN 'ETF_INDEX'
+            WHEN symbol IN ('UBER', 'ABNB', 'DASH', 'RIVN', 'LCID', 'NIO', 'XPEV', 'DKNG', 'PENN', 'DRAFT') THEN 'GROWTH'
+            WHEN symbol IN ('ENPH', 'SEDG', 'FSLR', 'RUN', 'PLUG', 'BE', 'CHPT', 'BLDP', 'ENVX', 'QS') THEN 'CLEAN_ENERGY'
+            ELSE 'OTHER'
+          END as sector
+        FROM symbol_heat_scores 
+        WHERE heat_score > 5
+        ORDER BY heat_score DESC
+        LIMIT 100
+      `);
+      
+      // Group by sector
+      const sectorMap: Record<string, any[]> = {};
+      for (const row of result.rows as any[]) {
+        const sector = row.sector || 'OTHER';
+        if (!sectorMap[sector]) {
+          sectorMap[sector] = [];
+        }
+        sectorMap[sector].push({
+          symbol: row.symbol,
+          heatScore: parseFloat(row.heat_score) || 0,
+          distinctSources: row.distinct_sources || 0,
+          sourceBreakdown: row.source_breakdown || {},
+          convergenceLevel: row.convergence_level || 0,
+          direction: row.last_direction || 'neutral',
+          recentTouches1h: row.recent_touches_1h || 0,
+          recentTouches24h: row.recent_touches_24h || 0,
+        });
+      }
+      
+      // Calculate sector summaries
+      const sectors = Object.entries(sectorMap).map(([name, symbols]) => ({
+        name,
+        symbols,
+        totalHeat: symbols.reduce((sum, s) => sum + s.heatScore, 0),
+        avgHeat: symbols.reduce((sum, s) => sum + s.heatScore, 0) / symbols.length,
+        symbolCount: symbols.length,
+        convergingCount: symbols.filter(s => s.distinctSources >= 2).length,
+        maxSources: Math.max(...symbols.map(s => s.distinctSources)),
+      }));
+      
+      // Sort by total heat
+      sectors.sort((a, b) => b.totalHeat - a.totalHeat);
+      
+      res.json({ 
+        sectors,
+        totalSymbols: result.rows.length,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bullish-trends/heat-map' });
+      res.status(500).json({ error: "Failed to fetch sector heat map" });
+    }
+  });
+
   // Add stock to bullish trend tracker
   app.post("/api/bullish-trends/add", isAuthenticated, async (req: any, res) => {
     try {

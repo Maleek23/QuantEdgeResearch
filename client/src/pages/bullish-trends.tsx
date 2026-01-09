@@ -24,9 +24,46 @@ import {
   Trash2,
   Rocket,
   LineChart,
-  Volume2
+  Volume2,
+  Flame,
+  AtomIcon,
+  Shield,
+  Satellite,
+  Cpu,
+  Bitcoin,
+  Brain,
+  Building2,
+  Layers,
+  Leaf
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+interface HeatMapSymbol {
+  symbol: string;
+  heatScore: number;
+  distinctSources: number;
+  sourceBreakdown: Record<string, number>;
+  convergenceLevel: number;
+  direction: string;
+  recentTouches1h: number;
+  recentTouches24h: number;
+}
+
+interface HeatMapSector {
+  name: string;
+  symbols: HeatMapSymbol[];
+  totalHeat: number;
+  avgHeat: number;
+  symbolCount: number;
+  convergingCount: number;
+  maxSources: number;
+}
+
+interface HeatMapData {
+  sectors: HeatMapSector[];
+  totalSymbols: number;
+  lastUpdated: string;
+}
 
 interface BullishTrend {
   id: string;
@@ -70,7 +107,7 @@ interface BullishTrend {
 
 export default function BullishTrends() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("heatmap");
   const [newSymbol, setNewSymbol] = useState("");
 
   const { data: trends, isLoading, refetch } = useQuery<BullishTrend[]>({
@@ -84,6 +121,11 @@ export default function BullishTrends() {
 
   const { data: topMomentum } = useQuery<BullishTrend[]>({
     queryKey: ["/api/bullish-trends/top"],
+  });
+
+  const { data: heatMapData, isLoading: heatMapLoading } = useQuery<HeatMapData>({
+    queryKey: ["/api/bullish-trends/heat-map"],
+    refetchInterval: 60000,
   });
 
   const addStock = useMutation({
@@ -142,6 +184,37 @@ export default function BullishTrends() {
     if (score >= 65) return 'text-green-400';
     if (score >= 45) return 'text-amber-400';
     return 'text-red-400';
+  };
+
+  const getSectorInfo = (sector: string) => {
+    const sectorMap: Record<string, { icon: any; color: string; label: string }> = {
+      'NUCLEAR': { icon: AtomIcon, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30', label: 'Nuclear/Energy' },
+      'DEFENSE': { icon: Shield, color: 'text-blue-400 bg-blue-500/20 border-blue-500/30', label: 'Defense/Aerospace' },
+      'SPACE': { icon: Satellite, color: 'text-purple-400 bg-purple-500/20 border-purple-500/30', label: 'Space/Satellites' },
+      'CRYPTO': { icon: Bitcoin, color: 'text-orange-400 bg-orange-500/20 border-orange-500/30', label: 'Crypto/Mining' },
+      'SEMIS': { icon: Cpu, color: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30', label: 'Semiconductors' },
+      'AI_QUANTUM': { icon: Brain, color: 'text-pink-400 bg-pink-500/20 border-pink-500/30', label: 'AI/Quantum' },
+      'MEGA_TECH': { icon: Building2, color: 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30', label: 'Mega Tech' },
+      'ETF_INDEX': { icon: Layers, color: 'text-slate-400 bg-slate-500/20 border-slate-500/30', label: 'ETF/Index' },
+      'GROWTH': { icon: TrendingUp, color: 'text-teal-400 bg-teal-500/20 border-teal-500/30', label: 'Growth' },
+      'CLEAN_ENERGY': { icon: Leaf, color: 'text-green-400 bg-green-500/20 border-green-500/30', label: 'Clean Energy' },
+      'OTHER': { icon: BarChart3, color: 'text-gray-400 bg-gray-500/20 border-gray-500/30', label: 'Other' },
+    };
+    return sectorMap[sector] || sectorMap['OTHER'];
+  };
+
+  const getHeatColor = (score: number) => {
+    if (score >= 15) return 'text-red-400';
+    if (score >= 12) return 'text-orange-400';
+    if (score >= 10) return 'text-amber-400';
+    if (score >= 8) return 'text-yellow-400';
+    return 'text-slate-400';
+  };
+
+  const getSourceBadgeColor = (count: number) => {
+    if (count >= 3) return 'bg-red-500/30 text-red-300 border-red-500/40';
+    if (count >= 2) return 'bg-amber-500/30 text-amber-300 border-amber-500/40';
+    return 'bg-slate-500/30 text-slate-300 border-slate-500/40';
   };
 
   const getDisplayTrends = () => {
@@ -258,6 +331,10 @@ export default function BullishTrends() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-slate-900/60 border border-slate-700">
+            <TabsTrigger value="heatmap" data-testid="tab-heatmap">
+              <Flame className="h-4 w-4 mr-1" />
+              Sector Heat Map
+            </TabsTrigger>
             <TabsTrigger value="all" data-testid="tab-all">
               All Stocks ({trends?.length || 0})
             </TabsTrigger>
@@ -270,6 +347,130 @@ export default function BullishTrends() {
               Top Momentum
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="heatmap" className="mt-4">
+            <Card className="border-slate-700/50 bg-slate-900/40">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Flame className="h-5 w-5 text-orange-400" />
+                      Real-Time Sector Heat Map
+                    </CardTitle>
+                    <CardDescription>
+                      Multi-source convergence tracking across all sectors • Updated every minute
+                    </CardDescription>
+                  </div>
+                  {heatMapData?.lastUpdated && (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      {heatMapData.totalSymbols} symbols tracked
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {heatMapLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full" />)}
+                  </div>
+                ) : !heatMapData?.sectors?.length ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Flame className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No heat data available yet. Signals will appear as market activity increases.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {heatMapData.sectors.map((sector) => {
+                      const sectorInfo = getSectorInfo(sector.name);
+                      const SectorIcon = sectorInfo.icon;
+                      return (
+                        <div key={sector.name} className="rounded-lg border border-slate-700/50 bg-slate-800/30 overflow-hidden">
+                          <div className={`p-4 flex items-center justify-between border-b border-slate-700/30 ${sectorInfo.color.split(' ')[1]}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${sectorInfo.color}`}>
+                                <SectorIcon className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-foreground">{sectorInfo.label}</h3>
+                                <p className="text-xs text-muted-foreground">
+                                  {sector.symbolCount} symbols • Avg Heat: {sector.avgHeat.toFixed(1)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              {sector.convergingCount > 0 && (
+                                <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  {sector.convergingCount} Converging
+                                </Badge>
+                              )}
+                              <div className="text-right">
+                                <div className={`text-xl font-bold font-mono ${getHeatColor(sector.avgHeat)}`}>
+                                  {sector.totalHeat.toFixed(0)}
+                                </div>
+                                <div className="text-xs text-muted-foreground">Total Heat</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4">
+                            <div className="flex flex-wrap gap-2">
+                              {sector.symbols.slice(0, 12).map((sym) => (
+                                <Tooltip key={sym.symbol}>
+                                  <TooltipTrigger asChild>
+                                    <div 
+                                      className={`px-3 py-2 rounded-lg border transition-colors cursor-default ${
+                                        sym.distinctSources >= 2 
+                                          ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-400' 
+                                          : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600'
+                                      }`}
+                                      data-testid={`heatmap-symbol-${sym.symbol}`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-mono font-semibold text-sm">{sym.symbol}</span>
+                                        <Badge variant="outline" className={`text-xs ${getSourceBadgeColor(sym.distinctSources)}`}>
+                                          {sym.distinctSources}
+                                        </Badge>
+                                      </div>
+                                      <div className={`text-lg font-bold font-mono ${getHeatColor(sym.heatScore)}`}>
+                                        {sym.heatScore.toFixed(1)}
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">
+                                    <div className="space-y-2">
+                                      <div className="font-semibold">{sym.symbol} - Heat Score: {sym.heatScore.toFixed(2)}</div>
+                                      <div className="text-xs">
+                                        <div className="font-medium mb-1">Sources ({sym.distinctSources}):</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {Object.entries(sym.sourceBreakdown).map(([source, count]) => (
+                                            <Badge key={source} variant="outline" className="text-xs">
+                                              {source.replace(/_/g, ' ')}: {count}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Last 1h: {sym.recentTouches1h} | Last 24h: {sym.recentTouches24h}
+                                      </div>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ))}
+                              {sector.symbols.length > 12 && (
+                                <div className="px-3 py-2 text-muted-foreground text-sm flex items-center">
+                                  +{sector.symbols.length - 12} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value={activeTab} className="mt-4">
             <Card className="border-slate-700/50 bg-slate-900/40">
