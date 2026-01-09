@@ -570,7 +570,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First try unique invite token from database
       let validatedInvite = null;
       if (inviteCode) {
-        validatedInvite = await storage.redeemBetaInvite(inviteCode);
+        // Normalize invite code to lowercase for case-insensitive matching
+        const normalizedInviteCode = inviteCode.trim().toLowerCase();
+        validatedInvite = await storage.redeemBetaInvite(normalizedInviteCode);
         
         // Fallback to admin access code for direct admin access
         if (!validatedInvite) {
@@ -875,13 +877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { token } = req.body;
       
-      // Validate token format (alphanumeric, reasonable length)
-      if (!token || typeof token !== 'string' || token.length < 4 || token.length > 30) {
+      // Validate token format (alphanumeric, allow SHA256 hashes up to 64 chars)
+      if (!token || typeof token !== 'string' || token.length < 4 || token.length > 64) {
         logger.warn('Invalid invite code format attempt', { userId, tokenLength: token?.length });
         return res.status(400).json({ error: "Invalid invite code format" });
       }
       
-      const sanitizedToken = token.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const sanitizedToken = token.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       if (sanitizedToken.length < 4) {
         return res.status(400).json({ error: "Invalid invite code format" });
       }
