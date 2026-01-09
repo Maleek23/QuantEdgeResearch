@@ -1304,7 +1304,7 @@ export default function TradeDeskPage() {
         
         // Quality filter: Show only A+, A, B, C - exclude D and F grades
         if (gradeFilter === 'quality') {
-          return true; // TEMPORARILY DISABLE QUALITY FILTER TO DEBUG VISIBILITY
+          return true; // Keep enabled for now to see everything
         }
         if (gradeFilter === 'A') return signalGrade.grade === 'A+' || signalGrade.grade === 'A';
         if (gradeFilter === 'B') return signalGrade.grade === 'B';
@@ -1442,18 +1442,23 @@ export default function TradeDeskPage() {
   });
 
   // Determine which ideas to show based on status filter
-  // When statusFilter is 'all' or 'active', show only open trades
-  // When statusFilter is 'won', 'lost', or 'expired', show those closed trades
+  // When statusFilter is 'all' or 'active', show active trades. 
+  // If 'today' filter is active, we should also show expired trades from today if user wants to see everything system did today.
   const displayIdeas = useMemo(() => {
-    if (statusFilter === 'all' || statusFilter === 'active') {
-      return activeIdeas;
+    if (statusFilter === 'won') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
+    if (statusFilter === 'lost') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
+    if (statusFilter === 'expired') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired');
+    
+    if (dateFilter === 'today') {
+      // For "Today" view, show everything (active + closed) to show bot activity
+      return [...activeIdeas, ...closedIdeas];
     }
-    // Show the filtered closed trades when a specific status is selected
-    return closedIdeas;
-  }, [statusFilter, activeIdeas, closedIdeas]);
+    
+    return activeIdeas;
+  }, [statusFilter, activeIdeas, closedIdeas, dateFilter]);
 
   // TASK 2: Paginate the display ideas
-  const paginatedActiveIdeas = displayIdeas.slice(0, 100);
+  const paginatedActiveIdeas = displayIdeas.slice(0, 500);
 
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
