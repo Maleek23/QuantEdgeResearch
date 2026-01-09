@@ -84,77 +84,128 @@ ${APP_NAME} - For Educational & Research Purposes Only
       <td align="center">
         <table width="520" cellpadding="0" cellspacing="0" style="max-width: 520px;">
           
-          <!-- Logo -->
+          <!-- Logo with Q mark -->
           <tr>
             <td style="padding: 0 0 32px; text-align: center;">
-              <span style="font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">QUANT EDGE</span>
-              <span style="color: #525252; margin: 0 8px;">|</span>
-              <span style="font-size: 14px; font-weight: 500; color: #737373; letter-spacing: 2px;">LABS</span>
+              <table cellpadding="0" cellspacing="0" style="display: inline-table;">
+                <tr>
+                  <td style="width: 36px; height: 36px; background: linear-gradient(135deg, #22d3ee, #0891b2); border-radius: 8px; text-align: center; vertical-align: middle;">
+                    <span style="font-size: 18px; font-weight: 700; color: #ffffff;">Q</span>
+                  </td>
+                  <td style="padding-left: 12px;">
+                    <span style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">QUANT EDGE</span>
+                    <span style="color: #404040; margin: 0 6px;">|</span>
+                    <span style="font-size: 12px; font-weight: 500; color: #737373; letter-spacing: 2px;">LABS</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Main Content Card -->
           <tr>
-            <td style="background: #141414; border: 1px solid #262626; border-radius: 12px; padding: 40px;">
+            <td style="background: #111111; border: 1px solid #1f1f1f; border-radius: 16px; padding: 0; overflow: hidden;">
               
-              <!-- Header -->
-              <h1 style="color: #fafafa; font-size: 24px; font-weight: 600; margin: 0 0 8px; text-align: center;">
-                You're Invited
-              </h1>
-              <p style="color: #737373; font-size: 14px; margin: 0 0 32px; text-align: center;">
-                Join the beta of our quantitative trading platform.
-              </p>
+              <!-- Top accent line -->
+              <div style="height: 2px; background: linear-gradient(90deg, transparent, #22d3ee, transparent);"></div>
               
-              ${tierBadge ? `<div style="text-align: center; margin-bottom: 24px;">${tierBadge}</div>` : ''}
-              
-              ${options?.personalMessage ? `
-              <div style="background: #1a1a1a; border-left: 2px solid #22d3ee; padding: 16px; margin: 0 0 24px;">
-                <p style="color: #a3a3a3; font-size: 13px; margin: 0; font-style: italic;">"${options.personalMessage}"</p>
+              <div style="padding: 40px;">
+                <!-- Badge -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
+                  <tr>
+                    <td align="center">
+                      <span style="display: inline-block; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); color: #22d3ee; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;">EXCLUSIVE BETA ACCESS</span>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Header -->
+                <h1 style="color: #fafafa; font-size: 26px; font-weight: 600; margin: 0 0 8px; text-align: center;">
+                  You're Invited
+                </h1>
+                <p style="color: #737373; font-size: 14px; margin: 0 0 28px; text-align: center;">
+                  Join our quantitative trading research platform.
+                </p>
+                
+                ${tierBadge ? `<div style="text-align: center; margin-bottom: 24px;">${tierBadge}</div>` : ''}
+                
+                ${options?.personalMessage ? `
+                <div style="background: #1a1a1a; border-left: 2px solid #22d3ee; padding: 14px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0;">
+                  <p style="color: #a3a3a3; font-size: 13px; margin: 0; font-style: italic;">"${options.personalMessage}"</p>
+                </div>
+                ` : ''}
+
+                <!-- CTA Button -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 28px;">
+                  <tr>
+                    <td align="center">
+                      <a href="${inviteLink}" style="display: inline-block; background: #22d3ee; color: #0a0a0a; text-decoration: none; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 600;">
+                        Accept Invitation →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Features with icons -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #1f1f1f; padding-top: 24px;">
+                  <tr>
+                    <td style="padding: 10px 0;">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #262626; border-radius: 8px; text-align: center; vertical-align: middle;">
+                            <span style="color: #22d3ee; font-size: 14px;">✦</span>
+                          </td>
+                          <td style="padding-left: 12px; color: #d4d4d4; font-size: 13px;">AI-powered analysis</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0;">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #262626; border-radius: 8px; text-align: center; vertical-align: middle;">
+                            <span style="color: #22d3ee; font-size: 14px;">◆</span>
+                          </td>
+                          <td style="padding-left: 12px; color: #d4d4d4; font-size: 13px;">Quantitative signals</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0;">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #262626; border-radius: 8px; text-align: center; vertical-align: middle;">
+                            <span style="color: #22d3ee; font-size: 14px;">▲</span>
+                          </td>
+                          <td style="padding-left: 12px; color: #d4d4d4; font-size: 13px;">Chart pattern detection</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0;">
+                      <table cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #262626; border-radius: 8px; text-align: center; vertical-align: middle;">
+                            <span style="color: #22d3ee; font-size: 14px;">◉</span>
+                          </td>
+                          <td style="padding-left: 12px; color: #d4d4d4; font-size: 13px;">Trading journal</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
               </div>
-              ` : ''}
-
-              <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px;">
-                <tr>
-                  <td align="center">
-                    <a href="${inviteLink}" style="display: inline-block; background: #22d3ee; color: #0a0a0a; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 14px; font-weight: 600;">
-                      Accept Invitation
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Features -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #262626; padding-top: 24px;">
-                <tr>
-                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
-                    <span style="color: #22d3ee; margin-right: 12px;">+</span>AI-powered analysis
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
-                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Quantitative signals
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
-                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Chart pattern detection
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #a3a3a3; font-size: 13px;">
-                    <span style="color: #22d3ee; margin-right: 12px;">+</span>Trading journal
-                  </td>
-                </tr>
-              </table>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
             <td style="padding: 24px 0 0; text-align: center;">
-              <p style="color: #525252; font-size: 12px; margin: 0;">
-                Expires in 7 days
+              <p style="color: #525252; font-size: 11px; margin: 0;">
+                Invite expires in 7 days • For research purposes only
               </p>
             </td>
           </tr>
