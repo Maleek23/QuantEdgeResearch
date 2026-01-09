@@ -10,9 +10,9 @@ const PRE_MARKET_WATCHLIST = [
 ];
 
 const SURGE_THRESHOLDS = {
-  MODERATE: 3,
-  HIGH: 5,
-  CRITICAL: 8,
+  MODERATE: 5,   // Was 3% - raised to reduce spam
+  HIGH: 8,       // Was 5%
+  CRITICAL: 12,  // Was 8%
 };
 
 interface SurgeAlert {
