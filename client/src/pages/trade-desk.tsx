@@ -633,17 +633,6 @@ export default function TradeDeskPage() {
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
-  // Custom Analysis state
-  const [analyzeSymbol, setAnalyzeSymbol] = useState("");
-  const [analyzeAssetType, setAnalyzeAssetType] = useState<"stock" | "option" | "crypto">("stock");
-  const [analyzeOptionType, setAnalyzeOptionType] = useState<"call" | "put">("call");
-  const [analyzeStrike, setAnalyzeStrike] = useState("");
-  const [analyzeExpiration, setAnalyzeExpiration] = useState("");
-  const [symbolSearchResults, setSymbolSearchResults] = useState<{symbol: string; description: string; type: string}[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchResultsRef = useRef<HTMLDivElement>(null);
   
   // Reset pagination when filters change
   useEffect(() => {
@@ -651,54 +640,6 @@ export default function TradeDeskPage() {
   }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, dateFilter, customDate]);
   
   const { toast } = useToast();
-
-  // Symbol autocomplete search effect
-  useEffect(() => {
-    const searchSymbols = async () => {
-      if (analyzeSymbol.length < 1) {
-        setSymbolSearchResults([]);
-        return;
-      }
-      
-      setIsSearching(true);
-      try {
-        const response = await fetch(`/api/symbol-autocomplete?q=${encodeURIComponent(analyzeSymbol)}`);
-        const data = await response.json();
-        setSymbolSearchResults(data.results || []);
-        setShowSearchResults(true);
-      } catch (error) {
-        console.error('Symbol search error:', error);
-        setSymbolSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    };
-
-    const debounce = setTimeout(searchSymbols, 300);
-    return () => clearTimeout(debounce);
-  }, [analyzeSymbol]);
-
-  // Close search results on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node) &&
-          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
-        setShowSearchResults(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelectSymbol = (symbol: string, type: string) => {
-    setAnalyzeSymbol(symbol);
-    if (type === 'crypto') {
-      setAnalyzeAssetType('crypto');
-    } else {
-      setAnalyzeAssetType('stock');
-    }
-    setShowSearchResults(false);
-  };
   
   // Memoize market status to avoid recalculating on every render
   const marketStatus = useMemo(() => getMarketStatus(), []);
@@ -1021,47 +962,6 @@ export default function TradeDeskPage() {
       toast({
         title: "Scan Failed",
         description: error.message || "Failed to scan options flow",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Custom Analysis mutation
-  const analyzePlayMutation = useMutation({
-    mutationFn: async () => {
-      if (!analyzeSymbol.trim()) {
-        throw new Error("Please enter a symbol");
-      }
-      const payload: any = {
-        symbol: analyzeSymbol.toUpperCase(),
-        assetType: analyzeAssetType,
-        autoSuggest: true,
-      };
-      if (analyzeAssetType === 'option') {
-        payload.optionType = analyzeOptionType;
-        if (analyzeStrike) payload.strike = parseFloat(analyzeStrike);
-        if (analyzeExpiration) payload.expiration = analyzeExpiration;
-      }
-      const response = await apiRequest("POST", "/api/analyze-play", payload);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      setAnalyzeSymbol("");
-      setAnalyzeStrike("");
-      setAnalyzeExpiration("");
-      
-      const direction = data.tradeIdea?.direction || 'LONG';
-      const suggestedType = data.tradeIdea?.assetType || 'stock';
-      toast({
-        title: `Analysis Complete`,
-        description: `${analyzeSymbol.toUpperCase()}: ${direction} ${suggestedType === 'option' ? (data.tradeIdea?.optionType?.toUpperCase() || 'OPTION') : suggestedType.toUpperCase()}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Analysis Failed",
-        description: error.message || "Could not analyze symbol",
         variant: "destructive"
       });
     }
@@ -1729,65 +1629,8 @@ export default function TradeDeskPage() {
         </div>
       </header>
 
-      {/* Command Center: Search + Market Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Search Bar - Takes 2 columns */}
-        <div className="lg:col-span-2 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Search or analyze any symbol..."
-            value={analyzeSymbol}
-            onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
-            onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
-            className="pl-12 pr-32 h-12 text-base bg-muted/30 border-slate-700/30 focus-visible:ring-1 focus-visible:ring-cyan-500/50"
-            data-testid="input-analyze-symbol"
-          />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            {isSearching && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
-            <Button
-              onClick={() => analyzePlayMutation.mutate()}
-              disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
-              size="sm"
-              className="bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400"
-              data-testid="button-submit-analyze"
-            >
-              {analyzePlayMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Analyze"}
-            </Button>
-          </div>
-          {showSearchResults && symbolSearchResults.length > 0 && (
-            <div 
-              ref={searchResultsRef}
-              className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto"
-            >
-              {symbolSearchResults.map((result, idx) => (
-                <div
-                  key={`${result.symbol}-${idx}`}
-                  role="button"
-                  tabIndex={0}
-                  className="w-full px-4 py-3 text-left hover:bg-accent/50 flex items-center justify-between gap-2 cursor-pointer transition-colors"
-                  onClick={() => handleSelectSymbol(result.symbol, result.type)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
-                  data-testid={`search-result-${result.symbol}`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-mono font-semibold">{result.symbol}</span>
-                    <span className="text-sm text-muted-foreground truncate">{result.description}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {result.type === 'crypto' ? 'Crypto' : 'Stock'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* AI Assistant Toggle */}
-        <div className="lg:col-span-1">
-          <AIResearchPanel />
-        </div>
-      </div>
+      {/* AI Research Panel - Full Width */}
+      <AIResearchPanel />
 
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
