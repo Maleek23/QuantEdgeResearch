@@ -92,8 +92,8 @@ const MIN_CONFIDENCE_REQUIRED = 85;
 // Maximum option premium cost
 const MAX_PREMIUM_COST = 1000;
 
-// Valid grades for Discord alerts - A/A+ ONLY (strict quality filter)
-export const VALID_DISCORD_GRADES = ['A+', 'A'];
+// Valid grades for Discord alerts - A-tier only (A+, A, A-)
+export const VALID_DISCORD_GRADES = ['A+', 'A', 'A-'];
 // Secondary tier for less critical channels
 export const SECONDARY_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+'];
 
