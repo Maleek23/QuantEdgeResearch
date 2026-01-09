@@ -19359,6 +19359,404 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================================================
+  // INSTITUTIONAL-GRADE RISK ENGINE API
+  // PhD-level quantitative risk management
+  // ============================================================================
+
+  // GET /api/risk/metrics/:portfolioId - Get real-time risk metrics for a portfolio
+  app.get("/api/risk/metrics/:portfolioId", requireBetaAccess, async (req, res) => {
+    try {
+      const { portfolioId } = req.params;
+      const { 
+        RiskEngine, 
+        calculateHistoricalVaR, 
+        calculateCVaR,
+        calculateSharpeRatio,
+        calculateSortinoRatio,
+        calculateCalmarRatio,
+        calculateMaxDrawdown,
+        calculateKellyCriterion
+      } = await import("./risk-engine");
+      
+      // Get portfolio and positions
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
+      
+      // Calculate equity curve from closed positions
+      const closedPositions = positions.filter(p => p.status === 'closed' && p.realizedPnL !== null);
+      const returns = closedPositions.map(p => (p.realizedPnL || 0) / 100); // Normalize returns
+      
+      // Build equity curve
+      let equity = portfolio.startingCapital;
+      const equityCurve = [equity];
+      for (const pos of closedPositions) {
+        equity += pos.realizedPnL || 0;
+        equityCurve.push(equity);
+      }
+      
+      // Calculate all metrics
+      const currentValue = portfolio.totalValue || portfolio.startingCapital;
+      const { maxDrawdown, drawdownDuration } = calculateMaxDrawdown(equityCurve);
+      
+      // Calculate Kelly from win/loss stats
+      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const losses = closedPositions.filter(p => (p.realizedPnL || 0) <= 0);
+      const winRate = closedPositions.length > 0 ? wins.length / closedPositions.length : 0.5;
+      const avgWin = wins.length > 0 ? wins.reduce((s, p) => s + (p.realizedPnL || 0), 0) / wins.length : 10;
+      const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, p) => s + (p.realizedPnL || 0), 0) / losses.length) : 10;
+      
+      const kelly = calculateKellyCriterion(winRate, avgWin, avgLoss, currentValue);
+      
+      // Peak for current drawdown
+      const peak = Math.max(...equityCurve);
+      const currentDrawdown = (peak - currentValue) / peak;
+      
+      res.json({
+        portfolioId,
+        portfolioName: portfolio.name,
+        portfolioValue: currentValue,
+        cashBalance: portfolio.cashBalance,
+        totalExposure: currentValue - portfolio.cashBalance,
+        
+        // VaR metrics
+        var95Daily: returns.length >= 10 ? calculateHistoricalVaR(returns, currentValue, 0.95) : currentValue * 0.02,
+        var99Daily: returns.length >= 10 ? calculateHistoricalVaR(returns, currentValue, 0.99) : currentValue * 0.03,
+        cvar95Daily: returns.length >= 10 ? calculateCVaR(returns, currentValue, 0.95) : currentValue * 0.03,
+        cvar99Daily: returns.length >= 10 ? calculateCVaR(returns, currentValue, 0.99) : currentValue * 0.04,
+        
+        // Drawdown
+        currentDrawdown: currentDrawdown * 100,
+        maxDrawdown: maxDrawdown * 100,
+        drawdownDuration,
+        
+        // Performance ratios
+        sharpeRatio: calculateSharpeRatio(returns),
+        sortinoRatio: calculateSortinoRatio(returns),
+        calmarRatio: calculateCalmarRatio(returns, maxDrawdown),
+        
+        // Kelly sizing
+        kellyFraction: kelly.fullKelly * 100,
+        halfKelly: kelly.halfKelly * 100,
+        quarterKelly: kelly.quarterKelly * 100,
+        recommendedPositionSize: kelly.maxPositionSize,
+        kellySizingRationale: kelly.rationale,
+        
+        // Stats
+        totalTrades: closedPositions.length,
+        winRate: winRate * 100,
+        avgWin,
+        avgLoss,
+        
+        calculatedAt: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error calculating risk metrics", { error });
+      res.status(500).json({ error: "Failed to calculate risk metrics" });
+    }
+  });
+
+  // POST /api/risk/scenario - Run stress test scenario
+  app.post("/api/risk/scenario", requireBetaAccess, async (req, res) => {
+    try {
+      const { portfolioId, scenario, customParams } = req.body;
+      const { runScenarioAnalysis } = await import("./risk-engine");
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
+      const openPositions = positions.filter(p => p.status === 'open');
+      
+      // Convert to PositionRisk format
+      const positionRisks = openPositions.map(p => ({
+        symbol: p.symbol,
+        assetType: p.assetType as 'option' | 'future' | 'crypto' | 'stock',
+        quantity: p.quantity,
+        currentValue: p.currentPrice * p.quantity * (p.assetType === 'option' ? 100 : 1),
+        entryPrice: p.entryPrice,
+        currentPrice: p.currentPrice,
+        unrealizedPnL: p.unrealizedPnL || 0,
+        unrealizedPnLPercent: ((p.currentPrice - p.entryPrice) / p.entryPrice) * 100,
+        positionVaR: p.currentPrice * p.quantity * 0.02,
+        positionBeta: 1.0,
+        deltaExposure: p.delta || 0.5,
+        gammaExposure: p.gamma || 0.05,
+        vegaExposure: p.vega || 0.1,
+        thetaDecay: p.theta || -0.05,
+        portfolioWeight: (p.currentPrice * p.quantity) / (portfolio.totalValue || 1),
+        concentrationRisk: 'low' as const
+      }));
+      
+      const result = runScenarioAnalysis(
+        positionRisks,
+        portfolio.totalValue || portfolio.startingCapital,
+        scenario || 'crash',
+        customParams
+      );
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error running scenario analysis", { error });
+      res.status(500).json({ error: "Failed to run scenario analysis" });
+    }
+  });
+
+  // ============================================================================
+  // INSTITUTIONAL-GRADE OPTIONS QUANT API
+  // PhD-level options analytics
+  // ============================================================================
+
+  // POST /api/options-quant/price - Black-Scholes pricing with full Greeks
+  app.post("/api/options-quant/price", requireBetaAccess, async (req, res) => {
+    try {
+      const { spotPrice, strikePrice, timeToExpiry, volatility, optionType, riskFreeRate = 0.05 } = req.body;
+      
+      if (!spotPrice || !strikePrice || !timeToExpiry || !volatility || !optionType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const { blackScholes } = await import("./options-quant");
+      
+      const result = blackScholes({
+        spotPrice,
+        strikePrice,
+        timeToExpiry,
+        riskFreeRate,
+        volatility,
+        optionType
+      });
+      
+      res.json({
+        ...result,
+        inputs: { spotPrice, strikePrice, timeToExpiry, volatility, optionType, riskFreeRate }
+      });
+    } catch (error: any) {
+      logger.error("Error in Black-Scholes pricing", { error });
+      res.status(500).json({ error: "Failed to price option" });
+    }
+  });
+
+  // POST /api/options-quant/implied-vol - Calculate implied volatility
+  app.post("/api/options-quant/implied-vol", requireBetaAccess, async (req, res) => {
+    try {
+      const { marketPrice, spotPrice, strikePrice, timeToExpiry, optionType, riskFreeRate = 0.05 } = req.body;
+      
+      if (!marketPrice || !spotPrice || !strikePrice || !timeToExpiry || !optionType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const { calculateImpliedVolatility } = await import("./options-quant");
+      
+      const iv = calculateImpliedVolatility(
+        marketPrice,
+        spotPrice,
+        strikePrice,
+        timeToExpiry,
+        riskFreeRate,
+        optionType
+      );
+      
+      res.json({
+        impliedVolatility: iv,
+        impliedVolatilityPercent: iv * 100,
+        inputs: { marketPrice, spotPrice, strikePrice, timeToExpiry, optionType }
+      });
+    } catch (error: any) {
+      logger.error("Error calculating implied volatility", { error });
+      res.status(500).json({ error: "Failed to calculate implied volatility" });
+    }
+  });
+
+  // POST /api/options-quant/surface - Get volatility surface for a symbol
+  app.post("/api/options-quant/surface", requireBetaAccess, async (req, res) => {
+    try {
+      const { symbol } = req.body;
+      
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const { getTradierOptionsChains, getTradierQuote } = await import("./tradier-api");
+      const { constructVolatilitySurface, analyzeSkew } = await import("./options-quant");
+      
+      // Get current stock price
+      const quote = await getTradierQuote(symbol.toUpperCase());
+      if (!quote) {
+        return res.status(404).json({ error: "Symbol not found" });
+      }
+      
+      const spotPrice = quote.last || quote.bid || 100;
+      
+      // Get options chains
+      const chains = await getTradierOptionsChains(symbol.toUpperCase());
+      if (!chains || chains.length === 0) {
+        return res.status(404).json({ error: "No options data found" });
+      }
+      
+      // Convert to format for surface construction
+      const optionChain = chains.flatMap(chain => {
+        const expiry = chain.expiration_date;
+        const daysToExpiry = Math.max(1, Math.floor((new Date(expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        
+        return (chain.options?.option || []).map((opt: any) => ({
+          strike: opt.strike,
+          expiry: daysToExpiry,
+          bid: opt.bid || 0,
+          ask: opt.ask || 0,
+          optionType: opt.option_type as 'call' | 'put'
+        }));
+      });
+      
+      const surface = constructVolatilitySurface(spotPrice, optionChain);
+      const skewMetrics = analyzeSkew(surface, spotPrice);
+      
+      res.json({
+        symbol: symbol.toUpperCase(),
+        spotPrice,
+        surface,
+        skew: skewMetrics
+      });
+    } catch (error: any) {
+      logger.error("Error constructing volatility surface", { error });
+      res.status(500).json({ error: "Failed to construct volatility surface" });
+    }
+  });
+
+  // POST /api/options-quant/monte-carlo - Monte Carlo option pricing
+  app.post("/api/options-quant/monte-carlo", requireBetaAccess, async (req, res) => {
+    try {
+      const { spotPrice, strikePrice, timeToExpiry, volatility, optionType, riskFreeRate = 0.05, numPaths = 10000 } = req.body;
+      
+      if (!spotPrice || !strikePrice || !timeToExpiry || !volatility || !optionType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const { monteCarloPrice, blackScholes } = await import("./options-quant");
+      
+      // Run Monte Carlo
+      const mcResult = monteCarloPrice({
+        spotPrice,
+        strikePrice,
+        timeToExpiry,
+        riskFreeRate,
+        volatility,
+        optionType
+      }, Math.min(numPaths, 50000)); // Cap at 50k for performance
+      
+      // Compare to Black-Scholes
+      const bsResult = blackScholes({
+        spotPrice,
+        strikePrice,
+        timeToExpiry,
+        riskFreeRate,
+        volatility,
+        optionType
+      });
+      
+      res.json({
+        monteCarlo: mcResult,
+        blackScholes: bsResult.theoreticalPrice,
+        difference: Math.abs(mcResult.theoreticalPrice - bsResult.theoreticalPrice),
+        differencePercent: Math.abs(mcResult.theoreticalPrice - bsResult.theoreticalPrice) / bsResult.theoreticalPrice * 100
+      });
+    } catch (error: any) {
+      logger.error("Error in Monte Carlo pricing", { error });
+      res.status(500).json({ error: "Failed to run Monte Carlo simulation" });
+    }
+  });
+
+  // POST /api/options-quant/strategy - Simulate multi-leg strategy
+  app.post("/api/options-quant/strategy", requireBetaAccess, async (req, res) => {
+    try {
+      const { legs, spotPrice, priceRange, volatility = 0.3 } = req.body;
+      
+      if (!legs || !Array.isArray(legs) || legs.length === 0) {
+        return res.status(400).json({ error: "Legs array is required" });
+      }
+      
+      if (!spotPrice) {
+        return res.status(400).json({ error: "spotPrice is required" });
+      }
+      
+      const { simulateStrategy } = await import("./options-quant");
+      
+      const range = priceRange || {
+        min: spotPrice * 0.8,
+        max: spotPrice * 1.2,
+        step: spotPrice * 0.01
+      };
+      
+      const result = simulateStrategy(legs, spotPrice, range, volatility);
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error simulating strategy", { error });
+      res.status(500).json({ error: "Failed to simulate strategy" });
+    }
+  });
+
+  // POST /api/options-quant/iv-analysis - Analyze IV rank/percentile
+  app.post("/api/options-quant/iv-analysis", requireBetaAccess, async (req, res) => {
+    try {
+      const { currentIV, historicalIVs } = req.body;
+      
+      if (currentIV === undefined) {
+        return res.status(400).json({ error: "currentIV is required" });
+      }
+      
+      const { analyzeIV } = await import("./options-quant");
+      
+      // Use provided historical IVs or generate synthetic data
+      const ivHistory = historicalIVs || Array.from({ length: 252 }, () => currentIV * (0.7 + Math.random() * 0.6));
+      
+      const analysis = analyzeIV(currentIV, ivHistory);
+      
+      res.json(analysis);
+    } catch (error: any) {
+      logger.error("Error analyzing IV", { error });
+      res.status(500).json({ error: "Failed to analyze IV" });
+    }
+  });
+
+  // POST /api/options-quant/sabr - Calibrate SABR model
+  app.post("/api/options-quant/sabr", requireBetaAccess, async (req, res) => {
+    try {
+      const { forward, strikes, marketVols, timeToExpiry, beta = 0.5 } = req.body;
+      
+      if (!forward || !strikes || !marketVols || !timeToExpiry) {
+        return res.status(400).json({ error: "Missing required fields: forward, strikes, marketVols, timeToExpiry" });
+      }
+      
+      const { calibrateSABR, sabrImpliedVolatility } = await import("./options-quant");
+      
+      const sabrParams = calibrateSABR(forward, strikes, marketVols, timeToExpiry, beta);
+      
+      // Generate fitted curve
+      const fittedVols = strikes.map((k: number) => sabrImpliedVolatility(forward, k, timeToExpiry, sabrParams));
+      
+      // Calculate fit quality (RMSE)
+      const errors = marketVols.map((mv: number, i: number) => Math.pow(mv - fittedVols[i], 2));
+      const rmse = Math.sqrt(errors.reduce((s: number, e: number) => s + e, 0) / errors.length);
+      
+      res.json({
+        sabrParams,
+        fittedVolatilities: fittedVols,
+        rmse,
+        fitQuality: rmse < 0.01 ? 'Excellent' : rmse < 0.03 ? 'Good' : rmse < 0.05 ? 'Fair' : 'Poor'
+      });
+    } catch (error: any) {
+      logger.error("Error calibrating SABR", { error });
+      res.status(500).json({ error: "Failed to calibrate SABR model" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
