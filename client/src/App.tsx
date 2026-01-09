@@ -132,6 +132,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/join-beta" component={JoinBeta} />
+      <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
@@ -299,7 +300,9 @@ function App() {
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
   const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
-  if (publicPages.includes(locationPath)) {
+  // Also check for dynamic invite paths like /invite/:token
+  const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
+  if (isPublicPage) {
     return (
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
