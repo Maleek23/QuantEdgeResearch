@@ -46,6 +46,11 @@ Key features include:
 -   **ML Intelligence System**: Comprehensive machine learning system with 5 core capabilities: Price Direction Prediction, Sentiment Analysis, Chart Pattern Recognition, Adaptive Position Sizing, and Market Regime Detection. It integrates with the Auto-Lotto Bot to boost/reduce confidence scores and has a dedicated dashboard.
 -   **RBI Framework - Backtesting & Breakout Scanner**: Implements Research → Backtest → Implement framework with a backtesting module for various strategies and a breakout scanner detecting resistance/support levels with volume confirmation.
 -   **Dynamic Mover Discovery System**: Runs every 15 minutes during market hours (8 AM - 5 PM CT) to fetch real-time most-active stocks, top gainers/losers from Yahoo Finance. Automatically injects discovered movers into the scanner universe even if they're not in the static ticker list. This ensures the platform never misses breakout stocks like CVNA, DASH, IWM that are moving but weren't pre-listed. Key files: `server/mover-discovery.ts`, `server/ticker-universe.ts` (800+ static tickers), `server/market-scanner.ts` (getExpandedUniverse combines static + discovered movers).
+-   **Trade Idea Aggregation System**: Centralized ingestion pipeline that aggregates trade ideas from ALL sources into Trade Desk with quality gates:
+    - **Sources**: Market Scanner (movers), Bullish Trend Scanner (momentum stocks), Watchlist Grading (S/A tier), Mover Discovery (emerging stocks)
+    - **Quality Gates**: Deduplication (4-hour cooldown per symbol/source), source-specific confidence thresholds (65-75%), loss analyzer blocks (3+ consecutive losses), price validation (no penny stocks under $0.50)
+    - **Admin Trigger**: `/api/trade-ideas/ingest-all` endpoint for manual aggregation from all sources
+    - Key files: `server/trade-idea-ingestion.ts` (centralized module), plus ingestion helpers in `market-scanner.ts`, `bullish-trend-scanner.ts`, `watchlist-grading-service.ts`, `mover-discovery.ts`
 
 ## External Dependencies
 
