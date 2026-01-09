@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Target, TrendingUp, TrendingDown, Search, RefreshCw,
+  Target, TrendingUp, TrendingDown, Search, RefreshCw, Loader2,
   CheckCircle2, XCircle, AlertTriangle, ArrowRight, Minus,
   BarChart3, Activity, Zap, DollarSign, ChevronRight, Flame
 } from "lucide-react";
@@ -635,6 +635,11 @@ export default function TradingEnginePage() {
   const [symbol, setSymbol] = useState('SPY');
   const [searchInput, setSearchInput] = useState('');
   const [assetClass, setAssetClass] = useState<AssetClass>('stock');
+
+  const { data: marketContext } = useQuery<{ marketStatus: string; regime: string; vixLevel: number }>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
 
   const handleSearch = () => {
     if (searchInput.trim()) {

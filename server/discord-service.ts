@@ -109,16 +109,32 @@ const COLORS = {
 };
 
 // DEDUPLICATION CACHE - Prevent sending same trade ideas to Discord multiple times
-// Key format: "SYMBOL:DIRECTION:ASSETTYPE" -> timestamp when sent
+// Key format: "SYMBOL:DIRECTION:ASSETTYPE:OPTIONTYPE:STRIKE" -> timestamp when sent
+// Enhanced to include option type and strike for more precise deduplication
 const sentTradeIdeasCache = new Map<string, Date>();
 const DEDUP_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between same trade alerts
 
-function getTradeDedupeKey(symbol: string, direction: string, assetType: string): string {
-  return `${symbol}:${direction}:${assetType}`.toUpperCase();
+function getTradeDedupeKey(
+  symbol: string, 
+  direction: string, 
+  assetType: string,
+  optionType?: string | null,
+  strikePrice?: number | null
+): string {
+  // Include option type and strike for options to prevent KOLD PUT $25 being confused with KOLD PUT $26
+  const optionPart = assetType === 'option' && optionType ? `:${optionType}` : '';
+  const strikePart = assetType === 'option' && strikePrice ? `:${strikePrice}` : '';
+  return `${symbol}:${direction}:${assetType}${optionPart}${strikePart}`.toUpperCase();
 }
 
-function shouldSendTradeIdea(symbol: string, direction: string, assetType: string): boolean {
-  const key = getTradeDedupeKey(symbol, direction, assetType);
+function shouldSendTradeIdea(
+  symbol: string, 
+  direction: string, 
+  assetType: string,
+  optionType?: string | null,
+  strikePrice?: number | null
+): boolean {
+  const key = getTradeDedupeKey(symbol, direction, assetType, optionType, strikePrice);
   const lastSent = sentTradeIdeasCache.get(key);
   
   if (!lastSent) return true;
@@ -127,17 +143,25 @@ function shouldSendTradeIdea(symbol: string, direction: string, assetType: strin
   return timeSinceLastSent >= DEDUP_COOLDOWN_MS;
 }
 
-function markTradeIdeaSent(symbol: string, direction: string, assetType: string): void {
-  const key = getTradeDedupeKey(symbol, direction, assetType);
+function markTradeIdeaSent(
+  symbol: string, 
+  direction: string, 
+  assetType: string,
+  optionType?: string | null,
+  strikePrice?: number | null
+): void {
+  const key = getTradeDedupeKey(symbol, direction, assetType, optionType, strikePrice);
   sentTradeIdeasCache.set(key, new Date());
   
   // Clean up old entries (older than 24 hours)
   const now = Date.now();
-  for (const [k, v] of sentTradeIdeasCache.entries()) {
+  const keysToDelete: string[] = [];
+  sentTradeIdeasCache.forEach((v, k) => {
     if (now - v.getTime() > 24 * 60 * 60 * 1000) {
-      sentTradeIdeasCache.delete(k);
+      keysToDelete.push(k);
     }
-  }
+  });
+  keysToDelete.forEach(k => sentTradeIdeasCache.delete(k));
 }
 
 // Helper to convert confidence score to letter grade
@@ -229,11 +253,11 @@ export async function sendBotTradeEntryToDiscord(trade: {
     return;
   }
   
-  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times
+  // DEDUPLICATION: Prevent same symbol/direction/assetType/strike from being sent multiple times
   const direction = trade.optionType === 'call' ? 'long' : 'short';
   const assetType = trade.assetType || 'option';
-  if (!shouldSendTradeIdea(trade.symbol, direction, assetType)) {
-    logger.debug(`[DISCORD] Skipped duplicate bot entry ${trade.symbol} ${direction} ${assetType} - sent within last 4 hours`);
+  if (!shouldSendTradeIdea(trade.symbol, direction, assetType, trade.optionType, trade.strikePrice)) {
+    logger.debug(`[DISCORD] Skipped duplicate bot entry ${trade.symbol} ${direction} ${assetType} ${trade.optionType} $${trade.strikePrice} - sent within last 4 hours`);
     return;
   }
 
@@ -349,9 +373,9 @@ export async function sendBotTradeEntryToDiscord(trade: {
       })
     ));
     
-    // Mark as sent to prevent duplicate alerts
-    markTradeIdeaSent(trade.symbol, direction, assetType);
-    logger.info(`[DISCORD] Sent bot trade entry: ${trade.symbol} ${direction} ${assetType}`);
+    // Mark as sent to prevent duplicate alerts (including option type and strike)
+    markTradeIdeaSent(trade.symbol, direction, assetType, trade.optionType, trade.strikePrice);
+    logger.info(`[DISCORD] Sent bot trade entry: ${trade.symbol} ${direction} ${assetType} ${trade.optionType || ''} $${trade.strikePrice || ''}`);
   } catch (error) {
     logger.error('❌ Failed to send Discord bot alert:', error);
   }
@@ -492,11 +516,13 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     }
   }
   
-  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times (skip if force bypass)
+  // DEDUPLICATION: Prevent same symbol/direction/assetType/strike from being sent multiple times (skip if force bypass)
   const direction = idea.direction || 'long';
   const assetType = idea.assetType || 'stock';
-  if (!forceBypass && !shouldSendTradeIdea(idea.symbol, direction, assetType)) {
-    logger.debug(`[DISCORD] Skipped duplicate ${idea.symbol} ${direction} ${assetType} - sent within last 4 hours`);
+  const optionType = (idea as any).optionType;
+  const strikePrice = (idea as any).strikePrice || (idea as any).strike;
+  if (!forceBypass && !shouldSendTradeIdea(idea.symbol, direction, assetType, optionType, strikePrice)) {
+    logger.debug(`[DISCORD] Skipped duplicate ${idea.symbol} ${direction} ${assetType} ${optionType || ''} $${strikePrice || ''} - sent within last 4 hours`);
     return;
   }
   
@@ -528,9 +554,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
       body: JSON.stringify({ embeds: [embed] }),
     });
     
-    // Mark as sent to prevent duplicate alerts
-    markTradeIdeaSent(idea.symbol, direction, assetType);
-    logger.info(`[DISCORD] Sent trade idea: ${idea.symbol} ${direction} ${assetType}`);
+    // Mark as sent to prevent duplicate alerts (including option type and strike)
+    markTradeIdeaSent(idea.symbol, direction, assetType, optionType, strikePrice);
+    logger.info(`[DISCORD] Sent trade idea: ${idea.symbol} ${direction} ${assetType} ${optionType || ''} $${strikePrice || ''}`);
   } catch (e) { logger.error(e); }
 }
 
