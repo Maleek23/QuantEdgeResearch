@@ -193,3 +193,25 @@ export const passwordResetLimiter = rateLimit({
     });
   },
 });
+
+// Tracking/analytics rate limiter - 120 requests per minute per IP
+// Allows normal page navigation but prevents abuse from CSRF-exempt endpoints
+export const trackingLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // 2 requests per second on average
+  message: 'Tracking request limit exceeded.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  handler: (req, res) => {
+    logger.warn('Tracking rate limit exceeded - potential abuse', {
+      ip: req.ip,
+      path: req.path,
+    });
+    res.status(429).json({
+      error: 'Tracking limit exceeded',
+      message: 'Too many tracking requests.',
+      retryAfter: 60,
+    });
+  },
+});

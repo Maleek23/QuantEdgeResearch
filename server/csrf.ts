@@ -55,6 +55,12 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
+  // Exempt PATCH to /api/tracking/pageview/:id - sendBeacon cannot set headers
+  // This is safe because it only updates time-on-page for an existing pageview
+  if (req.method === 'PATCH' && /^\/api\/tracking\/pageview\/[a-f0-9-]+$/.test(req.path)) {
+    return next();
+  }
+  
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string;
   

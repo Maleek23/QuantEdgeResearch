@@ -36,6 +36,7 @@ import {
   ideaGenerationOnDemandLimiter,
   authLimiter,
   passwordResetLimiter,
+  trackingLimiter,
 } from "./rate-limiter";
 import { autoIdeaGenerator } from "./auto-idea-generator";
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
@@ -1245,6 +1246,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logError(error as Error, { context: 'auth/dev-login' });
       res.status(500).json({ error: "Failed to log in" });
     }
+  });
+
+  // Get CSRF token - Returns the token from the cookie (set by middleware)
+  app.get("/api/csrf-token", (req: Request, res: Response) => {
+    const token = req.cookies['csrf_token'];
+    res.json({ csrfToken: token || '' });
   });
 
   // Get current user - Returns logged in user from session OR Replit Auth
@@ -2618,7 +2625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================
 
   // Track page view (both authenticated and anonymous users)
-  app.post("/api/tracking/pageview", async (req, res) => {
+  // Rate limited to prevent abuse since CSRF exempt
+  app.post("/api/tracking/pageview", trackingLimiter, async (req, res) => {
     try {
       const { path, referrer, sessionId, utmSource, utmMedium, utmCampaign } = req.body;
       const userId = (req as any).user?.id || null;
@@ -2663,7 +2671,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update page view duration
-  app.patch("/api/tracking/pageview/:id", async (req, res) => {
+  // Rate limited to prevent abuse since CSRF exempt
+  app.patch("/api/tracking/pageview/:id", trackingLimiter, async (req, res) => {
     try {
       const { timeOnPage } = req.body;
       await storage.updatePageViewDuration(req.params.id, timeOnPage);
@@ -2674,7 +2683,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Track activity event (authenticated users only)
-  app.post("/api/tracking/activity", async (req, res) => {
+  // Rate limited to prevent abuse since CSRF exempt
+  app.post("/api/tracking/activity", trackingLimiter, async (req, res) => {
     try {
       const userId = (req as any).user?.id;
       if (!userId) {

@@ -16,6 +16,9 @@ import {
   Database,
   Cpu,
   Zap,
+  Eye,
+  MousePointer,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -247,6 +250,16 @@ function AdminOverviewContent() {
     }
   });
 
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
+    queryKey: ['/api/admin/analytics'],
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/analytics', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json();
+    }
+  });
+
   const totalUsers = users?.length || 0;
   const proUsers = users?.filter((u: any) => u.subscriptionTier === 'pro')?.length || 0;
   const waitlistCount = waitlistData?.waitlist?.length || waitlistData?.length || 0;
@@ -380,6 +393,112 @@ function AdminOverviewContent() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-cyan-400" />
+            User Behavior Analytics (24h)
+          </CardTitle>
+          <CardDescription className="text-slate-500">
+            Page views, activities, and engagement metrics
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {analyticsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-20 bg-slate-800" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="h-4 w-4 text-cyan-400" />
+                    <span className="text-sm text-slate-400">Page Views</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white" data-testid="metric-page-views-24h">
+                    {analyticsData?.totalPageViews24h || 0}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-green-400" />
+                    <span className="text-sm text-slate-400">Active Users</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white" data-testid="metric-active-users-24h">
+                    {analyticsData?.activeUsers24h || 0}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MousePointer className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm text-slate-400">Total Activities</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white" data-testid="metric-total-activities">
+                    {analyticsData?.topActivities?.reduce((sum: number, a: any) => sum + (a.count || 0), 0) || 0}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm text-slate-400">Logins</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white" data-testid="metric-logins-24h">
+                    {analyticsData?.recentLogins?.length || 0}
+                  </p>
+                </div>
+              </div>
+
+              {analyticsData?.topPages && analyticsData.topPages.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-slate-400">Top Pages</h4>
+                  <div className="space-y-2">
+                    {analyticsData.topPages.slice(0, 5).map((page: { path: string; count: number }, idx: number) => (
+                      <div 
+                        key={page.path}
+                        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-5">{idx + 1}.</span>
+                          <span className="text-sm text-white font-mono">{page.path}</span>
+                        </div>
+                        <Badge variant="outline" className="text-cyan-400 border-cyan-500/20">
+                          {page.count} views
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {analyticsData?.topActivities && analyticsData.topActivities.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-slate-400">Activity Breakdown</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {analyticsData.topActivities.map((activity: { activityType: string; count: number }) => (
+                      <div 
+                        key={activity.activityType}
+                        className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 text-center"
+                      >
+                        <p className="text-lg font-semibold text-white">{activity.count}</p>
+                        <p className="text-xs text-slate-500 capitalize">
+                          {activity.activityType.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
