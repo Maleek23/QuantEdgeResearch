@@ -34,6 +34,38 @@ const COLORS = {
   LOTTO: 0xfacc15,   // Amber for Lotto
 };
 
+// DEDUPLICATION CACHE - Prevent sending same trade ideas to Discord multiple times
+// Key format: "SYMBOL:DIRECTION:ASSETTYPE" -> timestamp when sent
+const sentTradeIdeasCache = new Map<string, Date>();
+const DEDUP_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between same trade alerts
+
+function getTradeDedupeKey(symbol: string, direction: string, assetType: string): string {
+  return `${symbol}:${direction}:${assetType}`.toUpperCase();
+}
+
+function shouldSendTradeIdea(symbol: string, direction: string, assetType: string): boolean {
+  const key = getTradeDedupeKey(symbol, direction, assetType);
+  const lastSent = sentTradeIdeasCache.get(key);
+  
+  if (!lastSent) return true;
+  
+  const timeSinceLastSent = Date.now() - lastSent.getTime();
+  return timeSinceLastSent >= DEDUP_COOLDOWN_MS;
+}
+
+function markTradeIdeaSent(symbol: string, direction: string, assetType: string): void {
+  const key = getTradeDedupeKey(symbol, direction, assetType);
+  sentTradeIdeasCache.set(key, new Date());
+  
+  // Clean up old entries (older than 24 hours)
+  const now = Date.now();
+  for (const [k, v] of sentTradeIdeasCache.entries()) {
+    if (now - v.getTime() > 24 * 60 * 60 * 1000) {
+      sentTradeIdeasCache.delete(k);
+    }
+  }
+}
+
 // Helper to convert confidence score to letter grade
 function getLetterGrade(score: number): string {
   if (score >= 95) return 'A+';
@@ -105,6 +137,14 @@ export async function sendBotTradeEntryToDiscord(trade: {
   const grade = trade.confidence ? getLetterGrade(trade.confidence) : 'D';
   if (!VALID_DISCORD_GRADES.includes(grade)) {
     logger.debug(`[DISCORD] Skipped bot entry ${trade.symbol} - grade ${grade} not in A/A+ tier`);
+    return;
+  }
+  
+  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times
+  const direction = trade.optionType === 'call' ? 'long' : 'short';
+  const assetType = trade.assetType || 'option';
+  if (!shouldSendTradeIdea(trade.symbol, direction, assetType)) {
+    logger.debug(`[DISCORD] Skipped duplicate bot entry ${trade.symbol} ${direction} ${assetType} - sent within last 4 hours`);
     return;
   }
 
@@ -221,6 +261,10 @@ export async function sendBotTradeEntryToDiscord(trade: {
         body: JSON.stringify(message),
       })
     ));
+    
+    // Mark as sent to prevent duplicate alerts
+    markTradeIdeaSent(trade.symbol, direction, assetType);
+    logger.info(`[DISCORD] Sent bot trade entry: ${trade.symbol} ${direction} ${assetType}`);
   } catch (error) {
     logger.error('❌ Failed to send Discord bot alert:', error);
   }
@@ -339,6 +383,14 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
+  // DEDUPLICATION: Prevent same symbol/direction/assetType from being sent multiple times
+  const direction = idea.direction || 'long';
+  const assetType = idea.assetType || 'stock';
+  if (!shouldSendTradeIdea(idea.symbol, direction, assetType)) {
+    logger.debug(`[DISCORD] Skipped duplicate ${idea.symbol} ${direction} ${assetType} - sent within last 4 hours`);
+    return;
+  }
+  
   const webhookUrl = idea.assetType === 'option' 
     ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
     : process.env.DISCORD_WEBHOOK_URL;
@@ -362,6 +414,10 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
     });
+    
+    // Mark as sent to prevent duplicate alerts
+    markTradeIdeaSent(idea.symbol, direction, assetType);
+    logger.info(`[DISCORD] Sent trade idea: ${idea.symbol} ${direction} ${assetType}`);
   } catch (e) { logger.error(e); }
 }
 
@@ -397,6 +453,14 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
   if (!VALID_DISCORD_GRADES.includes(grade)) {
     logger.debug(`[DISCORD] Skipped lotto ${idea.symbol} - grade ${grade} not in A/A+ tier`);
+    return;
+  }
+  
+  // DEDUPLICATION: Prevent same lotto from being sent multiple times
+  const direction = idea.direction || 'long';
+  const assetType = 'lotto';
+  if (!shouldSendTradeIdea(idea.symbol, direction, assetType)) {
+    logger.debug(`[DISCORD] Skipped duplicate lotto ${idea.symbol} ${direction} - sent within last 4 hours`);
     return;
   }
   
@@ -446,6 +510,10 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
         body: JSON.stringify({ embeds: [embed] }),
       }).catch(e => logger.warn(`[DISCORD] Failed to send to webhook: ${e.message}`))
     ));
+    
+    // Mark as sent to prevent duplicate alerts
+    markTradeIdeaSent(idea.symbol, direction, assetType);
+    logger.info(`[DISCORD] Sent lotto: ${idea.symbol} ${direction}`);
   } catch (e) {
     logger.warn(`[DISCORD] Lotto notification error: ${e}`);
   }
