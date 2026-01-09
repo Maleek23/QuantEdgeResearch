@@ -10778,6 +10778,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // SYMBOL ATTENTION TRACKER API
+  // Tracks convergence signals across all systems
+  // ==========================================
+  
+  // Get hot symbols (sorted by heat score)
+  app.get("/api/attention/hot", async (req, res) => {
+    try {
+      const { getHotSymbols } = await import('./attention-tracking-service');
+      const limit = parseInt(req.query.limit as string) || 20;
+      const hotSymbols = await getHotSymbols(limit);
+      res.json(hotSymbols);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/attention/hot' });
+      res.status(500).json({ error: "Failed to fetch hot symbols" });
+    }
+  });
+  
+  // Get attention history for a specific symbol
+  app.get("/api/attention/:symbol", async (req, res) => {
+    try {
+      const { getSymbolAttentionHistory } = await import('./attention-tracking-service');
+      const { symbol } = req.params;
+      const hours = parseInt(req.query.hours as string) || 24;
+      const history = await getSymbolAttentionHistory(symbol, hours);
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/attention/:symbol' });
+      res.status(500).json({ error: "Failed to fetch attention history" });
+    }
+  });
+
   // Send regular watchlist to QuantBot Discord channel
   app.post("/api/watchlist/send-quantbot", async (req: any, res) => {
     try {

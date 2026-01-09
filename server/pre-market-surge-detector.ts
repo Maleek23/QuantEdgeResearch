@@ -236,6 +236,19 @@ export async function scanPreMarketSurges(): Promise<SurgeAlert[]> {
     
     alerts.push(alert);
     await sendPreMarketSurgeAlert(alert);
+    
+    // Record attention event
+    try {
+      const { recordSymbolAttention } = await import('./attention-tracking-service');
+      await recordSymbolAttention(symbol, 'pre_market_surge', 'alert', {
+        price: data.preMarketPrice,
+        changePercent,
+        direction: changePercent > 0 ? 'bullish' : 'bearish',
+        message: `${urgency} surge: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+      });
+    } catch (e) {
+      // Silently fail - don't block alerts
+    }
   }
   
   if (alerts.length > 0) {

@@ -2494,3 +2494,92 @@ export const bullishTrends = pgTable("bullish_trends", {
 export const insertBullishTrendSchema = createInsertSchema(bullishTrends).omit({ id: true, createdAt: true, updatedAt: true, discoveredAt: true });
 export type InsertBullishTrend = z.infer<typeof insertBullishTrendSchema>;
 export type BullishTrend = typeof bullishTrends.$inferSelect;
+
+// ==========================================
+// SYMBOL ATTENTION TRACKER
+// Tracks how many times each symbol is flagged across all scanners
+// Convergence of multiple systems = strong signal
+// ==========================================
+
+export type AttentionSource = 
+  | 'pre_market_surge'
+  | 'bullish_trend'
+  | 'market_scanner'
+  | 'trade_idea'
+  | 'watchlist_grade'
+  | 'best_setup'
+  | 'mover_discovery'
+  | 'catalyst_alert'
+  | 'ml_signal'
+  | 'manual';
+
+export type AttentionEventType = 'alert' | 'scan' | 'grade' | 'idea' | 'discovery';
+
+// Attention Events - Raw touch events from all systems
+export const attentionEvents = pgTable("attention_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull(),
+  source: text("source").$type<AttentionSource>().notNull(),
+  eventType: text("event_type").$type<AttentionEventType>().notNull(),
+  
+  // Event Details
+  eventData: jsonb("event_data").$type<{
+    price?: number;
+    changePercent?: number;
+    direction?: 'bullish' | 'bearish';
+    confidence?: number;
+    grade?: string;
+    message?: string;
+  }>(),
+  
+  // Score contribution (varies by source importance)
+  scoreWeight: real("score_weight").default(1.0),
+  
+  occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_attention_symbol").on(table.symbol),
+  index("idx_attention_occurred").on(table.occurredAt),
+  index("idx_attention_source").on(table.source),
+]);
+
+export const insertAttentionEventSchema = createInsertSchema(attentionEvents).omit({ id: true, occurredAt: true });
+export type InsertAttentionEvent = z.infer<typeof insertAttentionEventSchema>;
+export type AttentionEvent = typeof attentionEvents.$inferSelect;
+
+// Symbol Heat Scores - Aggregated attention metrics (updated periodically)
+export const symbolHeatScores = pgTable("symbol_heat_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull().unique(),
+  
+  // Heat Metrics
+  heatScore: real("heat_score").default(0), // Decay-weighted score
+  rawTouchCount: integer("raw_touch_count").default(0), // Total touches in window
+  distinctSources: integer("distinct_sources").default(0), // Unique systems that flagged it
+  recentTouches1h: integer("recent_touches_1h").default(0), // Touches in last hour
+  recentTouches24h: integer("recent_touches_24h").default(0), // Touches in last 24h
+  
+  // Source Breakdown
+  sourceBreakdown: jsonb("source_breakdown").$type<Record<AttentionSource, number>>(),
+  
+  // Latest Event
+  lastSource: text("last_source").$type<AttentionSource>(),
+  lastEventType: text("last_event_type").$type<AttentionEventType>(),
+  lastPrice: real("last_price"),
+  lastDirection: varchar("last_direction"), // 'bullish' or 'bearish'
+  
+  // Convergence Detection
+  isConverging: boolean("is_converging").default(false), // 3+ distinct sources in 30min
+  convergenceLevel: integer("convergence_level").default(0), // 0-5 scale
+  
+  // Timing
+  firstTouchAt: timestamp("first_touch_at"),
+  lastTouchAt: timestamp("last_touch_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_heat_symbol").on(table.symbol),
+  index("idx_heat_score").on(table.heatScore),
+]);
+
+export const insertSymbolHeatScoreSchema = createInsertSchema(symbolHeatScores).omit({ id: true, updatedAt: true });
+export type InsertSymbolHeatScore = z.infer<typeof insertSymbolHeatScoreSchema>;
+export type SymbolHeatScore = typeof symbolHeatScores.$inferSelect;

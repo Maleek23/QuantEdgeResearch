@@ -134,6 +134,11 @@ app.use((req, res, next) => {
     startPreMarketSurgeDetector();
     log('🌅 Pre-Market Surge Detector started - monitoring for big moves every 5 minutes (4 AM - 9:30 AM ET)');
     
+    // Start Symbol Attention Tracker (tracks flow across all scanners)
+    const { startAttentionTrackingService } = await import('./attention-tracking-service');
+    startAttentionTrackingService();
+    log('🔥 Symbol Attention Tracker started - tracking convergence signals across all systems');
+    
     // Initialize real-time price feeds with WebSocket broadcast (Coinbase for crypto, Databento for futures)
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
