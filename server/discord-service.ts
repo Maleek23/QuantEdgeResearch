@@ -1220,3 +1220,156 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
     logger.error(`[DISCORD] Failed to send premium options alert: ${e}`);
   }
 }
+
+// ============ DAILY PREVIEW SYSTEM ============
+// Sends a single consolidated morning preview instead of individual alerts throughout the day
+
+let dailyPreviewSent = false;
+let lastPreviewDate = '';
+
+export async function sendDailyPreview(): Promise<{ success: boolean; message: string }> {
+  if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return { success: false, message: 'No webhook URL configured' };
+  
+  try {
+    // Import data sources dynamically to avoid circular deps
+    const { getBullishTrends, getBreakoutStocks } = await import('./bullish-trend-scanner');
+    
+    const allTrends = await getBullishTrends();
+    const breakouts = await getBreakoutStocks();
+    
+    // Get top momentum stocks (80+ score)
+    const explosiveTrends = allTrends.filter(t => t.momentumScore && t.momentumScore >= 80).slice(0, 5);
+    const strongTrends = allTrends.filter(t => t.momentumScore && t.momentumScore >= 65 && t.momentumScore < 80).slice(0, 5);
+    
+    // Format date
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'America/Chicago'
+    });
+    const timeStr = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'America/Chicago'
+    });
+    
+    // Build explosive movers section
+    let explosiveSection = '';
+    if (explosiveTrends.length > 0) {
+      explosiveSection = explosiveTrends.map(t => {
+        const change = t.dayChangePercent ? (t.dayChangePercent > 0 ? '+' : '') + t.dayChangePercent.toFixed(1) + '%' : 'N/A';
+        const phase = t.trendPhase ? t.trendPhase.toUpperCase() : 'UNKNOWN';
+        const volRatio = t.volumeRatio ? t.volumeRatio.toFixed(1) + 'x vol' : '';
+        return `• **${t.symbol}** ${change} | ${phase} | Mom: ${t.momentumScore}/100 ${volRatio}`;
+      }).join('\n');
+    } else {
+      explosiveSection = '• No explosive movers detected';
+    }
+    
+    // Build strong momentum section
+    let strongSection = '';
+    if (strongTrends.length > 0) {
+      strongSection = strongTrends.map(t => {
+        const change = t.dayChangePercent ? (t.dayChangePercent > 0 ? '+' : '') + t.dayChangePercent.toFixed(1) + '%' : 'N/A';
+        return `• **${t.symbol}** ${change} | Mom: ${t.momentumScore}/100`;
+      }).join('\n');
+    } else {
+      strongSection = '• No strong momentum stocks';
+    }
+    
+    // Build breakout section
+    let breakoutSection = '';
+    if (breakouts.length > 0) {
+      breakoutSection = breakouts.slice(0, 3).map(b => {
+        const change = b.dayChangePercent ? (b.dayChangePercent > 0 ? '+' : '') + b.dayChangePercent.toFixed(1) + '%' : 'N/A';
+        return `• **${b.symbol}** ${change} | RSI: ${b.rsi14?.toFixed(0) || 'N/A'}`;
+      }).join('\n');
+    } else {
+      breakoutSection = '• No active breakouts';
+    }
+    
+    // Create the embed
+    const embed: DiscordEmbed = {
+      title: `📊 DAILY PREVIEW - ${dateStr}`,
+      description: `**Quant Edge Labs Morning Briefing**\nGenerated at ${timeStr} CT`,
+      color: 0x3b82f6, // Blue
+      fields: [
+        { 
+          name: '🚀 EXPLOSIVE MOVERS (80+ Momentum)', 
+          value: explosiveSection,
+          inline: false 
+        },
+        { 
+          name: '📈 STRONG MOMENTUM (65-79)', 
+          value: strongSection,
+          inline: false 
+        },
+        { 
+          name: '💥 ACTIVE BREAKOUTS', 
+          value: breakoutSection,
+          inline: false 
+        },
+        {
+          name: '📋 TODAY\'S FOCUS',
+          value: `• Stocks analyzed: ${allTrends.length}\n• Active breakouts: ${breakouts.length}\n• Check dashboard for full details`,
+          inline: false
+        }
+      ],
+      footer: { text: 'Quant Edge Labs • Quality over quantity • A/A+ alerts only' },
+      timestamp: new Date().toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content: `☀️ **GOOD MORNING!** Here's your daily market preview:`,
+        embeds: [embed] 
+      }),
+    });
+    
+    // Track that we sent today's preview
+    dailyPreviewSent = true;
+    lastPreviewDate = now.toISOString().split('T')[0];
+    
+    logger.info(`[DISCORD] Sent daily preview to Quant Floor - ${explosiveTrends.length} explosive, ${strongTrends.length} strong, ${breakouts.length} breakouts`);
+    
+    return { 
+      success: true, 
+      message: `Daily preview sent: ${explosiveTrends.length} explosive movers, ${strongTrends.length} strong momentum, ${breakouts.length} breakouts` 
+    };
+    
+  } catch (error) {
+    logger.error('[DISCORD] Failed to send daily preview', { error });
+    return { success: false, message: `Error: ${error}` };
+  }
+}
+
+// Check if daily preview should be sent (call this from a scheduler)
+export function shouldSendDailyPreview(): boolean {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const hour = now.getHours();
+  const day = now.getDay();
+  
+  // Only on weekdays, around market open (8-9 AM CT)
+  if (day === 0 || day === 6) return false;
+  if (hour < 8 || hour > 9) return false;
+  
+  // Don't send if already sent today
+  if (lastPreviewDate === today) return false;
+  
+  return true;
+}
+
+// Reset daily preview flag (call at midnight or when needed)
+export function resetDailyPreview(): void {
+  dailyPreviewSent = false;
+  lastPreviewDate = '';
+}

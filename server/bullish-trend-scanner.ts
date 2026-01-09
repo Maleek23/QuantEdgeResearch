@@ -596,11 +596,12 @@ export function startBullishTrendScanner(): void {
       scanBullishTrends().catch(err => 
         logger.error('[BULLISH] Scheduled scan failed', { error: err })
       );
-      sendBreakoutAlerts().catch(err =>
-        logger.error('[BULLISH] Alert sending failed', { error: err })
-      );
+      // DISABLED: Individual breakout alerts spam Discord - use daily preview instead
+      // sendBreakoutAlerts().catch(err =>
+      //   logger.error('[BULLISH] Alert sending failed', { error: err })
+      // );
     }
   }, 15 * 60 * 1000);
   
-  logger.info('[BULLISH] Scanner started - scanning every 15 minutes during market hours');
+  logger.info('[BULLISH] Scanner started - scanning every 15 minutes during market hours (alerts disabled, use daily preview)');
 }

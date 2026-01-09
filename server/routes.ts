@@ -10766,7 +10766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send breakout alerts to Discord (admin)
+  // Send breakout alerts to Discord (admin) - DEPRECATED: Use daily preview instead
   app.post("/api/bullish-trends/send-alerts", requireAdminJWT, async (_req, res) => {
     try {
       const { sendBreakoutAlerts } = await import('./bullish-trend-scanner');
@@ -10775,6 +10775,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'POST /api/bullish-trends/send-alerts' });
       res.status(500).json({ error: "Failed to send breakout alerts" });
+    }
+  });
+  
+  // Send daily preview to Discord (admin) - Consolidated morning briefing
+  app.post("/api/discord/daily-preview", requireAdminJWT, async (_req, res) => {
+    try {
+      const { sendDailyPreview } = await import('./discord-service');
+      const result = await sendDailyPreview();
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/discord/daily-preview' });
+      res.status(500).json({ success: false, message: "Failed to send daily preview" });
     }
   });
 
