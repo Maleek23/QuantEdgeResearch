@@ -50,8 +50,9 @@ async function getCurrentVIX(): Promise<number> {
     cachedVIX = { value: vixValue, expires: Date.now() + VIX_CACHE_TTL };
     return vixValue;
   } catch (error) {
-    logger.debug('[UNIVERSAL-IDEA] Failed to fetch VIX, using default 20');
-    return cachedVIX?.value || 20;
+    const fallbackVIX = cachedVIX?.value || 20;
+    logger.warn(`[UNIVERSAL-IDEA] VIX fetch failed, using fallback value: ${fallbackVIX}`);
+    return fallbackVIX;
   }
 }
 
@@ -411,6 +412,7 @@ async function getMLConfidenceEnhancement(
     }
     
     if (!priceData || priceData.length < 20) {
+      logger.debug(`[UNIVERSAL-IDEA] ML enhancement skipped for ${symbol} - insufficient price data (${priceData?.length || 0} points < 20 required)`);
       return { boost: 0, signal: null };
     }
     

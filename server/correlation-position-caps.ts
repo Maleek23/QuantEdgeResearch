@@ -108,6 +108,17 @@ export interface CorrelationCheckResult {
   };
 }
 
+/**
+ * Check if a proposed position would exceed correlation caps
+ * 
+ * @param portfolioId - Portfolio to check against
+ * @param symbol - Symbol to trade
+ * @param proposedPositionSize - Dollar value of the proposed position:
+ *   - Options: premium × 100 × quantity (total cost)
+ *   - Crypto: price × quantity (notional value)
+ *   - Futures: margin required (risk capital committed)
+ * @param config - Optional override config
+ */
 export async function checkCorrelationCaps(
   portfolioId: string,
   symbol: string,
