@@ -366,6 +366,7 @@ function AdminInvitesContent() {
                 <TableHeader>
                   <TableRow className="border-slate-800 hover:bg-transparent">
                     <TableHead className="text-slate-400">Email</TableHead>
+                    <TableHead className="text-slate-400">Access Code</TableHead>
                     <TableHead className="text-slate-400">Status</TableHead>
                     <TableHead className="text-slate-400">Tier</TableHead>
                     <TableHead className="text-slate-400">Expires</TableHead>
@@ -376,9 +377,32 @@ function AdminInvitesContent() {
                   {invites.map((invite) => (
                     <TableRow key={invite.id} className="border-slate-800" data-testid={`row-invite-${invite.id}`}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium text-white">{invite.email}</p>
-                          <p className="text-xs text-slate-500 font-mono">{invite.token.slice(0, 8)}...</p>
+                        <p className="font-medium text-white">{invite.email}</p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs text-cyan-400 font-mono bg-slate-800/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
+                            {invite.token}
+                          </code>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-slate-400 hover:text-cyan-400"
+                            onClick={() => {
+                              navigator.clipboard.writeText(invite.token);
+                              setCopiedId(invite.id + '-code');
+                              toast({ title: "Access code copied!" });
+                              setTimeout(() => setCopiedId(null), 2000);
+                            }}
+                            data-testid={`button-copy-code-${invite.id}`}
+                            title="Copy access code"
+                          >
+                            {copiedId === invite.id + '-code' ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(invite.status)}</TableCell>

@@ -251,10 +251,10 @@ export default function JoinBeta() {
                         <FormLabel className="text-neutral-300">Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
                             <Input 
                               placeholder="you@example.com" 
-                              className="pl-10 bg-neutral-900/50 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20"
+                              className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-white"
                               data-testid="input-verify-email"
                               {...field} 
                             />
@@ -273,10 +273,10 @@ export default function JoinBeta() {
                         <FormLabel className="text-neutral-300">Access Code</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+                            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
                             <Input 
                               placeholder="Enter your invite code"
-                              className="pl-10 font-mono bg-neutral-900/50 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-cyan-500/50 focus:ring-cyan-500/20"
+                              className="pl-10 font-mono bg-slate-900 border-slate-700 text-cyan-400 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-cyan-400"
                               data-testid="input-verify-token"
                               {...field} 
                             />
