@@ -156,21 +156,40 @@ function calculateExitWindow(
   }
   
   if (dte !== null && dte <= 1) {
-    if (pnlPercent > 0) {
+    // 0DTE with solid profit - lock it in
+    if (pnlPercent >= 30) {
       return {
         window: 'immediate',
         probability: 90,
-        reason: '0DTE with profit - Lock in gains before theta crush',
-        timeEstimate: 'Within 30 min'
-      };
-    } else {
-      return {
-        window: 'immediate',
-        probability: 85,
-        reason: '0DTE underwater - Exit to avoid total loss',
+        reason: '0DTE with +30%+ profit - Lock in gains before theta crush',
         timeEstimate: 'Within 30 min'
       };
     }
+    // 0DTE with small profit - watch closely
+    if (pnlPercent > 0 && pnlPercent < 30) {
+      return {
+        window: 'soon',
+        probability: 60,
+        reason: '0DTE with small profit - Trail stop tighter',
+        timeEstimate: '1-2 hours'
+      };
+    }
+    // 0DTE underwater - DON'T panic exit! Give it time unless deep loss
+    if (pnlPercent <= -50) {
+      return {
+        window: 'immediate',
+        probability: 85,
+        reason: '0DTE deep underwater (-50%+) - Cut losses',
+        timeEstimate: 'Within 30 min'
+      };
+    }
+    // 0DTE moderately underwater - watch but don't panic
+    return {
+      window: 'watch',
+      probability: 50,
+      reason: '0DTE underwater - Monitor for reversal or cut at -50%',
+      timeEstimate: 'Monitor actively'
+    };
   }
   
   if (pnlPercent >= 100) {

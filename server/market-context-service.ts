@@ -464,19 +464,19 @@ export function calculateExitConfluence(
   // MANDATORY EXITS (bypass ALL scoring - these ALWAYS trigger)
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // Hard stop at -40% (absolute floor)
-  if (pnlPercent <= -40) {
+  // Hard stop at -60% (absolute floor for options - they can recover!)
+  if (pnlPercent <= -60) {
     return {
       shouldExit: true, exitScore: 100, holdScore: 0, netScore: -100,
-      exitSignals: ['⛔ HARD STOP: -40% capital protection'],
+      exitSignals: ['⛔ HARD STOP: -60% capital protection'],
       holdSignals: [],
       recommendation: 'MANDATORY EXIT: Capital protection',
       telemetrySignalCount: 0
     };
   }
   
-  // Deep loser threshold: -25%
-  if (pnlPercent <= -25) {
+  // Deep loser threshold: -45% (options can swing 30-40% easily and recover)
+  if (pnlPercent <= -45) {
     return {
       shouldExit: true, exitScore: 80, holdScore: 0, netScore: -80,
       exitSignals: [`⛔ LOSS STOP: Down ${Math.abs(pnlPercent).toFixed(0)}%`],
@@ -519,8 +519,8 @@ export function calculateExitConfluence(
     };
   }
   
-  // Regime against position while losing - cut losses
-  if (regimeBad && pnlPercent <= -15) {
+  // Regime against position while losing significantly - cut losses (raised from -15% to -35%)
+  if (regimeBad && pnlPercent <= -35) {
     return {
       shouldExit: true, exitScore: 75, holdScore: 0, netScore: -75,
       exitSignals: [`⚠️ REGIME STOP: Market ${marketContext.regime} + down ${Math.abs(pnlPercent).toFixed(0)}%`],
@@ -1012,8 +1012,9 @@ export function checkDynamicExitEnhanced(
     };
   }
   
-  // Strong exit signals (requires multiple confirmations)
-  if (confluence.shouldExit || confluence.netScore <= -20) {
+  // Strong exit signals (requires MULTIPLE confirmations - at least 2 signals and net score <= -30)
+  // Previously -20 was too sensitive, causing premature exits on single signals
+  if ((confluence.shouldExit && confluence.exitSignals.length >= 2) || confluence.netScore <= -30) {
     let exitType: DynamicExitSignal['exitType'] = 'momentum_fade';
     
     // Categorize exit type based on signals
