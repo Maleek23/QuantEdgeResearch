@@ -226,16 +226,50 @@ const OPTIONS_PLAYBOOK = {
   MAX_OTM_STRIKES: 1,           // ATM or 1 strike ITM only
 };
 
-// 2️⃣ ALLOWED TICKERS ONLY - Liquid, tight spreads, predictable behavior
+// 2️⃣ ALLOWED TICKERS - Expanded to include priority sectors
 const OPTIONS_PLAYBOOK_TICKERS = [
+  // 📈 INDEX ETFs
   'SPY',   // S&P 500 ETF
   'QQQ',   // Nasdaq 100 ETF
   'IWM',   // Russell 2000 ETF - Small caps index
+  // 🖥️ MEGA CAP TECH
   'AAPL',  // Apple
   'NVDA',  // NVIDIA
   'TSLA',  // Tesla
+  'AMD',   // AMD
+  'META',  // Meta
+  'GOOGL', // Google
+  'AMZN',  // Amazon
+  'MSFT',  // Microsoft
+  // 💰 FINTECH
   'SOFI',  // SoFi
   'HOOD',  // Robinhood
+  'COIN',  // Coinbase
+  // ☢️ NUCLEAR & ENERGY - User priority
+  'NNE',   // Nano Nuclear
+  'OKLO',  // Oklo Inc
+  'SMR',   // NuScale Power
+  'CCJ',   // Cameco
+  'LEU',   // Centrus Energy
+  'UUUU',  // Energy Fuels
+  'UEC',   // Uranium Energy
+  'DNN',   // Denison Mines
+  'BWXT',  // BWX Technologies
+  // 🛡️ DEFENSE & AEROSPACE
+  'LMT',   // Lockheed Martin
+  'RTX',   // Raytheon
+  'NOC',   // Northrop Grumman
+  'GD',    // General Dynamics
+  'BA',    // Boeing
+  'PLTR',  // Palantir
+  // 🚀 SPACE & SATELLITES
+  'LUNR',  // Intuitive Machines
+  'RKLB',  // Rocket Lab
+  // 🤖 AI & TECH
+  'AI',    // C3.ai
+  'SOUN',  // SoundHound
+  'IONQ',  // IonQ
+  'MSTR',  // MicroStrategy (Bitcoin proxy)
 ];
 
 // 3️⃣ CONSECUTIVE RED DAY TRACKING
@@ -3472,14 +3506,32 @@ export async function runAutonomousBotScan(): Promise<void> {
           // ML enhancement is optional - continue without it
           logger.debug(`🤖 [ML-BOT] ML enhancement skipped for ${ticker}`);
         }
-        // 🔧 STRICT A-GRADE MINIMUM: 75% confidence required (restored Jan 2026 after losses)
-        // Was 6/7 Friday with strict gates, went AWFUL after relaxing to 60-65%
-        const effectiveMinConfidence = Math.max(75, adaptiveParams.confidenceThreshold);
+        // 🔧 TIERED CONFIDENCE MINIMUMS: Priority sectors get slightly lower bar
+        // Base: 75% for general tickers (A- grade minimum)
+        // Priority sectors (nuclear, defense, space): 70% (B+ grade) to catch more opportunities
+        const PRIORITY_SECTOR_TICKERS = [
+          // ☢️ Nuclear
+          'NNE', 'OKLO', 'SMR', 'CCJ', 'LEU', 'UUUU', 'UEC', 'DNN', 'BWXT',
+          // 🛡️ Defense
+          'LMT', 'RTX', 'NOC', 'GD', 'BA', 'PLTR', 'LDOS', 'LHX',
+          // 🚀 Space
+          'LUNR', 'RKLB', 'ASTS', 'SPCE',
+          // 📊 Major ETFs
+          'IWM', 'SPY', 'QQQ'
+        ];
+        
+        const isPrioritySector = PRIORITY_SECTOR_TICKERS.includes(ticker.toUpperCase());
+        const baseMinConfidence = isPrioritySector ? 70 : 75; // B+ for priority, A- for others
+        const effectiveMinConfidence = Math.max(baseMinConfidence, adaptiveParams.confidenceThreshold);
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {
-          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}%`);
+          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}%${isPrioritySector ? ' (priority sector)' : ''}`);
           continue;
+        }
+        
+        if (isPrioritySector && decision.confidence >= effectiveMinConfidence) {
+          logger.debug(`🤖 [BOT] ☢️ Priority sector boost applied for ${ticker} (min ${effectiveMinConfidence}%)`);
         }
         
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
