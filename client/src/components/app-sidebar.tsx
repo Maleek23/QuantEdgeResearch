@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
@@ -30,25 +31,25 @@ interface NavItem {
   badge?: string;
 }
 
-// Trading - core trading tools
+// Trading - core trading tools (streamlined)
 const tradingItems: NavItem[] = [
-  { title: "Command Center", url: "/trading-engine", icon: Activity, badge: "NEW" },
+  { title: "Command Center", url: "/trading-engine", icon: Activity },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "My Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Bullish Trends", url: "/bullish-trends", icon: TrendingUp },
+  { title: "Watchlist", url: "/watchlist", icon: Eye },
 ];
 
-// Automations - Trading bots + Market Scanner consolidated
+// Automations - Trading bots
 const automationItems: NavItem[] = [
   { title: "Trading Bots", url: "/automations", icon: Zap, badge: "LIVE" },
 ];
 
-// Analytics - performance and analysis tools (Data Audit is now part of Performance page)
+// Analytics - all analysis tools accessible
 const analyticsItems: NavItem[] = [
   { title: "Performance", url: "/performance", icon: Target },
-  { title: "Historical Intel", url: "/historical-intelligence", icon: Brain, badge: "NEW" },
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
-  { title: "Options Analyzer", url: "/options-analyzer", icon: Activity, badge: "NEW" },
+  { title: "Options", url: "/options-analyzer", icon: BarChart2 },
+  { title: "Trends", url: "/bullish-trends", icon: TrendingUp },
+  { title: "Historical", url: "/historical-intelligence", icon: Brain },
 ];
 
 // Learning resources - consolidated into Academy
@@ -201,9 +202,9 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
-  const handleNavigation = (url: string) => {
+  const handleNavigation = useCallback((url: string) => {
     setLocation(url);
-  };
+  }, [setLocation]);
 
   const isAdmin = !!(user as any)?.isAdmin;
 
