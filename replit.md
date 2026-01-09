@@ -23,7 +23,8 @@ The system integrates two core analytical engines:
 The UI/UX follows a "Tech-Minimalist" design inspired by institutional trading interfaces, featuring a dark-mode-first approach, a specific color palette (slate, cyan, green, red, amber, purple, blue), glassmorphism-inspired components, and a clear typography hierarchy using Inter and JetBrains Mono.
 
 Key features include:
--   **Core Application**: Public informational pages, user authentication, main dashboard, trade desk with research briefs, live trading journal, market overview, and performance analytics.
+-   **Command Center (Hybrid Trading Engine + Dashboard)**: Unified page combining symbol analysis (left 2/3) with dashboard widgets (right 1/3). Features real-time symbol analysis with TradingView chart, Hot Symbols convergence widget showing multi-source attention tracking, portfolio overview, bot status, win rate, and IV rank. First item in sidebar navigation.
+-   **Core Application**: Public informational pages, user authentication, trade desk with research briefs, live trading journal, market overview, and performance analytics.
 -   **Research Tools**: Chart analysis, historical trade pattern library, Data Intelligence System, Loss Analysis System, and Data Integrity System.
 -   **Automated Systems**: Auto-Lotto Bot for automated paper trading with sample size gating, and a Real-time Pricing Service.
 -   **Specialized Intelligence**: Timing Intelligence System, "Prop Firm Mode", Market Scanner (Day Trade/Swing modes), Multi-Factor Analysis Engine, CT Tracker for crypto sentiment, Universal Idea Generator, and Platform Reports System.
