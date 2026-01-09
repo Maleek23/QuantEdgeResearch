@@ -1,7 +1,15 @@
 import { Resend } from 'resend';
 import { randomBytes } from 'crypto';
+import { logger } from './logger';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Log email service status on startup
+if (resend) {
+  logger.info('[EMAIL] Resend email service initialized', { fromEmail: process.env.FROM_EMAIL || 'onboarding@resend.dev' });
+} else {
+  logger.warn('[EMAIL] Resend not configured - RESEND_API_KEY missing');
+}
 
 const APP_NAME = 'Quant Edge Labs';
 const APP_URL = process.env.APP_URL || 'https://quantedgelabs.net';
@@ -211,14 +219,14 @@ ${APP_NAME} - For Educational & Research Purposes Only
     });
 
     if (error) {
-      console.error('[Email] Failed to send invite:', error);
+      logger.error('[EMAIL] Failed to send invite', { error: error.message, name: error.name, to: email });
       return { success: false, error: error.message };
     }
 
-    console.log('[Email] Invite sent successfully:', data?.id);
+    logger.info('[EMAIL] Beta invite sent successfully', { to: email, messageId: data?.id });
     return { success: true };
   } catch (err) {
-    console.error('[Email] Error sending invite:', err);
+    logger.error('[EMAIL] Error sending invite', { error: err instanceof Error ? err.message : 'Unknown error', to: email });
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
