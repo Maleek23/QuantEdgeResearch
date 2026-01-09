@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { formatInTimeZone } from 'date-fns-tz';
 import { logger } from './logger';
 import { storage } from './storage';
@@ -292,31 +291,7 @@ ${picksContext}
 
 Format your response as JSON array with objects containing "index" (1-based) and "analysis" (string) fields only. Be direct and actionable.`;
 
-  // Try Anthropic first
-  try {
-    const anthropic = new Anthropic();
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    
-    const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
-    const analyses = parseAIAnalysis(content);
-    if (analyses.length > 0) {
-      logger.info('📋 [WEEKLY-PICKS] AI analysis added via Anthropic');
-      return applyAnalyses(picks, analyses);
-    }
-  } catch (error: any) {
-    // Check for credit/billing error and try fallback
-    if (error?.message?.includes('credit') || error?.message?.includes('billing') || error?.status === 400) {
-      logger.warn('📋 [WEEKLY-PICKS] Anthropic credits low, trying OpenAI fallback...');
-    } else {
-      logger.warn('📋 [WEEKLY-PICKS] Anthropic failed:', error?.message || error);
-    }
-  }
-  
-  // Fallback to Gemini first (user preference)
+  // Try Gemini first (primary - user preference)
   try {
     const { GoogleGenAI } = await import('@google/genai');
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -328,11 +303,11 @@ Format your response as JSON array with objects containing "index" (1-based) and
     const content = response.text || '';
     const analyses = parseAIAnalysis(content);
     if (analyses.length > 0) {
-      logger.info('📋 [WEEKLY-PICKS] AI analysis added via Gemini');
+      logger.info('📋 [WEEKLY-PICKS] AI analysis added via Gemini (primary)');
       return applyAnalyses(picks, analyses);
     }
   } catch (error: any) {
-    logger.warn('📋 [WEEKLY-PICKS] Gemini fallback failed:', error?.message || error);
+    logger.warn('📋 [WEEKLY-PICKS] Gemini failed:', error?.message || error);
   }
   
   // Fallback to OpenAI
