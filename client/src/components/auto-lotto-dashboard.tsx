@@ -1150,68 +1150,70 @@ export function AutoLottoDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* Portfolio Trades Modal */}
-      <Dialog open={selectedPortfolio !== null} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-        <DialogContent className="max-w-2xl bg-slate-800 dark:bg-slate-800 border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-white">
-              <div className={cn(
-                "p-2 rounded-lg border",
-                selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-                selectedInfo?.color === 'purple' && "text-purple-400 bg-purple-500/10 border-purple-500/20",
-                selectedInfo?.color === 'amber' && "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                selectedInfo?.color === 'green' && "text-green-400 bg-green-500/10 border-green-500/20"
-              )}>
-                {selectedPortfolio === 'options' && <Target className="h-4 w-4" />}
-                {selectedPortfolio === 'futures' && <TrendingUp className="h-4 w-4" />}
-                {selectedPortfolio === 'crypto' && <DollarSign className="h-4 w-4" />}
-                {selectedPortfolio === 'smallAccount' && <Zap className="h-4 w-4" />}
-              </div>
-              <span data-testid="text-modal-title">{selectedInfo?.name || 'Portfolio'}</span>
-            </DialogTitle>
-            <DialogDescription className="flex items-center gap-4 pt-2">
-              <span className="text-slate-400">
-                Balance: <span className="font-mono text-white">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
-              </span>
-              <span className={cn(
-                "font-mono font-medium",
-                portfolioTotalPnL >= 0 ? "text-green-400" : "text-red-400"
-              )} data-testid="text-modal-pnl">
-                Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${portfolioTotalPnL.toFixed(2)}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as 'open' | 'closed' | 'all')} className="mt-2">
-            <TabsList className="grid w-full grid-cols-3 bg-muted/50">
-              <TabsTrigger value="open" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400" data-testid="tab-open">
-                Open ({openCount})
-              </TabsTrigger>
-              <TabsTrigger value="closed" className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-300" data-testid="tab-closed">
-                Closed ({closedCount})
-              </TabsTrigger>
-              <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-all">
-                All ({selectedPositions.length})
-              </TabsTrigger>
-            </TabsList>
-
-            <ScrollArea className="h-[400px] mt-4 pr-3">
-              {modalPositions.length > 0 ? (
-                <div className="space-y-2">
-                  {modalPositions.map((position) => (
-                    <TradeHistoryRow key={position.id} position={position} />
-                  ))}
+      {/* Portfolio Trades Modal - Only render when selectedPortfolio is set */}
+      {selectedPortfolio && (
+        <Dialog open={true} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
+          <DialogContent className="max-w-2xl bg-slate-800 dark:bg-slate-800 border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 text-white">
+                <div className={cn(
+                  "p-2 rounded-lg border",
+                  selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+                  selectedInfo?.color === 'purple' && "text-purple-400 bg-purple-500/10 border-purple-500/20",
+                  selectedInfo?.color === 'amber' && "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                  selectedInfo?.color === 'green' && "text-green-400 bg-green-500/10 border-green-500/20"
+                )}>
+                  {selectedPortfolio === 'options' && <Target className="h-4 w-4" />}
+                  {selectedPortfolio === 'futures' && <TrendingUp className="h-4 w-4" />}
+                  {selectedPortfolio === 'crypto' && <DollarSign className="h-4 w-4" />}
+                  {selectedPortfolio === 'smallAccount' && <Zap className="h-4 w-4" />}
                 </div>
-              ) : (
-                <div className="text-center py-12 text-slate-400">
-                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>No {portfolioTab === 'all' ? '' : portfolioTab} trades in this portfolio</p>
-                </div>
-              )}
-            </ScrollArea>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+                <span data-testid="text-modal-title">{selectedInfo?.name || 'Portfolio'}</span>
+              </DialogTitle>
+              <DialogDescription className="flex items-center gap-4 pt-2">
+                <span className="text-slate-400">
+                  Balance: <span className="font-mono text-white">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
+                </span>
+                <span className={cn(
+                  "font-mono font-medium",
+                  portfolioTotalPnL >= 0 ? "text-green-400" : "text-red-400"
+                )} data-testid="text-modal-pnl">
+                  Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${portfolioTotalPnL.toFixed(2)}
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as 'open' | 'closed' | 'all')} className="mt-2">
+              <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+                <TabsTrigger value="open" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400" data-testid="tab-open">
+                  Open ({openCount})
+                </TabsTrigger>
+                <TabsTrigger value="closed" className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-300" data-testid="tab-closed">
+                  Closed ({closedCount})
+                </TabsTrigger>
+                <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-all">
+                  All ({selectedPositions.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <ScrollArea className="h-[400px] mt-4 pr-3">
+                {modalPositions.length > 0 ? (
+                  <div className="space-y-2">
+                    {modalPositions.map((position) => (
+                      <TradeHistoryRow key={position.id} position={position} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-400">
+                    <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>No {portfolioTab === 'all' ? '' : portfolioTab} trades in this portfolio</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
