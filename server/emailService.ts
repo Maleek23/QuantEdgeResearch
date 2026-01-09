@@ -12,7 +12,7 @@ export function generateInviteToken(): string {
 }
 
 export function getInviteLink(token: string): string {
-  return `${APP_URL}/join-beta?code=${token}`;
+  return `${APP_URL}/invite?code=${token}`;
 }
 
 export async function sendBetaInviteEmail(
@@ -76,15 +76,21 @@ ${APP_NAME} - For Educational & Research Purposes Only
           
           <!-- Logo Header - First thing visible -->
           <tr>
-            <td style="padding: 32px 40px 20px; text-align: center;">
-              <!-- Logo Image -->
-              <img src="https://i.imgur.com/7QKqYzL.png" alt="Quant Edge Labs" width="120" height="120" style="display: block; margin: 0 auto 16px; max-width: 120px;">
+            <td style="padding: 28px 40px 20px; text-align: center;">
+              <!-- Stylized Q Logo Mark -->
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
+                <tr>
+                  <td style="width: 64px; height: 64px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%); border-radius: 14px; text-align: center; vertical-align: middle; box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);">
+                    <span style="font-size: 36px; font-weight: 900; color: #ffffff; font-family: Arial, sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Q</span>
+                  </td>
+                </tr>
+              </table>
               <!-- Brand Name - Large and prominent -->
-              <h1 style="margin: 0 0 4px; font-size: 32px; font-weight: 800; letter-spacing: -1px; color: #22d3ee;">
+              <h1 style="margin: 0 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: #22d3ee; font-family: Arial, sans-serif;">
                 QUANT EDGE
               </h1>
-              <p style="color: #3b82f6; font-size: 18px; font-weight: 600; margin: 0 0 12px; letter-spacing: 6px;">LABS</p>
-              <p style="color: #64748b; font-size: 12px; margin: 0; letter-spacing: 1px;">Multiple Engines, One Edge</p>
+              <p style="color: #3b82f6; font-size: 16px; font-weight: 600; margin: 0 0 8px; letter-spacing: 4px; font-family: Arial, sans-serif;">LABS</p>
+              <p style="color: #64748b; font-size: 11px; margin: 0; letter-spacing: 1px;">Multiple Engines, One Edge</p>
             </td>
           </tr>
 

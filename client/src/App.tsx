@@ -72,6 +72,7 @@ const MLIntelligence = lazy(() => import("@/pages/ml-intelligence"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const JoinBeta = lazy(() => import("@/pages/join-beta"));
+const InviteWelcome = lazy(() => import("@/pages/invite-welcome"));
 const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
 
 function PageLoader() {
@@ -127,6 +128,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/join-beta" component={JoinBeta} />
+      <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
       <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
@@ -290,8 +292,10 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
-  if (publicPages.includes(location)) {
+  // Strip query parameters for comparison since location may include ?code=XXX etc.
+  const locationPath = location.split('?')[0];
+  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  if (publicPages.includes(locationPath)) {
     return (
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
