@@ -19,26 +19,24 @@ export {
   getCombinedGrade,
 } from '../shared/grading';
 
-// Legacy aliases for backward compatibility
+// Legacy aliases for backward compatibility (using already-exported functions)
+import { scoreToGrade as _scoreToGrade, getLetterGrade as _getLetterGrade } from '../shared/grading';
+
 export function getAcademicGrade(score: number) {
-  const { scoreToGrade } = require('../shared/grading');
-  const result = scoreToGrade(score);
+  const result = _scoreToGrade(score);
   return { grade: result.grade, description: result.description };
 }
 
 export function getWinRateGrade(winRate: number): string {
-  const { getLetterGrade } = require('../shared/grading');
-  return getLetterGrade(winRate);
+  return _getLetterGrade(winRate);
 }
 
 export function getConfidenceGrade(confidence: number): string {
-  const { getLetterGrade } = require('../shared/grading');
-  return getLetterGrade(confidence);
+  return _getLetterGrade(confidence);
 }
 
 export function getReliabilityGrade(reliability: number): string {
-  const { getLetterGrade } = require('../shared/grading');
-  return getLetterGrade(reliability);
+  return _getLetterGrade(reliability);
 }
 
 // Type re-export for legacy code

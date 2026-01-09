@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { InsertTradeIdea } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import { getTradierQuote } from "./tradier-api";
+import { getLetterGrade } from "./grading";
 
 /**
  * UNIVERSAL TRADE IDEA GENERATOR
@@ -86,6 +87,7 @@ const SOURCE_BASE_CONFIDENCE: Record<IdeaSource, number> = {
   'quant_signal': 60,
   'options_flow': 55,
   'market_scanner': 50,
+  'bullish_trend': 55,
   'chart_analysis': 55,
   'social_sentiment': 45,
   'watchlist': 50,
@@ -186,22 +188,7 @@ function calculateConfidence(source: IdeaSource, signals: IdeaSignal[]): number 
   return Math.max(0, Math.min(100, Math.round(confidence)));
 }
 
-/**
- * Get letter grade from confidence score
- */
-function getLetterGrade(confidence: number): string {
-  if (confidence >= 85) return 'A+';
-  if (confidence >= 80) return 'A';
-  if (confidence >= 75) return 'A-';
-  if (confidence >= 70) return 'B+';
-  if (confidence >= 65) return 'B';
-  if (confidence >= 60) return 'B-';
-  if (confidence >= 55) return 'C+';
-  if (confidence >= 50) return 'C';
-  if (confidence >= 45) return 'C-';
-  if (confidence >= 40) return 'D';
-  return 'F';
-}
+// getLetterGrade imported from ./grading (shared/grading.ts contract)
 
 /**
  * Determine holding period based on signals and source
@@ -371,9 +358,6 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       catalyst: input.catalyst || `${getEngineType(input.source)} detected ${input.direction} signal`,
       analysis,
       qualitySignals: signalDescriptions,
-      
-      // Engine tracking
-      engineUsed: getEngineType(input.source),
       
       // Outcome tracking
       outcomeStatus: 'open',

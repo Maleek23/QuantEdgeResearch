@@ -1,91 +1,86 @@
 /**
- * UNIFIED Signal-Based Grading System
+ * Signal Quality & Trade Utilities
  * 
- * This matches exactly what Discord cards show for consistency.
- * Grades are based on qualitySignals count (0-5 indicators):
- * - 5 signals = A+ Signal (Exceptional)
- * - 4 signals = A Signal (Strong)
- * - 3 signals = B Signal (Good)
- * - 2 signals = C Signal (Average)
- * - 0-1 signals = Low Signal (Weak)
+ * IMPORTANT: Trade grades (A+, B, C, etc.) should come from the stored
+ * `probabilityBand` field, NOT from signal count. See shared/grading.ts
+ * for the unified grading contract.
+ * 
+ * Signal count (0-5) shows how many technical indicators agree on direction.
+ * This is SUPPLEMENTARY information displayed in tooltips, not the trade grade.
  */
 
-export interface SignalGrade {
-  grade: string;
+// Re-export grading utilities from shared contract
+export { 
+  getLetterGrade, 
+  getGradeStyle, 
+  getSignalQuality,
+  type GradeLetter,
+  type GradeInfo 
+} from '../../../shared/grading';
+
+/**
+ * Signal Confluence Info (NOT a grade)
+ * Shows how many technical indicators agree on direction
+ */
+export interface SignalConfluence {
+  count: number;
   label: string;
-  color: string;
   description: string;
-  signalCount: number;
 }
 
 /**
- * Get signal grade from qualitySignals array
- * This is the CANONICAL grading function used across Discord and Dashboard
+ * Get signal confluence info from qualitySignals array
+ * NOTE: This is NOT the trade grade - it's supplementary information
  */
-export function getSignalGrade(qualitySignals: string[] | null | undefined): SignalGrade {
-  const signalCount = qualitySignals?.length || 0;
+export function getSignalConfluence(qualitySignals: string[] | null | undefined): SignalConfluence {
+  const count = qualitySignals?.length || 0;
   
-  if (signalCount >= 5) {
-    return {
-      grade: 'A+',
-      label: 'A+ Signal',
-      color: 'text-green-400',
-      description: 'Exceptional - All indicators aligned',
-      signalCount
-    };
+  if (count >= 5) {
+    return { count, label: 'Strong', description: 'All indicators aligned' };
   }
-  
-  if (signalCount >= 4) {
-    return {
-      grade: 'A',
-      label: 'A Signal',
-      color: 'text-green-500',
-      description: 'Strong - Most indicators aligned',
-      signalCount
-    };
+  if (count >= 4) {
+    return { count, label: 'Good', description: 'Most indicators aligned' };
   }
-  
-  if (signalCount >= 3) {
-    return {
-      grade: 'B',
-      label: 'B Signal',
-      color: 'text-blue-500',
-      description: 'Good - Multiple indicators aligned',
-      signalCount
-    };
+  if (count >= 3) {
+    return { count, label: 'Moderate', description: 'Multiple indicators aligned' };
   }
-  
-  if (signalCount >= 2) {
-    return {
-      grade: 'C',
-      label: 'C Signal',
-      color: 'text-yellow-500',
-      description: 'Average - Some indicators aligned',
-      signalCount
-    };
+  if (count >= 2) {
+    return { count, label: 'Weak', description: 'Some indicators aligned' };
   }
-  
+  return { count, label: 'Low', description: 'Few indicators aligned' };
+}
+
+/**
+ * @deprecated Use getSignalConfluence instead. Signal count is NOT a grade.
+ * Trade grades should come from stored probabilityBand field.
+ */
+export function getSignalGrade(qualitySignals: string[] | null | undefined) {
+  const info = getSignalConfluence(qualitySignals);
   return {
-    grade: 'D',
-    label: 'Low Signal',
-    color: 'text-orange-500',
-    description: 'Weak - Few indicators aligned',
-    signalCount
+    grade: info.label.charAt(0).toUpperCase(), // Legacy compat
+    label: `${info.count} Signals`,
+    color: info.count >= 4 ? 'text-green-400' : info.count >= 3 ? 'text-cyan-400' : 'text-amber-400',
+    description: info.description,
+    signalCount: info.count
   };
 }
 
 /**
- * Get short grade letter for filters/badges
+ * @deprecated Use stored probabilityBand instead of calculating from signals
  */
 export function getSignalGradeLetter(qualitySignals: string[] | null | undefined): string {
-  return getSignalGrade(qualitySignals).grade;
+  const count = qualitySignals?.length || 0;
+  return count >= 4 ? 'Strong' : count >= 3 ? 'Moderate' : 'Weak';
 }
 
 /**
- * Get grade color class
+ * @deprecated Use getGradeStyle from shared/grading.ts
  */
 export function getSignalGradeColor(qualitySignals: string[] | null | undefined): string {
-  return getSignalGrade(qualitySignals).color;
+  const count = qualitySignals?.length || 0;
+  if (count >= 4) return 'text-green-400';
+  if (count >= 3) return 'text-cyan-400';
+  return 'text-amber-400';
 }
 
 /**
