@@ -1152,7 +1152,7 @@ export function AutoLottoDashboard() {
 
       {/* Portfolio Trades Modal */}
       <Dialog open={selectedPortfolio !== null} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-        <DialogContent className="max-w-2xl bg-slate-900 dark:bg-slate-900 border border-slate-700 shadow-2xl" data-testid="modal-portfolio-trades">
+        <DialogContent className="max-w-2xl bg-slate-800 dark:bg-slate-800 border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-white">
               <div className={cn(
