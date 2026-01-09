@@ -33,8 +33,9 @@ interface SurgeAlert {
 }
 
 const alertCache = new Map<string, { percent: number; timestamp: Date }>();
-const ALERT_COOLDOWN_MS = 20 * 60 * 1000;
-const DELTA_THRESHOLD = 1.5;
+const ALERT_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours - only alert once per session
+const DELTA_THRESHOLD = 5; // Only re-alert if move increases by 5%+ more
+const DISABLE_DISCORD_ALERTS = true; // Disable Discord spam - use for internal tracking only
 
 function isPreMarketHours(): boolean {
   const now = new Date();
@@ -138,6 +139,12 @@ async function fetchPreMarketQuotes(symbols: string[]): Promise<Map<string, { pr
 }
 
 async function sendPreMarketSurgeAlert(alert: SurgeAlert): Promise<void> {
+  // Discord alerts disabled - use internal tracking only to prevent spam
+  if (DISABLE_DISCORD_ALERTS) {
+    logger.debug(`[PRE-MARKET] Discord alerts disabled - ${alert.symbol} ${alert.urgency} surge tracked internally`);
+    return;
+  }
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   
   if (!webhookUrl) {
