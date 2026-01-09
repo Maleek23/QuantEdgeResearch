@@ -34,7 +34,11 @@ Key features include:
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis for a tier-based score (S-F).
 -   **Elite Setup Trade Generator**: Converts high-grade watchlist items into small-account friendly trade ideas with strict risk management.
 -   **Best Setups System**: Enforces trading discipline by highlighting top high-conviction setups daily/weekly. Enhanced conviction scoring integrates ML Intelligence (±20 points for direction alignment), hourly breakout confirmation (+15-20 for confirmed breakouts), and historical win rate by symbol (+15 for 70%+ win rate, -10 penalty for <40%).
--   **Adaptive Loss Intelligence System**: Learns from trading mistakes, diagnosing loss categories and adaptively adjusting bot parameters.
+-   **Adaptive Loss Intelligence System**: Learns from trading mistakes, diagnosing loss categories and adaptively adjusting bot parameters. Fully integrated across the platform:
+    - **Universal Idea Generator**: HARD BLOCKS idea generation for symbols with `shouldAvoid=true` (3+ consecutive losses), returns null to prevent creation
+    - **Auto-Lotto Bot**: Skips trades with `LOSS_COOLDOWN_BLOCK` signal when shouldAvoid is true
+    - **UI Integration**: Trading Engine shows warning banners for symbols on cooldown; Trade Desk displays loss history badges with streak count and confidence adjustments
+    - Key files: `server/loss-analyzer-service.ts`, `server/universal-idea-generator.ts` (line 274), `server/auto-lotto-trader.ts` (line 2714)
 -   **Auto-Lotto Bot Risk Controls**: Advanced entry thresholds, confluence validation, post-loss cooldowns, tiered premium caps, and position sizing. Includes a "Pro Trader Checklist" and a DTE-Aware Smart Exit Strategy with tiered stop-loss logic and thesis revalidation. It features Momentum-Direction Alignment, Post-Exit Cooldown, an Exit Callback Hook System, and a Duplicate Position Guard.
 -   **Unified Entry Gate System**: Centralized, regime-aware trading safeguards using a Market Context Service to analyze trading sessions and market regimes.
 -   **Automations Hub UI**: A restructured interface displaying 4 main portfolio trading bots (Options, Futures, Crypto, Small Account) with real-time stats and simplified navigation.

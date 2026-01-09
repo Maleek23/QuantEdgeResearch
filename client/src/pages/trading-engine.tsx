@@ -488,9 +488,22 @@ function TradeStructurePanel({ data }: { data: TradingEngineResult['tradeStructu
   );
 }
 
+interface SymbolLossData {
+  symbol: string;
+  confidenceBoost: number;
+  shouldAvoid: boolean;
+  lossStreak: number;
+}
+
 function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: AssetClass }) {
   const { data, isLoading, error, refetch } = useQuery<TradingEngineResult>({
     queryKey: [`/api/trading-engine/${symbol}?asset=${assetClass}`],
+    enabled: !!symbol,
+  });
+  
+  // Fetch loss analyzer data for this symbol
+  const { data: lossData } = useQuery<SymbolLossData>({
+    queryKey: ['/api/bot/symbol-adjustment', symbol],
     enabled: !!symbol,
   });
 
@@ -533,8 +546,54 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
     return 'bg-muted text-muted-foreground';
   };
 
+  // Determine if we should show a loss warning
+  const hasLossHistory = lossData && (lossData.shouldAvoid || lossData.lossStreak > 0 || lossData.confidenceBoost < 0);
+  
   return (
     <div className="space-y-6">
+      {/* Loss Analyzer Warning Banner */}
+      {hasLossHistory && (
+        <Card className={cn(
+          "border-2",
+          lossData?.shouldAvoid 
+            ? "bg-red-500/10 border-red-500/50" 
+            : "bg-amber-500/10 border-amber-500/50"
+        )}>
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className={cn(
+                "h-5 w-5 mt-0.5",
+                lossData?.shouldAvoid ? "text-red-400" : "text-amber-400"
+              )} />
+              <div className="flex-1">
+                <h4 className={cn(
+                  "font-bold text-sm",
+                  lossData?.shouldAvoid ? "text-red-400" : "text-amber-400"
+                )}>
+                  {lossData?.shouldAvoid ? "SYMBOL BLOCKED - Loss Cooldown Active" : "Loss History Detected"}
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {lossData?.shouldAvoid 
+                    ? `This symbol has ${lossData.lossStreak} consecutive losses and is on cooldown. The bot will NOT take trades on ${symbol} until the cooldown expires.`
+                    : lossData?.lossStreak && lossData.lossStreak > 0
+                      ? `${symbol} has ${lossData.lossStreak} recent loss${lossData.lossStreak > 1 ? 'es' : ''}. Confidence penalty of ${Math.abs(lossData.confidenceBoost || 0)} points applied.`
+                      : `Historical losses detected. Confidence adjustment: ${lossData?.confidenceBoost || 0} points.`
+                  }
+                </p>
+                <div className="flex items-center gap-4 mt-2 text-xs">
+                  <span className="text-muted-foreground">Loss Streak: <span className="font-mono text-foreground">{lossData?.lossStreak || 0}</span></span>
+                  <span className="text-muted-foreground">Confidence Adj: <span className={cn(
+                    "font-mono",
+                    (lossData?.confidenceBoost || 0) > 0 ? "text-green-400" : 
+                    (lossData?.confidenceBoost || 0) < 0 ? "text-red-400" : "text-foreground"
+                  )}>{(lossData?.confidenceBoost || 0) > 0 ? '+' : ''}{lossData?.confidenceBoost || 0}</span></span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       <Card className={cn(
         "bg-card/80 backdrop-blur-2xl border-border/60 shadow-2xl overflow-hidden transition-all duration-500",
         data.actionable ? "ring-1 ring-green-500/20 shadow-green-500/5" : ""

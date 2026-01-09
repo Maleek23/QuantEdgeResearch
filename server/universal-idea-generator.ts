@@ -261,6 +261,30 @@ function getEngineType(source: IdeaSource): string {
  */
 export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Promise<InsertTradeIdea | null> {
   try {
+    // 🛡️ LOSS ANALYZER CHECK - Block avoided symbols and apply confidence adjustments
+    let lossAdjustment = 0;
+    let lossWarningSignal: string | null = null;
+    try {
+      const { getSymbolAdjustment } = await import("./loss-analyzer-service");
+      const symbolAdj = await getSymbolAdjustment(input.symbol.toUpperCase());
+      
+      if (symbolAdj.shouldAvoid) {
+        // 🚫 HARD BLOCK - Do NOT generate ideas for symbols on loss cooldown
+        logger.warn(`[UNIVERSAL] ⛔ BLOCKED ${input.symbol}: Symbol on loss cooldown (${symbolAdj.lossStreak} consecutive losses) - idea generation prevented`);
+        return null; // Return null to prevent idea generation entirely
+      } else if (symbolAdj.lossStreak > 0) {
+        logger.info(`[UNIVERSAL] ⚠️ ${input.symbol}: Loss history detected (${symbolAdj.lossStreak} losses, adj: ${symbolAdj.confidenceBoost})`);
+        lossWarningSignal = `LOSS_HISTORY (${symbolAdj.lossStreak}L, adj: ${symbolAdj.confidenceBoost})`;
+        lossAdjustment = symbolAdj.confidenceBoost; // Apply the loss analyzer adjustment
+      } else if (symbolAdj.confidenceBoost > 0) {
+        logger.debug(`[UNIVERSAL] ✅ ${input.symbol}: Winning symbol boost +${symbolAdj.confidenceBoost}`);
+        lossAdjustment = symbolAdj.confidenceBoost;
+      }
+    } catch (err) {
+      // Loss analyzer not available, continue without adjustment
+      logger.debug(`[UNIVERSAL] Loss analyzer check skipped for ${input.symbol}`);
+    }
+    
     // Fetch current price if not provided
     let price = input.currentPrice;
     if (!price) {
@@ -276,8 +300,9 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     // Ensure we have a valid price
     const currentPrice: number = price;
     
-    // Calculate confidence from all signals
-    const confidence = calculateConfidence(input.source, input.signals);
+    // Calculate confidence from all signals with loss adjustment
+    let confidence = calculateConfidence(input.source, input.signals);
+    confidence = Math.max(0, Math.min(100, confidence + lossAdjustment));
     const grade = getLetterGrade(confidence);
     
     // Determine holding period
@@ -299,8 +324,11 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
         : currentPrice * (2 - stopMultiplier)
     );
     
-    // Build signal descriptions
+    // Build signal descriptions (include loss warning if applicable)
     const signalDescriptions = input.signals.map(s => s.description || s.type);
+    if (lossWarningSignal) {
+      signalDescriptions.push(lossWarningSignal);
+    }
     const technicalSignals = input.technicalSignals || signalDescriptions;
     
     // Generate analysis text

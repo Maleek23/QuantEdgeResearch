@@ -85,6 +85,22 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     retry: false, // Don't retry failed requests
   });
 
+  // Fetch loss analyzer data for this symbol (only for open ideas)
+  interface LossData {
+    symbol: string;
+    confidenceBoost: number;
+    shouldAvoid: boolean;
+    lossStreak: number;
+  }
+  const { data: lossData } = useQuery<LossData>({
+    queryKey: ['/api/bot/symbol-adjustment', idea.symbol],
+    enabled: idea.outcomeStatus === 'open', // Only check for open ideas
+    staleTime: 300000, // Cache for 5 minutes
+  });
+  
+  // Determine if we should show a loss warning
+  const hasLossHistory = lossData && (lossData.shouldAvoid || lossData.lossStreak > 0 || lossData.confidenceBoost < 0);
+
   useEffect(() => {
     if (currentPrice !== undefined && prevPriceRef.current !== undefined && currentPrice !== prevPriceRef.current) {
       setPriceUpdated(true);
@@ -340,6 +356,45 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 confidenceScore={idea.confidenceScore || undefined}
                 compact={true}
               />
+              
+              {/* Loss History Warning Badge */}
+              {hasLossHistory && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap flex-shrink-0",
+                        lossData?.shouldAvoid 
+                          ? "bg-red-500/20 text-red-400 border-red-500/50" 
+                          : "bg-amber-500/20 text-amber-400 border-amber-500/50"
+                      )}
+                      data-testid={`badge-loss-warning-${idea.symbol}`}
+                    >
+                      <Skull className="h-2.5 w-2.5 mr-0.5" />
+                      {lossData?.shouldAvoid ? 'BLOCKED' : `${lossData?.lossStreak || 0}L`}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <div className="space-y-1">
+                      <p className="font-bold text-red-400">
+                        {lossData?.shouldAvoid ? 'Symbol on Loss Cooldown' : 'Loss History Detected'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {lossData?.lossStreak || 0} consecutive losses
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Confidence adj: {(lossData?.confidenceBoost || 0) > 0 ? '+' : ''}{lossData?.confidenceBoost || 0} pts
+                      </p>
+                      {lossData?.shouldAvoid && (
+                        <p className="text-xs text-red-400 font-semibold">
+                          Bot will NOT trade this symbol
+                        </p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
 
             {/* Center: Quick Metrics */}
