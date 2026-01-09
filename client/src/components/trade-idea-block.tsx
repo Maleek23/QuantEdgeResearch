@@ -446,17 +446,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     {idea.confidenceScore && (
                       <p className="text-xs">Confidence: {Math.round(idea.confidenceScore)}%</p>
                     )}
+                    {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        <p className="text-muted-foreground">Signals: {idea.qualitySignals.length}</p>
+                      </div>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               )}
-
-              {/* Signal Strength Badge - Shows consensus, not probability */}
-              <SignalStrengthBadge
-                signalCount={idea.qualitySignals?.length || 0}
-                engine={idea.source || 'unknown'}
-                qualitySignals={idea.qualitySignals}
-                compact={true}
-              />
 
               {/* Real-Time Applicability - Shows if trade is still valid */}
               {idea.outcomeStatus === 'open' && (

@@ -72,3 +72,63 @@ Key features include:
 
 ### Other Integrations
 -   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
+
+## Unified Grading System (v4.0)
+
+**IMPORTANT**: The platform now uses a single, unified grading contract defined in `shared/grading.ts`.
+
+### Grading Philosophy
+- **Primary metric**: `confidenceScore` (0-100) determines `probabilityBand` grade
+- **Signal count**: Supplementary information displayed in tooltips, NOT the grade
+- **Single source of truth**: Grades assigned at trade creation time and stored with the record
+
+### Academic Scale (Standard)
+| Grade | Score Range | Description |
+|-------|-------------|-------------|
+| A+ | 95%+ | Exceptional |
+| A | 93-94% | Excellent |
+| A- | 90-92% | Very strong |
+| B+ | 87-89% | Strong |
+| B | 83-86% | Good |
+| B- | 80-82% | Above average |
+| C+ | 77-79% | Average+ |
+| C | 73-76% | Average |
+| C- | 70-72% | Passing |
+| D+/D/D- | 60-69% | Below average |
+| F | <60% | Failing |
+
+### Key Files
+- `shared/grading.ts` - Unified grading contract (source of truth)
+- `server/grading.ts` - Re-exports shared contract with legacy aliases
+- Trade ideas store `probabilityBand` field - this is the authoritative grade
+
+### Integration Points
+All scanners and bots MUST use `getLetterGrade(confidenceScore)` from `shared/grading.ts` to assign grades. UI components should display the stored `probabilityBand` rather than recalculating.
+
+## Future Plans
+
+### Content Studio (Planned)
+Auto-generates tweet-ready content from existing trading data for social engagement:
+
+**Core Panels**:
+1. **Market State Panel**: Real-time bias gauge (SPY direction, VIX level, risk sentiment)
+2. **Key Level Engine**: VWAP, prior day H/L, support/resistance zones with proximity alerts
+3. **Setup Watchlist**: Active setups with confidence scores and invalidation triggers
+4. **Flow Snapshot**: Options activity, unusual volume, dark pool signals
+
+**Auto-Tweet Features**:
+- Generate "Morning Setup" tweets from top-graded ideas
+- Market bias summaries with visual indicators
+- Setup invalidation alerts when levels break
+- Performance metrics (hit rate, avg R, time-in-trade)
+
+**Public Metrics**:
+- Win rate by grade tier
+- Average R-multiple by setup type
+- % of setups that reached target vs. invalidated
+
+### Bot & Scanner Enhancements (Planned)
+1. **Historical Pattern Integration**: Link scanner signals to past performance by symbol/setup type
+2. **Cross-Scanner Confluence**: Boost confidence when multiple scanners flag same symbol
+3. **Trend Continuation Scoring**: Weight setups aligned with higher timeframe trends
+4. **Volume Profile Integration**: Add VPOC levels to key level engine

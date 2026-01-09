@@ -1,73 +1,48 @@
 /**
- * Performance-Based Grading System (v3.5.0 STANDARD ACADEMIC SCALE)
+ * Server Grading Module
  * 
- * Standard academic grading scale used across ALL platform components:
- * - A+ = 95%+   (Exceptional)
- * - A  = 93-94% (Excellent)
- * - A- = 90-92% (Very strong)
- * - B+ = 87-89% (Strong)
- * - B  = 83-86% (Good)
- * - B- = 80-82% (Above average)
- * - C+ = 77-79% (Average+)
- * - C  = 73-76% (Average)
- * - C- = 70-72% (Passing)
- * - D+ = 67-69% (Below average)
- * - D  = 63-66% (Poor)
- * - D- = 60-62% (Minimal pass)
- * - F  = <60%   (Failing)
+ * Re-exports the unified grading contract from @shared/grading
+ * This ensures all server-side grading uses the same logic as the client.
  */
 
-export interface GradeResult {
-  grade: string;
-  description: string;
+export {
+  type GradeLetter,
+  type GradeInfo,
+  type SignalQuality,
+  GRADE_THRESHOLDS,
+  scoreToGrade,
+  getLetterGrade,
+  isTradeableGrade,
+  isEliteGrade,
+  getGradeStyle,
+  getSignalQuality,
+  getCombinedGrade,
+} from '../shared/grading';
+
+// Legacy aliases for backward compatibility
+export function getAcademicGrade(score: number) {
+  const { scoreToGrade } = require('../shared/grading');
+  const result = scoreToGrade(score);
+  return { grade: result.grade, description: result.description };
 }
 
-/**
- * Get academic grade from a score (0-100 scale)
- */
-export function getAcademicGrade(score: number): GradeResult {
-  if (score >= 95) return { grade: 'A+', description: 'Exceptional' };
-  if (score >= 93) return { grade: 'A', description: 'Excellent' };
-  if (score >= 90) return { grade: 'A-', description: 'Very strong' };
-  if (score >= 87) return { grade: 'B+', description: 'Strong' };
-  if (score >= 83) return { grade: 'B', description: 'Good' };
-  if (score >= 80) return { grade: 'B-', description: 'Above average' };
-  if (score >= 77) return { grade: 'C+', description: 'Average+' };
-  if (score >= 73) return { grade: 'C', description: 'Average' };
-  if (score >= 70) return { grade: 'C-', description: 'Passing' };
-  if (score >= 67) return { grade: 'D+', description: 'Below average' };
-  if (score >= 63) return { grade: 'D', description: 'Poor' };
-  if (score >= 60) return { grade: 'D-', description: 'Minimal pass' };
-  return { grade: 'F', description: 'Failing' };
-}
-
-/**
- * Get letter grade only (shorthand)
- */
-export function getLetterGrade(score: number): string {
-  return getAcademicGrade(score).grade;
-}
-
-/**
- * Convert win rate to academic grade
- * Win rate is already on 0-100 scale
- */
 export function getWinRateGrade(winRate: number): string {
+  const { getLetterGrade } = require('../shared/grading');
   return getLetterGrade(winRate);
 }
 
-/**
- * Convert confidence score to academic grade
- * Confidence is already on 0-100 scale
- */
 export function getConfidenceGrade(confidence: number): string {
+  const { getLetterGrade } = require('../shared/grading');
   return getLetterGrade(confidence);
 }
 
-/**
- * Convert reliability score to academic grade
- * Reliability is already on 0-100 scale
- */
 export function getReliabilityGrade(reliability: number): string {
+  const { getLetterGrade } = require('../shared/grading');
   return getLetterGrade(reliability);
+}
+
+// Type re-export for legacy code
+export interface GradeResult {
+  grade: string;
+  description: string;
 }
