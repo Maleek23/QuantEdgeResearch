@@ -490,7 +490,7 @@ function TradeStructurePanel({ data }: { data: TradingEngineResult['tradeStructu
 
 function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: AssetClass }) {
   const { data, isLoading, error, refetch } = useQuery<TradingEngineResult>({
-    queryKey: ['/api/trading-engine/analyze', symbol, assetClass],
+    queryKey: [`/api/trading-engine/${symbol}?asset=${assetClass}`],
     enabled: !!symbol,
   });
 

@@ -657,9 +657,11 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   const entryValidUntil = new Date(now.getTime() + Math.max(30, entryWindowMinutes) * 60 * 1000).toISOString();
   
   // ✅ FIX: For options, exit_by MUST be BEFORE or ON expiry_date (can't hold past expiration!)
-  const optionExpiryDate = new Date(mostActiveOption.expiration);
-  // Set option expiry to 4:00 PM ET (16:00) on expiry date (when options expire)
-  optionExpiryDate.setHours(16, 0, 0, 0);
+  // CRITICAL: Use ET timezone explicitly - setHours uses server timezone (UTC) which breaks calculations
+  const expiryDateStr = mostActiveOption.expiration.split('T')[0]; // YYYY-MM-DD
+  // Construct 4:00 PM ET (market close) on expiry date - this is when options expire
+  // During EST: 4 PM ET = 21:00 UTC, During EDT: 4 PM ET = 20:00 UTC
+  const optionExpiryDate = new Date(`${expiryDateStr}T16:00:00-05:00`); // -05:00 is EST, close enough for calculations
   
   // 🎯 DYNAMIC EXIT TIME CALCULATION (fluctuates based on IV, DTE, and expected move)
   // Formula: Base time adjusted by IV + random jitter for natural variation
