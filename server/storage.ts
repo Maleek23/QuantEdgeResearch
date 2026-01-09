@@ -90,6 +90,10 @@ import type {
   InsertPremiumHistory,
   PasswordResetToken,
   InsertPasswordResetToken,
+  UserPageLayout,
+  InsertUserPageLayout,
+  LayoutPreset,
+  InsertLayoutPreset,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -136,6 +140,8 @@ import {
   botLearningState,
   premiumHistory,
   passwordResetTokens,
+  userPageLayouts,
+  layoutPresets,
 } from "@shared/schema";
 
 // ========================================
@@ -360,7 +366,16 @@ export interface IStorage {
 
   // User Preferences
   getUserPreferences(): Promise<UserPreferences | undefined>;
+  getUserPreferencesByUserId(userId: string): Promise<UserPreferences | undefined>;
   updateUserPreferences(prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  updateUserPreferencesByUserId(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  
+  // User Page Layouts
+  getUserPageLayout(userId: string, pageId: string): Promise<UserPageLayout | undefined>;
+  getUserPageLayouts(userId: string): Promise<UserPageLayout[]>;
+  saveUserPageLayout(layout: InsertUserPageLayout): Promise<UserPageLayout>;
+  deleteUserPageLayout(userId: string, pageId: string): Promise<boolean>;
+  getLayoutPresets(pageId: string): Promise<LayoutPreset[]>;
 
   // 🔐 Model Cards (Governance & Auditability)
   getAllModelCards(): Promise<ModelCard[]>;
@@ -1544,6 +1559,56 @@ export class MemStorage implements IStorage {
     return this.userPreferences;
   }
 
+  async getUserPreferencesByUserId(userId: string): Promise<UserPreferences | undefined> {
+    if (this.userPreferences?.userId === userId) {
+      return this.userPreferences;
+    }
+    return undefined;
+  }
+
+  async updateUserPreferencesByUserId(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    return this.updateUserPreferences({ ...prefs, userId });
+  }
+
+  // User Page Layouts (MemStorage stub)
+  private pageLayouts: Map<string, UserPageLayout> = new Map();
+  private presets: Map<string, LayoutPreset> = new Map();
+
+  async getUserPageLayout(userId: string, pageId: string): Promise<UserPageLayout | undefined> {
+    return this.pageLayouts.get(`${userId}:${pageId}`);
+  }
+
+  async getUserPageLayouts(userId: string): Promise<UserPageLayout[]> {
+    return Array.from(this.pageLayouts.values()).filter(l => l.userId === userId);
+  }
+
+  async saveUserPageLayout(layout: InsertUserPageLayout): Promise<UserPageLayout> {
+    const key = `${layout.userId}:${layout.pageId}`;
+    const existing = this.pageLayouts.get(key);
+    const saved: UserPageLayout = {
+      id: existing?.id || randomUUID(),
+      ...layout,
+      layoutName: layout.layoutName || 'default',
+      widgets: layout.widgets || [],
+      columns: layout.columns || 12,
+      rowHeight: layout.rowHeight || 60,
+      panelSizes: layout.panelSizes || null,
+      isDefault: layout.isDefault || false,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.pageLayouts.set(key, saved);
+    return saved;
+  }
+
+  async deleteUserPageLayout(userId: string, pageId: string): Promise<boolean> {
+    return this.pageLayouts.delete(`${userId}:${pageId}`);
+  }
+
+  async getLayoutPresets(pageId: string): Promise<LayoutPreset[]> {
+    return Array.from(this.presets.values()).filter(p => p.pageId === pageId);
+  }
+
   // Chat History Methods
   async getChatHistory(): Promise<ChatMessage[]> {
     return Array.from(this.chatHistory.values()).sort((a, b) => 
@@ -2587,6 +2652,94 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
+  }
+
+  async getUserPreferencesByUserId(userId: string): Promise<UserPreferences | undefined> {
+    const [prefs] = await db.select().from(userPreferencesTable)
+      .where(eq(userPreferencesTable.userId, userId));
+    return prefs || undefined;
+  }
+
+  async updateUserPreferencesByUserId(userId: string, prefs: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existing = await this.getUserPreferencesByUserId(userId);
+    
+    if (!existing) {
+      const [created] = await db.insert(userPreferencesTable).values({
+        userId,
+        accountSize: 10000,
+        maxRiskPerTrade: 1,
+        defaultCapitalPerIdea: 1000,
+        defaultOptionsBudget: 250,
+        preferredAssets: ["stock", "option", "crypto"],
+        holdingHorizon: "intraday",
+        theme: "dark",
+        timezone: "America/Chicago",
+        defaultViewMode: "card",
+        compactMode: false,
+        enableTradeAlerts: true,
+        enablePriceAlerts: true,
+        enablePerformanceAlerts: false,
+        enableWeeklyReport: false,
+        defaultAssetFilter: "all",
+        defaultConfidenceFilter: "all",
+        autoRefreshEnabled: true,
+        ...prefs,
+      }).returning();
+      return created;
+    } else {
+      const [updated] = await db.update(userPreferencesTable)
+        .set({ ...prefs, updatedAt: new Date() })
+        .where(eq(userPreferencesTable.userId, userId))
+        .returning();
+      return updated;
+    }
+  }
+
+  // User Page Layouts Methods
+  async getUserPageLayout(userId: string, pageId: string): Promise<UserPageLayout | undefined> {
+    const [layout] = await db.select().from(userPageLayouts)
+      .where(and(
+        eq(userPageLayouts.userId, userId),
+        eq(userPageLayouts.pageId, pageId)
+      ));
+    return layout || undefined;
+  }
+
+  async getUserPageLayouts(userId: string): Promise<UserPageLayout[]> {
+    return await db.select().from(userPageLayouts)
+      .where(eq(userPageLayouts.userId, userId));
+  }
+
+  async saveUserPageLayout(layout: InsertUserPageLayout): Promise<UserPageLayout> {
+    const existing = await this.getUserPageLayout(layout.userId, layout.pageId);
+    
+    if (existing) {
+      const [updated] = await db.update(userPageLayouts)
+        .set({ ...layout, updatedAt: new Date() })
+        .where(eq(userPageLayouts.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(userPageLayouts)
+        .values(layout)
+        .returning();
+      return created;
+    }
+  }
+
+  async deleteUserPageLayout(userId: string, pageId: string): Promise<boolean> {
+    const result = await db.delete(userPageLayouts)
+      .where(and(
+        eq(userPageLayouts.userId, userId),
+        eq(userPageLayouts.pageId, pageId)
+      ));
+    return true;
+  }
+
+  async getLayoutPresets(pageId: string): Promise<LayoutPreset[]> {
+    return await db.select().from(layoutPresets)
+      .where(eq(layoutPresets.pageId, pageId))
+      .orderBy(layoutPresets.sortOrder);
   }
 
   // Chat History Methods (in-memory for now - not in schema)

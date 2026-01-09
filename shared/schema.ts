@@ -538,6 +538,8 @@ export type InsertCatalyst = z.infer<typeof insertCatalystSchema>;
 export type Catalyst = typeof catalysts.$inferSelect;
 
 // User Preferences
+export type LayoutDensityOld = 'compact' | 'comfortable' | 'spacious';
+
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(), // One preferences record per user
@@ -555,6 +557,13 @@ export const userPreferences = pgTable("user_preferences", {
   timezone: text("timezone").notNull().default('America/Chicago'),
   defaultViewMode: text("default_view_mode").notNull().default('card'), // 'card' | 'table'
   compactMode: boolean("compact_mode").notNull().default(false),
+  
+  // UI Personalization (NEW)
+  layoutDensity: text("layout_density").$type<LayoutDensityOld>().default('comfortable'),
+  sidebarCollapsed: boolean("sidebar_collapsed").default(false),
+  animationsEnabled: boolean("animations_enabled").default(true),
+  dashboardPreset: varchar("dashboard_preset").default('default'), // 'default', 'trading', 'analytics', 'minimal'
+  favoritePages: text("favorite_pages").array().default(sql`'{}'::text[]`),
   
   // Notification Preferences
   discordWebhookUrl: text("discord_webhook_url"),
@@ -2325,3 +2334,81 @@ export const historicalIntelligenceSummary = pgTable("historical_intelligence_su
 export const insertHistoricalIntelligenceSummarySchema = createInsertSchema(historicalIntelligenceSummary).omit({ id: true, createdAt: true, lastUpdated: true });
 export type InsertHistoricalIntelligenceSummary = z.infer<typeof insertHistoricalIntelligenceSummarySchema>;
 export type HistoricalIntelligenceSummary = typeof historicalIntelligenceSummary.$inferSelect;
+
+// ==========================================
+// USER PERSONALIZATION SYSTEM
+// ==========================================
+
+export type LayoutDensity = 'compact' | 'comfortable' | 'spacious';
+export type WidgetSize = 'small' | 'medium' | 'large' | 'full';
+
+// User Page Layouts - Per-page widget configurations
+export const userPageLayouts = pgTable("user_page_layouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  pageId: varchar("page_id").notNull(), // 'dashboard', 'automations', 'tradedesk', 'scanner', etc.
+  layoutName: varchar("layout_name").default('default'),
+  
+  // Widget positions and sizes (JSON for flexibility)
+  widgets: jsonb("widgets").$type<{
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visible: boolean;
+    config?: Record<string, unknown>;
+  }[]>().default([]),
+  
+  // Layout grid settings
+  columns: integer("columns").default(12),
+  rowHeight: integer("row_height").default(60),
+  
+  // Panel sizes for resizable panels (as percentages)
+  panelSizes: jsonb("panel_sizes").$type<Record<string, number>>(),
+  
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserPageLayoutSchema = createInsertSchema(userPageLayouts).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertUserPageLayout = z.infer<typeof insertUserPageLayoutSchema>;
+export type UserPageLayout = typeof userPageLayouts.$inferSelect;
+
+// Layout Presets - Admin-defined preset layouts users can choose from
+export const layoutPresets = pgTable("layout_presets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pageId: varchar("page_id").notNull(), // 'dashboard', 'automations', etc.
+  name: varchar("name").notNull(),
+  description: text("description"),
+  thumbnail: text("thumbnail"), // Preview image URL
+  
+  // Widget configuration (same structure as userPageLayouts)
+  widgets: jsonb("widgets").$type<{
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visible: boolean;
+    config?: Record<string, unknown>;
+  }[]>().default([]),
+  
+  columns: integer("columns").default(12),
+  rowHeight: integer("row_height").default(60),
+  panelSizes: jsonb("panel_sizes").$type<Record<string, number>>(),
+  
+  // Metadata
+  isSystemPreset: boolean("is_system_preset").default(true), // Built-in vs user-created
+  category: varchar("category").default('default'), // 'default', 'trading', 'analytics', 'minimal'
+  sortOrder: integer("sort_order").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertLayoutPresetSchema = createInsertSchema(layoutPresets).omit({ id: true, createdAt: true });
+export type InsertLayoutPreset = z.infer<typeof insertLayoutPresetSchema>;
+export type LayoutPreset = typeof layoutPresets.$inferSelect;
