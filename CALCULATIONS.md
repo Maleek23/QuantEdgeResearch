@@ -186,6 +186,12 @@ Each signal type adds/subtracts points. These values are defined in `SIGNAL_WEIG
 | PENNY_STOCK | -3 |
 | EARNINGS_SOON | -6 |
 
+**Convergence Signals:**
+| Signal | Weight |
+|--------|--------|
+| MULTI_SIGNAL_CONFLUENCE | +15 |
+| CROSS_ENGINE_AGREEMENT | +12 |
+
 ### Confluence Bonus
 
 Additional bonuses for multiple confirming signals:
@@ -495,30 +501,93 @@ Exit times adjusted based on:
 
 ### Loss Categories
 
-| Category | Description |
-|----------|-------------|
-| EARLY_EXIT | Closed before target hit |
-| LATE_EXIT | Held too long |
-| WRONG_DIRECTION | Opposite move |
-| VOLATILITY_CRUSH | IV collapsed |
-| BAD_ENTRY | Poor timing |
-| BLACK_SWAN | Unforeseen event |
+| Category | Cause Weight | Description |
+|----------|--------------|-------------|
+| direction_wrong | 100 | Market moved against position |
+| regime_shift | 90 | Market regime changed during trade |
+| theta_decay | 85 | Option lost value due to time decay |
+| iv_crush | 85 | Implied volatility collapsed |
+| stop_too_loose | 80 | Stop loss was too far from entry |
+| timing_late | 75 | Entered after move already happened |
+| chasing_entry | 75 | Low confidence entry (confidence < 65) |
+| timing_early | 70 | Entered too early, never saw profit |
+| stop_too_tight | 65 | Stop was too close, quick stop-out |
+| catalyst_failed | 60 | Expected catalyst didn't materialize |
+| liquidity_issue | 50 | Liquidity problems affected exit |
+| oversized_position | 40 | Position too large for account |
+| unknown | 0 | Cause unclear, needs review |
+
+### Remediation Actions
+
+When a loss is diagnosed, the system applies adjustments:
+
+**Stop Loss Multiplier Adjustments:**
+```
+Trigger: Large loss (> -30%) with stop_loss exit
+Action: adjustStopMultiplier = 0.85 (tighten stop by 15%)
+
+Trigger: Gave back profit (peak > 20%, closed negative)
+Action: adjustStopMultiplier = 0.9 (tighten by 10%)
+
+Trigger: Quick stop-out (< 15% loss in < 1 day)
+Action: adjustStopMultiplier = 1.1 (loosen by 10%)
+```
+
+**Confidence Threshold Adjustments:**
+```
+Trigger: Direction wrong (SPY moved > 1.5% against)
+Action: adjustConfidenceThreshold = +5
+
+Trigger: Same-day large loss (> 20%)
+Action: adjustConfidenceThreshold = +10
+
+Trigger: Low confidence entry (< 65)
+Action: adjustConfidenceThreshold = +10
+```
+
+### Learning State Formulas
+
+**Global Confidence Threshold Update:**
+```typescript
+newThreshold = min(85, currentThreshold + (adjustment × 0.3))
+// Scales adjustment by 30%, caps at 85%
+```
+
+**Global Stop Loss Multiplier Update:**
+```typescript
+change = (adjustStopMultiplier - 1.0) × 0.2
+newMultiplier = clamp(currentMultiplier + change, 0.7, 1.3)
+// Scales change by 20%, keeps between 70%-130%
+```
+
+### Symbol-Specific Adjustments
+
+**Per-Symbol Confidence Boost:**
+```typescript
+// On loss:
+confidenceBoost = max(-20, currentBoost - 3)
+lossStreak += 1
+
+// On win:
+confidenceBoost = min(+10, currentBoost + 1)
+lossStreak = 0
+avoidUntil = null  // Clear cooldown
+```
 
 ### Symbol Avoidance System
 
-When a symbol has 3+ consecutive losses:
-- `shouldAvoid = true`
-- Universal Idea Generator BLOCKS new ideas
-- Auto-Lotto Bot skips trades
-- UI shows warning banner
-
-### Confidence Adjustment
-
-Based on loss history:
+When a symbol has **3+ consecutive losses**:
+```typescript
+if (lossStreak >= 3) {
+  avoidUntil = now + 3 days
+  shouldAvoid = true
+}
 ```
-adjustment = lossSeverity × -3  // per consecutive loss
-maxPenalty = -15
-```
+
+**Integration Points:**
+- **Universal Idea Generator**: HARD BLOCKS idea generation when `shouldAvoid=true`
+- **Auto-Lotto Bot**: Skips trades with `LOSS_COOLDOWN_BLOCK` signal
+- **UI**: Shows warning banner with streak count and cooldown expiry
 
 ---
 
