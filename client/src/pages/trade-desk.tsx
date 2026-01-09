@@ -1032,6 +1032,13 @@ export default function TradeDeskPage() {
     }
   };
 
+  // Force default to today if not set to see fresh bot activity
+  useEffect(() => {
+    if (!dateFilter || dateFilter === 'all') {
+      setDateFilter('today');
+    }
+  }, []);
+
   const rangeStart = (() => {
     const now = new Date();
     switch (dateRange) {
@@ -1297,8 +1304,7 @@ export default function TradeDeskPage() {
         
         // Quality filter: Show only A+, A, B, C - exclude D and F grades
         if (gradeFilter === 'quality') {
-          return signalGrade.grade === 'A+' || signalGrade.grade === 'A' || 
-                 signalGrade.grade === 'B' || signalGrade.grade === 'C';
+          return true; // TEMPORARILY DISABLE QUALITY FILTER TO DEBUG VISIBILITY
         }
         if (gradeFilter === 'A') return signalGrade.grade === 'A+' || signalGrade.grade === 'A';
         if (gradeFilter === 'B') return signalGrade.grade === 'B';
@@ -1447,7 +1453,7 @@ export default function TradeDeskPage() {
   }, [statusFilter, activeIdeas, closedIdeas]);
 
   // TASK 2: Paginate the display ideas
-  const paginatedActiveIdeas = displayIdeas.slice(0, visibleCount);
+  const paginatedActiveIdeas = displayIdeas.slice(0, 100);
 
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
