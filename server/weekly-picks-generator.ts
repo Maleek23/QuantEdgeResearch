@@ -316,6 +316,25 @@ Format your response as JSON array with objects containing "index" (1-based) and
     }
   }
   
+  // Fallback to Gemini first (user preference)
+  try {
+    const { GoogleGenAI } = await import('@google/genai');
+    const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const response = await genAI.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt
+    });
+    
+    const content = response.text || '';
+    const analyses = parseAIAnalysis(content);
+    if (analyses.length > 0) {
+      logger.info('📋 [WEEKLY-PICKS] AI analysis added via Gemini');
+      return applyAnalyses(picks, analyses);
+    }
+  } catch (error: any) {
+    logger.warn('📋 [WEEKLY-PICKS] Gemini fallback failed:', error?.message || error);
+  }
+  
   // Fallback to OpenAI
   try {
     const openai = new (await import('openai')).default();
