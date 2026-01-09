@@ -186,15 +186,15 @@ export function BotNotificationPopup() {
   );
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 w-96 max-w-[calc(100vw-2rem)]">
+    <div className="fixed top-14 right-4 z-40 flex flex-col gap-3 w-96 max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-end gap-2 text-xs">
         {isConnected ? (
-          <div className="flex items-center gap-1 text-green-400">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400">
             <Wifi className="h-3 w-3" />
             <span>Bot Connected</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1 text-slate-500">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-500/10 border border-slate-500/20 text-slate-400">
             <WifiOff className="h-3 w-3" />
             <span>Reconnecting...</span>
           </div>
