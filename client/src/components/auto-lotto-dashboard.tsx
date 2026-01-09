@@ -387,9 +387,16 @@ function WinRateTrendChart({ data }: { data: { date: string; winRate: number }[]
 }
 
 function TradeHistoryRow({ position }: { position: BotPosition }) {
-  const isProfit = position.realizedPnL > 0 || position.unrealizedPnL > 0;
-  const pnl = position.status === 'closed' ? position.realizedPnL : position.unrealizedPnL;
-  const pnlPercent = position.status === 'closed' ? position.realizedPnLPercent : position.unrealizedPnLPercent;
+  const realizedPnL = position.realizedPnL ?? 0;
+  const unrealizedPnL = position.unrealizedPnL ?? 0;
+  const realizedPnLPercent = position.realizedPnLPercent ?? 0;
+  const unrealizedPnLPercent = position.unrealizedPnLPercent ?? 0;
+  const entryPrice = position.entryPrice ?? 0;
+  const quantity = position.quantity ?? 1;
+  
+  const isProfit = realizedPnL > 0 || unrealizedPnL > 0;
+  const pnl = position.status === 'closed' ? realizedPnL : unrealizedPnL;
+  const pnlPercent = position.status === 'closed' ? realizedPnLPercent : unrealizedPnLPercent;
 
   return (
     <div 
@@ -404,10 +411,12 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
           )} />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol}</span>
-              <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
-                {position.optionType} ${position.strikePrice}
-              </Badge>
+              <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol || 'N/A'}</span>
+              {(position.optionType || position.strikePrice) && (
+                <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
+                  {position.optionType || ''} {position.strikePrice ? `$${position.strikePrice}` : ''}
+                </Badge>
+              )}
               <Badge 
                 variant="outline" 
                 className={cn(
@@ -418,15 +427,19 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
                 )}
                 data-testid={`trade-status-${position.id}`}
               >
-                {position.status}
+                {position.status || 'unknown'}
               </Badge>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-              <span>Entry: ${position.entryPrice.toFixed(2)}</span>
+              <span>Entry: ${entryPrice.toFixed(2)}</span>
               <span>|</span>
-              <span>Qty: {position.quantity}</span>
-              <span>|</span>
-              <span>{format(new Date(position.createdAt), "MMM dd, HH:mm")}</span>
+              <span>Qty: {quantity}</span>
+              {position.createdAt && (
+                <>
+                  <span>|</span>
+                  <span>{format(new Date(position.createdAt), "MMM dd, HH:mm")}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
