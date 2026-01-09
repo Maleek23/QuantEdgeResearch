@@ -18,8 +18,10 @@ const MIN_CONFIDENCE_REQUIRED = 85;
 // Maximum option premium cost
 const MAX_PREMIUM_COST = 1000;
 
-// Valid grades for Discord alerts - B+ and above (user requested)
-export const VALID_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+'];
+// Valid grades for Discord alerts - A/A+ ONLY (strict quality filter)
+export const VALID_DISCORD_GRADES = ['A+', 'A'];
+// Secondary tier for less critical channels
+export const SECONDARY_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+'];
 
 // Color codes for Discord embeds
 const COLORS = {
@@ -98,6 +100,13 @@ export async function sendBotTradeEntryToDiscord(trade: {
   signals?: string[] | null;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
+
+  // STRICT GRADE FILTER: Only A/A+ bot entries go to Discord
+  const grade = trade.confidence ? getLetterGrade(trade.confidence) : 'D';
+  if (!VALID_DISCORD_GRADES.includes(grade)) {
+    logger.debug(`[DISCORD] Skipped bot entry ${trade.symbol} - grade ${grade} not in A/A+ tier`);
+    return;
+  }
 
   // Auto-detect portfolio from assetType/source if not explicitly set
   let portfolioId = trade.portfolio || (trade.isSmallAccount ? 'small_account' : 'options');
@@ -322,6 +331,14 @@ export function meetsQualityThreshold(idea: any): boolean {
 
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
+  
+  // STRICT GRADE FILTER: Only A/A+ trades go to Discord
+  const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
+  if (!VALID_DISCORD_GRADES.includes(grade)) {
+    logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in A/A+ tier`);
+    return;
+  }
+  
   const webhookUrl = idea.assetType === 'option' 
     ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
     : process.env.DISCORD_WEBHOOK_URL;
@@ -376,6 +393,13 @@ export async function sendChartAnalysisToDiscord(analysis: any): Promise<boolean
 export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
   
+  // STRICT GRADE FILTER: Only A/A+ lotto trades go to Discord
+  const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
+  if (!VALID_DISCORD_GRADES.includes(grade)) {
+    logger.debug(`[DISCORD] Skipped lotto ${idea.symbol} - grade ${grade} not in A/A+ tier`);
+    return;
+  }
+  
   // MULTI-CHANNEL: Send lottos to BOTH #lotto AND #quantbot channels
   const webhookUrls: string[] = [];
   const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
@@ -429,10 +453,22 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
 
 export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: string): Promise<void> {
   if (DISCORD_DISABLED || ideas.length === 0) return;
+  
+  // STRICT GRADE FILTER: Only A/A+ ideas in batches
+  const qualityIdeas = ideas.filter((i: any) => {
+    const grade = i.grade || getLetterGrade(i.confidenceScore || 0);
+    return VALID_DISCORD_GRADES.includes(grade);
+  });
+  
+  if (qualityIdeas.length === 0) {
+    logger.debug(`[DISCORD] Batch skipped - no A/A+ grade ideas in ${ideas.length} total`);
+    return;
+  }
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
-    const description = ideas.slice(0, 10).map((i: any) => {
+    const description = qualityIdeas.slice(0, 10).map((i: any) => {
       const optionType = i.optionType ? i.optionType.toUpperCase() : '';
       const strike = i.strikePrice ? `$${i.strikePrice}` : '';
       // Support both expiryDate and expirationDate field names
@@ -449,7 +485,7 @@ export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: s
     }).join('\n');
     
     const embed: DiscordEmbed = {
-      title: `📢 BATCH: ${source.toUpperCase()} - ${ideas.length} Ideas`,
+      title: `📢 BATCH: ${source.toUpperCase()} - ${qualityIdeas.length} A/A+ Ideas`,
       description,
       color: COLORS.QUANT,
       fields: [],
