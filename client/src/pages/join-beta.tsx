@@ -22,12 +22,12 @@ const verifyCodeSchema = z.object({
 const onboardingSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  occupation: z.string().min(1, "Occupation is required"),
+  occupation: z.string().optional(),
   tradingExperienceLevel: z.enum(["beginner", "intermediate", "advanced", "professional"]),
   knowledgeFocus: z.array(z.string()).min(1, "Select at least one area"),
   investmentGoals: z.enum(["income", "growth", "speculation", "hedging"]),
   riskTolerance: z.enum(["conservative", "moderate", "aggressive", "very_aggressive"]),
-  referralSource: z.string().min(1, "Please tell us how you found us"),
+  referralSource: z.string().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
