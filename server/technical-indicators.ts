@@ -457,6 +457,95 @@ export function determineMarketRegime(adx: number): {
   }
 }
 
+/**
+ * ADX Momentum Detection - Determines if trend is accelerating or decaying
+ * Uses ADX slope analysis over the lookback period
+ * 
+ * @param highs - Array of high prices
+ * @param lows - Array of low prices
+ * @param closes - Array of close prices
+ * @param period - ADX calculation period (default 14)
+ * @param lookback - Number of periods to compare ADX values (default 5)
+ * @returns Momentum state and trading recommendation
+ */
+export function detectADXMomentum(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14,
+  lookback: number = 5
+): {
+  momentum: 'accelerating' | 'decaying' | 'stable' | 'insufficient_data';
+  adxCurrent: number;
+  adxPrevious: number;
+  adxDelta: number;
+  recommendation: 'enter_trend' | 'hold' | 'exit_trend' | 'wait';
+  confidenceMultiplier: number;
+} {
+  const minDataPoints = period + lookback + 15;
+  if (highs.length < minDataPoints || lows.length < minDataPoints || closes.length < minDataPoints) {
+    return {
+      momentum: 'insufficient_data',
+      adxCurrent: 50,
+      adxPrevious: 50,
+      adxDelta: 0,
+      recommendation: 'wait',
+      confidenceMultiplier: 1.0
+    };
+  }
+  
+  const adxCurrent = calculateADX(highs, lows, closes, period);
+  const adxPrevious = calculateADX(
+    highs.slice(0, -lookback),
+    lows.slice(0, -lookback),
+    closes.slice(0, -lookback),
+    period
+  );
+  
+  const adxDelta = adxCurrent - adxPrevious;
+  const deltaThreshold = 3; // Min change to consider momentum shift
+  
+  let momentum: 'accelerating' | 'decaying' | 'stable' | 'insufficient_data';
+  let recommendation: 'enter_trend' | 'hold' | 'exit_trend' | 'wait';
+  let confidenceMultiplier: number;
+  
+  if (adxDelta > deltaThreshold) {
+    momentum = 'accelerating';
+    if (adxCurrent > 25) {
+      recommendation = 'enter_trend';
+      confidenceMultiplier = 1.15; // +15% confidence for accelerating trends
+    } else if (adxCurrent > 20) {
+      recommendation = 'hold';
+      confidenceMultiplier = 1.05;
+    } else {
+      recommendation = 'wait';
+      confidenceMultiplier = 1.0;
+    }
+  } else if (adxDelta < -deltaThreshold) {
+    momentum = 'decaying';
+    if (adxCurrent < 20) {
+      recommendation = 'exit_trend';
+      confidenceMultiplier = 0.8; // -20% confidence for decaying trends
+    } else {
+      recommendation = 'exit_trend';
+      confidenceMultiplier = 0.9;
+    }
+  } else {
+    momentum = 'stable';
+    recommendation = adxCurrent > 25 ? 'hold' : 'wait';
+    confidenceMultiplier = 1.0;
+  }
+  
+  return {
+    momentum,
+    adxCurrent,
+    adxPrevious,
+    adxDelta: Number(adxDelta.toFixed(2)),
+    recommendation,
+    confidenceMultiplier
+  };
+}
+
 // ============================================
 // ADVANCED PATTERN DETECTION (technicalindicators)
 // ============================================

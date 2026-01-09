@@ -9,9 +9,49 @@
  * - Maximum drawdown monitoring with circuit breakers
  * - Factor exposure analysis
  * - Execution quality metrics
+ * - Real VIX integration with caching
  */
 
 import { logger } from './logger';
+
+// ============================================================================
+// VIX CACHING SYSTEM (Updated separately by background job)
+// ============================================================================
+let _cachedVIX = 20;
+let _vixLastUpdated = 0;
+const VIX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get cached VIX value (synchronous, non-blocking)
+ */
+export function getCachedVIX(): number {
+  return _cachedVIX;
+}
+
+/**
+ * Update VIX cache - called by background job
+ */
+export async function updateVIXCache(): Promise<number> {
+  try {
+    const { getTradierQuote } = await import('./tradier-api');
+    const vixQuote = await getTradierQuote('VIX');
+    if (vixQuote?.last) {
+      _cachedVIX = vixQuote.last;
+      _vixLastUpdated = Date.now();
+      logger.debug(`[RISK-ENGINE] VIX cache updated: ${_cachedVIX.toFixed(2)}`);
+    }
+  } catch (e) {
+    logger.debug('[RISK-ENGINE] Failed to update VIX cache, using last known value');
+  }
+  return _cachedVIX;
+}
+
+/**
+ * Check if VIX cache is stale
+ */
+export function isVIXCacheStale(): boolean {
+  return Date.now() - _vixLastUpdated > VIX_CACHE_TTL;
+}
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -617,6 +657,7 @@ export class RiskEngine {
   
   /**
    * Get comprehensive risk metrics
+   * Uses cached VIX value (updated separately by updateVIXCache)
    */
   calculateRiskMetrics(): RiskMetrics {
     const { maxDrawdown, drawdownDuration } = calculateMaxDrawdown(this.equityCurve);
@@ -624,12 +665,15 @@ export class RiskEngine {
     const peak = Math.max(...this.equityCurve);
     const currentDrawdown = (peak - currentEquity) / peak;
     
+    // Use cached VIX value (updated by separate background job)
+    const currentVIX = getCachedVIX();
+    
     const circuitBreaker = checkCircuitBreakers(
       this.dailyPnL,
       this.portfolioValue,
       currentDrawdown,
       this.consecutiveLosses,
-      15, // Default VIX
+      currentVIX,
       this.config
     );
     
