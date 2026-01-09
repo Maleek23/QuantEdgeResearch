@@ -1,9 +1,13 @@
 import { db } from './db';
-import { bullishTrends, type BullishTrend, type TrendStrength, type TrendPhase, type TrendCategory } from '@shared/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { bullishTrends, tradeIdeas, type BullishTrend, type TrendStrength, type TrendPhase, type TrendCategory } from '@shared/schema';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
+
+// Track recently created trade ideas to avoid duplicates
+const recentTradeIdeas = new Map<string, Date>();
+const TRADE_IDEA_COOLDOWN_MS = 8 * 60 * 60 * 1000; // 8 hours between same symbol trade ideas
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const TRADIER_API = "https://api.tradier.com/v1";
@@ -426,7 +430,132 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
   }
   
   logger.info(`[BULLISH] Scan complete: ${results.length} stocks analyzed`);
+  
+  // Generate trade ideas for top momentum stocks (75+ score)
+  await generateTradeIdeasFromMomentum(results);
+  
   return results;
+}
+
+// Generate trade ideas for high-momentum bullish stocks
+async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<void> {
+  // Filter for high-conviction momentum stocks
+  const highMomentum = trends.filter(t => 
+    t.momentumScore && t.momentumScore >= 75 &&
+    t.currentPrice && t.currentPrice > 1 && // Avoid penny stocks
+    (t.trendPhase === 'breakout' || t.trendPhase === 'momentum') &&
+    t.isAboveMAs // Price above all moving averages
+  );
+  
+  if (highMomentum.length === 0) {
+    logger.debug('[BULLISH] No high-momentum stocks for trade ideas');
+    return;
+  }
+  
+  let ideasCreated = 0;
+  
+  for (const trend of highMomentum.slice(0, 5)) { // Limit to top 5
+    try {
+      const symbol = trend.symbol;
+      
+      // Check cooldown
+      const lastCreated = recentTradeIdeas.get(symbol);
+      if (lastCreated && Date.now() - lastCreated.getTime() < TRADE_IDEA_COOLDOWN_MS) {
+        logger.debug(`[BULLISH] Skipping ${symbol} - trade idea cooldown`);
+        continue;
+      }
+      
+      // Check if a similar idea exists in the database recently
+      const cutoffTime = new Date(Date.now() - TRADE_IDEA_COOLDOWN_MS).toISOString();
+      const existingIdea = await db.select()
+        .from(tradeIdeas)
+        .where(and(
+          eq(tradeIdeas.symbol, symbol),
+          eq(tradeIdeas.direction, 'long'),
+          eq(tradeIdeas.assetType, 'stock'),
+          gte(tradeIdeas.timestamp, cutoffTime)
+        ))
+        .limit(1);
+      
+      if (existingIdea.length > 0) {
+        logger.debug(`[BULLISH] Skipping ${symbol} - recent idea exists`);
+        recentTradeIdeas.set(symbol, new Date());
+        continue;
+      }
+      
+      const currentPrice = trend.currentPrice!;
+      
+      // Calculate targets based on momentum and technical levels
+      // For high momentum stocks, use 3-5% target, 2% stop
+      const targetPercent = trend.momentumScore! >= 85 ? 0.05 : 0.03;
+      const stopPercent = 0.02;
+      
+      const targetPrice = currentPrice * (1 + targetPercent);
+      const stopLoss = currentPrice * (1 - stopPercent);
+      const riskRewardRatio = targetPercent / stopPercent;
+      
+      // Build signals array
+      const signals: string[] = [];
+      if (trend.trendPhase === 'breakout') signals.push('BREAKOUT');
+      if (trend.isNewHigh) signals.push('NEW_HIGH');
+      if (trend.isHighVolume) signals.push('HIGH_VOLUME');
+      if (trend.rsi14 && trend.rsi14 > 50 && trend.rsi14 < 70) signals.push('RSI_BULLISH');
+      if (trend.macdSignal === 'bullish_cross') signals.push('MACD_CROSS');
+      if (trend.isAboveMAs) signals.push('ABOVE_MAs');
+      signals.push(`MOMENTUM_${trend.momentumScore}`);
+      
+      // Calculate confidence based on signals
+      const confidence = Math.min(95, 70 + (signals.length * 3));
+      const grade = confidence >= 90 ? 'A' : confidence >= 85 ? 'B+' : 'B';
+      
+      // Create the trade idea
+      const now = new Date();
+      const entryValidUntil = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
+      const exitBy = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(); // 5 days (swing)
+      
+      const tradeIdea = {
+        symbol,
+        assetType: 'stock' as const,
+        direction: 'long',
+        holdingPeriod: 'swing' as const,
+        entryPrice: currentPrice,
+        targetPrice,
+        stopLoss,
+        riskRewardRatio,
+        catalyst: `Bullish momentum scanner: ${trend.trendPhase?.toUpperCase()} phase with ${trend.momentumScore}/100 momentum score`,
+        analysis: `${trend.name} showing strong bullish momentum. ${trend.trendPhase === 'breakout' ? 'Breaking out with ' + (trend.volumeRatio?.toFixed(1) || 'N/A') + 'x volume.' : 'Sustained uptrend momentum.'} RSI: ${trend.rsi14?.toFixed(0) || 'N/A'}, MACD: ${trend.macdSignal || 'neutral'}. ${trend.isNewHigh ? 'Near 52-week high.' : ''} ${trend.isAboveMAs ? 'Trading above all key moving averages.' : ''}`,
+        sessionContext: `Market hours - Bullish trend detected by momentum scanner`,
+        timestamp: now.toISOString(),
+        entryValidUntil,
+        exitBy,
+        source: 'quant' as const,
+        status: 'published' as const,
+        confidenceScore: confidence,
+        qualitySignals: signals,
+        probabilityBand: grade,
+        rsiValue: trend.rsi14 || null,
+        volumeRatio: trend.volumeRatio || null,
+        priceVs52WeekHigh: trend.percentFrom52High || null,
+        priceVs52WeekLow: trend.percentFrom52Low || null,
+        dataSourceUsed: 'tradier',
+        isPublic: true,
+        visibility: 'public' as const
+      };
+      
+      await db.insert(tradeIdeas).values(tradeIdea as any);
+      recentTradeIdeas.set(symbol, now);
+      ideasCreated++;
+      
+      logger.info(`[BULLISH] Created trade idea: ${symbol} LONG @ $${currentPrice.toFixed(2)} → $${targetPrice.toFixed(2)} [${grade} ${confidence}%]`);
+      
+    } catch (error) {
+      logger.debug(`[BULLISH] Error creating trade idea for ${trend.symbol}`, { error });
+    }
+  }
+  
+  if (ideasCreated > 0) {
+    logger.info(`[BULLISH] Generated ${ideasCreated} new trade ideas from momentum scan`);
+  }
 }
 
 export async function getBullishTrends(): Promise<BullishTrend[]> {
