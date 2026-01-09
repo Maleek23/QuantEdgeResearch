@@ -518,16 +518,25 @@ app.use((req, res, next) => {
         
         const savedIdeas = [];
         const allExistingIdeas = await storage.getAllTradeIdeas();
-        const existingOpenQuantSymbols = new Set(
-          allExistingIdeas
-            .filter((i: any) => i.outcomeStatus === 'open' && i.source === 'quant')
-            .map((i: any) => i.symbol.toUpperCase())
-        );
+        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+        
+        // Create a map of recent trades by symbol+strike+optionType for better dedup
+        const recentTradeKeys = new Set<string>();
+        for (const i of allExistingIdeas) {
+          // Check if trade was created in last 4 hours (regardless of outcome status)
+          const createdAt = new Date(i.timestamp).getTime();
+          if (createdAt > fourHoursAgo && i.source === 'quant') {
+            // Key includes symbol, option type, and strike for precise dedup
+            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
+            recentTradeKeys.add(key);
+          }
+        }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates
-          if (existingOpenQuantSymbols.has(idea.symbol.toUpperCase())) {
-            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} - already has open quant trade`);
+          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
+          if (recentTradeKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
             continue;
           }
           
@@ -605,16 +614,25 @@ app.use((req, res, next) => {
         
         const savedIdeas = [];
         const allExistingIdeas = await quantStorage.getAllTradeIdeas();
-        const existingOpenQuantSymbols = new Set(
-          allExistingIdeas
-            .filter((i: any) => i.outcomeStatus === 'open' && i.source === 'quant')
-            .map((i: any) => i.symbol.toUpperCase())
-        );
+        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+        
+        // Create a map of recent trades by symbol+strike+optionType for better dedup
+        const recentTradeKeys = new Set<string>();
+        for (const i of allExistingIdeas) {
+          // Check if trade was created in last 4 hours (regardless of outcome status)
+          const createdAt = new Date(i.timestamp).getTime();
+          if (createdAt > fourHoursAgo && i.source === 'quant') {
+            // Key includes symbol, option type, and strike for precise dedup
+            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
+            recentTradeKeys.add(key);
+          }
+        }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates
-          if (existingOpenQuantSymbols.has(idea.symbol.toUpperCase())) {
-            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} - already has open quant trade`);
+          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
+          if (recentTradeKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
             continue;
           }
           
@@ -951,7 +969,7 @@ app.use((req, res, next) => {
                   entryPrice: entryPrice,
                   targetPrice: tradeIdea.targetPrice || 0,
                   stopLoss: tradeIdea.stopLoss || 0,
-                  confidence: tradeIdea.confidence || 90,
+                  confidence: tradeIdea.confidenceScore || 90,
                   grade,
                   delta: (tradeIdea as any).delta,
                   dte,

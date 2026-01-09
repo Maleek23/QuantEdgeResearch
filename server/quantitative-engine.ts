@@ -228,7 +228,8 @@ function analyzeFuturesData(
   // PRIORITY 3: VWAP Institutional Flow Detection (momentum signal)
   const recentPrices = historicalPrices.slice(-20);
   const recentVolumes = new Array(20).fill(avgVolume);
-  const vwap = calculateVWAP(recentPrices, recentVolumes);
+  // calculateVWAP requires (high, low, close, volume) - use recentPrices as proxy for all OHLC
+  const vwap = calculateVWAP(recentPrices, recentPrices, recentPrices, recentVolumes);
   
   if (currentPrice > vwap && currentPrice < vwap * 1.02 && volumeRatio >= 1.5) {
     detectedSignals.push('VWAP_CROSS');
