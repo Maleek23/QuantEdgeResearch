@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -34,50 +34,71 @@ export function ResizableDashboard({
 }: ResizableDashboardProps) {
   const { getLayout, saveLayout, densityClass } = usePreferences();
   const savedLayout = getLayout(pageId);
-  const [sizes, setSizes] = useState<Record<string, number>>({});
+  const hasMountedRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountTimeRef = useRef<number>(Date.now());
 
-  useEffect(() => {
-    if (savedLayout?.panelSizes) {
-      setSizes(savedLayout.panelSizes);
-    }
-  }, [savedLayout]);
+  const getInitialSizes = useCallback(() => {
+    const sizes: number[] = [];
+    panels.forEach((panel) => {
+      const savedSize = savedLayout?.panelSizes?.[panel.id];
+      sizes.push(savedSize ?? panel.defaultSize);
+    });
+    return sizes;
+  }, [panels, savedLayout]);
 
-  const handleResize = useCallback(
-    (panelId: string, size: number) => {
-      setSizes((prev) => {
-        const updated = { ...prev, [panelId]: size };
-        onLayoutChange?.(updated);
-        return updated;
+  const handleLayoutChange = useCallback(
+    (layout: number[]) => {
+      const timeSinceMount = Date.now() - mountTimeRef.current;
+      if (!hasMountedRef.current && timeSinceMount < 200) {
+        return;
+      }
+      hasMountedRef.current = true;
+
+      const newSizes: Record<string, number> = {};
+      panels.forEach((panel, index) => {
+        if (layout[index] !== undefined) {
+          newSizes[panel.id] = layout[index];
+        }
       });
+      onLayoutChange?.(newSizes);
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveLayout(pageId, { panelSizes: newSizes });
+      }, 500);
     },
-    [onLayoutChange]
+    [panels, pageId, saveLayout, onLayoutChange]
   );
 
-  const handleResizeEnd = useCallback(() => {
-    if (Object.keys(sizes).length > 0) {
-      saveLayout(pageId, { panelSizes: sizes });
-    }
-  }, [saveLayout, pageId, sizes]);
+  useEffect(() => {
+    mountTimeRef.current = Date.now();
+    const timer = setTimeout(() => {
+      hasMountedRef.current = true;
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const initialSizes = getInitialSizes();
 
   return (
     <ResizablePanelGroup
       direction={direction}
       className={cn("h-full w-full", densityClass, className)}
-      onLayout={(layout) => {
-        const newSizes: Record<string, number> = {};
-        panels.forEach((panel, index) => {
-          if (layout[index] !== undefined) {
-            newSizes[panel.id] = layout[index];
-          }
-        });
-        setSizes(newSizes);
-      }}
+      onLayout={handleLayoutChange}
     >
       {panels.map((panel, index) => (
         <div key={panel.id} className="contents">
           <ResizablePanel
             id={panel.id}
-            defaultSize={sizes[panel.id] ?? panel.defaultSize}
+            defaultSize={initialSizes[index]}
             minSize={panel.minSize ?? 15}
             maxSize={panel.maxSize ?? 85}
             collapsible={panel.collapsible}
@@ -105,6 +126,7 @@ interface SimpleTwoColumnLayoutProps {
   leftMinSize?: number;
   rightMinSize?: number;
   className?: string;
+  onLayoutChange?: (sizes: Record<string, number>) => void;
 }
 
 export function TwoColumnLayout({
@@ -115,12 +137,14 @@ export function TwoColumnLayout({
   leftMinSize = 40,
   rightMinSize = 20,
   className,
+  onLayoutChange,
 }: SimpleTwoColumnLayoutProps) {
   return (
     <ResizableDashboard
       pageId={pageId}
       direction="horizontal"
       className={className}
+      onLayoutChange={onLayoutChange}
       panels={[
         {
           id: "left",
@@ -147,6 +171,7 @@ interface ThreeColumnLayoutProps {
   leftDefaultSize?: number;
   centerDefaultSize?: number;
   className?: string;
+  onLayoutChange?: (sizes: Record<string, number>) => void;
 }
 
 export function ThreeColumnLayout({
@@ -157,12 +182,14 @@ export function ThreeColumnLayout({
   leftDefaultSize = 25,
   centerDefaultSize = 50,
   className,
+  onLayoutChange,
 }: ThreeColumnLayoutProps) {
   return (
     <ResizableDashboard
       pageId={pageId}
       direction="horizontal"
       className={className}
+      onLayoutChange={onLayoutChange}
       panels={[
         {
           id: "left",

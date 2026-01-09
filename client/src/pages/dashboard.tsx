@@ -242,6 +242,11 @@ export default function Dashboard() {
             leftDefaultSize={65}
             leftMinSize={40}
             rightMinSize={25}
+            onLayoutChange={(sizes) => {
+              Object.entries(sizes).forEach(([panelId, size]) => {
+                pageLayout.updatePanelSize(panelId, size);
+              });
+            }}
           />
         </div>
         <div className="lg:hidden p-4 space-y-4">
