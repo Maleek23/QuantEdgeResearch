@@ -275,23 +275,14 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
 }
 
 /**
- * Add AI-generated analysis to each pick
+ * Add AI-generated analysis to each pick with fallback providers
  */
 async function addAIAnalysisToPicks(picks: WeeklyPick[]): Promise<WeeklyPick[]> {
-  try {
-    const client = new Anthropic();
-    
-    // Generate analysis for all picks in one request for efficiency
-    const picksContext = picks.map((p, i) => 
-      `${i + 1}. ${p.symbol} ${p.optionType.toUpperCase()} $${p.strike} (${p.playType}) - Entry: $${p.entryPrice}, Target: $${p.targetPrice} (${p.targetMultiplier}x), DTE: ${p.dte}d, Delta: ${(p.delta * 100).toFixed(0)}%, Conf: ${p.confidence}%`
-    ).join('\n');
-    
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: `You are the Auto-Lotto Bot, an experienced options trader. Provide brief 1-2 sentence analysis for each of these option plays. Focus on:
+  const picksContext = picks.map((p, i) => 
+    `${i + 1}. ${p.symbol} ${p.optionType.toUpperCase()} $${p.strike} (${p.playType}) - Entry: $${p.entryPrice}, Target: $${p.targetPrice} (${p.targetMultiplier}x), DTE: ${p.dte}d, Delta: ${(p.delta * 100).toFixed(0)}%, Conf: ${p.confidence}%`
+  ).join('\n');
+  
+  const prompt = `You are the Auto-Lotto Bot, an experienced options trader. Provide brief 1-2 sentence analysis for each of these option plays. Focus on:
 - Why this setup is interesting (technical/momentum/sector theme)
 - Key risk to watch
 - Optimal execution timing
@@ -299,34 +290,73 @@ async function addAIAnalysisToPicks(picks: WeeklyPick[]): Promise<WeeklyPick[]> 
 Picks for next week:
 ${picksContext}
 
-Format your response as JSON array with objects containing "index" (1-based) and "analysis" (string) fields only. Be direct and actionable.`
-      }]
+Format your response as JSON array with objects containing "index" (1-based) and "analysis" (string) fields only. Be direct and actionable.`;
+
+  // Try Anthropic first
+  try {
+    const anthropic = new Anthropic();
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
     });
     
-    // Parse AI response
     const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    
-    if (jsonMatch) {
-      const analyses = JSON.parse(jsonMatch[0]) as Array<{index: number; analysis: string}>;
-      
-      // Add analysis to each pick
-      return picks.map((pick, i) => {
-        const analysisItem = analyses.find(a => a.index === i + 1);
-        return {
-          ...pick,
-          botAnalysis: analysisItem?.analysis || pick.riskAnalysis
-        };
-      });
+    const analyses = parseAIAnalysis(content);
+    if (analyses.length > 0) {
+      logger.info('📋 [WEEKLY-PICKS] AI analysis added via Anthropic');
+      return applyAnalyses(picks, analyses);
     }
-    
-    logger.warn('📋 [WEEKLY-PICKS] Could not parse AI analysis, using default risk analysis');
-    return picks.map(p => ({ ...p, botAnalysis: p.riskAnalysis }));
-    
-  } catch (error) {
-    logger.warn('📋 [WEEKLY-PICKS] AI analysis failed, using default risk analysis:', error);
-    return picks.map(p => ({ ...p, botAnalysis: p.riskAnalysis }));
+  } catch (error: any) {
+    // Check for credit/billing error and try fallback
+    if (error?.message?.includes('credit') || error?.message?.includes('billing') || error?.status === 400) {
+      logger.warn('📋 [WEEKLY-PICKS] Anthropic credits low, trying OpenAI fallback...');
+    } else {
+      logger.warn('📋 [WEEKLY-PICKS] Anthropic failed:', error?.message || error);
+    }
   }
+  
+  // Fallback to OpenAI
+  try {
+    const openai = new (await import('openai')).default();
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    
+    const content = response.choices[0]?.message?.content || '';
+    const analyses = parseAIAnalysis(content);
+    if (analyses.length > 0) {
+      logger.info('📋 [WEEKLY-PICKS] AI analysis added via OpenAI fallback');
+      return applyAnalyses(picks, analyses);
+    }
+  } catch (error: any) {
+    logger.warn('📋 [WEEKLY-PICKS] OpenAI fallback failed:', error?.message || error);
+  }
+  
+  logger.warn('📋 [WEEKLY-PICKS] All AI providers failed, using default risk analysis');
+  return picks.map(p => ({ ...p, botAnalysis: p.riskAnalysis }));
+}
+
+function parseAIAnalysis(content: string): Array<{index: number; analysis: string}> {
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch { /* ignore */ }
+  }
+  return [];
+}
+
+function applyAnalyses(picks: WeeklyPick[], analyses: Array<{index: number; analysis: string}>): WeeklyPick[] {
+  return picks.map((pick, i) => {
+    const analysisItem = analyses.find(a => a.index === i + 1);
+    return {
+      ...pick,
+      botAnalysis: analysisItem?.analysis || pick.riskAnalysis
+    };
+  });
 }
 
 /**
