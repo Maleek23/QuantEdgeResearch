@@ -110,11 +110,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-background to-cyan-400/5" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+    <div className="min-h-screen flex items-center justify-center bg-[#050b16] p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-400/5" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent" />
       
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl glass-card p-6">
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl bg-[#0a1525]/90 border border-white/10 backdrop-blur-xl p-6">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10">
           <div className="space-y-2 mb-8">
@@ -133,8 +133,8 @@ export default function Login() {
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 text-center">
               Welcome Back
             </p>
-            <h2 className="text-2xl font-bold text-center">Sign in to your account</h2>
-            <p className="text-center text-muted-foreground text-sm">
+            <h2 className="text-2xl font-bold text-center text-white">Sign in to your account</h2>
+            <p className="text-center text-slate-400 text-sm">
               Enter your credentials to access your account
             </p>
           </div>
@@ -171,10 +171,10 @@ export default function Login() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
+                <Separator className="w-full bg-slate-700" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background/50 px-2 text-muted-foreground">Or continue with email</span>
+                <span className="bg-[#0a1525] px-2 text-slate-400">Or continue with email</span>
               </div>
             </div>
 
@@ -185,11 +185,12 @@ export default function Login() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel className="text-slate-300">Email</FormLabel>
                       <FormControl>
                         <Input
                           type="email"
                           placeholder="you@example.com"
+                          className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
                           data-testid="input-email"
                           {...field}
                         />
@@ -203,12 +204,13 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-slate-300">Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="Enter your password"
+                            className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
                             data-testid="input-password"
                             {...field}
                           />

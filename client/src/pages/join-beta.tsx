@@ -247,10 +247,10 @@ export default function JoinBeta() {
                         <FormLabel>Email Address</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                             <Input 
                               placeholder="you@example.com" 
-                              className="pl-10" 
+                              className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" 
                               data-testid="input-verify-email"
                               {...field} 
                             />
@@ -269,10 +269,10 @@ export default function JoinBeta() {
                         <FormLabel>Access Code</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Shield className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                             <Input 
                               placeholder="XXXX-XXXX" 
-                              className="pl-10 uppercase font-mono tracking-wider" 
+                              className="pl-10 uppercase font-mono tracking-wider bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" 
                               data-testid="input-verify-token"
                               {...field} 
                             />
@@ -334,7 +334,7 @@ export default function JoinBeta() {
                         <FormItem>
                           <FormLabel>First Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="John" data-testid="input-first-name" {...field} />
+                            <Input placeholder="John" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-first-name" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -347,7 +347,7 @@ export default function JoinBeta() {
                         <FormItem>
                           <FormLabel>Last Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Doe" data-testid="input-last-name" {...field} />
+                            <Input placeholder="Doe" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-last-name" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -362,7 +362,7 @@ export default function JoinBeta() {
                       <FormItem>
                         <FormLabel>Occupation</FormLabel>
                         <FormControl>
-                          <Input placeholder="Software Engineer, Trader, Student..." data-testid="input-occupation" {...field} />
+                          <Input placeholder="Software Engineer, Trader, Student..." className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-occupation" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -377,7 +377,7 @@ export default function JoinBeta() {
                         <FormLabel>Trading Experience</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-experience">
+                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-experience">
                               <SelectValue placeholder="Select your experience level" />
                             </SelectTrigger>
                           </FormControl>
@@ -440,7 +440,7 @@ export default function JoinBeta() {
                         <FormLabel>Investment Goals</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-goals">
+                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-goals">
                               <SelectValue placeholder="Select your primary goal" />
                             </SelectTrigger>
                           </FormControl>
@@ -465,7 +465,7 @@ export default function JoinBeta() {
                         <FormLabel>Risk Tolerance</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-risk">
+                            <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white" data-testid="select-risk">
                               <SelectValue placeholder="Select your risk tolerance" />
                             </SelectTrigger>
                           </FormControl>
@@ -489,7 +489,7 @@ export default function JoinBeta() {
                       <FormItem>
                         <FormLabel>How did you hear about us?</FormLabel>
                         <FormControl>
-                          <Input placeholder="Twitter, Discord, Friend, etc." data-testid="input-referral" {...field} />
+                          <Input placeholder="Twitter, Discord, Friend, etc." className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-referral" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -506,7 +506,7 @@ export default function JoinBeta() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="••••••••" data-testid="input-password" {...field} />
+                              <Input type="password" placeholder="••••••••" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-password" {...field} />
                             </FormControl>
                             <FormDescription>At least 8 characters</FormDescription>
                             <FormMessage />
@@ -520,7 +520,7 @@ export default function JoinBeta() {
                           <FormItem>
                             <FormLabel>Confirm Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="••••••••" data-testid="input-confirm-password" {...field} />
+                              <Input type="password" placeholder="••••••••" className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500" data-testid="input-confirm-password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
