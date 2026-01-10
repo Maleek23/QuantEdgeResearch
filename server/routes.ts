@@ -2442,21 +2442,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/waitlist/send-invites", requireAdminJWT, async (req, res) => {
     try {
       const { ids, tierOverride } = req.body;
+      console.log('[INVITE] 📧 Bulk send-invites called with', ids?.length || 0, 'IDs');
+      logger.info('[INVITE] Bulk send-invites called', { idCount: ids?.length || 0, tierOverride });
 
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        console.log('[INVITE] ❌ No IDs provided');
         return res.status(400).json({ error: "IDs array is required" });
       }
 
       const results = { sent: 0, failed: 0, skipped: 0, errors: [] as string[] };
       const entries = await storage.getAllWaitlistEntries();
+      console.log('[INVITE] Found', entries.length, 'total waitlist entries');
 
       for (const id of ids) {
         const entry = entries.find(e => e.id === id);
-        if (!entry) continue;
+        if (!entry) {
+          console.log('[INVITE] ⚠️ Entry not found for ID:', id);
+          continue;
+        }
+
+        console.log('[INVITE] Processing entry:', entry.email);
 
         // Check for existing active invite - skip if already has one (getBetaInviteByEmail only returns pending/sent)
         const existingInvite = await storage.getBetaInviteByEmail(entry.email);
         if (existingInvite) {
+          console.log('[INVITE] ⏭️ Skipping - already has invite:', entry.email);
           results.skipped++;
           continue;
         }
@@ -2471,22 +2481,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tierOverride: tierOverride || undefined,
           expiresAt,
         });
+        console.log('[INVITE] ✅ Created invite record for:', entry.email, 'ID:', invite.id);
 
         const emailResult = await sendBetaInviteEmail(entry.email, token, { tierOverride });
+        console.log('[INVITE] Email result for', entry.email, ':', emailResult);
 
         if (emailResult.success) {
           await storage.markBetaInviteSent(invite.id);
           await storage.updateWaitlistStatus(id, 'invited', invite.id);
           results.sent++;
+          console.log('[INVITE] ✅ Invite sent successfully to:', entry.email);
         } else {
           results.failed++;
           results.errors.push(`${entry.email}: ${emailResult.error}`);
+          console.log('[INVITE] ❌ Failed to send to:', entry.email, 'Error:', emailResult.error);
         }
       }
 
+      console.log('[INVITE] 📊 Results:', results);
       logger.info('Bulk invites sent', results);
       res.json(results);
     } catch (error) {
+      console.error('[INVITE] ❌ Exception:', error);
       logError(error as Error, { context: 'admin/waitlist/send-invites' });
       res.status(500).json({ error: "Failed to send invites" });
     }

@@ -4,10 +4,12 @@ import { logger } from './logger';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-// Log email service status on startup
+// Log email service status on startup (use console.log for reliability)
 if (resend) {
+  console.log('[EMAIL] ✅ Resend email service initialized with FROM:', process.env.FROM_EMAIL || 'onboarding@resend.dev');
   logger.info('[EMAIL] Resend email service initialized', { fromEmail: process.env.FROM_EMAIL || 'onboarding@resend.dev' });
 } else {
+  console.warn('[EMAIL] ⚠️ Resend not configured - RESEND_API_KEY missing');
   logger.warn('[EMAIL] Resend not configured - RESEND_API_KEY missing');
 }
 
@@ -31,12 +33,16 @@ export async function sendBetaInviteEmail(
     personalMessage?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  console.log('[EMAIL] 📧 sendBetaInviteEmail called:', { to: email, hasToken: !!token, hasTier: !!options?.tierOverride });
   logger.info('[EMAIL] sendBetaInviteEmail called', { to: email, hasToken: !!token, hasTier: !!options?.tierOverride });
   
   if (!resend) {
+    console.error('[EMAIL] ❌ Resend not configured - RESEND_API_KEY missing');
     logger.warn('[EMAIL] Resend not configured - RESEND_API_KEY missing');
     return { success: false, error: 'Email service not configured' };
   }
+  
+  console.log('[EMAIL] 📤 Attempting to send to:', email, 'from:', FROM_EMAIL);
 
   const inviteLink = getInviteLink(token);
   const tierBadge = options?.tierOverride 
@@ -220,15 +226,19 @@ ${APP_NAME} - For Educational & Research Purposes Only
     });
 
     if (error) {
+      console.error('[EMAIL] ❌ Failed to send invite:', error.message, error.name);
       logger.error('[EMAIL] Failed to send invite', { error: error.message, name: error.name, to: email });
       return { success: false, error: error.message };
     }
 
+    console.log('[EMAIL] ✅ Beta invite sent successfully to:', email, 'messageId:', data?.id);
     logger.info('[EMAIL] Beta invite sent successfully', { to: email, messageId: data?.id });
     return { success: true };
   } catch (err) {
-    logger.error('[EMAIL] Error sending invite', { error: err instanceof Error ? err.message : 'Unknown error', to: email });
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[EMAIL] ❌ Exception sending invite:', errorMessage);
+    logger.error('[EMAIL] Error sending invite', { error: errorMessage, to: email });
+    return { success: false, error: errorMessage };
   }
 }
 
