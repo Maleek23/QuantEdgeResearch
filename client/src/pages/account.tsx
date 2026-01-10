@@ -51,7 +51,18 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { PageHeader } from "@/components/page-header";
-import type { UserPreferences } from "@shared/schema";
+import type { 
+  UserPreferences, 
+  RiskProfileConfig, 
+  TechnicalThresholdConfig,
+  FundamentalFilterConfig,
+  RiskTier 
+} from "@shared/schema";
+import {
+  DEFAULT_RISK_PROFILE,
+  DEFAULT_TECHNICAL_THRESHOLDS,
+  DEFAULT_FUNDAMENTAL_FILTERS
+} from "@shared/schema";
 
 interface UserData {
   id: string;
@@ -77,6 +88,360 @@ interface CreditBalance {
   creditsAllocated: number;
   cycleEnd: string;
   tier: string;
+}
+
+// Risk Profile Section Component
+function RiskProfileSection({ 
+  formData, 
+  updateField 
+}: { 
+  formData: Partial<UserPreferences>;
+  updateField: (field: keyof UserPreferences, value: any) => void;
+}) {
+  const riskProfile = (formData.riskProfile as RiskProfileConfig) || DEFAULT_RISK_PROFILE;
+
+  const updateRiskProfile = (updates: Partial<RiskProfileConfig>) => {
+    updateField('riskProfile', { ...riskProfile, ...updates });
+  };
+
+  const riskTierPresets: Record<RiskTier, Partial<RiskProfileConfig>> = {
+    conservative: { maxPositionSizePercent: 1, maxDailyLossPercent: 2, maxCorrelatedPositions: 2 },
+    moderate: { maxPositionSizePercent: 2, maxDailyLossPercent: 5, maxCorrelatedPositions: 3 },
+    aggressive: { maxPositionSizePercent: 5, maxDailyLossPercent: 10, maxCorrelatedPositions: 5 },
+    custom: {},
+  };
+
+  const handleTierChange = (tier: RiskTier) => {
+    if (tier === 'custom') {
+      updateRiskProfile({ tier });
+    } else {
+      updateRiskProfile({ tier, ...riskTierPresets[tier] });
+    }
+  };
+
+  return (
+    <>
+      <Card className="glass-card border-l-2 border-l-red-500">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="h-5 w-5 text-red-400" />
+            Risk Profile
+          </CardTitle>
+          <CardDescription>
+            Choose a predefined tier or customize your risk parameters
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(['conservative', 'moderate', 'aggressive', 'custom'] as RiskTier[]).map((tier) => (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => handleTierChange(tier)}
+                data-testid={`button-tier-${tier}`}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  riskProfile.tier === tier 
+                    ? 'border-cyan-500 bg-cyan-500/10' 
+                    : 'border-muted/30 hover:border-muted/60 bg-muted/5'
+                }`}
+              >
+                <div className={`text-sm font-semibold capitalize ${
+                  riskProfile.tier === tier ? 'text-cyan-400' : 'text-foreground'
+                }`}>
+                  {tier}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {tier === 'conservative' && '1% max position'}
+                  {tier === 'moderate' && '2% max position'}
+                  {tier === 'aggressive' && '5% max position'}
+                  {tier === 'custom' && 'Your own rules'}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <Separator className="bg-white/10" />
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                Max Position Size: <span className="text-red-400 font-mono">{riskProfile.maxPositionSizePercent}%</span>
+              </Label>
+              <Slider
+                min={0.5}
+                max={10}
+                step={0.5}
+                value={[riskProfile.maxPositionSizePercent]}
+                onValueChange={(value) => updateRiskProfile({ maxPositionSizePercent: value[0], tier: 'custom' })}
+                className="py-2"
+                data-testid="slider-max-position"
+              />
+              <p className="text-xs text-muted-foreground">Max % of account per single trade</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                Max Daily Loss: <span className="text-red-400 font-mono">{riskProfile.maxDailyLossPercent}%</span>
+              </Label>
+              <Slider
+                min={1}
+                max={20}
+                step={1}
+                value={[riskProfile.maxDailyLossPercent]}
+                onValueChange={(value) => updateRiskProfile({ maxDailyLossPercent: value[0], tier: 'custom' })}
+                className="py-2"
+                data-testid="slider-max-daily-loss"
+              />
+              <p className="text-xs text-muted-foreground">Stop trading after this daily loss</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                Max Correlated Positions
+              </Label>
+              <Select
+                value={String(riskProfile.maxCorrelatedPositions)}
+                onValueChange={(value) => updateRiskProfile({ maxCorrelatedPositions: parseInt(value), tier: 'custom' })}
+              >
+                <SelectTrigger className="glass" data-testid="select-correlated-positions">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 position</SelectItem>
+                  <SelectItem value="2">2 positions</SelectItem>
+                  <SelectItem value="3">3 positions</SelectItem>
+                  <SelectItem value="5">5 positions</SelectItem>
+                  <SelectItem value="10">10 positions</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Max open positions in same sector/direction</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                Trade Confirmation
+              </Label>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/10">
+                <Switch
+                  checked={riskProfile.requireConfirmation}
+                  onCheckedChange={(checked) => updateRiskProfile({ requireConfirmation: checked })}
+                  data-testid="switch-require-confirmation"
+                />
+                <div className="text-sm">
+                  <p className="font-medium">Require Confirmation</p>
+                  <p className="text-xs text-muted-foreground">Manual approve before entry</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="glass-card p-5 border-l-2 border-l-amber-500">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-amber-400">Risk Management</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              These settings affect position sizing calculations and bot entry thresholds. 
+              Conservative settings reduce drawdown but may limit opportunities.
+            </p>
+          </div>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+// Technical Thresholds Section Component
+function TechnicalThresholdsSection({ 
+  formData, 
+  updateField 
+}: { 
+  formData: Partial<UserPreferences>;
+  updateField: (field: keyof UserPreferences, value: any) => void;
+}) {
+  const technicals = (formData.technicalThresholds as TechnicalThresholdConfig) || DEFAULT_TECHNICAL_THRESHOLDS;
+
+  const updateTechnicals = (indicator: keyof TechnicalThresholdConfig, updates: Partial<any>) => {
+    updateField('technicalThresholds', {
+      ...technicals,
+      [indicator]: { ...technicals[indicator], ...updates }
+    });
+  };
+
+  const indicatorCards = [
+    {
+      key: 'rsi' as const,
+      name: 'RSI (Relative Strength Index)',
+      description: 'Momentum oscillator measuring speed and change of price movements',
+      color: 'cyan',
+      settings: [
+        { label: 'Oversold Level', field: 'oversold', min: 10, max: 40, step: 5 },
+        { label: 'Overbought Level', field: 'overbought', min: 60, max: 90, step: 5 },
+      ],
+    },
+    {
+      key: 'adx' as const,
+      name: 'ADX (Average Directional Index)',
+      description: 'Measures trend strength regardless of direction',
+      color: 'purple',
+      settings: [
+        { label: 'Trending Minimum', field: 'trendingMinimum', min: 15, max: 35, step: 5 },
+        { label: 'Strong Trend', field: 'strongTrend', min: 30, max: 60, step: 5 },
+      ],
+    },
+    {
+      key: 'volume' as const,
+      name: 'Volume Surge',
+      description: 'Unusual volume detection for breakout confirmation',
+      color: 'green',
+      settings: [
+        { label: 'Surge Ratio (x avg)', field: 'surgeRatio', min: 1.5, max: 5, step: 0.5 },
+      ],
+    },
+    {
+      key: 'macd' as const,
+      name: 'MACD',
+      description: 'Trend-following momentum indicator',
+      color: 'amber',
+      settings: [
+        { label: 'Crossover Threshold', field: 'crossoverThreshold', min: 0, max: 2, step: 0.1 },
+      ],
+    },
+    {
+      key: 'vwap' as const,
+      name: 'VWAP Deviation',
+      description: 'Volume-weighted average price for institutional flow',
+      color: 'blue',
+      settings: [
+        { label: 'Deviation %', field: 'deviationPercent', min: 0.5, max: 3, step: 0.5 },
+      ],
+    },
+    {
+      key: 'bollinger' as const,
+      name: 'Bollinger Bands',
+      description: 'Volatility bands around moving average',
+      color: 'pink',
+      settings: [
+        { label: 'Period', field: 'period', min: 10, max: 50, step: 5 },
+        { label: 'Std Deviations', field: 'stdDev', min: 1, max: 3, step: 0.5 },
+      ],
+    },
+  ];
+
+  return (
+    <>
+      <Card className="glass-card border-l-2 border-l-purple-500">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-purple-400" />
+            Technical Indicator Thresholds
+          </CardTitle>
+          <CardDescription>
+            Customize indicator parameters and adjust signal weights. Weight adjustments affect confidence scoring (±10 points max).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {indicatorCards.map((indicator) => {
+            const data = technicals[indicator.key];
+            const colorClasses: Record<string, string> = {
+              cyan: 'border-l-cyan-500',
+              purple: 'border-l-purple-500',
+              green: 'border-l-green-500',
+              amber: 'border-l-amber-500',
+              blue: 'border-l-blue-500',
+              pink: 'border-l-pink-500',
+            };
+
+            return (
+              <Card key={indicator.key} className={`glass-card border-l-2 ${colorClasses[indicator.color]}`}>
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Switch
+                          checked={data.enabled}
+                          onCheckedChange={(checked) => updateTechnicals(indicator.key, { enabled: checked })}
+                          data-testid={`switch-${indicator.key}-enabled`}
+                        />
+                        <div>
+                          <h4 className="font-semibold">{indicator.name}</h4>
+                          <p className="text-xs text-muted-foreground">{indicator.description}</p>
+                        </div>
+                      </div>
+
+                      {data.enabled && (
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          {indicator.settings.map((setting) => (
+                            <div key={setting.field} className="space-y-2">
+                              <Label className="text-xs flex justify-between">
+                                <span>{setting.label}</span>
+                                <span className="font-mono text-cyan-400">
+                                  {(data as any)[setting.field]}
+                                </span>
+                              </Label>
+                              <Slider
+                                min={setting.min}
+                                max={setting.max}
+                                step={setting.step}
+                                value={[(data as any)[setting.field]]}
+                                onValueChange={(value) => updateTechnicals(indicator.key, { [setting.field]: value[0] })}
+                                data-testid={`slider-${indicator.key}-${setting.field}`}
+                              />
+                            </div>
+                          ))}
+                          
+                          <div className="space-y-2">
+                            <Label className="text-xs flex justify-between">
+                              <span>Weight Adjustment</span>
+                              <span className={`font-mono ${data.weightAdjustment > 0 ? 'text-green-400' : data.weightAdjustment < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
+                                {data.weightAdjustment > 0 ? '+' : ''}{data.weightAdjustment} pts
+                              </span>
+                            </Label>
+                            <Slider
+                              min={-10}
+                              max={10}
+                              step={1}
+                              value={[data.weightAdjustment]}
+                              onValueChange={(value) => updateTechnicals(indicator.key, { weightAdjustment: value[0] })}
+                              data-testid={`slider-${indicator.key}-weight`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card className="glass-card p-5 border-l-2 border-l-cyan-500">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+            <BarChart3 className="h-5 w-5 text-cyan-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-cyan-400">Signal Customization</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              These thresholds affect how the quantitative engine scores trade ideas. 
+              Weight adjustments can boost (+) or reduce (-) specific indicators in the final confidence score.
+              Changes apply to new scans only.
+            </p>
+          </div>
+        </div>
+      </Card>
+    </>
+  );
 }
 
 export default function AccountPage() {
@@ -258,12 +623,20 @@ export default function AccountPage() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="glass-card grid w-full grid-cols-5 gap-1" data-testid="tabs-account">
+        <TabsList className="glass-card grid w-full grid-cols-4 sm:grid-cols-7 gap-1" data-testid="tabs-account">
           <TabsTrigger value="profile" className="data-[state=active]:bg-cyan-500/10 text-xs sm:text-sm" data-testid="tab-profile">
             <User className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="trading" className="data-[state=active]:bg-cyan-500/10 text-xs sm:text-sm" data-testid="tab-trading">
+          <TabsTrigger value="risk" className="data-[state=active]:bg-red-500/10 text-xs sm:text-sm" data-testid="tab-risk">
+            <Shield className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Risk</span>
+          </TabsTrigger>
+          <TabsTrigger value="technicals" className="data-[state=active]:bg-purple-500/10 text-xs sm:text-sm" data-testid="tab-technicals">
+            <BarChart3 className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Technicals</span>
+          </TabsTrigger>
+          <TabsTrigger value="trading" className="data-[state=active]:bg-green-500/10 text-xs sm:text-sm" data-testid="tab-trading">
             <DollarSign className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Trading</span>
           </TabsTrigger>
@@ -271,11 +644,11 @@ export default function AccountPage() {
             <Palette className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Personalize</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="data-[state=active]:bg-cyan-500/10 text-xs sm:text-sm" data-testid="tab-notifications">
+          <TabsTrigger value="notifications" className="data-[state=active]:bg-amber-500/10 text-xs sm:text-sm" data-testid="tab-notifications">
             <Bell className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Alerts</span>
           </TabsTrigger>
-          <TabsTrigger value="subscription" className="data-[state=active]:bg-cyan-500/10 text-xs sm:text-sm" data-testid="tab-subscription">
+          <TabsTrigger value="subscription" className="data-[state=active]:bg-pink-500/10 text-xs sm:text-sm" data-testid="tab-subscription">
             <Star className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Plan</span>
           </TabsTrigger>
@@ -432,6 +805,22 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Risk Profile Tab */}
+        <TabsContent value="risk" className="space-y-4">
+          <RiskProfileSection 
+            formData={formData} 
+            updateField={updateField}
+          />
+        </TabsContent>
+
+        {/* Technical Thresholds Tab */}
+        <TabsContent value="technicals" className="space-y-4">
+          <TechnicalThresholdsSection 
+            formData={formData} 
+            updateField={updateField}
+          />
         </TabsContent>
 
         {/* Trading Preferences Tab */}
