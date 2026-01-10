@@ -10517,8 +10517,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
+      const { symbol, content, tags, isPrivate, linkedEventType, linkedEventId, watchlistId } = req.body;
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      if (!content || typeof content !== 'string' || content.length > 5000) {
+        return res.status(400).json({ error: "Content is required (max 5000 chars)" });
+      }
       const note = await storage.createSymbolNote({
-        ...req.body,
+        symbol: symbol.toUpperCase(),
+        content,
+        tags: Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string').slice(0, 10) : null,
+        isPrivate: typeof isPrivate === 'boolean' ? isPrivate : true,
+        linkedEventType: typeof linkedEventType === 'string' ? linkedEventType : null,
+        linkedEventId: typeof linkedEventId === 'string' ? linkedEventId : null,
+        watchlistId: typeof watchlistId === 'string' ? watchlistId : null,
+        noteType: 'user',
         userId,
       });
       res.json(note);
@@ -10539,7 +10553,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingNote.userId !== userId) {
         return res.status(403).json({ error: "Not authorized to update this note" });
       }
-      const updated = await storage.updateSymbolNote(req.params.id, req.body);
+      const { content, tags, isPrivate, linkedEventType, linkedEventId } = req.body;
+      const updates: Record<string, any> = {};
+      if (content !== undefined) {
+        if (typeof content !== 'string' || content.length > 5000) {
+          return res.status(400).json({ error: "Content must be string (max 5000 chars)" });
+        }
+        updates.content = content;
+      }
+      if (tags !== undefined) {
+        updates.tags = Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string').slice(0, 10) : null;
+      }
+      if (isPrivate !== undefined) {
+        updates.isPrivate = Boolean(isPrivate);
+      }
+      if (linkedEventType !== undefined) {
+        updates.linkedEventType = typeof linkedEventType === 'string' ? linkedEventType : null;
+      }
+      if (linkedEventId !== undefined) {
+        updates.linkedEventId = typeof linkedEventId === 'string' ? linkedEventId : null;
+      }
+      const updated = await storage.updateSymbolNote(req.params.id, updates);
       res.json(updated);
     } catch (error) {
       logError(error as Error, { context: 'PATCH /api/symbol-notes/:id' });
@@ -10563,6 +10597,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'DELETE /api/symbol-notes/:id' });
       res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
+  // Performance attribution for a symbol (links watchlist to trade journal)
+  app.get("/api/watchlist/performance-summary/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const allIdeas = await storage.getAllTradeIdeas();
+      const symbolTrades = allIdeas.filter(idea => 
+        idea.symbol.toUpperCase() === symbol && 
+        idea.outcome && 
+        idea.outcome !== 'open'
+      );
+
+      if (symbolTrades.length === 0) {
+        return res.json({ stats: null });
+      }
+
+      const wins = symbolTrades.filter(t => t.outcome === 'win').length;
+      const losses = symbolTrades.filter(t => t.outcome === 'loss').length;
+      const winRate = symbolTrades.length > 0 ? (wins / symbolTrades.length) * 100 : 0;
+
+      const tradesWithPnL = symbolTrades.filter(t => t.actualPnL != null);
+      const totalPnL = tradesWithPnL.reduce((sum, t) => sum + (t.actualPnL || 0), 0);
+      
+      const tradesWithReturn = symbolTrades.filter(t => t.actualReturnPercent != null);
+      const avgReturn = tradesWithReturn.length > 0 
+        ? tradesWithReturn.reduce((sum, t) => sum + (t.actualReturnPercent || 0), 0) / tradesWithReturn.length 
+        : 0;
+
+      const sortedByPnL = [...tradesWithPnL].sort((a, b) => (b.actualPnL || 0) - (a.actualPnL || 0));
+      const bestTrade = sortedByPnL.length > 0 && sortedByPnL[0].actualPnL != null ? { 
+        pnl: sortedByPnL[0].actualPnL, 
+        date: sortedByPnL[0].timestamp 
+      } : null;
+      const worstTrade = sortedByPnL.length > 0 && sortedByPnL[sortedByPnL.length - 1].actualPnL != null ? { 
+        pnl: sortedByPnL[sortedByPnL.length - 1].actualPnL, 
+        date: sortedByPnL[sortedByPnL.length - 1].timestamp 
+      } : null;
+
+      const gradeAtEntry = symbolTrades
+        .map(t => t.probabilityBand || t.direction)
+        .filter((g): g is string => Boolean(g))
+        .slice(0, 5);
+
+      const sortedByDate = [...symbolTrades].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const lastTradeDate = sortedByDate[0]?.timestamp || null;
+
+      res.json({
+        stats: {
+          symbol,
+          totalTrades: symbolTrades.length,
+          wins,
+          losses,
+          winRate: isNaN(winRate) ? 0 : winRate,
+          avgReturn: isNaN(avgReturn) ? 0 : avgReturn,
+          totalPnL: isNaN(totalPnL) ? 0 : totalPnL,
+          lastTradeDate,
+          bestTrade,
+          worstTrade,
+          avgHoldTime: '1-3 days',
+          gradeAtEntry,
+        }
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/performance-summary/:symbol' });
+      res.status(500).json({ error: "Failed to fetch performance summary" });
     }
   });
 

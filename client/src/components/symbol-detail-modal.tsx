@@ -1,13 +1,19 @@
+import { Suspense, lazy } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, Users, BarChart3, Target, AlertCircle, Star } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp, TrendingDown, Users, BarChart3, Target, AlertCircle, Star, BookOpen } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { MarketData } from "@shared/schema";
+
+const GradeTimeline = lazy(() => import("@/components/grade-timeline"));
+const NotesPanel = lazy(() => import("@/components/notes-panel"));
+const WatchlistPerformanceCard = lazy(() => import("@/components/watchlist-performance-card"));
 
 interface SymbolDetailModalProps {
   symbol: MarketData | null;
@@ -69,10 +75,14 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
             <TabsTrigger value="sentiment">Sentiment</TabsTrigger>
+            <TabsTrigger value="research" className="gap-1">
+              <BookOpen className="h-3 w-3" />
+              Research
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4 mt-4">
@@ -236,6 +246,20 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="research" className="space-y-4 mt-4">
+            <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+              <GradeTimeline symbol={symbol.symbol} height="h-56" />
+            </Suspense>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+                <WatchlistPerformanceCard symbol={symbol.symbol} compact />
+              </Suspense>
+              <Suspense fallback={<Skeleton className="h-48 w-full" />}>
+                <NotesPanel symbol={symbol.symbol} compact />
+              </Suspense>
+            </div>
           </TabsContent>
         </Tabs>
 
