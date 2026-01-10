@@ -707,6 +707,10 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       
       // Source metadata
       dataSourceUsed: input.source,
+      
+      // News sentiment fields
+      newsBias: newsContext?.newsBias || null,
+      earningsBeat: newsContext?.earningsBeat ?? null,
     };
     
     logger.info(`[UNIVERSAL] Generated ${input.symbol} idea from ${input.source}: ${confidence}% (${grade})`);

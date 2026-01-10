@@ -395,6 +395,58 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </TooltipContent>
                 </Tooltip>
               )}
+
+              {/* News Bias Badge - shows directional news sentiment */}
+              {idea.newsBias && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap flex-shrink-0",
+                        idea.newsBias === 'bullish' && "bg-green-500/20 text-green-400 border-green-500/50",
+                        idea.newsBias === 'bearish' && "bg-red-500/20 text-red-400 border-red-500/50",
+                        idea.newsBias === 'neutral' && "bg-slate-500/20 text-slate-400 border-slate-500/50"
+                      )}
+                      data-testid={`badge-news-bias-${idea.symbol}`}
+                    >
+                      <Newspaper className="h-2.5 w-2.5 mr-0.5" />
+                      {idea.newsBias.toUpperCase()}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="font-medium">News Sentiment: {idea.newsBias}</p>
+                    <p className="text-xs text-muted-foreground">Based on recent headlines</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {/* Earnings Badge - only shows when earnings detected */}
+              {idea.earningsBeat !== null && idea.earningsBeat !== undefined && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-[10px] h-5 font-bold border cursor-help whitespace-nowrap flex-shrink-0",
+                        idea.earningsBeat === true && "bg-emerald-500/20 text-emerald-400 border-emerald-500/50",
+                        idea.earningsBeat === false && "bg-red-500/20 text-red-400 border-red-500/50"
+                      )}
+                      data-testid={`badge-earnings-${idea.symbol}`}
+                    >
+                      {idea.earningsBeat ? 'BEAT' : 'MISS'}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="font-medium">Earnings {idea.earningsBeat ? 'Beat' : 'Miss'} Detected</p>
+                    <p className="text-xs text-muted-foreground">
+                      {idea.earningsBeat 
+                        ? 'Company exceeded expectations' 
+                        : 'Company missed expectations - higher risk'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
 
             {/* Center: Quick Metrics */}
