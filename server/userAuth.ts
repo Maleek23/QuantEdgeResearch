@@ -88,8 +88,11 @@ export function getOwnerEmail(): string {
 export function sanitizeUser(user: User): Omit<User, 'passwordHash'> & { isAdmin: boolean } {
   const { passwordHash: _, ...sanitized } = user;
   const ownerEmail = getOwnerEmail();
+  // Case-insensitive admin check to handle mixed-case emails
+  const isAdmin = ownerEmail !== "" && 
+    user.email?.toLowerCase() === ownerEmail.toLowerCase();
   return {
     ...sanitized,
-    isAdmin: ownerEmail !== "" && user.email === ownerEmail,
+    isAdmin,
   } as Omit<User, 'passwordHash'> & { isAdmin: boolean };
 }

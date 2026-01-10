@@ -99,6 +99,19 @@ import { CANONICAL_WIN_THRESHOLD } from '@shared/constants';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
 
+// Helper for case-insensitive admin email check
+function isAdminEmail(userEmail: string | null | undefined): boolean {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail || !userEmail) return false;
+  return userEmail.toLowerCase() === adminEmail.toLowerCase();
+}
+
+// Check if user is admin (by email match OR by subscription tier)
+function checkIsAdmin(user: { email?: string | null; subscriptionTier?: string | null } | null | undefined): boolean {
+  if (!user) return false;
+  return isAdminEmail(user.email) || user.subscriptionTier === 'admin';
+}
+
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
   const userId = req.session?.userId;
@@ -123,9 +136,7 @@ function requireTier(feature: keyof TierLimits) {
       }
       
       // Check if admin (always has access)
-      const isAdmin = (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL) || 
-                      user.subscriptionTier === 'admin';
-      if (isAdmin) {
+      if (checkIsAdmin(user)) {
         return next();
       }
       
@@ -1347,8 +1358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user is admin (by email match OR by subscription tier)
-      const isAdmin = (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL) || 
-                      user.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       
       logger.info(`[USER-TIER] User ${userId}: email=${user.email}, subscriptionTier=${user.subscriptionTier}, isAdmin=${isAdmin}`);
       
@@ -5483,7 +5493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has beta access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
       if (!hasBetaAccess) {
@@ -5540,7 +5550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has beta access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
       if (!hasBetaAccess) {
@@ -5580,7 +5590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has beta access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
       if (!hasBetaAccess) {
@@ -11944,7 +11954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has beta access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
       if (!hasBetaAccess) {
@@ -11975,7 +11985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has beta access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
       if (!hasBetaAccess) {
@@ -16158,7 +16168,7 @@ CONSTRAINTS:
       // Check if user is admin for detailed access
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       
       // Sample size gating: require minimum 20 trades for ALL metrics
       const MINIMUM_SAMPLE_SIZE = 20;
@@ -17071,7 +17081,7 @@ CONSTRAINTS:
     try {
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       
       if (!isAdmin) {
         return res.status(403).json({ error: "Admin access required" });
@@ -17102,7 +17112,7 @@ CONSTRAINTS:
     try {
       const userId = req.session?.userId;
       const user = userId ? await storage.getUser(userId) : null;
-      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      const isAdmin = checkIsAdmin(user);
       
       if (!isAdmin) {
         return res.status(403).json({ error: "Admin access required to reset bot portfolios" });
