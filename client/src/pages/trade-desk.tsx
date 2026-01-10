@@ -1651,15 +1651,12 @@ export default function TradeDeskPage() {
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
 
-      {/* Best Setups - Full Width */}
-      <BestSetupsCard />
-
       {/* Elite Setups - Year-Long Research Terminal with Pagination */}
       <EliteSetupsGrid 
         maxItems={24} 
         showFilters={true}
         onTrade={(symbol) => {
-          setSearchQuery(symbol);
+          setSymbolSearch(symbol);
           toast({
             title: "Symbol Selected",
             description: `Filtering ideas for ${symbol}`,
