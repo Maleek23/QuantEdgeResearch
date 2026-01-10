@@ -26,6 +26,13 @@ import { format } from "date-fns";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";
 import { WinRateWidget } from "@/components/win-rate-widget";
 import { IVRankWidget } from "@/components/iv-rank-widget";
+import { 
+  ConfluenceInsights, 
+  TechnicalInsights, 
+  PositionSizeCalculator,
+  MarketContextInsights,
+  NewsInsights
+} from "@/components/contextual-insights";
 
 interface TradingEngineResult {
   symbol: string;
@@ -389,7 +396,7 @@ function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }
   );
 }
 
-function TechnicalPanel({ data }: { data: TradingEngineResult['technical'] }) {
+function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical']; symbol: string }) {
   const getTrendIcon = (direction: string) => {
     if (direction === 'up' || direction === 'bullish') return <TrendingUp className="h-4 w-4 text-green-400" />;
     if (direction === 'down' || direction === 'bearish') return <TrendingDown className="h-4 w-4 text-red-400" />;
@@ -446,12 +453,25 @@ function TechnicalPanel({ data }: { data: TradingEngineResult['technical'] }) {
             <div className="font-mono">${data.levels.resistance[0]?.toFixed(2) || 'N/A'}</div>
           </div>
         </div>
+        
+        <TechnicalInsights
+          trend={data.trend.direction}
+          trendStrength={data.trend.strength}
+          rsi={data.momentum.rsi14}
+          atrPercent={data.volatility.atrPercent}
+          support={data.levels.support[0] || data.levels.currentPrice * 0.95}
+          resistance={data.levels.resistance[0] || data.levels.currentPrice * 1.05}
+          currentPrice={data.levels.currentPrice}
+          sma20={data.trend.movingAverages?.sma20}
+          sma50={data.trend.movingAverages?.sma50}
+          symbol={symbol}
+        />
       </CardContent>
     </Card>
   );
 }
 
-function TradeStructurePanel({ data }: { data: TradingEngineResult['tradeStructure'] }) {
+function TradeStructurePanel({ data, symbol }: { data: TradingEngineResult['tradeStructure']; symbol: string }) {
   if (!data) return null;
 
   return (
@@ -496,12 +516,24 @@ function TradeStructurePanel({ data }: { data: TradingEngineResult['tradeStructu
             ))}
           </div>
         </div>
+        
+        <PositionSizeCalculator
+          entryPrice={data.entry.price}
+          stopPrice={data.stop.price}
+          targets={data.targets}
+          direction={data.direction}
+          symbol={symbol}
+        />
       </CardContent>
     </Card>
   );
 }
 
-function NewsPanel({ data }: { data: TradingEngineResult['newsContext'] }) {
+function NewsPanelWithInsights({ data, symbol, currentPrice }: { 
+  data: TradingEngineResult['newsContext']; 
+  symbol: string;
+  currentPrice: number;
+}) {
   if (!data || !data.hasRecentNews) return null;
 
   const getSentimentColor = (score: number) => {
@@ -593,6 +625,16 @@ function NewsPanel({ data }: { data: TradingEngineResult['newsContext'] }) {
             ))}
           </div>
         )}
+        
+        <NewsInsights
+          sentimentScore={data.sentimentScore}
+          sentimentLabel={data.sentimentLabel}
+          newsBias={data.newsBias}
+          topHeadlines={data.topHeadlines}
+          catalysts={data.catalysts}
+          symbol={symbol}
+          currentPrice={currentPrice}
+        />
       </CardContent>
     </Card>
   );
@@ -615,6 +657,21 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
   const { data: lossData } = useQuery<SymbolLossData>({
     queryKey: ['/api/bot/symbol-adjustment', symbol],
     enabled: !!symbol,
+  });
+  
+  // Fetch market context for insights (global market conditions)
+  const { data: marketCtx } = useQuery<{ 
+    shouldTrade: boolean; 
+    regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
+    riskSentiment: 'risk_on' | 'risk_off' | 'neutral';
+    vixLevel: number | null;
+    tradingSession: string;
+    score: number;
+    reasons: string[];
+    spyData: { price: number; change: number; relativeVolume: number } | null;
+  }>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 60000, // Refresh every minute
   });
 
   if (isLoading) {
@@ -787,17 +844,45 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
               </div>
             )}
           </div>
+          
+          <ConfluenceInsights
+            score={data.confluence.score}
+            fundamentalBias={data.confluence.fundamentalBias}
+            technicalBias={data.confluence.technicalBias}
+            rsi={data.technical.momentum.rsi14}
+            atrPercent={data.technical.volatility.atrPercent}
+            resistance={data.technical.levels.resistance[0] || data.technical.levels.currentPrice * 1.05}
+            support={data.technical.levels.support[0] || data.technical.levels.currentPrice * 0.95}
+            currentPrice={data.technical.levels.currentPrice}
+            trend={data.technical.trend.direction}
+          />
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FundamentalPanel data={data.fundamental} />
-        <TechnicalPanel data={data.technical} />
+        <TechnicalPanel data={data.technical} symbol={symbol} />
       </div>
 
-      {data.newsContext && <NewsPanel data={data.newsContext} />}
+      {data.newsContext && (
+        <NewsPanelWithInsights 
+          data={data.newsContext} 
+          symbol={symbol}
+          currentPrice={data.technical.levels.currentPrice}
+        />
+      )}
 
-      {data.tradeStructure && <TradeStructurePanel data={data.tradeStructure} />}
+      {data.tradeStructure && <TradeStructurePanel data={data.tradeStructure} symbol={symbol} />}
+      
+      {marketCtx && (
+        <MarketContextInsights
+          tradingSession={marketCtx.tradingSession || 'unknown'}
+          regime={marketCtx.regime}
+          shouldTrade={marketCtx.shouldTrade}
+          vixLevel={marketCtx.vixLevel}
+          riskSentiment={marketCtx.riskSentiment}
+        />
+      )}
     </div>
   );
 }
