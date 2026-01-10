@@ -134,15 +134,16 @@ function RiskProfileSection({
         <CardContent className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {(['conservative', 'moderate', 'aggressive', 'custom'] as RiskTier[]).map((tier) => (
-              <button
+              <Button
                 key={tier}
                 type="button"
+                variant="outline"
                 onClick={() => handleTierChange(tier)}
                 data-testid={`button-tier-${tier}`}
-                className={`p-4 rounded-lg border-2 transition-all ${
+                className={`h-auto p-4 flex flex-col items-start justify-start ${
                   riskProfile.tier === tier 
-                    ? 'border-cyan-500 bg-cyan-500/10' 
-                    : 'border-muted/30 hover:border-muted/60 bg-muted/5'
+                    ? 'border-cyan-500 bg-cyan-500/10 toggle-elevate toggle-elevated' 
+                    : 'border-muted/30 hover-elevate'
                 }`}
               >
                 <div className={`text-sm font-semibold capitalize ${
@@ -150,13 +151,13 @@ function RiskProfileSection({
                 }`}>
                   {tier}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
+                <div className="text-xs text-muted-foreground mt-1 font-normal text-left">
                   {tier === 'conservative' && '1% max position'}
                   {tier === 'moderate' && '2% max position'}
                   {tier === 'aggressive' && '5% max position'}
                   {tier === 'custom' && 'Your own rules'}
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
 
