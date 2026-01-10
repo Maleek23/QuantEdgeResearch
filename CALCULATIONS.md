@@ -1159,6 +1159,57 @@ For Hedges: Target 0.70-0.90 delta
 
 ---
 
+## Unified Win Rate System (v2.0)
+
+**Source Files:** `server/win-rate-service.ts`, `shared/constants.ts`
+
+### Canonical Definitions
+
+The platform uses a unified win rate calculation methodology across ALL endpoints:
+
+| Classification | Criteria | Included in Win Rate? |
+|----------------|----------|----------------------|
+| **WIN** | P&L% >= +3% OR `outcomeStatus === 'hit_target'` | ✅ Yes (numerator) |
+| **LOSS** | P&L% <= -3% OR `outcomeStatus === 'hit_stop'` | ✅ Yes (denominator only) |
+| **NEUTRAL** | -3% < P&L% < +3%, expired, or missing data | ❌ Excluded from calculation |
+
+### Win Rate Formula
+
+```
+Win Rate = Wins / Decided
+where Decided = Wins + Losses (excludes neutral/breakeven trades)
+```
+
+### Constants (`shared/constants.ts`)
+
+```typescript
+CANONICAL_WIN_THRESHOLD = 3      // P&L% threshold for win/loss classification
+OPTIONS_VALIDATION_ENABLED = false  // Options excluded by default until premium tracking
+```
+
+### API Endpoints Using Unified Calculation
+
+| Endpoint | Purpose | Uses WinRateService? |
+|----------|---------|---------------------|
+| `/api/performance/unified-win-rate` | **Primary source of truth** | ✅ Yes |
+| `/api/performance/auto-lotto-bot` | Bot performance stats | ✅ Yes |
+| `/api/performance/stats` | Legacy stats (being migrated) | ⚠️ Partially |
+
+### Options Data Integrity Issue
+
+**Problem:** Stock prices were compared to option premiums, causing 91% of option trades to show 0% P&L.
+
+**Solution:** Options are excluded from win rate calculations by default until proper premium tracking is implemented. The `includeOptions=true` filter explicitly enables options inclusion.
+
+### Bot Position Calculations (`WinRateService.calculateBotStats`)
+
+For paper_positions table (Auto-Lotto bot):
+- Uses `realizedPnLPercent` field when available
+- Falls back to raw `realizedPnL` for classification
+- Computes expectancy, avg win/loss percentages
+
+---
+
 ## Orphaned/Underutilized Features
 
 These features were built but may not be fully connected or utilized.

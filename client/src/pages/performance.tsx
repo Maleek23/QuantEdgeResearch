@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Target, Activity, Filter, Calendar, Brain, BarChart3, Bot, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { Download, Target, Activity, Filter, Calendar, Brain, BarChart3, Bot, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +31,7 @@ const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
 const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
 const RollingWinRateChart = lazy(() => import("@/components/rolling-win-rate-chart"));
 const DrawdownAnalysisChart = lazy(() => import("@/components/drawdown-analysis-chart"));
+const HistoricalIntelligenceTab = lazy(() => import("@/components/historical-intelligence-tab"));
 
 function ChartSkeleton() {
   return (
@@ -583,15 +584,18 @@ export default function PerformancePage() {
 
       {/* TIER 3: Tabs for Details */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-lg grid-cols-4">
           <TabsTrigger value="overview" className="text-xs gap-1.5" data-testid="tab-overview">
             <TrendingUp className="h-3.5 w-3.5" />Overview
           </TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs gap-1.5" data-testid="tab-analytics">
             <BarChart3 className="h-3.5 w-3.5" />Analytics
           </TabsTrigger>
+          <TabsTrigger value="historical" className="text-xs gap-1.5" data-testid="tab-historical">
+            <History className="h-3.5 w-3.5" />Historical
+          </TabsTrigger>
           <TabsTrigger value="audit" className="text-xs gap-1.5" data-testid="tab-audit">
-            <Database className="h-3.5 w-3.5" />Data Audit
+            <Database className="h-3.5 w-3.5" />Audit
           </TabsTrigger>
         </TabsList>
 
@@ -695,6 +699,14 @@ export default function PerformancePage() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </TierGate>
+        </TabsContent>
+
+        <TabsContent value="historical" className="space-y-4">
+          <TierGate feature="performance" blur>
+            <Suspense fallback={<ChartSkeleton />}>
+              <HistoricalIntelligenceTab />
+            </Suspense>
           </TierGate>
         </TabsContent>
 
