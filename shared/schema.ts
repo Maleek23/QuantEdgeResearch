@@ -671,6 +671,94 @@ export type Catalyst = typeof catalysts.$inferSelect;
 
 // User Preferences
 export type LayoutDensityOld = 'compact' | 'comfortable' | 'spacious';
+export type RiskTier = 'conservative' | 'moderate' | 'aggressive' | 'custom';
+
+// Risk Profile configuration - nested JSON structure
+export interface RiskProfileConfig {
+  tier: RiskTier;
+  maxPositionSizePercent: number;     // 2% default
+  maxDailyLossPercent: number;        // 5% default
+  maxCorrelatedPositions: number;     // 3 default
+  requireConfirmation: boolean;       // true = manual approve all trades
+}
+
+// Technical Threshold configuration for each indicator
+export interface TechnicalThresholdConfig {
+  rsi: {
+    oversold: number;        // Default: 30
+    overbought: number;      // Default: 70
+    weightAdjustment: number; // ±10 points to signal weight
+    enabled: boolean;
+  };
+  adx: {
+    trendingMinimum: number;   // Default: 25
+    strongTrend: number;       // Default: 40
+    weightAdjustment: number;
+    enabled: boolean;
+  };
+  volume: {
+    surgeRatio: number;        // Default: 2.0x
+    weightAdjustment: number;
+    enabled: boolean;
+  };
+  macd: {
+    crossoverThreshold: number; // Default: 0.5 histogram
+    weightAdjustment: number;
+    enabled: boolean;
+  };
+  vwap: {
+    deviationPercent: number;   // Default: 1% from VWAP
+    weightAdjustment: number;
+    enabled: boolean;
+  };
+  bollinger: {
+    period: number;            // Default: 20
+    stdDev: number;            // Default: 2
+    weightAdjustment: number;
+    enabled: boolean;
+  };
+}
+
+// Fundamental Filter configuration
+export interface FundamentalFilterConfig {
+  minMarketCap: number | null;      // Default: 1B (null = disabled)
+  maxPeRatio: number | null;        // Default: null (disabled)
+  requireEarningsBeat: boolean;     // false
+  insiderBuyingWeight: number;      // +15 default, user can ±10
+  sectorRotationBias: string[];     // ['tech', 'healthcare']
+  excludePennyStocks: boolean;      // true
+  minAverageVolume: number | null;  // Minimum daily volume
+}
+
+// Default Risk Profile
+export const DEFAULT_RISK_PROFILE: RiskProfileConfig = {
+  tier: 'moderate',
+  maxPositionSizePercent: 2,
+  maxDailyLossPercent: 5,
+  maxCorrelatedPositions: 3,
+  requireConfirmation: true,
+};
+
+// Default Technical Thresholds
+export const DEFAULT_TECHNICAL_THRESHOLDS: TechnicalThresholdConfig = {
+  rsi: { oversold: 30, overbought: 70, weightAdjustment: 0, enabled: true },
+  adx: { trendingMinimum: 25, strongTrend: 40, weightAdjustment: 0, enabled: true },
+  volume: { surgeRatio: 2.0, weightAdjustment: 0, enabled: true },
+  macd: { crossoverThreshold: 0.5, weightAdjustment: 0, enabled: true },
+  vwap: { deviationPercent: 1.0, weightAdjustment: 0, enabled: true },
+  bollinger: { period: 20, stdDev: 2, weightAdjustment: 0, enabled: true },
+};
+
+// Default Fundamental Filters
+export const DEFAULT_FUNDAMENTAL_FILTERS: FundamentalFilterConfig = {
+  minMarketCap: 1000000000, // 1B
+  maxPeRatio: null,
+  requireEarningsBeat: false,
+  insiderBuyingWeight: 15,
+  sectorRotationBias: [],
+  excludePennyStocks: true,
+  minAverageVolume: null,
+};
 
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -683,6 +771,15 @@ export const userPreferences = pgTable("user_preferences", {
   defaultOptionsBudget: real("default_options_budget").notNull().default(250),
   preferredAssets: text("preferred_assets").array().notNull().default(['stock', 'option', 'crypto']),
   holdingHorizon: text("holding_horizon").notNull().default('intraday'),
+  
+  // Risk Profile (JSONB - nested structure)
+  riskProfile: jsonb("risk_profile").$type<RiskProfileConfig>().default(DEFAULT_RISK_PROFILE),
+  
+  // Technical Thresholds (JSONB - nested structure for all indicators)
+  technicalThresholds: jsonb("technical_thresholds").$type<TechnicalThresholdConfig>().default(DEFAULT_TECHNICAL_THRESHOLDS),
+  
+  // Fundamental Filters (JSONB - nested structure)
+  fundamentalFilters: jsonb("fundamental_filters").$type<FundamentalFilterConfig>().default(DEFAULT_FUNDAMENTAL_FILTERS),
   
   // Display Preferences
   theme: text("theme").notNull().default('dark'), // 'light' | 'dark' | 'auto'
