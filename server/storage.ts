@@ -94,6 +94,10 @@ import type {
   InsertUserPageLayout,
   LayoutPreset,
   InsertLayoutPreset,
+  WatchlistHistoryRecord,
+  InsertWatchlistHistory,
+  SymbolNote,
+  InsertSymbolNote,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -142,6 +146,8 @@ import {
   passwordResetTokens,
   userPageLayouts,
   layoutPresets,
+  watchlistHistory,
+  symbolNotes,
 } from "@shared/schema";
 
 // ========================================
@@ -359,6 +365,19 @@ export interface IStorage {
   // Premium History
   getPremiumHistory(watchlistId: string, days?: number): Promise<PremiumHistoryRecord[]>;
   createPremiumSnapshot(snapshot: InsertPremiumHistory): Promise<PremiumHistoryRecord>;
+
+  // Watchlist History (Year-long tracking)
+  getWatchlistHistory(symbol: string, year?: number): Promise<WatchlistHistoryRecord[]>;
+  getWatchlistHistoryByWatchlistId(watchlistId: string, days?: number): Promise<WatchlistHistoryRecord[]>;
+  createWatchlistSnapshot(snapshot: InsertWatchlistHistory): Promise<WatchlistHistoryRecord>;
+  getLatestWatchlistSnapshot(watchlistId: string): Promise<WatchlistHistoryRecord | undefined>;
+
+  // Symbol Notes
+  getSymbolNotes(symbol: string, userId: string): Promise<SymbolNote[]>;
+  getSymbolNoteById(id: string): Promise<SymbolNote | undefined>;
+  createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote>;
+  updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined>;
+  deleteSymbolNote(id: string): Promise<boolean>;
 
   // Options Data
   getOptionsBySymbol(symbol: string): Promise<OptionsData[]>;
@@ -1509,6 +1528,99 @@ export class MemStorage implements IStorage {
     return record;
   }
 
+  // Watchlist History Methods (in-memory stub for year-long tracking)
+  private watchlistHistoryStore: Map<string, WatchlistHistoryRecord[]> = new Map();
+
+  async getWatchlistHistory(symbol: string, year?: number): Promise<WatchlistHistoryRecord[]> {
+    const all: WatchlistHistoryRecord[] = [];
+    Array.from(this.watchlistHistoryStore.values()).forEach(records => {
+      all.push(...records.filter((r: WatchlistHistoryRecord) => r.symbol === symbol && (!year || r.year === year)));
+    });
+    return all.sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate));
+  }
+
+  async getWatchlistHistoryByWatchlistId(watchlistId: string, days: number = 365): Promise<WatchlistHistoryRecord[]> {
+    return this.watchlistHistoryStore.get(watchlistId) || [];
+  }
+
+  async createWatchlistSnapshot(snapshot: InsertWatchlistHistory): Promise<WatchlistHistoryRecord> {
+    const record: WatchlistHistoryRecord = {
+      id: randomUUID(),
+      ...snapshot,
+      createdAt: new Date(),
+    };
+    const existing = this.watchlistHistoryStore.get(snapshot.watchlistId) || [];
+    existing.unshift(record);
+    this.watchlistHistoryStore.set(snapshot.watchlistId, existing.slice(0, 365));
+    return record;
+  }
+
+  async getLatestWatchlistSnapshot(watchlistId: string): Promise<WatchlistHistoryRecord | undefined> {
+    const records = this.watchlistHistoryStore.get(watchlistId) || [];
+    return records[0];
+  }
+
+  // Symbol Notes Methods (in-memory stub)
+  private symbolNotesStore: Map<string, SymbolNote[]> = new Map();
+
+  async getSymbolNotes(symbol: string, userId: string): Promise<SymbolNote[]> {
+    const all: SymbolNote[] = [];
+    Array.from(this.symbolNotesStore.values()).forEach(notes => {
+      all.push(...notes.filter((n: SymbolNote) => n.symbol === symbol && n.userId === userId));
+    });
+    return all.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getSymbolNoteById(id: string): Promise<SymbolNote | undefined> {
+    for (const notes of Array.from(this.symbolNotesStore.values())) {
+      const found = notes.find((n: SymbolNote) => n.id === id);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  async createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote> {
+    const record: SymbolNote = {
+      id: randomUUID(),
+      ...note,
+      tags: note.tags || null,
+      noteType: note.noteType || 'user',
+      isPrivate: note.isPrivate ?? true,
+      linkedEventType: note.linkedEventType || null,
+      linkedEventId: note.linkedEventId || null,
+      watchlistId: note.watchlistId || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const key = `${note.userId}-${note.symbol}`;
+    const existing = this.symbolNotesStore.get(key) || [];
+    existing.unshift(record);
+    this.symbolNotesStore.set(key, existing);
+    return record;
+  }
+
+  async updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined> {
+    for (const [key, notes] of Array.from(this.symbolNotesStore.entries())) {
+      const index = notes.findIndex((n: SymbolNote) => n.id === id);
+      if (index !== -1) {
+        notes[index] = { ...notes[index], ...updates, updatedAt: new Date() };
+        return notes[index];
+      }
+    }
+    return undefined;
+  }
+
+  async deleteSymbolNote(id: string): Promise<boolean> {
+    for (const [key, notes] of Array.from(this.symbolNotesStore.entries())) {
+      const index = notes.findIndex((n: SymbolNote) => n.id === id);
+      if (index !== -1) {
+        notes.splice(index, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Options Data Methods
   async getOptionsBySymbol(symbol: string): Promise<OptionsData[]> {
     return Array.from(this.optionsData.values()).filter((o) => o.symbol === symbol);
@@ -2598,6 +2710,83 @@ export class DatabaseStorage implements IStorage {
   async createPremiumSnapshot(snapshot: InsertPremiumHistory): Promise<PremiumHistoryRecord> {
     const [created] = await db.insert(premiumHistory).values(snapshot).returning();
     return created;
+  }
+
+  // Watchlist History Methods (Year-long tracking with PostgreSQL)
+  async getWatchlistHistory(symbol: string, year?: number): Promise<WatchlistHistoryRecord[]> {
+    let query = db.select().from(watchlistHistory).where(eq(watchlistHistory.symbol, symbol));
+    if (year) {
+      query = db.select().from(watchlistHistory).where(and(
+        eq(watchlistHistory.symbol, symbol),
+        eq(watchlistHistory.year, year)
+      ));
+    }
+    return await query.orderBy(desc(watchlistHistory.snapshotDate));
+  }
+
+  async getWatchlistHistoryByWatchlistId(watchlistId: string, days: number = 365): Promise<WatchlistHistoryRecord[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+    
+    return await db.select()
+      .from(watchlistHistory)
+      .where(and(
+        eq(watchlistHistory.watchlistId, watchlistId),
+        gte(watchlistHistory.snapshotDate, cutoffStr)
+      ))
+      .orderBy(desc(watchlistHistory.snapshotDate));
+  }
+
+  async createWatchlistSnapshot(snapshot: InsertWatchlistHistory): Promise<WatchlistHistoryRecord> {
+    const [created] = await db.insert(watchlistHistory).values(snapshot).returning();
+    return created;
+  }
+
+  async getLatestWatchlistSnapshot(watchlistId: string): Promise<WatchlistHistoryRecord | undefined> {
+    const [latest] = await db.select()
+      .from(watchlistHistory)
+      .where(eq(watchlistHistory.watchlistId, watchlistId))
+      .orderBy(desc(watchlistHistory.snapshotDate))
+      .limit(1);
+    return latest;
+  }
+
+  // Symbol Notes Methods (PostgreSQL)
+  async getSymbolNotes(symbol: string, userId: string): Promise<SymbolNote[]> {
+    return await db.select()
+      .from(symbolNotes)
+      .where(and(
+        eq(symbolNotes.symbol, symbol),
+        eq(symbolNotes.userId, userId)
+      ))
+      .orderBy(desc(symbolNotes.createdAt));
+  }
+
+  async getSymbolNoteById(id: string): Promise<SymbolNote | undefined> {
+    const [note] = await db.select()
+      .from(symbolNotes)
+      .where(eq(symbolNotes.id, id))
+      .limit(1);
+    return note;
+  }
+
+  async createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote> {
+    const [created] = await db.insert(symbolNotes).values(note).returning();
+    return created;
+  }
+
+  async updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined> {
+    const [updated] = await db.update(symbolNotes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(symbolNotes.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSymbolNote(id: string): Promise<boolean> {
+    const result = await db.delete(symbolNotes).where(eq(symbolNotes.id, id));
+    return true;
   }
 
   // Options Data Methods

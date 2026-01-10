@@ -10434,6 +10434,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // Watchlist History Routes (Year-Long Tracking)
+  // ============================================
+  
+  // Get grade timeline for a symbol
+  app.get("/api/watchlist/history/:symbol", async (req, res) => {
+    try {
+      const { watchlistHistoryService } = await import('./watchlist-history-service');
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const history = await watchlistHistoryService.getSymbolTimeline(req.params.symbol, year);
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/history/:symbol' });
+      res.status(500).json({ error: "Failed to fetch watchlist history" });
+    }
+  });
+
+  // Get stats for a symbol
+  app.get("/api/watchlist/history/:symbol/stats", async (req, res) => {
+    try {
+      const { watchlistHistoryService } = await import('./watchlist-history-service');
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const stats = await watchlistHistoryService.getSymbolStats(req.params.symbol, year);
+      if (!stats) {
+        return res.json({ message: "No history found for this symbol" });
+      }
+      res.json(stats);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/history/:symbol/stats' });
+      res.status(500).json({ error: "Failed to fetch symbol stats" });
+    }
+  });
+
+  // Get multi-year comparison
+  app.get("/api/watchlist/history/:symbol/years", async (req, res) => {
+    try {
+      const { watchlistHistoryService } = await import('./watchlist-history-service');
+      const comparison = await watchlistHistoryService.getMultiYearComparison(req.params.symbol);
+      res.json(comparison);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/history/:symbol/years' });
+      res.status(500).json({ error: "Failed to fetch year comparison" });
+    }
+  });
+
+  // Force snapshot for all watchlist items (admin only)
+  app.post("/api/watchlist/history/snapshot", requireAdminJWT, async (_req, res) => {
+    try {
+      const { watchlistHistoryService } = await import('./watchlist-history-service');
+      const result = await watchlistHistoryService.takeAllSnapshots();
+      res.json({
+        message: `Created ${result.success} snapshots (${result.failed} failed)`,
+        ...result
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/history/snapshot' });
+      res.status(500).json({ error: "Failed to take snapshots" });
+    }
+  });
+
+  // ============================================
+  // Symbol Notes Routes
+  // ============================================
+  
+  // Get notes for a symbol
+  app.get("/api/symbol-notes/:symbol", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || 'anonymous';
+      const notes = await storage.getSymbolNotes(req.params.symbol, userId);
+      res.json(notes);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/symbol-notes/:symbol' });
+      res.status(500).json({ error: "Failed to fetch notes" });
+    }
+  });
+
+  // Create a note
+  app.post("/api/symbol-notes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const note = await storage.createSymbolNote({
+        ...req.body,
+        userId,
+      });
+      res.json(note);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/symbol-notes' });
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  // Update a note
+  app.patch("/api/symbol-notes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      const existingNote = await storage.getSymbolNoteById(req.params.id);
+      if (!existingNote) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (existingNote.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to update this note" });
+      }
+      const updated = await storage.updateSymbolNote(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      logError(error as Error, { context: 'PATCH /api/symbol-notes/:id' });
+      res.status(500).json({ error: "Failed to update note" });
+    }
+  });
+
+  // Delete a note
+  app.delete("/api/symbol-notes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      const existingNote = await storage.getSymbolNoteById(req.params.id);
+      if (!existingNote) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      if (existingNote.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to delete this note" });
+      }
+      await storage.deleteSymbolNote(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      logError(error as Error, { context: 'DELETE /api/symbol-notes/:id' });
+      res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
   // Generate trade ideas from elite (S/A tier) watchlist setups
   app.post("/api/watchlist/generate-elite-ideas", isAuthenticated, async (req: any, res) => {
     try {

@@ -520,6 +520,73 @@ export const insertPremiumHistorySchema = createInsertSchema(premiumHistory).omi
 export type InsertPremiumHistory = z.infer<typeof insertPremiumHistorySchema>;
 export type PremiumHistoryRecord = typeof premiumHistory.$inferSelect;
 
+// Watchlist History - Daily snapshots for year-long grade/price tracking
+export const watchlistHistory = pgTable("watchlist_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  watchlistId: varchar("watchlist_id").notNull(), // Link to watchlist item
+  symbol: text("symbol").notNull(),
+  
+  // Snapshot date
+  snapshotDate: text("snapshot_date").notNull(), // YYYY-MM-DD
+  year: integer("year").notNull(), // For year-over-year queries
+  
+  // Grade snapshot
+  gradeScore: real("grade_score"), // 0-100 quantitative score
+  gradeLetter: text("grade_letter"), // A+, A, A-, B+, B, etc.
+  tier: text("tier").$type<'S' | 'A' | 'B' | 'C' | 'D' | 'F'>(),
+  confidenceScore: real("confidence_score"), // Confluence confidence 0-100
+  
+  // Price snapshot
+  price: real("price").notNull(),
+  priceChange: real("price_change"), // % change from previous day
+  volume: real("volume"), // Daily volume
+  
+  // Technical indicators snapshot (for analysis)
+  technicalSnapshot: text("technical_snapshot"), // JSON: { rsi, adx, macd, atr, etc. }
+  
+  // Event markers
+  hasEarnings: boolean("has_earnings").default(false),
+  hasNews: boolean("has_news").default(false),
+  hasTrade: boolean("has_trade").default(false), // Did user trade this symbol on this day?
+  hasNote: boolean("has_note").default(false), // Does user have a note for this date?
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWatchlistHistorySchema = createInsertSchema(watchlistHistory).omit({ id: true, createdAt: true });
+export type InsertWatchlistHistory = z.infer<typeof insertWatchlistHistorySchema>;
+export type WatchlistHistoryRecord = typeof watchlistHistory.$inferSelect;
+
+// Symbol Notes - Personal annotations and research notes
+export const symbolNotes = pgTable("symbol_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  symbol: text("symbol").notNull(),
+  watchlistId: varchar("watchlist_id"), // Optional link to specific watchlist entry
+  
+  // Note content
+  content: text("content").notNull(),
+  tags: text("tags").array(), // ["breakout", "catalyst", "earnings"]
+  
+  // Note type
+  noteType: text("note_type").$type<'user' | 'ai_generated' | 'system'>().default('user'),
+  
+  // Privacy
+  isPrivate: boolean("is_private").default(true),
+  
+  // Linked events
+  linkedEventType: text("linked_event_type"), // 'trade', 'catalyst', 'grade_change', 'price_alert'
+  linkedEventId: varchar("linked_event_id"), // ID of linked trade, catalyst, etc.
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSymbolNoteSchema = createInsertSchema(symbolNotes).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertSymbolNote = z.infer<typeof insertSymbolNoteSchema>;
+export type SymbolNote = typeof symbolNotes.$inferSelect;
+
 // Catalyst/News
 export const catalysts = pgTable("catalysts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
