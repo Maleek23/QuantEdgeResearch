@@ -94,6 +94,8 @@ import {
 } from './multi-factor-analysis';
 import { getMarketContext, getTradingSession } from './market-context-service';
 import { historicalIntelligenceService } from './historical-intelligence-service';
+import { WinRateService } from './win-rate-service';
+import { CANONICAL_WIN_THRESHOLD } from '@shared/constants';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
 
@@ -5597,72 +5599,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      // Overall stats
-      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0);
-      const losses = closedPositions.filter(p => (p.realizedPnL || 0) <= 0);
+      // UNIFIED WIN RATE CALCULATION - Using WinRateService for consistency
+      // Win: realizedPnLPercent >= +3% (or positive P&L if no percent)
+      // Loss: realizedPnLPercent <= -3% (or negative P&L if no percent)
+      // Neutral: breakeven or missing data - excluded from win rate
+      const overallStats = WinRateService.calculateBotStats(closedPositions);
       const totalPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
-      const avgWin = wins.length > 0 ? wins.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / wins.length : 0;
-      const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / losses.length) : 0;
 
-      // Weekly stats (use exitTime OR closedAt)
+      // Weekly stats using unified calculation
       const weeklyPositions = closedPositions.filter(p => {
         const closeDate = new Date(p.exitTime || p.closedAt);
         return closeDate >= weekAgo;
       });
-      const weeklyWins = weeklyPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const weeklyStats = WinRateService.calculateBotStats(weeklyPositions);
       const weeklyPnL = weeklyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
 
-      // Monthly stats (use exitTime OR closedAt)
+      // Monthly stats using unified calculation
       const monthlyPositions = closedPositions.filter(p => {
         const closeDate = new Date(p.exitTime || p.closedAt);
         return closeDate >= monthAgo;
       });
-      const monthlyWins = monthlyPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const monthlyStats = WinRateService.calculateBotStats(monthlyPositions);
       const monthlyPnL = monthlyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
 
-      // Symbol leaderboard
-      const symbolStats: Record<string, { trades: number; wins: number; pnl: number }> = {};
+      // Symbol leaderboard with unified win classification
+      const symbolStats: Record<string, { trades: number; wins: number; losses: number; pnl: number }> = {};
       for (const pos of closedPositions) {
         const symbol = pos.symbol;
         if (!symbolStats[symbol]) {
-          symbolStats[symbol] = { trades: 0, wins: 0, pnl: 0 };
+          symbolStats[symbol] = { trades: 0, wins: 0, losses: 0, pnl: 0 };
         }
         symbolStats[symbol].trades++;
-        if ((pos.realizedPnL || 0) > 0) symbolStats[symbol].wins++;
+        // Use percentage-based win/loss (consistent with WinRateService)
+        const pnlPct = pos.realizedPnLPercent;
+        if (pnlPct !== null && pnlPct !== undefined) {
+          if (pnlPct >= CANONICAL_WIN_THRESHOLD) symbolStats[symbol].wins++;
+          else if (pnlPct <= -CANONICAL_WIN_THRESHOLD) symbolStats[symbol].losses++;
+        } else if ((pos.realizedPnL || 0) > 0) {
+          symbolStats[symbol].wins++;
+        } else if ((pos.realizedPnL || 0) < 0) {
+          symbolStats[symbol].losses++;
+        }
         symbolStats[symbol].pnl += pos.realizedPnL || 0;
       }
 
       const topSymbols = Object.entries(symbolStats)
-        .map(([symbol, stats]) => ({
-          symbol,
-          trades: stats.trades,
-          winRate: stats.trades > 0 ? (stats.wins / stats.trades) * 100 : 0,
-          pnl: stats.pnl,
-        }))
+        .map(([symbol, stats]) => {
+          const decided = stats.wins + stats.losses;
+          return {
+            symbol,
+            trades: stats.trades,
+            winRate: decided > 0 ? (stats.wins / decided) * 100 : 0,
+            pnl: stats.pnl,
+          };
+        })
         .sort((a, b) => b.pnl - a.pnl)
         .slice(0, 5);
 
       res.json({
         overall: {
           totalTrades: closedPositions.length,
-          wins: wins.length,
-          losses: losses.length,
-          winRate: closedPositions.length > 0 ? (wins.length / closedPositions.length) * 100 : 0,
+          wins: overallStats.wins,
+          losses: overallStats.losses,
+          neutral: overallStats.neutral,
+          decided: overallStats.decided,
+          winRate: overallStats.winRate,
           totalPnL,
-          avgWin,
-          avgLoss,
+          avgWin: overallStats.avgWinPct,
+          avgLoss: overallStats.avgLossPct,
+          expectancy: overallStats.expectancy,
         },
         weekly: {
           trades: weeklyPositions.length,
-          winRate: weeklyPositions.length > 0 ? (weeklyWins.length / weeklyPositions.length) * 100 : 0,
+          wins: weeklyStats.wins,
+          losses: weeklyStats.losses,
+          winRate: weeklyStats.winRate,
           pnl: weeklyPnL,
         },
         monthly: {
           trades: monthlyPositions.length,
-          winRate: monthlyPositions.length > 0 ? (monthlyWins.length / monthlyPositions.length) * 100 : 0,
+          wins: monthlyStats.wins,
+          losses: monthlyStats.losses,
+          winRate: monthlyStats.winRate,
           pnl: monthlyPnL,
         },
         topSymbols,
+        methodology: {
+          winThreshold: `>=${CANONICAL_WIN_THRESHOLD}% P&L`,
+          lossThreshold: `<=-${CANONICAL_WIN_THRESHOLD}% P&L`,
+          note: 'Breakeven trades (|P&L| < 3%) excluded from win rate calculation',
+        },
       });
     } catch (error) {
       logger.error("Failed to get performance summary:", error);
@@ -6234,6 +6260,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Stats error:", error);
       res.status(500).json({ error: "Failed to fetch performance stats" });
+    }
+  });
+
+  // ============================================================
+  // UNIFIED WIN RATE ENDPOINT - Single Source of Truth
+  // Uses WinRateService for consistent calculations across platform
+  // ============================================================
+  app.get("/api/performance/unified-win-rate", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      const filters = {
+        startDate: req.query.startDate as string | undefined,
+        endDate: req.query.endDate as string | undefined,
+        source: req.query.source as string | undefined,
+        assetType: req.query.assetType as string | undefined,
+        includeOptions: req.query.includeOptions === 'true',
+        includeAllVersions: req.query.includeAllVersions === 'true',
+      };
+      
+      const stats = WinRateService.calculate(allIdeas, filters);
+      
+      res.json({
+        success: true,
+        ...stats,
+        _meta: {
+          endpoint: '/api/performance/unified-win-rate',
+          description: 'Canonical win rate calculation using WinRateService',
+          timestamp: new Date().toISOString(),
+        }
+      });
+    } catch (error) {
+      logger.error("Unified win rate error:", error);
+      res.status(500).json({ error: "Failed to calculate unified win rate" });
     }
   });
 
