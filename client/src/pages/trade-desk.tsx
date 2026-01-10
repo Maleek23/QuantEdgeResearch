@@ -546,24 +546,28 @@ function MarketMoversCard() {
             <p className="text-xs mt-1">Try refreshing the page</p>
           </div>
         ) : displayData.length > 0 ? (
-          <div className="space-y-1.5" data-testid={`movers-list-${tab}`}>
-            {displayData.slice(0, 8).map((stock, idx) => (
+          <div className="space-y-2" data-testid={`movers-list-${tab}`}>
+            {displayData.slice(0, 6).map((stock, idx) => (
               <div 
                 key={stock.symbol} 
-                className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30 hover-elevate cursor-pointer"
+                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
                 data-testid={`mover-row-${stock.symbol}-${idx}`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="w-5 text-center text-xs text-muted-foreground font-mono">{idx + 1}</span>
-                  <div>
-                    <span className="font-mono font-semibold text-sm" data-testid={`text-symbol-${stock.symbol}`}>{stock.symbol}</span>
-                    <p className="text-xs text-muted-foreground truncate max-w-[120px]">{stock.name}</p>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold">{idx + 1}</span>
+                  <div className="min-w-0">
+                    <span className="font-mono font-bold text-base" data-testid={`text-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                    {stock.volumeRatio > 1.5 && (
+                      <Badge variant="outline" className="ml-2 text-xs border-amber-500/30 text-amber-400">
+                        {stock.volumeRatio.toFixed(1)}x vol
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono text-sm" data-testid={`text-price-${stock.symbol}`}>${stock.price.toFixed(2)}</span>
+                <div className="text-right flex-shrink-0">
+                  <span className="font-mono text-base font-medium" data-testid={`text-price-${stock.symbol}`}>${stock.price.toFixed(2)}</span>
                   <p className={cn(
-                    "text-xs font-mono font-semibold",
+                    "text-sm font-mono font-bold",
                     stock.changePercent > 0 ? "text-green-400" : "text-red-400"
                   )} data-testid={`text-change-${stock.symbol}`}>
                     {stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(1)}%
