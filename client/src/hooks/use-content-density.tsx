@@ -47,29 +47,24 @@ export function ContentDensityProvider({
   );
 }
 
+const defaultDensityValue: ContentDensityContextValue = {
+  density: 'standard',
+  setDensity: () => {},
+  isMinimal: false,
+  isStandard: true,
+  isDetailed: false,
+  collapseAll: () => {},
+  expandAll: () => {},
+  getDefaultDensity: (userType: UserType): ContentDensity => {
+    if (userType === 'beginner') return 'detailed';
+    if (userType === 'intermediate') return 'standard';
+    return 'minimal';
+  },
+};
+
 export function useContentDensity() {
   const context = useContext(ContentDensityContext);
-  
-  if (!context) {
-    const [density, setDensity] = useState<ContentDensity>('standard');
-    
-    return {
-      density,
-      setDensity,
-      isMinimal: density === 'minimal',
-      isStandard: density === 'standard',
-      isDetailed: density === 'detailed',
-      collapseAll: () => setDensity('minimal'),
-      expandAll: () => setDensity('detailed'),
-      getDefaultDensity: (userType: UserType): ContentDensity => {
-        if (userType === 'beginner') return 'detailed';
-        if (userType === 'intermediate') return 'standard';
-        return 'minimal';
-      },
-    };
-  }
-  
-  return context;
+  return context ?? defaultDensityValue;
 }
 
 export function DensityControl({ className }: { className?: string }) {
@@ -78,6 +73,7 @@ export function DensityControl({ className }: { className?: string }) {
   return (
     <div className={`flex space-x-1 bg-slate-800/50 rounded p-1 ${className || ''}`}>
       <button
+        data-testid="button-density-minimal"
         onClick={() => setDensity('minimal')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'minimal' 
@@ -88,6 +84,7 @@ export function DensityControl({ className }: { className?: string }) {
         Minimal
       </button>
       <button
+        data-testid="button-density-standard"
         onClick={() => setDensity('standard')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'standard' 
@@ -98,6 +95,7 @@ export function DensityControl({ className }: { className?: string }) {
         Standard
       </button>
       <button
+        data-testid="button-density-detailed"
         onClick={() => setDensity('detailed')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'detailed' 

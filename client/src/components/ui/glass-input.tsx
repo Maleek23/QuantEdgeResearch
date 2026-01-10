@@ -28,9 +28,9 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
     ...props 
   }, ref) => {
     const sizeClasses = {
-      sm: "h-8 text-xs px-3",
-      default: "h-10 text-sm px-4",
-      lg: "h-12 text-base px-5",
+      sm: "min-h-8 text-xs py-1.5",
+      default: "min-h-9 text-sm py-2",
+      lg: "min-h-10 text-base py-2.5",
     };
 
     const variantClasses = {
