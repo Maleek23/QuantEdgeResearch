@@ -339,7 +339,8 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">First Name</FormLabel>
                           <FormControl>
                             <Input 
-                              className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                              className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
+                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                               data-testid="input-first-name"
                               autoComplete="off"
                               {...field}
@@ -358,7 +359,8 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Last Name</FormLabel>
                           <FormControl>
                             <Input 
-                              className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                              className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
+                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                               data-testid="input-last-name"
                               autoComplete="off"
                               {...field}
@@ -376,11 +378,12 @@ export default function JoinBeta() {
                     name="occupation"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-neutral-300">Occupation</FormLabel>
+                        <FormLabel className="text-neutral-300">Occupation (Optional)</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g. Software Engineer"
-                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                            className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
+                            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                             data-testid="input-occupation"
                             {...field}
                             autoComplete="off"
@@ -520,11 +523,12 @@ export default function JoinBeta() {
                     name="referralSource"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-neutral-300">How did you find us?</FormLabel>
+                        <FormLabel className="text-neutral-300">How did you find us? (Optional)</FormLabel>
                         <FormControl>
                           <Input 
                             placeholder="e.g. Twitter, friend referral"
-                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                            className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
+                            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                             data-testid="input-referral"
                             autoComplete="off"
                             {...field}
@@ -551,7 +555,8 @@ export default function JoinBeta() {
                             <FormControl>
                               <Input 
                                 type="password"
-                                className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                                className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
+                                style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                                 data-testid="input-password"
                                 autoComplete="new-password"
                                 {...field}
@@ -571,7 +576,8 @@ export default function JoinBeta() {
                             <FormControl>
                               <Input 
                                 type="password"
-                                className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400 [&:-webkit-autofill]:bg-neutral-900 [&:-webkit-autofill]:text-white [&:-webkit-autofill]:[box-shadow:0_0_0_1000px_rgb(23_23_23)_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                                className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
+                                style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                                 data-testid="input-confirm-password"
                                 autoComplete="new-password"
                                 {...field}
