@@ -482,6 +482,21 @@ export const watchlist = pgTable("watchlist", {
   premiumAlertThreshold: real("premium_alert_threshold"), // Alert when premium drops below this
   avgPremium: real("avg_premium"), // Rolling average premium for comparison
   premiumPercentile: real("premium_percentile"), // Current premium percentile (lower = cheaper opportunity)
+  
+  // Year-Long Research Tracking (Elite Setups V2.0)
+  initialScore: real("initial_score"), // Score when first added to watchlist
+  initialTier: text("initial_tier").$type<'S' | 'A' | 'B' | 'C' | 'D' | 'F'>(), // Tier when first added
+  addedReason: text("added_reason"), // Why symbol was added (e.g., "Volume surge", "AI catalyst")
+  priceSinceAdded: real("price_since_added"), // % change since added to watchlist
+  timesTraded: integer("times_traded").default(0), // Count of trades taken on this symbol
+  timesWon: integer("times_won").default(0), // Count of winning trades
+  totalPnl: real("total_pnl").default(0), // Cumulative P&L on this symbol
+  avgReturn: real("avg_return"), // Average return % per trade
+  personalEdgeBoost: real("personal_edge_boost"), // Confidence boost based on personal win rate (+/- points)
+  lastTradedAt: text("last_traded_at"), // When user last traded this symbol
+  notesCount: integer("notes_count").default(0), // Count of research notes for this symbol
+  nextCatalyst: text("next_catalyst"), // Upcoming catalyst (e.g., "Earnings Jan 30")
+  nextCatalystDate: text("next_catalyst_date"), // YYYY-MM-DD of next catalyst
 });
 
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });
