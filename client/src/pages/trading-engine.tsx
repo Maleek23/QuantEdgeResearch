@@ -102,6 +102,16 @@ interface TradingEngineResult {
     riskSentiment: string;
     shouldTrade: boolean;
   };
+  newsContext?: {
+    hasRecentNews: boolean;
+    sentimentScore: number;
+    sentimentLabel: string;
+    topHeadlines: string[];
+    keyTopics: string[];
+    catalysts: string[];
+    convictionAdjustment: number;
+    warnings: string[];
+  } | null;
 }
 
 type AssetClass = 'stock' | 'options' | 'futures' | 'crypto';
@@ -488,6 +498,87 @@ function TradeStructurePanel({ data }: { data: TradingEngineResult['tradeStructu
   );
 }
 
+function NewsPanel({ data }: { data: TradingEngineResult['newsContext'] }) {
+  if (!data || !data.hasRecentNews) return null;
+
+  const getSentimentColor = (score: number) => {
+    if (score > 0.2) return 'text-green-400';
+    if (score < -0.2) return 'text-red-400';
+    return 'text-muted-foreground';
+  };
+
+  const getSentimentBg = (score: number) => {
+    if (score > 0.2) return 'bg-green-500/10 border-green-500/30';
+    if (score < -0.2) return 'bg-red-500/10 border-red-500/30';
+    return 'bg-muted/30 border-border/50';
+  };
+
+  return (
+    <Card className={cn("border", getSentimentBg(data.sentimentScore))}>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-400" />
+            News & Sentiment
+          </div>
+          <Badge variant="outline" className={cn("text-xs", getSentimentColor(data.sentimentScore))}>
+            {data.sentimentLabel} ({data.sentimentScore > 0 ? '+' : ''}{data.sentimentScore.toFixed(2)})
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {data.convictionAdjustment !== 0 && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Conviction Impact:</span>
+            <Badge variant="outline" className={cn(
+              data.convictionAdjustment > 0 ? 'text-green-400 border-green-400/50' : 'text-red-400 border-red-400/50'
+            )}>
+              {data.convictionAdjustment > 0 ? '+' : ''}{data.convictionAdjustment} pts
+            </Badge>
+          </div>
+        )}
+
+        {data.topHeadlines.length > 0 && (
+          <div>
+            <span className="text-xs text-muted-foreground">Recent Headlines</span>
+            <div className="mt-1.5 space-y-1.5">
+              {data.topHeadlines.slice(0, 3).map((headline, i) => (
+                <div key={i} className="text-xs text-foreground/80 line-clamp-2 pl-2 border-l-2 border-primary/30">
+                  {headline}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.catalysts.length > 0 && (
+          <div>
+            <span className="text-xs text-muted-foreground">Detected Catalysts</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {data.catalysts.map((catalyst, i) => (
+                <Badge key={i} variant="outline" className="text-xs text-amber-400 border-amber-400/50">
+                  {catalyst}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.warnings.length > 0 && (
+          <div className="pt-2 border-t border-border/50">
+            {data.warnings.map((warning, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-amber-400">
+                <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                {warning}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface SymbolLossData {
   symbol: string;
   confidenceBoost: number;
@@ -684,6 +775,8 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
         <FundamentalPanel data={data.fundamental} />
         <TechnicalPanel data={data.technical} />
       </div>
+
+      {data.newsContext && <NewsPanel data={data.newsContext} />}
 
       {data.tradeStructure && <TradeStructurePanel data={data.tradeStructure} />}
     </div>
