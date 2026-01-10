@@ -340,9 +340,8 @@ export default function JoinBeta() {
                           <FormControl>
                             <Input 
                               className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                               data-testid="input-first-name"
-                              autoComplete="off"
+                              autoComplete="given-name"
                               {...field}
                               value={field.value || ''}
                             />
@@ -360,9 +359,8 @@ export default function JoinBeta() {
                           <FormControl>
                             <Input 
                               className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                              style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                               data-testid="input-last-name"
-                              autoComplete="off"
+                              autoComplete="family-name"
                               {...field}
                               value={field.value || ''}
                             />
@@ -383,14 +381,11 @@ export default function JoinBeta() {
                           <Input 
                             placeholder="e.g. Software Engineer"
                             className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
-                            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                             data-testid="input-occupation"
+                            autoComplete="organization-title"
+                            data-form-type="other"
+                            data-lpignore="true"
                             {...field}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck="false"
-                            name="user-occupation-field"
                             value={field.value || ''}
                             onChange={(e) => {
                               // Reject values that look like tokens (hex strings > 20 chars)
@@ -528,9 +523,9 @@ export default function JoinBeta() {
                           <Input 
                             placeholder="e.g. Twitter, friend referral"
                             className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
-                            style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                             data-testid="input-referral"
                             autoComplete="off"
+                            data-lpignore="true"
                             {...field}
                             value={field.value || ''}
                           />
@@ -556,7 +551,6 @@ export default function JoinBeta() {
                               <Input 
                                 type="password"
                                 className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                                style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                                 data-testid="input-password"
                                 autoComplete="new-password"
                                 {...field}
@@ -577,7 +571,6 @@ export default function JoinBeta() {
                               <Input 
                                 type="password"
                                 className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                                style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
                                 data-testid="input-confirm-password"
                                 autoComplete="new-password"
                                 {...field}
