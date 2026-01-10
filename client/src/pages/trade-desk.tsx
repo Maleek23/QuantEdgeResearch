@@ -27,6 +27,7 @@ import {
   Target, 
   Shield, 
   Clock, 
+  ChevronLeft,
   ChevronRight, 
   Filter, 
   Search,
@@ -637,14 +638,14 @@ export default function TradeDeskPage() {
   const [visibleCount, setVisibleCount] = useState(50);
   
   // Per-group pagination for Active Research accordion
-  const [groupVisibleCount, setGroupVisibleCount] = useState<Record<string, number>>({});
-  const ITEMS_PER_GROUP = 20;
+  const [groupPage, setGroupPage] = useState<Record<string, number>>({});
+  const ITEMS_PER_PAGE = 20;
   
   
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-    setGroupVisibleCount({});
+    setGroupPage({});
   }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, dateFilter, customDate]);
   
   const { toast } = useToast();
@@ -1957,10 +1958,11 @@ export default function TradeDeskPage() {
                       const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
                       
                       const stats = calculateGroupStats(ideas);
-                      const visibleInGroup = groupVisibleCount[assetType] || ITEMS_PER_GROUP;
-                      const visibleIdeas = ideas.slice(0, visibleInGroup);
-                      const hasMore = ideas.length > visibleInGroup;
-                      const remaining = ideas.length - visibleInGroup;
+                      const currentPage = groupPage[assetType] || 1;
+                      const totalPages = Math.ceil(ideas.length / ITEMS_PER_PAGE);
+                      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+                      const endIdx = startIdx + ITEMS_PER_PAGE;
+                      const pageIdeas = ideas.slice(startIdx, endIdx);
                       
                       return (
                         <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
@@ -1979,7 +1981,7 @@ export default function TradeDeskPage() {
                           </AccordionTrigger>
                           <AccordionContent className="px-4 pb-4">
                             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}>
-                              {visibleIdeas.map(idea => (
+                              {pageIdeas.map(idea => (
                                 <TradeIdeaBlock
                                   key={idea.id}
                                   idea={idea}
@@ -1993,20 +1995,62 @@ export default function TradeDeskPage() {
                                 />
                               ))}
                             </div>
-                            {hasMore && (
-                              <div className="pt-4 text-center">
+                            {/* Numbered Pagination */}
+                            {totalPages > 1 && (
+                              <div className="pt-4 flex items-center justify-center gap-1">
+                                <span className="text-xs text-muted-foreground mr-2 font-mono">
+                                  {startIdx + 1}-{Math.min(endIdx, ideas.length)} of {ideas.length}
+                                </span>
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => setGroupVisibleCount(prev => ({
-                                    ...prev,
-                                    [assetType]: (prev[assetType] || ITEMS_PER_GROUP) + ITEMS_PER_GROUP
-                                  }))}
-                                  className="gap-2"
-                                  data-testid={`button-load-more-${assetType}`}
+                                  onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: Math.max(1, currentPage - 1) }))}
+                                  disabled={currentPage === 1}
+                                  className="h-8 w-8 p-0"
+                                  data-testid={`button-prev-${assetType}`}
                                 >
-                                  <ChevronDown className="h-4 w-4" />
-                                  Load More ({remaining} remaining)
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {(() => {
+                                  const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = [];
+                                  if (totalPages <= 7) {
+                                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                  } else {
+                                    pages.push(1);
+                                    if (currentPage > 4) pages.push('ellipsis-start');
+                                    const start = Math.max(2, currentPage - 1);
+                                    const end = Math.min(totalPages - 1, currentPage + 1);
+                                    for (let i = start; i <= end; i++) pages.push(i);
+                                    if (currentPage < totalPages - 3) pages.push('ellipsis-end');
+                                    pages.push(totalPages);
+                                  }
+                                  return pages.map((p, idx) => {
+                                    if (p === 'ellipsis-start' || p === 'ellipsis-end') {
+                                      return <span key={p} className="text-muted-foreground px-1">...</span>;
+                                    }
+                                    return (
+                                      <Button
+                                        key={p}
+                                        variant={currentPage === p ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: p }))}
+                                        className="h-8 w-8 p-0 font-mono text-sm"
+                                        data-testid={`button-page-${assetType}-${p}`}
+                                      >
+                                        {p}
+                                      </Button>
+                                    );
+                                  });
+                                })()}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: Math.min(totalPages, currentPage + 1) }))}
+                                  disabled={currentPage === totalPages}
+                                  className="h-8 w-8 p-0"
+                                  data-testid={`button-next-${assetType}`}
+                                >
+                                  <ChevronRight className="h-4 w-4" />
                                 </Button>
                               </div>
                             )}
@@ -2017,18 +2061,6 @@ export default function TradeDeskPage() {
                 </Accordion>
               )}
 
-              {/* Load More */}
-              {displayIdeas.length > 0 && visibleCount < displayIdeas.length && (
-                <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setVisibleCount(prev => prev + 50)}
-                    data-testid="button-load-more"
-                  >
-                    Load more ({Math.min(50, displayIdeas.length - visibleCount)} remaining)
-                  </Button>
-                </div>
-              )}
             </div>
 
             {/* Performance Summary */}
