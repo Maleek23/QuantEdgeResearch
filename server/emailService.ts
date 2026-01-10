@@ -49,32 +49,41 @@ export async function sendBetaInviteEmail(
     ? `<span style="background: #262626; color: #22d3ee; padding: 6px 14px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">${options.tierOverride} Access</span>`
     : '';
 
+  const unsubscribeUrl = `${APP_URL}/unsubscribe?email=${encodeURIComponent(email)}`;
+  const unsubscribeMailto = 'unsubscribe@quantedgelabs.net';
+  
   try {
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       replyTo: 'support@quantedgelabs.net',
       to: email,
-      subject: `Your invitation to ${APP_NAME}`,
+      subject: `Beta access for ${APP_NAME}`,
       headers: {
-        'List-Unsubscribe': '<mailto:unsubscribe@quantedgelabs.net>',
-        'X-Priority': '3',
+        'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:${unsubscribeMailto}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'List-ID': `<beta.quantedgelabs.net>`,
+        'Precedence': 'bulk',
+        'X-Auto-Response-Suppress': 'OOF, AutoReply',
       },
-      text: `You've been invited to join ${APP_NAME}!
+      text: `Hello,
 
-Congratulations! You've been selected to join the exclusive beta of ${APP_NAME} — an institutional-grade quantitative trading research platform.
+You have been invited to join ${APP_NAME}, a quantitative trading research platform for educational purposes.
 
-${options?.personalMessage ? `Personal Message: "${options.personalMessage}"\n\n` : ''}
-Accept your invitation here: ${inviteLink}
+${options?.personalMessage ? `Note: ${options.personalMessage}\n\n` : ''}Your access link: ${inviteLink}
 
-What you'll get access to:
-- AI-Powered Market Analysis (Claude, GPT-4, Gemini)
-- Quantitative Signal Engine (RSI, VWAP, ADX)
-- Real-Time Chart Analysis & Pattern Recognition
-- Professional Trading Journal & Analytics
+Platform features:
+- Market analysis tools
+- Technical indicators (RSI, VWAP, ADX)
+- Chart pattern detection
+- Trading journal
 
-This invite expires in 7 days. Questions? Join our Discord community at https://discord.gg/3QF8QEKkYq
+This link expires in 7 days.
 
-${APP_NAME} - For Educational & Research Purposes Only
+---
+${APP_NAME}
+For educational and research purposes only.
+
+To stop receiving emails: ${unsubscribeUrl}
 `,
       html: `
 <!DOCTYPE html>
@@ -120,17 +129,17 @@ ${APP_NAME} - For Educational & Research Purposes Only
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px;">
                   <tr>
                     <td align="center">
-                      <span style="display: inline-block; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); color: #22d3ee; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;">EXCLUSIVE BETA ACCESS</span>
+                      <span style="display: inline-block; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); color: #22d3ee; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;">BETA ACCESS</span>
                     </td>
                   </tr>
                 </table>
                 
                 <!-- Header -->
                 <h1 style="color: #fafafa; font-size: 26px; font-weight: 600; margin: 0 0 8px; text-align: center;">
-                  You're Invited
+                  Platform Access
                 </h1>
                 <p style="color: #737373; font-size: 14px; margin: 0 0 28px; text-align: center;">
-                  Join our quantitative trading research platform.
+                  Your account for Quant Edge Labs is ready.
                 </p>
                 
                 ${tierBadge ? `<div style="text-align: center; margin-bottom: 24px;">${tierBadge}</div>` : ''}
@@ -210,8 +219,14 @@ ${APP_NAME} - For Educational & Research Purposes Only
           <!-- Footer -->
           <tr>
             <td style="padding: 24px 0 0; text-align: center;">
-              <p style="color: #525252; font-size: 11px; margin: 0;">
-                Invite expires in 7 days • For research purposes only
+              <p style="color: #525252; font-size: 11px; margin: 0 0 8px;">
+                This link expires in 7 days.
+              </p>
+              <p style="color: #404040; font-size: 10px; margin: 0 0 8px;">
+                ${APP_NAME} • For educational and research purposes only
+              </p>
+              <p style="color: #404040; font-size: 10px; margin: 0;">
+                <a href="${unsubscribeUrl}" style="color: #525252; text-decoration: underline;">Unsubscribe</a>
               </p>
             </td>
           </tr>

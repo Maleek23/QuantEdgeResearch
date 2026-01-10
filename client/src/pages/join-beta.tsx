@@ -382,9 +382,22 @@ export default function JoinBeta() {
                             placeholder="e.g. Software Engineer"
                             className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
                             data-testid="input-occupation"
-                            autoComplete="off"
                             {...field}
+                            autoComplete="new-password"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            name="user-occupation-field"
                             value={field.value || ''}
+                            onChange={(e) => {
+                              // Reject values that look like tokens (hex strings > 20 chars)
+                              const val = e.target.value;
+                              if (val && /^[a-f0-9]{20,}$/i.test(val)) {
+                                field.onChange('');
+                              } else {
+                                field.onChange(val);
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
