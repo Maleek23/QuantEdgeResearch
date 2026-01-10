@@ -38,7 +38,7 @@ export interface NewsContext {
  * Analyze news context for a symbol
  * Returns sentiment, catalysts, and conviction adjustment
  */
-async function getNewsContext(symbol: string): Promise<NewsContext> {
+export async function getNewsContext(symbol: string): Promise<NewsContext> {
   const result: NewsContext = {
     hasRecentNews: false,
     sentimentScore: 0,

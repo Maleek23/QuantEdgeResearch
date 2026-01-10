@@ -4,6 +4,7 @@ import { InsertTradeIdea } from "@shared/schema";
 import { v4 as uuidv4 } from "uuid";
 import { getTradierQuote } from "./tradier-api";
 import { getLetterGrade } from "./grading";
+import { getNewsContext, NewsContext } from "./trading-engine";
 
 /**
  * UNIVERSAL TRADE IDEA GENERATOR
@@ -558,6 +559,33 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     const mlEnhancement = await getMLConfidenceEnhancement(input.symbol, input.direction);
     confidence = Math.max(0, Math.min(100, confidence + mlEnhancement.boost));
     
+    // Fetch news context for stocks (not options/crypto/futures)
+    let newsContext: NewsContext | null = null;
+    let newsCatalyst: string | null = null;
+    if (input.assetType === 'stock') {
+      try {
+        newsContext = await getNewsContext(input.symbol);
+        if (newsContext.hasRecentNews) {
+          // Apply news sentiment conviction adjustment (±15 points)
+          confidence = Math.max(0, Math.min(100, confidence + newsContext.convictionAdjustment));
+          
+          // Use real news catalysts and headlines
+          if (newsContext.catalysts.length > 0) {
+            newsCatalyst = newsContext.catalysts.slice(0, 2).join('; ');
+          }
+          if (newsContext.topHeadlines.length > 0) {
+            // Add first headline as context (truncated)
+            const headline = newsContext.topHeadlines[0].slice(0, 100);
+            newsCatalyst = newsCatalyst ? `${newsCatalyst} | ${headline}` : headline;
+          }
+          
+          logger.debug(`[UNIVERSAL] News context for ${input.symbol}: sentiment=${newsContext.sentimentScore}, adj=${newsContext.convictionAdjustment}`);
+        }
+      } catch (err) {
+        logger.debug(`[UNIVERSAL] News context fetch skipped for ${input.symbol}`);
+      }
+    }
+    
     const grade = getLetterGrade(confidence);
     
     // Determine holding period
@@ -627,8 +655,8 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       strikePrice: input.strikePrice || null,
       expiryDate: input.expiryDate || null,
       
-      // Analysis
-      catalyst: input.catalyst || `${getEngineType(input.source)} detected ${input.direction} signal`,
+      // Analysis - use real news catalysts when available
+      catalyst: input.catalyst || newsCatalyst || `${getEngineType(input.source)} detected ${input.direction} signal`,
       analysis,
       qualitySignals: signalDescriptions,
       
