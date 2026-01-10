@@ -242,7 +242,7 @@ export default function JoinBeta() {
             </CardHeader>
             <CardContent className="pb-6">
               <Form {...verifyForm}>
-                <form onSubmit={verifyForm.handleSubmit((data) => verifyMutation.mutate(data))} className="space-y-4">
+                <form onSubmit={verifyForm.handleSubmit((data) => verifyMutation.mutate(data))} className="space-y-4" autoComplete="off">
                   <FormField
                     control={verifyForm.control}
                     name="email"
@@ -256,6 +256,7 @@ export default function JoinBeta() {
                               placeholder="you@example.com" 
                               className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-white"
                               data-testid="input-verify-email"
+                              autoComplete="email"
                               {...field} 
                             />
                           </div>
@@ -278,6 +279,7 @@ export default function JoinBeta() {
                               placeholder="Enter your invite code"
                               className="pl-10 font-mono bg-slate-900 border-slate-700 text-cyan-400 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-cyan-400"
                               data-testid="input-verify-token"
+                              autoComplete="one-time-code"
                               {...field} 
                             />
                           </div>
@@ -328,7 +330,9 @@ export default function JoinBeta() {
             </CardHeader>
             <CardContent className="pb-6">
               <Form {...onboardingForm}>
-                <form onSubmit={onboardingForm.handleSubmit((data) => onboardMutation.mutate(data))} className="space-y-4">
+                <form onSubmit={onboardingForm.handleSubmit((data) => onboardMutation.mutate(data))} className="space-y-4" autoComplete="on">
+                  {/* Hidden username field to signal new account to browser */}
+                  <input type="hidden" name="username" autoComplete="username" value={verifiedEmail} />
                   
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -382,10 +386,10 @@ export default function JoinBeta() {
                             placeholder="e.g. Software Engineer"
                             className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
                             data-testid="input-occupation"
-                            autoComplete="organization-title"
                             data-form-type="other"
                             data-lpignore="true"
                             {...field}
+                            autoComplete="off"
                             value={field.value || ''}
                             onChange={(e) => {
                               // Reject values that look like tokens (hex strings > 20 chars)
