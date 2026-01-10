@@ -4,9 +4,9 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { GlassInput } from "@/components/ui/glass-input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { GlassToggle } from "@/components/ui/glass-toggle";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -195,13 +195,14 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="account-size">Account Size</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
+                  <GlassInput
                     id="account-size"
                     type="number"
                     value={formData.accountSize || 10000}
                     onChange={(e) => updateField('accountSize', parseFloat(e.target.value) || 10000)}
                     className="pl-7"
+                    font="mono"
                     data-testid="input-account-size"
                   />
                 </div>
@@ -222,13 +223,14 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="default-capital">Default Capital Per Trade</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
+                  <GlassInput
                     id="default-capital"
                     type="number"
                     value={formData.defaultCapitalPerIdea || 1000}
                     onChange={(e) => updateField('defaultCapitalPerIdea', parseFloat(e.target.value) || 1000)}
                     className="pl-7"
+                    font="mono"
                     data-testid="input-default-capital"
                   />
                 </div>
@@ -237,13 +239,14 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="options-budget">Options Budget</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
+                  <GlassInput
                     id="options-budget"
                     type="number"
                     value={formData.defaultOptionsBudget || 250}
                     onChange={(e) => updateField('defaultOptionsBudget', parseFloat(e.target.value) || 250)}
                     className="pl-7"
+                    font="mono"
                     data-testid="input-options-budget"
                   />
                 </div>
@@ -349,9 +352,10 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Trade Confirmation</Label>
                   <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                    <Switch
+                    <GlassToggle
                       checked={riskProfile.requireConfirmation}
                       onCheckedChange={(c) => updateRiskProfile({ requireConfirmation: c })}
+                      variant="cyan"
                       data-testid="switch-require-confirmation"
                     />
                     <span className="text-sm">Require manual approval</span>
@@ -386,9 +390,10 @@ export default function SettingsPage() {
                   <div key={indicator.key} className="p-4 rounded-lg border bg-card/50">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <Switch
+                        <GlassToggle
                           checked={data.enabled}
                           onCheckedChange={(c) => updateTechnicalThreshold(indicator.key, { enabled: c })}
+                          variant="green"
                           data-testid={`switch-${indicator.key}-enabled`}
                         />
                         <span className="font-medium">{indicator.name}</span>
@@ -536,9 +541,10 @@ export default function SettingsPage() {
                 ].map(({ field, label }) => (
                   <div key={field} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                     <span className="text-sm">{label}</span>
-                    <Switch
+                    <GlassToggle
                       checked={formData[field] ?? true}
                       onCheckedChange={(c) => updateField(field, c)}
+                      variant="cyan"
                       data-testid={`switch-${field}`}
                     />
                   </div>
@@ -547,11 +553,11 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="discord-webhook">Discord Webhook URL</Label>
-                <Input
+                <GlassInput
                   id="discord-webhook"
                   placeholder="https://discord.com/api/webhooks/..."
                   value={formData.discordWebhookUrl || ''}
-                  onChange={(e) => updateField('discordWebhookUrl', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('discordWebhookUrl', e.target.value)}
                   data-testid="input-discord-webhook"
                 />
               </div>

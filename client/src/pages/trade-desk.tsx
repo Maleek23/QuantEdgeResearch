@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InlineEmptyState } from "@/components/ui/empty-state";
+import { TerminalLoading } from "@/components/ui/terminal-loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -584,11 +586,9 @@ function MarketMoversCard() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-6 text-muted-foreground" data-testid="movers-empty-state">
-            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No market movers found</p>
-            <p className="text-xs mt-1">Check back during market hours</p>
-          </div>
+          <InlineEmptyState 
+            message="No movers found. Check back during market hours." 
+          />
         )}
       </CardContent>
     </Card>
@@ -1152,8 +1152,8 @@ export default function TradeDeskPage() {
             <tbody className="divide-y divide-muted/30">
               {ideas.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground italic">
-                    No active {title.toLowerCase()} found matching filters.
+                  <td colSpan={7} className="px-4 py-6">
+                    <InlineEmptyState message={`No active ${title.toLowerCase()} found matching filters.`} />
                   </td>
                 </tr>
               ) : (
@@ -1869,11 +1869,7 @@ export default function TradeDeskPage() {
       <div className="space-y-8">
         {/* Loading State */}
         {ideasLoading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-xl" data-testid={`skeleton-idea-${i}`} />
-            ))}
-          </div>
+          <TerminalLoading message="Fetching research briefs..." />
         ) : filteredAndSortedIdeas.length === 0 ? (
           <div className="py-16 text-center">
             <h3 className="text-lg font-semibold mb-2">No Research Briefs Found</h3>

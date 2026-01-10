@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatCTTime } from "@/lib/utils";
@@ -1154,17 +1155,18 @@ export default function WatchlistPage() {
 
       {/* Empty State */}
       {watchlistItems.length === 0 && (
-        <Card className="p-12 text-center">
-          <Star className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-          <h3 className="text-lg font-semibold mb-2">No Symbols in Watchlist</h3>
-          <p className="text-muted-foreground mb-4">
-            Add symbols from the Market Overview to start tracking and grading them
-          </p>
-          <Button variant="outline">
-            Go to Market Overview
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </Card>
+        <EmptyState
+          variant="no-data"
+          title="No Symbols in Watchlist"
+          message="Add symbols from the Market Overview to start tracking and grading them."
+          actions={[
+            {
+              label: "Go to Market Overview",
+              onClick: () => window.location.href = "/market",
+              variant: 'primary'
+            }
+          ]}
+        />
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { GlassInput } from "@/components/ui/glass-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -190,10 +190,9 @@ export default function Login() {
                     <FormItem>
                       <FormLabel className="text-slate-300">Email</FormLabel>
                       <FormControl>
-                        <Input
+                        <GlassInput
                           type="email"
                           placeholder="you@example.com"
-                          className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
                           data-testid="input-email"
                           {...field}
                         />
@@ -209,29 +208,23 @@ export default function Login() {
                     <FormItem>
                       <FormLabel className="text-slate-300">Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
-                            data-testid="input-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3"
-                            onClick={() => setShowPassword(!showPassword)}
-                            data-testid="button-toggle-password"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                        <GlassInput
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          data-testid="input-password"
+                          rightIcon={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setShowPassword(!showPassword)}
+                              data-testid="button-toggle-password"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          }
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -305,11 +298,12 @@ export default function Login() {
               
               {showDevLogin && (
                 <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-muted">
-                  <Input
+                  <GlassInput
                     type="password"
                     placeholder="Enter access code"
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value)}
+                    variant="solid"
                     data-testid="input-access-code"
                   />
                   <Button

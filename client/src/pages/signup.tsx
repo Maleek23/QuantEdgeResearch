@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { GlassInput } from "@/components/ui/glass-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -135,7 +135,7 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Invite Code</FormLabel>
                       <FormControl>
-                        <Input
+                        <GlassInput
                           placeholder="Enter your invite code"
                           data-testid="input-invite-code"
                           {...field}
@@ -156,7 +156,7 @@ export default function Signup() {
                       <FormItem>
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input
+                          <GlassInput
                             placeholder="John"
                             data-testid="input-first-name"
                             {...field}
@@ -173,7 +173,7 @@ export default function Signup() {
                       <FormItem>
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input
+                          <GlassInput
                             placeholder="Doe"
                             data-testid="input-last-name"
                             {...field}
@@ -191,7 +191,7 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input
+                        <GlassInput
                           type="email"
                           placeholder="you@example.com"
                           data-testid="input-email"
@@ -209,28 +209,23 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="At least 6 characters"
-                            data-testid="input-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3"
-                            onClick={() => setShowPassword(!showPassword)}
-                            data-testid="button-toggle-password"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                        <GlassInput
+                          type={showPassword ? "text" : "password"}
+                          placeholder="At least 6 characters"
+                          data-testid="input-password"
+                          rightIcon={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setShowPassword(!showPassword)}
+                              data-testid="button-toggle-password"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          }
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -243,28 +238,23 @@ export default function Signup() {
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Confirm your password"
-                            data-testid="input-confirm-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            data-testid="button-toggle-confirm-password"
-                          >
-                            {showConfirmPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                        <GlassInput
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Confirm your password"
+                          data-testid="input-confirm-password"
+                          rightIcon={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              data-testid="button-toggle-confirm-password"
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          }
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

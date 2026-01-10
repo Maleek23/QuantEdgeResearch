@@ -9,6 +9,7 @@ export interface GlassInputProps
   font?: "default" | "mono";
   iconLeft?: LucideIcon;
   iconRight?: LucideIcon;
+  rightIcon?: React.ReactNode;
   error?: string;
   hint?: string;
 }
@@ -22,11 +23,13 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
     font = "default",
     iconLeft: IconLeft,
     iconRight: IconRight,
+    rightIcon,
     error,
     hint,
     disabled,
     ...props 
   }, ref) => {
+    const hasRightContent = IconRight || rightIcon;
     const sizeClasses = {
       sm: "min-h-8 text-xs py-1.5",
       default: "min-h-9 text-sm py-2",
@@ -56,7 +59,7 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
               sizeClasses[inputSize],
               font === "mono" && "font-mono tabular-nums",
               IconLeft && "pl-10",
-              IconRight && "pr-10",
+              hasRightContent && "pr-10",
               error && "border-red-500/60 focus:border-red-500 focus:ring-red-500/20",
               className
             )}
@@ -66,6 +69,11 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
           />
           {IconRight && (
             <IconRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          )}
+          {rightIcon && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              {rightIcon}
+            </div>
           )}
         </div>
         {hint && !error && (
