@@ -1,32 +1,42 @@
-# Quant Edge Labs Design Guidelines v2.0
+# Quant Edge Labs Design Guidelines v3.0
+## Complete Design Consistency Framework
 
-## Brand Identity
 **Tagline**: "Multiple Engines, One Edge"  
 **Mission**: Institutional-grade quantitative research platform combining AI analysis with quantitative validation for transparent, auditable trading research.
 
-## Design Philosophy: Terminal-Institutional
+---
+
+## 1. Design Philosophy: Terminal-Institutional
 
 **Core Aesthetic**: Bloomberg Terminal meets institutional trading floors. Think: multi-monitor trading desks, data-dense displays, surgical precision, zero distractions.
 
-**Guiding Principles**:
+### Guiding Principles
 1. **Information Dominance**: Maximum data visibility, hierarchical clarity
 2. **Monospace Authority**: All numerical data in JetBrains Mono—no exceptions
 3. **Layered Depth**: Strategic glassmorphism creates UI hierarchy without clutter
 4. **Grid Discipline**: 8px base grid, mathematical precision in spacing
-5. **Real-Time Awareness**: Live indicators, status badges, timestamp everywhere
+5. **Real-Time Awareness**: Live indicators, status badges, timestamps everywhere
 6. **Institutional Trust**: Performance transparency, audit trails, compliance-first
+
+### The 3-Question Filter (Ruthless Minimalism)
+Before adding **any** element to **any** page, ask:
+1. **Does this help make a trading decision?** (If no, remove)
+2. **Is this data displayed in monospace?** (If no, fix)
+3. **Can this be collapsed in minimal mode?** (If no, add toggle)
+
+**Design Mantra**: *"If Bloomberg Terminal doesn't have it, we don't need it."*
 
 ---
 
-## Typography System
+## 2. Typography System
 
-**Font Stack**:
-- **Primary**: Inter (UI text, labels, descriptions)
+### Font Stack
+- **Primary UI**: Inter (labels, descriptions, buttons)
 - **Data/Numerical**: JetBrains Mono (metrics, prices, percentages, timestamps)
 
-**Hierarchy**:
-| Element | Class | Context |
-|---------|-------|---------|
+### Hierarchy
+| Element | Classes | Context |
+|---------|---------|---------|
 | Dashboard Title | `text-3xl font-bold tracking-tight` | Command Center header |
 | Section Header | `text-xl font-semibold` | Engine panels, metric groups |
 | Subsection | `text-base font-semibold` | Card titles, table headers |
@@ -39,7 +49,7 @@
 
 ---
 
-## Color System (Dark Mode Primary)
+## 3. Color System (Dark Mode Primary)
 
 ### Base Palette
 ```
@@ -81,40 +91,40 @@ Error:          red-400 with pulse
 
 ---
 
-## Glassmorphism System (Enhanced)
+## 4. Glassmorphism System
 
 ### Tier 1: Primary Cards (Command Center Panels)
 ```
 Background: bg-slate-900/70
-Backdrop: backdrop-blur-xl
-Border: border border-slate-700/60
-Shadow: shadow-2xl shadow-black/20
+Backdrop:   backdrop-blur-xl
+Border:     border border-slate-700/60
+Shadow:     shadow-2xl shadow-black/20
 ```
 
-### Tier 2: Nested Components (Engine Status, Metrics)
+### Tier 2: Nested Components (Engine Status, Metrics, Insights)
 ```
 Background: bg-slate-800/50
-Backdrop: backdrop-blur-md
-Border: border border-slate-700/40
-Shadow: shadow-lg shadow-black/10
+Backdrop:   backdrop-blur-md
+Border:     border border-slate-700/40
+Shadow:     shadow-lg shadow-black/10
 ```
 
 ### Tier 3: Data Containers (Stats, Tables)
 ```
 Background: bg-slate-800/30
-Backdrop: backdrop-blur-sm
-Border: border border-slate-700/30
-Shadow: none
+Backdrop:   backdrop-blur-sm
+Border:     border border-slate-700/30
+Shadow:     none
 ```
 
 ### Tier 4: Hover States (Interactive Elements)
 ```
 Background: bg-slate-700/40
-Border: border-cyan-500/40
+Border:     border-cyan-500/40
 Transition: transition-all duration-200
 ```
 
-**Rules**:
+### Glassmorphism Rules
 - Never exceed 3 glass layers deep
 - Heavier blur (xl, 2xl) reserved for top-level panels
 - Borders must be semi-transparent for depth perception
@@ -122,178 +132,211 @@ Transition: transition-all duration-200
 
 ---
 
-## Layout System
+## 5. Layout System
 
-**Spacing Scale (8px base)**:
-- `gap-2` (8px): Inline badges, tight elements
-- `gap-4` (16px): Card internal spacing
-- `gap-6` (24px): Between major components
-- `gap-8` (32px): Panel separation
-- `p-6`: Standard card padding
-- `p-8`: Large panel padding
-- `py-4`: Compact vertical sections
+### Grid Foundation
+- Base unit: 8px
+- Container max-width: 1400px (2xl screens), fluid below
+- Main content padding: p-6 (24px)
 
-**Command Center Grid**:
-```
-Main Layout:    grid grid-cols-1 lg:grid-cols-12 gap-6
-Left Panel:     lg:col-span-8 (engine status, analysis)
-Right Sidebar:  lg:col-span-4 (live metrics, alerts)
-Metrics Strip:  grid-cols-2 md:grid-cols-4 gap-4
-Engine Panels:  grid-cols-1 md:grid-cols-3 gap-6
-```
+### Spacing Scale
+| Size | Value | Usage |
+|------|-------|-------|
+| xs | 4px (p-1, gap-1) | Inline elements |
+| sm | 8px (p-2, gap-2) | Compact spacing |
+| md | 16px (p-4, gap-4) | Card spacing |
+| lg | 24px (p-6, gap-6) | Section spacing |
+| xl | 32px (p-8, gap-8) | Panel spacing |
 
-**Responsive Strategy**:
-- Mobile (<640px): Single column, priority stacking
-- Tablet (640-1024px): Two-column grids
-- Desktop (>1024px): Full 12-column grid system
+### Common Layouts
+- **Command Center**: 2/3 + 1/3 split (analysis left, widgets right)
+- **Data Tables**: Full width with horizontal scroll on mobile
+- **Card Grids**: 3-column on desktop, 2 on tablet, 1 on mobile
 
 ---
 
-## Component Patterns
+## 6. Content Density System
 
-### Engine Status Card
-```
-Structure:
-- Glass Tier 1 container
-- Header: Engine name badge + status indicator (pulse)
-- Metrics row: Win rate, accuracy, last signal (mono)
-- Recent signals table (scrollable, max-height)
-- Footer: Last updated timestamp
-```
+### Three Density Modes
+1. **Minimal**: Core metrics only, expert traders
+2. **Standard**: Metrics + key insights, default view
+3. **Detailed**: Full analysis, educational content, beginners
 
-### Real-Time Ticker
-```
-Placement: Top of Command Center
-Style: Full-width bg-slate-900/90 backdrop-blur-md border-b border-slate-700/50
-Content: Scrolling market data (mono font), live price updates
-Height: py-3
-```
+### Implementation Pattern
+```tsx
+// Always visible (Minimal)
+<GradeBadge>B- Tier</GradeBadge>
 
-### Trading Signal Panel
-```
-Layout: Two-column (Signal info | Action buttons)
-Signal Badge: Color-coded by engine (purple/blue/cyan)
-Confidence Meter: Progress bar with percentage
-Action Area: Glass button with blurred bg, primary cyan accent
+// Standard density
+{!isMinimal && <FactorBreakdown factors={[...]} />}
+
+// Detailed density only
+{isDetailed && <MarketContextAnalysis context={...} />}
+{isDetailed && <HistoricalStats stats={...} />}
 ```
 
-### Performance Metrics Grid
-```
-Cards: 4-column grid on desktop
-Glass: Tier 3 (subtle)
-Content: Large mono number + small label + trend indicator (↑/↓)
-Accent: Color-coded by metric type (green/red/cyan)
-```
-
-### Alert/Notification Panel
-```
-Container: Tier 2 glass, fixed height with scroll
-Items: Stacked alerts with timestamp, icon, brief message
-Priority: Border accent (red/amber/cyan) based on severity
-Animation: Fade-in for new alerts
-```
+### Smart Defaults by User Type
+- Beginner → Detailed (educational)
+- Intermediate → Standard
+- Expert → Minimal (fast scanning)
 
 ---
 
-## Command Center Visual Hierarchy
+## 7. Component Standards
 
-**Priority 1 (Immediate Attention)**:
-- Real-time ticker (top)
-- Engine status indicators (pulse animations)
-- Critical alerts (red/amber accents)
-
-**Priority 2 (Active Monitoring)**:
-- Trading signals panel
-- Performance metrics grid
-- Live data tables
-
-**Priority 3 (Context/Reference)**:
-- Historical charts
-- Audit logs
-- System settings
-
-**Hierarchy Implementation**:
-- Use glass tier levels (1=highest priority, 3=lowest)
-- Larger typography for critical data
-- Pulse animations only on live/active elements
-- Cyan accents draw eye to actionable items
-
----
-
-## Interactive Elements
-
-### Buttons
-```
-Primary: bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg
-Secondary: border border-slate-600 hover:border-cyan-500 bg-slate-800/50
-Ghost: hover:bg-slate-800/50
-Disabled: opacity-50 cursor-not-allowed
-
-On Images/Glass: backdrop-blur-md bg-slate-900/60 border-slate-700/60
+### Form Inputs (Glass Style)
+```tsx
+<Input
+  className="bg-slate-800/50 backdrop-blur-md border-slate-700/40 
+             focus:border-cyan-500/60 focus:ring-cyan-500/20
+             text-slate-200 placeholder:text-slate-500"
+/>
 ```
 
-### Badges
+### Buttons (Three Variants)
 ```
-Engine AI: bg-purple-500/15 text-purple-400 border-purple-500/40
-Engine Quant: bg-blue-500/15 text-blue-400 border-blue-500/40
-Engine Flow: bg-cyan-500/15 text-cyan-400 border-cyan-500/40
-Status Live: bg-green-500/15 text-green-400 border-green-500/40
+Primary:   bg-cyan-500 hover:bg-cyan-400 text-slate-950
+Secondary: border border-slate-600 hover:border-cyan-500 text-slate-300
+Ghost:     hover:bg-slate-700/40 text-slate-300
 ```
 
-### Data Tables
-```
-Header: bg-slate-800/50 text-xs uppercase tracking-wider
-Row: hover:bg-slate-800/30 border-b border-slate-800/50
-Cell: font-mono for numbers, text-sm
-Zebra Striping: Optional, subtle bg-slate-900/30 on alternates
+### Interactive States
+- Focus rings: `ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-900`
+- Disabled: `opacity-50 cursor-not-allowed`
+- Minimum touch target: 44x44px
+
+### Insight Panels (Contextual Intelligence)
+```tsx
+<InsightPanel className="bg-slate-800/50 backdrop-blur-md border border-slate-700/40 rounded-lg p-4">
+  <Header className="flex items-center gap-2 mb-3">
+    <Icon className="h-4 w-4 text-cyan-400" />
+    <Title className="text-sm font-semibold text-slate-200 uppercase">INSIGHT TITLE</Title>
+  </Header>
+  <Content className="text-sm text-slate-300">...</Content>
+  <Action className="text-xs text-cyan-400 mt-3">
+    <span className="font-semibold">Action:</span> Actionable guidance here.
+  </Action>
+</InsightPanel>
 ```
 
 ---
 
-## Animation Guidelines
+## 8. Loading & Empty States
 
-**Allowed**:
-- Pulse for live indicators: `animate-pulse` (green-400)
-- Fade-in for new data: `transition-opacity duration-300`
-- Hover state color shifts: `transition-colors duration-200`
-- Skeleton loaders for async data
-- Chart/graph transitions (chart.js default animations)
+### Terminal-Style Loading
+```tsx
+<div className="flex items-center font-mono text-sm">
+  <span className="text-green-400 mr-2">⏳</span>
+  <span className="text-slate-400">Loading market data...</span>
+  <Loader2 className="ml-2 h-4 w-4 animate-spin text-cyan-400" />
+</div>
+```
 
-**Forbidden**:
-- Bouncing effects
-- Rotating elements
-- Excessive motion (causes distraction)
-- Auto-playing carousels
-
----
-
-## Required Elements
-
-**Command Center Must Include**:
-1. Real-time ticker (market data feed)
-2. Engine status dashboard (3 engines visible)
-3. Live performance metrics strip
-4. Recent signals/trades table
-5. Alert notification panel
-6. Last updated timestamps on all data
-7. Educational disclaimer footer
-
-**Every Data Display**:
-1. Timestamp (font-mono, text-xs)
-2. Source indicator (badge or label)
-3. Loading state (skeleton)
-4. Error state (red accent, retry action)
+### Empty States
+```tsx
+<EmptyState>
+  <Icon className="text-4xl text-slate-600 mb-4" />
+  <Title className="text-lg font-semibold text-slate-300">No Signals Found</Title>
+  <Message className="text-sm text-slate-400 mt-2">
+    Market is in ranging regime. Try adjusting scanner settings.
+  </Message>
+  <Actions className="mt-4 space-x-2">
+    <Button variant="primary">Adjust Scanner</Button>
+    <Button variant="secondary">View Market Context</Button>
+  </Actions>
+</EmptyState>
+```
 
 ---
 
-## Accessibility
+## 9. Animation Guidelines
 
-- Touch targets: min 44x44px
-- Focus rings: `ring-2 ring-cyan-500 ring-offset-2 ring-offset-slate-950`
-- WCAG AA contrast (4.5:1 minimum)
-- Screen reader labels on icon buttons
-- Keyboard navigation support (Tab, Arrow keys for tables)
+### Allowed Animations
+- `animate-pulse` for live indicators only
+- `transition-colors duration-200` for hover states
+- `transition-all duration-300` for expand/collapse
+
+### Forbidden
+- Bounce animations
+- Rotate animations (except spinners)
+- Parallax effects
+- Auto-playing videos
 
 ---
 
-**Change Log**: 2026-01-03 | Command Center revamp: Enhanced glassmorphism tier system, real-time ticker, engine status panels, institutional visual hierarchy, pulse animations for live indicators.
+## 10. Mobile Adaptation
+
+### Breakpoint Strategy
+- Mobile: < 640px (single column, bottom sheet nav)
+- Tablet: 640-1024px (2 columns, collapsible sidebar)
+- Desktop: > 1024px (full layout)
+
+### Mobile Rules
+- Sidebar becomes bottom sheet or hamburger menu
+- Grid collapses to single column
+- Font sizes scale down (metrics: text-lg, body: text-xs)
+- Touch targets ≥ 44px
+- No horizontal scrolling
+
+---
+
+## 11. Design QA Checklist
+
+Every page must pass ALL checks before approval:
+
+### Typography
+- [ ] All numbers/prices/percentages use `font-mono tabular-nums`
+- [ ] All UI text uses Inter font
+- [ ] Heading hierarchy follows guidelines
+- [ ] Timestamps use `text-xs font-mono text-slate-500`
+
+### Color System
+- [ ] Background is `slate-950` everywhere
+- [ ] No gradients (except subtle black shadows)
+- [ ] Accent colors used only for status/actions
+- [ ] Engine colors consistent (Purple=AI, Blue=Quant, Cyan=Flow)
+
+### Glassmorphism
+- [ ] Max 3 glass layers per view
+- [ ] Borders are `slate-700/40` or `slate-700/60`
+- [ ] Backdrop blur values: xl for primary, md for nested, sm for data
+
+### Spacing
+- [ ] 8px base grid strictly enforced
+- [ ] Padding: p-6 standard, p-8 for large panels, p-4 for compact
+- [ ] Gap: gap-4 for cards, gap-6 for sections
+
+### Content
+- [ ] Educational disclaimers on every screen
+- [ ] No marketing fluff text
+- [ ] All numbers in monospace
+- [ ] All actions have clear "Action:" statements
+- [ ] Every insight ends with actionable guidance
+
+### Performance
+- [ ] No layout shift on load
+- [ ] Glassmorphism layers don't cause jank
+- [ ] Animations use GPU acceleration
+
+---
+
+## 12. Page Consistency Standards
+
+### Reference Implementation
+**Command Center** (`/trading-engine`) is the gold standard. All pages should match its:
+- Glassmorphism tier usage
+- Typography hierarchy
+- Spacing patterns
+- Color application
+
+### Success Metric
+User should be able to close their eyes, open any page, and **instantly know they're on Quant Edge Labs** by typography, spacing, and glassmorphism alone.
+
+---
+
+## 13. Key Files Reference
+
+- `client/src/components/contextual-insights.tsx` - Insight panel implementations
+- `client/src/pages/trading-engine.tsx` - Command Center (reference standard)
+- `client/src/index.css` - CSS variables and base styles
+- `tailwind.config.ts` - Theme configuration
