@@ -8,14 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, fetchWithParams } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { 
   Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, 
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
   Zap, Clock, Calculator, Gauge, Send, LineChart, Lightbulb, Users,
   ChevronRight, Database, BookOpen, Trophy, Plus, Search, RefreshCw,
-  Filter, Eye, History, ArrowRight, TrendingUpDown
+  Filter, Eye, History, ArrowRight, TrendingUpDown, Radar, Flag, Triangle, Circle,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SiDiscord } from "react-icons/si";
@@ -2659,7 +2661,12 @@ export default function ChartAnalysis() {
       />
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6" data-testid="tabs-main-navigation">
+        <TabsList className="grid w-full grid-cols-4 mb-6" data-testid="tabs-main-navigation">
+          <TabsTrigger value="scanner" className="gap-2" data-testid="tab-pattern-scanner">
+            <Radar className="h-4 w-4" />
+            <span className="hidden sm:inline">Pattern Scanner</span>
+            <span className="sm:hidden">Scanner</span>
+          </TabsTrigger>
           <TabsTrigger value="visual" className="gap-2" data-testid="tab-visual-analysis">
             <ImageIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Visual Analysis</span>
