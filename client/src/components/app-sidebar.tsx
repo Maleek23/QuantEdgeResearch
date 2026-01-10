@@ -58,8 +58,7 @@ const learnItems: NavItem[] = [
 ];
 
 const accountItems: NavItem[] = [
-  { title: "My Account", url: "/my-account", icon: User },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Account & Settings", url: "/account", icon: User },
 ];
 
 const adminItems: NavItem[] = [

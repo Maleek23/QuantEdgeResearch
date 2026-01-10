@@ -31,7 +31,7 @@ const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
 const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
 const MarketPage = lazy(() => import("@/pages/market"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
-const SettingsPage = lazy(() => import("@/pages/settings"));
+const AccountPage = lazy(() => import("@/pages/account"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
 const AdminOverview = lazy(() => import("@/pages/admin/overview"));
 const AdminUsers = lazy(() => import("@/pages/admin/users"));
@@ -67,7 +67,6 @@ const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
 const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
-const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
@@ -177,8 +176,13 @@ function Router() {
       <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
-      <Route path="/my-account" component={withBetaProtection(MyAccountPage)} />
-      <Route path="/settings" component={withBetaProtection(SettingsPage)} />
+      <Route path="/account" component={withBetaProtection(AccountPage)} />
+      <Route path="/my-account">
+        <Redirect to="/account" />
+      </Route>
+      <Route path="/settings">
+        <Redirect to="/account" />
+      </Route>
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/users" component={AdminUsers} />
