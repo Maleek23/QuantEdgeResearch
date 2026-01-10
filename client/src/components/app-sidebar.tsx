@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain, Activity, Radar
+  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain, Activity
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -47,7 +47,6 @@ const automationItems: NavItem[] = [
 const analyticsItems: NavItem[] = [
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
-  { title: "Pattern Scanner", url: "/pattern-scanner", icon: Radar },
   { title: "Options", url: "/options-analyzer", icon: BarChart2 },
   { title: "Trends", url: "/bullish-trends", icon: TrendingUp },
   { title: "Historical", url: "/historical-intelligence", icon: Brain },
