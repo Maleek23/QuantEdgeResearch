@@ -23,7 +23,13 @@ The system integrates two core analytical engines:
 The UI/UX follows a "Tech-Minimalist" design inspired by institutional trading interfaces, featuring a dark-mode-first approach, a specific color palette (slate, cyan, green, red, amber, purple, blue), glassmorphism-inspired components, and a clear typography hierarchy using Inter and JetBrains Mono.
 
 Key features include:
--   **Command Center (Hybrid Trading Engine + Dashboard)**: Unified page combining symbol analysis (left 2/3) with dashboard widgets (right 1/3). Features real-time symbol analysis with TradingView chart, Hot Symbols convergence widget showing multi-source attention tracking, portfolio overview, bot status, win rate, and IV rank. First item in sidebar navigation.
+-   **Command Center (Hybrid Trading Engine + Dashboard)**: Unified page combining symbol analysis (left 2/3) with dashboard widgets (right 1/3). Features real-time symbol analysis with TradingView chart, Hot Symbols convergence widget showing multi-source attention tracking, portfolio overview, bot status, win rate, and IV rank. First item in sidebar navigation. Now enhanced with **Contextual Intelligence Layer** providing:
+    - **Confluence Insights**: Score breakdown with 5 factors (Bias Alignment, Trend, Momentum, Volatility, Levels) and confidence interpretation
+    - **Technical Insights**: Strategy suggestions (Breakout, Range Trade, Wait & Watch) based on current price vs key levels
+    - **Position Size Calculator**: Interactive calculator with account size/risk inputs, shares calculation, and risk scenarios
+    - **Market Context Insights**: Session timing, regime analysis (trending/ranging/volatile), risk sentiment (Risk On/Off), VIX interpretation
+    - **News Insights**: Sentiment score interpretation with trading bias guidance
+    - Key files: `client/src/components/contextual-insights.tsx`, `client/src/pages/trading-engine.tsx`
 -   **Core Application**: Public informational pages, user authentication, trade desk with research briefs, live trading journal, market overview, and performance analytics.
 -   **Research Tools**: Chart analysis, historical trade pattern library, Data Intelligence System, Loss Analysis System, and Data Integrity System.
 -   **Automated Systems**: Auto-Lotto Bot for automated paper trading with sample size gating, and a Real-time Pricing Service.
