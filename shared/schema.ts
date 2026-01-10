@@ -2813,3 +2813,96 @@ export const symbolHeatScores = pgTable("symbol_heat_scores", {
 export const insertSymbolHeatScoreSchema = createInsertSchema(symbolHeatScores).omit({ id: true, updatedAt: true });
 export type InsertSymbolHeatScore = z.infer<typeof insertSymbolHeatScoreSchema>;
 export type SymbolHeatScore = typeof symbolHeatScores.$inferSelect;
+
+// ==========================================
+// PATTERN SIGNALS - Breakout & Chart Pattern Tracking
+// ==========================================
+
+export type PatternType = 
+  | 'bull_flag'
+  | 'bear_flag'
+  | 'ascending_triangle'
+  | 'descending_triangle'
+  | 'symmetrical_triangle'
+  | 'cup_and_handle'
+  | 'inverse_head_shoulders'
+  | 'double_bottom'
+  | 'falling_wedge'
+  | 'channel_breakout'
+  | 'vcp' // Volatility Contraction Pattern
+  | 'parabolic_move'
+  | 'base_breakout'
+  | 'momentum_surge';
+
+export type PatternStatus = 'forming' | 'confirmed' | 'failed' | 'completed';
+export type PatternTimeframe = 'intraday' | 'daily' | 'weekly';
+
+export const patternSignals = pgTable("pattern_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol").notNull(),
+  patternType: text("pattern_type").$type<PatternType>().notNull(),
+  patternStatus: text("pattern_status").$type<PatternStatus>().notNull().default('forming'),
+  timeframe: text("timeframe").$type<PatternTimeframe>().notNull().default('daily'),
+  
+  // Pattern Detection Details
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  confirmedAt: timestamp("confirmed_at"),
+  detectionPrice: real("detection_price").notNull(),
+  currentPrice: real("current_price"),
+  
+  // Key Price Levels
+  resistanceLevel: real("resistance_level"),
+  supportLevel: real("support_level"),
+  breakoutLevel: real("breakout_level"),
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  
+  // Pattern Metrics
+  patternScore: integer("pattern_score").notNull().default(50), // 0-100
+  volumeConfirmation: boolean("volume_confirmation").default(false),
+  priceConfirmation: boolean("price_confirmation").default(false),
+  
+  // Pattern Geometry
+  patternHeight: real("pattern_height"), // Pattern range in dollars
+  patternDuration: integer("pattern_duration"), // Days the pattern has been forming
+  consolidationTightness: real("consolidation_tightness"), // For VCP/flags - how tight the range is
+  
+  // Confluence Signals
+  rsiValue: real("rsi_value"),
+  macdSignal: varchar("macd_signal"), // 'bullish', 'bearish', 'neutral'
+  volumeRatio: real("volume_ratio"),
+  priceVsSma20: real("price_vs_sma_20"),
+  priceVsSma50: real("price_vs_sma_50"),
+  
+  // Risk/Reward
+  riskRewardRatio: real("risk_reward_ratio"),
+  distanceToBreakout: real("distance_to_breakout"), // Percent to breakout level
+  
+  // Time-to-Breakout Estimate
+  estimatedBreakoutDate: timestamp("estimated_breakout_date"),
+  urgency: varchar("urgency"), // 'imminent' (< 1 day), 'soon' (1-3 days), 'developing' (3+ days)
+  
+  // Trade Idea Link
+  tradeIdeaId: varchar("trade_idea_id"), // Link to generated trade idea if any
+  
+  // Metadata
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_pattern_symbol").on(table.symbol),
+  index("idx_pattern_type").on(table.patternType),
+  index("idx_pattern_status").on(table.patternStatus),
+  index("idx_pattern_score").on(table.patternScore),
+  index("idx_pattern_active").on(table.isActive),
+]);
+
+export const insertPatternSignalSchema = createInsertSchema(patternSignals).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  detectedAt: true 
+});
+export type InsertPatternSignal = z.infer<typeof insertPatternSignalSchema>;
+export type PatternSignal = typeof patternSignals.$inferSelect;

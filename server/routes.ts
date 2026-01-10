@@ -20204,6 +20204,157 @@ Use this checklist before entering any trade:
     }
   });
 
+  // =====================================================
+  // PATTERN INTELLIGENCE ROUTES - Advanced Pattern Detection
+  // =====================================================
+
+  // GET /api/pattern-scanner/scan - Run pattern scan across universe
+  app.get("/api/pattern-scanner/scan", requireBetaAccess, async (req, res) => {
+    try {
+      const { runPatternScan, PATTERN_DISPLAY_NAMES } = await import("./pattern-intelligence");
+      const symbols = req.query.symbols 
+        ? (req.query.symbols as string).split(',').map(s => s.trim().toUpperCase())
+        : undefined;
+      
+      const patterns = await runPatternScan(symbols);
+      res.json({
+        totalPatterns: patterns.length,
+        patterns,
+        patternTypes: PATTERN_DISPLAY_NAMES,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error running pattern scan", { error });
+      res.status(500).json({ error: "Failed to run pattern scan" });
+    }
+  });
+
+  // GET /api/pattern-scanner/signals - Get active pattern signals with filters
+  app.get("/api/pattern-scanner/signals", async (req, res) => {
+    try {
+      const { getPatternSignals, PATTERN_DISPLAY_NAMES, BULLISH_PATTERNS } = await import("./pattern-intelligence");
+      
+      const filters: {
+        patternTypes?: any[];
+        minScore?: number;
+        urgency?: string;
+        status?: any;
+        limit?: number;
+      } = {};
+      
+      if (req.query.types) {
+        filters.patternTypes = (req.query.types as string).split(',');
+      }
+      if (req.query.bullishOnly === 'true') {
+        filters.patternTypes = BULLISH_PATTERNS;
+      }
+      if (req.query.minScore) {
+        filters.minScore = parseInt(req.query.minScore as string);
+      }
+      if (req.query.urgency) {
+        filters.urgency = req.query.urgency as string;
+      }
+      if (req.query.status) {
+        filters.status = req.query.status as string;
+      }
+      if (req.query.limit) {
+        filters.limit = parseInt(req.query.limit as string);
+      }
+      
+      const signals = await getPatternSignals(filters);
+      res.json({
+        count: signals.length,
+        signals,
+        patternTypes: PATTERN_DISPLAY_NAMES,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error fetching pattern signals", { error });
+      res.status(500).json({ error: "Failed to fetch pattern signals" });
+    }
+  });
+
+  // GET /api/pattern-scanner/imminent - Get imminent breakout patterns
+  app.get("/api/pattern-scanner/imminent", async (req, res) => {
+    try {
+      const { getImminentBreakouts, PATTERN_DISPLAY_NAMES } = await import("./pattern-intelligence");
+      const signals = await getImminentBreakouts();
+      res.json({
+        count: signals.length,
+        signals,
+        patternTypes: PATTERN_DISPLAY_NAMES,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error fetching imminent breakouts", { error });
+      res.status(500).json({ error: "Failed to fetch imminent breakouts" });
+    }
+  });
+
+  // GET /api/pattern-scanner/bullish - Get top bullish patterns
+  app.get("/api/pattern-scanner/bullish", async (req, res) => {
+    try {
+      const { getTopBullishPatterns, PATTERN_DISPLAY_NAMES } = await import("./pattern-intelligence");
+      const limit = parseInt(req.query.limit as string) || 20;
+      const signals = await getTopBullishPatterns(limit);
+      res.json({
+        count: signals.length,
+        signals,
+        patternTypes: PATTERN_DISPLAY_NAMES,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error fetching bullish patterns", { error });
+      res.status(500).json({ error: "Failed to fetch bullish patterns" });
+    }
+  });
+
+  // GET /api/pattern-scanner/analyze/:symbol - Analyze single symbol for patterns
+  app.get("/api/pattern-scanner/analyze/:symbol", async (req, res) => {
+    try {
+      const { analyzeSymbolPatterns, PATTERN_DISPLAY_NAMES } = await import("./pattern-intelligence");
+      const { symbol } = req.params;
+      
+      const analysis = await analyzeSymbolPatterns(symbol.toUpperCase());
+      
+      if (!analysis) {
+        return res.json({
+          symbol: symbol.toUpperCase(),
+          patterns: [],
+          message: "No patterns detected or insufficient data"
+        });
+      }
+      
+      res.json({
+        ...analysis,
+        patternTypes: PATTERN_DISPLAY_NAMES,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error analyzing symbol patterns", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to analyze patterns" });
+    }
+  });
+
+  // PATCH /api/pattern-scanner/:id/status - Update pattern status
+  app.patch("/api/pattern-scanner/:id/status", requireBetaAccess, async (req, res) => {
+    try {
+      const { updatePatternStatus } = await import("./pattern-intelligence");
+      const { id } = req.params;
+      const { status, notes } = req.body;
+      
+      if (!status || !['forming', 'confirmed', 'failed', 'completed'].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      
+      await updatePatternStatus(id, status, notes);
+      res.json({ success: true, message: "Pattern status updated" });
+    } catch (error: any) {
+      logger.error("Error updating pattern status", { error });
+      res.status(500).json({ error: "Failed to update pattern status" });
+    }
+  });
+
   // ============================================================================
   // OPTIONS ANALYZER ROUTES
   // ============================================================================
