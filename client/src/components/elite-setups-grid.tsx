@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,15 +8,29 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Zap, TrendingUp, Filter, SortDesc, Eye, Target, 
-  BarChart3, ArrowUpDown, Sparkles
+  BarChart3, ArrowUpDown, Sparkles, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import EliteSetupCard from './elite-setup-card';
 import SymbolJourneyModal from './symbol-journey-modal';
 import type { WatchlistItem } from '@shared/schema';
 
 type SortMode = 'score' | 'edge' | 'performance' | 'days';
 type FilterTier = 'all' | 'S' | 'A' | 'B';
+
+interface SymbolPerformance {
+  stats: {
+    symbol: string;
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    avgReturn: number;
+    totalPnL: number;
+    lastTradeDate: string | null;
+  } | null;
+}
 
 interface EliteSetupsGridProps {
   compact?: boolean;
@@ -25,18 +39,27 @@ interface EliteSetupsGridProps {
   onTrade?: (symbol: string) => void;
 }
 
-function calculateSortScore(item: WatchlistItem, mode: SortMode): number {
+function calculateSortScore(item: WatchlistItem, mode: SortMode, perfMap: Map<string, SymbolPerformance>): number {
   const baseScore = item.gradeScore || 50;
-  const edgeBoost = item.personalEdgeBoost || 0;
-  const winRate = item.timesTraded && item.timesTraded > 0 
-    ? (item.timesWon || 0) / item.timesTraded 
-    : 0.5;
+  const storedEdgeBoost = item.personalEdgeBoost || 0;
+  
+  const perf = perfMap.get(item.symbol);
+  const tradedWinRate = perf?.stats ? perf.stats.winRate / 100 : 0.5;
+  const totalTrades = perf?.stats?.totalTrades || item.timesTraded || 0;
+  const wins = perf?.stats?.wins || item.timesWon || 0;
+  const actualWinRate = totalTrades > 0 ? wins / totalTrades : 0.5;
+  
+  const dynamicEdgeBoost = actualWinRate >= 0.8 ? 15 : 
+                           actualWinRate >= 0.65 ? 10 :
+                           actualWinRate >= 0.5 ? 5 :
+                           actualWinRate >= 0.4 ? 0 : -10;
+  const edgeBoost = storedEdgeBoost || dynamicEdgeBoost;
   
   switch (mode) {
     case 'score':
       return baseScore;
     case 'edge':
-      return baseScore * (1 + (winRate - 0.5)) + edgeBoost;
+      return baseScore * (1 + (actualWinRate - 0.5)) + edgeBoost;
     case 'performance':
       return (item.priceSinceAdded || 0) + (item.ytdPerformance || 0);
     case 'days':
@@ -57,11 +80,41 @@ export default function EliteSetupsGrid({
   const [filterTier, setFilterTier] = useState<FilterTier>('all');
   const [journeySymbol, setJourneySymbol] = useState<string | null>(null);
   const [journeyItem, setJourneyItem] = useState<WatchlistItem | null>(null);
+  const [performanceMap, setPerformanceMap] = useState<Map<string, SymbolPerformance>>(new Map());
 
   const { data: watchlist, isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
     staleTime: 5 * 60 * 1000,
   });
+
+  const eliteSymbols = useMemo(() => {
+    if (!watchlist) return [];
+    return watchlist
+      .filter(item => ['S', 'A', 'B'].includes(item.tier || 'C'))
+      .map(item => item.symbol);
+  }, [watchlist]);
+
+  useEffect(() => {
+    if (eliteSymbols.length === 0) return;
+    
+    const fetchPerformance = async () => {
+      const newMap = new Map<string, SymbolPerformance>();
+      const fetchPromises = eliteSymbols.slice(0, 20).map(async (symbol) => {
+        try {
+          const res = await fetch(`/api/watchlist/performance-summary/${symbol}`);
+          if (res.ok) {
+            const data = await res.json();
+            newMap.set(symbol, data);
+          }
+        } catch (e) {
+        }
+      });
+      await Promise.all(fetchPromises);
+      setPerformanceMap(newMap);
+    };
+    
+    fetchPerformance();
+  }, [eliteSymbols.join(',')]);
 
   const eliteSetups = useMemo(() => {
     if (!watchlist) return [];
@@ -75,13 +128,13 @@ export default function EliteSetupsGrid({
     });
     
     const sorted = [...filtered].sort((a, b) => {
-      const scoreA = calculateSortScore(a, sortMode);
-      const scoreB = calculateSortScore(b, sortMode);
-      return sortMode === 'days' ? scoreB - scoreA : scoreB - scoreA;
+      const scoreA = calculateSortScore(a, sortMode, performanceMap);
+      const scoreB = calculateSortScore(b, sortMode, performanceMap);
+      return scoreB - scoreA;
     });
     
     return sorted.slice(0, maxItems);
-  }, [watchlist, sortMode, filterTier, maxItems]);
+  }, [watchlist, sortMode, filterTier, maxItems, performanceMap]);
 
   const tierCounts = useMemo(() => {
     if (!watchlist) return { S: 0, A: 0, B: 0 };

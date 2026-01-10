@@ -70,6 +70,7 @@ import { formatCurrency, formatPercent } from "@/lib/utils";
 import ResearchPulseWidget from "@/components/research-pulse-widget";
 import PersonalEdgeAnalytics from "@/components/personal-edge-analytics";
 import BestSetupsExplainer from "@/components/best-setups-explainer";
+import EliteSetupsGrid from "@/components/elite-setups-grid";
 
 // Compact expiry badge for quick time-left display
 function ExpiryBadge({ minutes }: { minutes: number }) {
@@ -1663,6 +1664,19 @@ export default function TradeDeskPage() {
         </div>
         <PersonalEdgeAnalytics />
       </div>
+
+      {/* Elite Setups - Year-Long Research Terminal */}
+      <EliteSetupsGrid 
+        maxItems={6} 
+        showFilters={true}
+        onTrade={(symbol) => {
+          setSearchQuery(symbol);
+          toast({
+            title: "Symbol Selected",
+            description: `Filtering ideas for ${symbol}`,
+          });
+        }}
+      />
 
       {/* Engine Filter Tabs - Premium Design */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
