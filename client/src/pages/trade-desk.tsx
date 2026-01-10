@@ -1651,23 +1651,12 @@ export default function TradeDeskPage() {
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
 
-      {/* Best Setups and Market Movers - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BestSetupsCard />
-        <MarketMoversCard />
-      </div>
+      {/* Best Setups - Full Width */}
+      <BestSetupsCard />
 
-      {/* Research Intelligence - Personal Edge Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <ResearchPulseWidget />
-        </div>
-        <PersonalEdgeAnalytics />
-      </div>
-
-      {/* Elite Setups - Year-Long Research Terminal */}
+      {/* Elite Setups - Year-Long Research Terminal with Pagination */}
       <EliteSetupsGrid 
-        maxItems={6} 
+        maxItems={24} 
         showFilters={true}
         onTrade={(symbol) => {
           setSearchQuery(symbol);
