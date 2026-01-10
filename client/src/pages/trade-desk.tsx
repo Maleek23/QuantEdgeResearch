@@ -346,8 +346,8 @@ function BestSetupsCard() {
                           {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                         </Badge>
                       </div>
-                      {setup.thesis && (
-                        <p className="text-xs text-foreground/80 mt-1 line-clamp-1">{setup.thesis}</p>
+                      {(setup.catalyst || setup.thesis) && (
+                        <p className="text-xs text-foreground/80 mt-1 line-clamp-1">{setup.catalyst || setup.thesis}</p>
                       )}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <span>{setup.signalCount} signals</span>
@@ -419,10 +419,10 @@ function BestSetupsCard() {
                           </div>
                         )}
                       </div>
-                      {setup.thesis && (
+                      {(setup.catalyst || setup.analysis || setup.thesis) && (
                         <div className="mt-2 text-xs">
                           <span className="text-muted-foreground">Thesis: </span>
-                          <span>{setup.thesis}</span>
+                          <span className="text-foreground">{setup.catalyst || setup.analysis || setup.thesis}</span>
                         </div>
                       )}
                     </div>

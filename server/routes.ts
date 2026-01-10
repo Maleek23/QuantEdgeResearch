@@ -1520,6 +1520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax', // Allow cookie on same-site navigation
+          path: '/', // Ensure cookie is sent for all routes
           maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 7 days or 24 hours
         });
         
@@ -1546,7 +1547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/logout", (req, res) => {
     try {
-      res.clearCookie('admin_token');
+      res.clearCookie('admin_token', { path: '/' });
       logger.info('Admin logged out', { ip: req.ip });
       res.json({ success: true });
     } catch (error) {
