@@ -339,9 +339,11 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">First Name</FormLabel>
                           <FormControl>
                             <Input 
-                              className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50"
+                              className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400"
                               data-testid="input-first-name"
-                              {...field} 
+                              autoComplete="off"
+                              {...field}
+                              value={field.value || ''}
                             />
                           </FormControl>
                           <FormMessage />
@@ -356,9 +358,11 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Last Name</FormLabel>
                           <FormControl>
                             <Input 
-                              className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50"
+                              className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400"
                               data-testid="input-last-name"
-                              {...field} 
+                              autoComplete="off"
+                              {...field}
+                              value={field.value || ''}
                             />
                           </FormControl>
                           <FormMessage />
@@ -376,9 +380,11 @@ export default function JoinBeta() {
                         <FormControl>
                           <Input 
                             placeholder="e.g. Software Engineer"
-                            className="bg-neutral-900/50 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-cyan-500/50"
+                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
                             data-testid="input-occupation"
-                            {...field} 
+                            autoComplete="off"
+                            {...field}
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -395,11 +401,11 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Experience</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50" data-testid="select-experience">
+                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-experience">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="bg-neutral-900 border-neutral-700">
                               {EXPERIENCE_LEVELS.map(level => (
                                 <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
                               ))}
@@ -417,11 +423,11 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Risk Tolerance</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50" data-testid="select-risk">
+                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-risk">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="bg-neutral-900 border-neutral-700">
                               {RISK_TOLERANCES.map(risk => (
                                 <SelectItem key={risk.value} value={risk.value}>{risk.label}</SelectItem>
                               ))}
@@ -441,11 +447,11 @@ export default function JoinBeta() {
                         <FormLabel className="text-neutral-300">Investment Goal</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50" data-testid="select-goals">
+                            <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-goals">
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="bg-neutral-900 border-neutral-700">
                             {INVESTMENT_GOALS.map(goal => (
                               <SelectItem key={goal.value} value={goal.value}>{goal.label}</SelectItem>
                             ))}
@@ -505,9 +511,11 @@ export default function JoinBeta() {
                         <FormControl>
                           <Input 
                             placeholder="e.g. Twitter, friend referral"
-                            className="bg-neutral-900/50 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-cyan-500/50"
+                            className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
                             data-testid="input-referral"
-                            {...field} 
+                            autoComplete="off"
+                            {...field}
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -530,9 +538,11 @@ export default function JoinBeta() {
                             <FormControl>
                               <Input 
                                 type="password"
-                                className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50"
+                                className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400"
                                 data-testid="input-password"
-                                {...field} 
+                                autoComplete="new-password"
+                                {...field}
+                                value={field.value || ''}
                               />
                             </FormControl>
                             <FormMessage />
@@ -548,9 +558,11 @@ export default function JoinBeta() {
                             <FormControl>
                               <Input 
                                 type="password"
-                                className="bg-neutral-900/50 border-neutral-800 text-white focus:border-cyan-500/50"
+                                className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500 caret-cyan-400"
                                 data-testid="input-confirm-password"
-                                {...field} 
+                                autoComplete="new-password"
+                                {...field}
+                                value={field.value || ''}
                               />
                             </FormControl>
                             <FormMessage />
