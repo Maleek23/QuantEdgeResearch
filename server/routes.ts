@@ -10785,6 +10785,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== PERSONAL EDGE ENDPOINTS ==============
+  
+  // Get performance by tier for authenticated user
+  app.get("/api/personal-edge/performance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { year } = req.query;
+      const { personalEdgeService } = await import('./personal-edge-service');
+      const performance = await personalEdgeService.getPerformanceByTier(userId, year ? parseInt(year as string) : undefined);
+      res.json(performance);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/personal-edge/performance' });
+      res.status(500).json({ error: "Failed to fetch performance by tier" });
+    }
+  });
+
+  // Get personal edge for a specific symbol
+  app.get("/api/personal-edge/:symbol", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const symbol = req.params.symbol.toUpperCase();
+      const { personalEdgeService } = await import('./personal-edge-service');
+      const edge = await personalEdgeService.getPersonalEdge(userId, symbol);
+      res.json(edge);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/personal-edge/:symbol' });
+      res.status(500).json({ error: "Failed to fetch personal edge" });
+    }
+  });
+
+  // Get missed opportunities
+  app.get("/api/personal-edge/missed-opportunities", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { limit } = req.query;
+      const { personalEdgeService } = await import('./personal-edge-service');
+      const opportunities = await personalEdgeService.getMissedOpportunities(userId, limit ? parseInt(limit as string) : 5);
+      res.json(opportunities);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/personal-edge/missed-opportunities' });
+      res.status(500).json({ error: "Failed to fetch missed opportunities" });
+    }
+  });
+
+  // Update personal edge for all watchlist items
+  app.post("/api/personal-edge/recalculate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { personalEdgeService } = await import('./personal-edge-service');
+      const updated = await personalEdgeService.updateAllWatchlistEdges(userId);
+      res.json({ success: true, updated });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/personal-edge/recalculate' });
+      res.status(500).json({ error: "Failed to recalculate personal edges" });
+    }
+  });
+
   // Generate trade ideas from elite (S/A tier) watchlist setups
   app.post("/api/watchlist/generate-elite-ideas", isAuthenticated, async (req: any, res) => {
     try {
