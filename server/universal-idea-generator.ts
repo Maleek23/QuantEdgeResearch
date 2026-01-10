@@ -562,12 +562,54 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     // Fetch news context for stocks (not options/crypto/futures)
     let newsContext: NewsContext | null = null;
     let newsCatalyst: string | null = null;
+    let newsAdjustment = 0;
     if (input.assetType === 'stock') {
       try {
         newsContext = await getNewsContext(input.symbol);
         if (newsContext.hasRecentNews) {
-          // Apply news sentiment conviction adjustment (±15 points)
-          confidence = Math.max(0, Math.min(100, confidence + newsContext.convictionAdjustment));
+          // DIRECTIONAL RECONCILIATION: Only boost when news aligns with trade direction
+          const tradeIsBullish = input.direction === 'bullish';
+          const newsIsBullish = newsContext.newsBias === 'bullish';
+          const newsIsBearish = newsContext.newsBias === 'bearish';
+          
+          // Special handling for earnings: use beat/miss directly
+          if (newsContext.earningsDetected && newsContext.earningsBeat !== null) {
+            if (newsContext.earningsBeat && tradeIsBullish) {
+              // Earnings beat + long trade = strong alignment
+              newsAdjustment = 15;
+              logger.info(`[UNIVERSAL] ${input.symbol}: Earnings BEAT aligns with LONG trade → +15 confidence`);
+            } else if (newsContext.earningsBeat && !tradeIsBullish) {
+              // Earnings beat + short trade = conflict
+              newsAdjustment = -15;
+              logger.warn(`[UNIVERSAL] ${input.symbol}: Earnings BEAT conflicts with SHORT trade → -15 confidence`);
+            } else if (!newsContext.earningsBeat && !tradeIsBullish) {
+              // Earnings miss + short trade = alignment
+              newsAdjustment = 15;
+              logger.info(`[UNIVERSAL] ${input.symbol}: Earnings MISS aligns with SHORT trade → +15 confidence`);
+            } else if (!newsContext.earningsBeat && tradeIsBullish) {
+              // Earnings miss + long trade = conflict
+              newsAdjustment = -15;
+              logger.warn(`[UNIVERSAL] ${input.symbol}: Earnings MISS conflicts with LONG trade → -15 confidence`);
+            }
+          } else {
+            // General news sentiment reconciliation
+            if (tradeIsBullish && newsIsBullish) {
+              newsAdjustment = newsContext.convictionAdjustment; // Positive adjustment
+              logger.debug(`[UNIVERSAL] ${input.symbol}: Bullish news aligns with LONG → +${newsAdjustment}`);
+            } else if (tradeIsBullish && newsIsBearish) {
+              newsAdjustment = -Math.abs(newsContext.convictionAdjustment); // Penalty
+              logger.debug(`[UNIVERSAL] ${input.symbol}: Bearish news conflicts with LONG → ${newsAdjustment}`);
+            } else if (!tradeIsBullish && newsIsBearish) {
+              newsAdjustment = Math.abs(newsContext.convictionAdjustment); // Boost for alignment
+              logger.debug(`[UNIVERSAL] ${input.symbol}: Bearish news aligns with SHORT → +${newsAdjustment}`);
+            } else if (!tradeIsBullish && newsIsBullish) {
+              newsAdjustment = -Math.abs(newsContext.convictionAdjustment); // Penalty
+              logger.debug(`[UNIVERSAL] ${input.symbol}: Bullish news conflicts with SHORT → ${newsAdjustment}`);
+            }
+          }
+          
+          // Apply the reconciled adjustment
+          confidence = Math.max(0, Math.min(100, confidence + newsAdjustment));
           
           // Use real news catalysts and headlines
           if (newsContext.catalysts.length > 0) {
@@ -579,7 +621,7 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
             newsCatalyst = newsCatalyst ? `${newsCatalyst} | ${headline}` : headline;
           }
           
-          logger.debug(`[UNIVERSAL] News context for ${input.symbol}: sentiment=${newsContext.sentimentScore}, adj=${newsContext.convictionAdjustment}`);
+          logger.debug(`[UNIVERSAL] News context for ${input.symbol}: bias=${newsContext.newsBias}, earnings=${newsContext.earningsDetected}, adj=${newsAdjustment}`);
         }
       } catch (err) {
         logger.debug(`[UNIVERSAL] News context fetch skipped for ${input.symbol}`);

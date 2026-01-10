@@ -27,10 +27,13 @@ export interface NewsContext {
   hasRecentNews: boolean;
   sentimentScore: number; // -1 to +1
   sentimentLabel: 'Bullish' | 'Bearish' | 'Neutral' | 'Mixed';
+  newsBias: 'bullish' | 'bearish' | 'neutral'; // Directional bias for trade alignment
   topHeadlines: string[];
   keyTopics: string[];
   catalysts: string[];
-  convictionAdjustment: number; // -20 to +20
+  convictionAdjustment: number; // -20 to +20 (raw, before direction reconciliation)
+  earningsDetected: boolean;
+  earningsBeat: boolean | null; // true=beat, false=miss, null=unclear
   warnings: string[];
 }
 
@@ -43,10 +46,13 @@ export async function getNewsContext(symbol: string): Promise<NewsContext> {
     hasRecentNews: false,
     sentimentScore: 0,
     sentimentLabel: 'Neutral',
+    newsBias: 'neutral',
     topHeadlines: [],
     keyTopics: [],
     catalysts: [],
     convictionAdjustment: 0,
+    earningsDetected: false,
+    earningsBeat: null,
     warnings: [],
   };
 
@@ -111,8 +117,45 @@ export async function getNewsContext(symbol: string): Promise<NewsContext> {
     // Key topics
     result.keyTopics = Array.from(topics).slice(0, 5);
     
+    // Set directional bias based on sentiment score
+    if (result.sentimentScore > 0.15) {
+      result.newsBias = 'bullish';
+    } else if (result.sentimentScore < -0.15) {
+      result.newsBias = 'bearish';
+    } else {
+      result.newsBias = 'neutral';
+    }
+    
+    // Detect earnings and beat/miss from headlines
+    const allHeadlines = articles.map(a => a.title.toLowerCase()).join(' ');
+    const earningsKeywords = ['earnings', 'quarterly', 'q1', 'q2', 'q3', 'q4', 'eps', 'revenue', 'fiscal', 'beat', 'miss', 'guidance'];
+    result.earningsDetected = topics.has('earnings') || earningsKeywords.some(kw => allHeadlines.includes(kw));
+    
+    if (result.earningsDetected) {
+      // Detect beat vs miss from headlines
+      const beatKeywords = ['beat', 'beats', 'exceeds', 'tops', 'surpasses', 'outperforms', 'raised guidance', 'raises guidance', 'strong results', 'better than expected', 'blowout'];
+      const missKeywords = ['miss', 'misses', 'falls short', 'disappoints', 'below expectations', 'weak', 'lowers guidance', 'cuts guidance', 'warns', 'disappointing'];
+      
+      const hasBeat = beatKeywords.some(kw => allHeadlines.includes(kw));
+      const hasMiss = missKeywords.some(kw => allHeadlines.includes(kw));
+      
+      if (hasBeat && !hasMiss) {
+        result.earningsBeat = true;
+        result.newsBias = 'bullish'; // Earnings beat overrides general sentiment
+        result.catalysts.push('Earnings BEAT detected');
+      } else if (hasMiss && !hasBeat) {
+        result.earningsBeat = false;
+        result.newsBias = 'bearish'; // Earnings miss overrides general sentiment
+        result.catalysts.push('Earnings MISS detected');
+        result.warnings.push('Earnings miss detected - high downside risk');
+      } else {
+        result.earningsBeat = null;
+        result.catalysts.push('Earnings activity detected - outcome unclear');
+      }
+    }
+    
     // Generate catalysts from news
-    if (topics.has('earnings')) {
+    if (topics.has('earnings') && !result.earningsDetected) {
       result.catalysts.push('Earnings activity detected in news');
     }
     if (topics.has('mergers_and_acquisitions')) {

@@ -106,10 +106,13 @@ interface TradingEngineResult {
     hasRecentNews: boolean;
     sentimentScore: number;
     sentimentLabel: string;
+    newsBias: 'bullish' | 'bearish' | 'neutral';
     topHeadlines: string[];
     keyTopics: string[];
     catalysts: string[];
     convictionAdjustment: number;
+    earningsDetected: boolean;
+    earningsBeat: boolean | null;
     warnings: string[];
   } | null;
 }
@@ -527,16 +530,32 @@ function NewsPanel({ data }: { data: TradingEngineResult['newsContext'] }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {data.convictionAdjustment !== 0 && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Conviction Impact:</span>
-            <Badge variant="outline" className={cn(
-              data.convictionAdjustment > 0 ? 'text-green-400 border-green-400/50' : 'text-red-400 border-red-400/50'
-            )}>
-              {data.convictionAdjustment > 0 ? '+' : ''}{data.convictionAdjustment} pts
-            </Badge>
+        {data.earningsDetected && (
+          <div className="flex items-center gap-2 text-xs p-2 rounded bg-purple-500/10 border border-purple-500/30">
+            <span className="text-purple-400 font-medium">Earnings Event:</span>
+            {data.earningsBeat === true && (
+              <Badge variant="outline" className="text-green-400 border-green-400/50">BEAT</Badge>
+            )}
+            {data.earningsBeat === false && (
+              <Badge variant="outline" className="text-red-400 border-red-400/50">MISS</Badge>
+            )}
+            {data.earningsBeat === null && (
+              <Badge variant="outline" className="text-amber-400 border-amber-400/50">Pending/Unclear</Badge>
+            )}
           </div>
         )}
+
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">News Bias:</span>
+          <Badge variant="outline" className={cn(
+            "text-xs",
+            data.newsBias === 'bullish' ? 'text-green-400 border-green-400/50' : 
+            data.newsBias === 'bearish' ? 'text-red-400 border-red-400/50' : 
+            'text-muted-foreground border-border'
+          )}>
+            {data.newsBias.toUpperCase()}
+          </Badge>
+        </div>
 
         {data.topHeadlines.length > 0 && (
           <div>
