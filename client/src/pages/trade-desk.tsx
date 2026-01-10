@@ -637,10 +637,15 @@ export default function TradeDeskPage() {
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
+  // Per-group pagination for Active Research accordion
+  const [groupVisibleCount, setGroupVisibleCount] = useState<Record<string, number>>({});
+  const ITEMS_PER_GROUP = 20;
+  
   
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
+    setGroupVisibleCount({});
   }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, dateFilter, customDate]);
   
   const { toast } = useToast();
@@ -1963,6 +1968,10 @@ export default function TradeDeskPage() {
                       const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
                       
                       const stats = calculateGroupStats(ideas);
+                      const visibleInGroup = groupVisibleCount[assetType] || ITEMS_PER_GROUP;
+                      const visibleIdeas = ideas.slice(0, visibleInGroup);
+                      const hasMore = ideas.length > visibleInGroup;
+                      const remaining = ideas.length - visibleInGroup;
                       
                       return (
                         <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
@@ -1979,20 +1988,39 @@ export default function TradeDeskPage() {
                               )}
                             </div>
                           </AccordionTrigger>
-                          <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}`}>
-                            {ideas.map(idea => (
-                              <TradeIdeaBlock
-                                key={idea.id}
-                                idea={idea}
-                                currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
-                                catalysts={catalysts}
-                                isExpanded={expandedIdeaId === idea.id}
-                                onToggleExpand={() => handleToggleExpand(idea.id)}
-                                onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
-                                onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
-                                data-testid={`idea-card-${idea.id}`}
-                              />
-                            ))}
+                          <AccordionContent className="px-4 pb-4">
+                            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}>
+                              {visibleIdeas.map(idea => (
+                                <TradeIdeaBlock
+                                  key={idea.id}
+                                  idea={idea}
+                                  currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
+                                  catalysts={catalysts}
+                                  isExpanded={expandedIdeaId === idea.id}
+                                  onToggleExpand={() => handleToggleExpand(idea.id)}
+                                  onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
+                                  onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
+                                  data-testid={`idea-card-${idea.id}`}
+                                />
+                              ))}
+                            </div>
+                            {hasMore && (
+                              <div className="pt-4 text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setGroupVisibleCount(prev => ({
+                                    ...prev,
+                                    [assetType]: (prev[assetType] || ITEMS_PER_GROUP) + ITEMS_PER_GROUP
+                                  }))}
+                                  className="gap-2"
+                                  data-testid={`button-load-more-${assetType}`}
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                  Load More ({remaining} remaining)
+                                </Button>
+                              </div>
+                            )}
                           </AccordionContent>
                         </AccordionItem>
                       );
