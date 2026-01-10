@@ -6,13 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Shield, Mail, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Shield, Mail, Sparkles, Lock, User } from "lucide-react";
 
 const verifyCodeSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -68,6 +67,22 @@ const RISK_TOLERANCES = [
   { value: "very_aggressive", label: "Very Aggressive" },
 ];
 
+const inputStyles: React.CSSProperties = {
+  backgroundColor: '#1a1a2e',
+  border: '1px solid #374151',
+  borderRadius: '8px',
+  padding: '10px 12px',
+  color: '#ffffff',
+  fontSize: '14px',
+  width: '100%',
+  outline: 'none',
+};
+
+const inputWithIconStyles: React.CSSProperties = {
+  ...inputStyles,
+  paddingLeft: '40px',
+};
+
 export default function JoinBeta() {
   const [, navigate] = useLocation();
   const search = useSearch();
@@ -75,7 +90,6 @@ export default function JoinBeta() {
   const [step, setStep] = useState<"verify" | "onboard" | "success">("verify");
   const [verifiedEmail, setVerifiedEmail] = useState("");
 
-  // Parse invite code from URL immediately
   const urlParams = new URLSearchParams(search);
   const initialCode = urlParams.get("code") || urlParams.get("invite") || "";
 
@@ -84,7 +98,6 @@ export default function JoinBeta() {
     defaultValues: { email: "", token: initialCode.trim() },
   });
 
-  // Also update if URL changes after initial load
   useEffect(() => {
     const params = new URLSearchParams(search);
     const code = params.get("code") || params.get("invite");
@@ -190,12 +203,9 @@ export default function JoinBeta() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-start justify-center py-8 px-6 relative overflow-y-auto">
-      {/* Subtle gradient accent */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="w-full max-w-lg relative z-10">
-        
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
@@ -215,7 +225,6 @@ export default function JoinBeta() {
           </p>
         </div>
 
-        {/* Progress */}
         <div className="flex justify-center items-center gap-3 mb-8">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/30" : "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"}`}>
             {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
@@ -241,69 +250,61 @@ export default function JoinBeta() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pb-6">
-              <Form {...verifyForm}>
-                <form onSubmit={verifyForm.handleSubmit((data) => verifyMutation.mutate(data))} className="space-y-4" autoComplete="off">
-                  <FormField
-                    control={verifyForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-neutral-300">Email</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
-                            <Input 
-                              placeholder="you@example.com" 
-                              className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-white"
-                              data-testid="input-verify-email"
-                              autoComplete="email"
-                              {...field} 
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={verifyForm.control}
-                    name="token"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-neutral-300">Access Code</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500" />
-                            <Input 
-                              placeholder="Enter your invite code"
-                              className="pl-10 font-mono bg-slate-900 border-slate-700 text-cyan-400 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/30 caret-cyan-400"
-                              data-testid="input-verify-token"
-                              autoComplete="one-time-code"
-                              {...field} 
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <form 
+                onSubmit={verifyForm.handleSubmit((data) => verifyMutation.mutate(data))} 
+                className="space-y-4"
+                autoComplete="off"
+              >
+                <div>
+                  <label className="block text-neutral-300 text-sm font-medium mb-2">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500 z-10" />
+                    <input
+                      type="email"
+                      placeholder="you@example.com"
+                      data-testid="input-verify-email"
+                      autoComplete="email"
+                      style={inputWithIconStyles}
+                      {...verifyForm.register("email")}
+                    />
+                  </div>
+                  {verifyForm.formState.errors.email && (
+                    <p className="text-red-400 text-sm mt-1">{verifyForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-neutral-300 text-sm font-medium mb-2">Access Code</label>
+                  <div className="relative">
+                    <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500 z-10" />
+                    <input
+                      type="text"
+                      placeholder="Enter your invite code"
+                      data-testid="input-verify-token"
+                      autoComplete="one-time-code"
+                      style={{ ...inputWithIconStyles, fontFamily: 'monospace', color: '#22d3ee' }}
+                      {...verifyForm.register("token")}
+                    />
+                  </div>
+                  {verifyForm.formState.errors.token && (
+                    <p className="text-red-400 text-sm mt-1">{verifyForm.formState.errors.token.message}</p>
+                  )}
+                </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-2"
-                    disabled={verifyMutation.isPending}
-                    data-testid="button-verify-code"
-                  >
-                    {verifyMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                    )}
-                    Verify & Continue
-                  </Button>
-                </form>
-              </Form>
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-2"
+                  disabled={verifyMutation.isPending}
+                  data-testid="button-verify-code"
+                >
+                  {verifyMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                  )}
+                  Verify & Continue
+                </Button>
+              </form>
             </CardContent>
           </div>
         ) : (
@@ -330,82 +331,52 @@ export default function JoinBeta() {
             </CardHeader>
             <CardContent className="pb-6">
               <Form {...onboardingForm}>
-                <form onSubmit={onboardingForm.handleSubmit((data) => onboardMutation.mutate(data))} className="space-y-4" autoComplete="on">
-                  {/* Hidden username field to signal new account to browser */}
-                  <input type="hidden" name="username" autoComplete="username" value={verifiedEmail} />
+                <form onSubmit={onboardingForm.handleSubmit((data) => onboardMutation.mutate(data))} className="space-y-4">
                   
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={onboardingForm.control}
-                      name="firstName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-neutral-300">First Name</FormLabel>
-                          <FormControl>
-                            <Input 
-                              className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                              data-testid="input-first-name"
-                              autoComplete="given-name"
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    <div>
+                      <label className="block text-neutral-300 text-sm font-medium mb-2">First Name</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                        <input
+                          type="text"
+                          data-testid="input-first-name"
+                          autoComplete="given-name"
+                          style={inputWithIconStyles}
+                          {...onboardingForm.register("firstName")}
+                        />
+                      </div>
+                      {onboardingForm.formState.errors.firstName && (
+                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.firstName.message}</p>
                       )}
-                    />
-                    <FormField
-                      control={onboardingForm.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-neutral-300">Last Name</FormLabel>
-                          <FormControl>
-                            <Input 
-                              className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                              data-testid="input-last-name"
-                              autoComplete="family-name"
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                    </div>
+                    <div>
+                      <label className="block text-neutral-300 text-sm font-medium mb-2">Last Name</label>
+                      <input
+                        type="text"
+                        data-testid="input-last-name"
+                        autoComplete="family-name"
+                        style={inputStyles}
+                        {...onboardingForm.register("lastName")}
+                      />
+                      {onboardingForm.formState.errors.lastName && (
+                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.lastName.message}</p>
                       )}
-                    />
+                    </div>
                   </div>
 
-                  <FormField
-                    control={onboardingForm.control}
-                    name="occupation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-neutral-300">Occupation (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g. Software Engineer"
-                            className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
-                            data-testid="input-occupation"
-                            data-form-type="other"
-                            data-lpignore="true"
-                            {...field}
-                            autoComplete="off"
-                            value={field.value || ''}
-                            onChange={(e) => {
-                              // Reject values that look like tokens (hex strings > 20 chars)
-                              const val = e.target.value;
-                              if (val && /^[a-f0-9]{20,}$/i.test(val)) {
-                                field.onChange('');
-                              } else {
-                                field.onChange(val);
-                              }
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <label className="block text-neutral-300 text-sm font-medium mb-2">Occupation (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Software Engineer"
+                      data-testid="input-occupation"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      style={{ ...inputStyles, color: '#ffffff' }}
+                      {...onboardingForm.register("occupation")}
+                    />
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -416,13 +387,13 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Experience</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-experience">
+                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-experience">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-neutral-900 border-neutral-700">
+                            <SelectContent className="bg-[#1a1a2e] border-neutral-700">
                               {EXPERIENCE_LEVELS.map(level => (
-                                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+                                <SelectItem key={level.value} value={level.value} className="text-white">{level.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -438,13 +409,13 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Risk Tolerance</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-risk">
+                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-risk">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-neutral-900 border-neutral-700">
+                            <SelectContent className="bg-[#1a1a2e] border-neutral-700">
                               {RISK_TOLERANCES.map(risk => (
-                                <SelectItem key={risk.value} value={risk.value}>{risk.label}</SelectItem>
+                                <SelectItem key={risk.value} value={risk.value} className="text-white">{risk.label}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -462,13 +433,13 @@ export default function JoinBeta() {
                         <FormLabel className="text-neutral-300">Investment Goal</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-neutral-900 border-neutral-700 text-white focus:border-cyan-500" data-testid="select-goals">
+                            <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-goals">
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent className="bg-neutral-900 border-neutral-700">
+                          <SelectContent className="bg-[#1a1a2e] border-neutral-700">
                             {INVESTMENT_GOALS.map(goal => (
-                              <SelectItem key={goal.value} value={goal.value}>{goal.label}</SelectItem>
+                              <SelectItem key={goal.value} value={goal.value} className="text-white">{goal.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -490,7 +461,7 @@ export default function JoinBeta() {
                               control={onboardingForm.control}
                               name="knowledgeFocus"
                               render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2 space-y-0 p-2 rounded-lg bg-neutral-900/30 border border-neutral-800/50 hover:border-neutral-700 transition-colors">
+                                <FormItem className="flex items-center space-x-2 space-y-0 p-2 rounded-lg bg-[#1a1a2e]/50 border border-neutral-800/50 hover:border-neutral-700 transition-colors">
                                   <FormControl>
                                     <Checkbox
                                       checked={field.value?.includes(area.value)}
@@ -504,7 +475,7 @@ export default function JoinBeta() {
                                       data-testid={`checkbox-${area.value}`}
                                     />
                                   </FormControl>
-                                  <FormLabel className="text-sm text-neutral-400 font-normal cursor-pointer">
+                                  <FormLabel className="text-sm text-neutral-300 font-normal cursor-pointer">
                                     {area.label}
                                   </FormLabel>
                                 </FormItem>
@@ -517,89 +488,66 @@ export default function JoinBeta() {
                     )}
                   />
 
-                  <FormField
-                    control={onboardingForm.control}
-                    name="referralSource"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-neutral-300">How did you find us? (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g. Twitter, friend referral"
-                            className="bg-neutral-900 border-neutral-700 placeholder:text-neutral-500 focus:border-cyan-500 caret-cyan-400"
-                            data-testid="input-referral"
-                            autoComplete="off"
-                            data-lpignore="true"
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="pt-2 border-t border-neutral-800">
+                    <div>
+                      <label className="block text-neutral-300 text-sm font-medium mb-2">Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                        <input
+                          type="password"
+                          data-testid="input-password"
+                          autoComplete="new-password"
+                          style={inputWithIconStyles}
+                          {...onboardingForm.register("password")}
+                        />
+                      </div>
+                      {onboardingForm.formState.errors.password && (
+                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
+                      )}
+                    </div>
+                  </div>
 
-                  <div className="border-t border-neutral-800/50 pt-4 mt-4">
-                    <p className="text-neutral-400 text-sm mb-4 flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-cyan-400" />
-                      Create your password
-                    </p>
-                    <div className="space-y-4">
-                      <FormField
-                        control={onboardingForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-neutral-300">Password</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password"
-                                className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                                data-testid="input-password"
-                                autoComplete="new-password"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={onboardingForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-neutral-300">Confirm Password</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password"
-                                className="bg-neutral-900 border-neutral-700 focus:border-cyan-500 caret-cyan-400"
-                                data-testid="input-confirm-password"
-                                autoComplete="new-password"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                  <div>
+                    <label className="block text-neutral-300 text-sm font-medium mb-2">Confirm Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
+                      <input
+                        type="password"
+                        data-testid="input-confirm-password"
+                        autoComplete="new-password"
+                        style={inputWithIconStyles}
+                        {...onboardingForm.register("confirmPassword")}
                       />
                     </div>
+                    {onboardingForm.formState.errors.confirmPassword && (
+                      <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-neutral-300 text-sm font-medium mb-2">How did you find us? (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Twitter, Friend, Google"
+                      data-testid="input-referral"
+                      autoComplete="off"
+                      style={inputStyles}
+                      {...onboardingForm.register("referralSource")}
+                    />
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-4"
+                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-2"
                     disabled={onboardMutation.isPending}
-                    data-testid="button-complete-signup"
+                    data-testid="button-complete-profile"
                   >
                     {onboardMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
-                    Complete Sign Up
+                    Complete Registration
                   </Button>
                 </form>
               </Form>
@@ -608,7 +556,7 @@ export default function JoinBeta() {
         )}
 
         <p className="text-center text-neutral-600 text-xs mt-6">
-          For educational and research purposes only.
+          By signing up, you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>
