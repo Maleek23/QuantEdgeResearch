@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
+import { ContentDensityProvider } from "@/hooks/use-content-density";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -335,16 +336,18 @@ function App() {
         <TooltipProvider>
           <RealtimePricesProvider>
             <PreferencesProvider>
-              <ScrollParticles />
-              <SidebarProvider style={style as React.CSSProperties}>
-                <div className="flex h-screen w-full">
-                  <AppSidebar />
-                  <MainContentWrapper />
-                </div>
-              </SidebarProvider>
-              <AIChatbotPopup />
-              <BotNotificationPopup />
-              <Toaster />
+              <ContentDensityProvider>
+                <ScrollParticles />
+                <SidebarProvider style={style as React.CSSProperties}>
+                  <div className="flex h-screen w-full">
+                    <AppSidebar />
+                    <MainContentWrapper />
+                  </div>
+                </SidebarProvider>
+                <AIChatbotPopup />
+                <BotNotificationPopup />
+                <Toaster />
+              </ContentDensityProvider>
             </PreferencesProvider>
           </RealtimePricesProvider>
         </TooltipProvider>
