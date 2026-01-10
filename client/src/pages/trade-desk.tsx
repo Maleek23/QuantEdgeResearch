@@ -335,6 +335,9 @@ function BestSetupsCard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-semibold text-sm">{setup.symbol}</span>
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          {setup.assetType?.toUpperCase() || 'STOCK'}
+                        </Badge>
                         {getGradeBadge(setup.probabilityBand)}
                         <Badge variant="outline" className={cn(
                           "text-xs",
@@ -343,7 +346,10 @@ function BestSetupsCard() {
                           {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {setup.thesis && (
+                        <p className="text-xs text-foreground/80 mt-1 line-clamp-1">{setup.thesis}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <span>{setup.signalCount} signals</span>
                         <span className="text-muted-foreground/50">|</span>
                         <span>{setup.riskReward}:1 R:R</span>
