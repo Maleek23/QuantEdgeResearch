@@ -10669,6 +10669,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== RESEARCH HISTORY ENDPOINTS ==============
+  
+  // Get user's research history with filters
+  app.get("/api/research-history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { symbol, year, action, limit } = req.query;
+      const history = await storage.getResearchHistory(userId, {
+        symbol: symbol as string,
+        year: year ? parseInt(year as string) : undefined,
+        action: action as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/research-history' });
+      res.status(500).json({ error: "Failed to fetch research history" });
+    }
+  });
+
+  // Get user's research stats (aggregated metrics)
+  app.get("/api/research-history/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { year } = req.query;
+      const stats = await storage.getUserResearchStats(userId, year ? parseInt(year as string) : undefined);
+      res.json(stats);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/research-history/stats' });
+      res.status(500).json({ error: "Failed to fetch research stats" });
+    }
+  });
+
+  // Get symbol-specific research history for user
+  app.get("/api/research-history/symbol/:symbol", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const symbol = req.params.symbol.toUpperCase();
+      const history = await storage.getSymbolResearchHistory(userId, symbol);
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/research-history/symbol/:symbol' });
+      res.status(500).json({ error: "Failed to fetch symbol research history" });
+    }
+  });
+
+  // Log user action on a signal (traded/watched/ignored)
+  app.post("/api/research-history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { symbol, signalId, actionTaken, signalGrade, signalConfidence, signalDirection, signalEngine, signalPrice, technicalSnapshot, marketRegime, signalPatterns, decisionNotes } = req.body;
+      
+      if (!symbol || !actionTaken) {
+        return res.status(400).json({ error: "Symbol and actionTaken are required" });
+      }
+      
+      const existing = signalId ? await storage.getResearchHistoryBySignal(userId, signalId) : null;
+      if (existing) {
+        const updated = await storage.updateResearchHistory(existing.id, { actionTaken, decisionNotes, decidedAt: new Date() });
+        return res.json(updated);
+      }
+      
+      const record = await storage.createResearchHistory({
+        userId,
+        symbol: symbol.toUpperCase(),
+        signalId: signalId || null,
+        actionTaken,
+        signalGrade: signalGrade || null,
+        signalConfidence: signalConfidence || null,
+        signalDirection: signalDirection || null,
+        signalEngine: signalEngine || null,
+        signalPrice: signalPrice || null,
+        technicalSnapshot: technicalSnapshot ? JSON.stringify(technicalSnapshot) : null,
+        marketRegime: marketRegime || null,
+        signalPatterns: signalPatterns || null,
+        decisionNotes: decisionNotes || null,
+        viewedAt: new Date(),
+        decidedAt: new Date(),
+      });
+      res.json(record);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/research-history' });
+      res.status(500).json({ error: "Failed to log research action" });
+    }
+  });
+
+  // Update research history (add outcome, lesson learned)
+  app.patch("/api/research-history/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      const { outcome, outcomeReturn, outcomePnL, lessonLearned } = req.body;
+      
+      const updated = await storage.updateResearchHistory(req.params.id, {
+        outcome,
+        outcomeReturn,
+        outcomePnL,
+        lessonLearned,
+        outcomeUpdatedAt: new Date(),
+      });
+      
+      if (!updated) return res.status(404).json({ error: "Record not found" });
+      res.json(updated);
+    } catch (error) {
+      logError(error as Error, { context: 'PATCH /api/research-history/:id' });
+      res.status(500).json({ error: "Failed to update research history" });
+    }
+  });
+
   // Generate trade ideas from elite (S/A tier) watchlist setups
   app.post("/api/watchlist/generate-elite-ideas", isAuthenticated, async (req: any, res) => {
     try {
