@@ -58,7 +58,7 @@ const learnItems: NavItem[] = [
 ];
 
 const accountItems: NavItem[] = [
-  { title: "Account & Settings", url: "/account", icon: User },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 const adminItems: NavItem[] = [
@@ -250,9 +250,9 @@ export function AppSidebar() {
           onNavigate={handleNavigation}
         />
         
-        {/* Account & Settings */}
+        {/* Settings */}
         <NavSection 
-          label="Account" 
+          label="Settings" 
           items={accountItems} 
           location={location} 
           onNavigate={handleNavigation}

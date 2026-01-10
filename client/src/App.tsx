@@ -32,6 +32,7 @@ const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
 const MarketPage = lazy(() => import("@/pages/market"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
 const AccountPage = lazy(() => import("@/pages/account"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
 const AdminOverview = lazy(() => import("@/pages/admin/overview"));
 const AdminUsers = lazy(() => import("@/pages/admin/users"));
@@ -176,12 +177,12 @@ function Router() {
       <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
-      <Route path="/account" component={withBetaProtection(AccountPage)} />
-      <Route path="/my-account">
-        <Redirect to="/account" />
+      <Route path="/settings" component={withBetaProtection(SettingsPage)} />
+      <Route path="/account">
+        <Redirect to="/settings" />
       </Route>
-      <Route path="/settings">
-        <Redirect to="/account" />
+      <Route path="/my-account">
+        <Redirect to="/settings" />
       </Route>
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminOverview} />
