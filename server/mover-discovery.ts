@@ -15,6 +15,11 @@ import { recordSymbolAttention } from './attention-tracking-service';
 let discoveredMovers: Set<string> = new Set();
 let lastDiscoveryTime: Date | null = null;
 
+// Persistent fallback cache - survives API failures
+let fallbackMoversCache: DiscoveredMover[] = [];
+let fallbackCacheTime: Date | null = null;
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes fallback validity
+
 // Yahoo Finance screener endpoints
 const YAHOO_SCREENER_BASE = 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved';
 
@@ -102,6 +107,7 @@ async function fetchTrendingTickers(): Promise<string[]> {
 
 /**
  * Discover movers from all sources
+ * Uses fallback cache when API calls fail
  */
 export async function discoverMovers(): Promise<DiscoveredMover[]> {
   const staticUniverse = new Set(getFullUniverse());
@@ -116,6 +122,18 @@ export async function discoverMovers(): Promise<DiscoveredMover[]> {
     fetchYahooScreener('day_losers'),
     fetchTrendingTickers()
   ]);
+  
+  // Check if all API calls failed - use fallback cache
+  const totalResults = mostActive.length + dayGainers.length + dayLosers.length + trending.length;
+  if (totalResults === 0) {
+    const cacheAge = fallbackCacheTime ? Date.now() - fallbackCacheTime.getTime() : Infinity;
+    if (fallbackMoversCache.length > 0 && cacheAge < CACHE_TTL_MS) {
+      logger.warn(`[MOVER-DISCOVERY] All API calls failed - using fallback cache (${fallbackMoversCache.length} movers, ${Math.round(cacheAge / 60000)}min old)`);
+      return fallbackMoversCache;
+    }
+    logger.error('[MOVER-DISCOVERY] All API calls failed and no valid fallback cache available');
+    return [];
+  }
   
   // Process most active
   for (const stock of mostActive) {
@@ -202,6 +220,13 @@ export async function discoverMovers(): Promise<DiscoveredMover[]> {
   discoveredMovers = new Set(allMovers.map(m => m.symbol));
   lastDiscoveryTime = new Date();
   
+  // Update fallback cache for graceful degradation
+  if (allMovers.length > 0) {
+    fallbackMoversCache = [...allMovers];
+    fallbackCacheTime = new Date();
+    logger.debug(`[MOVER-DISCOVERY] Updated fallback cache with ${allMovers.length} movers`);
+  }
+  
   // Log new discoveries
   const newDiscoveries = allMovers.filter(m => m.isNewDiscovery);
   if (newDiscoveries.length > 0) {
@@ -258,10 +283,17 @@ export function getExpandedUniverse(): string[] {
  * Get discovery status
  */
 export function getDiscoveryStatus() {
+  const cacheAge = fallbackCacheTime ? Math.round((Date.now() - fallbackCacheTime.getTime()) / 60000) : null;
   return {
     lastDiscoveryTime,
     discoveredCount: discoveredMovers.size,
-    discoveredSymbols: Array.from(discoveredMovers)
+    discoveredSymbols: Array.from(discoveredMovers),
+    fallbackCache: {
+      available: fallbackMoversCache.length > 0,
+      count: fallbackMoversCache.length,
+      ageMinutes: cacheAge,
+      isValid: cacheAge !== null && cacheAge < 30 // 30 min TTL
+    }
   };
 }
 
