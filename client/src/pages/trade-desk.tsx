@@ -67,6 +67,9 @@ import {
   Send
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import ResearchPulseWidget from "@/components/research-pulse-widget";
+import PersonalEdgeAnalytics from "@/components/personal-edge-analytics";
+import BestSetupsExplainer from "@/components/best-setups-explainer";
 
 // Compact expiry badge for quick time-left display
 function ExpiryBadge({ minutes }: { minutes: number }) {
@@ -422,11 +425,7 @@ function BestSetupsCard() {
             })}
           </div>
         ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No high-conviction setups found</p>
-            <p className="text-xs mt-1">Generate ideas or wait for better opportunities</p>
-          </div>
+          <BestSetupsExplainer />
         )}
         {bestSetups && bestSetups.totalOpen > 0 && (
           <p className="text-xs text-muted-foreground text-center mt-3">
@@ -1651,6 +1650,14 @@ export default function TradeDeskPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BestSetupsCard />
         <MarketMoversCard />
+      </div>
+
+      {/* Research Intelligence - Personal Edge Analysis */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <ResearchPulseWidget />
+        </div>
+        <PersonalEdgeAnalytics />
       </div>
 
       {/* Engine Filter Tabs - Premium Design */}
