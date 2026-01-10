@@ -74,15 +74,49 @@ export const TIER_LABELS = {
 // Performance thresholds
 export const PERFORMANCE_THRESHOLDS = {
   MIN_LOSS_PERCENT: 3, // Trades must lose at least 3% to count as a loss
+  MIN_WIN_PERCENT: 3,  // Trades must gain at least 3% to count as a win (for P&L method)
   WIN_RATE_GOOD: 60,
   WIN_RATE_WARNING: 45,
 } as const;
 
 /**
- * Canonical loss threshold - use this instead of hardcoding "3"
- * Trades that hit stop with less than this loss are considered "breakeven"
+ * Canonical thresholds - use these instead of hardcoding values
+ * Trades below these thresholds are considered "breakeven/neutral"
  */
 export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
+export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
+
+/**
+ * UNIFIED WIN/LOSS CLASSIFICATION
+ * 
+ * These functions are the SINGLE SOURCE OF TRUTH for determining outcomes.
+ * All endpoints, widgets, and calculations MUST use these functions.
+ * 
+ * CANONICAL DEFINITIONS:
+ * - WIN: hit_target OR (closed with P&L >= +3%)
+ * - LOSS: hit_stop AND (P&L <= -3%)
+ * - NEUTRAL: expired, manual_exit, breakeven (|P&L| < 3%) - excluded from win rate
+ */
+
+/**
+ * Check if a trade is a "real win"
+ * A trade is a win if:
+ * - outcome_status = 'hit_target', OR
+ * - closed with percent_gain >= +3%
+ */
+export function isRealWin(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
+  const status = (idea.outcomeStatus || '').trim().toLowerCase();
+  
+  // Method 1: Explicit hit_target status
+  if (status === 'hit_target') return true;
+  
+  // Method 2: P&L-based (for trades without proper status)
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain >= CANONICAL_WIN_THRESHOLD;
+  }
+  
+  return false;
+}
 
 /**
  * Check if a trade is a "real loss" - hit stop with >= 3% loss
@@ -107,6 +141,24 @@ export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: 
   
   // For hit_stop without percentGain data, count as loss (legacy behavior)
   return true;
+}
+
+/**
+ * Check if a trade is "neutral" (breakeven or unresolved)
+ * These trades are EXCLUDED from win rate calculations
+ */
+export function isNeutral(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
+  return !isRealWin(idea) && !isRealLoss(idea);
+}
+
+/**
+ * Classify a trade into win/loss/neutral
+ */
+export type TradeOutcome = 'win' | 'loss' | 'neutral';
+export function classifyTrade(idea: { outcomeStatus?: string | null; percentGain?: number | null }): TradeOutcome {
+  if (isRealWin(idea)) return 'win';
+  if (isRealLoss(idea)) return 'loss';
+  return 'neutral';
 }
 
 /**
