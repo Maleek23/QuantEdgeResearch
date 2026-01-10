@@ -1061,11 +1061,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = req.body;
       
       // Validate required fields
+      if (!firstName || !lastName) {
+        return res.status(400).json({ error: "First name and last name are required" });
+      }
+      
       if (!password || password.length < 8) {
         return res.status(400).json({ error: "Password must be at least 8 characters" });
       }
       
-      if (!occupation || !tradingExperienceLevel || !investmentGoals || !riskTolerance || !referralSource) {
+      if (!tradingExperienceLevel || !investmentGoals || !riskTolerance) {
         return res.status(400).json({ error: "Please complete all required fields" });
       }
       
