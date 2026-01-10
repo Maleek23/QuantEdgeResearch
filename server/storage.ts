@@ -98,6 +98,9 @@ import type {
   InsertWatchlistHistory,
   SymbolNote,
   InsertSymbolNote,
+  researchHistory,
+  ResearchHistoryRecord,
+  InsertResearchHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -378,6 +381,14 @@ export interface IStorage {
   createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote>;
   updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined>;
   deleteSymbolNote(id: string): Promise<boolean>;
+
+  // Research History (Year-long learning tracking)
+  getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]>;
+  getResearchHistoryBySignal(userId: string, signalId: string): Promise<ResearchHistoryRecord | undefined>;
+  createResearchHistory(record: InsertResearchHistory): Promise<ResearchHistoryRecord>;
+  updateResearchHistory(id: string, updates: Partial<ResearchHistoryRecord>): Promise<ResearchHistoryRecord | undefined>;
+  getUserResearchStats(userId: string, year?: number): Promise<{ total: number; traded: number; watched: number; ignored: number; winRate: number; avgReturn: number; topPatterns: { pattern: string; winRate: number; count: number }[] }>;
+  getSymbolResearchHistory(userId: string, symbol: string): Promise<{ timesWatched: number; timesTraded: number; yourWinRate: number; lessonLearned: string | null; lastOutcome: string | null }>;
 
   // Options Data
   getOptionsBySymbol(symbol: string): Promise<OptionsData[]>;
@@ -1621,6 +1632,91 @@ export class MemStorage implements IStorage {
     return false;
   }
 
+  // Research History Methods (MemStorage stub)
+  private researchHistoryStore: ResearchHistoryRecord[] = [];
+
+  async getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]> {
+    let results = this.researchHistoryStore.filter(r => r.userId === userId);
+    if (filters?.symbol) results = results.filter(r => r.symbol === filters.symbol);
+    if (filters?.action) results = results.filter(r => r.actionTaken === filters.action);
+    if (filters?.year) results = results.filter(r => r.viewedAt && new Date(r.viewedAt).getFullYear() === filters.year);
+    results.sort((a, b) => (b.viewedAt?.getTime() || 0) - (a.viewedAt?.getTime() || 0));
+    if (filters?.limit) results = results.slice(0, filters.limit);
+    return results;
+  }
+
+  async getResearchHistoryBySignal(userId: string, signalId: string): Promise<ResearchHistoryRecord | undefined> {
+    return this.researchHistoryStore.find(r => r.userId === userId && r.signalId === signalId);
+  }
+
+  async createResearchHistory(record: InsertResearchHistory): Promise<ResearchHistoryRecord> {
+    const newRecord: ResearchHistoryRecord = {
+      id: randomUUID(),
+      ...record,
+      signalId: record.signalId || null,
+      signalGrade: record.signalGrade || null,
+      signalConfidence: record.signalConfidence || null,
+      signalDirection: record.signalDirection || null,
+      signalEngine: record.signalEngine || null,
+      signalPrice: record.signalPrice || null,
+      technicalSnapshot: record.technicalSnapshot || null,
+      marketRegime: record.marketRegime || null,
+      outcome: record.outcome || null,
+      outcomeReturn: record.outcomeReturn || null,
+      outcomePnL: record.outcomePnL || null,
+      outcomeUpdatedAt: record.outcomeUpdatedAt || null,
+      decisionNotes: record.decisionNotes || null,
+      lessonLearned: record.lessonLearned || null,
+      signalPatterns: record.signalPatterns || null,
+      viewedAt: record.viewedAt || new Date(),
+      decidedAt: record.decidedAt || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.researchHistoryStore.push(newRecord);
+    return newRecord;
+  }
+
+  async updateResearchHistory(id: string, updates: Partial<ResearchHistoryRecord>): Promise<ResearchHistoryRecord | undefined> {
+    const index = this.researchHistoryStore.findIndex(r => r.id === id);
+    if (index !== -1) {
+      this.researchHistoryStore[index] = { ...this.researchHistoryStore[index], ...updates, updatedAt: new Date() };
+      return this.researchHistoryStore[index];
+    }
+    return undefined;
+  }
+
+  async getUserResearchStats(userId: string, year?: number): Promise<{ total: number; traded: number; watched: number; ignored: number; winRate: number; avgReturn: number; topPatterns: { pattern: string; winRate: number; count: number }[] }> {
+    const history = await this.getResearchHistory(userId, { year });
+    const traded = history.filter(h => h.actionTaken === 'traded');
+    const wins = traded.filter(t => t.outcome === 'hit_target').length;
+    const losses = traded.filter(t => t.outcome === 'hit_stop').length;
+    return {
+      total: history.length,
+      traded: traded.length,
+      watched: history.filter(h => h.actionTaken === 'watched').length,
+      ignored: history.filter(h => h.actionTaken === 'ignored').length,
+      winRate: traded.length > 0 ? (wins / (wins + losses)) * 100 : 0,
+      avgReturn: traded.length > 0 ? traded.reduce((sum, t) => sum + (t.outcomeReturn || 0), 0) / traded.length : 0,
+      topPatterns: [],
+    };
+  }
+
+  async getSymbolResearchHistory(userId: string, symbol: string): Promise<{ timesWatched: number; timesTraded: number; yourWinRate: number; lessonLearned: string | null; lastOutcome: string | null }> {
+    const history = await this.getResearchHistory(userId, { symbol });
+    const traded = history.filter(h => h.actionTaken === 'traded');
+    const wins = traded.filter(t => t.outcome === 'hit_target').length;
+    const losses = traded.filter(t => t.outcome === 'hit_stop').length;
+    const lastTrade = traded[0];
+    return {
+      timesWatched: history.filter(h => h.actionTaken === 'watched').length,
+      timesTraded: traded.length,
+      yourWinRate: traded.length > 0 ? (wins / (wins + losses)) * 100 : 0,
+      lessonLearned: lastTrade?.lessonLearned || null,
+      lastOutcome: lastTrade?.outcome || null,
+    };
+  }
+
   // Options Data Methods
   async getOptionsBySymbol(symbol: string): Promise<OptionsData[]> {
     return Array.from(this.optionsData.values()).filter((o) => o.symbol === symbol);
@@ -2787,6 +2883,88 @@ export class DatabaseStorage implements IStorage {
   async deleteSymbolNote(id: string): Promise<boolean> {
     const result = await db.delete(symbolNotes).where(eq(symbolNotes.id, id));
     return true;
+  }
+
+  // Research History Methods
+  async getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]> {
+    const conditions = [eq(researchHistory.userId, userId)];
+    if (filters?.symbol) conditions.push(eq(researchHistory.symbol, filters.symbol));
+    if (filters?.action) conditions.push(eq(researchHistory.actionTaken, filters.action as any));
+    
+    let query = db.select().from(researchHistory)
+      .where(and(...conditions))
+      .orderBy(desc(researchHistory.viewedAt));
+    
+    if (filters?.limit) {
+      return await query.limit(filters.limit);
+    }
+    return await query;
+  }
+
+  async getResearchHistoryBySignal(userId: string, signalId: string): Promise<ResearchHistoryRecord | undefined> {
+    const [record] = await db.select().from(researchHistory)
+      .where(and(eq(researchHistory.userId, userId), eq(researchHistory.signalId, signalId)))
+      .limit(1);
+    return record;
+  }
+
+  async createResearchHistory(record: InsertResearchHistory): Promise<ResearchHistoryRecord> {
+    const [created] = await db.insert(researchHistory).values(record).returning();
+    return created;
+  }
+
+  async updateResearchHistory(id: string, updates: Partial<ResearchHistoryRecord>): Promise<ResearchHistoryRecord | undefined> {
+    const [updated] = await db.update(researchHistory)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(researchHistory.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getUserResearchStats(userId: string, year?: number): Promise<{ total: number; traded: number; watched: number; ignored: number; winRate: number; avgReturn: number; topPatterns: { pattern: string; winRate: number; count: number }[] }> {
+    const history = await this.getResearchHistory(userId, { year });
+    const traded = history.filter(h => h.actionTaken === 'traded');
+    const wins = traded.filter(t => t.outcome === 'hit_target').length;
+    const losses = traded.filter(t => t.outcome === 'hit_stop').length;
+    
+    const patternCounts: Record<string, { wins: number; total: number }> = {};
+    traded.forEach(t => {
+      (t.signalPatterns || []).forEach(p => {
+        if (!patternCounts[p]) patternCounts[p] = { wins: 0, total: 0 };
+        patternCounts[p].total++;
+        if (t.outcome === 'hit_target') patternCounts[p].wins++;
+      });
+    });
+    
+    const topPatterns = Object.entries(patternCounts)
+      .map(([pattern, stats]) => ({ pattern, winRate: (stats.wins / stats.total) * 100, count: stats.total }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      total: history.length,
+      traded: traded.length,
+      watched: history.filter(h => h.actionTaken === 'watched').length,
+      ignored: history.filter(h => h.actionTaken === 'ignored').length,
+      winRate: (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0,
+      avgReturn: traded.length > 0 ? traded.reduce((sum, t) => sum + (t.outcomeReturn || 0), 0) / traded.length : 0,
+      topPatterns,
+    };
+  }
+
+  async getSymbolResearchHistory(userId: string, symbol: string): Promise<{ timesWatched: number; timesTraded: number; yourWinRate: number; lessonLearned: string | null; lastOutcome: string | null }> {
+    const history = await this.getResearchHistory(userId, { symbol });
+    const traded = history.filter(h => h.actionTaken === 'traded');
+    const wins = traded.filter(t => t.outcome === 'hit_target').length;
+    const losses = traded.filter(t => t.outcome === 'hit_stop').length;
+    const lastTrade = traded[0];
+    return {
+      timesWatched: history.filter(h => h.actionTaken === 'watched').length,
+      timesTraded: traded.length,
+      yourWinRate: (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0,
+      lessonLearned: lastTrade?.lessonLearned || null,
+      lastOutcome: lastTrade?.outcome || null,
+    };
   }
 
   // Options Data Methods

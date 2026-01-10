@@ -587,6 +587,54 @@ export const insertSymbolNoteSchema = createInsertSchema(symbolNotes).omit({ id:
 export type InsertSymbolNote = z.infer<typeof insertSymbolNoteSchema>;
 export type SymbolNote = typeof symbolNotes.$inferSelect;
 
+// Research History - Track user interactions with signals for personalized learning
+export type ResearchAction = 'traded' | 'watched' | 'ignored' | 'saved';
+export type ResearchOutcome = 'hit_target' | 'hit_stop' | 'breakeven' | 'expired' | 'pending' | null;
+
+export const researchHistory = pgTable("research_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  symbol: text("symbol").notNull(),
+  signalId: varchar("signal_id"), // Optional link to trade_ideas table
+  
+  // User action on this signal
+  actionTaken: text("action_taken").$type<ResearchAction>().notNull(), // traded, watched, ignored, saved
+  
+  // Signal context at time of view
+  signalGrade: text("signal_grade"), // A+, A, A-, B+, etc. at time of viewing
+  signalConfidence: real("signal_confidence"), // 0-100 at time of viewing
+  signalDirection: text("signal_direction"), // 'long' | 'short'
+  signalEngine: text("signal_engine"), // 'AI' | 'QUANT' | 'HYBRID'
+  signalPrice: real("signal_price"), // Entry price at signal time
+  
+  // Technical context
+  technicalSnapshot: text("technical_snapshot"), // JSON: { rsi, adx, atr, volume, etc. }
+  marketRegime: text("market_regime"), // 'trending' | 'ranging' | 'volatile'
+  
+  // Outcome tracking (filled in later)
+  outcome: text("outcome").$type<ResearchOutcome>(), // hit_target, hit_stop, etc.
+  outcomeReturn: real("outcome_return"), // % return if traded
+  outcomePnL: real("outcome_pnl"), // $ P&L if traded
+  outcomeUpdatedAt: timestamp("outcome_updated_at"),
+  
+  // User notes and learning
+  decisionNotes: text("decision_notes"), // Why user made this decision
+  lessonLearned: text("lesson_learned"), // Post-hoc learning from outcome
+  
+  // Pattern matching (for similar pattern discovery)
+  signalPatterns: text("signal_patterns").array(), // ['volume_surge', 'rsi_oversold', 'call_flow']
+  
+  // Timestamps
+  viewedAt: timestamp("viewed_at").defaultNow(), // When user first saw the signal
+  decidedAt: timestamp("decided_at"), // When user made decision (traded/ignored)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertResearchHistorySchema = createInsertSchema(researchHistory).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertResearchHistory = z.infer<typeof insertResearchHistorySchema>;
+export type ResearchHistoryRecord = typeof researchHistory.$inferSelect;
+
 // Catalyst/News
 export const catalysts = pgTable("catalysts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
