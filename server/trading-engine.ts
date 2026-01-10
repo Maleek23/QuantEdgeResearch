@@ -17,6 +17,161 @@ import { fetchOHLCData } from './chart-analysis';
 import { analyzeVolatility, type VolatilityAnalysis } from './volatility-analysis-service';
 import { getMarketContext, type MarketContext } from './market-context-service';
 import { logger } from './logger';
+import { fetchAlphaVantageNews, type NewsArticle } from './news-service';
+
+// =============================================================================
+// NEWS CONTEXT ANALYSIS
+// =============================================================================
+
+export interface NewsContext {
+  hasRecentNews: boolean;
+  sentimentScore: number; // -1 to +1
+  sentimentLabel: 'Bullish' | 'Bearish' | 'Neutral' | 'Mixed';
+  topHeadlines: string[];
+  keyTopics: string[];
+  catalysts: string[];
+  convictionAdjustment: number; // -20 to +20
+  warnings: string[];
+}
+
+/**
+ * Analyze news context for a symbol
+ * Returns sentiment, catalysts, and conviction adjustment
+ */
+async function getNewsContext(symbol: string): Promise<NewsContext> {
+  const result: NewsContext = {
+    hasRecentNews: false,
+    sentimentScore: 0,
+    sentimentLabel: 'Neutral',
+    topHeadlines: [],
+    keyTopics: [],
+    catalysts: [],
+    convictionAdjustment: 0,
+    warnings: [],
+  };
+
+  try {
+    // Fetch recent news for the symbol (last 24-48 hours)
+    const articles = await fetchAlphaVantageNews(symbol, undefined, undefined, 10);
+    
+    if (!articles || articles.length === 0) {
+      result.catalysts.push('No recent news catalysts');
+      return result;
+    }
+
+    result.hasRecentNews = true;
+    
+    // Calculate aggregate sentiment
+    let totalSentiment = 0;
+    let relevantArticleCount = 0;
+    const topics = new Set<string>();
+    
+    for (const article of articles) {
+      // Find sentiment specific to this ticker
+      const tickerSentiment = article.tickerSentiments?.find(
+        ts => ts.ticker.toUpperCase() === symbol.toUpperCase()
+      );
+      
+      let score = 0;
+      if (tickerSentiment) {
+        const parsed = parseFloat(tickerSentiment.ticker_sentiment_score);
+        score = isNaN(parsed) ? 0 : parsed;
+      } else if (typeof article.overallSentimentScore === 'number' && !isNaN(article.overallSentimentScore)) {
+        score = article.overallSentimentScore;
+      }
+      
+      totalSentiment += score;
+      relevantArticleCount++;
+      
+      // Collect top headlines (max 3)
+      if (result.topHeadlines.length < 3) {
+        result.topHeadlines.push(article.title);
+      }
+      
+      // Collect topics
+      article.topics?.forEach(t => topics.add(t.topic));
+    }
+    
+    // Calculate average sentiment
+    if (relevantArticleCount > 0) {
+      result.sentimentScore = totalSentiment / relevantArticleCount;
+    }
+    
+    // Determine sentiment label
+    if (result.sentimentScore > 0.25) {
+      result.sentimentLabel = 'Bullish';
+    } else if (result.sentimentScore < -0.25) {
+      result.sentimentLabel = 'Bearish';
+    } else if (Math.abs(result.sentimentScore) < 0.1) {
+      result.sentimentLabel = 'Neutral';
+    } else {
+      result.sentimentLabel = 'Mixed';
+    }
+    
+    // Key topics
+    result.keyTopics = Array.from(topics).slice(0, 5);
+    
+    // Generate catalysts from news
+    if (topics.has('earnings')) {
+      result.catalysts.push('Earnings activity detected in news');
+    }
+    if (topics.has('mergers_and_acquisitions')) {
+      result.catalysts.push('M&A activity mentioned');
+    }
+    if (topics.has('ipo')) {
+      result.catalysts.push('IPO/offering news');
+    }
+    if (topics.has('financial_markets')) {
+      result.catalysts.push('Market-moving financial news');
+    }
+    if (topics.has('technology')) {
+      result.catalysts.push('Technology sector news');
+    }
+    if (topics.has('economy_monetary')) {
+      result.catalysts.push('Fed/monetary policy implications');
+    }
+    
+    // Add generic catalyst if we have news but no specific topic match
+    if (result.catalysts.length === 0 && articles.length > 0) {
+      result.catalysts.push(`${articles.length} recent news articles`);
+    }
+    
+    // Calculate conviction adjustment based on sentiment strength
+    // Strong sentiment = bigger adjustment
+    if (result.sentimentScore > 0.35) {
+      result.convictionAdjustment = 15;
+      result.catalysts.push(`Strong bullish news sentiment (+${(result.sentimentScore * 100).toFixed(0)}%)`);
+    } else if (result.sentimentScore > 0.2) {
+      result.convictionAdjustment = 10;
+      result.catalysts.push(`Bullish news sentiment (+${(result.sentimentScore * 100).toFixed(0)}%)`);
+    } else if (result.sentimentScore < -0.35) {
+      result.convictionAdjustment = -15;
+      result.warnings.push(`Strong bearish news sentiment (${(result.sentimentScore * 100).toFixed(0)}%)`);
+    } else if (result.sentimentScore < -0.2) {
+      result.convictionAdjustment = -10;
+      result.warnings.push(`Bearish news sentiment (${(result.sentimentScore * 100).toFixed(0)}%)`);
+    }
+    
+    // Add warning for very recent breaking news
+    const now = Date.now();
+    const recentArticles = articles.filter(a => {
+      try {
+        const pubTime = new Date(a.timePublished).getTime();
+        return (now - pubTime) < 4 * 60 * 60 * 1000; // Last 4 hours
+      } catch { return false; }
+    });
+    
+    if (recentArticles.length > 0) {
+      result.warnings.push(`${recentArticles.length} breaking news in last 4 hours - high volatility risk`);
+    }
+    
+  } catch (error) {
+    logger.warn(`Error fetching news context for ${symbol}:`, error);
+    result.catalysts.push('News data temporarily unavailable');
+  }
+  
+  return result;
+}
 
 // =============================================================================
 // TYPES & INTERFACES
@@ -124,6 +279,7 @@ export interface TradingEngineResult {
   tradeStructure: TradeStructure | null;
   volatilityContext: VolatilityAnalysis | null;
   marketContext: MarketContext;
+  newsContext?: NewsContext | null;
   actionable: boolean;
   summary: string;
 }
@@ -133,18 +289,25 @@ export interface TradingEngineResult {
 // =============================================================================
 
 /**
- * Analyze fundamentals for stocks
+ * Analyze fundamentals for stocks - now with real news integration
+ * Returns both FundamentalAnalysis and separate NewsContext
  */
-async function analyzeStockFundamentals(symbol: string): Promise<FundamentalAnalysis> {
+async function analyzeStockFundamentals(symbol: string): Promise<{ fundamental: FundamentalAnalysis; newsContext: NewsContext | null }> {
   const drivers: string[] = [];
   const catalysts: string[] = [];
   const risks: string[] = [];
   let bias: Bias = 'neutral';
   let conviction = 50;
+  let newsContext: NewsContext | null = null;
 
   try {
-    // Get current price and context
-    const quote = await fetchStockPrice(symbol);
+    // Fetch real news context in parallel with price data
+    const [quote, news] = await Promise.all([
+      fetchStockPrice(symbol),
+      getNewsContext(symbol)
+    ]);
+    
+    newsContext = news;
     
     if (quote) {
       // Price momentum analysis
@@ -172,6 +335,35 @@ async function analyzeStockFundamentals(symbol: string): Promise<FundamentalAnal
       }
     }
 
+    // NEWS CONTEXT INTEGRATION - Real catalysts from news
+    if (newsContext.hasRecentNews) {
+      // Add news sentiment to drivers (only if we have a valid score)
+      if (newsContext.sentimentLabel !== 'Neutral' && newsContext.sentimentScore !== 0) {
+        const sentimentPct = (newsContext.sentimentScore * 100).toFixed(0);
+        drivers.push(`News sentiment: ${newsContext.sentimentLabel} (${sentimentPct}%)`);
+      } else if (newsContext.hasRecentNews) {
+        drivers.push(`News sentiment: ${newsContext.sentimentLabel}`);
+      }
+      
+      // Add real catalysts from news
+      newsContext.catalysts.forEach(c => catalysts.push(c));
+      
+      // Adjust conviction based on news sentiment
+      conviction += newsContext.convictionAdjustment;
+      
+      // Add news warnings to risks
+      newsContext.warnings.forEach(w => risks.push(w));
+      
+      // If news sentiment strongly contradicts price action, flag it
+      if (newsContext.sentimentLabel === 'Bearish' && bias === 'bullish') {
+        risks.push('Bearish news vs bullish price - potential reversal');
+      } else if (newsContext.sentimentLabel === 'Bullish' && bias === 'bearish') {
+        drivers.push('Bullish news vs bearish price - potential bounce');
+      }
+    } else {
+      catalysts.push('No recent news catalysts');
+    }
+
     // Market regime context
     const marketContext = await getMarketContext();
     if (marketContext.regime === 'trending_up') {
@@ -192,10 +384,6 @@ async function analyzeStockFundamentals(symbol: string): Promise<FundamentalAnal
         risks.push('Potential volatility spike risk');
       }
     }
-
-    // Add general catalysts
-    catalysts.push('Earnings season activity');
-    catalysts.push('Fed policy updates');
     
     // Add general risks
     risks.push('Market-wide correlation risk');
@@ -208,14 +396,17 @@ async function analyzeStockFundamentals(symbol: string): Promise<FundamentalAnal
   }
 
   return {
-    asset: 'stock',
-    symbol,
-    bias,
-    conviction: Math.min(100, Math.max(0, conviction)),
-    drivers,
-    catalysts,
-    risks,
-    timeHorizon: 'medium',
+    fundamental: {
+      asset: 'stock',
+      symbol,
+      bias,
+      conviction: Math.min(100, Math.max(0, conviction)),
+      drivers,
+      catalysts,
+      risks,
+      timeHorizon: 'medium',
+    },
+    newsContext,
   };
 }
 
@@ -430,16 +621,16 @@ async function analyzeCryptoFundamentals(symbol: string): Promise<FundamentalAna
 export async function analyzeFundamentals(
   symbol: string,
   assetClass: AssetClass
-): Promise<FundamentalAnalysis> {
+): Promise<{ fundamental: FundamentalAnalysis; newsContext: NewsContext | null }> {
   switch (assetClass) {
     case 'stock':
       return analyzeStockFundamentals(symbol);
     case 'options':
-      return analyzeOptionsFundamentals(symbol);
+      return { fundamental: await analyzeOptionsFundamentals(symbol), newsContext: null };
     case 'futures':
-      return analyzeFuturesFundamentals(symbol);
+      return { fundamental: await analyzeFuturesFundamentals(symbol), newsContext: null };
     case 'crypto':
-      return analyzeCryptoFundamentals(symbol);
+      return { fundamental: await analyzeCryptoFundamentals(symbol), newsContext: null };
     default:
       return analyzeStockFundamentals(symbol);
   }
@@ -1001,12 +1192,15 @@ export async function runTradingEngine(
   logger.info(`🎯 Trading Engine analyzing ${symbol} (${assetClass})`);
 
   // Run all analyses in parallel
-  const [fundamental, technical, volatilityContext, marketContext] = await Promise.all([
+  const [fundamentalResult, technical, volatilityContext, marketContext] = await Promise.all([
     analyzeFundamentals(symbol, assetClass),
     analyzeTechnicals(symbol),
     analyzeVolatility(symbol).catch(() => null),
     getMarketContext(),
   ]);
+
+  // Extract fundamental and news context
+  const { fundamental, newsContext } = fundamentalResult;
 
   // Validate confluence with volatility and market context for regime-aware gating
   const confluence = validateConfluence(fundamental, technical, volatilityContext, marketContext);
@@ -1049,6 +1243,7 @@ export async function runTradingEngine(
     tradeStructure,
     volatilityContext,
     marketContext,
+    newsContext,
     actionable,
     summary,
   };
