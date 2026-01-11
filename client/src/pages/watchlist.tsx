@@ -21,7 +21,8 @@ import {
   Star, RefreshCw, TrendingUp, TrendingDown, Activity, 
   BarChart3, Target, Shield, Clock, Bell, ChevronRight,
   Zap, AlertTriangle, CheckCircle, XCircle, Info,
-  ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search
+  ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search,
+  Download
 } from "lucide-react";
 
 // Enhanced tier configuration with psychology-driven colors and descriptions
@@ -980,6 +981,72 @@ function AddSymbolDialog() {
   );
 }
 
+// CSV Export Function
+function downloadWatchlistCSV(items: WatchlistItem[], filename: string = 'watchlist') {
+  const headers = [
+    'Symbol',
+    'Asset Type',
+    'Tier',
+    'Score',
+    'Sector',
+    'Entry Timing',
+    'Thesis',
+    'Notes',
+    'Target Price',
+    'Track Premiums',
+    'Last Premium',
+    'Avg Premium',
+    'Premium Percentile',
+    'Added At',
+    'Last Evaluated'
+  ];
+
+  const extractEntryTiming = (notes: string | null) => {
+    if (!notes) return '';
+    const match = notes.match(/Entry:\s*([^|]+)/i);
+    return match ? match[1].trim() : '';
+  };
+
+  const extractUpside = (notes: string | null) => {
+    if (!notes) return '';
+    const match = notes.match(/(\+\d+%[^,]*)/);
+    return match ? match[1].trim() : '';
+  };
+
+  const rows = items.map(item => [
+    item.symbol,
+    item.assetType || 'stock',
+    item.tier || 'C',
+    item.gradeScore?.toString() || '',
+    item.sector || '',
+    extractEntryTiming(item.notes),
+    (item.thesis || '').replace(/,/g, ';').replace(/\n/g, ' '),
+    (item.notes || '').replace(/,/g, ';').replace(/\n/g, ' '),
+    item.targetPrice?.toString() || '',
+    item.trackPremiums ? 'Yes' : 'No',
+    item.lastPremium?.toString() || '',
+    item.avgPremium?.toString() || '',
+    item.premiumPercentile?.toString() || '',
+    item.addedAt || '',
+    item.lastEvaluatedAt || ''
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // Main Page Component
 export default function WatchlistPage() {
   const { toast } = useToast();
@@ -1090,6 +1157,18 @@ export default function WatchlistPage() {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${reGradeAllMutation.isPending ? 'animate-spin' : ''}`} />
             Refresh All
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              downloadWatchlistCSV(watchlistItems, 'quant_edge_watchlist');
+              toast({ title: "Downloaded", description: `Exported ${watchlistItems.length} symbols to CSV` });
+            }}
+            disabled={watchlistItems.length === 0}
+            data-testid="button-download-watchlist"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
           </Button>
           <Button 
             onClick={() => generateEliteIdeasMutation.mutate()}
