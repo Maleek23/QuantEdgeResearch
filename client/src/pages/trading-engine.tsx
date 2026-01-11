@@ -1071,7 +1071,28 @@ export default function TradingEnginePage() {
           </TabsList>
 
           {/* Analysis Tab */}
-          <TabsContent value="analysis" className="space-y-6">
+          <TabsContent value="analysis" className="mt-0 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-4">
+                <MarketOverviewWidget />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <BullishPatternWidget />
+                  <SectorHeatWidget />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <TechnicalInsights />
+                  <NewsInsights />
+                </div>
+                <MarketContextInsights />
+              </div>
+              <div className="space-y-4">
+                <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
+                <BotStatusWidget />
+                <PositionSizeCalculator />
+                <ConfluenceInsights />
+              </div>
+            </div>
+          </TabsContent>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8 space-y-6">
                 <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">

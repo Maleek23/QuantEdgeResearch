@@ -80,6 +80,10 @@ async function upsertUser(
       profileImageUrl: claims["profile_image_url"],
       hasBetaAccess: true, // Grant beta access to all users for full platform access
     });
+    
+    // Explicitly update user in case upsertUser didn't set hasBetaAccess (legacy check)
+    await storage.updateUser(claims["sub"], { hasBetaAccess: true });
+    
     logger.info('User upserted from Replit Auth with beta access', { userId: claims["sub"], email: claims["email"] });
   } catch (error) {
     logError(error as Error, { context: 'upsertUser', userId: claims["sub"] });
@@ -206,11 +210,23 @@ export async function setupAuth(app: Express) {
         logger.warn('OAuth callback: no user returned', { info });
         return res.redirect('/signup?error=no_user');
       }
-      req.logIn(user, (loginErr) => {
+      
+      req.logIn(user, async (loginErr) => {
         if (loginErr) {
           logger.error('OAuth login error', { error: loginErr.message });
           return res.redirect('/signup?error=login_failed');
         }
+        
+        // Ensure user has beta access immediately after login
+        try {
+          if (user.claims?.sub) {
+            await storage.updateUser(user.claims.sub, { hasBetaAccess: true });
+            logger.info('Granted beta access to Replit user on login', { userId: user.claims.sub });
+          }
+        } catch (e) {
+          logger.error('Failed to grant beta access on login', { error: (e as Error).message });
+        }
+        
         logger.info('OAuth login successful', { userId: user.claims?.sub });
         return res.redirect('/trade-desk');
       });
