@@ -101,6 +101,13 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState<Partial<UserPreferences>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
+  const [botThresholds, setBotThresholds] = useState({
+    maxPositionSize: 500,
+    confidenceThreshold: 70,
+    dailyTradeLimit: 5,
+    stopLossPercent: 20,
+  });
+
   useEffect(() => {
     if (preferences) {
       setFormData({
@@ -218,14 +225,6 @@ export default function SettingsPage() {
           <TabsTrigger value="trading" data-testid="tab-trading" className="flex-1 min-w-[80px]">
             <Wallet className="h-4 w-4 mr-2" />
             Trading
-          </TabsTrigger>
-          <TabsTrigger value="risk" data-testid="tab-risk" className="flex-1 min-w-[80px]">
-            <Shield className="h-4 w-4 mr-2" />
-            Risk
-          </TabsTrigger>
-          <TabsTrigger value="technicals" data-testid="tab-technicals" className="flex-1 min-w-[80px]">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Technicals
           </TabsTrigger>
           <TabsTrigger value="bots" data-testid="tab-bots" className="flex-1 min-w-[80px]">
             <Bot className="h-4 w-4 mr-2" />
@@ -438,175 +437,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Risk Tab */}
-        <TabsContent value="risk" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Risk Profile
-              </CardTitle>
-              <CardDescription>Choose a preset or customize your risk parameters</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-4 gap-2">
-                {(['conservative', 'moderate', 'aggressive', 'custom'] as RiskTier[]).map((tier) => (
-                  <Button
-                    key={tier}
-                    variant={riskProfile.tier === tier ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleTierChange(tier)}
-                    className="capitalize"
-                    data-testid={`button-tier-${tier}`}
-                  >
-                    {tier}
-                  </Button>
-                ))}
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Target className="h-3 w-3" />
-                    Max Position Size: {riskProfile.maxPositionSizePercent}%
-                  </Label>
-                  <Slider
-                    min={0.5}
-                    max={10}
-                    step={0.5}
-                    value={[riskProfile.maxPositionSizePercent]}
-                    onValueChange={(v) => updateRiskProfile({ maxPositionSizePercent: v[0], tier: 'custom' })}
-                    data-testid="slider-max-position"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <TrendingDown className="h-3 w-3" />
-                    Max Daily Loss: {riskProfile.maxDailyLossPercent}%
-                  </Label>
-                  <Slider
-                    min={1}
-                    max={20}
-                    step={1}
-                    value={[riskProfile.maxDailyLossPercent]}
-                    onValueChange={(v) => updateRiskProfile({ maxDailyLossPercent: v[0], tier: 'custom' })}
-                    data-testid="slider-max-daily-loss"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Max Correlated Positions</Label>
-                  <Select
-                    value={String(riskProfile.maxCorrelatedPositions)}
-                    onValueChange={(v) => updateRiskProfile({ maxCorrelatedPositions: parseInt(v), tier: 'custom' })}
-                  >
-                    <SelectTrigger data-testid="select-correlated-positions">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 5, 10].map(n => (
-                        <SelectItem key={n} value={String(n)}>{n} positions</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Trade Confirmation</Label>
-                  <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                    <GlassToggle
-                      checked={riskProfile.requireConfirmation}
-                      onCheckedChange={(c) => updateRiskProfile({ requireConfirmation: c })}
-                      variant="cyan"
-                      data-testid="switch-require-confirmation"
-                    />
-                    <span className="text-sm">Require manual approval</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Technicals Tab */}
-        <TabsContent value="technicals" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Technical Indicators
-              </CardTitle>
-              <CardDescription>Customize thresholds and signal weights (±10 points)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { key: 'rsi' as const, name: 'RSI', settings: ['oversold', 'overbought'] },
-                { key: 'adx' as const, name: 'ADX', settings: ['trendingMinimum', 'strongTrend'] },
-                { key: 'volume' as const, name: 'Volume Surge', settings: ['surgeRatio'] },
-                { key: 'macd' as const, name: 'MACD', settings: ['crossoverThreshold'] },
-                { key: 'vwap' as const, name: 'VWAP', settings: ['deviationPercent'] },
-                { key: 'bollinger' as const, name: 'Bollinger', settings: ['period', 'stdDev'] },
-              ].map((indicator) => {
-                const data = technicals[indicator.key];
-                return (
-                  <div key={indicator.key} className="p-4 rounded-lg border bg-card/50">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <GlassToggle
-                          checked={data.enabled}
-                          onCheckedChange={(c) => updateTechnicalThreshold(indicator.key, { enabled: c })}
-                          variant="green"
-                          data-testid={`switch-${indicator.key}-enabled`}
-                        />
-                        <span className="font-medium">{indicator.name}</span>
-                      </div>
-                      {data.enabled && (
-                        <div className="text-xs">
-                          Weight: <span className={data.weightAdjustment > 0 ? 'text-green-500' : data.weightAdjustment < 0 ? 'text-red-500' : 'text-muted-foreground'}>
-                            {data.weightAdjustment > 0 ? '+' : ''}{data.weightAdjustment}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {data.enabled && (
-                      <div className="grid gap-4 sm:grid-cols-3 mt-3">
-                        {indicator.settings.map((setting) => (
-                          <div key={setting} className="space-y-1">
-                            <Label className="text-xs capitalize">{setting.replace(/([A-Z])/g, ' $1')}: {(data as any)[setting]}</Label>
-                            <Slider
-                              min={setting === 'surgeRatio' ? 1 : setting === 'stdDev' ? 1 : setting === 'deviationPercent' ? 0.5 : 10}
-                              max={setting === 'surgeRatio' ? 5 : setting === 'stdDev' ? 3 : setting === 'deviationPercent' ? 3 : 100}
-                              step={setting === 'surgeRatio' || setting === 'stdDev' || setting === 'deviationPercent' ? 0.5 : 5}
-                              value={[(data as any)[setting]]}
-                              onValueChange={(v) => updateTechnicalThreshold(indicator.key, { [setting]: v[0] })}
-                              data-testid={`slider-${indicator.key}-${setting}`}
-                            />
-                          </div>
-                        ))}
-                        <div className="space-y-1">
-                          <Label className="text-xs">Weight Adjustment</Label>
-                          <Slider
-                            min={-10}
-                            max={10}
-                            step={1}
-                            value={[data.weightAdjustment]}
-                            onValueChange={(v) => updateTechnicalThreshold(indicator.key, { weightAdjustment: v[0] })}
-                            data-testid={`slider-${indicator.key}-weight`}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Preferences Tab */}
         <TabsContent value="preferences" className="space-y-4">
           <Card>
@@ -738,32 +568,50 @@ export default function SettingsPage() {
                 <Bot className="h-4 w-4" />
                 Trading Bot Controls
               </CardTitle>
-              <CardDescription>Manage automated trading bots and view their activity</CardDescription>
+              <CardDescription>Manage automated trading bots and configure strategies</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               {[
                 { name: 'Options Bot', key: 'options', description: 'Scans for high-probability options setups' },
                 { name: 'Futures Bot', key: 'futures', description: 'Monitors NQ/GC futures for entries' },
                 { name: 'Crypto Bot', key: 'crypto', description: 'Tracks crypto opportunities 24/7' },
                 { name: 'Small Account Bot', key: 'small', description: 'Optimized for accounts under $5K' },
               ].map((bot) => (
-                <div key={bot.key} className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{bot.name}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">Active</span>
+                <div key={bot.key} className="p-4 rounded-lg border bg-muted/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{bot.name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">Active</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{bot.description}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{bot.description}</p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" data-testid={`button-pause-${bot.key}`}>
+                        <Pause className="h-3 w-3 mr-1" />
+                        Pause
+                      </Button>
+                      <Button variant="outline" size="sm" data-testid={`button-restart-${bot.key}`}>
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Restart
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" data-testid={`button-pause-${bot.key}`}>
-                      <Pause className="h-3 w-3 mr-1" />
-                      Pause
-                    </Button>
-                    <Button variant="outline" size="sm" data-testid={`button-restart-${bot.key}`}>
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Restart
-                    </Button>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-sm font-medium">Strategy Mode</span>
+                      <p className="text-xs text-muted-foreground">Use platform-recommended or customize your own</p>
+                    </div>
+                    <Select defaultValue="recommended">
+                      <SelectTrigger className="w-[160px]" data-testid={`select-strategy-${bot.key}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recommended">Recommended</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               ))}
@@ -779,11 +627,11 @@ export default function SettingsPage() {
               <CardDescription>View and export bot trading activity</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Recent Bot Trades</p>
+                  <p className="text-sm font-medium">Bot Positions</p>
                   <p className="text-xs text-muted-foreground">
-                    {botTrades?.length || 0} trades in the last 30 days
+                    {(botTrades as any)?.positions?.length || 0} positions tracked
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -791,10 +639,11 @@ export default function SettingsPage() {
                     variant="outline" 
                     size="sm"
                     onClick={() => {
-                      const csv = botTrades?.map(t => 
-                        `${t.symbol},${t.action},${t.quantity},${t.price},${t.timestamp}`
-                      ).join('\n') || '';
-                      const blob = new Blob([`Symbol,Action,Quantity,Price,Timestamp\n${csv}`], { type: 'text/csv' });
+                      const positions = (botTrades as any)?.positions || [];
+                      const csv = positions.map((p: any) => 
+                        `${p.symbol},${p.direction},${p.quantity},${p.entryPrice},${p.status},${p.portfolioName},${p.createdAt}`
+                      ).join('\n');
+                      const blob = new Blob([`Symbol,Direction,Quantity,Entry Price,Status,Bot,Date\n${csv}`], { type: 'text/csv' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
@@ -821,23 +670,27 @@ export default function SettingsPage() {
               </div>
               
               <div className="max-h-[200px] overflow-y-auto border rounded-md">
-                {botTrades && botTrades.length > 0 ? (
+                {(botTrades as any)?.positions && (botTrades as any).positions.length > 0 ? (
                   <div className="divide-y">
-                    {botTrades.slice(0, 10).map((trade: any, i: number) => (
+                    {(botTrades as any).positions.slice(0, 10).map((position: any, i: number) => (
                       <div key={i} className="flex items-center justify-between p-2 text-xs hover:bg-muted/50">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-medium">{trade.symbol}</span>
-                          <span className={trade.action === 'BUY' ? 'text-emerald-500' : 'text-red-500'}>
-                            {trade.action}
+                          <span className="font-mono font-medium">{position.symbol}</span>
+                          <span className={position.direction === 'long' ? 'text-emerald-500' : 'text-red-500'}>
+                            {position.direction?.toUpperCase()}
                           </span>
+                          <span className="text-muted-foreground">@${position.entryPrice?.toFixed(2)}</span>
                         </div>
-                        <span className="text-muted-foreground">{trade.timestamp ? new Date(trade.timestamp).toLocaleDateString() : 'N/A'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted">{position.portfolioName?.replace('Auto-Lotto ', '')}</span>
+                          <span className="text-muted-foreground">{position.createdAt ? new Date(position.createdAt).toLocaleDateString() : 'N/A'}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="p-8 text-center text-muted-foreground text-sm">
-                    No bot trades recorded yet
+                    No bot trades recorded yet. Trades will appear once bots start executing.
                   </div>
                 )}
               </div>
@@ -854,49 +707,49 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Max Position Size: ${formData.maxPositionSize || 500}</Label>
+                <Label>Max Position Size: ${botThresholds.maxPositionSize}</Label>
                 <Slider
                   min={100}
                   max={5000}
                   step={100}
-                  value={[formData.maxPositionSize || 500]}
-                  onValueChange={(v) => updateField('maxPositionSize', v[0])}
+                  value={[botThresholds.maxPositionSize]}
+                  onValueChange={(v) => setBotThresholds(prev => ({ ...prev, maxPositionSize: v[0] }))}
                   data-testid="slider-max-position"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Confidence Threshold: {formData.confidenceThreshold || 70}%</Label>
+                <Label>Confidence Threshold: {botThresholds.confidenceThreshold}%</Label>
                 <Slider
                   min={50}
                   max={95}
                   step={5}
-                  value={[formData.confidenceThreshold || 70]}
-                  onValueChange={(v) => updateField('confidenceThreshold', v[0])}
+                  value={[botThresholds.confidenceThreshold]}
+                  onValueChange={(v) => setBotThresholds(prev => ({ ...prev, confidenceThreshold: v[0] }))}
                   data-testid="slider-confidence"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Daily Trade Limit: {formData.dailyTradeLimit || 5} trades</Label>
+                <Label>Daily Trade Limit: {botThresholds.dailyTradeLimit} trades</Label>
                 <Slider
                   min={1}
                   max={20}
                   step={1}
-                  value={[formData.dailyTradeLimit || 5]}
-                  onValueChange={(v) => updateField('dailyTradeLimit', v[0])}
+                  value={[botThresholds.dailyTradeLimit]}
+                  onValueChange={(v) => setBotThresholds(prev => ({ ...prev, dailyTradeLimit: v[0] }))}
                   data-testid="slider-daily-limit"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label>Stop Loss: {formData.defaultStopLoss || 20}%</Label>
+                <Label>Stop Loss: {botThresholds.stopLossPercent}%</Label>
                 <Slider
                   min={5}
                   max={50}
                   step={5}
-                  value={[formData.defaultStopLoss || 20]}
-                  onValueChange={(v) => updateField('defaultStopLoss', v[0])}
+                  value={[botThresholds.stopLossPercent]}
+                  onValueChange={(v) => setBotThresholds(prev => ({ ...prev, stopLossPercent: v[0] }))}
                   data-testid="slider-stop-loss"
                 />
               </div>
