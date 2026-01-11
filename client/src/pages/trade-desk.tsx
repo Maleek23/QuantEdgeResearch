@@ -1123,6 +1123,14 @@ export default function TradeDeskPage() {
       (tradeTypeFilter === 'day' && idea.holdingPeriod === 'day') ||
       (tradeTypeFilter === 'swing' && ['swing', 'position', 'week-ending'].includes(idea.holdingPeriod));
     
+    // Price tier filter - use currentPrice (live) or entryPrice as fallback
+    const price = idea.currentPrice || idea.entryPrice || 0;
+    const matchesPriceTier = priceTierFilter === 'all' ||
+      (priceTierFilter === 'under5' && price < 5) ||
+      (priceTierFilter === 'under10' && price < 10) ||
+      (priceTierFilter === 'under15' && price < 15) ||
+      (priceTierFilter === 'under25' && price < 25);
+    
     // Status filter: ACTIVE, WON, LOST
     const status = (idea.outcomeStatus || '').trim().toLowerCase();
     const matchesStatus = statusFilter === 'all' || 
@@ -1130,7 +1138,7 @@ export default function TradeDeskPage() {
       (statusFilter === 'won' && status === 'hit_target') ||
       (statusFilter === 'lost' && status === 'hit_stop');
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDateFilter && matchesSourceTab && matchesStatusView && matchesTradeType && matchesStatus;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDateFilter && matchesSourceTab && matchesStatusView && matchesTradeType && matchesPriceTier && matchesStatus;
   });
 
   const dayTrades = useMemo(() => filteredIdeas.filter(i => i.holdingPeriod === 'day'), [filteredIdeas]);
