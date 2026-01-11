@@ -99,7 +99,8 @@ export type IdeaSource =
   | 'crypto_scanner'      // From crypto scanner
   | 'news_catalyst'       // From news/catalyst detection
   | 'earnings_play'       // From earnings calendar
-  | 'sector_rotation';    // From sector analysis
+  | 'sector_rotation'     // From sector analysis
+  | 'bot_screener';       // From Auto-Lotto Bot screener (high-conviction ideas)
 
 // Signal types that contribute to confidence
 export interface IdeaSignal {

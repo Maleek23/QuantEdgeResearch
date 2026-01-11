@@ -3382,12 +3382,36 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner`);
     }
     
-    // 🎯 PRIORITY ORDER: User's priority tickers FIRST, then dynamic movers, then static list
-    // Deduplicate while preserving order (priority tickers stay at front)
+    // 🎯 PRIORITY ORDER: Watchlist S/A tier FIRST, then user priorities, then dynamic movers, then static list
+    // Deduplicate while preserving order (watchlist elite stay at front)
     const seenTickers = new Set<string>();
     const orderedTickers: string[] = [];
     
-    // 1. Add priority tickers first (user's favorites - BIDU, SOFI, UUUU, AMZN, QQQ, INTC, META, etc.)
+    // 0. Add WATCHLIST S/A TIER symbols first (highest priority - these are manually vetted!)
+    let watchlistEliteSymbols: string[] = [];
+    try {
+      const { getWatchlistPrioritySymbols } = await import('./watchlist-priority-service');
+      const prioritySymbols = await getWatchlistPrioritySymbols();
+      // Only include S and A tier symbols
+      watchlistEliteSymbols = prioritySymbols
+        .filter(s => s.grade === 'S' || s.grade === 'A')
+        .map(s => s.symbol);
+      
+      if (watchlistEliteSymbols.length > 0) {
+        logger.info(`🎯 [BOT] Watchlist elite symbols: ${watchlistEliteSymbols.join(', ')} (${watchlistEliteSymbols.length} S/A tier)`);
+      }
+    } catch (err) {
+      logger.debug(`🤖 [BOT] Watchlist priority service unavailable`);
+    }
+    
+    for (const ticker of watchlistEliteSymbols) {
+      if (!seenTickers.has(ticker)) {
+        seenTickers.add(ticker);
+        orderedTickers.push(ticker);
+      }
+    }
+    
+    // 1. Add priority tickers second (user's favorites - BIDU, SOFI, UUUU, AMZN, QQQ, INTC, META, etc.)
     for (const ticker of PRIORITY_TICKERS) {
       if (!seenTickers.has(ticker)) {
         seenTickers.add(ticker);
@@ -3412,7 +3436,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     const combinedTickers = orderedTickers;
-    logger.info(`🤖 [BOT] Scan order: ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
+    logger.info(`🤖 [BOT] Scan order: ${watchlistEliteSymbols.length} watchlist S/A → ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
@@ -3654,9 +3678,9 @@ export async function runAutonomousBotScan(): Promise<void> {
           // ML enhancement is optional - continue without it
           logger.debug(`🤖 [ML-BOT] ML enhancement skipped for ${ticker}`);
         }
-        // 🔧 TIERED CONFIDENCE MINIMUMS: Priority sectors get slightly lower bar
-        // Base: 75% for general tickers (A- grade minimum)
-        // Priority sectors (nuclear, defense, space): 70% (B+ grade) to catch more opportunities
+        // 🔧 STRICT CONFIDENCE MINIMUM: Enforce user's preference (default 80% A- grade)
+        // All tickers must meet the same minimum - no sector exceptions
+        // Previous 70% threshold led to too many losing trades
         const PRIORITY_SECTOR_TICKERS = [
           // ☢️ Nuclear
           'NNE', 'OKLO', 'SMR', 'CCJ', 'LEU', 'UUUU', 'UEC', 'DNN', 'BWXT',
@@ -3669,8 +3693,17 @@ export async function runAutonomousBotScan(): Promise<void> {
         ];
         
         const isPrioritySector = PRIORITY_SECTOR_TICKERS.includes(ticker.toUpperCase());
-        const baseMinConfidence = isPrioritySector ? 70 : 75; // B+ for priority, A- for others
+        // 🛡️ STRICT: Use user's minConfidenceScore (default 80) - no exceptions
+        const baseMinConfidence = prefs.minConfidenceScore; // Enforced from preferences
         const effectiveMinConfidence = Math.max(baseMinConfidence, adaptiveParams.confidenceThreshold);
+        
+        // 📋 BOT SCREENER: Feed high-conviction ideas (80%+) to Trade Desk as research
+        // This happens BEFORE the trading gate - so even if we don't trade, the idea gets saved
+        if (decision.confidence >= 80) {
+          feedBotOpportunityToTradeDesk(opp, decision, quote).catch(err => {
+            logger.debug(`📋 [BOT-SCREENER] Feed error: ${err.message}`);
+          });
+        }
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {
@@ -3731,9 +3764,9 @@ export async function runAutonomousBotScan(): Promise<void> {
     logger.info(`🤖 [BOT] Scan complete: ${tradesThisCycle} trades executed, ${qualifyingOpportunities.length} total opportunities found`);
     
     // END-OF-SCAN: Execute any remaining high-quality opportunities we collected
-    // 🛡️ Require at least B+ grade (70% confidence) for end-of-scan batch
+    // 🛡️ STRICT: Enforce user's minConfidenceScore (default 80) - previous 70% led to losses
     const remainingOpps = qualifyingOpportunities
-      .filter(o => !o.executed && o.decision.confidence >= 70)
+      .filter(o => !o.executed && o.decision.confidence >= prefs.minConfidenceScore)
       .sort((a, b) => b.decision.confidence - a.decision.confidence);
     
     for (const opportunity of remainingOpps) {
@@ -5222,5 +5255,85 @@ export async function monitorPropFirmPositions(): Promise<void> {
     }
   } catch (error) {
     logger.error(`🏆 [PROP-FIRM] Monitor error:`, error);
+  }
+}
+
+/**
+ * BOT SCREENER FUNCTION: Feed high-conviction opportunities to Trade Desk
+ * 
+ * This allows the bot to act as an extra screener - identifying trade setups
+ * at 80%+ confidence and saving them to Trade Desk for user review,
+ * WITHOUT actually executing them as trades.
+ * 
+ * Use case: User reviews bot-screened ideas on Trade Desk before manual execution
+ */
+export async function feedBotOpportunityToTradeDesk(
+  opportunity: LottoOpportunity,
+  decision: BotDecision,
+  quote: { symbol: string; price: number }
+): Promise<boolean> {
+  try {
+    // Only feed high-conviction ideas (80%+ = A- grade or better)
+    if (decision.confidence < 80) {
+      logger.debug(`📋 [BOT-SCREENER] Skipped ${quote.symbol}: ${decision.confidence}% < 80% threshold`);
+      return false;
+    }
+    
+    const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+    
+    // Build signals from the decision - normalize mixed string/object format
+    // decision.signals can contain either { type, strength, description } objects or plain strings
+    const signals = decision.signals.map(s => {
+      if (typeof s === 'string') {
+        // String signals are simple identifiers pushed by boosts (e.g., 'PREFERRED_SYMBOL', 'MARKET_SCANNER_MOVER')
+        return {
+          type: s,
+          weight: 10,
+          description: s.replace(/_/g, ' ').toLowerCase()
+        };
+      } else {
+        // Object signals have type, strength, description
+        return {
+          type: s.type || 'UNKNOWN',
+          weight: s.strength || 10,
+          description: s.description || s.type || 'Signal detected'
+        };
+      }
+    });
+    
+    const result = await ingestTradeIdea({
+      source: 'bot_screener',
+      symbol: quote.symbol,
+      assetType: 'option',
+      direction: opportunity.direction,
+      signals,
+      holdingPeriod: 'day',
+      currentPrice: quote.price,
+      targetPrice: opportunity.targetPrice,
+      stopLoss: opportunity.stopLoss,
+      optionType: opportunity.direction === 'bullish' ? 'call' : 'put',
+      strikePrice: opportunity.strikePrice,
+      expiryDate: opportunity.expiry,
+      catalyst: `Bot screener: ${decision.reason}`,
+      analysis: `Auto-Lotto Bot identified ${decision.confidence}% conviction setup. ${decision.signals.map(s => s.description).join('. ')}`,
+      sourceMetadata: {
+        botConfidence: decision.confidence,
+        botDecision: decision.shouldTrade ? 'TRADE' : 'WATCH',
+        optionAsk: opportunity.ask,
+        iv: opportunity.iv,
+        delta: opportunity.delta,
+      }
+    });
+    
+    if (result.success) {
+      logger.info(`📋 [BOT-SCREENER] ✅ Fed ${quote.symbol} to Trade Desk (${decision.confidence}% confidence)`);
+      return true;
+    } else {
+      logger.debug(`📋 [BOT-SCREENER] Rejected: ${result.reason}`);
+      return false;
+    }
+  } catch (error) {
+    logger.error(`📋 [BOT-SCREENER] Error feeding ${quote.symbol}:`, error);
+    return false;
   }
 }

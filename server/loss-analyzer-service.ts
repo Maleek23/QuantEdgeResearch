@@ -135,13 +135,21 @@ export async function analyzeTrade(position: PaperPosition): Promise<TradeDiagno
 }
 
 function extractExitTrigger(exitReason: string): string {
-  if (exitReason.includes('hit_stop') || exitReason.includes('stop')) return 'stop_loss';
-  if (exitReason.includes('hit_target') || exitReason.includes('target')) return 'target';
-  if (exitReason.includes('trailing')) return 'trailing_stop';
-  if (exitReason.includes('expir')) return 'expiry';
-  if (exitReason.includes('manual')) return 'manual';
-  if (exitReason.includes('regime')) return 'regime_stop';
-  if (exitReason.includes('time')) return 'time_stop';
+  const lowerReason = exitReason.toLowerCase();
+  if (lowerReason.includes('hit_stop') || lowerReason.includes('stop_loss')) return 'stop_loss';
+  if (lowerReason.includes('hit_target') || lowerReason.includes('target')) return 'target';
+  if (lowerReason.includes('trailing')) return 'trailing_stop';
+  if (lowerReason.includes('expir')) return 'expiry';
+  if (lowerReason.includes('manual')) return 'manual';
+  if (lowerReason.includes('regime')) return 'regime_stop';
+  if (lowerReason.includes('time')) return 'time_stop';
+  // New classifications for bot exit reasons
+  if (lowerReason.includes('momentum_fade')) return 'momentum_fade';
+  if (lowerReason.includes('confluence exit')) return 'confluence_exit';
+  if (lowerReason.includes('underwater')) return 'underwater_exit';
+  if (lowerReason.includes('0dte') || lowerReason.includes('dte')) return 'dte_exit';
+  if (lowerReason.includes('significant loss') || lowerReason.includes('mandatory exit')) return 'forced_exit';
+  if (lowerReason.includes('neutral') || lowerReason.includes('mixed signal')) return 'mixed_signals';
   return 'unknown';
 }
 
@@ -235,6 +243,38 @@ function classifyLoss(
   if (entrySnapshot.confidenceScore < 65) {
     categories.push('chasing_entry');
     notes.push(`Low confidence entry (${entrySnapshot.confidenceScore}) - may have been chasing`);
+    remediation.adjustConfidenceThreshold = 10;
+  }
+  
+  // Handle bot-specific exit triggers for better classification
+  if (exitTrigger === 'momentum_fade') {
+    categories.push('direction_wrong');
+    notes.push(`Momentum faded against position - market moved opposite to trade thesis`);
+    remediation.adjustConfidenceThreshold = 10;
+  }
+  
+  if (exitTrigger === 'confluence_exit' || exitTrigger === 'mixed_signals') {
+    categories.push('timing_early');
+    notes.push(`Confluence signals triggered early exit - entry may have been premature`);
+    remediation.adjustConfidenceThreshold = 5;
+  }
+  
+  if (exitTrigger === 'underwater_exit' || exitTrigger === 'dte_exit') {
+    categories.push('theta_decay');
+    notes.push(`Option went underwater near expiry - theta/time decay was primary factor`);
+    remediation.avoidPattern = 'short_dte_hold';
+  }
+  
+  if (exitTrigger === 'forced_exit') {
+    categories.push('stop_too_loose');
+    notes.push(`Forced exit due to significant loss - stop loss should have been tighter`);
+    remediation.adjustStopMultiplier = 0.8;
+  }
+  
+  // Check if confidence was below the recommended 80% threshold
+  if (entrySnapshot.confidenceScore < 80 && entrySnapshot.confidenceScore >= 65) {
+    categories.push('chasing_entry');
+    notes.push(`Entry confidence ${entrySnapshot.confidenceScore}% below recommended 80% minimum`);
     remediation.adjustConfidenceThreshold = 10;
   }
   

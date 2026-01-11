@@ -36,6 +36,7 @@ const SOURCE_THRESHOLDS: Record<IdeaSource, number> = {
   earnings_play: 75,       // Earnings need high conviction
   sector_rotation: 65,     // Sector momentum
   manual: 50,              // Manual entries allowed lower
+  bot_screener: 80,        // Bot screener needs 80%+ (A- grade) for Trade Desk
 };
 
 export interface IngestionInput {
