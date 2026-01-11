@@ -44,6 +44,7 @@ import {
   NewsInsights
 } from "@/components/contextual-insights";
 import { DataStatusBanner } from "@/components/data-status-banner";
+import { BullishPatternWidget, SectorHeatWidget } from "@/components/bullish-pattern-widget";
 
 interface TradingEngineResult {
   symbol: string;
@@ -908,6 +909,12 @@ function BotsOverviewTab() {
           openPositions={0}
           winRate="0"
         />
+      </div>
+      
+      {/* Market Intelligence Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <BullishPatternWidget />
+        <SectorHeatWidget />
       </div>
       
       {/* Quick Actions */}

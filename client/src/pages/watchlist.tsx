@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ import {
   BarChart3, Target, Shield, Clock, Bell, ChevronRight,
   Zap, AlertTriangle, CheckCircle, XCircle, Info,
   ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search,
-  Download
+  Download, Compass
 } from "lucide-react";
 
 // Enhanced tier configuration with psychology-driven colors and descriptions
@@ -732,7 +733,7 @@ function AlertDialog({ item }: { item: WatchlistItem }) {
 }
 
 // Watchlist Item Card
-function WatchlistItemCard({ item }: { item: WatchlistItem }) {
+function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: QuoteData }) {
   const tier = item.tier || 'C';
   const config = TIER_CONFIG[tier] || TIER_CONFIG.C;
   const Icon = config.icon;
@@ -755,7 +756,13 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('DELETE', `/api/watchlist/${item.id}`);
-      return response.json();
+      // DELETE returns 204 No Content - don't try to parse JSON
+      if (!response.ok) {
+        // Try to get error text safely without parsing JSON
+        const errorText = await response.text().catch(() => 'Failed to delete');
+        throw new Error(errorText || `Delete failed with status ${response.status}`);
+      }
+      return { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
@@ -781,6 +788,7 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
               <span className="font-bold font-mono text-lg" data-testid={`text-symbol-${item.symbol}`}>
                 {item.symbol}
               </span>
+              <LivePrice quote={quote} />
               <Badge variant="outline" className="text-xs">
                 {item.assetType.toUpperCase()}
               </Badge>
@@ -788,8 +796,11 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
                 {item.gradeScore ?? 50}/100
               </Badge>
             </div>
+            {item.sector && (
+              <Badge variant="secondary" className="text-xs mr-2 mt-1">{item.sector}</Badge>
+            )}
             {item.notes && (
-              <p className="text-xs text-muted-foreground truncate max-w-[300px]">{item.notes}</p>
+              <p className="text-xs text-muted-foreground truncate max-w-[300px] mt-1">{item.notes}</p>
             )}
           </div>
 
@@ -856,12 +867,14 @@ function TierGroup({
   title, 
   description, 
   items, 
-  accentColor 
+  accentColor,
+  batchQuotes = {}
 }: { 
   title: string; 
   description: string; 
   items: WatchlistItem[]; 
   accentColor: string;
+  batchQuotes?: Record<string, QuoteData>;
 }) {
   if (items.length === 0) return null;
 
@@ -877,7 +890,7 @@ function TierGroup({
       </div>
       <Accordion type="multiple" className="space-y-0">
         {items.map(item => (
-          <WatchlistItemCard key={item.id} item={item} />
+          <WatchlistItemCard key={item.id} item={item} quote={batchQuotes[item.symbol]} />
         ))}
       </Accordion>
     </div>
@@ -1047,14 +1060,93 @@ function downloadWatchlistCSV(items: WatchlistItem[], filename: string = 'watchl
   URL.revokeObjectURL(url);
 }
 
+// Asset type category helper
+type AssetCategory = 'penny' | 'stocks' | 'options' | 'crypto';
+
+function getAssetCategory(item: WatchlistItem, price?: number): AssetCategory {
+  const assetType = item.assetType?.toLowerCase() || 'stock';
+  if (assetType === 'crypto') return 'crypto';
+  if (assetType === 'option' || item.category === 'options_watch') return 'options';
+  // Use price to determine penny stock vs stock
+  // Priority: provided price > currentPrice > targetPrice > default to stocks (conservative)
+  const itemPrice = price ?? item.currentPrice ?? item.targetPrice;
+  if (itemPrice !== undefined && itemPrice !== null && itemPrice < 5 && assetType === 'stock') return 'penny';
+  // If no price data available, default to stocks (not penny) to be conservative
+  return 'stocks';
+}
+
+// Price display component - displays from batch-fetched prices
+interface QuoteData {
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+function LivePrice({ quote }: { quote?: QuoteData }) {
+  if (!quote?.price) {
+    return <span className="text-xs text-muted-foreground">--</span>;
+  }
+
+  const isPositive = (quote.changePercent || 0) >= 0;
+  
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="font-mono font-semibold text-sm">
+        ${quote.price.toFixed(quote.price < 1 ? 4 : 2)}
+      </span>
+      <span className={`text-xs font-mono ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+        {isPositive ? '+' : ''}{(quote.changePercent || 0).toFixed(2)}%
+      </span>
+    </div>
+  );
+}
+
+// Hook for batch fetching quotes for all watchlist items
+function useBatchQuotes(items: WatchlistItem[]) {
+  return useQuery<Record<string, QuoteData>>({
+    queryKey: ['/api/realtime-quotes/batch', items.map(i => i.symbol).join(',')],
+    queryFn: async () => {
+      if (items.length === 0) return {};
+      
+      const requests = items.map(item => ({
+        symbol: item.symbol,
+        assetType: item.assetType || 'stock'
+      }));
+      
+      const res = await fetch('/api/realtime-quotes/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests })
+      });
+      
+      if (!res.ok) throw new Error('Failed to fetch quotes');
+      const data = await res.json();
+      return data.quotes || {};
+    },
+    staleTime: 30000,
+    refetchInterval: 60000,
+    enabled: items.length > 0,
+  });
+}
+
 // Main Page Component
 export default function WatchlistPage() {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'conviction' | 'all'>('conviction');
+  const [assetTab, setAssetTab] = useState<AssetCategory | 'all'>('all');
 
   const { data: watchlistItems = [], isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
   });
+
+  // Batch fetch quotes for all watchlist items
+  const { data: batchQuotes = {} } = useBatchQuotes(watchlistItems);
+
+  // Helper to get live price for an item (from batch quotes)
+  const getLivePrice = (symbol: string): number | undefined => {
+    const quote = batchQuotes[symbol];
+    return quote?.price;
+  };
 
   const reGradeAllMutation = useMutation({
     mutationFn: async () => {
@@ -1102,10 +1194,23 @@ export default function WatchlistPage() {
     return (b.gradeScore ?? 50) - (a.gradeScore ?? 50);
   });
 
+  // Filter by asset category - use live prices when available
+  const filteredItems = assetTab === 'all' 
+    ? sortedItems 
+    : sortedItems.filter(item => getAssetCategory(item, getLivePrice(item.symbol)) === assetTab);
+
+  // Count by category for tab badges - use live prices when available
+  const categoryCounts = {
+    penny: sortedItems.filter(i => getAssetCategory(i, getLivePrice(i.symbol)) === 'penny').length,
+    stocks: sortedItems.filter(i => getAssetCategory(i, getLivePrice(i.symbol)) === 'stocks').length,
+    options: sortedItems.filter(i => getAssetCategory(i, getLivePrice(i.symbol)) === 'options').length,
+    crypto: sortedItems.filter(i => getAssetCategory(i, getLivePrice(i.symbol)) === 'crypto').length,
+  };
+
   // Group by conviction level
-  const eliteItems = sortedItems.filter(i => i.tier === 'S' || i.tier === 'A');
-  const solidItems = sortedItems.filter(i => i.tier === 'B' || i.tier === 'C');
-  const weakItems = sortedItems.filter(i => i.tier === 'D' || i.tier === 'F');
+  const eliteItems = filteredItems.filter(i => i.tier === 'S' || i.tier === 'A');
+  const solidItems = filteredItems.filter(i => i.tier === 'B' || i.tier === 'C');
+  const weakItems = filteredItems.filter(i => i.tier === 'D' || i.tier === 'F');
 
   if (isLoading) {
     return (
@@ -1142,13 +1247,17 @@ export default function WatchlistPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'conviction' | 'all')}>
-            <TabsList>
-              <TabsTrigger value="conviction" data-testid="tab-conviction">By Conviction</TabsTrigger>
-              <TabsTrigger value="all" data-testid="tab-all">All Symbols</TabsTrigger>
-            </TabsList>
-          </Tabs>
           <AddSymbolDialog />
+          <Link href="/bullish-trends">
+            <Button 
+              variant="outline" 
+              className="border-cyan-500/30 text-cyan-500"
+              data-testid="button-discover"
+            >
+              <Compass className="h-4 w-4 mr-2" />
+              Discover
+            </Button>
+          </Link>
           <Button 
             variant="outline"
             onClick={() => reGradeAllMutation.mutate()}
@@ -1182,8 +1291,59 @@ export default function WatchlistPage() {
         </div>
       </div>
 
+      {/* Asset Type Tabs */}
+      <Tabs value={assetTab} onValueChange={(v) => setAssetTab(v as AssetCategory | 'all')} className="w-full">
+        <TabsList className="grid w-full grid-cols-5 h-auto">
+          <TabsTrigger value="all" data-testid="tab-all-assets" className="flex flex-col gap-0.5 py-2">
+            <span className="text-sm font-medium">All</span>
+            <span className="text-xs text-muted-foreground">{watchlistItems.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="penny" data-testid="tab-penny" className="flex flex-col gap-0.5 py-2">
+            <span className="text-sm font-medium flex items-center gap-1">
+              <Zap className="h-3 w-3 text-amber-500" />
+              Penny
+            </span>
+            <span className="text-xs text-muted-foreground">&lt;$5 · {categoryCounts.penny}</span>
+          </TabsTrigger>
+          <TabsTrigger value="stocks" data-testid="tab-stocks" className="flex flex-col gap-0.5 py-2">
+            <span className="text-sm font-medium flex items-center gap-1">
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              Stocks
+            </span>
+            <span className="text-xs text-muted-foreground">$5+ · {categoryCounts.stocks}</span>
+          </TabsTrigger>
+          <TabsTrigger value="options" data-testid="tab-options" className="flex flex-col gap-0.5 py-2">
+            <span className="text-sm font-medium flex items-center gap-1">
+              <Target className="h-3 w-3 text-purple-500" />
+              Options
+            </span>
+            <span className="text-xs text-muted-foreground">{categoryCounts.options}</span>
+          </TabsTrigger>
+          <TabsTrigger value="crypto" data-testid="tab-crypto" className="flex flex-col gap-0.5 py-2">
+            <span className="text-sm font-medium flex items-center gap-1">
+              <Activity className="h-3 w-3 text-cyan-500" />
+              Crypto
+            </span>
+            <span className="text-xs text-muted-foreground">{categoryCounts.crypto}</span>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-2">
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'conviction' | 'all')}>
+          <TabsList>
+            <TabsTrigger value="conviction" data-testid="tab-conviction">By Conviction</TabsTrigger>
+            <TabsTrigger value="all" data-testid="tab-all-view">All Symbols</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <span className="text-sm text-muted-foreground">
+          Showing {filteredItems.length} of {watchlistItems.length} symbols
+        </span>
+      </div>
+
       {/* Signal Command Bar */}
-      <SignalCommandBar items={watchlistItems} />
+      <SignalCommandBar items={filteredItems} />
 
       {/* Methodology Info */}
       <Card className="bg-muted/30 border-dashed">
@@ -1210,39 +1370,51 @@ export default function WatchlistPage() {
             description="High-conviction opportunities with multiple bullish factors aligned"
             items={eliteItems}
             accentColor="bg-gradient-to-b from-purple-500 to-emerald-500"
+            batchQuotes={batchQuotes}
           />
           <TierGroup 
             title="Developing Setups (B & C Tier)" 
             description="Neutral to positive conditions - monitor for improvement"
             items={solidItems}
             accentColor="bg-gradient-to-b from-cyan-500 to-amber-500"
+            batchQuotes={batchQuotes}
           />
           <TierGroup 
             title="Weak Setups (D & F Tier)" 
             description="Poor conditions - avoid or consider as contrarian plays only"
             items={weakItems}
             accentColor="bg-gradient-to-b from-orange-500 to-red-500"
+            batchQuotes={batchQuotes}
           />
         </div>
       ) : (
         <Accordion type="multiple" className="space-y-0">
-          {sortedItems.map(item => (
-            <WatchlistItemCard key={item.id} item={item} />
+          {filteredItems.map(item => (
+            <WatchlistItemCard key={item.id} item={item} quote={batchQuotes[item.symbol]} />
           ))}
         </Accordion>
       )}
 
       {/* Empty State */}
-      {watchlistItems.length === 0 && (
+      {filteredItems.length === 0 && (
         <EmptyState
           variant="no-data"
-          title="No Symbols in Watchlist"
-          message="Add symbols from the Market Overview to start tracking and grading them."
-          actions={[
+          title={assetTab === 'all' ? "No Symbols in Watchlist" : `No ${assetTab.charAt(0).toUpperCase() + assetTab.slice(1)} in Watchlist`}
+          message={assetTab === 'all' 
+            ? "Add symbols from the Market Overview to start tracking and grading them."
+            : `Switch to "All" tab or add ${assetTab} symbols to your watchlist.`
+          }
+          actions={assetTab === 'all' ? [
             {
               label: "Go to Market Overview",
               onClick: () => window.location.href = "/market",
               variant: 'primary'
+            }
+          ] : [
+            {
+              label: "View All Symbols",
+              onClick: () => setAssetTab('all'),
+              variant: 'secondary'
             }
           ]}
         />

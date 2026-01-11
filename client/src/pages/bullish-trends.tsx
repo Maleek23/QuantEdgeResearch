@@ -34,7 +34,8 @@ import {
   Brain,
   Building2,
   Layers,
-  Leaf
+  Leaf,
+  BookmarkPlus
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -151,6 +152,30 @@ export default function BullishTrends() {
     onSuccess: (_, symbol) => {
       toast({ title: "Removed", description: `${symbol} removed from tracker` });
       queryClient.invalidateQueries({ queryKey: ["/api/bullish-trends"] });
+    },
+  });
+
+  const addToWatchlist = useMutation({
+    mutationFn: async (trend: BullishTrend) => {
+      const res = await apiRequest("POST", "/api/watchlist", { 
+        symbol: trend.symbol,
+        assetType: 'stock',
+        notes: `Added from Bullish Trends - ${trend.trendPhase} phase, ${trend.trendStrength} strength`
+      });
+      return res.json();
+    },
+    onSuccess: (_, trend) => {
+      toast({ 
+        title: "Added to Watchlist", 
+        description: `${trend.symbol} added to your watchlist for tracking` 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+    },
+    onError: (error: any) => {
+      const message = error?.message?.includes('duplicate') 
+        ? 'Symbol already in watchlist'
+        : 'Failed to add to watchlist';
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
@@ -553,6 +578,21 @@ export default function BullishTrends() {
                             <div className="text-xs text-muted-foreground">Vol: {trend.volumeRatio != null ? `${trend.volumeRatio.toFixed(1)}x` : 'N/A'}</div>
                           </div>
 
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => addToWatchlist.mutate(trend)}
+                                disabled={addToWatchlist.isPending}
+                                className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                                data-testid={`button-watchlist-${trend.symbol}`}
+                              >
+                                <BookmarkPlus className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Add to Watchlist</TooltipContent>
+                          </Tooltip>
                           <Button
                             variant="ghost"
                             size="icon"
