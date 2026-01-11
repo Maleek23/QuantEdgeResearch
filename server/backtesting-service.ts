@@ -627,3 +627,232 @@ export async function optimizeParameters(config: OptimizationConfig): Promise<Op
     timestamp: new Date().toISOString()
   };
 }
+
+// ============================================
+// REAL HISTORICAL TRADE DATA INTEGRATION
+// ============================================
+
+import { getRealHistoricalTrades, getTradeStatistics } from './pattern-domain';
+
+export interface RealTradeBacktestResult {
+  symbol: string | null;
+  trades: {
+    id: string;
+    symbol: string;
+    direction: string;
+    entryPrice: number;
+    exitPrice: number | null;
+    targetPrice: number | null;
+    stopLoss: number | null;
+    pnl: number | null;
+    pnlPercent: number | null;
+    timestamp: string;
+    exitDate: string | null;
+    outcome: 'win' | 'loss' | 'open';
+    isValidated: boolean;
+    tradeCompleteness: 'complete' | 'partial' | 'open';
+  }[];
+  summary: {
+    totalTrades: number;
+    closedTrades: number;
+    openTrades: number;
+    validatedTrades: number;
+    winCount: number;
+    lossCount: number;
+    winRate: number;
+    validatedWinRate: number;
+    totalPnL: number;
+    avgWin: number;
+    avgLoss: number;
+    profitFactor: number;
+    largestWin: number;
+    largestLoss: number;
+  };
+  dataSource: 'real_trades';
+  dataQuality: {
+    totalRecords: number;
+    validatedRecords: number;
+    validationRate: number;
+    recommendation: string;
+  };
+  timestamp: string;
+}
+
+/**
+ * Run backtest using REAL historical trade data from the database
+ * This replaces simulated data with actual executed trades
+ */
+export async function runRealTradeBacktest(params: {
+  symbol?: string;
+  limit?: number;
+}): Promise<RealTradeBacktestResult> {
+  console.log(`[Backtest] Running real trade backtest${params.symbol ? ` for ${params.symbol}` : ''}`);
+  
+  const realTrades = await getRealHistoricalTrades({
+    symbol: params.symbol,
+    limit: params.limit || 500,
+  });
+
+  const trades = realTrades.map(trade => {
+    const pnl = trade.realizedPnL || 0;
+    const pnlPercent = trade.entryPrice > 0 && trade.exitPrice 
+      ? ((trade.exitPrice - trade.entryPrice) / trade.entryPrice) * 100 * (trade.direction === 'long' ? 1 : -1)
+      : null;
+    
+    let outcome: 'win' | 'loss' | 'open' = 'open';
+    if (trade.exitPrice !== null && trade.realizedPnL !== null) {
+      outcome = trade.realizedPnL > 0 ? 'win' : 'loss';
+    }
+
+    return {
+      id: trade.id,
+      symbol: trade.symbol,
+      direction: trade.direction,
+      entryPrice: trade.entryPrice,
+      exitPrice: trade.exitPrice,
+      targetPrice: trade.targetPrice,
+      stopLoss: trade.stopLoss,
+      pnl,
+      pnlPercent,
+      timestamp: trade.timestamp,
+      exitDate: trade.exitDate,
+      outcome,
+      isValidated: trade.isValidated,
+      tradeCompleteness: trade.tradeCompleteness,
+    };
+  });
+
+  const closedTrades = trades.filter(t => t.outcome !== 'open');
+  const openTrades = trades.filter(t => t.outcome === 'open');
+  const validatedTrades = trades.filter(t => t.isValidated);
+  const wins = closedTrades.filter(t => t.outcome === 'win');
+  const losses = closedTrades.filter(t => t.outcome === 'loss');
+  const validatedWins = validatedTrades.filter(t => t.outcome === 'win');
+
+  const totalPnL = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const avgWin = wins.length > 0 
+    ? wins.reduce((sum, t) => sum + (t.pnl || 0), 0) / wins.length 
+    : 0;
+  const avgLoss = losses.length > 0 
+    ? Math.abs(losses.reduce((sum, t) => sum + (t.pnl || 0), 0) / losses.length)
+    : 0;
+
+  const grossWins = wins.reduce((sum, t) => sum + (t.pnl || 0), 0);
+  const grossLosses = Math.abs(losses.reduce((sum, t) => sum + (t.pnl || 0), 0));
+  
+  const winPnls = wins.map(t => t.pnl || 0);
+  const lossPnls = losses.map(t => t.pnl || 0);
+
+  const validationRate = trades.length > 0 ? (validatedTrades.length / trades.length) * 100 : 0;
+  let dataQualityRecommendation = '';
+  if (validationRate >= 80) {
+    dataQualityRecommendation = 'High confidence - majority of trades have complete data';
+  } else if (validationRate >= 50) {
+    dataQualityRecommendation = 'Moderate confidence - some trades missing exit data';
+  } else {
+    dataQualityRecommendation = 'Low confidence - many trades missing validation data, results may be unreliable';
+  }
+
+  return {
+    symbol: params.symbol || null,
+    trades,
+    summary: {
+      totalTrades: trades.length,
+      closedTrades: closedTrades.length,
+      openTrades: openTrades.length,
+      validatedTrades: validatedTrades.length,
+      winCount: wins.length,
+      lossCount: losses.length,
+      winRate: closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0,
+      validatedWinRate: validatedTrades.length > 0 ? (validatedWins.length / validatedTrades.length) * 100 : 0,
+      totalPnL,
+      avgWin,
+      avgLoss,
+      profitFactor: grossLosses > 0 ? grossWins / grossLosses : grossWins > 0 ? Infinity : 0,
+      largestWin: winPnls.length > 0 ? Math.max(...winPnls) : 0,
+      largestLoss: lossPnls.length > 0 ? Math.min(...lossPnls) : 0,
+    },
+    dataSource: 'real_trades',
+    dataQuality: {
+      totalRecords: trades.length,
+      validatedRecords: validatedTrades.length,
+      validationRate,
+      recommendation: dataQualityRecommendation,
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Compare simulated backtest vs real trade performance
+ * Helps identify strategy drift and improve models
+ */
+export async function compareBacktestVsReal(params: {
+  symbol: string;
+  strategy: 'breakout' | 'mean_reversion' | 'momentum';
+}): Promise<{
+  simulated: BacktestResult | null;
+  realTrades: RealTradeBacktestResult;
+  comparison: {
+    winRateDiff: number;
+    pnlDiff: number;
+    profitFactorDiff: number;
+    recommendation: string;
+  };
+}> {
+  console.log(`[Backtest] Comparing simulated vs real for ${params.symbol}`);
+
+  let simulated: BacktestResult | null = null;
+  try {
+    simulated = await runBacktest({
+      symbol: params.symbol,
+      strategy: params.strategy,
+      initialCapital: 10000,
+      positionSizePercent: 10,
+      stopLossPercent: 5,
+      takeProfitPercent: 10,
+    });
+  } catch (e) {
+    console.warn(`[Backtest] Could not run simulated backtest: ${e}`);
+  }
+
+  const realTrades = await runRealTradeBacktest({ symbol: params.symbol });
+
+  const simWinRate = simulated?.summary.winRate || 0;
+  const realWinRate = realTrades.summary.winRate;
+  const winRateDiff = realWinRate - simWinRate;
+
+  const simPnL = simulated?.summary.totalPnL || 0;
+  const realPnL = realTrades.summary.totalPnL;
+  const pnlDiff = realPnL - simPnL;
+
+  const simPF = simulated?.summary.profitFactor || 0;
+  const realPF = realTrades.summary.profitFactor === Infinity ? 10 : realTrades.summary.profitFactor;
+  const profitFactorDiff = realPF - simPF;
+
+  let recommendation = '';
+  if (Math.abs(winRateDiff) > 10) {
+    recommendation = winRateDiff > 0 
+      ? 'Real performance exceeds backtest - strategy may be underestimated'
+      : 'Backtest overpredicts - review entry/exit timing and slippage';
+  } else if (Math.abs(profitFactorDiff) > 0.5) {
+    recommendation = profitFactorDiff > 0
+      ? 'Risk management in live trading is better than modeled'
+      : 'Consider tightening stops or adjusting position sizing';
+  } else {
+    recommendation = 'Strategy performance aligns with backtest - continue monitoring';
+  }
+
+  return {
+    simulated,
+    realTrades,
+    comparison: {
+      winRateDiff,
+      pnlDiff,
+      profitFactorDiff,
+      recommendation,
+    },
+  };
+}
+
+export { getRealHistoricalTrades, getTradeStatistics };

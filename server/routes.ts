@@ -20101,6 +20101,36 @@ Use this checklist before entering any trade:
     }
   });
 
+  // GET /api/backtest/real-trades - Backtest using REAL historical trade data (not simulated)
+  app.get("/api/backtest/real-trades", requireBetaAccess, async (req, res) => {
+    try {
+      const { runRealTradeBacktest } = await import("./backtesting-service");
+      const symbol = req.query.symbol as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 500;
+      
+      const result = await runRealTradeBacktest({ symbol, limit });
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error running real trade backtest", { error });
+      res.status(500).json({ error: error.message || "Failed to run real trade backtest" });
+    }
+  });
+
+  // GET /api/backtest/compare/:symbol - Compare simulated vs real trade performance
+  app.get("/api/backtest/compare/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { compareBacktestVsReal } = await import("./backtesting-service");
+      const { symbol } = req.params;
+      const strategy = (req.query.strategy as 'breakout' | 'mean_reversion' | 'momentum') || 'breakout';
+      
+      const result = await compareBacktestVsReal({ symbol: symbol.toUpperCase(), strategy });
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error comparing backtest vs real", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: error.message || "Failed to compare backtest" });
+    }
+  });
+
   // GET /api/breakout/scan/:symbol - Scan single symbol for breakout
   app.get("/api/breakout/scan/:symbol", async (req, res) => {
     try {
@@ -20309,27 +20339,28 @@ Use this checklist before entering any trade:
     }
   });
 
-  // GET /api/pattern-scanner/analyze/:symbol - Analyze single symbol for patterns
+  // GET /api/pattern-scanner/analyze/:symbol - Analyze single symbol for patterns (UNIFIED)
   app.get("/api/pattern-scanner/analyze/:symbol", async (req, res) => {
     try {
-      const { analyzeSymbolPatterns, PATTERN_DISPLAY_NAMES } = await import("./pattern-intelligence");
+      const { analyzeSymbolPatterns, formatUnifiedResponse, PATTERN_DISPLAY_NAMES } = await import("./pattern-domain");
       const { symbol } = req.params;
+      const assetType = (req.query.assetType as string) || 'stock';
       
-      const analysis = await analyzeSymbolPatterns(symbol.toUpperCase());
+      const patterns = await analyzeSymbolPatterns(symbol.toUpperCase(), assetType, 'visual');
       
-      if (!analysis) {
+      if (patterns.length === 0) {
         return res.json({
           symbol: symbol.toUpperCase(),
           patterns: [],
-          message: "No patterns detected or insufficient data"
+          statistics: { totalPatterns: 0, imminentCount: 0, highConvictionCount: 0, averageScore: 0 },
+          patternTypes: PATTERN_DISPLAY_NAMES,
+          dataSource: 'unified',
+          message: "No patterns detected or insufficient data",
+          timestamp: new Date().toISOString()
         });
       }
       
-      res.json({
-        ...analysis,
-        patternTypes: PATTERN_DISPLAY_NAMES,
-        timestamp: new Date().toISOString()
-      });
+      res.json(formatUnifiedResponse(patterns));
     } catch (error: any) {
       logger.error("Error analyzing symbol patterns", { error, symbol: req.params.symbol });
       res.status(500).json({ error: "Failed to analyze patterns" });
