@@ -322,8 +322,8 @@ export async function fetchYahooFinancePrice(
       return null;
     }
 
-    const data = await response.json();
-    const result = data?.chart?.result?.[0];
+    const jsonData = await response.json();
+    const result = jsonData?.chart?.result?.[0];
     
     if (!result || !result.meta) {
       logAPIError('Yahoo Finance', `/chart/${symbol}`, new Error('No data returned'));
@@ -340,7 +340,7 @@ export async function fetchYahooFinancePrice(
 
     logAPISuccess('Yahoo Finance', `/chart/${symbol}`, Date.now() - startTime);
 
-    return {
+    const marketData: ExternalMarketData = {
       symbol: symbol.toUpperCase(),
       assetType: "stock",
       currentPrice: regularMarketPrice,
@@ -350,9 +350,23 @@ export async function fetchYahooFinancePrice(
       low24h: quote?.low?.[0] || meta.regularMarketDayLow,
       marketCap: meta.marketCap,
     };
+    
+    // Cache the result
+    const { apiCache } = await import('./api-cache');
+    apiCache.set('quote', symbol, marketData, 'yahoo_finance');
+    
+    return marketData;
   } catch (error) {
     logger.error(`Error fetching Yahoo Finance price for ${symbol}:`, error);
     logAPIError('Yahoo Finance', `/chart/${symbol}`, error);
+    
+    // Try cache as last resort
+    const { apiCache } = await import('./api-cache');
+    const cached = apiCache.get<ExternalMarketData>('quote', symbol);
+    if (cached) {
+      logger.info(`[CACHE] Serving cached quote for ${symbol} after Yahoo error`);
+      return cached.data;
+    }
     return null;
   }
 }
@@ -361,13 +375,20 @@ export async function fetchStockPrice(
   symbol: string,
   apiKey?: string
 ): Promise<ExternalMarketData | null> {
-  // Try Tradier first (unlimited, real-time)
+  const { apiCache } = await import('./api-cache');
+  const { marketDataStatus } = await import('./market-data-status');
+  
+  // Check Tradier status - treat undefined/unknown as healthy (optimistic default)
+  const tradierStatus = marketDataStatus.getProviderStatus('tradier');
   const tradierKey = process.env.TRADIER_API_KEY;
-  if (tradierKey) {
+  const tradierHealthy = !tradierStatus || tradierStatus.status === 'healthy' || tradierStatus.status === 'unknown';
+  
+  // Try Tradier first if healthy or status unknown
+  if (tradierKey && tradierHealthy) {
     try {
       const quote = await getTradierQuote(symbol, tradierKey);
       if (quote) {
-        return {
+        const data: ExternalMarketData = {
           symbol: quote.symbol.toUpperCase(),
           assetType: "stock",
           currentPrice: quote.last,
@@ -376,12 +397,22 @@ export async function fetchStockPrice(
           avgVolume: quote.average_volume,
           high24h: quote.high,
           low24h: quote.low,
-          marketCap: undefined, // Tradier doesn't provide market cap
+          marketCap: undefined,
         };
+        apiCache.set('quote', symbol, data, 'tradier');
+        return data;
       }
     } catch (error) {
-      logger.error(`Tradier quote error for ${symbol}, falling back:`, error);
+      logger.warn(`Tradier quote error for ${symbol}, trying Yahoo Finance:`, error);
     }
+  } else if (tradierKey && !tradierHealthy) {
+    // Tradier rate limited - check cache first
+    const cached = apiCache.get<ExternalMarketData>('quote', symbol);
+    if (cached) {
+      logger.info(`[CACHE] Serving cached quote for ${symbol} (Tradier ${tradierStatus?.status})`);
+      return cached.data;
+    }
+    logger.info(`Tradier ${tradierStatus?.status} for ${symbol}, using Yahoo Finance fallback`);
   }
 
   // Fallback to Alpha Vantage if available
@@ -410,7 +441,7 @@ export async function fetchStockPrice(
         return await fetchYahooFinancePrice(symbol);
       }
 
-      return {
+      const avData: ExternalMarketData = {
         symbol: symbol.toUpperCase(),
         assetType: "stock",
         currentPrice: parseFloat(quote["05. price"]),
@@ -419,6 +450,10 @@ export async function fetchStockPrice(
         high24h: parseFloat(quote["03. high"]),
         low24h: parseFloat(quote["04. low"]),
       };
+      
+      // Cache Alpha Vantage response for fallback
+      apiCache.set('quote', symbol, avData, 'alpha_vantage');
+      return avData;
     } catch (error) {
       logger.error(`Error fetching stock price for ${symbol}:`, error);
       return await fetchYahooFinancePrice(symbol);
