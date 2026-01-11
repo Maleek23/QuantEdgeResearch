@@ -72,16 +72,37 @@ async function upsertUser(
   claims: any,
 ) {
   try {
-    await storage.upsertUser({
-      id: claims["sub"], // Use Replit user ID as primary key
-      email: claims["email"],
-      firstName: claims["first_name"],
-      lastName: claims["last_name"],
-      profileImageUrl: claims["profile_image_url"],
-      hasBetaAccess: false, // Revert: No automatic beta access for Replit users
-    });
+    // Check if user already exists to avoid overwriting their beta access
+    const existingUser = await storage.getUser(claims["sub"]);
     
-    logger.info('User upserted from Replit Auth (beta access pending)', { userId: claims["sub"], email: claims["email"] });
+    if (existingUser) {
+      // User exists - only update profile info, NOT hasBetaAccess
+      await storage.updateUser(claims["sub"], {
+        email: claims["email"],
+        firstName: claims["first_name"],
+        lastName: claims["last_name"],
+        profileImageUrl: claims["profile_image_url"],
+      });
+      logger.info('Existing user updated from Replit Auth (preserved beta access)', { 
+        userId: claims["sub"], 
+        email: claims["email"],
+        hasBetaAccess: existingUser.hasBetaAccess 
+      });
+    } else {
+      // New user - create with hasBetaAccess: false (must redeem invite code)
+      await storage.upsertUser({
+        id: claims["sub"],
+        email: claims["email"],
+        firstName: claims["first_name"],
+        lastName: claims["last_name"],
+        profileImageUrl: claims["profile_image_url"],
+        hasBetaAccess: false,
+      });
+      logger.info('New user created from Replit Auth (beta access pending)', { 
+        userId: claims["sub"], 
+        email: claims["email"] 
+      });
+    }
   } catch (error) {
     logError(error as Error, { context: 'upsertUser', userId: claims["sub"] });
   }

@@ -610,8 +610,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update user with beta access and tier if invite had a tier override
+      const hasBetaAccess = !!validatedInvite || (inviteCode === (process.env.ADMIN_ACCESS_CODE || "0065"));
       await storage.updateUser(user.id, { 
-        hasBetaAccess: !!validatedInvite || (inviteCode === (process.env.ADMIN_ACCESS_CODE || "0065")),
+        hasBetaAccess,
         betaInviteId: validatedInvite?.id || null,
         ...(validatedInvite?.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
       });
@@ -625,13 +626,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store userId in session
       (req.session as any).userId = user.id;
       
+      // Fetch the updated user to return with hasBetaAccess properly set
+      const updatedUser = await storage.getUser(user.id);
+      
       logger.info('User signed up via invite', { 
         userId: user.id, 
         email,
+        hasBetaAccess,
         inviteToken: validatedInvite ? 'token' : 'admin_code',
         tierOverride 
       });
-      res.json({ user });
+      res.json({ user: updatedUser });
     } catch (error) {
       logError(error as Error, { context: 'auth/signup' });
       res.status(500).json({ error: "Failed to create account" });
@@ -932,9 +937,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUser(userId, { hasBetaAccess: true });
         logger.info('User redeemed beta access via admin code', { userId, email: user.email });
         
+        // Fetch updated user to return
+        const updatedUser = await storage.getUser(userId);
+        
         return res.json({ 
           success: true, 
-          message: "Beta access granted!" 
+          message: "Beta access granted!",
+          user: updatedUser
         });
       }
       
@@ -944,6 +953,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         betaInviteId: invite.id,
         ...(invite.tierOverride ? { subscriptionTier: invite.tierOverride } : {})
       });
+      
+      // Fetch updated user to return
+      const updatedUserWithInvite = await storage.getUser(userId);
       
       logger.info('User redeemed beta invite', { 
         userId, 
@@ -955,7 +967,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         message: "Beta access granted!",
-        tierUpgrade: invite.tierOverride || null
+        tierUpgrade: invite.tierOverride || null,
+        user: updatedUserWithInvite
       });
     } catch (error) {
       logError(error as Error, { context: 'beta/redeem' });

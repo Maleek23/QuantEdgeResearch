@@ -57,10 +57,13 @@ export async function setupGoogleAuth(app: Express) {
           
           // Check if user has a valid beta invite
           const invite = await storage.getBetaInviteByEmail(emailLower);
-          const hasValidInvite = invite && invite.status !== 'revoked' && invite.status !== 'expired';
+          // For login gate: allow pending or redeemed invites (not revoked/expired)
+          const hasValidInviteForLogin = invite && invite.status !== 'revoked' && invite.status !== 'expired';
+          // For granting beta access: only pending invites can grant access
+          const hasPendingInvite = invite && invite.status === 'pending';
           
-          // Allow access if: whitelisted, existing user, or has valid invite
-          if (!isWhitelisted && !existingUser && !hasValidInvite) {
+          // Allow access if: whitelisted, existing user, or has valid invite (including redeemed - they already have an account)
+          if (!isWhitelisted && !existingUser && !hasValidInviteForLogin) {
             logger.warn("Google OAuth: user not authorized for beta", { 
               email: emailLower,
               hasInvite: !!invite,
@@ -69,23 +72,47 @@ export async function setupGoogleAuth(app: Express) {
             return done(new Error("INVITE_REQUIRED"));
           }
 
-          // If user has invite and it's pending, mark as redeemed
-          if (invite && invite.token && invite.status === 'pending') {
+          // If user has a pending invite, redeem it now
+          let inviteRedeemed = false;
+          if (hasPendingInvite && invite.token) {
             try {
               await storage.redeemBetaInvite(invite.token);
+              inviteRedeemed = true;
               logger.info("Beta invite redeemed via Google OAuth", { email: emailLower });
             } catch (redeemError) {
               logger.warn("Failed to redeem invite, continuing with login", { email: emailLower, error: redeemError });
             }
           }
 
-          const user = await storage.upsertUser({
-            id: `google_${profile.id}`,
-            email,
-            firstName: firstName || null,
-            lastName: lastName || null,
-            profileImageUrl: profileImageUrl || null,
-          });
+          let user;
+          if (existingUser) {
+            // Existing user - update profile info but preserve hasBetaAccess
+            await storage.updateUser(existingUser.id, {
+              email,
+              firstName: firstName || null,
+              lastName: lastName || null,
+              profileImageUrl: profileImageUrl || null,
+            });
+            // Refresh user data
+            user = await storage.getUser(existingUser.id) || existingUser;
+          } else {
+            // New user - only grant beta access for: whitelisted OR just-redeemed invite
+            // Do NOT grant for already-redeemed invites (those users should already exist)
+            const shouldGrantBetaAccess = isWhitelisted || inviteRedeemed;
+            user = await storage.upsertUser({
+              id: `google_${profile.id}`,
+              email,
+              firstName: firstName || null,
+              lastName: lastName || null,
+              profileImageUrl: profileImageUrl || null,
+              hasBetaAccess: shouldGrantBetaAccess,
+            });
+            
+            // If invite was redeemed, also set betaInviteId
+            if (inviteRedeemed && invite) {
+              await storage.updateUser(user.id, { betaInviteId: invite.id });
+            }
+          }
 
           logger.info("Google OAuth login successful", { 
             userId: user.id, 
