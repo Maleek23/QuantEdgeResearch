@@ -1141,8 +1141,8 @@ function LivePrice({ quote, fallbackPrice }: { quote?: QuoteData; fallbackPrice?
     );
   }
 
-  // Show fallback price without change indicator
-  if (fallbackPrice) {
+  // Show fallback price without change indicator (using nullish check so 0 isn't suppressed)
+  if (fallbackPrice != null && fallbackPrice !== 0) {
     return (
       <div className="flex items-center gap-1.5">
         <span className="font-mono font-medium text-sm text-muted-foreground">
