@@ -12921,6 +12921,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Navigation Layouts (sidebar customization)
+  app.get("/api/navigation-layout", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      const layout = await storage.getUserNavigationLayout(userId);
+      res.json(layout);
+    } catch (error) {
+      console.error("Navigation layout fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch navigation layout" });
+    }
+  });
+
+  app.put("/api/navigation-layout", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      const { layout } = req.body;
+      if (!layout || !layout.groups) {
+        return res.status(400).json({ error: "Invalid layout format - must include groups array" });
+      }
+      const saved = await storage.saveUserNavigationLayout(userId, layout);
+      res.json(saved);
+    } catch (error: any) {
+      console.error("Navigation layout save error:", error);
+      res.status(400).json({ 
+        error: "Failed to save navigation layout",
+        details: error.message || error.toString()
+      });
+    }
+  });
+
+  app.delete("/api/navigation-layout", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      const deleted = await storage.deleteUserNavigationLayout(userId);
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error("Navigation layout delete error:", error);
+      res.status(500).json({ error: "Failed to delete navigation layout" });
+    }
+  });
+
   // Layout Presets (admin-defined templates)
   app.get("/api/layout-presets/:pageId", async (req, res) => {
     try {

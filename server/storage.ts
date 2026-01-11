@@ -101,6 +101,9 @@ import type {
   researchHistory,
   ResearchHistoryRecord,
   InsertResearchHistory,
+  UserNavigationLayout,
+  InsertUserNavigationLayout,
+  NavigationLayoutType,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -151,6 +154,7 @@ import {
   layoutPresets,
   watchlistHistory,
   symbolNotes,
+  userNavigationLayouts,
 } from "@shared/schema";
 
 // ========================================
@@ -582,6 +586,11 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<PasswordResetToken | null>;
   markPasswordResetTokenUsed(id: string): Promise<void>;
   invalidateUserResetTokens(userId: string): Promise<void>;
+
+  // User Navigation Layouts
+  getUserNavigationLayout(userId: string): Promise<UserNavigationLayout | null>;
+  saveUserNavigationLayout(userId: string, layout: NavigationLayoutType): Promise<UserNavigationLayout>;
+  deleteUserNavigationLayout(userId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -2081,6 +2090,19 @@ export class MemStorage implements IStorage {
 
   async getLossPatterns(): Promise<{ pattern: string; count: number; avgLoss: number }[]> {
     throw new Error("Loss analysis not supported in MemStorage");
+  }
+
+  // Navigation Layouts (stub for MemStorage)
+  async getUserNavigationLayout(_userId: string): Promise<UserNavigationLayout | null> {
+    return null;
+  }
+
+  async saveUserNavigationLayout(_userId: string, _layout: NavigationLayoutType): Promise<UserNavigationLayout> {
+    throw new Error("Navigation layouts not supported in MemStorage");
+  }
+
+  async deleteUserNavigationLayout(_userId: string): Promise<boolean> {
+    return false;
   }
 }
 
@@ -4445,6 +4467,30 @@ export class DatabaseStorage implements IStorage {
     await db.update(passwordResetTokens)
       .set({ used: true })
       .where(eq(passwordResetTokens.userId, userId));
+  }
+
+  // ========== USER NAVIGATION LAYOUTS ==========
+  async getUserNavigationLayout(userId: string): Promise<UserNavigationLayout | null> {
+    const result = await db.select().from(userNavigationLayouts)
+      .where(eq(userNavigationLayouts.userId, userId));
+    return result[0] || null;
+  }
+
+  async saveUserNavigationLayout(userId: string, layout: NavigationLayoutType): Promise<UserNavigationLayout> {
+    const [saved] = await db.insert(userNavigationLayouts)
+      .values({ userId, layout, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: userNavigationLayouts.userId,
+        set: { layout, updatedAt: new Date() },
+      })
+      .returning();
+    return saved;
+  }
+
+  async deleteUserNavigationLayout(userId: string): Promise<boolean> {
+    const result = await db.delete(userNavigationLayouts)
+      .where(eq(userNavigationLayouts.userId, userId));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
