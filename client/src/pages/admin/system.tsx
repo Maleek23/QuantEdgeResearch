@@ -44,6 +44,28 @@ interface AIProviderStatus {
   model?: string;
 }
 
+interface MarketAPIStatus {
+  name: string;
+  displayName: string;
+  status: 'healthy' | 'degraded' | 'rate_limited' | 'down' | 'unknown';
+  statusReason?: string;
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastErrorMessage?: string;
+  quota?: {
+    period: string;
+    limit: number;
+    used: number;
+    remaining: number;
+    resetsAt?: string;
+  };
+  rollingCounts: {
+    success24h: number;
+    error24h: number;
+    rateLimitHits24h: number;
+  };
+}
+
 function StatusIndicator({ status }: { status: string }) {
   return (
     <div className={cn(
@@ -102,6 +124,19 @@ function AdminSystemContent() {
     }
   });
 
+  const { data: marketApis, isLoading: marketApisLoading, refetch: refetchMarketApis } = useQuery<{
+    providers: MarketAPIStatus[];
+    timestamp: string;
+  }>({
+    queryKey: ['/api/admin/market-apis'],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/market-apis', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch market APIs');
+      return res.json();
+    }
+  });
+
   const optimizeDbMutation = useMutation({
     mutationFn: async () => {
       const csrfToken = getCSRFToken();
@@ -128,6 +163,7 @@ function AdminSystemContent() {
     refetchHealth();
     refetchDb();
     refetchAI();
+    refetchMarketApis();
   };
 
   const services: ServiceStatus[] = systemHealth?.services || [
@@ -407,6 +443,109 @@ function AdminSystemContent() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Wifi className="h-5 w-5 text-cyan-400" />
+                Market Data APIs
+              </CardTitle>
+              <CardDescription className="text-slate-500">
+                External data provider status and rate limits
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetchMarketApis()}
+              className="border-slate-700 text-slate-300"
+              data-testid="button-refresh-market-apis"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {marketApisLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 bg-slate-800" />)}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(marketApis?.providers || []).map((api: MarketAPIStatus) => (
+                <div 
+                  key={api.name}
+                  className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                  data-testid={`api-status-${api.name}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <StatusIndicator status={api.status} />
+                      <div>
+                        <span className="text-white font-medium">{api.displayName}</span>
+                        {api.statusReason && (
+                          <p className="text-xs text-slate-500">{api.statusReason}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge 
+                      variant="outline"
+                      className={cn(
+                        api.status === 'healthy' && "text-green-400 border-green-500/20",
+                        api.status === 'degraded' && "text-amber-400 border-amber-500/20",
+                        api.status === 'rate_limited' && "text-amber-400 border-amber-500/20",
+                        api.status === 'down' && "text-red-400 border-red-500/20",
+                        api.status === 'unknown' && "text-slate-400 border-slate-500/20"
+                      )}
+                    >
+                      {api.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                    {api.quota && (
+                      <>
+                        <div className="text-center p-2 rounded bg-slate-700/30">
+                          <p className="text-lg font-mono font-bold text-white">
+                            {api.quota.remaining}/{api.quota.limit}
+                          </p>
+                          <p className="text-xs text-slate-500">Remaining</p>
+                        </div>
+                        <div className="text-center p-2 rounded bg-slate-700/30">
+                          <p className="text-xs font-medium text-slate-400">{api.quota.period}</p>
+                          <p className="text-xs text-slate-500">Rate Limit</p>
+                        </div>
+                      </>
+                    )}
+                    <div className="text-center p-2 rounded bg-green-500/10">
+                      <p className="text-sm font-bold text-green-400">{api.rollingCounts.success24h}</p>
+                      <p className="text-xs text-slate-500">Success</p>
+                    </div>
+                    <div className="text-center p-2 rounded bg-red-500/10">
+                      <p className="text-sm font-bold text-red-400">{api.rollingCounts.error24h + api.rollingCounts.rateLimitHits24h}</p>
+                      <p className="text-xs text-slate-500">Errors</p>
+                    </div>
+                  </div>
+                  {api.lastSuccessAt && (
+                    <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Last success: {new Date(api.lastSuccessAt).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {(!marketApis?.providers || marketApis.providers.length === 0) && (
+                <div className="text-center py-8 text-slate-500">
+                  <Wifi className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No API activity recorded yet</p>
+                  <p className="text-xs">Stats will appear as APIs are called</p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

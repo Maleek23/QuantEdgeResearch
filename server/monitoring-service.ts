@@ -3,6 +3,8 @@
  * Provides real-time alerts for admin dashboard
  */
 
+import { marketDataStatus, isRateLimitError } from './market-data-status';
+
 export interface SystemAlert {
   id: string;
   type: 'error' | 'warning' | 'info' | 'critical';
@@ -213,19 +215,56 @@ class MonitoringService {
 // Singleton instance
 export const monitoringService = new MonitoringService();
 
+// Map provider names to market data status keys
+const providerKeyMap: Record<string, string> = {
+  'Tradier': 'tradier',
+  'tradier': 'tradier',
+  'Yahoo Finance': 'yahoo_finance',
+  'yahoo_finance': 'yahoo_finance',
+  'yahoo': 'yahoo_finance',
+  'Alpha Vantage': 'alpha_vantage',
+  'alpha_vantage': 'alpha_vantage',
+  'CoinGecko': 'coingecko',
+  'coingecko': 'coingecko',
+  'Coinbase': 'coinbase',
+  'coinbase': 'coinbase',
+  'SEC EDGAR': 'sec_edgar',
+  'sec_edgar': 'sec_edgar',
+  'USASpending': 'usaspending',
+  'usaspending': 'usaspending',
+};
+
+function getProviderKey(provider: string): string | null {
+  return providerKeyMap[provider] || null;
+}
+
 // Helper functions for common alerts
-export function logAPIError(provider: string, endpoint: string, error: any): void {
+export function logAPIError(provider: string, endpoint: string, error: any, statusCode?: number, body?: any): void {
+  const errorMessage = error?.message || String(error);
   monitoringService.addAlert(
     'error',
     'api',
     `${provider} API error: ${endpoint}`,
-    error?.message || String(error)
+    errorMessage
   );
   monitoringService.trackAPICall(endpoint, provider, false);
+  
+  // Track in market data status - check rate limit using error message as well
+  const providerKey = getProviderKey(provider);
+  if (providerKey) {
+    const isRateLimit = isRateLimitError(providerKey, statusCode, body, errorMessage);
+    marketDataStatus.logError(providerKey, errorMessage, isRateLimit);
+  }
 }
 
 export function logAPISuccess(provider: string, endpoint: string, responseTime?: number): void {
   monitoringService.trackAPICall(endpoint, provider, true, responseTime);
+  
+  // Track in market data status
+  const providerKey = getProviderKey(provider);
+  if (providerKey) {
+    marketDataStatus.logSuccess(providerKey, endpoint);
+  }
 }
 
 export function logDiscordError(message: string, error: any): void {

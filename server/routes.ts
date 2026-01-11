@@ -98,6 +98,7 @@ import { WinRateService } from './win-rate-service';
 import { CANONICAL_WIN_THRESHOLD } from '@shared/constants';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
+import { marketDataStatus } from './market-data-status';
 
 // Helper for case-insensitive admin email check
 function isAdminEmail(userEmail: string | null | undefined): boolean {
@@ -1865,6 +1866,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       logger.error('AI provider status check failed', { error });
+      res.status(500).json({ error: "Status check failed", message: error?.message });
+    }
+  });
+
+  // Market Data API Status - All external market data providers
+  app.get("/api/admin/market-apis", requireAdminJWT, async (_req, res) => {
+    try {
+      const statuses = marketDataStatus.getAllStatuses();
+      res.json({
+        providers: statuses,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error('Market API status check failed', { error });
       res.status(500).json({ error: "Status check failed", message: error?.message });
     }
   });
