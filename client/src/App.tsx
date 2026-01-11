@@ -67,7 +67,6 @@ const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
-const PatternScanner = lazy(() => import("@/pages/pattern-scanner"));
 const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
@@ -155,7 +154,9 @@ function Router() {
       </Route>
       <Route path="/market" component={withBetaProtection(MarketPage)} />
       <Route path="/market-scanner" component={withBetaProtection(MarketScanner)} />
-      <Route path="/pattern-scanner" component={withBetaProtection(PatternScanner)} />
+      <Route path="/pattern-scanner">
+        <Redirect to="/chart-analysis" />
+      </Route>
       <Route path="/swing-scanner" component={withBetaProtection(SwingScanner)} />
       <Route path="/bullish-trends" component={withBetaProtection(BullishTrends)} />
       <Route path="/futures">

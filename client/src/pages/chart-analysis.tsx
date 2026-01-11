@@ -3625,26 +3625,35 @@ export default function ChartAnalysis() {
       />
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6" data-testid="tabs-main-navigation">
+        <TabsList className="grid w-full grid-cols-4 mb-6" data-testid="tabs-main-navigation">
           <TabsTrigger value="unified" className="gap-2" data-testid="tab-unified-analysis">
             <Radar className="h-4 w-4" />
-            <span className="hidden sm:inline">Pattern Analysis</span>
+            <span className="hidden sm:inline">Analysis</span>
             <span className="sm:hidden">Analysis</span>
+          </TabsTrigger>
+          <TabsTrigger value="scanner" className="gap-2" data-testid="tab-pattern-scanner">
+            <Target className="h-4 w-4" />
+            <span className="hidden sm:inline">Scanner</span>
+            <span className="sm:hidden">Scanner</span>
           </TabsTrigger>
           <TabsTrigger value="search" className="gap-2" data-testid="tab-pattern-search">
             <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">Pattern Search</span>
-            <span className="sm:hidden">Search</span>
+            <span className="hidden sm:inline">Library</span>
+            <span className="sm:hidden">Library</span>
           </TabsTrigger>
           <TabsTrigger value="backtest" className="gap-2" data-testid="tab-pattern-backtest">
             <History className="h-4 w-4" />
-            <span className="hidden sm:inline">Pattern Backtest</span>
+            <span className="hidden sm:inline">Backtest</span>
             <span className="sm:hidden">Backtest</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="unified" className="mt-0">
           <UnifiedPatternAnalysisTab />
+        </TabsContent>
+
+        <TabsContent value="scanner" className="mt-0">
+          <PatternScannerTab />
         </TabsContent>
 
         <TabsContent value="visual" className="mt-0 hidden">
