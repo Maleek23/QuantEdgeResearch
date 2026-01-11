@@ -453,10 +453,6 @@ export default function OptionsAnalyzer() {
             <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
               <Activity className="h-6 w-6 text-cyan-500" />
               Options Analyzer
-              <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-400">
-                <GraduationCap className="h-3 w-3 mr-1" />
-                PhD Quant
-              </Badge>
             </h1>
             <p className="text-sm text-muted-foreground">Institutional-grade options analytics with Greeks, IV surfaces, and strategy simulation</p>
           </div>
