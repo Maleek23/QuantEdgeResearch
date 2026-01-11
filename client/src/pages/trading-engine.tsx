@@ -507,11 +507,10 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
           resistance={data.levels.resistance[0] || data.levels.currentPrice * 1.05}
           support={data.levels.support[0] || data.levels.currentPrice * 0.95}
           atrPercent={data.volatility.atrPercent}
-        />
-        
-        <PositionSizeCalculator
-          currentPrice={data.levels.currentPrice}
-          stopLoss={data.levels.support[0] || data.levels.currentPrice * 0.95}
+          trend={data.trend.direction}
+          trendStrength={data.trend.strength}
+          rsi={data.momentum.rsi14}
+          symbol={symbol}
         />
       </CardContent>
     </Card>
@@ -607,6 +606,9 @@ function NewsPanelWithInsights({ data, symbol, currentPrice }: {
           sentimentLabel={data.sentimentLabel}
           newsBias={data.newsBias}
           symbol={symbol}
+          topHeadlines={data.topHeadlines}
+          catalysts={data.catalysts || []}
+          currentPrice={currentPrice}
         />
       </CardContent>
     </Card>
@@ -835,7 +837,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
           regime={marketCtx.regime}
           shouldTrade={marketCtx.shouldTrade}
           vixLevel={marketCtx.vixLevel}
-          riskSentiment={marketCtx.riskSentiment}
+          riskSentiment={(marketCtx.riskSentiment as 'risk_on' | 'risk_off' | 'neutral') || 'neutral'}
         />
       )}
     </div>
@@ -1135,6 +1137,12 @@ export default function TradingEnginePage() {
                 <PaperPortfolios />
                 <IVRankWidget />
               </div>
+            </div>
+            
+            {/* Market Intelligence Row */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <BullishPatternWidget />
+              <SectorHeatWidget />
             </div>
           </TabsContent>
 
