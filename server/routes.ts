@@ -581,9 +581,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
       
-      // Validate invite code for invite-only beta
-      // First try unique invite token from database
+      // Validate invite code if provided (optional - all signups get beta access now)
       let validatedInvite = null;
+      let tierOverride = 'free';
+      
       if (inviteCode) {
         // Normalize invite code to lowercase for case-insensitive matching
         const normalizedInviteCode = inviteCode.trim().toLowerCase();
@@ -593,15 +594,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!validatedInvite) {
           const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
           if (inviteCode !== adminCode) {
-            return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
+            logger.info('Invalid invite code provided during signup, proceeding without tier override', { inviteCode: '***' });
           }
         }
-      } else {
-        return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
+        
+        // Apply tier override if invite was valid
+        tierOverride = validatedInvite?.tierOverride || 'free';
       }
-      
-      // Determine subscription tier (use invite's tier override if available)
-      const tierOverride = validatedInvite?.tierOverride || 'free';
+      // Note: No invite code required - platform is open for signups
       
       const user = await createUser(emailLower, password, firstName, lastName);
       

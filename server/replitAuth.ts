@@ -78,8 +78,9 @@ async function upsertUser(
       firstName: claims["first_name"],
       lastName: claims["last_name"],
       profileImageUrl: claims["profile_image_url"],
+      hasBetaAccess: true, // Grant beta access to all users for full platform access
     });
-    logger.info('User upserted from Replit Auth', { userId: claims["sub"], email: claims["email"] });
+    logger.info('User upserted from Replit Auth with beta access', { userId: claims["sub"], email: claims["email"] });
   } catch (error) {
     logError(error as Error, { context: 'upsertUser', userId: claims["sub"] });
   }
