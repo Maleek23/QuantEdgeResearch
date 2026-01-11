@@ -1884,6 +1884,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public Data Status - Shows degraded/cached data info for users
+  app.get("/api/data-status", isAuthenticated, async (_req, res) => {
+    try {
+      const { apiCache } = await import('./api-cache');
+      const { apiThrottle } = await import('./api-throttle');
+      
+      const allStatuses = marketDataStatus.getAllStatuses();
+      const degradedProviders = allStatuses.filter(p => 
+        p.status === 'rate_limited' || p.status === 'degraded' || p.status === 'down'
+      );
+      
+      const cacheStats = apiCache.getStats();
+      const queueStats = apiThrottle.getQueueStats();
+      
+      res.json({
+        healthy: degradedProviders.length === 0,
+        degradedProviders: degradedProviders.map(p => ({
+          name: p.displayName,
+          status: p.status,
+          reason: p.statusReason,
+          resetsAt: p.quota?.resetsAt,
+        })),
+        cacheEntries: cacheStats.entries,
+        queuedRequests: Object.values(queueStats).reduce((sum, q) => sum + q.pending, 0),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Status check failed" });
+    }
+  });
+
   // Test AI Provider - Individual provider testing
   app.post("/api/admin/test-ai", requireAdminJWT, async (req, res) => {
     try {

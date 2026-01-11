@@ -43,6 +43,7 @@ import {
   MarketContextInsights,
   NewsInsights
 } from "@/components/contextual-insights";
+import { DataStatusBanner } from "@/components/data-status-banner";
 
 interface TradingEngineResult {
   symbol: string;
@@ -1026,6 +1027,9 @@ export default function TradingEnginePage() {
             </Link>
           </div>
         </div>
+
+        {/* Data Status Banner - Shows when APIs are rate limited or degraded */}
+        <DataStatusBanner />
 
         {/* Main Tabs */}
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
