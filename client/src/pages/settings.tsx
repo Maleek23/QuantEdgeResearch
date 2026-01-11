@@ -23,8 +23,10 @@ import {
   Target,
   TrendingDown,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  PanelLeft
 } from "lucide-react";
+import { NavigationCustomizer } from "@/components/navigation-customizer";
 import type { 
   UserPreferences, 
   RiskProfileConfig, 
@@ -163,7 +165,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 mb-6" data-testid="tabs-settings">
+        <TabsList className="grid w-full grid-cols-5 mb-6" data-testid="tabs-settings">
           <TabsTrigger value="trading" data-testid="tab-trading">
             <Wallet className="h-4 w-4 mr-2" />
             Trading
@@ -179,6 +181,10 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences" data-testid="tab-preferences">
             <Palette className="h-4 w-4 mr-2" />
             Display
+          </TabsTrigger>
+          <TabsTrigger value="navigation" data-testid="tab-navigation">
+            <PanelLeft className="h-4 w-4 mr-2" />
+            Navigation
           </TabsTrigger>
         </TabsList>
 
@@ -561,6 +567,21 @@ export default function SettingsPage() {
                   data-testid="input-discord-webhook"
                 />
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Navigation Tab */}
+        <TabsContent value="navigation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <PanelLeft className="h-4 w-4" />
+                Sidebar Navigation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <NavigationCustomizer />
             </CardContent>
           </Card>
         </TabsContent>
