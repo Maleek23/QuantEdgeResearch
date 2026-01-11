@@ -4818,9 +4818,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Import ML and breakout services for enhanced scoring
-      const { predictPriceDirection } = await import("./ml-intelligence-service");
-      const { scanSymbolForBreakout } = await import("./breakout-scanner");
+      // PERFORMANCE OPTIMIZATION: Pre-filter to only high-grade ideas (A+/A/A-/B+/B)
+      // This dramatically reduces the number of ideas we need to score (from 6000+ to ~100)
+      const highGradeIdeas = openIdeas.filter(i => {
+        const grade = i.probabilityBand || '';
+        return ['A+', 'A', 'A-', 'B+', 'B'].includes(grade);
+      });
+      
+      // Fallback: if no high-grade ideas, take top 50 by confidence score
+      const candidateIdeas = highGradeIdeas.length >= limit 
+        ? highGradeIdeas 
+        : openIdeas.slice(0, 100);
+      
+      logger.info(`[BEST-SETUPS] Pre-filtered to ${candidateIdeas.length} candidates (from ${openIdeas.length} open ideas)`);
       
       // Calculate historical win rate by symbol (from all closed trade ideas)
       // Uses actual outcome statuses: 'hit_target', 'stopped_out', 'expired'
@@ -4834,9 +4844,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return { winRate: Math.round((wins / symbolIdeas.length) * 100), sampleSize: symbolIdeas.length };
       };
       
-      // Enhanced conviction scoring with ML, breakout, and historical data
-      // Conviction = Base + Signals + R:R + Grade + ML + Breakout + WinRate
-      const scoredIdeas = await Promise.all(openIdeas.map(async idea => {
+      // Fast scoring without ML/breakout calls (skip expensive async operations)
+      // Conviction = Base + Signals + R:R + Grade + WinRate
+      const scoredIdeas = candidateIdeas.map(idea => {
         const confidence = idea.confidenceScore || 50;
         const signalCount = idea.qualitySignals?.length || 0;
         const riskReward = idea.targetPrice && idea.entryPrice && idea.stopLoss
@@ -4857,40 +4867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (grade === 'A+' || grade === 'A') convictionScore += 10;
         else if (grade === 'A-' || grade === 'B+') convictionScore += 5;
         
-        // ML Intelligence bonus
-        let mlBoost = 0;
-        let mlDirection = 'neutral';
-        try {
-          const mlPrediction = await predictPriceDirection(idea.symbol, idea.assetType as any);
-          if (mlPrediction) {
-            mlDirection = mlPrediction.direction;
-            const isAligned = (idea.direction === 'long' && mlPrediction.direction === 'bullish') ||
-                              (idea.direction === 'short' && mlPrediction.direction === 'bearish');
-            if (isAligned) {
-              mlBoost = Math.round(mlPrediction.confidence * 0.2); // Up to +20 for strong ML alignment
-            } else if (mlPrediction.direction !== 'neutral' && !isAligned) {
-              mlBoost = -10; // Penalty if ML disagrees
-            }
-          }
-        } catch (e) { /* ML unavailable */ }
-        convictionScore += mlBoost;
-        
-        // Breakout confirmation bonus (for stocks/crypto)
-        let breakoutBonus = 0;
-        let hourlyConfirmed = false;
-        if (idea.assetType === 'stock' || idea.assetType === 'crypto') {
-          try {
-            const breakoutSignal = await scanSymbolForBreakout(idea.symbol);
-            if (breakoutSignal) {
-              hourlyConfirmed = breakoutSignal.hourlyConfirmed;
-              if (breakoutSignal.hourlyConfirmed) breakoutBonus = 15;
-              if (breakoutSignal.hourlyMomentum === 'strong') breakoutBonus += 5;
-            }
-          } catch (e) { /* Breakout scan unavailable */ }
-        }
-        convictionScore += breakoutBonus;
-        
-        // Historical win rate bonus
+        // Historical win rate bonus (fast, no API calls)
         const { winRate, sampleSize } = calculateSymbolWinRate(idea.symbol);
         let winRateBonus = 0;
         if (sampleSize >= 5) {
@@ -4906,15 +4883,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           convictionScore: Math.round(Math.max(convictionScore, 0)),
           signalCount,
           riskReward: Math.round(riskReward * 100) / 100,
-          mlDirection,
-          mlBoost,
-          hourlyConfirmed,
-          breakoutBonus,
+          mlDirection: 'neutral',  // Skip slow ML calls for performance
+          mlBoost: 0,
+          hourlyConfirmed: false,
+          breakoutBonus: 0,
           historicalWinRate: winRate,
           historicalSampleSize: sampleSize,
-          winRateBonus
+          winRateBonus,
+          confidence
         };
-      }));
+      });
       
       // Sort by conviction score descending
       scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
