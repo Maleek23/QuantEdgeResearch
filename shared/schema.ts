@@ -813,6 +813,45 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).o
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 export type UserPreferences = typeof userPreferences.$inferSelect;
 
+// Navigation Item Type for custom layouts
+export type NavigationItemType = {
+  id: string;
+  title: string;
+  icon: string;
+  href: string;
+  badge?: string;
+  adminOnly?: boolean;
+};
+
+// Navigation Group Type
+export type NavigationGroupType = {
+  id: string;
+  title: string;
+  items: NavigationItemType[];
+  collapsed?: boolean;
+};
+
+// Full Navigation Layout Type
+export type NavigationLayoutType = {
+  groups: NavigationGroupType[];
+  version: number;
+};
+
+// User Navigation Layouts - Per-user sidebar customization
+export const userNavigationLayouts = pgTable("user_navigation_layouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  
+  layout: jsonb("layout").$type<NavigationLayoutType>().notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserNavigationLayoutSchema = createInsertSchema(userNavigationLayouts).omit({ id: true, createdAt: true });
+export type InsertUserNavigationLayout = z.infer<typeof insertUserNavigationLayoutSchema>;
+export type UserNavigationLayout = typeof userNavigationLayouts.$inferSelect;
+
 // 🔐 MODEL CARDS - ML Ops governance & auditability (SR 11-7 / OCC 201-12 compliance)
 // Documents each quant engine version and ML weights snapshot for model risk management
 export const modelCards = pgTable("model_cards", {
