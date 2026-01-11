@@ -45,6 +45,7 @@ const AdminSecurity = lazy(() => import("@/pages/admin-security"));
 const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
 const AdminCredits = lazy(() => import("@/pages/admin-credits"));
 const AdminBetaInvites = lazy(() => import("@/pages/admin-beta-invites"));
+const AdminBlog = lazy(() => import("@/pages/admin/blog"));
 const About = lazy(() => import("@/pages/about"));
 const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
@@ -194,6 +195,7 @@ function Router() {
       <Route path="/admin/invites" component={AdminInvites} />
       <Route path="/admin/waitlist" component={AdminWaitlist} />
       <Route path="/admin/system" component={AdminSystem} />
+      <Route path="/admin/blog" component={AdminBlog} />
       <Route path="/admin/reports" component={AdminReports} />
       <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/admin/win-loss" component={AdminWinLoss} />

@@ -40,6 +40,7 @@ import {
   CreditCard,
   ChevronLeft,
   Zap,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -198,6 +199,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   const advancedItems = [
+    { title: "Blog", href: "/admin/blog", icon: BookOpen },
     { title: "Reports", href: "/admin/reports", icon: FileBarChart },
     { title: "Win/Loss", href: "/admin/win-loss", icon: Zap },
     { title: "Credits", href: "/admin/credits", icon: CreditCard },

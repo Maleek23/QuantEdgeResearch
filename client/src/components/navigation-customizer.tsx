@@ -71,6 +71,7 @@ const defaultNavItems: NavigationItemType[] = [
   { id: "trends", title: "Trends", icon: "TrendingUp", href: "/bullish-trends" },
   { id: "historical", title: "Historical", icon: "Brain", href: "/historical-intelligence" },
   { id: "academy", title: "Academy", icon: "BookOpen", href: "/academy" },
+  { id: "blog", title: "Blog", icon: "BookOpen", href: "/blog" },
   { id: "settings", title: "Settings", icon: "Settings", href: "/settings" },
   { id: "admin", title: "Admin", icon: "Shield", href: "/admin", adminOnly: true },
 ];
@@ -91,7 +92,7 @@ const defaultLayout: NavigationLayoutType = {
     {
       id: "learn",
       title: "Learn",
-      items: defaultNavItems.filter(i => ["academy"].includes(i.id)),
+      items: defaultNavItems.filter(i => ["academy", "blog"].includes(i.id)),
     },
     {
       id: "account",

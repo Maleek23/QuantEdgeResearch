@@ -17972,6 +17972,18 @@ CONSTRAINTS:
   // BLOG CMS ROUTES
   // ==========================================
 
+  // GET /api/admin/blog - List all blog posts including drafts (admin only)
+  app.get("/api/admin/blog", requireAdminJWT, async (_req: Request, res: Response) => {
+    try {
+      // Get all posts regardless of status for admin
+      const allPosts = await storage.getBlogPosts();
+      res.json(allPosts);
+    } catch (error: any) {
+      logger.error("Error fetching all blog posts for admin", { error });
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
   // GET /api/blog - List published blog posts (public)
   app.get("/api/blog", async (_req: Request, res: Response) => {
     try {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -632,9 +633,77 @@ export default function BlogPostPage() {
   const visual = getVisualForCategory(post.category);
   const Icon = visual.icon;
 
+  // Inject JSON-LD structured data for SEO
+  useEffect(() => {
+    if (!post) return;
+
+    const baseUrl = window.location.origin;
+    const wordCount = post.content?.split(/\s+/).length || 0;
+    const readingTime = Math.max(3, Math.ceil(wordCount / 200));
+
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": post.title,
+      "description": post.metaDescription || post.excerpt || post.title,
+      "author": {
+        "@type": "Person",
+        "name": post.authorName
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Quant Edge Labs",
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${baseUrl}/logo.png`
+        }
+      },
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": `${baseUrl}/blog/${post.slug}`
+      },
+      "datePublished": post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date().toISOString(),
+      "dateModified": post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
+      "image": post.heroImageUrl || `${baseUrl}/og-image.png`,
+      "articleSection": post.category.replace('-', ' '),
+      "keywords": post.metaKeywords || post.tags?.join(', ') || '',
+      "wordCount": wordCount,
+      "timeRequired": `PT${readingTime}M`
+    };
+
+    // Remove any existing JSON-LD script
+    const existingScript = document.querySelector('script[data-jsonld="article"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
+    // Add new JSON-LD script
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-jsonld', 'article');
+    script.textContent = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // Cleanup on unmount
+    return () => {
+      const scriptToRemove = document.querySelector('script[data-jsonld="article"]');
+      if (scriptToRemove) {
+        scriptToRemove.remove();
+      }
+    };
+  }, [post]);
+
   return (
     <div className="min-h-screen bg-background">
-      <SEOHead pageKey="blog" />
+      <SEOHead 
+        title={`${post.title} | Quant Edge Labs Blog`}
+        description={post.metaDescription || post.excerpt || post.title}
+        keywords={post.metaKeywords?.split(',').map(k => k.trim()) || post.tags}
+        ogTitle={post.title}
+        ogDescription={post.metaDescription || post.excerpt}
+        ogImage={post.heroImageUrl}
+        canonical={`/blog/${post.slug}`}
+      />
       
       {/* Hero Header */}
       <div className="relative overflow-hidden border-b border-border/50">
