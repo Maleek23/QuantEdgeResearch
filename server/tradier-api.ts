@@ -291,61 +291,114 @@ export async function getTradierHistory(
   }
 }
 
+// Yahoo Finance fallback for OHLC data
+async function fetchYahooHistoryOHLC(
+  symbol: string,
+  days: number = 20
+): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
+  try {
+    const endDate = Math.floor(Date.now() / 1000);
+    const startDate = endDate - (days * 24 * 60 * 60);
+    
+    const response = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&period1=${startDate}&period2=${endDate}`
+    );
+
+    if (!response.ok) {
+      logger.warn(`Yahoo Finance OHLC error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+      logger.warn(`No Yahoo Finance OHLC data for ${symbol}`);
+      return null;
+    }
+
+    const quote = result.indicators.quote[0];
+    const timestamps = result.timestamp;
+    
+    // Filter out null values and build arrays
+    const opens: number[] = [];
+    const highs: number[] = [];
+    const lows: number[] = [];
+    const closes: number[] = [];
+    const dates: string[] = [];
+    
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.open[i] != null && quote.high[i] != null && quote.low[i] != null && quote.close[i] != null) {
+        opens.push(quote.open[i]);
+        highs.push(quote.high[i]);
+        lows.push(quote.low[i]);
+        closes.push(quote.close[i]);
+        dates.push(new Date(timestamps[i] * 1000).toISOString().split('T')[0]);
+      }
+    }
+    
+    logger.info(`[YAHOO-FALLBACK] Fetched ${closes.length} OHLC bars for ${symbol}`);
+    return { opens, highs, lows, closes, dates };
+  } catch (error) {
+    logger.error(`Yahoo Finance OHLC fetch error for ${symbol}:`, error);
+    return null;
+  }
+}
+
 // Get historical OHLC data for ATR calculation and chart analysis
+// Falls back to Yahoo Finance when Tradier is unavailable
 export async function getTradierHistoryOHLC(
   symbol: string,
   days: number = 20,
   apiKey?: string
 ): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
-  if (!key) {
-    logger.error('Tradier API key not found');
-    return null;
-  }
+  
+  // Try Tradier first if key available
+  if (key) {
+    try {
+      const baseUrl = getBaseUrl(key);
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
 
-  try {
-    const baseUrl = getBaseUrl(key);
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+      const start = startDate.toISOString().split('T')[0];
+      const end = endDate.toISOString().split('T')[0];
 
-    const start = startDate.toISOString().split('T')[0];
-    const end = endDate.toISOString().split('T')[0];
-
-    const response = await fetch(
-      `${baseUrl}/markets/history?symbol=${symbol}&interval=daily&start=${start}&end=${end}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Accept': 'application/json'
+      const response = await fetch(
+        `${baseUrl}/markets/history?symbol=${symbol}&interval=daily&start=${start}&end=${end}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${key}`,
+            'Accept': 'application/json'
+          }
         }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const history: TradierHistoricalDay[] = data.history?.day || [];
+        
+        if (history.length > 0) {
+          // Return OHLC arrays in chronological order
+          return {
+            opens: history.map(day => day.open),
+            highs: history.map(day => day.high),
+            lows: history.map(day => day.low),
+            closes: history.map(day => day.close),
+            dates: history.map(day => day.date)
+          };
+        }
+      } else {
+        logger.warn(`Tradier OHLC history error for ${symbol}: ${response.status}, trying Yahoo Finance`);
       }
-    );
-
-    if (!response.ok) {
-      logger.error(`Tradier OHLC history error for ${symbol}: ${response.status}`);
-      return null;
+    } catch (error) {
+      logger.warn(`Tradier OHLC fetch error for ${symbol}, trying Yahoo Finance:`, error);
     }
-
-    const data = await response.json();
-    const history: TradierHistoricalDay[] = data.history?.day || [];
-    
-    if (history.length === 0) {
-      return null;
-    }
-
-    // Return OHLC arrays in chronological order (including opens and dates for chart analysis)
-    return {
-      opens: history.map(day => day.open),
-      highs: history.map(day => day.high),
-      lows: history.map(day => day.low),
-      closes: history.map(day => day.close),
-      dates: history.map(day => day.date)
-    };
-  } catch (error) {
-    logger.error(`Tradier OHLC history fetch error for ${symbol}:`, error);
-    return null;
   }
+  
+  // Fallback to Yahoo Finance (unlimited, always available)
+  return await fetchYahooHistoryOHLC(symbol, days);
 }
 
 // Get options chain for a symbol
