@@ -24,7 +24,6 @@ import {
   Clock,
   DollarSign,
   Zap,
-  Shield,
   ArrowUpRight,
   ArrowDownRight,
   Loader2,
@@ -40,8 +39,7 @@ import {
   Settings2,
   Plus,
   Minus,
-  Info,
-  GraduationCap
+  Info
 } from "lucide-react";
 
 interface OptionContract {
@@ -285,7 +283,7 @@ export default function OptionsAnalyzer() {
     setAnalysisResult(null);
   };
 
-  const { data: expirationsData, isLoading: loadingExpirations } = useQuery<{ symbol: string; expirations: Expiration[] }>({
+  const { data: expirationsData, isLoading: loadingExpirations, isError: expirationsError } = useQuery<{ symbol: string; expirations: Expiration[] }>({
     queryKey: ['/api/options-analyzer/expirations', searchedSymbol],
     enabled: !!searchedSymbol,
   });
@@ -298,7 +296,7 @@ export default function OptionsAnalyzer() {
     chain: OptionContract[];
   }
   
-  const { data: chainData, isLoading: loadingChain } = useQuery<ChainResponse>({
+  const { data: chainData, isLoading: loadingChain, isError: chainError } = useQuery<ChainResponse>({
     queryKey: ['/api/options-analyzer/chain', searchedSymbol, selectedExpiration],
     queryFn: async () => {
       const url = selectedExpiration 
@@ -312,6 +310,7 @@ export default function OptionsAnalyzer() {
       return res.json();
     },
     enabled: !!searchedSymbol,
+    retry: 1,
   });
 
   const deepAnalysisMutation = useMutation({
@@ -333,7 +332,7 @@ export default function OptionsAnalyzer() {
     }
   });
 
-  const { data: volSurfaceData, isLoading: loadingVolSurface, refetch: refetchVolSurface } = useQuery<{
+  const { data: volSurfaceData, isLoading: loadingVolSurface, isError: volSurfaceError, refetch: refetchVolSurface } = useQuery<{
     symbol: string;
     spotPrice: number;
     surface: VolatilitySurface;
@@ -345,6 +344,7 @@ export default function OptionsAnalyzer() {
       return res.json();
     },
     enabled: !!searchedSymbol && activeTab === 'surface',
+    retry: 1,
   });
 
   const blackScholesMutation = useMutation({
@@ -454,12 +454,8 @@ export default function OptionsAnalyzer() {
               <Activity className="h-6 w-6 text-cyan-500" />
               Options Analyzer
             </h1>
-            <p className="text-sm text-muted-foreground">Institutional-grade options analytics with Greeks, IV surfaces, and strategy simulation</p>
+            <p className="text-sm text-muted-foreground">Analyze options chains, greeks, and volatility metrics</p>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            <Shield className="h-3 w-3 mr-1" />
-            Research Tool
-          </Badge>
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
@@ -527,11 +523,27 @@ export default function OptionsAnalyzer() {
           </CardContent>
         </Card>
 
-        {searchedSymbol && loadingChain && !chainData && (
+        {searchedSymbol && loadingChain && !chainData && !chainError && (
           <Card>
             <CardContent className="p-12 text-center">
               <Loader2 className="h-12 w-12 mx-auto text-cyan-500 animate-spin mb-4" />
               <p className="text-muted-foreground">Loading options chain for {searchedSymbol}...</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {searchedSymbol && (expirationsError || chainError) && !loadingChain && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+              <h3 className="font-semibold text-lg mb-2">Data Temporarily Unavailable</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                Options data for {searchedSymbol} couldn't be loaded. This is usually due to market data provider rate limits.
+              </p>
+              <Button variant="outline" onClick={() => setSearchedSymbol(searchedSymbol)} data-testid="button-retry">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -646,12 +658,28 @@ export default function OptionsAnalyzer() {
           </TabsContent>
 
           <TabsContent value="surface" className="mt-0">
-            <VolatilitySurfacePanel
-              symbol={searchedSymbol}
-              data={volSurfaceData}
-              isLoading={loadingVolSurface}
-              onRefresh={() => refetchVolSurface()}
-            />
+            {volSurfaceError ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+                  <h3 className="font-semibold text-lg mb-2">Volatility Surface Unavailable</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                    Unable to calculate volatility surface. Try searching for a symbol with active options chains.
+                  </p>
+                  <Button variant="outline" onClick={() => refetchVolSurface()} data-testid="button-retry-vol">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <VolatilitySurfacePanel
+                symbol={searchedSymbol}
+                data={volSurfaceData}
+                isLoading={loadingVolSurface}
+                onRefresh={() => refetchVolSurface()}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="pricing" className="mt-0">
