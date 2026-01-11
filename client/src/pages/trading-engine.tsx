@@ -1094,7 +1094,7 @@ export default function TradingEnginePage() {
                 <ConfluenceInsights />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8 space-y-6">
                 <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">

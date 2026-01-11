@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
 
 const signupSchema = z.object({
-  inviteCode: z.string().optional(),
+  inviteCode: z.string().min(1, "Invite code is required for beta access"),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   email: z.string().email("Please enter a valid email address"),
@@ -133,17 +133,17 @@ export default function Signup() {
                   name="inviteCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invite Code <span className="text-muted-foreground font-normal">(Optional)</span></FormLabel>
+                      <FormLabel>Invite Code</FormLabel>
                       <FormControl>
                         <GlassInput
-                          placeholder="Enter invite code for bonus features"
+                          placeholder="Enter your invite code"
                           data-testid="input-invite-code"
                           {...field}
                         />
                       </FormControl>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground">
-                        Have an invite code? Enter it for premium features.
+                        Don't have a code? <Link href="/" className="text-cyan-400 hover:underline">Join the waitlist</Link>
                       </p>
                     </FormItem>
                   )}

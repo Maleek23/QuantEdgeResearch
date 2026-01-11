@@ -506,26 +506,21 @@ async function requireBetaAccess(req: Request, res: Response, next: NextFunction
       return res.status(401).json({ error: "Authentication required" });
     }
     
-    // Always check DB for latest beta status to avoid session lag
     const user = await storage.getUser(userId);
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
     
-    // Grant beta access automatically if not set (ensures no one is locked out)
-    if (!user.hasBetaAccess) {
-       await storage.updateUser(userId, { hasBetaAccess: true });
-       user.hasBetaAccess = true;
-       logger.info('Auto-granted beta access flag in DB for user', { userId });
-    }
-
-    // Check for beta access - now always true for all authenticated users
-    const hasBetaAccess = true;
+    // Check for beta access - grandfathered tiers or explicit beta access
+    const hasBetaAccess = user.hasBetaAccess || 
+                          user.subscriptionTier === 'admin' || 
+                          user.subscriptionTier === 'pro';
     
     if (!hasBetaAccess) {
-      // Fallback: If it's a regular user, just let them in for now to avoid "nothing works" feedback
-      // but log it so we can trace who's entering
-      logger.info('Auto-granting entry to user without explicit beta flag', { userId });
+      return res.status(403).json({ 
+        error: "Beta access required", 
+        message: "Please redeem an invite code to access this feature" 
+      });
     }
     
     // Attach user to request for downstream use
@@ -586,10 +581,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
       
-      // Validate invite code if provided (optional - all signups get beta access now)
+      // Validate invite code for invite-only beta
+      // First try unique invite token from database
       let validatedInvite = null;
-      let tierOverride = 'free';
-      
       if (inviteCode) {
         // Normalize invite code to lowercase for case-insensitive matching
         const normalizedInviteCode = inviteCode.trim().toLowerCase();
@@ -599,14 +593,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!validatedInvite) {
           const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
           if (inviteCode !== adminCode) {
-            logger.info('Invalid invite code provided during signup, proceeding without tier override', { inviteCode: '***' });
+            return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
           }
         }
-        
-        // Apply tier override if invite was valid
-        tierOverride = validatedInvite?.tierOverride || 'free';
+      } else {
+        return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
       }
-      // Note: No invite code required - platform is open for signups
+      
+      // Determine subscription tier (use invite's tier override if available)
+      const tierOverride = validatedInvite?.tierOverride || 'free';
       
       const user = await createUser(emailLower, password, firstName, lastName);
       
@@ -616,7 +611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update user with beta access and tier if invite had a tier override
       await storage.updateUser(user.id, { 
-        hasBetaAccess: true,
+        hasBetaAccess: !!validatedInvite || (inviteCode === (process.env.ADMIN_ACCESS_CODE || "0065")),
         betaInviteId: validatedInvite?.id || null,
         ...(validatedInvite?.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
       });

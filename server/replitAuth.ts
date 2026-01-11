@@ -78,13 +78,10 @@ async function upsertUser(
       firstName: claims["first_name"],
       lastName: claims["last_name"],
       profileImageUrl: claims["profile_image_url"],
-      hasBetaAccess: true, // Grant beta access to all users for full platform access
+      hasBetaAccess: false, // Revert: No automatic beta access for Replit users
     });
     
-    // Explicitly update user in case upsertUser didn't set hasBetaAccess (legacy check)
-    await storage.updateUser(claims["sub"], { hasBetaAccess: true });
-    
-    logger.info('User upserted from Replit Auth with beta access', { userId: claims["sub"], email: claims["email"] });
+    logger.info('User upserted from Replit Auth (beta access pending)', { userId: claims["sub"], email: claims["email"] });
   } catch (error) {
     logError(error as Error, { context: 'upsertUser', userId: claims["sub"] });
   }
