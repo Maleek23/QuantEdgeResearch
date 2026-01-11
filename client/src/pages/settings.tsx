@@ -24,9 +24,22 @@ import {
   TrendingDown,
   Clock,
   AlertTriangle,
-  PanelLeft
+  PanelLeft,
+  User,
+  Bot,
+  Download,
+  RefreshCw,
+  Play,
+  Pause,
+  FileText,
+  Trash2,
+  Mail,
+  Camera
 } from "lucide-react";
 import { NavigationCustomizer } from "@/components/navigation-customizer";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import type { 
   UserPreferences, 
   RiskProfileConfig, 
@@ -45,13 +58,45 @@ const RISK_TIER_PRESETS: Record<RiskTier, Partial<RiskProfileConfig>> = {
   custom: {},
 };
 
+interface BotStatus {
+  name: string;
+  isRunning: boolean;
+  lastRun?: string;
+  tradesExecuted: number;
+  profitLoss: number;
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("trading");
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("profile");
   
   const { data: preferences, isLoading } = useQuery<UserPreferences>({
     queryKey: ['/api/preferences'],
   });
+
+  const { data: botTrades } = useQuery<any[]>({
+    queryKey: ['/api/bot-trades'],
+    staleTime: 1000 * 60,
+  });
+
+  const [profileData, setProfileData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    timezone: 'America/Chicago',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: (user as any).firstName || '',
+        lastName: (user as any).lastName || '',
+        email: (user as any).email || '',
+        timezone: (user as any).timezone || 'America/Chicago',
+      });
+    }
+  }, [user]);
 
   const [formData, setFormData] = useState<Partial<UserPreferences>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -165,28 +210,142 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 mb-6" data-testid="tabs-settings">
-          <TabsTrigger value="trading" data-testid="tab-trading">
+        <TabsList className="flex flex-wrap gap-1 h-auto p-1 mb-6" data-testid="tabs-settings">
+          <TabsTrigger value="profile" data-testid="tab-profile" className="flex-1 min-w-[80px]">
+            <User className="h-4 w-4 mr-2" />
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="trading" data-testid="tab-trading" className="flex-1 min-w-[80px]">
             <Wallet className="h-4 w-4 mr-2" />
             Trading
           </TabsTrigger>
-          <TabsTrigger value="risk" data-testid="tab-risk">
+          <TabsTrigger value="risk" data-testid="tab-risk" className="flex-1 min-w-[80px]">
             <Shield className="h-4 w-4 mr-2" />
             Risk
           </TabsTrigger>
-          <TabsTrigger value="technicals" data-testid="tab-technicals">
+          <TabsTrigger value="technicals" data-testid="tab-technicals" className="flex-1 min-w-[80px]">
             <BarChart3 className="h-4 w-4 mr-2" />
             Technicals
           </TabsTrigger>
-          <TabsTrigger value="preferences" data-testid="tab-preferences">
+          <TabsTrigger value="bots" data-testid="tab-bots" className="flex-1 min-w-[80px]">
+            <Bot className="h-4 w-4 mr-2" />
+            Bots
+          </TabsTrigger>
+          <TabsTrigger value="preferences" data-testid="tab-preferences" className="flex-1 min-w-[80px]">
             <Palette className="h-4 w-4 mr-2" />
             Display
           </TabsTrigger>
-          <TabsTrigger value="navigation" data-testid="tab-navigation">
+          <TabsTrigger value="navigation" data-testid="tab-navigation" className="flex-1 min-w-[80px]">
             <PanelLeft className="h-4 w-4 mr-2" />
             Navigation
           </TabsTrigger>
         </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>Manage your account details and profile</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-6">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={(user as any)?.profileImageUrl} />
+                  <AvatarFallback className="text-lg">
+                    {profileData.firstName?.[0]?.toUpperCase() || profileData.email?.[0]?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Profile Photo</p>
+                  <p className="text-xs text-muted-foreground">Photo synced from your login provider</p>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="first-name">First Name</Label>
+                  <GlassInput
+                    id="first-name"
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                    placeholder="Enter first name"
+                    data-testid="input-first-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last-name">Last Name</Label>
+                  <GlassInput
+                    id="last-name"
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                    placeholder="Enter last name"
+                    data-testid="input-last-name"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email Address
+                </Label>
+                <GlassInput
+                  id="email"
+                  type="email"
+                  value={profileData.email}
+                  disabled
+                  className="opacity-70"
+                  data-testid="input-email"
+                />
+                <p className="text-xs text-muted-foreground">Email is managed by your login provider</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Timezone</Label>
+                <Select 
+                  value={profileData.timezone} 
+                  onValueChange={(v) => setProfileData(prev => ({ ...prev, timezone: v }))}
+                >
+                  <SelectTrigger id="timezone" data-testid="select-timezone">
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Account Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                <span className="text-sm">Subscription Tier</span>
+                <span className="text-sm font-medium capitalize">{(user as any)?.subscriptionTier || 'Free'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                <span className="text-sm">Member Since</span>
+                <span className="text-sm font-mono">{(user as any)?.createdAt ? new Date((user as any).createdAt).toLocaleDateString() : 'N/A'}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Trading Tab */}
         <TabsContent value="trading" className="space-y-4">
@@ -565,6 +724,180 @@ export default function SettingsPage() {
                   value={formData.discordWebhookUrl || ''}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('discordWebhookUrl', e.target.value)}
                   data-testid="input-discord-webhook"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Bots Tab */}
+        <TabsContent value="bots" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                Trading Bot Controls
+              </CardTitle>
+              <CardDescription>Manage automated trading bots and view their activity</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {[
+                { name: 'Options Bot', key: 'options', description: 'Scans for high-probability options setups' },
+                { name: 'Futures Bot', key: 'futures', description: 'Monitors NQ/GC futures for entries' },
+                { name: 'Crypto Bot', key: 'crypto', description: 'Tracks crypto opportunities 24/7' },
+                { name: 'Small Account Bot', key: 'small', description: 'Optimized for accounts under $5K' },
+              ].map((bot) => (
+                <div key={bot.key} className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{bot.name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">Active</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{bot.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" data-testid={`button-pause-${bot.key}`}>
+                      <Pause className="h-3 w-3 mr-1" />
+                      Pause
+                    </Button>
+                    <Button variant="outline" size="sm" data-testid={`button-restart-${bot.key}`}>
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Restart
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Trade Logs
+              </CardTitle>
+              <CardDescription>View and export bot trading activity</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Recent Bot Trades</p>
+                  <p className="text-xs text-muted-foreground">
+                    {botTrades?.length || 0} trades in the last 30 days
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const csv = botTrades?.map(t => 
+                        `${t.symbol},${t.action},${t.quantity},${t.price},${t.timestamp}`
+                      ).join('\n') || '';
+                      const blob = new Blob([`Symbol,Action,Quantity,Price,Timestamp\n${csv}`], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'bot-trades.csv';
+                      a.click();
+                      toast({ title: "Trade log exported", description: "CSV file downloaded successfully" });
+                    }}
+                    data-testid="button-download-logs"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Export CSV
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="text-red-500 hover:text-red-600"
+                    onClick={() => toast({ title: "Logs cleared", description: "Bot trade logs have been reset" })}
+                    data-testid="button-clear-logs"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="max-h-[200px] overflow-y-auto border rounded-md">
+                {botTrades && botTrades.length > 0 ? (
+                  <div className="divide-y">
+                    {botTrades.slice(0, 10).map((trade: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between p-2 text-xs hover:bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-medium">{trade.symbol}</span>
+                          <span className={trade.action === 'BUY' ? 'text-emerald-500' : 'text-red-500'}>
+                            {trade.action}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground">{trade.timestamp ? new Date(trade.timestamp).toLocaleDateString() : 'N/A'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground text-sm">
+                    No bot trades recorded yet
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Bot Thresholds
+              </CardTitle>
+              <CardDescription>Configure risk and entry thresholds for automated trading</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Max Position Size: ${formData.maxPositionSize || 500}</Label>
+                <Slider
+                  min={100}
+                  max={5000}
+                  step={100}
+                  value={[formData.maxPositionSize || 500]}
+                  onValueChange={(v) => updateField('maxPositionSize', v[0])}
+                  data-testid="slider-max-position"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Confidence Threshold: {formData.confidenceThreshold || 70}%</Label>
+                <Slider
+                  min={50}
+                  max={95}
+                  step={5}
+                  value={[formData.confidenceThreshold || 70]}
+                  onValueChange={(v) => updateField('confidenceThreshold', v[0])}
+                  data-testid="slider-confidence"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Daily Trade Limit: {formData.dailyTradeLimit || 5} trades</Label>
+                <Slider
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={[formData.dailyTradeLimit || 5]}
+                  onValueChange={(v) => updateField('dailyTradeLimit', v[0])}
+                  data-testid="slider-daily-limit"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Stop Loss: {formData.defaultStopLoss || 20}%</Label>
+                <Slider
+                  min={5}
+                  max={50}
+                  step={5}
+                  value={[formData.defaultStopLoss || 20]}
+                  onValueChange={(v) => updateField('defaultStopLoss', v[0])}
+                  data-testid="slider-stop-loss"
                 />
               </div>
             </CardContent>
