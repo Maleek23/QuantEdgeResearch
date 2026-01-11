@@ -621,6 +621,9 @@ export default function TradeDeskPage() {
   // Users can manually select 'swing' if they want PDT-friendly filtering
   const [tradeTypeFilter, setTradeTypeFilter] = useState<'all' | 'day' | 'swing'>('all');
   
+  // Price tier filter - for finding low-priced stocks for shares or options
+  const [priceTierFilter, setPriceTierFilter] = useState<'all' | 'under5' | 'under10' | 'under15' | 'under25'>('all');
+  
   // Filter state for new filter toolbar
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
@@ -652,7 +655,7 @@ export default function TradeDeskPage() {
   useEffect(() => {
     setVisibleCount(50);
     setGroupPage({});
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, dateFilter, customDate]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, priceTierFilter, dateFilter, customDate]);
   
   const { toast } = useToast();
   
@@ -740,6 +743,15 @@ export default function TradeDeskPage() {
       if (tradeTypeFilter !== 'all') {
         if (tradeTypeFilter === 'day' && idea.holdingPeriod !== 'day') return false;
         if (tradeTypeFilter === 'swing' && !['swing', 'position', 'week-ending'].includes(idea.holdingPeriod)) return false;
+      }
+      
+      // Price tier filter - use currentPrice (live) or entryPrice as fallback
+      if (priceTierFilter !== 'all') {
+        const price = idea.currentPrice || idea.entryPrice || 0;
+        if (priceTierFilter === 'under5' && price >= 5) return false;
+        if (priceTierFilter === 'under10' && price >= 10) return false;
+        if (priceTierFilter === 'under15' && price >= 15) return false;
+        if (priceTierFilter === 'under25' && price >= 25) return false;
       }
       
       // Status filter (active/won/lost)
@@ -1733,6 +1745,23 @@ export default function TradeDeskPage() {
                 {value}
               </button>
             ))}
+          </div>
+
+          {/* Price Tier Filter - For finding low-priced stocks */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Price:</span>
+            <Select value={priceTierFilter} onValueChange={(val) => setPriceTierFilter(val as typeof priceTierFilter)}>
+              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="select-price-tier">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="under5">&lt; $5</SelectItem>
+                <SelectItem value="under10">&lt; $10</SelectItem>
+                <SelectItem value="under15">&lt; $15</SelectItem>
+                <SelectItem value="under25">&lt; $25</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Timeframe */}
