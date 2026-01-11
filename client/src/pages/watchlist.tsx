@@ -23,7 +23,7 @@ import {
   BarChart3, Target, Shield, Clock, Bell, ChevronRight,
   Zap, AlertTriangle, CheckCircle, XCircle, Info,
   ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search,
-  Download, Compass
+  Download, Compass, Lightbulb, CalendarPlus
 } from "lucide-react";
 
 // Enhanced tier configuration with psychology-driven colors and descriptions
@@ -788,7 +788,7 @@ function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: Quote
               <span className="font-bold font-mono text-lg" data-testid={`text-symbol-${item.symbol}`}>
                 {item.symbol}
               </span>
-              <LivePrice quote={quote} />
+              <LivePrice quote={quote} fallbackPrice={item.currentPrice || item.targetPrice} />
               <Badge variant="outline" className="text-xs">
                 {item.assetType.toUpperCase()}
               </Badge>
@@ -813,6 +813,44 @@ function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: Quote
       </AccordionTrigger>
       
       <AccordionContent className="px-4 pb-4">
+        {/* Investment Thesis Section */}
+        {(item.thesis || item.addedReason || item.catalystNotes) && (
+          <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              Investment Thesis
+            </div>
+            {item.thesis && (
+              <p className="text-sm text-foreground/90 leading-relaxed">{item.thesis}</p>
+            )}
+            {item.addedReason && !item.thesis && (
+              <p className="text-sm text-muted-foreground">{item.addedReason}</p>
+            )}
+            {item.catalystNotes && (
+              <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
+                <span className="font-medium">Key Catalysts:</span> {item.catalystNotes}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upcoming Catalyst Alert */}
+        {item.nextCatalyst && (
+          <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+            <div className="flex items-center gap-2">
+              <CalendarPlus className="h-4 w-4 text-cyan-500" />
+              <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400">
+                Upcoming: {item.nextCatalyst}
+              </span>
+              {item.nextCatalystDate && (
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {item.nextCatalystDate}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Grade Explanation */}
         <GradeExplanation item={item} />
 
@@ -1082,23 +1120,47 @@ interface QuoteData {
   changePercent: number;
 }
 
-function LivePrice({ quote }: { quote?: QuoteData }) {
-  if (!quote?.price) {
+function LivePrice({ quote, fallbackPrice }: { quote?: QuoteData; fallbackPrice?: number | null }) {
+  // Use live quote if available, otherwise show fallback price (from watchlist item)
+  if (!quote?.price && !fallbackPrice) {
     return <span className="text-xs text-muted-foreground">--</span>;
   }
 
-  const isPositive = (quote.changePercent || 0) >= 0;
-  
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="font-mono font-semibold text-sm">
-        ${quote.price.toFixed(quote.price < 1 ? 4 : 2)}
-      </span>
-      <span className={`text-xs font-mono ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
-        {isPositive ? '+' : ''}{(quote.changePercent || 0).toFixed(2)}%
-      </span>
-    </div>
-  );
+  // Show live quote with change if available
+  if (quote?.price) {
+    const isPositive = (quote.changePercent || 0) >= 0;
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono font-semibold text-sm">
+          ${quote.price.toFixed(quote.price < 1 ? 4 : 2)}
+        </span>
+        <span className={`text-xs font-mono ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+          {isPositive ? '+' : ''}{(quote.changePercent || 0).toFixed(2)}%
+        </span>
+      </div>
+    );
+  }
+
+  // Show fallback price without change indicator
+  if (fallbackPrice) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono font-medium text-sm text-muted-foreground">
+          ${fallbackPrice.toFixed(fallbackPrice < 1 ? 4 : 2)}
+        </span>
+        <Tooltip>
+          <TooltipTrigger>
+            <span className="text-xs text-muted-foreground/60">(last)</span>
+          </TooltipTrigger>
+          <TooltipContent>
+            Last known price - markets may be closed
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  return <span className="text-xs text-muted-foreground">--</span>;
 }
 
 // Hook for batch fetching quotes for all watchlist items
