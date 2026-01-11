@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
@@ -23,42 +24,76 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import type { NavigationLayoutType, NavigationGroupType, NavigationItemType } from "@shared/schema";
 
 interface NavItem {
   title: string;
   url: string;
   icon: any;
   badge?: string;
+  adminOnly?: boolean;
 }
 
-// Trading - core trading tools (streamlined)
-const tradingItems: NavItem[] = [
-  { title: "Command Center", url: "/trading-engine", icon: Activity, badge: "LIVE" },
-  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "Watchlist", url: "/watchlist", icon: Eye },
+const iconMap: Record<string, any> = {
+  Activity,
+  TrendingUp,
+  Eye,
+  Target,
+  Upload,
+  BarChart2,
+  Brain,
+  BookOpen,
+  Settings,
+  Shield,
+  Home,
+  Database,
+  LineChart,
+  User,
+  FileBarChart,
+  LayoutDashboard,
+  Zap,
+};
+
+const defaultNavItems: NavigationItemType[] = [
+  { id: "command-center", title: "Command Center", icon: "Activity", href: "/trading-engine", badge: "LIVE" },
+  { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
+  { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
+  { id: "performance", title: "Performance", icon: "Target", href: "/performance" },
+  { id: "chart-analysis", title: "Chart Analysis", icon: "Upload", href: "/chart-analysis" },
+  { id: "options", title: "Options", icon: "BarChart2", href: "/options-analyzer" },
+  { id: "trends", title: "Trends", icon: "TrendingUp", href: "/bullish-trends" },
+  { id: "historical", title: "Historical", icon: "Brain", href: "/historical-intelligence" },
+  { id: "academy", title: "Academy", icon: "BookOpen", href: "/academy" },
+  { id: "settings", title: "Settings", icon: "Settings", href: "/settings" },
+  { id: "admin", title: "Admin", icon: "Shield", href: "/admin", adminOnly: true },
 ];
 
-// Analytics - all analysis tools accessible
-const analyticsItems: NavItem[] = [
-  { title: "Performance", url: "/performance", icon: Target },
-  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
-  { title: "Options", url: "/options-analyzer", icon: BarChart2 },
-  { title: "Trends", url: "/bullish-trends", icon: TrendingUp },
-  { title: "Historical", url: "/historical-intelligence", icon: Brain },
-];
+const defaultLayout: NavigationLayoutType = {
+  version: 1,
+  groups: [
+    {
+      id: "trading",
+      title: "Trading",
+      items: defaultNavItems.filter(i => ["command-center", "trade-desk", "watchlist"].includes(i.id)),
+    },
+    {
+      id: "analytics",
+      title: "Analytics",
+      items: defaultNavItems.filter(i => ["performance", "chart-analysis", "options", "trends", "historical"].includes(i.id)),
+    },
+    {
+      id: "learn",
+      title: "Learn",
+      items: defaultNavItems.filter(i => ["academy"].includes(i.id)),
+    },
+    {
+      id: "account",
+      title: "Account",
+      items: defaultNavItems.filter(i => ["settings"].includes(i.id)),
+    },
+  ],
+};
 
-// Learning resources - consolidated into Academy
-const learnItems: NavItem[] = [
-  { title: "Academy", url: "/academy", icon: BookOpen },
-];
-
-const accountItems: NavItem[] = [
-  { title: "Settings", url: "/settings", icon: Settings },
-];
-
-const adminItems: NavItem[] = [
-  { title: "Admin", url: "/admin", icon: Shield },
-];
 
 function SidebarHeaderContent() {
   const [, setLocation] = useLocation();
@@ -135,7 +170,7 @@ function NavSection({
   showLabel = true,
 }: { 
   label: string; 
-  items: NavItem[]; 
+  items: NavigationItemType[]; 
   location: string; 
   onNavigate: (url: string) => void;
   showLabel?: boolean;
@@ -155,12 +190,13 @@ function NavSection({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0.5">
           {items.map((item) => {
-            const isActive = location === item.url;
+            const isActive = location === item.href;
+            const IconComponent = iconMap[item.icon] || Activity;
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton 
                   isActive={isActive}
-                  onClick={() => onNavigate(item.url)}
+                  onClick={() => onNavigate(item.href)}
                   data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-').replace(/&/g, '')}`}
                   tooltip={item.title}
                   className={`
@@ -171,7 +207,7 @@ function NavSection({
                     }
                   `}
                 >
-                  <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-500 dark:text-cyan-400' : ''}`} />
+                  <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-500 dark:text-cyan-400' : ''}`} />
                   {!isCollapsed && (
                     <span className="flex-1 truncate text-sm">{item.title}</span>
                   )}
@@ -196,11 +232,76 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
+  const { data: savedLayout } = useQuery<NavigationLayoutType>({
+    queryKey: ['/api/navigation-layout'],
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const handleNavigation = useCallback((url: string) => {
     setLocation(url);
   }, [setLocation]);
 
   const isAdmin = !!(user as any)?.isAdmin;
+
+  const navigationGroups = useMemo(() => {
+    const layout = savedLayout || defaultLayout;
+    
+    const hydrateItem = (item: NavigationItemType): NavigationItemType => {
+      const defaultItem = defaultNavItems.find(d => d.id === item.id);
+      if (defaultItem) {
+        return { ...defaultItem, ...item, icon: defaultItem.icon };
+      }
+      return item;
+    };
+    
+    const allSavedItemIds = new Set<string>();
+    const allSavedGroupIds = new Set<string>();
+    layout.groups.forEach(group => {
+      allSavedGroupIds.add(group.id);
+      group.items.forEach(item => allSavedItemIds.add(item.id));
+    });
+    
+    const groups = layout.groups.map(group => ({
+      ...group,
+      items: group.items
+        .map(hydrateItem)
+        .filter(item => !item.adminOnly || isAdmin),
+    })).filter(group => group.items.length > 0);
+    
+    defaultLayout.groups.forEach(defaultGroup => {
+      if (!allSavedGroupIds.has(defaultGroup.id)) {
+        const groupItems = defaultGroup.items
+          .filter(item => !allSavedItemIds.has(item.id))
+          .filter(item => !item.adminOnly || isAdmin);
+        if (groupItems.length > 0) {
+          groups.push({ ...defaultGroup, items: groupItems });
+          groupItems.forEach(item => allSavedItemIds.add(item.id));
+        }
+      }
+    });
+    
+    const missingDefaultItems = defaultNavItems.filter(
+      item => !allSavedItemIds.has(item.id) && (!item.adminOnly || isAdmin)
+    );
+    if (missingDefaultItems.length > 0 && groups.length > 0) {
+      groups[groups.length - 1].items.push(...missingDefaultItems);
+    }
+    
+    const hasAdminItems = groups.some(g => g.items.some(i => i.adminOnly));
+    if (isAdmin && !hasAdminItems) {
+      const adminItems = defaultNavItems.filter(i => i.adminOnly);
+      if (adminItems.length > 0) {
+        groups.push({
+          id: "admin-group",
+          title: "Admin",
+          items: adminItems,
+        });
+      }
+    }
+    
+    return groups;
+  }, [savedLayout, isAdmin]);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40">
@@ -209,50 +310,17 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Trading - Trade Desk & Core Tools */}
-        <NavSection 
-          label="Trading" 
-          items={tradingItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        <SidebarSeparator className="my-1 mx-4 opacity-30" />
-        
-        {/* Analytics */}
-        <NavSection 
-          label="Analytics" 
-          items={analyticsItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        <SidebarSeparator className="my-1 mx-4 opacity-30" />
-        
-        {/* Learn - Academy hub */}
-        <NavSection 
-          label="Learn" 
-          items={learnItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        {/* Settings */}
-        <NavSection 
-          label="Settings" 
-          items={accountItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        {isAdmin && (
-          <NavSection 
-            label="Admin" 
-            items={adminItems} 
-            location={location} 
-            onNavigate={handleNavigation}
-          />
-        )}
+        {navigationGroups.map((group, index) => (
+          <div key={group.id}>
+            {index > 0 && <SidebarSeparator className="my-1 mx-4 opacity-30" />}
+            <NavSection 
+              label={group.title} 
+              items={group.items} 
+              location={location} 
+              onNavigate={handleNavigation}
+            />
+          </div>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/40 p-2 mt-auto">
