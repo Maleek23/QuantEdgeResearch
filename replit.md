@@ -23,13 +23,12 @@ The system integrates two core analytical engines:
 The UI/UX follows a "Tech-Minimalist" design inspired by institutional trading interfaces, featuring a dark-mode-first approach, a specific color palette (slate, cyan, green, red, amber, purple, blue), glassmorphism-inspired components, and a clear typography hierarchy using Inter and JetBrains Mono.
 
 Key features include:
--   **Command Center (Hybrid Trading Engine + Dashboard)**: Unified page combining symbol analysis (left 2/3) with dashboard widgets (right 1/3). Features real-time symbol analysis with TradingView chart, Hot Symbols convergence widget showing multi-source attention tracking, portfolio overview, bot status, win rate, and IV rank. First item in sidebar navigation. Now enhanced with **Contextual Intelligence Layer** providing:
-    - **Confluence Insights**: Score breakdown with 5 factors (Bias Alignment, Trend, Momentum, Volatility, Levels) and confidence interpretation
-    - **Technical Insights**: Strategy suggestions (Breakout, Range Trade, Wait & Watch) based on current price vs key levels
-    - **Position Size Calculator**: Interactive calculator with account size/risk inputs, shares calculation, and risk scenarios
-    - **Market Context Insights**: Session timing, regime analysis (trending/ranging/volatile), risk sentiment (Risk On/Off), VIX interpretation
-    - **News Insights**: Sentiment score interpretation with trading bias guidance
-    - Key files: `client/src/components/contextual-insights.tsx`, `client/src/pages/trading-engine.tsx`
+-   **Command Center (Unified Trading Hub)**: Consolidated workspace with 4 tabs:
+    - **Analysis Tab**: Symbol analysis with confluence validation, Hot Symbols widget, portfolio overview, bot status, IV rank. Includes Contextual Intelligence Layer (Confluence Insights, Technical Insights, Position Size Calculator, Market Context Insights, News Insights).
+    - **Bots Tab**: 4 trading bot cards (Options, Futures, Crypto, Small Account) with real-time stats, MarketOverviewWidget, ExpiryPatternInsights, WinRateWidget, and quick action links.
+    - **Positions Tab**: AutoLottoDashboard for viewing all open positions and exit intelligence.
+    - **Settings Tab**: Professional risk controls including stop-loss, take-profit, trailing stop, max position size, daily loss limits, and circuit breaker settings.
+    - Key files: `client/src/pages/trading-engine.tsx`, `client/src/components/contextual-insights.tsx`, `client/src/components/auto-lotto-dashboard.tsx`
 -   **Core Application**: Public informational pages, user authentication, trade desk with research briefs, live trading journal, market overview, and performance analytics.
 -   **Research Tools**: Chart analysis, historical trade pattern library, Data Intelligence System, Loss Analysis System, and Data Integrity System.
 -   **Automated Systems**: Auto-Lotto Bot for automated paper trading with sample size gating, and a Real-time Pricing Service.
@@ -47,7 +46,7 @@ Key features include:
     - Key files: `server/loss-analyzer-service.ts`, `server/universal-idea-generator.ts` (line 274), `server/auto-lotto-trader.ts` (line 2714)
 -   **Auto-Lotto Bot Risk Controls**: Advanced entry thresholds, confluence validation, post-loss cooldowns, tiered premium caps, and position sizing. Includes a "Pro Trader Checklist" and a DTE-Aware Smart Exit Strategy with tiered stop-loss logic and thesis revalidation. It features Momentum-Direction Alignment, Post-Exit Cooldown, an Exit Callback Hook System, and a Duplicate Position Guard.
 -   **Unified Entry Gate System**: Centralized, regime-aware trading safeguards using a Market Context Service to analyze trading sessions and market regimes.
--   **Automations Hub UI**: A restructured interface displaying 4 main portfolio trading bots (Options, Futures, Crypto, Small Account) with real-time stats and simplified navigation.
+-   **Automations Hub UI**: Now consolidated into the Command Center's "Bots" tab. The separate /automations page has been removed to reduce redundancy.
 -   **Beta Access Control System**: An invite-only beta mode with user fields for `hasBetaAccess` and `betaInviteId`, including grandfathered access for Admin/Pro users, invite redemption via API, protected frontend routes, and protected backend API endpoints.
 -   **ML Intelligence System**: Comprehensive machine learning system with 5 core capabilities: Price Direction Prediction, Sentiment Analysis, Chart Pattern Recognition, Adaptive Position Sizing, and Market Regime Detection. It integrates with the Auto-Lotto Bot to boost/reduce confidence scores and has a dedicated dashboard.
 -   **RBI Framework - Backtesting & Breakout Scanner**: Implements Research → Backtest → Implement framework with a backtesting module for various strategies and a breakout scanner detecting resistance/support levels with volume confirmation.

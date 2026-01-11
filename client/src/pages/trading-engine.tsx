@@ -1,24 +1,32 @@
 /**
- * Trading Engine + Dashboard Hybrid
+ * Command Center - Unified Trading Hub
  * 
- * Combined view with:
+ * Consolidated view with:
  * - Symbol analysis with confluence validation
- * - Dashboard widgets (bot status, portfolios, market overview)
- * - Heat map integration
+ * - Trading bots management (Options, Futures, Crypto, Small Account)
+ * - Positions dashboard
+ * - Market scanner quick access
+ * - Risk settings
  */
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Target, TrendingUp, TrendingDown, Search, RefreshCw, Loader2,
-  CheckCircle2, XCircle, AlertTriangle, ArrowRight, Minus,
-  BarChart3, Activity, Zap, DollarSign, ChevronRight, Flame
+  CheckCircle2, XCircle, AlertTriangle, ChevronRight, Flame,
+  BarChart3, Activity, Zap, DollarSign, LineChart, Bitcoin,
+  Settings, Rocket, Bot, Shield, Save, RotateCcw,
+  Crosshair, Layers, Timer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
@@ -26,6 +34,8 @@ import { format } from "date-fns";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";
 import { WinRateWidget } from "@/components/win-rate-widget";
 import { IVRankWidget } from "@/components/iv-rank-widget";
+import { AutoLottoDashboard } from "@/components/auto-lotto-dashboard";
+import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
 import { 
   ConfluenceInsights, 
   TechnicalInsights, 
@@ -126,6 +136,70 @@ interface TradingEngineResult {
 
 type AssetClass = 'stock' | 'options' | 'futures' | 'crypto';
 
+// Bot Status Display Component
+function BotCard({ 
+  title, 
+  subtitle, 
+  icon: Icon, 
+  iconColor, 
+  borderColor, 
+  capital, 
+  pnl, 
+  openPositions, 
+  winRate 
+}: {
+  title: string;
+  subtitle: string;
+  icon: any;
+  iconColor: string;
+  borderColor: string;
+  capital: number;
+  pnl: number;
+  openPositions: number;
+  winRate: string;
+}) {
+  return (
+    <Card className={cn("bg-gradient-to-br from-slate-900/60 to-slate-950/60", borderColor)} data-testid={`card-${title.toLowerCase().replace(' ', '-')}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className={cn("p-2 rounded-lg border", iconColor.replace('text-', 'bg-').replace('400', '500/20'), iconColor.replace('text-', 'border-').replace('400', '500/30'))}>
+              <Icon className={cn("w-5 h-5", iconColor)} />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-foreground">{title}</h3>
+              <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-[10px] font-bold text-green-400">LIVE</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2 text-center">
+          <div className="p-2 rounded bg-slate-800/50">
+            <p className="text-[10px] text-muted-foreground">Capital</p>
+            <p className={cn("text-lg font-bold font-mono", iconColor)}>${capital}</p>
+          </div>
+          <div className="p-2 rounded bg-slate-800/50">
+            <p className="text-[10px] text-muted-foreground">P&L</p>
+            <p className={cn("text-lg font-bold font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
+              {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Open: {openPositions}</span>
+          <span className="text-muted-foreground">Win: {winRate}%</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Compact Bot Activity Monitor for sidebar
 function BotActivityMonitor() {
   const { data: botStatus } = useQuery<{
     isRunning: boolean;
@@ -145,9 +219,9 @@ function BotActivityMonitor() {
   
   const getStatusDisplay = () => {
     if (isMarketOpen) {
-      return { label: 'SCANNING', color: 'bg-green-500 animate-pulse', textColor: 'text-green-400' };
+      return { label: 'SCANNING', textColor: 'text-green-400' };
     }
-    return { label: 'MARKET CLOSED', color: 'bg-amber-500', textColor: 'text-amber-400' };
+    return { label: 'MARKET CLOSED', textColor: 'text-amber-400' };
   };
   
   const status = getStatusDisplay();
@@ -163,7 +237,7 @@ function BotActivityMonitor() {
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
-            Autonomous Execution Engine
+            Auto-Execution Engine
           </CardTitle>
           <Badge variant="outline" className={cn("text-[10px] font-mono", status.textColor)}>
             {status.label}
@@ -181,29 +255,13 @@ function BotActivityMonitor() {
             <div className="text-2xl font-mono font-bold">{todayTrades}</div>
           </div>
           <div className="p-3 rounded-md bg-muted/40 border border-border/30">
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Net P&L</div>
+            <div className="text-[10px] text-muted-foreground uppercase font-semibold">P&L</div>
             <div className={cn("text-2xl font-mono font-bold",
               todayPnL >= 0 ? "text-green-400" : "text-red-400"
             )}>
               {todayPnL >= 0 ? '+' : ''}{todayPnL.toFixed(0)}
             </div>
           </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <Link href="/automations" className="flex-1">
-            <Button size="sm" variant="outline" className="w-full text-xs h-9 transition-all">
-              Execution Logs <ChevronRight className="h-3 w-3 ml-1" />
-            </Button>
-          </Link>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="w-10 h-9"
-            onClick={() => window.location.reload()}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -330,26 +388,6 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
   );
 }
 
-function ConfluenceChecks({ checks }: { checks: { name: string; passed: boolean; detail: string }[] }) {
-  return (
-    <div className="space-y-2">
-      {checks.map((check, i) => (
-        <div key={i} className="flex items-start gap-2 text-sm">
-          {check.passed ? (
-            <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
-          ) : (
-            <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          )}
-          <div>
-            <span className="font-medium">{check.name}:</span>{" "}
-            <span className="text-muted-foreground">{check.detail}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }) {
   const getBiasColor = (bias: string) => {
     if (bias === 'bullish') return 'text-green-400';
@@ -380,13 +418,12 @@ function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }
           <span className="text-xs text-muted-foreground">Time Horizon</span>
           <span className="text-sm">{data.timeHorizon}</span>
         </div>
-        
         {data.drivers.length > 0 && (
-          <div>
-            <span className="text-xs text-muted-foreground">Key Drivers</span>
-            <div className="flex flex-wrap gap-1 mt-1">
+          <div className="pt-2 border-t border-border/50">
+            <div className="text-xs text-muted-foreground mb-2">Key Drivers</div>
+            <div className="flex flex-wrap gap-1">
               {data.drivers.slice(0, 3).map((d, i) => (
-                <Badge key={i} variant="outline" className="text-xs">{d}</Badge>
+                <Badge key={i} variant="secondary" className="text-[10px]">{d}</Badge>
               ))}
             </div>
           </div>
@@ -397,15 +434,9 @@ function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }
 }
 
 function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical']; symbol: string }) {
-  const getTrendIcon = (direction: string) => {
-    if (direction === 'up' || direction === 'bullish') return <TrendingUp className="h-4 w-4 text-green-400" />;
-    if (direction === 'down' || direction === 'bearish') return <TrendingDown className="h-4 w-4 text-red-400" />;
-    return <Minus className="h-4 w-4 text-muted-foreground" />;
-  };
-
-  const getRSIColor = (rsi: number) => {
-    if (rsi >= 70) return 'text-red-400';
-    if (rsi <= 30) return 'text-green-400';
+  const getTrendColor = (direction: string) => {
+    if (direction === 'bullish' || direction === 'up') return 'text-green-400';
+    if (direction === 'bearish' || direction === 'down') return 'text-red-400';
     return 'text-muted-foreground';
   };
 
@@ -420,208 +451,151 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Trend</span>
-          <div className="flex items-center gap-2">
-            {getTrendIcon(data.trend.direction)}
-            <span className="text-sm">{data.trend.direction} ({data.trend.strength})</span>
-          </div>
+          <Badge variant="outline" className={cn("text-xs", getTrendColor(data.trend.direction))}>
+            {data.trend.direction.toUpperCase()} ({data.trend.strength})
+          </Badge>
         </div>
-        
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">RSI(14)</span>
-          <span className={cn("text-sm font-mono", getRSIColor(data.momentum.rsi14))}>
-            {data.momentum.rsi14.toFixed(1)} ({data.momentum.condition})
+          <span className={cn("text-sm font-mono", 
+            data.momentum.rsi14 > 70 ? "text-red-400" : 
+            data.momentum.rsi14 < 30 ? "text-green-400" : "text-foreground"
+          )}>
+            {data.momentum.rsi14.toFixed(1)}
           </span>
         </div>
-        
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Volatility</span>
-          <span className="text-sm">{data.volatility.regime}</span>
+          <span className="text-xs text-muted-foreground">ATR%</span>
+          <span className="text-sm font-mono">{data.volatility.atrPercent.toFixed(2)}%</span>
         </div>
-        
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Current Price</span>
-          <span className="text-sm font-mono">${data.levels.currentPrice.toFixed(2)}</span>
+          <span className="text-xs text-muted-foreground">Regime</span>
+          <Badge variant="secondary" className="text-[10px]">
+            {data.volatility.regime}
+          </Badge>
         </div>
-        
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2 rounded bg-green-500/10">
-            <div className="text-muted-foreground">Support</div>
-            <div className="font-mono">${data.levels.support[0]?.toFixed(2) || 'N/A'}</div>
-          </div>
-          <div className="p-2 rounded bg-red-500/10">
-            <div className="text-muted-foreground">Resistance</div>
-            <div className="font-mono">${data.levels.resistance[0]?.toFixed(2) || 'N/A'}</div>
+        <div className="pt-2 border-t border-border/50">
+          <div className="text-xs text-muted-foreground mb-2">Key Levels</div>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Price:</span>
+              <span className="font-mono">${data.levels.currentPrice.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Pivot:</span>
+              <span className="font-mono">${data.levels.pivotPoint.toFixed(2)}</span>
+            </div>
+            {data.levels.support[0] && (
+              <div className="flex justify-between">
+                <span className="text-green-400">S1:</span>
+                <span className="font-mono">${data.levels.support[0].toFixed(2)}</span>
+              </div>
+            )}
+            {data.levels.resistance[0] && (
+              <div className="flex justify-between">
+                <span className="text-red-400">R1:</span>
+                <span className="font-mono">${data.levels.resistance[0].toFixed(2)}</span>
+              </div>
+            )}
           </div>
         </div>
         
         <TechnicalInsights
-          trend={data.trend.direction}
-          trendStrength={data.trend.strength}
-          rsi={data.momentum.rsi14}
-          atrPercent={data.volatility.atrPercent}
-          support={data.levels.support[0] || data.levels.currentPrice * 0.95}
-          resistance={data.levels.resistance[0] || data.levels.currentPrice * 1.05}
           currentPrice={data.levels.currentPrice}
-          sma20={data.trend.movingAverages?.sma20}
-          sma50={data.trend.movingAverages?.sma50}
-          symbol={symbol}
+          resistance={data.levels.resistance[0] || data.levels.currentPrice * 1.05}
+          support={data.levels.support[0] || data.levels.currentPrice * 0.95}
+          atrPercent={data.volatility.atrPercent}
+        />
+        
+        <PositionSizeCalculator
+          currentPrice={data.levels.currentPrice}
+          stopLoss={data.levels.support[0] || data.levels.currentPrice * 0.95}
         />
       </CardContent>
     </Card>
   );
 }
 
-function TradeStructurePanel({ data, symbol }: { data: TradingEngineResult['tradeStructure']; symbol: string }) {
-  if (!data) return null;
-
+function TradeStructurePanel({ data, symbol }: { data: NonNullable<TradingEngineResult['tradeStructure']>; symbol: string }) {
   return (
-    <Card className="border-cyan-500/30">
+    <Card className="bg-gradient-to-br from-green-500/5 to-transparent border-green-500/20">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Target className="h-4 w-4 text-cyan-400" />
+          <Target className="h-4 w-4 text-green-400" />
           Trade Structure
+          <Badge className="bg-green-500 text-green-950 text-[10px]">ACTIONABLE</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-3 rounded bg-muted/30">
-            <div className="text-xs text-muted-foreground">Direction</div>
-            <div className={cn("font-bold text-lg",
-              data.direction === 'long' ? 'text-green-400' : 'text-red-400'
-            )}>
-              {data.direction.toUpperCase()}
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="p-3 rounded-lg bg-muted/30">
+            <div className="text-[10px] text-muted-foreground uppercase">Entry</div>
+            <div className="text-lg font-mono font-bold text-green-400">${data.entry.price.toFixed(2)}</div>
+            <div className="text-[10px] text-muted-foreground">{data.entry.type}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/30">
+            <div className="text-[10px] text-muted-foreground uppercase">Stop</div>
+            <div className="text-lg font-mono font-bold text-red-400">${data.stop.price.toFixed(2)}</div>
+            <div className="text-[10px] text-muted-foreground">{data.stop.type}</div>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/30">
+            <div className="text-[10px] text-muted-foreground uppercase">Target</div>
+            <div className="text-lg font-mono font-bold text-cyan-400">
+              ${data.targets[0]?.price.toFixed(2) || '--'}
+            </div>
+            <div className="text-[10px] text-muted-foreground">{data.targets[0]?.probability || 0}% prob</div>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
+          <div className="flex items-center gap-4">
+            <div>
+              <div className="text-[10px] text-muted-foreground uppercase">R:R Ratio</div>
+              <div className="text-xl font-mono font-bold">{data.riskReward.toFixed(2)}:1</div>
+            </div>
+            <div className="h-8 w-px bg-border" />
+            <div>
+              <div className="text-[10px] text-muted-foreground uppercase">Direction</div>
+              <Badge variant="outline" className={cn("text-xs",
+                data.direction === 'long' ? "text-green-400" : "text-red-400"
+              )}>
+                {data.direction.toUpperCase()}
+              </Badge>
             </div>
           </div>
-          <div className="p-3 rounded bg-muted/30">
-            <div className="text-xs text-muted-foreground">Entry</div>
-            <div className="font-mono font-bold text-lg">${data.entry.price.toFixed(2)}</div>
-          </div>
-          <div className="p-3 rounded bg-muted/30">
-            <div className="text-xs text-muted-foreground">Stop</div>
-            <div className="font-mono font-bold text-lg text-red-400">${data.stop.price.toFixed(2)}</div>
-          </div>
-          <div className="p-3 rounded bg-muted/30">
-            <div className="text-xs text-muted-foreground">R:R</div>
-            <div className="font-mono font-bold text-lg text-cyan-400">{data.riskReward.toFixed(1)}:1</div>
+          <div className="text-right">
+            <div className="text-[10px] text-muted-foreground uppercase">Timeframe</div>
+            <div className="text-sm font-medium">{data.timeframe}</div>
           </div>
         </div>
-        
-        <div className="mt-4">
-          <div className="text-xs text-muted-foreground mb-2">Targets</div>
-          <div className="flex flex-wrap gap-2">
-            {data.targets.map((t, i) => (
-              <Badge key={i} variant="outline" className="text-green-400 border-green-400/50">
-                T{i + 1}: ${t.price.toFixed(2)} ({t.probability}%)
-              </Badge>
-            ))}
-          </div>
-        </div>
-        
-        <PositionSizeCalculator
-          entryPrice={data.entry.price}
-          stopPrice={data.stop.price}
-          targets={data.targets}
-          direction={data.direction}
-          symbol={symbol}
-        />
       </CardContent>
     </Card>
   );
 }
 
 function NewsPanelWithInsights({ data, symbol, currentPrice }: { 
-  data: TradingEngineResult['newsContext']; 
+  data: NonNullable<TradingEngineResult['newsContext']>; 
   symbol: string;
   currentPrice: number;
 }) {
-  if (!data || !data.hasRecentNews) return null;
-
-  const getSentimentColor = (score: number) => {
-    if (score > 0.2) return 'text-green-400';
-    if (score < -0.2) return 'text-red-400';
-    return 'text-muted-foreground';
-  };
-
-  const getSentimentBg = (score: number) => {
-    if (score > 0.2) return 'bg-green-500/10 border-green-500/30';
-    if (score < -0.2) return 'bg-red-500/10 border-red-500/30';
-    return 'bg-muted/30 border-border/50';
-  };
-
   return (
-    <Card className={cn("border", getSentimentBg(data.sentimentScore))}>
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-amber-400" />
-            News & Sentiment
-          </div>
-          <Badge variant="outline" className={cn("text-xs", getSentimentColor(data.sentimentScore))}>
-            {data.sentimentLabel} ({data.sentimentScore > 0 ? '+' : ''}{data.sentimentScore.toFixed(2)})
+        <CardTitle className="text-sm flex items-center gap-2">
+          News & Sentiment
+          <Badge variant="outline" className={cn("text-xs",
+            data.newsBias === 'bullish' ? "text-green-400" : 
+            data.newsBias === 'bearish' ? "text-red-400" : "text-muted-foreground"
+          )}>
+            {data.sentimentLabel}
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {data.earningsDetected && (
-          <div className="flex items-center gap-2 text-xs p-2 rounded bg-purple-500/10 border border-purple-500/30">
-            <span className="text-purple-400 font-medium">Earnings Event:</span>
-            {data.earningsBeat === true && (
-              <Badge variant="outline" className="text-green-400 border-green-400/50">BEAT</Badge>
-            )}
-            {data.earningsBeat === false && (
-              <Badge variant="outline" className="text-red-400 border-red-400/50">MISS</Badge>
-            )}
-            {data.earningsBeat === null && (
-              <Badge variant="outline" className="text-amber-400 border-amber-400/50">Pending/Unclear</Badge>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">News Bias:</span>
-          <Badge variant="outline" className={cn(
-            "text-xs",
-            data.newsBias === 'bullish' ? 'text-green-400 border-green-400/50' : 
-            data.newsBias === 'bearish' ? 'text-red-400 border-red-400/50' : 
-            'text-muted-foreground border-border'
-          )}>
-            {data.newsBias.toUpperCase()}
-          </Badge>
-        </div>
-
         {data.topHeadlines.length > 0 && (
-          <div>
-            <span className="text-xs text-muted-foreground">Recent Headlines</span>
-            <div className="mt-1.5 space-y-1.5">
-              {data.topHeadlines.slice(0, 3).map((headline, i) => (
-                <div key={i} className="text-xs text-foreground/80 line-clamp-2 pl-2 border-l-2 border-primary/30">
-                  {headline}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {data.catalysts.length > 0 && (
-          <div>
-            <span className="text-xs text-muted-foreground">Detected Catalysts</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {data.catalysts.map((catalyst, i) => (
-                <Badge key={i} variant="outline" className="text-xs text-amber-400 border-amber-400/50">
-                  {catalyst}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {data.warnings.length > 0 && (
-          <div className="pt-2 border-t border-border/50">
-            {data.warnings.map((warning, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-xs text-amber-400">
-                <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                {warning}
-              </div>
+          <div className="space-y-2">
+            {data.topHeadlines.slice(0, 3).map((h, i) => (
+              <div key={i} className="text-sm text-muted-foreground line-clamp-2">• {h}</div>
             ))}
           </div>
         )}
@@ -630,48 +604,39 @@ function NewsPanelWithInsights({ data, symbol, currentPrice }: {
           sentimentScore={data.sentimentScore}
           sentimentLabel={data.sentimentLabel}
           newsBias={data.newsBias}
-          topHeadlines={data.topHeadlines}
-          catalysts={data.catalysts}
           symbol={symbol}
-          currentPrice={currentPrice}
         />
       </CardContent>
     </Card>
   );
 }
 
-interface SymbolLossData {
-  symbol: string;
-  confidenceBoost: number;
-  shouldAvoid: boolean;
-  lossStreak: number;
-}
-
 function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: AssetClass }) {
   const { data, isLoading, error, refetch } = useQuery<TradingEngineResult>({
-    queryKey: [`/api/trading-engine/${symbol}?asset=${assetClass}`],
+    queryKey: ['/api/trading-engine/analyze', symbol, assetClass],
+    enabled: !!symbol,
+    staleTime: 60000,
+  });
+
+  const { data: lossData } = useQuery<{
+    shouldAvoid: boolean;
+    lossStreak: number;
+    confidenceBoost: number;
+    recentLosses: any[];
+  }>({
+    queryKey: ['/api/loss-analyzer/symbol-status', symbol],
     enabled: !!symbol,
   });
-  
-  // Fetch loss analyzer data for this symbol
-  const { data: lossData } = useQuery<SymbolLossData>({
-    queryKey: ['/api/bot/symbol-adjustment', symbol],
-    enabled: !!symbol,
-  });
-  
-  // Fetch market context for insights (global market conditions)
-  const { data: marketCtx } = useQuery<{ 
-    shouldTrade: boolean; 
-    regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
-    riskSentiment: 'risk_on' | 'risk_off' | 'neutral';
-    vixLevel: number | null;
+
+  const { data: marketCtx } = useQuery<{
     tradingSession: string;
-    score: number;
-    reasons: string[];
-    spyData: { price: number; change: number; relativeVolume: number } | null;
+    regime: string;
+    shouldTrade: boolean;
+    vixLevel: number | null;
+    riskSentiment: string;
   }>({
     queryKey: ['/api/market-context'],
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 30000,
   });
 
   if (isLoading) {
@@ -713,12 +678,10 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
     return 'bg-muted text-muted-foreground';
   };
 
-  // Determine if we should show a loss warning
   const hasLossHistory = lossData && (lossData.shouldAvoid || lossData.lossStreak > 0 || lossData.confidenceBoost < 0);
   
   return (
     <div className="space-y-6">
-      {/* Loss Analyzer Warning Banner */}
       {hasLossHistory && (
         <Card className={cn(
           "border-2",
@@ -741,20 +704,10 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
                   {lossData?.shouldAvoid 
-                    ? `This symbol has ${lossData.lossStreak} consecutive losses and is on cooldown. The bot will NOT take trades on ${symbol} until the cooldown expires.`
-                    : lossData?.lossStreak && lossData.lossStreak > 0
-                      ? `${symbol} has ${lossData.lossStreak} recent loss${lossData.lossStreak > 1 ? 'es' : ''}. Confidence penalty of ${Math.abs(lossData.confidenceBoost || 0)} points applied.`
-                      : `Historical losses detected. Confidence adjustment: ${lossData?.confidenceBoost || 0} points.`
+                    ? `This symbol has ${lossData.lossStreak} consecutive losses and is on cooldown.`
+                    : `${symbol} has ${lossData?.lossStreak || 0} recent losses. Confidence penalty applied.`
                   }
                 </p>
-                <div className="flex items-center gap-4 mt-2 text-xs">
-                  <span className="text-muted-foreground">Loss Streak: <span className="font-mono text-foreground">{lossData?.lossStreak || 0}</span></span>
-                  <span className="text-muted-foreground">Confidence Adj: <span className={cn(
-                    "font-mono",
-                    (lossData?.confidenceBoost || 0) > 0 ? "text-green-400" : 
-                    (lossData?.confidenceBoost || 0) < 0 ? "text-red-400" : "text-foreground"
-                  )}>{(lossData?.confidenceBoost || 0) > 0 ? '+' : ''}{lossData?.confidenceBoost || 0}</span></span>
-                </div>
               </div>
             </div>
           </CardContent>
@@ -782,7 +735,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
             </div>
             <div className="flex items-center gap-4 bg-muted/40 p-4 rounded-xl border border-border/30 backdrop-blur-md">
               <div className="text-right">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Confluence Score</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Confluence</div>
                 <div className={cn("text-3xl font-bold font-mono tabular-nums", 
                   data.confluence.score >= 80 ? "text-green-400" : 
                   data.confluence.score >= 60 ? "text-amber-400" : "text-red-400"
@@ -831,7 +784,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
               <div className="space-y-4">
                 <h4 className="text-[10px] font-bold text-amber-500/80 uppercase tracking-widest flex items-center gap-2">
                   <AlertTriangle className="h-3 w-3" />
-                  Risk Mitigation Advisories
+                  Risk Advisories
                 </h4>
                 <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-lg space-y-2">
                   {data.confluence.warnings.map((w, i) => (
@@ -887,10 +840,322 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
   );
 }
 
+// Trading Bots Overview Tab Content
+function BotsOverviewTab() {
+  const { data: botData } = useQuery<{
+    portfolio: { startingCapital: number; totalPnL: number };
+    futuresPortfolio: { startingCapital: number; totalPnL: number; openPositions: number; winRate: string };
+    cryptoPortfolio: { startingCapital: number; totalPnL: number; openPositions: number; winRate: string };
+    stats: { openPositions: number; winRate: string };
+  }>({
+    queryKey: ['/api/auto-lotto/dashboard-data'],
+    refetchInterval: 15000,
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Quick Stats Row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <MarketOverviewWidget />
+        <ExpiryPatternInsights />
+        <WinRateWidget />
+      </div>
+      
+      {/* 4 Main Portfolio Bots */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <BotCard
+          title="Options Bot"
+          subtitle="US Market Hours"
+          icon={TrendingUp}
+          iconColor="text-cyan-400"
+          borderColor="border-cyan-500/30"
+          capital={botData?.portfolio?.startingCapital || 300}
+          pnl={botData?.portfolio?.totalPnL || 0}
+          openPositions={botData?.stats?.openPositions || 0}
+          winRate={botData?.stats?.winRate || '0'}
+        />
+        <BotCard
+          title="Futures Bot"
+          subtitle="CME Hours (NQ/GC)"
+          icon={LineChart}
+          iconColor="text-purple-400"
+          borderColor="border-purple-500/30"
+          capital={botData?.futuresPortfolio?.startingCapital || 300}
+          pnl={botData?.futuresPortfolio?.totalPnL || 0}
+          openPositions={botData?.futuresPortfolio?.openPositions || 0}
+          winRate={botData?.futuresPortfolio?.winRate || '0'}
+        />
+        <BotCard
+          title="Crypto Bot"
+          subtitle="24/7 (13 coins)"
+          icon={Bitcoin}
+          iconColor="text-amber-400"
+          borderColor="border-amber-500/30"
+          capital={botData?.cryptoPortfolio?.startingCapital || 300}
+          pnl={botData?.cryptoPortfolio?.totalPnL || 0}
+          openPositions={botData?.cryptoPortfolio?.openPositions || 0}
+          winRate={botData?.cryptoPortfolio?.winRate || '0'}
+        />
+        <BotCard
+          title="Small Account"
+          subtitle="<$500 Strategies"
+          icon={Rocket}
+          iconColor="text-green-400"
+          borderColor="border-green-500/30"
+          capital={300}
+          pnl={0}
+          openPositions={0}
+          winRate="0"
+        />
+      </div>
+      
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-slate-900/60 border-slate-700/50">
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Search className="w-5 h-5 text-cyan-400" />
+              <div>
+                <h4 className="font-semibold text-sm">Market Scanner</h4>
+                <p className="text-xs text-muted-foreground">Find opportunities</p>
+              </div>
+            </div>
+            <Link href="/market-scanner">
+              <Button size="sm" variant="outline" className="border-cyan-500/30 text-cyan-400">
+                Open
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/60 border-slate-700/50">
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Activity className="w-5 h-5 text-purple-400" />
+              <div>
+                <h4 className="font-semibold text-sm">Trade Ideas</h4>
+                <p className="text-xs text-muted-foreground">AI-generated research</p>
+              </div>
+            </div>
+            <Link href="/trade-desk">
+              <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400">
+                Open
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/60 border-slate-700/50">
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Target className="w-5 h-5 text-amber-400" />
+              <div>
+                <h4 className="font-semibold text-sm">Performance</h4>
+                <p className="text-xs text-muted-foreground">Track your results</p>
+              </div>
+            </div>
+            <Link href="/performance">
+              <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-400">
+                Open
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Settings Tab with Risk Controls
+function SettingsTab() {
+  const { toast } = useToast();
+  
+  // Risk settings state
+  const [stopLossPercent, setStopLossPercent] = useState(25);
+  const [takeProfitPercent, setTakeProfitPercent] = useState(50);
+  const [trailingStopPercent, setTrailingStopPercent] = useState(0);
+  const [maxPositionSize, setMaxPositionSize] = useState(100);
+  const [dailyLossLimit, setDailyLossLimit] = useState(100);
+  const [maxConcurrentTrades, setMaxConcurrentTrades] = useState(3);
+  const [circuitBreakerEnabled, setCircuitBreakerEnabled] = useState(true);
+  const [circuitBreakerLosses, setCircuitBreakerLosses] = useState(3);
+
+  const updatePreferences = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/auto-lotto/preferences", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Settings Saved", description: "Risk controls have been updated" });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-lotto/preferences'] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
+    }
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Shield className="w-6 h-6 text-cyan-400" />
+            Risk Controls
+          </h2>
+          <p className="text-sm text-muted-foreground">Configure risk management for all strategies</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              setStopLossPercent(25);
+              setTakeProfitPercent(50);
+              setTrailingStopPercent(0);
+              setMaxPositionSize(100);
+              setDailyLossLimit(100);
+              setMaxConcurrentTrades(3);
+            }}
+            data-testid="button-reset-defaults"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
+          <Button 
+            onClick={() => updatePreferences.mutate({
+              stopLossPercent,
+              takeProfitPercent,
+              trailingStopPercent,
+              maxPositionSize,
+              dailyLossLimit,
+              maxConcurrentTrades,
+              circuitBreakerEnabled,
+              circuitBreakerLosses,
+            })}
+            disabled={updatePreferences.isPending}
+            data-testid="button-save-settings"
+          >
+            {updatePreferences.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Settings
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Per-Trade Risk */}
+        <Card className="border-red-500/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-red-400">
+              <Target className="w-4 h-4" />
+              Per-Trade Risk
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                  Stop Loss
+                </Label>
+                <span className="font-mono text-red-400 text-sm">-{stopLossPercent}%</span>
+              </div>
+              <Slider value={[stopLossPercent]} onValueChange={([v]) => setStopLossPercent(v)} min={5} max={50} step={5} data-testid="slider-stop-loss" />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+                  Take Profit
+                </Label>
+                <span className="font-mono text-green-400 text-sm">+{takeProfitPercent}%</span>
+              </div>
+              <Slider value={[takeProfitPercent]} onValueChange={([v]) => setTakeProfitPercent(v)} min={10} max={200} step={10} data-testid="slider-take-profit" />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                  Trailing Stop
+                </Label>
+                <span className="font-mono text-amber-400 text-sm">{trailingStopPercent === 0 ? 'OFF' : `-${trailingStopPercent}%`}</span>
+              </div>
+              <Slider value={[trailingStopPercent]} onValueChange={([v]) => setTrailingStopPercent(v)} min={0} max={30} step={5} data-testid="slider-trailing-stop" />
+            </div>
+
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 mt-4">
+              <div className="flex items-center gap-2 text-xs">
+                <Shield className="w-3.5 h-3.5 text-red-400" />
+                <span className="font-medium text-red-400">Risk/Reward</span>
+                <span className="font-mono ml-auto">{(takeProfitPercent / stopLossPercent).toFixed(2)}:1</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Account Limits */}
+        <Card className="border-amber-500/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-400">
+              <AlertTriangle className="w-4 h-4" />
+              Account Limits
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                  Max Position
+                </Label>
+                <span className="font-mono text-green-400 text-sm">${maxPositionSize}</span>
+              </div>
+              <Slider value={[maxPositionSize]} onValueChange={([v]) => setMaxPositionSize(v)} min={25} max={500} step={25} data-testid="slider-max-position" />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                  Daily Loss Limit
+                </Label>
+                <span className="font-mono text-red-400 text-sm">${dailyLossLimit}</span>
+              </div>
+              <Slider value={[dailyLossLimit]} onValueChange={([v]) => setDailyLossLimit(v)} min={25} max={500} step={25} data-testid="slider-daily-loss" />
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                  Max Concurrent
+                </Label>
+                <span className="font-mono text-cyan-400 text-sm">{maxConcurrentTrades}</span>
+              </div>
+              <Slider value={[maxConcurrentTrades]} onValueChange={([v]) => setMaxConcurrentTrades(v)} min={1} max={10} step={1} data-testid="slider-concurrent" />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <Label className="text-sm flex items-center gap-2">
+                <Timer className="w-3.5 h-3.5 text-amber-400" />
+                Circuit Breaker ({circuitBreakerLosses} losses)
+              </Label>
+              <Switch 
+                checked={circuitBreakerEnabled} 
+                onCheckedChange={setCircuitBreakerEnabled}
+                data-testid="switch-circuit-breaker"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function TradingEnginePage() {
   const [symbol, setSymbol] = useState('SPY');
   const [searchInput, setSearchInput] = useState('');
   const [assetClass, setAssetClass] = useState<AssetClass>('stock');
+  const [mainTab, setMainTab] = useState('analysis');
 
   const { data: marketContext } = useQuery<{ 
     shouldTrade: boolean; 
@@ -911,11 +1176,13 @@ export default function TradingEnginePage() {
   const handleSelectHotSymbol = (sym: string) => {
     setSymbol(sym);
     setSearchInput(sym);
+    setMainTab('analysis');
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-[1600px] mx-auto p-4 space-y-6">
+        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
@@ -924,17 +1191,19 @@ export default function TradingEnginePage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 Command Center
-                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary px-1.5 h-4">HYBRID ENGINE</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary px-1.5 h-4">UNIFIED</Badge>
               </h1>
               <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mt-1">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? '🟢 SESSION ACTIVE' : '🔴 SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
+                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? 'SESSION ACTIVE' : 'SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex flex-col items-end px-4 border-r border-border">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Engine Latency</span>
-              <span className="text-sm font-mono text-green-400">14ms</span>
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</span>
+              <span className={cn("text-sm font-mono", marketContext?.shouldTrade ? "text-green-400" : "text-amber-400")}>
+                {marketContext?.shouldTrade ? "LIVE" : "CLOSED"}
+              </span>
             </div>
             <Link href="/trade-desk">
               <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 h-10 shadow-lg" data-testid="link-trade-desk">
@@ -945,81 +1214,129 @@ export default function TradingEnginePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
-            <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">
-              <div className="bg-muted/40 border-b border-border/40 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-muted rounded border border-border/50">
-                    <Search className="h-4 w-4 text-muted-foreground" />
+        {/* Main Tabs */}
+        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
+          <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
+            <TabsTrigger 
+              value="analysis" 
+              data-testid="tab-analysis"
+              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Analysis
+            </TabsTrigger>
+            <TabsTrigger 
+              value="bots" 
+              data-testid="tab-bots"
+              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            >
+              <Bot className="w-4 h-4 mr-2" />
+              Bots
+              <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600 animate-pulse">LIVE</Badge>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="positions" 
+              data-testid="tab-positions"
+              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            >
+              <Rocket className="w-4 h-4 mr-2" />
+              Positions
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings" 
+              data-testid="tab-settings"
+              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Analysis Tab */}
+          <TabsContent value="analysis" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-8 space-y-6">
+                <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">
+                  <div className="bg-muted/40 border-b border-border/40 p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-muted rounded border border-border/50">
+                        <Search className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Symbol Analysis</h3>
+                    </div>
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Symbol Analysis</h3>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary" className="text-[10px]">NQ1!</Badge>
-                  <Badge variant="secondary" className="text-[10px]">ES1!</Badge>
-                </div>
+                  <CardContent className="p-6">
+                    <div className="flex flex-wrap gap-4 items-end mb-6">
+                      <div className="flex-1 min-w-[240px]">
+                        <div className="flex justify-between mb-1.5 px-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ticker</label>
+                          <span className="text-[10px] text-primary font-mono">Real-time</span>
+                        </div>
+                        <div className="relative group">
+                          <Input
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            placeholder="ENTER SYMBOL (E.G. NVDA, QQQ, BTC)"
+                            className="h-12 bg-muted/50 border-border font-mono tracking-widest placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-primary/10 transition-all pl-10"
+                            data-testid="input-symbol"
+                          />
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        </div>
+                      </div>
+                      <div className="w-[180px]">
+                        <div className="mb-1.5 px-1">
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asset Class</label>
+                        </div>
+                        <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
+                          <TabsList className="grid grid-cols-2 h-12 bg-muted/50 border border-border p-1">
+                            <TabsTrigger value="stock" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-stock">Stock</TabsTrigger>
+                            <TabsTrigger value="options" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-options">Opt</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                      <Button 
+                        onClick={handleSearch}
+                        disabled={!searchInput.trim()}
+                        variant="outline"
+                        className="h-12 px-8 font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                        data-testid="button-analyze"
+                      >
+                        Run Scan
+                      </Button>
+                    </div>
+
+                    <div className="space-y-6">
+                      <AnalysisResults symbol={symbol} assetClass={assetClass} />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <CardContent className="p-6">
-                <div className="flex flex-wrap gap-4 items-end mb-6">
-                  <div className="flex-1 min-w-[240px]">
-                    <div className="flex justify-between mb-1.5 px-1">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ticker Entry</label>
-                      <span className="text-[10px] text-primary font-mono">Real-time data enabled</span>
-                    </div>
-                    <div className="relative group">
-                      <Input
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="ENTER SYMBOL (E.G. NVDA, QQQ, BTC)"
-                        className="h-12 bg-muted/50 border-border font-mono tracking-widest placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-primary/10 transition-all pl-10"
-                        data-testid="input-symbol"
-                      />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    </div>
-                  </div>
-                  <div className="w-[180px]">
-                    <div className="mb-1.5 px-1">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asset Class</label>
-                    </div>
-                    <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
-                      <TabsList className="grid grid-cols-2 h-12 bg-muted/50 border border-border p-1">
-                        <TabsTrigger value="stock" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-stock">Stock</TabsTrigger>
-                        <TabsTrigger value="options" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-options">Opt</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                  <Button 
-                    onClick={handleSearch}
-                    disabled={!searchInput.trim()}
-                    variant="outline"
-                    className="h-12 px-8 font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                    data-testid="button-analyze"
-                  >
-                    Run Scan
-                  </Button>
-                </div>
 
-                <div className="space-y-6">
-                  <AnalysisResults symbol={symbol} assetClass={assetClass} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <MarketOverviewWidget />
-              <WinRateWidget />
+              <div className="lg:col-span-4 space-y-6">
+                <BotActivityMonitor />
+                <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
+                <PaperPortfolios />
+                <IVRankWidget />
+              </div>
             </div>
-          </div>
+          </TabsContent>
 
-          <div className="lg:col-span-4 space-y-6">
-            <BotActivityMonitor />
-            <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
-            <PaperPortfolios />
-            <IVRankWidget />
-          </div>
-        </div>
+          {/* Bots Tab */}
+          <TabsContent value="bots" className="space-y-6">
+            <BotsOverviewTab />
+          </TabsContent>
+
+          {/* Positions Tab */}
+          <TabsContent value="positions" className="space-y-6">
+            <AutoLottoDashboard />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <SettingsTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

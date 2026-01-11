@@ -33,14 +33,9 @@ interface NavItem {
 
 // Trading - core trading tools (streamlined)
 const tradingItems: NavItem[] = [
-  { title: "Command Center", url: "/trading-engine", icon: Activity },
+  { title: "Command Center", url: "/trading-engine", icon: Activity, badge: "LIVE" },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Watchlist", url: "/watchlist", icon: Eye },
-];
-
-// Automations - Trading bots
-const automationItems: NavItem[] = [
-  { title: "Trading Bots", url: "/automations", icon: Zap, badge: "LIVE" },
 ];
 
 // Analytics - all analysis tools accessible
@@ -218,14 +213,6 @@ export function AppSidebar() {
         <NavSection 
           label="Trading" 
           items={tradingItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        {/* Automations */}
-        <NavSection 
-          label="Automations" 
-          items={automationItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
