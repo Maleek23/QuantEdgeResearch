@@ -2790,9 +2790,430 @@ function PatternScannerTab() {
   );
 }
 
+// ============================================
+// UNIFIED PATTERN ANALYSIS - Merged Scanner + Visual
+// ============================================
+
+interface UnifiedPatternScore {
+  score: number;
+  confidence: number;
+  urgency: 'imminent' | 'soon' | 'developing';
+  signals: string[];
+  warnings: string[];
+}
+
+interface UnifiedPatternResult {
+  symbol: string;
+  patternType: string;
+  patternName: string;
+  score: UnifiedPatternScore;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  riskRewardRatio: number;
+  breakoutLevel: number;
+  distanceToBreakout: number;
+  technicalContext: {
+    rsi: number | null;
+    macd: { value: number; signal: number; histogram: number } | null;
+    vwap: number | null;
+    atr: number | null;
+    volume20DayAvg: number | null;
+    currentVolume: number | null;
+  };
+  timestamp: string;
+  source: string;
+}
+
+function UnifiedPatternAnalysisTab() {
+  const { toast } = useToast();
+  const [symbol, setSymbol] = useState("");
+  const [analysisSymbol, setAnalysisSymbol] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<"day" | "swing">("day");
+  const [timeframe, setTimeframe] = useState("1D");
+  const [aiResult, setAiResult] = useState<ChartAnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Fetch quantitative patterns when symbol changes
+  const { data: quantPatterns, isLoading: quantLoading, refetch: refetchQuant } = useQuery({
+    queryKey: ["/api/pattern-scanner/analyze", analysisSymbol],
+    queryFn: async () => {
+      if (!analysisSymbol) return null;
+      const res = await fetch(`/api/pattern-scanner/analyze/${analysisSymbol}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json() as Promise<{ patterns: UnifiedPatternResult[]; symbol: string; timestamp: string }>;
+    },
+    enabled: !!analysisSymbol,
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const runAnalysis = async () => {
+    if (!symbol) {
+      toast({ title: "Enter Symbol", description: "Please enter a symbol to analyze", variant: "destructive" });
+      return;
+    }
+    
+    setAnalysisSymbol(symbol);
+    setIsAnalyzing(true);
+
+    // Run AI analysis if chart uploaded
+    if (selectedFile) {
+      try {
+        const formData = new FormData();
+        formData.append('chart', selectedFile);
+        formData.append('symbol', symbol);
+        formData.append('timeframe', timeframe);
+        formData.append('mode', analysisMode);
+
+        const response = await fetch('/api/chart-analysis', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setAiResult(result);
+        }
+      } catch (error) {
+        console.error('AI analysis failed:', error);
+      }
+    }
+
+    setIsAnalyzing(false);
+    refetchQuant();
+  };
+
+  const hasQuantData = quantPatterns?.patterns && quantPatterns.patterns.length > 0;
+  const hasAiData = !!aiResult;
+
+  return (
+    <div className="space-y-6">
+      {/* Analysis Input Panel */}
+      <Card className="bg-slate-900/50 border-slate-700/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-mono flex items-center gap-2">
+              <Radar className="h-4 w-4 text-cyan-400" />
+              Unified Pattern Analysis
+              <Badge className="ml-2 bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-xs">
+                DUAL ENGINE
+              </Badge>
+            </CardTitle>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant={analysisMode === "day" ? "default" : "outline"}
+                onClick={() => setAnalysisMode("day")}
+                className={cn("text-xs h-7 px-2", analysisMode === "day" && "bg-cyan-500 hover:bg-cyan-400 text-slate-950")}
+                data-testid="button-unified-mode-day"
+              >
+                Day Trade
+              </Button>
+              <Button
+                size="sm"
+                variant={analysisMode === "swing" ? "default" : "outline"}
+                onClick={() => setAnalysisMode("swing")}
+                className={cn("text-xs h-7 px-2", analysisMode === "swing" && "bg-cyan-500 hover:bg-cyan-400 text-slate-950")}
+                data-testid="button-unified-mode-swing"
+              >
+                Swing
+              </Button>
+            </div>
+          </div>
+          <CardDescription className="font-mono text-xs">
+            Enter symbol for quantitative patterns • Upload chart for AI vision analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Symbol Input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-slate-400">SYMBOL</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="AAPL, TSLA, NVDA..."
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  className="h-10 font-mono bg-slate-800/50"
+                  onKeyDown={(e) => e.key === 'Enter' && runAnalysis()}
+                  data-testid="input-unified-symbol"
+                />
+                <Button
+                  onClick={runAnalysis}
+                  disabled={!symbol || isAnalyzing || quantLoading}
+                  className="h-10 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  data-testid="button-unified-analyze"
+                >
+                  {isAnalyzing || quantLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-1" />
+                      Analyze
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Chart Upload */}
+            <div className="lg:col-span-2">
+              <Label className="text-xs font-mono text-slate-400 mb-1.5 block">CHART IMAGE (OPTIONAL)</Label>
+              <div className="border border-dashed border-slate-600 rounded-lg p-2 bg-slate-800/30 hover:border-cyan-500/50 transition-colors">
+                <Input
+                  id="unified-chart-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  data-testid="input-unified-chart"
+                />
+                <label htmlFor="unified-chart-upload" className="cursor-pointer flex items-center gap-3">
+                  {previewUrl ? (
+                    <div className="flex items-center gap-3 w-full">
+                      <img src={previewUrl} alt="Chart" className="h-12 w-20 object-cover rounded" />
+                      <div className="flex-1">
+                        <p className="text-xs text-slate-300">{selectedFile?.name}</p>
+                        <p className="text-xs text-slate-500">Click to change</p>
+                      </div>
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Ready
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 w-full py-1">
+                      <div className="h-10 w-10 rounded bg-slate-700/50 flex items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-300">Drop chart here or click to upload</p>
+                        <p className="text-xs text-slate-500">Enables AI vision analysis</p>
+                      </div>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dual Engine Results */}
+      {analysisSymbol && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quantitative Engine Results */}
+          <Card className="bg-slate-900/50 border-slate-700/40">
+            <CardHeader className="pb-3 border-b border-slate-700/40">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-mono flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-purple-400" />
+                  Quantitative Engine
+                </CardTitle>
+                <Badge className={cn(
+                  "text-xs",
+                  hasQuantData 
+                    ? "bg-green-500/20 text-green-400 border-green-500/30" 
+                    : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                )}>
+                  {hasQuantData ? `${quantPatterns.patterns.length} PATTERNS` : 'NO PATTERNS'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {quantLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+                </div>
+              ) : hasQuantData ? (
+                <div className="space-y-3">
+                  {quantPatterns.patterns.map((pattern, idx) => {
+                    const PatternIcon = PATTERN_ICONS[pattern.patternType] || TrendingUp;
+                    const scoreValue = pattern.score?.score ?? 0;
+                    const urgency = pattern.score?.urgency ?? 'developing';
+                    const confidence = pattern.score?.confidence ?? 0;
+                    return (
+                      <div 
+                        key={idx}
+                        className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/40"
+                        data-testid={`quant-pattern-${idx}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <PatternIcon className="h-4 w-4 text-cyan-400" />
+                            <span className="font-mono text-sm text-slate-200">{pattern.patternName}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge className={cn(
+                              "text-xs",
+                              urgency === 'imminent' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                              urgency === 'soon' ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                              "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                            )}>
+                              {urgency.toUpperCase()}
+                            </Badge>
+                            <Badge className={cn(
+                              "text-xs font-mono",
+                              scoreValue >= 80 ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                              scoreValue >= 60 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                              "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                            )}>
+                              {Math.round(scoreValue)}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+                          <div>
+                            <span className="text-slate-500">Entry</span>
+                            <span className="text-slate-300 ml-1">${pattern.entryPrice?.toFixed(2) ?? '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Target</span>
+                            <span className="text-green-400 ml-1">${pattern.targetPrice?.toFixed(2) ?? '—'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Stop</span>
+                            <span className="text-red-400 ml-1">${pattern.stopLoss?.toFixed(2) ?? '—'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs">
+                          <span className="text-slate-500">
+                            R:R <span className="text-slate-300">{pattern.riskRewardRatio?.toFixed(1) ?? '—'}</span>
+                          </span>
+                          <span className="text-slate-500">
+                            Distance <span className="text-slate-300">{pattern.distanceToBreakout?.toFixed(1) ?? '—'}%</span>
+                          </span>
+                          <span className="text-slate-500">
+                            Conf <span className="text-slate-300">{Math.round(confidence)}%</span>
+                          </span>
+                          {pattern.technicalContext?.rsi && (
+                            <span className="text-slate-500">
+                              RSI <span className="text-slate-300">{pattern.technicalContext.rsi.toFixed(0)}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calculator className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">No breakout patterns detected</p>
+                  <p className="text-xs text-slate-600 mt-1">Symbol may not be forming actionable patterns</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* AI Vision Engine Results */}
+          <Card className="bg-slate-900/50 border-slate-700/40">
+            <CardHeader className="pb-3 border-b border-slate-700/40">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-mono flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-amber-400" />
+                  AI Vision Engine
+                </CardTitle>
+                <Badge className={cn(
+                  "text-xs",
+                  hasAiData 
+                    ? "bg-green-500/20 text-green-400 border-green-500/30" 
+                    : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                )}>
+                  {hasAiData ? 'ANALYZED' : 'AWAITING CHART'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {isAnalyzing ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-amber-400" />
+                </div>
+              ) : hasAiData ? (
+                <div className="space-y-4">
+                  {/* Sentiment */}
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    aiResult.sentiment === 'bullish' ? "bg-green-500/10 border-green-500/30" :
+                    aiResult.sentiment === 'bearish' ? "bg-red-500/10 border-red-500/30" :
+                    "bg-slate-500/10 border-slate-500/30"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm">AI Sentiment</span>
+                      <Badge className={cn(
+                        aiResult.sentiment === 'bullish' ? "bg-green-500/20 text-green-400" :
+                        aiResult.sentiment === 'bearish' ? "bg-red-500/20 text-red-400" :
+                        "bg-slate-500/20 text-slate-400"
+                      )}>
+                        {aiResult.sentiment.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">{aiResult.analysis}</p>
+                  </div>
+
+                  {/* Levels */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2 rounded bg-slate-800/50 text-center">
+                      <p className="text-xs text-slate-500 font-mono">ENTRY</p>
+                      <p className="text-sm font-mono text-slate-200">${aiResult.entryPoint?.toFixed(2) || '—'}</p>
+                    </div>
+                    <div className="p-2 rounded bg-slate-800/50 text-center">
+                      <p className="text-xs text-slate-500 font-mono">TARGET</p>
+                      <p className="text-sm font-mono text-green-400">${aiResult.targetPrice?.toFixed(2) || '—'}</p>
+                    </div>
+                    <div className="p-2 rounded bg-slate-800/50 text-center">
+                      <p className="text-xs text-slate-500 font-mono">STOP</p>
+                      <p className="text-sm font-mono text-red-400">${aiResult.stopLoss?.toFixed(2) || '—'}</p>
+                    </div>
+                  </div>
+
+                  {/* Confidence */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-mono">Confidence</span>
+                    <Progress value={aiResult.confidence} className="flex-1 h-2" />
+                    <span className="text-xs font-mono text-slate-300">{aiResult.confidence}%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ImageIcon className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Upload a chart for AI analysis</p>
+                  <p className="text-xs text-slate-600 mt-1">AI will analyze patterns, levels, and sentiment</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Full Pattern Scanner Table Below */}
+      {analysisSymbol && (
+        <div className="pt-4 border-t border-slate-700/40">
+          <h3 className="text-sm font-mono text-slate-400 mb-4 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            FULL SCANNER RESULTS
+          </h3>
+          <PatternScannerTab />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChartAnalysis() {
   const { user } = useAuth();
-  const [mainTab, setMainTab] = useState("scanner");
+  const [mainTab, setMainTab] = useState("unified");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [symbol, setSymbol] = useState("");
@@ -3204,16 +3625,11 @@ export default function ChartAnalysis() {
       />
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6" data-testid="tabs-main-navigation">
-          <TabsTrigger value="scanner" className="gap-2" data-testid="tab-pattern-scanner">
+        <TabsList className="grid w-full grid-cols-3 mb-6" data-testid="tabs-main-navigation">
+          <TabsTrigger value="unified" className="gap-2" data-testid="tab-unified-analysis">
             <Radar className="h-4 w-4" />
-            <span className="hidden sm:inline">Pattern Scanner</span>
-            <span className="sm:hidden">Scanner</span>
-          </TabsTrigger>
-          <TabsTrigger value="visual" className="gap-2" data-testid="tab-visual-analysis">
-            <ImageIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Visual Analysis</span>
-            <span className="sm:hidden">Visual</span>
+            <span className="hidden sm:inline">Pattern Analysis</span>
+            <span className="sm:hidden">Analysis</span>
           </TabsTrigger>
           <TabsTrigger value="search" className="gap-2" data-testid="tab-pattern-search">
             <Search className="h-4 w-4" />
@@ -3227,11 +3643,11 @@ export default function ChartAnalysis() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="scanner" className="mt-0">
-          <PatternScannerTab />
+        <TabsContent value="unified" className="mt-0">
+          <UnifiedPatternAnalysisTab />
         </TabsContent>
 
-        <TabsContent value="visual" className="mt-0">
+        <TabsContent value="visual" className="mt-0 hidden">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-2 space-y-4">
               <div className="glass-card rounded-xl overflow-hidden">
