@@ -139,7 +139,7 @@ interface TradingEngineResult {
 
 type AssetClass = 'stock' | 'options' | 'futures' | 'crypto';
 
-// Bot Status Display Component
+// Bot Status Display Component - Aurora Grid Style
 function BotCard({ 
   title, 
   subtitle, 
@@ -162,40 +162,48 @@ function BotCard({
   winRate: string;
 }) {
   return (
-    <Card className={cn("bg-gradient-to-br from-slate-900/60 to-slate-950/60", borderColor)} data-testid={`card-${title.toLowerCase().replace(' ', '-')}`}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className={cn("p-2 rounded-lg border", iconColor.replace('text-', 'bg-').replace('400', '500/20'), iconColor.replace('text-', 'border-').replace('400', '500/30'))}>
+    <Card className={cn(
+      "bg-slate-900/50 backdrop-blur-xl border-slate-700/30 hover:border-slate-600/50 transition-all duration-300",
+      "shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)] hover:shadow-[0_0_40px_-10px_rgba(34,211,238,0.12)]"
+    )} data-testid={`card-${title.toLowerCase().replace(' ', '-')}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "p-2.5 rounded-lg border backdrop-blur-sm",
+              iconColor.replace('text-', 'bg-').replace('400', '500/15'),
+              iconColor.replace('text-', 'border-').replace('400', '500/25'),
+              "shadow-[0_0_15px_-5px_currentColor]"
+            )}>
               <Icon className={cn("w-5 h-5", iconColor)} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">{title}</h3>
-              <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+              <h3 className="font-bold text-sm text-slate-100">{title}</h3>
+              <p className="text-[10px] text-slate-400 font-mono tracking-wide">{subtitle}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] font-bold text-green-400">LIVE</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-500/15 border border-green-500/25">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+            <span className="text-[10px] font-bold text-green-400 tracking-wide">LIVE</span>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 text-center">
-          <div className="p-2 rounded bg-slate-800/50">
-            <p className="text-[10px] text-muted-foreground">Capital</p>
-            <p className={cn("text-lg font-bold font-mono", iconColor)}>${capital}</p>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-3 text-center">
+          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Capital</p>
+            <p className={cn("text-xl font-bold font-mono", iconColor)}>${capital}</p>
           </div>
-          <div className="p-2 rounded bg-slate-800/50">
-            <p className="text-[10px] text-muted-foreground">P&L</p>
-            <p className={cn("text-lg font-bold font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
+          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">P&L</p>
+            <p className={cn("text-xl font-bold font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
               {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Open: {openPositions}</span>
-          <span className="text-muted-foreground">Win: {winRate}%</span>
+        <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
+          <span>Open: <span className="text-slate-200">{openPositions}</span></span>
+          <span>Win: <span className="text-slate-200">{winRate}%</span></span>
         </div>
       </CardContent>
     </Card>
@@ -1015,35 +1023,35 @@ export default function TradingEnginePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-[1600px] mx-auto p-4 space-y-6">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-              <Target className="h-6 w-6 text-primary" />
+    <div className="min-h-screen text-foreground">
+      <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8">
+        {/* Aurora Grid Header */}
+        <div className="flex flex-wrap items-center justify-between gap-6 p-8 bg-slate-900/40 backdrop-blur-2xl border border-slate-700/30 rounded-2xl shadow-[0_0_60px_-15px_rgba(34,211,238,0.1)]">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
+              <Target className="h-7 w-7 text-cyan-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
                 Command Center
-                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary px-1.5 h-4">UNIFIED</Badge>
+                <Badge className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 h-5">UNIFIED</Badge>
               </h1>
-              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mt-1">
+              <p className="text-sm font-mono text-slate-400 uppercase tracking-[0.2em] mt-2">
                 {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? 'SESSION ACTIVE' : 'SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end px-4 border-r border-border">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</span>
-              <span className={cn("text-sm font-mono", marketContext?.shouldTrade ? "text-green-400" : "text-amber-400")}>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex flex-col items-end px-5 border-r border-slate-700/50">
+              <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Status</span>
+              <span className={cn("text-base font-mono font-bold", marketContext?.shouldTrade ? "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]" : "text-amber-400")}>
                 {marketContext?.shouldTrade ? "LIVE" : "CLOSED"}
               </span>
             </div>
             <Link href="/trade-desk">
-              <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-4 h-10 shadow-lg" data-testid="link-trade-desk">
+              <Button className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-6 h-11 shadow-lg shadow-cyan-500/20" data-testid="link-trade-desk">
                 Trade Desk
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             </Link>
           </div>
@@ -1052,13 +1060,13 @@ export default function TradingEnginePage() {
         {/* Data Status Banner - Shows when APIs are rate limited or degraded */}
         <DataStatusBanner />
 
-        {/* Main Tabs */}
-        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-          <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
+        {/* Main Tabs - Aurora Grid Style */}
+        <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-8">
+          <TabsList className="inline-flex h-14 bg-slate-900/60 backdrop-blur-xl border border-slate-700/40 rounded-xl p-1.5 gap-2">
             <TabsTrigger 
               value="analysis" 
               data-testid="tab-analysis"
-              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              className="rounded-lg px-6 py-3 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/20 data-[state=active]:to-purple-500/20 data-[state=active]:text-cyan-400 data-[state=active]:shadow-[0_0_15px_rgba(34,211,238,0.2)] data-[state=active]:border data-[state=active]:border-cyan-500/30"
             >
               <Search className="w-4 h-4 mr-2" />
               Analysis
@@ -1066,16 +1074,16 @@ export default function TradingEnginePage() {
             <TabsTrigger 
               value="bots" 
               data-testid="tab-bots"
-              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              className="rounded-lg px-6 py-3 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/20 data-[state=active]:to-purple-500/20 data-[state=active]:text-cyan-400 data-[state=active]:shadow-[0_0_15px_rgba(34,211,238,0.2)] data-[state=active]:border data-[state=active]:border-cyan-500/30"
             >
               <Bot className="w-4 h-4 mr-2" />
               Bots
-              <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600 animate-pulse">LIVE</Badge>
+              <Badge className="ml-2 h-5 px-1.5 text-[9px] bg-green-500/20 text-green-400 border border-green-500/40 animate-pulse">LIVE</Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="positions" 
               data-testid="tab-positions"
-              className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              className="rounded-lg px-6 py-3 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/20 data-[state=active]:to-purple-500/20 data-[state=active]:text-cyan-400 data-[state=active]:shadow-[0_0_15px_rgba(34,211,238,0.2)] data-[state=active]:border data-[state=active]:border-cyan-500/30"
             >
               <Rocket className="w-4 h-4 mr-2" />
               Positions
@@ -1105,23 +1113,23 @@ export default function TradingEnginePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-8 space-y-6">
-                <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-2xl overflow-hidden">
-                  <div className="bg-muted/40 border-b border-border/40 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-muted rounded border border-border/50">
-                        <Search className="h-4 w-4 text-muted-foreground" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8 space-y-8">
+                <Card className="bg-slate-900/50 backdrop-blur-2xl border-slate-700/40 shadow-[0_0_40px_-10px_rgba(34,211,238,0.08)] overflow-hidden">
+                  <div className="bg-slate-800/40 border-b border-slate-700/30 p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 bg-gradient-to-br from-cyan-500/15 to-purple-500/15 rounded-lg border border-cyan-500/20">
+                        <Search className="h-4 w-4 text-cyan-400" />
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Symbol Analysis</h3>
+                      <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-[0.15em]">Symbol Analysis</h3>
                     </div>
                   </div>
-                  <CardContent className="p-6">
-                    <div className="flex flex-wrap gap-4 items-end mb-6">
-                      <div className="flex-1 min-w-[240px]">
-                        <div className="flex justify-between mb-1.5 px-1">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ticker</label>
-                          <span className="text-[10px] text-primary font-mono">Real-time</span>
+                  <CardContent className="p-8">
+                    <div className="flex flex-wrap gap-5 items-end mb-8">
+                      <div className="flex-1 min-w-[280px]">
+                        <div className="flex justify-between mb-2 px-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ticker</label>
+                          <span className="text-[10px] text-cyan-400 font-mono">Real-time</span>
                         </div>
                         <div className="relative group">
                           <Input
@@ -1129,35 +1137,34 @@ export default function TradingEnginePage() {
                             onChange={(e) => setSearchInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                             placeholder="ENTER SYMBOL (E.G. NVDA, QQQ, BTC)"
-                            className="h-12 bg-muted/50 border-border font-mono tracking-widest placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-primary/10 transition-all pl-10"
+                            className="h-14 bg-slate-800/60 border-slate-600/50 font-mono tracking-widest placeholder:text-slate-500 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all pl-12"
                             data-testid="input-symbol"
                           />
-                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
                         </div>
                       </div>
-                      <div className="w-[180px]">
-                        <div className="mb-1.5 px-1">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Asset Class</label>
+                      <div className="w-[200px]">
+                        <div className="mb-2 px-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Asset Class</label>
                         </div>
                         <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
-                          <TabsList className="grid grid-cols-2 h-12 bg-muted/50 border border-border p-1">
-                            <TabsTrigger value="stock" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-stock">Stock</TabsTrigger>
-                            <TabsTrigger value="options" className="text-[10px] font-bold uppercase data-[state=active]:bg-muted data-[state=active]:text-primary" data-testid="tab-options">Opt</TabsTrigger>
+                          <TabsList className="grid grid-cols-2 h-14 bg-slate-800/60 border border-slate-600/50 p-1.5 rounded-lg">
+                            <TabsTrigger value="stock" className="text-[10px] font-bold uppercase rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-stock">Stock</TabsTrigger>
+                            <TabsTrigger value="options" className="text-[10px] font-bold uppercase rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-options">Options</TabsTrigger>
                           </TabsList>
                         </Tabs>
                       </div>
                       <Button 
                         onClick={handleSearch}
                         disabled={!searchInput.trim()}
-                        variant="outline"
-                        className="h-12 px-8 font-bold uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                        className="h-14 px-10 font-bold uppercase tracking-widest bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
                         data-testid="button-analyze"
                       >
                         Run Scan
                       </Button>
                     </div>
 
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                       <AnalysisResults symbol={symbol} assetClass={assetClass} />
                     </div>
                   </CardContent>
