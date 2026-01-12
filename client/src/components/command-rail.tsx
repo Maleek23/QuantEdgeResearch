@@ -197,6 +197,11 @@ export function CommandRail() {
         "flex-1 py-4 overflow-y-auto",
         collapsed ? "px-3" : "px-3"
       )}>
+        {!collapsed && (
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+            Trading
+          </div>
+        )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
           {primaryNav.map((item) => (
             collapsed ? (
@@ -208,9 +213,14 @@ export function CommandRail() {
         </div>
 
         <div className={cn(
-          "my-4 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent"
+          "my-3 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent"
         )} />
 
+        {!collapsed && (
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+            Research
+          </div>
+        )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
           {secondaryNav.map((item) => (
             collapsed ? (
@@ -222,9 +232,14 @@ export function CommandRail() {
         </div>
 
         <div className={cn(
-          "my-4 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/50 to-transparent"
+          "my-3 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent"
         )} />
 
+        {!collapsed && (
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+            Settings
+          </div>
+        )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
           {utilityNav.map((item) => (
             collapsed ? (

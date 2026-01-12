@@ -11,7 +11,7 @@ const AuroraLayoutContext = createContext<AuroraLayoutContextType | null>(null);
 export function AuroraLayoutProvider({ children }: { children: ReactNode }) {
   const [railCollapsed, setRailCollapsed] = useState(true);
   
-  const railWidth = railCollapsed ? 72 : 220;
+  const railWidth = railCollapsed ? 68 : 200;
 
   return (
     <AuroraLayoutContext.Provider value={{ railCollapsed, setRailCollapsed, railWidth }}>
@@ -23,7 +23,7 @@ export function AuroraLayoutProvider({ children }: { children: ReactNode }) {
 export function useAuroraLayout() {
   const context = useContext(AuroraLayoutContext);
   if (!context) {
-    return { railCollapsed: true, setRailCollapsed: () => {}, railWidth: 72 };
+    return { railCollapsed: true, setRailCollapsed: () => {}, railWidth: 68 };
   }
   return context;
 }
