@@ -844,11 +844,11 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
     }
     
     // Clean up old entries
-    for (const [key, timestamp] of recentQuantIdeas) {
+    Array.from(recentQuantIdeas.entries()).forEach(([key, timestamp]) => {
       if (now - timestamp > QUANT_IDEA_COOLDOWN_MS) {
         recentQuantIdeas.delete(key);
       }
-    }
+    });
     
     // Filter for quality: A/A+ grade only (stricter), confidence >= 90
     const qualityIdeas = ideas.filter((i: any) => {
@@ -1004,9 +1004,9 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
     lastFlowAlertTime = now;
     
     // Clean up old cooldowns
-    for (const [sym, ts] of flowAlertCooldown) {
+    Array.from(flowAlertCooldown.entries()).forEach(([sym, ts]) => {
       if (now - ts > FLOW_ALERT_COOLDOWN_MS) flowAlertCooldown.delete(sym);
-    }
+    });
     
     await fetch(webhookUrl, {
       method: 'POST',
@@ -1062,11 +1062,11 @@ export async function sendMarketMoversAlertToDiscord(movers: {
     }
     
     // Clean up old entries
-    for (const [symbol, data] of recentAlertedSymbols) {
+    Array.from(recentAlertedSymbols.entries()).forEach(([symbol, data]) => {
       if (now - data.timestamp > ALERT_COOLDOWN_MS) {
         recentAlertedSymbols.delete(symbol);
       }
-    }
+    });
     
     // Filter to only >10% moves AND are A/A+ grade AND not alerted today
     const filteredMovers = movers.filter(m => {

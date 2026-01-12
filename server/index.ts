@@ -1019,14 +1019,14 @@ app.use((req, res, next) => {
     
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
     
-    // CONSOLIDATED BOT SCANNING - Opportunistic, not redundant
-    // Single unified scan loop that checks for opportunities once, then monitors positions
+    // CONSOLIDATED BOT SCANNING - Fast opportunistic scanning every 3 minutes
+    // Single unified scan loop that checks for opportunities then monitors positions
     const lastScanTime: Record<string, number> = {};
-    const SCAN_COOLDOWN_MS = 15 * 60 * 1000; // 15 minute cooldown between full scans
-    const POSITION_CHECK_MS = 5 * 60 * 1000; // 5 minute cooldown for position monitoring
+    const SCAN_COOLDOWN_MS = 6 * 60 * 1000; // 6 minute cooldown between full scans (every other cycle)
+    const POSITION_CHECK_MS = 3 * 60 * 1000; // 3 minute cooldown for position monitoring
     
-    // Unified options bot - scans ONCE then only monitors positions
-    cron.default.schedule('*/5 * * * *', async () => {
+    // Unified options bot - fast 3-minute scanning cycle
+    cron.default.schedule('*/3 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
@@ -1060,12 +1060,12 @@ app.use((req, res, next) => {
       }
     });
     
-    log('🤖 Unified Options Bot started - opportunistic scanning with 15min cooldown (9:30 AM-4:00 PM ET)');
+    log('🤖 Unified Options Bot started - fast 3-minute scanning cycle (9:30 AM-4:00 PM ET)');
     log('🎰 Lotto Scanner added - hunts cheap far-OTM weeklies during market hours');
     
     // UNIFIED FUTURES BOT - Combines Futures + Prop Firm (both scan NQ, no need for redundancy)
-    // Scans once every 15 min, monitors positions every 5 min
-    cron.default.schedule('*/5 * * * *', async () => {
+    // Fast 3-minute scanning cycle
+    cron.default.schedule('*/3 * * * *', async () => {
       try {
         const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
         
@@ -1105,10 +1105,10 @@ app.use((req, res, next) => {
       }
     });
     
-    log('🔮 Unified Futures Bot started - opportunistic NQ/GC scanning with 15min cooldown (CME hours)');
+    log('🔮 Unified Futures Bot started - fast 3-minute scanning cycle (CME hours)');
     
-    // CRYPTO BOT - Opportunistic scanning with cooldown
-    cron.default.schedule('*/10 * * * *', async () => {
+    // CRYPTO BOT - Fast 3-minute scanning cycle (24/7 markets)
+    cron.default.schedule('*/3 * * * *', async () => {
       try {
         const now = Date.now();
         const lastCryptoScan = lastScanTime['crypto'] || 0;
@@ -1117,9 +1117,9 @@ app.use((req, res, next) => {
         // Always monitor positions
         await monitorCryptoPositions();
         
-        // Only full scan every 20 min
-        if (now - lastCryptoScan >= 20 * 60 * 1000) {
-          logger.info('🪙 [CRYPTO-BOT] Running opportunistic crypto scan...');
+        // Full scan every 6 min (every other cycle)
+        if (now - lastCryptoScan >= SCAN_COOLDOWN_MS) {
+          logger.info('🪙 [CRYPTO-BOT] Running crypto scan...');
           await runCryptoBotScan();
           lastScanTime['crypto'] = now;
         }
@@ -1128,7 +1128,7 @@ app.use((req, res, next) => {
       }
     });
     
-    log('🪙 Crypto Bot started - opportunistic scanning with 20min cooldown (24/7 markets)');
+    log('🪙 Crypto Bot started - fast 3-minute scanning cycle (24/7 markets)');
     
     // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
     cron.default.schedule('*/30 * * * *', async () => {
