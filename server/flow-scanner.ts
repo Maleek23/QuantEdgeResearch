@@ -915,22 +915,44 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
 }
 
 // Check if market hours (9:30 AM - 4:00 PM ET, Mon-Fri)
+// Uses direct UTC offset calculation since toLocaleString timezone is broken in this environment
 export function isMarketHoursForFlow(): boolean {
   const now = new Date();
-  const etOptions = { timeZone: 'America/New_York' };
-  const etTime = new Date(now.toLocaleString('en-US', etOptions));
   
-  const day = etTime.getDay();
-  const hour = etTime.getHours();
-  const minute = etTime.getMinutes();
-  const timeInMinutes = hour * 60 + minute;
+  // Calculate ET time using UTC offset (EST = UTC-5, but we use -5 for standard time in January)
+  // This avoids the broken toLocaleString timezone conversion
+  const utcHour = now.getUTCHours();
+  const utcMinute = now.getUTCMinutes();
+  const utcDay = now.getUTCDay();
+  
+  // EST offset: UTC-5 (January is standard time, not daylight saving)
+  const etOffset = -5;
+  let etHour = utcHour + etOffset;
+  let etDay = utcDay;
+  
+  // Handle day wraparound
+  if (etHour < 0) {
+    etHour += 24;
+    etDay = (etDay + 6) % 7; // Previous day
+  } else if (etHour >= 24) {
+    etHour -= 24;
+    etDay = (etDay + 1) % 7; // Next day
+  }
+  
+  const timeInMinutes = etHour * 60 + utcMinute;
   
   // Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
   const marketOpen = 9 * 60 + 30;  // 9:30 AM
   const marketClose = 16 * 60;      // 4:00 PM
   
-  const isWeekday = day >= 1 && day <= 5;
+  const isWeekday = etDay >= 1 && etDay <= 5;
   const isWithinHours = timeInMinutes >= marketOpen && timeInMinutes < marketClose;
+  
+  // Log for debugging
+  const etTimeStr = `${etHour.toString().padStart(2, '0')}:${utcMinute.toString().padStart(2, '0')}`;
+  if (!isWeekday || !isWithinHours) {
+    console.log(`🕐 [MARKET-HOURS] ET: ${etTimeStr}, Day: ${etDay}, Market: ${isWeekday && isWithinHours ? 'OPEN' : 'CLOSED'}`);
+  }
   
   return isWeekday && isWithinHours;
 }
