@@ -3382,34 +3382,51 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner`);
     }
     
-    // 🎯 A+ TRADE IDEAS: Fetch high-grade ideas from Trade Desk that haven't been traded
-    let aGradeIdeaSymbols: string[] = [];
+    // 🎯 HIGH-GRADE TRADE IDEAS: Fetch B+ and higher grade ideas from Trade Desk that haven't been traded
+    let highGradeIdeaSymbols: string[] = [];
     try {
       const recentIdeas = await storage.getTradeIdeas();
       const now = Date.now();
-      const oneHourAgo = now - (60 * 60 * 1000);
+      const fourHoursAgo = now - (4 * 60 * 60 * 1000); // Extended to 4 hours for more coverage
       
-      // Get A+/A/A- grade option ideas from the last hour that are still active
-      const aGradeIdeas = recentIdeas.filter(idea => {
+      // Get B+ and higher grade option ideas that are still active
+      // Grades in order: A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F
+      const highGrades = ['A+', 'A', 'A-', 'B+'];
+      const highGradeIdeas = recentIdeas.filter(idea => {
         const grade = idea.probabilityBand || '';
-        const isAGrade = ['A+', 'A', 'A-'].includes(grade);
+        const isHighGrade = highGrades.includes(grade);
         const isOption = idea.assetType === 'option';
-        const isRecent = idea.createdAt && new Date(idea.createdAt).getTime() > oneHourAgo;
+        const isRecent = idea.createdAt && new Date(idea.createdAt).getTime() > fourHoursAgo;
         // Case-insensitive status check - "Active", "active", or no status
         const statusLower = (idea.status || '').toLowerCase();
         const isActive = statusLower === 'active' || statusLower === '' || !idea.status;
-        // A-grade already means high confidence - no additional filter needed (some A+ are 89%)
-        return isAGrade && isOption && isRecent && isActive;
+        // B+ and higher already validated - no additional confidence filter
+        return isHighGrade && isOption && isRecent && isActive;
       });
       
-      // Extract unique symbols
-      aGradeIdeaSymbols = [...new Set(aGradeIdeas.map(i => i.symbol))];
+      // Sort by grade priority (A+ first, then A, A-, B+)
+      const gradePriority: Record<string, number> = { 'A+': 0, 'A': 1, 'A-': 2, 'B+': 3 };
+      highGradeIdeas.sort((a, b) => {
+        const gradeA = gradePriority[a.probabilityBand || ''] ?? 99;
+        const gradeB = gradePriority[b.probabilityBand || ''] ?? 99;
+        return gradeA - gradeB;
+      });
       
-      if (aGradeIdeaSymbols.length > 0) {
-        logger.info(`🎯 [BOT] A-GRADE IDEAS from Trade Desk: ${aGradeIdeaSymbols.join(', ')} (${aGradeIdeaSymbols.length} symbols with A+/A/A- grade)`);
+      // Extract unique symbols (preserving priority order)
+      const seenSymbols = new Set<string>();
+      highGradeIdeaSymbols = highGradeIdeas
+        .filter(i => {
+          if (seenSymbols.has(i.symbol)) return false;
+          seenSymbols.add(i.symbol);
+          return true;
+        })
+        .map(i => i.symbol);
+      
+      if (highGradeIdeaSymbols.length > 0) {
+        logger.info(`🎯 [BOT] HIGH-GRADE IDEAS from Trade Desk: ${highGradeIdeaSymbols.join(', ')} (${highGradeIdeaSymbols.length} symbols with B+ or higher)`);
       }
     } catch (err) {
-      logger.debug(`🤖 [BOT] Could not fetch A-grade trade ideas`);
+      logger.debug(`🤖 [BOT] Could not fetch high-grade trade ideas`);
     }
     
     // 🎯 PRIORITY ORDER: A-grade ideas FIRST, then Watchlist S/A tier, then user priorities, then dynamic movers, then static list
@@ -3434,8 +3451,8 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.debug(`🤖 [BOT] Watchlist priority service unavailable`);
     }
     
-    // 0a. Add A-GRADE IDEA symbols first (highest priority - these are already validated high-grade!)
-    for (const ticker of aGradeIdeaSymbols) {
+    // 0a. Add HIGH-GRADE IDEA symbols first (highest priority - B+ and above from Trade Desk!)
+    for (const ticker of highGradeIdeaSymbols) {
       if (!seenTickers.has(ticker)) {
         seenTickers.add(ticker);
         orderedTickers.push(ticker);
@@ -3475,7 +3492,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     const combinedTickers = orderedTickers;
-    logger.info(`🤖 [BOT] Scan order: ${aGradeIdeaSymbols.length} A-grade ideas → ${watchlistEliteSymbols.length} watchlist S/A → ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
+    logger.info(`🤖 [BOT] Scan order: ${highGradeIdeaSymbols.length} B+/higher ideas → ${watchlistEliteSymbols.length} watchlist S/A → ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
