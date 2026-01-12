@@ -4947,6 +4947,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       openIdeas = deconflictedIdeas;
       
+      // 🎯 RELIABILITY FILTER: Minimum confidence for options trades (same as Trade Ideas)
+      const MIN_OPTIONS_CONFIDENCE_BEST = 70;
+      openIdeas = openIdeas.filter(idea => {
+        if (idea.assetType === 'option' || idea.optionType) {
+          return (idea.confidenceScore || 0) >= MIN_OPTIONS_CONFIDENCE_BEST;
+        }
+        return true;
+      });
+      
       // Apply time filter based on period using multiple timestamp sources
       // Priority: timestamp > entryValidUntil > exitBy (fallback to showing all open if no dates)
       const getIdeaDate = (idea: any): Date | null => {
