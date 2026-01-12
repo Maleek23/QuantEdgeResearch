@@ -4345,28 +4345,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { symbol } = req.params;
       const marketData = await storage.getMarketDataBySymbol(symbol);
       
-      if (!marketData) {
-        return res.status(404).json({ error: "Symbol not found" });
-      }
+      // Default to stock if symbol not in market data
+      const assetType = marketData?.assetType || 'stock';
+      const currentPrice = marketData?.currentPrice || null;
 
-      // Fetch last 20 days of price history for sparkline
-      const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
-      const prices = await fetchHistoricalPrices(
-        symbol,
-        marketData.assetType,
-        20, // Last 20 data points
-        alphaVantageKey,
-        undefined // coinId - will be looked up from CRYPTO_SYMBOL_MAP if needed
-      );
+      // Try to fetch historical prices, return empty array if fails
+      let prices: number[] = [];
+      try {
+        const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+        prices = await fetchHistoricalPrices(
+          symbol,
+          assetType,
+          20, // Last 20 data points
+          alphaVantageKey,
+          undefined // coinId - will be looked up from CRYPTO_SYMBOL_MAP if needed
+        );
+      } catch (e) {
+        // Return empty prices if historical data unavailable
+        logger.warn(`[SPARKLINE] Could not fetch historical prices for ${symbol}`);
+      }
 
       res.json({ 
         symbol,
-        prices,
-        currentPrice: marketData.currentPrice
+        prices: prices || [],
+        currentPrice
       });
     } catch (error) {
       console.error("Sparkline data error:", error);
-      res.status(500).json({ error: "Failed to fetch sparkline data" });
+      // Return empty data instead of error to prevent UI crashes
+      res.json({ symbol: req.params.symbol, prices: [], currentPrice: null });
     }
   });
 
