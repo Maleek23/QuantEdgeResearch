@@ -23,6 +23,7 @@ import {
   Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders, Rocket, Sparkles, RotateCcw
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import type { WatchlistItem, PaperPosition, TradeIdea } from "@shared/schema";
@@ -149,6 +150,8 @@ export default function WatchlistBotPage() {
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
   const [portfolioTab, setPortfolioTab] = useState<'options' | 'futures' | 'crypto'>('options');
+  const [selectedPortfolio, setSelectedPortfolio] = useState<'options' | 'futures' | 'crypto' | 'smallaccount' | null>(null);
+  const [positionsTab, setPositionsTab] = useState<'open' | 'closed' | 'won' | 'lost'>('open');
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -693,7 +696,11 @@ export default function WatchlistBotPage() {
                 {/* Bot Cards Grid - 4 Cards in a Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Options Bot Card */}
-                  <Card className="glass-card border-pink-500/20" data-testid="card-options-bot">
+                  <Card 
+                    className="glass-card border-pink-500/20 cursor-pointer transition-all hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/10" 
+                    data-testid="card-options-bot"
+                    onClick={() => { setSelectedPortfolio('options'); setPositionsTab('open'); }}
+                  >
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -727,13 +734,17 @@ export default function WatchlistBotPage() {
                         </span>
                       </div>
                       <div className="pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-muted-foreground">Auto-Lotto Bot • $300 starting capital</p>
+                        <p className="text-[10px] text-muted-foreground">Auto-Lotto Bot • $300 starting capital • Click to view plays</p>
                       </div>
                     </CardContent>
                   </Card>
 
                   {/* Futures Bot Card */}
-                  <Card className="glass-card border-cyan-500/20" data-testid="card-futures-bot">
+                  <Card 
+                    className="glass-card border-cyan-500/20 cursor-pointer transition-all hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10" 
+                    data-testid="card-futures-bot"
+                    onClick={() => { setSelectedPortfolio('futures'); setPositionsTab('open'); }}
+                  >
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -767,13 +778,17 @@ export default function WatchlistBotPage() {
                         </span>
                       </div>
                       <div className="pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-muted-foreground">NQ/GC Bot • $300 starting capital</p>
+                        <p className="text-[10px] text-muted-foreground">NQ/GC Bot • $300 starting capital • Click to view plays</p>
                       </div>
                     </CardContent>
                   </Card>
 
                   {/* Crypto Bot Card */}
-                  <Card className="glass-card border-amber-500/20" data-testid="card-crypto-bot">
+                  <Card 
+                    className="glass-card border-amber-500/20 cursor-pointer transition-all hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10" 
+                    data-testid="card-crypto-bot"
+                    onClick={() => { setSelectedPortfolio('crypto'); setPositionsTab('open'); }}
+                  >
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -807,13 +822,17 @@ export default function WatchlistBotPage() {
                         </span>
                       </div>
                       <div className="pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-muted-foreground">24/7 Crypto Bot • $300 starting capital</p>
+                        <p className="text-[10px] text-muted-foreground">24/7 Crypto Bot • $300 starting capital • Click to view plays</p>
                       </div>
                     </CardContent>
                   </Card>
 
                   {/* Small Account Bot Card */}
-                  <Card className="glass-card border-emerald-500/20" data-testid="card-smallaccount-bot">
+                  <Card 
+                    className="glass-card border-emerald-500/20 cursor-pointer transition-all hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10" 
+                    data-testid="card-smallaccount-bot"
+                    onClick={() => { setSelectedPortfolio('smallaccount'); setPositionsTab('open'); }}
+                  >
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -847,7 +866,7 @@ export default function WatchlistBotPage() {
                         </span>
                       </div>
                       <div className="pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-muted-foreground">$0.20-$1.00 premiums • 5+ DTE • $150 capital</p>
+                        <p className="text-[10px] text-muted-foreground">$0.20-$1.00 premiums • 5+ DTE • $150 capital • Click to view plays</p>
                       </div>
                     </CardContent>
                   </Card>
