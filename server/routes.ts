@@ -4600,17 +4600,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       
-      // Dynamic timing-aware filtering based on current market bias
-      // Instead of blanket SHORT removal, we filter based on what's relevant RIGHT NOW
-      const marketContext = await getMarketContext();
-      if (marketContext.preferredDirection === 'LONG') {
-        const beforeCount = ideas.length;
-        ideas = ideas.filter(idea => idea.direction !== 'SHORT');
-        if (beforeCount !== ideas.length) {
-          logger.info(`[TRADE-IDEAS] Market bias LONG - filtered ${beforeCount - ideas.length} SHORT ideas`);
+      // 🎯 RELIABILITY FILTER: Remove conflicting directional signals
+      // If we have both CALL and PUT for same symbol, keep only the higher conviction one
+      // This prevents flip-flopping and builds trust in directional calls
+      const symbolGroups = new Map<string, typeof ideas>();
+      for (const idea of ideas) {
+        const key = idea.symbol;
+        if (!symbolGroups.has(key)) {
+          symbolGroups.set(key, []);
+        }
+        symbolGroups.get(key)!.push(idea);
+      }
+      
+      const deconflictedIdeas: typeof ideas = [];
+      for (const [symbol, symbolIdeas] of symbolGroups) {
+        // Check for conflicting directions (CALL vs PUT, or LONG vs SHORT)
+        const hasLong = symbolIdeas.some(i => i.direction === 'LONG' || i.optionType === 'call');
+        const hasShort = symbolIdeas.some(i => i.direction === 'SHORT' || i.optionType === 'put');
+        
+        if (hasLong && hasShort) {
+          // Conflict detected - keep only the highest conviction direction
+          const longIdeas = symbolIdeas.filter(i => i.direction === 'LONG' || i.optionType === 'call');
+          const shortIdeas = symbolIdeas.filter(i => i.direction === 'SHORT' || i.optionType === 'put');
+          
+          const maxLongConfidence = Math.max(...longIdeas.map(i => i.confidenceScore || 0));
+          const maxShortConfidence = Math.max(...shortIdeas.map(i => i.confidenceScore || 0));
+          
+          // Only keep the stronger direction, require 10+ point advantage
+          if (maxLongConfidence >= maxShortConfidence + 10) {
+            deconflictedIdeas.push(...longIdeas);
+            logger.info(`[TRADE-IDEAS] ${symbol}: Removed ${shortIdeas.length} conflicting SHORT/PUT (LONG confidence ${maxLongConfidence} vs ${maxShortConfidence})`);
+          } else if (maxShortConfidence >= maxLongConfidence + 10) {
+            deconflictedIdeas.push(...shortIdeas);
+            logger.info(`[TRADE-IDEAS] ${symbol}: Removed ${longIdeas.length} conflicting LONG/CALL (SHORT confidence ${maxShortConfidence} vs ${maxLongConfidence})`);
+          } else {
+            // Neither direction has strong enough advantage - drop both to avoid confusion
+            logger.info(`[TRADE-IDEAS] ${symbol}: Dropped all ideas - no clear directional edge (LONG ${maxLongConfidence} vs SHORT ${maxShortConfidence})`);
+          }
+        } else {
+          // No conflict - keep all ideas for this symbol
+          deconflictedIdeas.push(...symbolIdeas);
         }
       }
-      // When preferredDirection is 'BOTH' or 'SHORT', show all ideas
+      ideas = deconflictedIdeas;
+      
+      // 🎯 RELIABILITY FILTER: Minimum confidence for options trades
+      // Options require strong conviction due to premium cost and time decay
+      const MIN_OPTIONS_CONFIDENCE = 70;
+      const beforeOptionsFilter = ideas.length;
+      ideas = ideas.filter(idea => {
+        if (idea.assetType === 'option' || idea.optionType) {
+          return (idea.confidenceScore || 0) >= MIN_OPTIONS_CONFIDENCE;
+        }
+        return true; // Keep non-options ideas
+      });
+      if (beforeOptionsFilter !== ideas.length) {
+        logger.info(`[TRADE-IDEAS] Filtered ${beforeOptionsFilter - ideas.length} low-confidence options (min ${MIN_OPTIONS_CONFIDENCE}%)`);
+      }
       
       // Apply quality filter if requested (70%+ confidence AND 4+ signals)
       if (qualityFilter === 'high') {
@@ -4868,16 +4914,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         i.entryPrice && i.targetPrice && i.stopLoss
       );
       
-      // Dynamic timing-aware filtering based on current market bias
-      const marketContext = await getMarketContext();
-      if (marketContext.preferredDirection === 'LONG') {
-        const beforeCount = openIdeas.length;
-        openIdeas = openIdeas.filter(i => i.direction !== 'SHORT');
-        if (beforeCount !== openIdeas.length) {
-          logger.info(`[BEST-SETUPS] Market bias LONG - filtered ${beforeCount - openIdeas.length} SHORT ideas`);
+      // 🎯 RELIABILITY FILTER: Remove conflicting directional signals for Best Setups
+      // Only show the strongest directional conviction per symbol
+      const symbolGroups = new Map<string, typeof openIdeas>();
+      for (const idea of openIdeas) {
+        if (!symbolGroups.has(idea.symbol)) {
+          symbolGroups.set(idea.symbol, []);
+        }
+        symbolGroups.get(idea.symbol)!.push(idea);
+      }
+      
+      const deconflictedIdeas: typeof openIdeas = [];
+      for (const [symbol, symbolIdeas] of symbolGroups) {
+        const hasLong = symbolIdeas.some(i => i.direction === 'LONG' || i.optionType === 'call');
+        const hasShort = symbolIdeas.some(i => i.direction === 'SHORT' || i.optionType === 'put');
+        
+        if (hasLong && hasShort) {
+          const longIdeas = symbolIdeas.filter(i => i.direction === 'LONG' || i.optionType === 'call');
+          const shortIdeas = symbolIdeas.filter(i => i.direction === 'SHORT' || i.optionType === 'put');
+          const maxLongConf = Math.max(...longIdeas.map(i => i.confidenceScore || 0));
+          const maxShortConf = Math.max(...shortIdeas.map(i => i.confidenceScore || 0));
+          
+          if (maxLongConf >= maxShortConf + 10) {
+            deconflictedIdeas.push(...longIdeas);
+          } else if (maxShortConf >= maxLongConf + 10) {
+            deconflictedIdeas.push(...shortIdeas);
+          }
+          // Drop both if no clear edge
+        } else {
+          deconflictedIdeas.push(...symbolIdeas);
         }
       }
-      // When preferredDirection is 'BOTH', show all directions
+      openIdeas = deconflictedIdeas;
       
       // Apply time filter based on period using multiple timestamp sources
       // Priority: timestamp > entryValidUntil > exitBy (fallback to showing all open if no dates)

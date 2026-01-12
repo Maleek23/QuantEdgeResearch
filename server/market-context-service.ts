@@ -170,10 +170,14 @@ function analyzeMarketConditions(
     // Strong bullish conditions - only show LONG plays
     preferredDirection = 'LONG';
     reasons.push('📈 Bullish bias: Showing LONG plays only');
+  } else if (regime === 'trending_down' && riskSentiment === 'risk_off') {
+    // Strong bearish conditions - prioritize SHORT plays
+    preferredDirection = 'SHORT';
+    reasons.push('📉 Bearish bias: SHORT plays prioritized');
   } else if (regime === 'trending_down' || riskSentiment === 'risk_off') {
-    // Bearish/fear conditions - SHORTs become relevant
+    // Moderate bearish - show both but SHORTs are valid
     preferredDirection = 'BOTH';
-    reasons.push('📉 Bearish/mixed: SHORT plays now relevant');
+    reasons.push('📉 Bearish lean: SHORT plays now relevant');
   } else if (regime === 'volatile') {
     // Volatile - both directions valid for hedging
     preferredDirection = 'BOTH';
@@ -182,6 +186,10 @@ function analyzeMarketConditions(
     // Mild bullish lean - prefer LONG
     preferredDirection = 'LONG';
     reasons.push('📈 Mild bullish: Preferring LONG plays');
+  } else if (spyChange < -0.3) {
+    // Mild bearish lean - prefer SHORT
+    preferredDirection = 'SHORT';
+    reasons.push('📉 Mild bearish: Preferring SHORT plays');
   }
 
   return {
