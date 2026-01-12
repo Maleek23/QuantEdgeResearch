@@ -336,12 +336,19 @@
   box-shadow: 0 6px 24px rgba(255, 159, 10, 0.25);
 }
 
-/* Dark mode glass card */
+/* Dark mode glass card - Aurora Grid styling */
 .dark .glass-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  box-shadow: 0 0 30px -10px rgba(34, 211, 238, 0.08);
+  transition: all 0.3s ease;
+}
+
+.dark .glass-card:hover {
+  border-color: rgba(51, 65, 85, 0.6);
+  box-shadow: 0 0 40px -10px rgba(34, 211, 238, 0.12);
 }
 
 /* Light mode glass card - clean white with subtle shadow */

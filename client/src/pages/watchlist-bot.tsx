@@ -148,6 +148,7 @@ export default function WatchlistBotPage() {
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
+  const [portfolioTab, setPortfolioTab] = useState<'options' | 'futures' | 'crypto'>('options');
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -409,21 +410,21 @@ export default function WatchlistBotPage() {
   const weekRange = useMemo(() => getWeekRange(), []);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+          <p className="text-xs font-mono font-medium uppercase tracking-widest text-slate-500 mb-2">
             Trading Week: {weekRange}
           </p>
-          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3 text-slate-100">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 border border-pink-500/30 flex items-center justify-center shadow-[0_0_15px_-3px_rgba(236,72,153,0.3)]">
               <Bot className="h-5 w-5 text-pink-400" />
             </div>
             Automations Hub
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot-main">
+          <Button variant="outline" className="border-slate-700/50 bg-slate-900/30 text-slate-300 hover:bg-slate-800/50 hover:text-slate-100" onClick={() => refetchBot()} data-testid="button-refresh-bot-main">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -431,7 +432,7 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-4xl grid-cols-6">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6 bg-slate-900/50 backdrop-blur-xl border border-slate-700/30 p-1">
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
             Auto-Lotto
