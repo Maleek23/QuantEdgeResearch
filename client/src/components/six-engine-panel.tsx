@@ -236,13 +236,15 @@ export function SixEnginePanel({
   technicalScore = 50,
   flowScore = 50
 }: SixEnginePanelProps) {
-  const { data: mlData, isLoading: mlLoading } = useQuery<{
+  const { data: mlData, isLoading: mlLoading, isError: mlError } = useQuery<{
     prediction?: { direction: string; confidence: number };
     sentiment?: { score: number };
     regime?: { confidence: number };
   }>({
     queryKey: ['/api/ml/signal', symbol],
     enabled: !!symbol,
+    retry: 1, // Only retry once to avoid long waits
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const engines: EngineScore[] = [
@@ -302,7 +304,8 @@ export function SixEnginePanel({
     }
   ];
 
-  if (mlLoading) {
+  // Show loading state only briefly - if error or loading too long, show with fallback data
+  if (mlLoading && !mlError) {
     return (
       <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30" data-testid="six-engine-panel">
         <CardContent className="py-12 flex items-center justify-center">
@@ -314,6 +317,9 @@ export function SixEnginePanel({
       </Card>
     );
   }
+
+  // If there's an error (e.g., weekend, stale data), show fallback with passed-in scores
+  const showDataWarning = mlError;
 
   return (
     <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_40px_-15px_rgba(34,211,238,0.08)]" data-testid="six-engine-panel">
@@ -332,9 +338,16 @@ export function SixEnginePanel({
               </p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-slate-800/50 border-cyan-500/30 text-cyan-400 text-xs">
-            {assetClass.toUpperCase()}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {showDataWarning && (
+              <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-400 text-xs">
+                Using cached data
+              </Badge>
+            )}
+            <Badge variant="outline" className="bg-slate-800/50 border-cyan-500/30 text-cyan-400 text-xs">
+              {assetClass.toUpperCase()}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
