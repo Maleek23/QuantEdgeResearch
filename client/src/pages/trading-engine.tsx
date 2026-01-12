@@ -46,6 +46,7 @@ import {
 import { DataStatusBanner } from "@/components/data-status-banner";
 import { BullishPatternWidget, SectorHeatWidget } from "@/components/bullish-pattern-widget";
 import { AnalysisHub } from "@/components/analysis-hub";
+import { SixEnginePanel } from "@/components/six-engine-panel";
 
 interface TradingEngineResult {
   symbol: string;
@@ -726,6 +727,16 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
           </CardContent>
         </Card>
       )}
+      
+      <SixEnginePanel
+        symbol={symbol}
+        assetClass={assetClass}
+        currentPrice={data.technical?.levels?.currentPrice}
+        quantScore={typeof data.confluence?.score === 'number' ? data.confluence.score : undefined}
+        aiScore={typeof data.confluence?.score === 'number' ? Math.round((data.confluence.score + (typeof data.fundamental?.conviction === 'number' ? data.fundamental.conviction : 50)) / 2) : undefined}
+        sentimentScore={typeof data.newsContext?.sentimentScore === 'number' ? Math.round(data.newsContext.sentimentScore * 100) : undefined}
+        technicalScore={typeof data.technical?.momentum?.rsi14 === 'number' ? (data.technical.momentum.rsi14 > 50 ? Math.round(60 + (data.technical.momentum.rsi14 - 50) * 0.5) : Math.round(40 + (data.technical.momentum.rsi14) * 0.3)) : undefined}
+      />
       
       <Card className={cn(
         "bg-card/80 backdrop-blur-2xl border-border/60 shadow-2xl overflow-hidden transition-all duration-500",

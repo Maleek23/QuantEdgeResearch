@@ -27,6 +27,7 @@ import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
 import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
 import { SignalStrengthBadge } from "@/components/signal-strength-badge";
+import { EngineConsensusBadge } from "@/components/engine-mini-scores";
 import { getResolutionReasonLabel, getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
@@ -505,6 +506,15 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     )}
                   </TooltipContent>
                 </Tooltip>
+              )}
+
+              {/* 6-Engine Consensus - Multi-factor intelligence score */}
+              {typeof idea.confidenceScore === 'number' && idea.confidenceScore >= 50 && (
+                <EngineConsensusBadge 
+                  score={Math.min(100, Math.max(0, Math.round(idea.confidenceScore)))} 
+                  alignment={idea.confidenceScore >= 80 ? 5 : idea.confidenceScore >= 70 ? 4 : idea.confidenceScore >= 60 ? 3 : 2}
+                  size="sm"
+                />
               )}
 
               {/* Real-Time Applicability - Shows if trade is still valid */}
