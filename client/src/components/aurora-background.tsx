@@ -44,7 +44,7 @@ export function AuroraBackground() {
 
       ctx.strokeStyle = "rgba(34, 211, 238, 0.08)";
       ctx.lineWidth = 1;
-      const gridSize = 80;
+      const gridSize = 40;
       for (let x = 0; x < canvas.width; x += gridSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
