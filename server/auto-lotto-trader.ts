@@ -3382,7 +3382,37 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner`);
     }
     
-    // 🎯 PRIORITY ORDER: Watchlist S/A tier FIRST, then user priorities, then dynamic movers, then static list
+    // 🎯 A+ TRADE IDEAS: Fetch high-grade ideas from Trade Desk that haven't been traded
+    let aGradeIdeaSymbols: string[] = [];
+    try {
+      const recentIdeas = await storage.getTradeIdeas();
+      const now = Date.now();
+      const oneHourAgo = now - (60 * 60 * 1000);
+      
+      // Get A+/A/A- grade option ideas from the last hour that are still active
+      const aGradeIdeas = recentIdeas.filter(idea => {
+        const grade = idea.probabilityBand || '';
+        const isAGrade = ['A+', 'A', 'A-'].includes(grade);
+        const isOption = idea.assetType === 'option';
+        const isRecent = idea.createdAt && new Date(idea.createdAt).getTime() > oneHourAgo;
+        // Case-insensitive status check - "Active", "active", or no status
+        const statusLower = (idea.status || '').toLowerCase();
+        const isActive = statusLower === 'active' || statusLower === '' || !idea.status;
+        // A-grade already means high confidence - no additional filter needed (some A+ are 89%)
+        return isAGrade && isOption && isRecent && isActive;
+      });
+      
+      // Extract unique symbols
+      aGradeIdeaSymbols = [...new Set(aGradeIdeas.map(i => i.symbol))];
+      
+      if (aGradeIdeaSymbols.length > 0) {
+        logger.info(`🎯 [BOT] A-GRADE IDEAS from Trade Desk: ${aGradeIdeaSymbols.join(', ')} (${aGradeIdeaSymbols.length} symbols with A+/A/A- grade)`);
+      }
+    } catch (err) {
+      logger.debug(`🤖 [BOT] Could not fetch A-grade trade ideas`);
+    }
+    
+    // 🎯 PRIORITY ORDER: A-grade ideas FIRST, then Watchlist S/A tier, then user priorities, then dynamic movers, then static list
     // Deduplicate while preserving order (watchlist elite stay at front)
     const seenTickers = new Set<string>();
     const orderedTickers: string[] = [];
@@ -3404,6 +3434,15 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.debug(`🤖 [BOT] Watchlist priority service unavailable`);
     }
     
+    // 0a. Add A-GRADE IDEA symbols first (highest priority - these are already validated high-grade!)
+    for (const ticker of aGradeIdeaSymbols) {
+      if (!seenTickers.has(ticker)) {
+        seenTickers.add(ticker);
+        orderedTickers.push(ticker);
+      }
+    }
+    
+    // 0b. Add WATCHLIST S/A TIER symbols 
     for (const ticker of watchlistEliteSymbols) {
       if (!seenTickers.has(ticker)) {
         seenTickers.add(ticker);
@@ -3411,7 +3450,7 @@ export async function runAutonomousBotScan(): Promise<void> {
       }
     }
     
-    // 1. Add priority tickers second (user's favorites - BIDU, SOFI, UUUU, AMZN, QQQ, INTC, META, etc.)
+    // 1. Add priority tickers (user's favorites - BIDU, SOFI, UUUU, AMZN, QQQ, INTC, META, etc.)
     for (const ticker of PRIORITY_TICKERS) {
       if (!seenTickers.has(ticker)) {
         seenTickers.add(ticker);
@@ -3436,7 +3475,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     const combinedTickers = orderedTickers;
-    logger.info(`🤖 [BOT] Scan order: ${watchlistEliteSymbols.length} watchlist S/A → ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
+    logger.info(`🤖 [BOT] Scan order: ${aGradeIdeaSymbols.length} A-grade ideas → ${watchlistEliteSymbols.length} watchlist S/A → ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
