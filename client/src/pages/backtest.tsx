@@ -10,7 +10,7 @@ import {
   Search, TrendingUp, TrendingDown, Activity, BarChart3, 
   Target, AlertTriangle, Loader2, RefreshCw
 } from "lucide-react";
-import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time } from "lightweight-charts";
+import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time, CandlestickSeries, LineSeries } from "lightweight-charts";
 
 interface PatternData {
   name: string;
@@ -142,7 +142,7 @@ export default function BacktestPage() {
     
     chartRef.current = chart;
     
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e",
       downColor: "#ef4444",
       borderUpColor: "#22c55e",
@@ -162,7 +162,7 @@ export default function BacktestPage() {
     candleSeries.setData(candleData);
     
     if (patternData.bbSeries?.length) {
-      const bbUpper = chart.addLineSeries({
+      const bbUpper = chart.addSeries(LineSeries, {
         color: "#60a5fa",
         lineWidth: 1,
         lineStyle: 2,
@@ -171,7 +171,7 @@ export default function BacktestPage() {
       });
       bbUpperRef.current = bbUpper;
       
-      const bbMiddle = chart.addLineSeries({
+      const bbMiddle = chart.addSeries(LineSeries, {
         color: "#94a3b8",
         lineWidth: 1,
         lineStyle: 2,
@@ -180,7 +180,7 @@ export default function BacktestPage() {
       });
       bbMiddleRef.current = bbMiddle;
       
-      const bbLower = chart.addLineSeries({
+      const bbLower = chart.addSeries(LineSeries, {
         color: "#60a5fa",
         lineWidth: 1,
         lineStyle: 2,
@@ -207,22 +207,6 @@ export default function BacktestPage() {
       bbLower.setData(lowerData);
     }
     
-    if (patternData.patterns.length > 0) {
-      const lastCandle = patternData.candles[patternData.candles.length - 1];
-      patternData.patterns.forEach((pattern) => {
-        const markerColor = pattern.type === "bullish" ? "#22c55e" : pattern.type === "bearish" ? "#ef4444" : "#f59e0b";
-        const position = pattern.type === "bullish" ? "belowBar" : "aboveBar";
-        const shape = pattern.type === "bullish" ? "arrowUp" : pattern.type === "bearish" ? "arrowDown" : "circle";
-        
-        candleSeries.setMarkers([{
-          time: lastCandle.time as Time,
-          position: position as "aboveBar" | "belowBar",
-          color: markerColor,
-          shape: shape as "arrowUp" | "arrowDown" | "circle",
-          text: pattern.name,
-        }]);
-      });
-    }
     
     chart.timeScale().fitContent();
     
@@ -270,14 +254,14 @@ export default function BacktestPage() {
     
     rsiChartRef.current = chart;
     
-    const rsiSeries = chart.addLineSeries({
+    const rsiSeries = chart.addSeries(LineSeries, {
       color: "#8b5cf6",
       lineWidth: 2,
       priceLineVisible: false,
     });
     rsiSeriesRef.current = rsiSeries;
     
-    const overboughtLine = chart.addLineSeries({
+    const overboughtLine = chart.addSeries(LineSeries, {
       color: "#ef4444",
       lineWidth: 1,
       lineStyle: 2,
@@ -285,7 +269,7 @@ export default function BacktestPage() {
       lastValueVisible: false,
     });
     
-    const oversoldLine = chart.addLineSeries({
+    const oversoldLine = chart.addSeries(LineSeries, {
       color: "#22c55e",
       lineWidth: 1,
       lineStyle: 2,
