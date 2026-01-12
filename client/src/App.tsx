@@ -439,9 +439,11 @@ function AuroraContentWrapper() {
           <ThemeToggle />
         </div>
       </header>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-slate-950/50">
         <main className="min-h-full p-6">
-          <Router />
+          <Suspense fallback={<PageLoader />}>
+            <Router />
+          </Suspense>
         </main>
       </div>
     </div>
