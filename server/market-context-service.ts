@@ -5,6 +5,7 @@ import { isUSMarketOpen } from "@shared/market-calendar";
 export interface MarketContext {
   regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
   riskSentiment: 'risk_on' | 'risk_off' | 'neutral';
+  preferredDirection: 'LONG' | 'SHORT' | 'BOTH';  // Timing-aware directional bias
   score: number;
   shouldTrade: boolean;
   reasons: string[];
@@ -57,6 +58,7 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
     return {
       regime: 'ranging',
       riskSentiment: 'neutral',
+      preferredDirection: 'BOTH',
       score: 50,
       shouldTrade: marketStatus.isOpen,
       reasons: marketStatus.isOpen ? ['Market data unavailable - using neutral defaults'] : [`⛔ Market closed: ${marketStatus.reason}`],
@@ -82,6 +84,7 @@ function analyzeMarketConditions(
     return {
       regime: 'ranging',
       riskSentiment: 'neutral',
+      preferredDirection: 'BOTH',
       score: 50,
       shouldTrade: marketStatus.isOpen,
       reasons: marketStatus.isOpen ? ['SPY data unavailable'] : [`⛔ Market closed: ${marketStatus.reason}`],
@@ -159,9 +162,32 @@ function analyzeMarketConditions(
     reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime (${regime})`);
   }
 
+  // 🎯 TIMING-AWARE DIRECTIONAL BIAS
+  // Determines which direction trades are relevant RIGHT NOW based on market conditions
+  let preferredDirection: MarketContext['preferredDirection'] = 'BOTH';
+  
+  if (regime === 'trending_up' && riskSentiment === 'risk_on') {
+    // Strong bullish conditions - only show LONG plays
+    preferredDirection = 'LONG';
+    reasons.push('📈 Bullish bias: Showing LONG plays only');
+  } else if (regime === 'trending_down' || riskSentiment === 'risk_off') {
+    // Bearish/fear conditions - SHORTs become relevant
+    preferredDirection = 'BOTH';
+    reasons.push('📉 Bearish/mixed: SHORT plays now relevant');
+  } else if (regime === 'volatile') {
+    // Volatile - both directions valid for hedging
+    preferredDirection = 'BOTH';
+    reasons.push('⚡ Volatile: Both directions valid');
+  } else if (spyChange > 0.3) {
+    // Mild bullish lean - prefer LONG
+    preferredDirection = 'LONG';
+    reasons.push('📈 Mild bullish: Preferring LONG plays');
+  }
+
   return {
     regime,
     riskSentiment,
+    preferredDirection,
     score: Math.max(0, Math.min(100, score)),
     shouldTrade,
     reasons,

@@ -252,12 +252,8 @@ function BestSetupsCard() {
     queryFn: async () => {
       const res = await fetch(`/api/trade-ideas/best-setups?period=${period}&limit=5`);
       if (!res.ok) throw new Error('Failed to fetch best setups');
-      const data: BestSetupsResponse = await res.json();
-      // Filter out SHORT setups as requested for relevance
-      return {
-        ...data,
-        setups: data.setups.filter(s => s.direction !== 'SHORT')
-      };
+      // NOTE: Direction filtering handled server-side based on real-time market bias
+      return res.json();
     },
     refetchInterval: 60000,
     staleTime: 30000,
@@ -1118,15 +1114,13 @@ export default function TradeDeskPage() {
   })();
 
   const filteredIdeas = tradeIdeas.filter(idea => {
-    // Hide irrelevant SHORT plays as requested
-    if (idea.direction === 'SHORT') return false;
+    // NOTE: SHORT filtering is now handled server-side based on real-time market bias
+    // When market is bullish (trending_up + risk_on), SHORTs are filtered out
+    // When market is bearish/volatile, SHORTs become relevant and are shown
 
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
       (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
-    
-    // Direction filtering - hide irrelevant shorts as requested
-    if (idea.direction === 'SHORT') return false;
 
     const isDayTrade = idea.holdingPeriod === 'day';
     const matchesDirection = activeDirection === "all" || 

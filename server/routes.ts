@@ -4600,8 +4600,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       
-      // Filter out irrelevant SHORT plays as requested by user
-      ideas = ideas.filter(idea => idea.direction !== 'SHORT');
+      // Dynamic timing-aware filtering based on current market bias
+      // Instead of blanket SHORT removal, we filter based on what's relevant RIGHT NOW
+      const marketContext = await getMarketContext();
+      if (marketContext.preferredDirection === 'LONG') {
+        const beforeCount = ideas.length;
+        ideas = ideas.filter(idea => idea.direction !== 'SHORT');
+        if (beforeCount !== ideas.length) {
+          logger.info(`[TRADE-IDEAS] Market bias LONG - filtered ${beforeCount - ideas.length} SHORT ideas`);
+        }
+      }
+      // When preferredDirection is 'BOTH' or 'SHORT', show all ideas
       
       // Apply quality filter if requested (70%+ confidence AND 4+ signals)
       if (qualityFilter === 'high') {
@@ -4858,6 +4867,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (i.outcomeStatus === 'open' || !i.outcomeStatus) &&
         i.entryPrice && i.targetPrice && i.stopLoss
       );
+      
+      // Dynamic timing-aware filtering based on current market bias
+      const marketContext = await getMarketContext();
+      if (marketContext.preferredDirection === 'LONG') {
+        const beforeCount = openIdeas.length;
+        openIdeas = openIdeas.filter(i => i.direction !== 'SHORT');
+        if (beforeCount !== openIdeas.length) {
+          logger.info(`[BEST-SETUPS] Market bias LONG - filtered ${beforeCount - openIdeas.length} SHORT ideas`);
+        }
+      }
+      // When preferredDirection is 'BOTH', show all directions
       
       // Apply time filter based on period using multiple timestamp sources
       // Priority: timestamp > entryValidUntil > exitBy (fallback to showing all open if no dates)
