@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
@@ -7,6 +6,7 @@ import {
   Crosshair, TrendingUp, Bot, Wallet, BookOpen
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuroraLayout } from "@/contexts/aurora-layout-context";
 
 interface NavItem {
   icon: React.ElementType;
@@ -90,7 +90,7 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
 }
 
 export function CommandRail() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { railCollapsed: collapsed, setRailCollapsed: setCollapsed } = useAuroraLayout();
 
   return (
     <aside

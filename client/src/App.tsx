@@ -11,6 +11,7 @@ import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sid
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
+import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -340,7 +341,7 @@ function App() {
   }
 
   // Show app pages with Aurora Grid layout (new minimalist design)
-  const useAuroraLayout = true; // Feature flag for new design
+  const enableAuroraLayout = true; // Feature flag for new design
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -350,11 +351,13 @@ function App() {
             <PreferencesProvider>
               <ContentDensityProvider>
                 <AuroraBackground />
-                {useAuroraLayout ? (
-                  <div className="flex h-screen w-full">
-                    <CommandRail />
-                    <AuroraContentWrapper />
-                  </div>
+                {enableAuroraLayout ? (
+                  <AuroraLayoutProvider>
+                    <div className="flex h-screen w-full">
+                      <CommandRail />
+                      <AuroraContentWrapper />
+                    </div>
+                  </AuroraLayoutProvider>
                 ) : (
                   <SidebarProvider style={style as React.CSSProperties}>
                     <div className="flex h-screen w-full">
@@ -380,7 +383,7 @@ function AuroraContentWrapper() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
-  const [railCollapsed, setRailCollapsed] = useState(false);
+  const { railWidth } = useAuroraLayout();
   
   useEffect(() => {
     const updateStatus = () => {
@@ -401,10 +404,8 @@ function AuroraContentWrapper() {
 
   return (
     <div 
-      className={cn(
-        "flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10",
-        "ml-[72px]" // Offset for collapsed CommandRail - will be dynamic
-      )}
+      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10"
+      style={{ marginLeft: `${railWidth}px` }}
     >
       <header className="flex items-center justify-between h-14 px-6 border-b border-slate-800/30 bg-slate-950/60 backdrop-blur-xl">
         <div className="flex items-center gap-4">

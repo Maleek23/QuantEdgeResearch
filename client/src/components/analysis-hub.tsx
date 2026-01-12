@@ -129,57 +129,51 @@ function AnalysisLinkCard({ link, compact }: { link: AnalysisLink; compact?: boo
   if (compact) {
     return (
       <Link href={link.href}>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!link.available}
+        <div
           className={cn(
-            "h-auto py-2 px-3 flex items-center gap-2 transition-all",
-            link.available && link.borderColor,
-            !link.available && "opacity-50 cursor-not-allowed"
+            "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200",
+            "bg-slate-800/40 border border-slate-700/30 hover:border-cyan-500/40",
+            "hover:bg-slate-800/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)]",
+            !link.available && "opacity-40 pointer-events-none"
           )}
           data-testid={`link-${link.id}`}
         >
           <Icon className={cn("h-4 w-4", link.color)} />
-          <span className="text-xs font-medium">{link.title}</span>
-          <ChevronRight className="h-3 w-3 ml-auto text-muted-foreground" />
-        </Button>
+          <span className="text-xs font-medium text-slate-300">{link.title}</span>
+          <ChevronRight className="h-3 w-3 ml-auto text-slate-500" />
+        </div>
       </Link>
     );
   }
   
   return (
     <Link href={link.href}>
-      <Card 
+      <div 
         className={cn(
-          "group hover-elevate transition-all cursor-pointer",
-          link.bgColor, link.borderColor,
-          !link.available && "opacity-50 pointer-events-none"
+          "group p-4 rounded-lg transition-all duration-200 cursor-pointer",
+          "bg-slate-800/30 border border-slate-700/20",
+          "hover:bg-slate-800/50 hover:border-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.1)]",
+          !link.available && "opacity-40 pointer-events-none"
         )} 
         data-testid={`card-${link.id}`}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className={cn("p-2 rounded-lg", link.bgColor, "border", link.borderColor)}>
-              <Icon className={cn("h-5 w-5", link.color)} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm">{link.title}</h4>
-                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{link.description}</p>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {link.features.slice(0, 3).map((f) => (
-                  <Badge key={f} variant="outline" className="text-[9px] h-4 px-1.5">
-                    {f}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className={cn(
+            "p-2 rounded-lg border transition-all",
+            link.bgColor, link.borderColor,
+            "group-hover:shadow-[0_0_12px_rgba(34,211,238,0.15)]"
+          )}>
+            <Icon className={cn("h-4 w-4", link.color)} />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="font-medium text-sm text-slate-200">{link.title}</h4>
+              <ChevronRight className="h-3.5 w-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{link.description}</p>
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -210,36 +204,36 @@ function SignalConvergenceBar({ signals }: { signals: { source: string; directio
   const direction = bullish > bearish ? 'bullish' : bearish > bullish ? 'bearish' : 'neutral';
   
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">Signal Convergence</span>
-        <Badge variant="outline" className={cn(
-          "text-[10px]",
-          convergence >= 80 && "bg-green-500/10 text-green-400 border-green-500/30",
-          convergence >= 60 && convergence < 80 && "bg-amber-500/10 text-amber-400 border-amber-500/30",
-          convergence < 60 && "bg-muted/30 text-muted-foreground"
+    <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/20 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Signal Convergence</span>
+        <div className={cn(
+          "text-xs font-mono px-2 py-0.5 rounded",
+          convergence >= 80 && "bg-green-500/15 text-green-400",
+          convergence >= 60 && convergence < 80 && "bg-amber-500/15 text-amber-400",
+          convergence < 60 && "bg-slate-700/50 text-slate-400"
         )}>
           {convergence.toFixed(0)}% {direction}
-        </Badge>
+        </div>
       </div>
-      <div className="h-2 bg-muted/30 rounded-full overflow-hidden flex">
+      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
         <div 
-          className="bg-green-500 transition-all" 
+          className="bg-green-400 transition-all duration-500" 
           style={{ width: `${(bullish / total) * 100}%` }}
         />
         <div 
-          className="bg-muted-foreground/30 transition-all" 
+          className="bg-slate-600 transition-all duration-500" 
           style={{ width: `${((total - bullish - bearish) / total) * 100}%` }}
         />
         <div 
-          className="bg-red-500 transition-all" 
+          className="bg-red-400 transition-all duration-500" 
           style={{ width: `${(bearish / total) * 100}%` }}
         />
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>{bullish} bullish</span>
+      <div className="flex justify-between text-[10px] font-mono text-slate-500">
+        <span className="text-green-400/80">{bullish} bullish</span>
         <span>{total - bullish - bearish} neutral</span>
-        <span>{bearish} bearish</span>
+        <span className="text-red-400/80">{bearish} bearish</span>
       </div>
     </div>
   );
@@ -275,22 +269,22 @@ export function AnalysisHub({
   ];
   
   return (
-    <Card className="bg-card/70 backdrop-blur-xl border-border/60 shadow-xl overflow-hidden" data-testid="analysis-hub">
-      <CardHeader className="pb-3 border-b border-border/50">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-              <Layers className="h-5 w-5 text-primary" />
+    <Card className="bg-slate-900/60 backdrop-blur-2xl border-slate-700/30 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden" data-testid="analysis-hub">
+      <CardHeader className="pb-4 border-b border-slate-800/50">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]">
+              <Layers className="h-5 w-5 text-cyan-400" />
             </div>
             <div>
-              <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
-                Analysis Hub
-                <Badge variant="outline" className="text-[9px] font-mono">
+              <CardTitle className="text-base font-bold tracking-tight flex items-center gap-3">
+                <span className="text-slate-100">Analysis Hub</span>
+                <Badge className="text-[10px] font-mono bg-slate-800/80 text-cyan-400 border-cyan-500/30">
                   {symbol}
                 </Badge>
               </CardTitle>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-                Multi-dimensional analysis • {availableLinks.length} tools available
+              <p className="text-[11px] text-slate-500 tracking-wide mt-1">
+                {availableLinks.length} analysis tools available
               </p>
             </div>
           </div>
