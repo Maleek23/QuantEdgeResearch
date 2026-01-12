@@ -44,15 +44,15 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       category: 'technical'
     },
     {
-      id: 'ml-intelligence',
-      title: 'ML Intelligence Lab',
-      description: 'Machine learning predictions for direction, timing, and confidence scoring',
+      id: 'trading-engine',
+      title: '6-Engine Command Center',
+      description: 'Unified multi-engine analysis with ML, AI, Quant, Flow, Sentiment & Technical',
       icon: Brain,
-      href: `/ml-intelligence?symbol=${symbol}`,
+      href: `/trading-engine`,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/30',
-      features: ['Direction prediction', 'Entry/exit timing', 'Pattern recognition', 'Confidence scoring', 'XGBoost models'],
+      features: ['6-engine consensus', 'ML predictions', 'AI insights', 'Quant signals', 'Flow analysis'],
       available: true,
       category: 'ml'
     },

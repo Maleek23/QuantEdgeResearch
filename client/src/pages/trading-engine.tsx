@@ -280,6 +280,143 @@ function BotActivityMonitor() {
   );
 }
 
+// ML Intelligence Widget - Consolidated from ml-intelligence.tsx
+function MLIntelligenceWidget() {
+  const { data: status } = useQuery<{
+    isActive: boolean;
+    modelsLoaded: {
+      pricePredictor: boolean;
+      sentimentAnalyzer: boolean;
+      patternRecognizer: boolean;
+      positionSizer: boolean;
+      regimeDetector: boolean;
+    };
+    cacheStats: {
+      predictions: number;
+      sentiments: number;
+      regimes: number;
+    };
+    version: string;
+  }>({
+    queryKey: ['/api/ml/status'],
+    refetchInterval: 30000,
+  });
+
+  const { data: regime } = useQuery<{
+    regime: string;
+    confidence: number;
+    riskLevel: string;
+    recommendedStrategies: string[];
+  }>({
+    queryKey: ['/api/ml/regime'],
+    refetchInterval: 60000,
+  });
+
+  const { data: scan } = useQuery<{ scanned: number; signals: Array<{
+    symbol: string;
+    recommendation: string;
+    compositeScore: number;
+    direction: string;
+    confidence: number;
+  }> }>({
+    queryKey: ['/api/ml/scan'],
+    refetchInterval: 300000,
+  });
+
+  const modelsLoaded = status?.modelsLoaded ? Object.values(status.modelsLoaded).filter(Boolean).length : 0;
+  const topSignals = scan?.signals?.slice(0, 5) || [];
+
+  const getRegimeColor = (r: string) => {
+    if (r?.includes('bull')) return 'text-green-400';
+    if (r?.includes('bear')) return 'text-red-400';
+    if (r?.includes('high_volatility')) return 'text-amber-400';
+    return 'text-slate-400';
+  };
+
+  const getRiskColor = (level: string) => {
+    if (level === 'low') return 'bg-green-500/15 text-green-400 border-green-500/30';
+    if (level === 'medium') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    if (level === 'high') return 'bg-orange-500/15 text-orange-400 border-orange-500/30';
+    if (level === 'extreme') return 'bg-red-500/15 text-red-400 border-red-500/30';
+    return 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-purple-500/5 to-slate-900/50 backdrop-blur-xl border-purple-500/20 shadow-[0_0_30px_-10px_rgba(168,85,247,0.2)]" data-testid="card-ml-intelligence">
+      <CardHeader className="pb-2 border-b border-purple-500/20 mb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xs font-semibold text-purple-400 uppercase tracking-tighter flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            ML Intelligence
+          </CardTitle>
+          <Badge variant="outline" className={cn("text-[10px] font-mono", status?.isActive ? "text-green-400" : "text-amber-400")}>
+            {status?.isActive ? 'ACTIVE' : 'LOADING'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* System Status Row */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/30">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Models</div>
+            <div className="text-lg font-mono font-bold text-purple-400">{modelsLoaded}/5</div>
+          </div>
+          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/30">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Cache</div>
+            <div className="text-lg font-mono font-bold text-slate-300">{status?.cacheStats?.predictions || 0}</div>
+          </div>
+        </div>
+
+        {/* Market Regime */}
+        {regime && (
+          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wide">Regime</span>
+              <Badge className={cn("text-[10px]", getRiskColor(regime.riskLevel))}>
+                {regime.riskLevel?.toUpperCase() || 'UNKNOWN'}
+              </Badge>
+            </div>
+            <div className={cn("text-sm font-semibold capitalize", getRegimeColor(regime.regime))}>
+              {regime.regime?.replace(/_/g, ' ') || 'Analyzing...'}
+            </div>
+          </div>
+        )}
+
+        {/* Top ML Signals */}
+        {topSignals.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Top Signals</div>
+            {topSignals.map((s, i) => (
+              <div key={i} className="flex items-center justify-between p-2 rounded bg-slate-800/30 border border-slate-700/20">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-sm">{s.symbol}</span>
+                  {s.direction === 'bullish' && <TrendingUp className="w-3 h-3 text-green-400" />}
+                  {s.direction === 'bearish' && <TrendingDown className="w-3 h-3 text-red-400" />}
+                </div>
+                <Badge variant="outline" className={cn("text-[10px]",
+                  s.recommendation === 'strong_buy' ? "text-green-400" :
+                  s.recommendation === 'buy' ? "text-green-300" :
+                  s.recommendation === 'sell' ? "text-red-300" :
+                  s.recommendation === 'strong_sell' ? "text-red-400" : "text-slate-400"
+                )}>
+                  {s.confidence?.toFixed(0)}%
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Scanned Count */}
+        {scan?.scanned && (
+          <div className="text-[10px] text-center text-slate-500 font-mono">
+            {scan.scanned} symbols scanned
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function PaperPortfolios() {
   const { data: portfolios } = useQuery<Array<{
     id: string;
@@ -663,6 +800,22 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
           <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
         </Card>
       </div>
+    );
+  }
+
+  if (!symbol) {
+    return (
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30">
+        <CardContent className="py-16 text-center">
+          <div className="p-5 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-2xl border border-cyan-500/20 w-fit mx-auto mb-6">
+            <Search className="h-10 w-10 text-cyan-400/60" />
+          </div>
+          <h3 className="text-xl font-bold mb-2 text-slate-300">Enter a Symbol to Begin</h3>
+          <p className="text-muted-foreground font-mono text-sm max-w-md mx-auto">
+            The 6-engine analysis will provide ML, AI, Quant, Flow, Sentiment & Technical insights for any ticker.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -1183,10 +1336,10 @@ export default function TradingEnginePage() {
               </div>
 
               <div className="lg:col-span-4 space-y-6">
+                <MLIntelligenceWidget />
                 <BotActivityMonitor />
                 <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
                 <PaperPortfolios />
-                <IVRankWidget />
               </div>
             </div>
           </TabsContent>

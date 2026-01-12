@@ -76,7 +76,6 @@ const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
-const MLIntelligence = lazy(() => import("@/pages/ml-intelligence"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
 const AnalysisPage = lazy(() => import("@/pages/analysis"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -136,7 +135,7 @@ function Router() {
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
       <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />
-      <Route path="/ml-intelligence" component={withBetaProtection(MLIntelligence)} />
+      {/* ML Intelligence consolidated into Trading Engine */}
       <Route path="/historical-intelligence" component={withBetaProtection(HistoricalIntelligence)} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />

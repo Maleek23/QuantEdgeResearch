@@ -21,7 +21,7 @@ const primaryNav: NavItem[] = [
   { icon: Crosshair, label: "Command Center", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
   { icon: Search, label: "Market Scanner", href: "/market-scanner", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
   { icon: BarChart3, label: "Chart Analysis", href: "/chart-analysis", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: Brain, label: "ML Intelligence", href: "/ml-intelligence", color: "text-purple-400", glow: "rgba(192,132,252,0.4)" },
+  { icon: Brain, label: "6-Engine Analysis", href: "/trading-engine", color: "text-purple-400", glow: "rgba(192,132,252,0.4)" },
 ];
 
 const secondaryNav: NavItem[] = [
