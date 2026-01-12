@@ -3357,11 +3357,8 @@ export async function runAutonomousBotScan(): Promise<void> {
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openPositions = positions.filter(p => p.status === 'open');
     
-    // Use user preference for max concurrent trades
-    if (openPositions.length >= prefs.maxConcurrentTrades) {
-      logger.info(`🤖 [BOT] Already have ${openPositions.length}/${prefs.maxConcurrentTrades} open positions - waiting for exits`);
-      return;
-    }
+    // Log open positions but don't block - let high-grade ideas through
+    logger.info(`🤖 [BOT] Open positions: ${openPositions.length} (no limit - trading all B+ and higher ideas)`);
     
     const openSymbols = new Set(openPositions.map(p => p.symbol));
     // Collect ALL qualifying opportunities for diversification
@@ -3786,13 +3783,10 @@ export async function runAutonomousBotScan(): Promise<void> {
             reason: `${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)} - ${decision.reason}`
           });
           
-          // 🚀 IMMEDIATE EXECUTION: Trade A+ opportunities right away (don't wait for full scan!)
-          // Only wait if we've already traded 5 this cycle
-          if (tradesThisCycle < 5 && decision.confidence >= 85) {
-            logger.info(`🤖 [BOT] 🚀 IMMEDIATE ENTRY: ${ticker} (A+ grade, confidence ${decision.confidence.toFixed(0)}%)`);
+          // 🚀 IMMEDIATE EXECUTION: Trade B+ and higher opportunities right away
+          if (decision.confidence >= 85) {
+            logger.info(`🤖 [BOT] 🚀 IMMEDIATE ENTRY: ${ticker} (high grade, confidence ${decision.confidence.toFixed(0)}%)`);
             qualifyingOpportunities.push({ opp, decision, entryTiming, immediateExecution: true });
-          } else if (tradesThisCycle >= 5) {
-            logger.info(`🤖 [BOT] ⏸️ Max trades reached (${tradesThisCycle}/5), skipping ${ticker}`);
           } else {
             // Lower confidence - collect for end-of-scan batch
             qualifyingOpportunities.push({ opp, decision, entryTiming, immediateExecution: false });
@@ -3805,8 +3799,6 @@ export async function runAutonomousBotScan(): Promise<void> {
       // 🚀 PROCESS IMMEDIATE EXECUTIONS NOW (don't wait for full scan!)
       const immediateOpps = qualifyingOpportunities.filter(o => o.immediateExecution && !o.executed);
       for (const immOpp of immediateOpps) {
-        if (tradesThisCycle >= 5) break;
-        
         // Mark as executed so we don't double-trade
         immOpp.executed = true;
         const { opp: immO, decision: immD, entryTiming: immT } = immOpp;
