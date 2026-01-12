@@ -606,6 +606,33 @@ export default function TradeDeskPage() {
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
   const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
+  
+  // User-controlled asset type order (stored in localStorage)
+  const [assetTypeOrder, setAssetTypeOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('tradeDesk_assetTypeOrder');
+    // Default: Options first, then stocks, penny stocks, futures, crypto
+    return saved ? JSON.parse(saved) : ['option', 'stock', 'penny_stock', 'future', 'crypto'];
+  });
+  
+  // Save order to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('tradeDesk_assetTypeOrder', JSON.stringify(assetTypeOrder));
+  }, [assetTypeOrder]);
+  
+  // Move an asset type up or down in the order
+  const moveAssetType = (assetType: string, direction: 'up' | 'down') => {
+    setAssetTypeOrder(prev => {
+      const idx = prev.indexOf(assetType);
+      if (idx === -1) return prev;
+      const newOrder = [...prev];
+      if (direction === 'up' && idx > 0) {
+        [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
+      } else if (direction === 'down' && idx < prev.length - 1) {
+        [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      }
+      return newOrder;
+    });
+  };
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -1983,10 +2010,13 @@ export default function TradeDeskPage() {
                 <Accordion type="single" collapsible className="space-y-2" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
                   {Object.entries(groupedIdeas)
                     .sort(([a], [b]) => {
-                      const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'future': 3, 'crypto': 4 };
-                      return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
+                      // Use user's custom order (stored in localStorage)
+                      const orderA = assetTypeOrder.indexOf(a);
+                      const orderB = assetTypeOrder.indexOf(b);
+                      // If not found in order array, put at end
+                      return (orderA === -1 ? 999 : orderA) - (orderB === -1 ? 999 : orderB);
                     })
-                    .map(([assetType, ideas]) => {
+                    .map(([assetType, ideas], sortedIndex, sortedArray) => {
                       const assetTypeLabels = {
                         'stock': 'Stocks',
                         'penny_stock': 'Penny Stocks',
@@ -2003,10 +2033,36 @@ export default function TradeDeskPage() {
                       const endIdx = startIdx + ITEMS_PER_PAGE;
                       const pageIdeas = ideas.slice(startIdx, endIdx);
                       
+                      const isFirst = sortedIndex === 0;
+                      const isLast = sortedIndex === sortedArray.length - 1;
+                      
                       return (
                         <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
                           <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-1">
+                              {/* Move up/down buttons */}
+                              <div className="flex flex-col gap-0.5 mr-1" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
+                                  onClick={(e) => { e.stopPropagation(); moveAssetType(assetType, 'up'); }}
+                                  disabled={isFirst}
+                                  data-testid={`button-move-up-${assetType}`}
+                                >
+                                  <ChevronDown className="h-3 w-3 rotate-180" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
+                                  onClick={(e) => { e.stopPropagation(); moveAssetType(assetType, 'down'); }}
+                                  disabled={isLast}
+                                  data-testid={`button-move-down-${assetType}`}
+                                >
+                                  <ChevronDown className="h-3 w-3" />
+                                </Button>
+                              </div>
                               <span className="font-medium">{label}</span>
                               <Badge variant="secondary" className="text-xs" data-testid={`badge-count-${assetType}`}>
                                 {ideas.length}
