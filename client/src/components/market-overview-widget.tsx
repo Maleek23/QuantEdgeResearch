@@ -39,14 +39,14 @@ const sentimentConfig = {
   neutral: { label: 'NEUTRAL', color: 'text-slate-400', bg: 'bg-slate-500/10' },
 };
 
-const sessionLabels: Record<string, { label: string; emoji: string }> = {
-  pre_market: { label: 'Pre-Market', emoji: '🌅' },
-  opening_drive: { label: 'Opening Drive', emoji: '🚀' },
-  mid_morning: { label: 'Mid-Morning', emoji: '📈' },
-  lunch_lull: { label: 'Lunch Lull', emoji: '😴' },
-  afternoon: { label: 'Afternoon', emoji: '⏰' },
-  power_hour: { label: 'Power Hour', emoji: '⚡' },
-  after_hours: { label: 'After Hours', emoji: '🌙' },
+const sessionLabels: Record<string, { label: string }> = {
+  pre_market: { label: 'Pre-Market' },
+  opening_drive: { label: 'Opening Drive' },
+  mid_morning: { label: 'Mid-Morning' },
+  lunch_lull: { label: 'Lunch Lull' },
+  afternoon: { label: 'Afternoon' },
+  power_hour: { label: 'Power Hour' },
+  after_hours: { label: 'After Hours' },
 };
 
 export function MarketOverviewWidget() {
@@ -58,17 +58,17 @@ export function MarketOverviewWidget() {
 
   if (isLoading) {
     return (
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
+            <BarChart3 className="h-4 w-4 text-cyan-400" />
             Market Overview
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-8 w-full bg-slate-800/50" />
+          <Skeleton className="h-16 w-full bg-slate-800/50" />
+          <Skeleton className="h-4 w-3/4 bg-slate-800/50" />
         </CardContent>
       </Card>
     );
@@ -76,15 +76,15 @@ export function MarketOverviewWidget() {
 
   if (error || !context) {
     return (
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
+      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
+            <BarChart3 className="h-4 w-4 text-cyan-400" />
             Market Overview
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Unable to load market data</p>
+          <p className="text-sm text-slate-400">Unable to load market data</p>
         </CardContent>
       </Card>
     );
@@ -92,7 +92,7 @@ export function MarketOverviewWidget() {
 
   const regime = regimeConfig[context.regime];
   const sentiment = sentimentConfig[context.riskSentiment];
-  const session = sessionLabels[context.tradingSession] || { label: context.tradingSession, emoji: '📊' };
+  const session = sessionLabels[context.tradingSession] || { label: context.tradingSession };
   const RegimeIcon = regime.icon;
 
   const getScoreColor = (score: number) => {
@@ -110,15 +110,15 @@ export function MarketOverviewWidget() {
   };
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="widget-market-overview">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)] hover:shadow-[0_0_40px_-10px_rgba(34,211,238,0.1)] transition-all duration-300" data-testid="widget-market-overview">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
             <BarChart3 className="h-4 w-4 text-cyan-400" />
             Market Overview
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
-            {session.emoji} {session.label}
+          <Badge className="text-xs bg-slate-800/60 text-slate-300 border border-slate-700/50">
+            {session.label}
           </Badge>
         </div>
       </CardHeader>
@@ -134,14 +134,18 @@ export function MarketOverviewWidget() {
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">Trade Score</div>
-            <div className={cn("text-2xl font-bold tabular-nums", getScoreColor(context.score))}>
+          <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Trade Score</div>
+            <div className={cn("text-2xl font-bold font-mono tabular-nums", getScoreColor(context.score))}>
               {context.score}
             </div>
             <Badge 
-              variant={context.shouldTrade ? "default" : "secondary"} 
-              className={cn("text-xs mt-1", !context.shouldTrade && "opacity-60")}
+              className={cn(
+                "text-xs mt-2",
+                context.shouldTrade 
+                  ? "bg-green-500/15 text-green-400 border border-green-500/30" 
+                  : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
+              )}
               data-testid="badge-trade-status"
             >
               {context.shouldTrade ? 'TRADEABLE' : 
@@ -149,30 +153,30 @@ export function MarketOverviewWidget() {
             </Badge>
           </div>
           
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">VIX</div>
-            <div className={cn("text-2xl font-bold tabular-nums", getVixColor(context.vixLevel))}>
+          <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">VIX</div>
+            <div className={cn("text-2xl font-bold font-mono tabular-nums", getVixColor(context.vixLevel))}>
               {context.vixLevel?.toFixed(1) || '--'}
             </div>
-            <div className="text-xs text-muted-foreground">Fear Index</div>
+            <div className="text-xs text-slate-500 mt-1">Fear Index</div>
           </div>
           
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">SPY</div>
+          <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">SPY</div>
             {context.spyData ? (
               <>
-                <div className="text-lg font-bold tabular-nums">
+                <div className="text-lg font-bold font-mono tabular-nums text-slate-100">
                   ${context.spyData.price.toFixed(2)}
                 </div>
                 <div className={cn(
-                  "text-xs font-medium",
+                  "text-xs font-medium font-mono",
                   context.spyData.change >= 0 ? 'text-green-400' : 'text-red-400'
                 )}>
                   {context.spyData.change >= 0 ? '+' : ''}{context.spyData.change.toFixed(2)}%
                 </div>
               </>
             ) : (
-              <div className="text-lg font-bold tabular-nums text-muted-foreground">--</div>
+              <div className="text-lg font-bold font-mono tabular-nums text-slate-500">--</div>
             )}
           </div>
         </div>
@@ -180,11 +184,11 @@ export function MarketOverviewWidget() {
         {context.spyData && (
           <div className="flex items-center gap-2 text-xs">
             <Zap className="h-3 w-3 text-cyan-400" />
-            <span className="text-muted-foreground">Volume:</span>
+            <span className="text-slate-500">Volume:</span>
             <span className={cn(
-              "font-medium",
+              "font-medium font-mono",
               context.spyData.relativeVolume > 1.3 ? 'text-green-400' : 
-              context.spyData.relativeVolume < 0.7 ? 'text-red-400' : 'text-foreground'
+              context.spyData.relativeVolume < 0.7 ? 'text-red-400' : 'text-slate-300'
             )}>
               {context.spyData.relativeVolume.toFixed(2)}x avg
             </span>
@@ -192,8 +196,8 @@ export function MarketOverviewWidget() {
         )}
 
         {context.reasons.length > 0 && (
-          <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground space-y-1">
+          <div className="border-t border-slate-700/30 pt-3">
+            <div className="text-xs text-slate-400 space-y-1">
               {context.reasons.slice(0, 3).map((reason, i) => (
                 <div key={i} className="flex items-start gap-1">
                   <span className="text-cyan-400">•</span>
