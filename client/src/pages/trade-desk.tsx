@@ -1762,6 +1762,43 @@ export default function TradeDeskPage() {
       {/* Advanced Filters - Collapsed by default */}
       {showAdvancedFilters && (
         <div className="flex flex-wrap items-center gap-6 py-3 px-4 rounded-lg bg-muted/20 border border-border/30">
+          {/* Asset Type Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Asset:</span>
+            <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
+              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="filter-asset-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="option">Options</SelectItem>
+                <SelectItem value="stock">Stocks</SelectItem>
+                <SelectItem value="penny_stock">Penny</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
+                <SelectItem value="future">Futures</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Grade Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Grade:</span>
+            <Select value={gradeFilter} onValueChange={setGradeFilter}>
+              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="filter-grade">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="quality">Quality (A-C)</SelectItem>
+                <SelectItem value="A">A Tier</SelectItem>
+                <SelectItem value="B">B Tier</SelectItem>
+                <SelectItem value="C">C Tier</SelectItem>
+                <SelectItem value="D">D/F Tier</SelectItem>
+                <SelectItem value="LOTTO">Lotto Plays</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           {/* Trade Type */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Type:</span>
@@ -1886,7 +1923,7 @@ export default function TradeDeskPage() {
           </div>
 
           {/* Clear All */}
-          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all' || tradeTypeFilter !== 'all' || activeTimeframe !== 'all') && (
+          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all' || tradeTypeFilter !== 'all' || activeTimeframe !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'quality' || priceTierFilter !== 'all') && (
             <Button
               variant="ghost"
               size="sm"
@@ -1896,6 +1933,9 @@ export default function TradeDeskPage() {
                 setDateFilter('all');
                 setTradeTypeFilter('all');
                 setActiveTimeframe('all');
+                setAssetTypeFilter('all');
+                setGradeFilter('quality');
+                setPriceTierFilter('all');
                 setCustomDate(undefined);
               }}
               className="h-7 px-2 text-xs"
