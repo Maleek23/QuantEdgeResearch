@@ -45,6 +45,7 @@ import {
 } from "@/components/contextual-insights";
 import { DataStatusBanner } from "@/components/data-status-banner";
 import { BullishPatternWidget, SectorHeatWidget } from "@/components/bullish-pattern-widget";
+import { AnalysisHub } from "@/components/analysis-hub";
 
 interface TradingEngineResult {
   symbol: string;
@@ -840,6 +841,17 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
           riskSentiment={(marketCtx.riskSentiment as 'risk_on' | 'risk_off' | 'neutral') || 'neutral'}
         />
       )}
+      
+      <AnalysisHub 
+        symbol={symbol}
+        assetClass={assetClass as 'stock' | 'options' | 'futures' | 'crypto'}
+        currentPrice={data.technical.levels.currentPrice}
+        confidenceScore={data.confluence.score}
+        direction={data.tradeStructure?.direction === 'short' ? 'short' : 'long'}
+        quantScore={data.confluence.score}
+        aiScore={data.newsContext?.sentimentScore ? data.newsContext.sentimentScore * 100 : 60}
+        historicalWinRate={55}
+      />
     </div>
   );
 }
