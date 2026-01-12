@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AuroraBackground } from "@/components/aurora-background";
+import { CommandRail } from "@/components/command-rail";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -337,7 +339,9 @@ function App() {
     );
   }
 
-  // Show app pages with sidebar
+  // Show app pages with Aurora Grid layout (new minimalist design)
+  const useAuroraLayout = true; // Feature flag for new design
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
@@ -345,13 +349,20 @@ function App() {
           <RealtimePricesProvider>
             <PreferencesProvider>
               <ContentDensityProvider>
-                <ScrollParticles />
-                <SidebarProvider style={style as React.CSSProperties}>
+                <AuroraBackground />
+                {useAuroraLayout ? (
                   <div className="flex h-screen w-full">
-                    <AppSidebar />
-                    <MainContentWrapper />
+                    <CommandRail />
+                    <AuroraContentWrapper />
                   </div>
-                </SidebarProvider>
+                ) : (
+                  <SidebarProvider style={style as React.CSSProperties}>
+                    <div className="flex h-screen w-full">
+                      <AppSidebar />
+                      <MainContentWrapper />
+                    </div>
+                  </SidebarProvider>
+                )}
                 <AIChatbotPopup />
                 <BotNotificationPopup />
                 <Toaster />
@@ -364,7 +375,79 @@ function App() {
   );
 }
 
-// Responsive wrapper that adjusts to sidebar state
+// Aurora Grid content wrapper - new minimalist layout
+function AuroraContentWrapper() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  
+  useEffect(() => {
+    const updateStatus = () => {
+      const status = getMarketStatus();
+      setMarketStatus(status);
+    };
+    updateStatus();
+    const interval = setInterval(updateStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const handleLogout = () => {
+    logout();
+    setLocation("/");
+  };
+  
+  const userData = user as { email?: string; firstName?: string } | null;
+
+  return (
+    <div 
+      className={cn(
+        "flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10",
+        "ml-[72px]" // Offset for collapsed CommandRail - will be dynamic
+      )}
+    >
+      <header className="flex items-center justify-between h-14 px-6 border-b border-slate-800/30 bg-slate-950/60 backdrop-blur-xl">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              marketStatus.isOpen ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)] animate-pulse" : "bg-slate-500"
+            )} />
+            <span className="text-slate-400">
+              {marketStatus.isOpen ? 'MARKET OPEN' : 'CLOSED'}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {isAuthenticated && userData && (
+            <>
+              <span className="text-xs font-mono text-slate-500">
+                {userData.email || userData.firstName || 'User'}
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleLogout}
+                data-testid="button-logout"
+                className="gap-1.5 text-slate-400 hover:text-slate-200"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          <ThemeToggle />
+        </div>
+      </header>
+      <div className="flex-1 overflow-auto">
+        <main className="min-h-full p-6">
+          <Router />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// Responsive wrapper that adjusts to sidebar state (legacy)
 function MainContentWrapper() {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed";

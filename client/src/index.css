@@ -143,117 +143,126 @@
 }
 
 .dark {
-  --button-outline: rgba(255,255,255, .12);
-  --badge-outline: rgba(255,255,255, .08);
+  --button-outline: rgba(255,255,255, .08);
+  --badge-outline: rgba(255,255,255, .06);
 
-  --opaque-button-border-intensity: 10;  /* In terms of percentages */
+  --opaque-button-border-intensity: 8;
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(255,255,255, .05);
-  --elevate-2: rgba(255,255,255, .10);
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .08);
 
-  /* Quant Edge Labs Standardized Color System */
-  --accent-cyan: #00d4ff;
-  --bg-glass: rgba(30, 30, 32, 0.4);
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --text-muted: rgba(255, 255, 255, 0.4);
-  --danger-red: #ff453a;
-  --success-green: #30d158;
-  --warning-orange: #ff9f0a;
+  /* Aurora Grid Color System */
+  --accent-cyan: #22d3ee;
+  --accent-purple: #a78bfa;
+  --bg-glass: rgba(15, 23, 42, 0.6);
+  --border-glass: rgba(148, 163, 184, 0.1);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --danger-red: #f87171;
+  --success-green: #4ade80;
+  --warning-amber: #fbbf24;
 
   /* Glassmorphism Colors */
-  --glass-cyan: 188 100% 50%;
-  --glass-cyan-rgb: 0, 212, 255;
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  --glass-cyan: 188 94% 53%;
+  --glass-cyan-rgb: 34, 211, 238;
+  --glass-purple: 263 70% 76%;
+  --glass-purple-rgb: 167, 139, 250;
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glass-border-hover: rgba(34, 211, 238, 0.3);
 
-  /* Deep dark background for glassmorphism (#0A0A0A) */
-  --background: 0 0% 4%;
+  /* Deep slate-950 background (#020617) */
+  --background: 222 47% 2%;
 
-  --foreground: 220 10% 96%;
+  --foreground: 210 40% 98%;
 
-  --border: 220 15% 15%;
+  --border: 217 19% 12%;
 
-  --card: 220 16% 10%;
+  /* Glass panel backgrounds */
+  --card: 222 47% 6%;
 
-  --card-foreground: 220 10% 94%;
+  --card-foreground: 210 40% 96%;
 
-  --card-border: 220 18% 18%;
+  --card-border: 217 19% 15%;
 
-  --sidebar: 220 15% 10%;
+  /* Slim nav rail */
+  --sidebar: 222 47% 5%;
 
-  --sidebar-foreground: 220 10% 90%;
+  --sidebar-foreground: 215 20% 85%;
 
-  --sidebar-border: 220 12% 20%;
+  --sidebar-border: 217 19% 12%;
 
-  --sidebar-primary: 188 94% 43%;
+  --sidebar-primary: 188 94% 53%;
 
-  --sidebar-primary-foreground: 220 15% 8%;
+  --sidebar-primary-foreground: 222 47% 5%;
 
-  --sidebar-accent: 220 15% 16%;
+  --sidebar-accent: 217 19% 12%;
 
-  --sidebar-accent-foreground: 188 94% 50%;
+  --sidebar-accent-foreground: 188 94% 53%;
 
-  --sidebar-ring: 188 94% 43%;
+  --sidebar-ring: 188 94% 53%;
 
-  --popover: 220 15% 10%;
+  --popover: 222 47% 6%;
 
-  --popover-foreground: 220 10% 92%;
+  --popover-foreground: 210 40% 96%;
 
-  --popover-border: 220 12% 24%;
+  --popover-border: 217 19% 18%;
 
-  --primary: 188 94% 43%;
+  /* Cyan primary for trading actions */
+  --primary: 188 94% 53%;
 
-  --primary-foreground: 220 15% 8%;
+  --primary-foreground: 222 47% 5%;
 
-  --secondary: 220 15% 20%;
+  /* Subtle secondary */
+  --secondary: 217 19% 14%;
 
-  --secondary-foreground: 220 10% 85%;
+  --secondary-foreground: 215 20% 80%;
 
-  --muted: 220 15% 16%;
+  /* Muted backgrounds */
+  --muted: 217 19% 10%;
 
-  --muted-foreground: 220 8% 60%;
+  --muted-foreground: 215 14% 55%;
 
-  --accent: 220 15% 18%;
+  /* Purple accent for AI features */
+  --accent: 263 70% 50%;
 
-  --accent-foreground: 188 94% 50%;
+  --accent-foreground: 210 40% 98%;
 
-  --destructive: 0 72% 55%;
+  --destructive: 0 84% 60%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 220 12% 20%;
-  --ring: 188 94% 43%;
-  --chart-1: 188 94% 43%;
-  --chart-2: 142 76% 45%;
+  --input: 217 19% 14%;
+  --ring: 188 94% 53%;
+  --chart-1: 188 94% 53%;
+  --chart-2: 142 71% 55%;
   --chart-3: 45 93% 58%;
-  --chart-4: 0 72% 55%;
-  --chart-5: 280 70% 60%;
+  --chart-4: 0 84% 60%;
+  --chart-5: 263 70% 60%;
 
-  --shadow-2xs: 0px 1px 2px 0px hsl(220 50% 5% / 0.15);
-  --shadow-xs: 0px 1px 3px 0px hsl(220 50% 5% / 0.20);
-  --shadow-sm: 0px 2px 4px -1px hsl(220 50% 5% / 0.25), 0px 1px 3px -1px hsl(220 50% 5% / 0.30);
-  --shadow: 0px 4px 6px -1px hsl(220 50% 5% / 0.30), 0px 2px 4px -1px hsl(220 50% 5% / 0.20);
-  --shadow-md: 0px 6px 12px -2px hsl(220 50% 5% / 0.35), 0px 3px 7px -3px hsl(220 50% 5% / 0.25);
-  --shadow-lg: 0px 10px 24px -4px hsl(220 50% 5% / 0.40), 0px 8px 16px -4px hsl(220 50% 5% / 0.30);
-  --shadow-xl: 0px 20px 40px -6px hsl(220 50% 5% / 0.45), 0px 12px 24px -8px hsl(220 50% 5% / 0.35);
-  --shadow-2xl: 0px 25px 50px -12px hsl(220 50% 5% / 0.50);
-  --radius: 0.75rem;
+  --shadow-2xs: 0px 1px 2px 0px hsl(222 47% 2% / 0.3);
+  --shadow-xs: 0px 1px 3px 0px hsl(222 47% 2% / 0.4);
+  --shadow-sm: 0px 2px 4px -1px hsl(222 47% 2% / 0.4), 0px 1px 3px -1px hsl(222 47% 2% / 0.3);
+  --shadow: 0px 4px 6px -1px hsl(222 47% 2% / 0.5), 0px 2px 4px -1px hsl(222 47% 2% / 0.3);
+  --shadow-md: 0px 6px 12px -2px hsl(222 47% 2% / 0.5), 0px 3px 7px -3px hsl(222 47% 2% / 0.3);
+  --shadow-lg: 0px 10px 24px -4px hsl(222 47% 2% / 0.6), 0px 8px 16px -4px hsl(222 47% 2% / 0.4);
+  --shadow-xl: 0px 20px 40px -6px hsl(222 47% 2% / 0.7), 0px 12px 24px -8px hsl(222 47% 2% / 0.5);
+  --shadow-2xl: 0px 25px 50px -12px hsl(222 47% 2% / 0.8);
+  --radius: 0.625rem;
   --spacing: 0.25rem;
   --font-mono: 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
   --tracking-normal: -0.01em;
 
-  /* Premium Aurora Gradients */
-  --aurora-1: 188 94% 50%;
-  --aurora-2: 280 70% 60%;
-  --aurora-3: 142 76% 45%;
-  --neon-cyan: 188 100% 50%;
-  --neon-blue: 188 94% 50%;
-  --neon-purple: 280 70% 60%;
+  /* Aurora Neon Gradients */
+  --aurora-1: 188 94% 53%;
+  --aurora-2: 263 70% 60%;
+  --aurora-3: 142 71% 55%;
+  --neon-cyan: 188 94% 53%;
+  --neon-purple: 263 70% 60%;
+  --neon-green: 142 71% 55%;
 }
 
 /* Glassmorphism Utilities */
