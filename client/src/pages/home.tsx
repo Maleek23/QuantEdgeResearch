@@ -8,6 +8,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { WatchSuggestions } from "@/components/watch-suggestions";
 import { LivePnLCard } from "@/components/live-pnl-card";
 import { WebGLErrorBoundary } from "@/components/webgl-error-boundary";
+import { GlobalSearch } from "@/components/global-search";
+import { CatalystCalendar } from "@/components/catalyst-calendar";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 import { 
@@ -22,7 +24,8 @@ import {
   BarChart3,
   Brain,
   Calculator,
-  CandlestickChart
+  CandlestickChart,
+  Search
 } from "lucide-react";
 import { format, parseISO, isSameDay, subHours } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -143,6 +146,22 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Global Search */}
+      <div className="py-2">
+        <Card className="p-4 bg-gradient-to-r from-muted/30 to-muted/10 border-border/50">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Search className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">Quick Search</h3>
+              <p className="text-xs text-muted-foreground">Find any stock, crypto, or futures symbol</p>
+            </div>
+          </div>
+          <GlobalSearch variant="large" placeholder="Search NVDA, BTC, SPY, futures..." />
+        </Card>
+      </div>
+
       {/* Stats Grid */}
       <div className="space-y-3">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overview</p>
@@ -231,6 +250,9 @@ export default function HomePage() {
           </div>
         </Card>
       </div>
+
+      {/* Catalyst Calendar */}
+      <CatalystCalendar compact />
 
       {/* Today's Top Signals */}
       <div className="space-y-4">

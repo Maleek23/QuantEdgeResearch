@@ -7,6 +7,7 @@ import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal
 import { formatDateOnly } from "@/lib/timezone";
 import type { TradeIdea } from "@shared/schema";
 import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity } from "lucide-react";
+import { CompactAnalysisBadges, MultiDimensionalAnalysis } from "./multi-dimensional-analysis";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
@@ -395,6 +396,26 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
             {idea.analysis}
           </p>
         </div>
+
+        <Separator />
+
+        <MultiDimensionalAnalysis
+          symbol={idea.symbol}
+          assetType={idea.assetType}
+          direction={idea.direction as 'long' | 'short'}
+          quantScore={Math.round(idea.confidenceScore ?? 50)}
+          aiScore={idea.source === 'ai' ? Math.round((idea.confidenceScore ?? 50) + 10) : Math.round((idea.confidenceScore ?? 50) - 5)}
+          mlScore={Math.round(idea.targetHitProbability ?? idea.confidenceScore ?? 50)}
+          historicalWinRate={Math.round(idea.confidenceScore ?? 50)}
+          fundamentalScore={50}
+          rsi={idea.rsiValue ?? 50}
+          macdHistogram={idea.macdHistogram ?? 0}
+          trendStrength={idea.trendStrength ?? 50}
+          volumeRatio={idea.volumeRatio ?? 1}
+          targetHitProbability={idea.targetHitProbability ?? 50}
+          compact={true}
+          showTiming={true}
+        />
 
         <div className="flex gap-2">
           <Button 

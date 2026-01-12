@@ -4267,6 +4267,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global search endpoint for symbol lookups
+  app.get("/api/search/symbols", async (req, res) => {
+    try {
+      const query = (req.query.q as string || '').toUpperCase().trim();
+      if (!query) {
+        return res.json([]);
+      }
+
+      const { searchSymbolLookup } = await import('./tradier-api');
+      const tradierResults = await searchSymbolLookup(query);
+      
+      // Map to standardized search result format
+      const stockResults = (tradierResults || []).map((r: { symbol: string; description: string; type?: string }) => ({
+        symbol: r.symbol,
+        name: r.description || r.symbol,
+        type: r.type === 'option' ? 'option' : 'stock' as const,
+      }));
+
+      // Add crypto matches
+      const cryptoMap: Record<string, string> = {
+        'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'XRP': 'Ripple',
+        'ADA': 'Cardano', 'DOGE': 'Dogecoin', 'DOT': 'Polkadot', 'AVAX': 'Avalanche',
+        'LINK': 'Chainlink', 'MATIC': 'Polygon', 'UNI': 'Uniswap', 'ATOM': 'Cosmos',
+        'LTC': 'Litecoin', 'FIL': 'Filecoin', 'NEAR': 'NEAR Protocol', 'APT': 'Aptos',
+        'ARB': 'Arbitrum', 'OP': 'Optimism', 'PEPE': 'Pepe', 'SHIB': 'Shiba Inu',
+      };
+      
+      const cryptoResults = Object.entries(cryptoMap)
+        .filter(([symbol, name]) => 
+          symbol.includes(query) || name.toUpperCase().includes(query)
+        )
+        .map(([symbol, name]) => ({
+          symbol,
+          name,
+          type: 'crypto' as const,
+        }));
+
+      // Add futures matches
+      const futuresMap: Record<string, string> = {
+        'ES': 'E-mini S&P 500', 'NQ': 'E-mini Nasdaq', 'YM': 'E-mini Dow',
+        'RTY': 'E-mini Russell', 'CL': 'Crude Oil', 'GC': 'Gold',
+        'SI': 'Silver', 'NG': 'Natural Gas', 'ZB': '30-Year T-Bond',
+      };
+      
+      const futuresResults = Object.entries(futuresMap)
+        .filter(([symbol, name]) => 
+          symbol.includes(query) || name.toUpperCase().includes(query)
+        )
+        .map(([symbol, name]) => ({
+          symbol,
+          name,
+          type: 'future' as const,
+        }));
+
+      // Combine and limit results
+      const allResults = [...stockResults.slice(0, 10), ...cryptoResults.slice(0, 5), ...futuresResults.slice(0, 3)];
+      res.json(allResults.slice(0, 15));
+    } catch (error) {
+      logger.error('Global symbol search error:', error);
+      res.json([]);
+    }
+  });
+
   app.get("/api/search-symbol/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
