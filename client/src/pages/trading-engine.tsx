@@ -1076,22 +1076,20 @@ export default function TradingEnginePage() {
               <div className="lg:col-span-2 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MarketOverviewWidget />
-                  <MarketContextInsights />
+                  <IVRankWidget />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <BullishPatternWidget />
                   <SectorHeatWidget />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TechnicalInsights />
-                  <NewsInsights />
+                  <WinRateWidget />
+                  <ExpiryPatternInsights />
                 </div>
               </div>
               <div className="space-y-4">
                 <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
-                <BotStatusWidget />
-                <PositionSizeCalculator />
-                <ConfluenceInsights />
+                <DataStatusBanner />
               </div>
             </div>
 
