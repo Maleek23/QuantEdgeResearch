@@ -343,7 +343,7 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(51, 65, 85, 0.4);
   box-shadow: 0 0 30px -10px rgba(34, 211, 238, 0.08);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .dark .glass-card:hover {
