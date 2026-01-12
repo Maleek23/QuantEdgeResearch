@@ -26,7 +26,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, ChevronRight, Flame,
   BarChart3, Activity, Zap, DollarSign, LineChart, Bitcoin,
   Settings, Rocket, Bot, Shield, Save, RotateCcw,
-  Crosshair, Layers, Timer
+  Crosshair, Layers, Timer, Gauge
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
@@ -47,6 +47,7 @@ import { DataStatusBanner } from "@/components/data-status-banner";
 import { BullishPatternWidget, SectorHeatWidget } from "@/components/bullish-pattern-widget";
 import { AnalysisHub } from "@/components/analysis-hub";
 import { SixEnginePanel } from "@/components/six-engine-panel";
+import { MarketSentimentDashboard } from "@/components/market-sentiment-dashboard";
 
 interface TradingEngineResult {
   symbol: string;
@@ -1252,6 +1253,14 @@ export default function TradingEnginePage() {
               <Rocket className="w-4 h-4 mr-2" />
               Positions
             </TabsTrigger>
+            <TabsTrigger 
+              value="market" 
+              data-testid="tab-market"
+              className="rounded-lg px-6 py-3 font-medium transition-all data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/20 data-[state=active]:to-purple-500/20 data-[state=active]:text-cyan-400 data-[state=active]:shadow-[0_0_15px_rgba(34,211,238,0.2)] data-[state=active]:border data-[state=active]:border-cyan-500/30"
+            >
+              <Gauge className="w-4 h-4 mr-2" />
+              Market
+            </TabsTrigger>
           </TabsList>
 
           {/* Analysis Tab */}
@@ -1352,6 +1361,11 @@ export default function TradingEnginePage() {
           {/* Positions Tab */}
           <TabsContent value="positions" className="space-y-6">
             <AutoLottoDashboard />
+          </TabsContent>
+
+          {/* Market Tab - Sentiment Dashboard */}
+          <TabsContent value="market" className="space-y-6">
+            <MarketSentimentDashboard />
           </TabsContent>
         </Tabs>
       </div>
