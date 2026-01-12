@@ -407,7 +407,7 @@ function AuroraContentWrapper() {
       className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10"
       style={{ marginLeft: `${railWidth}px` }}
     >
-      <header className="flex items-center justify-between h-14 px-6 border-b border-slate-800/30 bg-slate-950/60 backdrop-blur-xl">
+      <header className="flex items-center justify-between h-12 px-6 border-b border-slate-800/20 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs font-mono">
             <span className={cn(
