@@ -532,6 +532,8 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 const BASE_PRIORITY_TICKERS = [
+  // 💰 TOP MONEY MAKERS - Scan these FIRST every cycle
+  'IWM', 'SPY', 'QQQ',
   // 🚀 SPACE - User priority (Jan 2026)
   'RKLB', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RDW', 'SPCE',
   // 🧠 AI & QUANTUM COMPUTING
