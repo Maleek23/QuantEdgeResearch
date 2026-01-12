@@ -223,7 +223,9 @@ export default function WatchlistBotPage() {
   const dailyIdeas = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const filtered = tradeIdeas.filter(idea => 
-      idea.timestamp && idea.timestamp.startsWith(today)
+      idea.timestamp && 
+      idea.timestamp.startsWith(today) &&
+      idea.direction !== 'SHORT' // Filter out shorts as requested
     ).sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
     
     // Deduplicate by unique contract (symbol + strike + expiry + optionType)
@@ -999,6 +1001,96 @@ export default function WatchlistBotPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Portfolio Detail Modal */}
+              <Dialog open={!!selectedPortfolio} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
+                <DialogContent className="max-w-4xl bg-slate-900 border-slate-700">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                      {selectedPortfolio === 'options' && <><Target className="h-5 w-5 text-pink-400" /> Options Portfolio</>}
+                      {selectedPortfolio === 'futures' && <><BarChart3 className="h-5 w-5 text-cyan-400" /> Futures Portfolio</>}
+                      {selectedPortfolio === 'crypto' && <><Bitcoin className="h-5 w-5 text-amber-400" /> Crypto Portfolio</>}
+                      {selectedPortfolio === 'smallaccount' && <><PiggyBank className="h-5 w-5 text-emerald-400" /> Small Account Portfolio</>}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Detailed view of all active and historical plays for this engine.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <Tabs value={positionsTab} onValueChange={(v: any) => setPositionsTab(v)} className="w-full">
+                    <TabsList className="grid w-full grid-cols-4 bg-slate-800">
+                      <TabsTrigger value="open">Open</TabsTrigger>
+                      <TabsTrigger value="closed">Closed</TabsTrigger>
+                      <TabsTrigger value="won">Won</TabsTrigger>
+                      <TabsTrigger value="lost">Lost</TabsTrigger>
+                    </TabsList>
+
+                    {['open', 'closed', 'won', 'lost'].map((tab) => (
+                      <TabsContent key={tab} value={tab} className="mt-4">
+                        <ScrollArea className="h-[400px] rounded-md border border-slate-700 p-4">
+                          <div className="space-y-4">
+                            {(() => {
+                              let filteredPositions: PaperPosition[] = [];
+                              const pType = selectedPortfolio === 'smallaccount' ? 'small_account' : selectedPortfolio;
+                              
+                              if (selectedPortfolio === 'options') filteredPositions = botData?.positions || [];
+                              else if (selectedPortfolio === 'futures') filteredPositions = botData?.futuresPositions || [];
+                              else if (selectedPortfolio === 'crypto') filteredPositions = botData?.cryptoPositions || [];
+                              else if (selectedPortfolio === 'smallaccount') filteredPositions = botData?.smallAccountPositions || [];
+
+                              const positions = filteredPositions.filter(p => {
+                                if (tab === 'open') return p.status === 'open';
+                                if (tab === 'closed') return p.status === 'closed';
+                                if (tab === 'won') return p.status === 'closed' && (p.realizedPnL || 0) > 0;
+                                if (tab === 'lost') return p.status === 'closed' && (p.realizedPnL || 0) <= 0;
+                                return true;
+                              });
+
+                              if (positions.length === 0) {
+                                return <div className="text-center py-8 text-muted-foreground">No {tab} plays found.</div>;
+                              }
+
+                              return (
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-slate-700">
+                                      <TableHead>Symbol</TableHead>
+                                      <TableHead>Side</TableHead>
+                                      <TableHead>Entry</TableHead>
+                                      <TableHead>Current/Exit</TableHead>
+                                      <TableHead className="text-right">P&L</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {positions.map((p) => (
+                                      <TableRow key={p.id} className="border-slate-800">
+                                        <TableCell className="font-medium">
+                                          {p.symbol}
+                                          <div className="text-[10px] text-muted-foreground">{p.assetType}</div>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className={p.direction === 'LONG' ? "text-green-400 border-green-500/20" : "text-red-400 border-red-500/20"}>
+                                            {p.direction}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-mono">{formatCurrency(p.entryPrice ?? 0)}</TableCell>
+                                        <TableCell className="font-mono">{formatCurrency((p.status === 'open' ? p.currentPrice : p.exitPrice) ?? 0)}</TableCell>
+                                        <TableCell className={cn("text-right font-mono", (Number(p.realizedPnL || p.unrealizedPnL || 0)) >= 0 ? "text-green-400" : "text-red-400")}>
+                                          {formatCurrency(Number(p.realizedPnL ?? p.unrealizedPnL ?? 0))}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              );
+                            })()}
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                </DialogContent>
+              </Dialog>
 
               {/* Performance Analysis by Asset Type */}
               {showMetrics && (

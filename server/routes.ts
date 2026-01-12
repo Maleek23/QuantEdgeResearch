@@ -4600,6 +4600,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       
+      // Filter out irrelevant SHORT plays as requested by user
+      ideas = ideas.filter(idea => idea.direction !== 'SHORT');
+      
       // Apply quality filter if requested (70%+ confidence AND 4+ signals)
       if (qualityFilter === 'high') {
         const beforeCount = ideas.length;

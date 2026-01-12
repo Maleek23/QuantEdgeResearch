@@ -252,7 +252,12 @@ function BestSetupsCard() {
     queryFn: async () => {
       const res = await fetch(`/api/trade-ideas/best-setups?period=${period}&limit=5`);
       if (!res.ok) throw new Error('Failed to fetch best setups');
-      return res.json();
+      const data: BestSetupsResponse = await res.json();
+      // Filter out SHORT setups as requested for relevance
+      return {
+        ...data,
+        setups: data.setups.filter(s => s.direction !== 'SHORT')
+      };
     },
     refetchInterval: 60000,
     staleTime: 30000,
@@ -1113,10 +1118,16 @@ export default function TradeDeskPage() {
   })();
 
   const filteredIdeas = tradeIdeas.filter(idea => {
+    // Hide irrelevant SHORT plays as requested
+    if (idea.direction === 'SHORT') return false;
+
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
       (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
     
+    // Direction filtering - hide irrelevant shorts as requested
+    if (idea.direction === 'SHORT') return false;
+
     const isDayTrade = idea.holdingPeriod === 'day';
     const matchesDirection = activeDirection === "all" || 
       (activeDirection === "day_trade" && isDayTrade) ||
