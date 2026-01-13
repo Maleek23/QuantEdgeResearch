@@ -235,11 +235,11 @@ export async function setupAuth(app: Express) {
           return res.redirect('/signup?error=login_failed');
         }
         
-        // Ensure user has beta access immediately after login
+        // Ensure user has beta access + pro tier immediately after login
         try {
           if (user.claims?.sub) {
-            await storage.updateUser(user.claims.sub, { hasBetaAccess: true });
-            logger.info('Granted beta access to Replit user on login', { userId: user.claims.sub });
+            await storage.updateUser(user.claims.sub, { hasBetaAccess: true, subscriptionTier: 'pro' });
+            logger.info('Granted beta access + pro tier to Replit user on login', { userId: user.claims.sub });
           }
         } catch (e) {
           logger.error('Failed to grant beta access on login', { error: (e as Error).message });

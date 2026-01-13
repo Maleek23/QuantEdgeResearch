@@ -933,8 +933,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Invalid or expired invite code" });
         }
         
-        // Admin code grants beta access
-        await storage.updateUser(userId, { hasBetaAccess: true });
+        // Admin code grants beta access + pro tier
+        await storage.updateUser(userId, { hasBetaAccess: true, subscriptionTier: 'pro' });
         logger.info('User redeemed beta access via admin code', { userId, email: user.email });
         
         // Fetch updated user to return
@@ -947,11 +947,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Update user with beta access
+      // Update user with beta access + pro tier (or invite's tier override)
       await storage.updateUser(userId, { 
         hasBetaAccess: true,
         betaInviteId: invite.id,
-        ...(invite.tierOverride ? { subscriptionTier: invite.tierOverride } : {})
+        subscriptionTier: invite.tierOverride || 'pro' // Default to pro for beta users
       });
       
       // Fetch updated user to return

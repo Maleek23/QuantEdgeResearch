@@ -95,6 +95,13 @@ export async function setupGoogleAuth(app: Express) {
             });
             // Refresh user data
             user = await storage.getUser(existingUser.id) || existingUser;
+            
+            // If existing user has beta access but is on free tier, upgrade to pro
+            if (user.hasBetaAccess && user.subscriptionTier === 'free') {
+              await storage.updateUser(user.id, { subscriptionTier: 'pro' });
+              user = await storage.getUser(user.id) || user;
+              logger.info("Upgraded beta user from free to pro tier", { userId: user.id, email });
+            }
           } else {
             // New user - only grant beta access for: whitelisted OR just-redeemed invite
             // Do NOT grant for already-redeemed invites (those users should already exist)
@@ -106,6 +113,7 @@ export async function setupGoogleAuth(app: Express) {
               lastName: lastName || null,
               profileImageUrl: profileImageUrl || null,
               hasBetaAccess: shouldGrantBetaAccess,
+              subscriptionTier: shouldGrantBetaAccess ? 'pro' : 'free', // Beta users get pro tier
             });
             
             // If invite was redeemed, also set betaInviteId
