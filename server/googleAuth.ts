@@ -57,10 +57,10 @@ export async function setupGoogleAuth(app: Express) {
           
           // Check if user has a valid beta invite
           const invite = await storage.getBetaInviteByEmail(emailLower);
-          // For login gate: allow pending or redeemed invites (not revoked/expired)
+          // For login gate: allow pending, sent, or redeemed invites (not revoked/expired)
           const hasValidInviteForLogin = invite && invite.status !== 'revoked' && invite.status !== 'expired';
-          // For granting beta access: only pending invites can grant access
-          const hasPendingInvite = invite && invite.status === 'pending';
+          // For granting beta access: pending OR sent invites can grant access
+          const hasPendingInvite = invite && (invite.status === 'pending' || invite.status === 'sent');
           
           // Allow access if: whitelisted, existing user, or has valid invite (including redeemed - they already have an account)
           if (!isWhitelisted && !existingUser && !hasValidInviteForLogin) {
