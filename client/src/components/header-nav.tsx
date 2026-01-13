@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
+import { GlobalSearch } from "@/components/global-search";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -13,14 +14,11 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import {
-  Search,
   LogOut,
-  ChevronDown,
   Zap,
   TrendingUp,
   BarChart3,
   LineChart,
-  Bot,
   Brain,
   Target,
   Wallet,
@@ -112,13 +110,10 @@ export function HeaderNav() {
             </div>
           </Link>
           
-          <div className="hidden md:flex items-center gap-1 bg-slate-900/60 rounded-lg px-3 py-1.5 border border-slate-800/50">
-            <Search className="w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="bg-transparent text-sm text-slate-300 placeholder:text-slate-500 outline-none w-32 lg:w-48"
-              data-testid="input-search"
+          <div className="hidden md:block w-64 lg:w-80">
+            <GlobalSearch 
+              variant="default" 
+              placeholder="Search stocks, crypto..."
             />
           </div>
           

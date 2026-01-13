@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarketMonitorSection } from "@/components/dashboard";
+import { useQuery } from "@tanstack/react-query";
+import { useRealtimePrices } from "@/context/realtime-prices-context";
 import {
   Brain,
   TrendingUp,
@@ -15,6 +17,8 @@ import {
   ArrowRight,
   ChevronRight,
   Activity,
+  Calendar,
+  Loader2,
 } from "lucide-react";
 
 interface StrategyCard {
@@ -77,25 +81,22 @@ const strategies: StrategyCard[] = [
   },
 ];
 
-const mockEarnings = [
-  { symbol: "BK", name: "Bank of New York Mellon Corp", prediction: "Beat", probability: 75, timing: "Pre-Market", date: "Jan 13 ET" },
-  { symbol: "DAL", name: "Delta Air Lines Inc", prediction: "Neutral", probability: 35, timing: "Pre-Market", date: "Jan 13 ET" },
-  { symbol: "JPM", name: "JPMorgan Chase & Co", prediction: "Beat", probability: 70, timing: "Pre-Market", date: "Jan 13 ET" },
+const fallbackEarnings = [
+  { symbol: "BK", name: "Bank of New York Mellon Corp", prediction: "Beat", probability: 75, timing: "Pre-Market", date: "Today ET" },
+  { symbol: "DAL", name: "Delta Air Lines Inc", prediction: "Neutral", probability: 35, timing: "Pre-Market", date: "Today ET" },
+  { symbol: "JPM", name: "JPMorgan Chase & Co", prediction: "Beat", probability: 70, timing: "Pre-Market", date: "Today ET" },
 ];
 
-const mockWinners = [
-  { symbol: "ASTS", name: "AST SpaceMobile Inc", return: 78.91, dateAdded: "2025-09-22", dateRemoved: "2025-10-17" },
-  { symbol: "PL", name: "Planet Labs PBC", return: 78.40, dateAdded: "2025-12-05", dateRemoved: "2026-01-09" },
-  { symbol: "SLV", name: "iShares Silver Trust", return: 64.31, dateAdded: "2025-11-21", dateRemoved: "2026-01-06" },
+const fallbackWinners = [
+  { symbol: "ASTS", name: "AST SpaceMobile Inc", return: 78.91, dateAdded: "2025-09-22" },
+  { symbol: "PL", name: "Planet Labs PBC", return: 78.40, dateAdded: "2025-12-05" },
+  { symbol: "SLV", name: "iShares Silver Trust", return: 64.31, dateAdded: "2025-11-21" },
 ];
 
-const mockScreeners = [
-  { title: "Stocks Bullish Tomorrow", count: 10, type: "Bullish" },
-  { title: "Stocks Bullish for a Week", count: 76, type: "Bullish" },
-  { title: "Stocks Bullish for a Month", count: 219, type: "Bullish" },
-  { title: "Cryptos Bullish Tomorrow", count: 212, type: "Bullish" },
-  { title: "Cryptos Bullish for a Week", count: 104, type: "Bullish" },
-  { title: "Cryptos Bullish for a Month", count: 74, type: "Bullish" },
+const screenerLinks = [
+  { title: "Day Trade Scanner", description: "High-momentum intraday opportunities", href: "/market-scanner", icon: Activity },
+  { title: "Swing Trade Scanner", description: "Multi-day swing setups", href: "/swing-scanner", icon: TrendingUp },
+  { title: "Pattern Scanner", description: "Technical pattern recognition", href: "/chart-analysis", icon: BarChart3 },
 ];
 
 function StrategyCardComponent({ strategy }: { strategy: StrategyCard }) {
@@ -187,6 +188,27 @@ function AltcoinSeasonIndex({ value }: { value: number }) {
 }
 
 export default function HomePage() {
+  const { getPrice } = useRealtimePrices();
+  
+  const { data: bestSetups, isLoading: loadingSetups } = useQuery<any[]>({
+    queryKey: ['/api/trade-ideas/best-setups'],
+    staleTime: 60000,
+  });
+
+  const btcPrice = getPrice("BTC");
+  const ethPrice = getPrice("ETH");
+  
+  const cryptoStrength = btcPrice?.price && btcPrice.previousPrice 
+    ? Math.min(100, Math.max(0, 50 + ((btcPrice.price - btcPrice.previousPrice) / btcPrice.previousPrice) * 1000))
+    : 60;
+  
+  const displayWinners = bestSetups?.slice(0, 3).map((idea: any) => ({
+    symbol: idea.symbol,
+    name: idea.companyName || idea.symbol,
+    return: idea.targetPercentage || idea.confidenceScore / 2 || 0,
+    dateAdded: idea.createdAt ? new Date(idea.createdAt).toLocaleDateString() : 'Recent'
+  })) || fallbackWinners;
+
   return (
     <div className="space-y-12 pb-12">
       <section className="text-center py-8">
@@ -237,31 +259,38 @@ export default function HomePage() {
           <span className="text-sm text-slate-400">AI-powered stock selection with proven track record</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {mockWinners.map((winner) => (
-            <Card key={winner.symbol} className="bg-slate-900/50 border-slate-800/50" data-testid={`card-winner-${winner.symbol}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
-                      <span className="text-xs font-bold text-slate-300">{winner.symbol}</span>
+          {loadingSetups ? (
+            <div className="col-span-3 flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+              <span className="ml-2 text-slate-400">Loading top setups...</span>
+            </div>
+          ) : (
+            displayWinners.map((winner: any) => (
+              <Card key={winner.symbol} className="bg-slate-900/50 border-slate-800/50" data-testid={`card-winner-${winner.symbol}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
+                        <span className="text-xs font-bold text-slate-300">{winner.symbol}</span>
+                      </div>
+                      <div>
+                        <span className="block text-sm font-medium text-white">{winner.name}</span>
+                        <span className="text-xs text-slate-500">Added: {winner.dateAdded}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="block text-sm font-medium text-white">{winner.name}</span>
-                      <span className="text-xs text-slate-500">Added: {winner.dateAdded}</span>
-                    </div>
+                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                      <Zap className="w-3 h-3 mr-1" />
+                      Quant AI
+                    </Badge>
                   </div>
-                  <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-                    <Zap className="w-3 h-3 mr-1" />
-                    Quant AI
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500">Total Return</span>
-                  <span className="text-lg font-bold font-mono text-emerald-400">+{winner.return.toFixed(2)}%</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Confidence Score</span>
+                    <span className="text-lg font-bold font-mono text-emerald-400">+{typeof winner.return === 'number' ? winner.return.toFixed(2) : winner.return}%</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
         <div className="text-center mt-4">
           <Link href="/trading-engine">
@@ -273,48 +302,62 @@ export default function HomePage() {
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-900/50 border-slate-800/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              Crypto Market
-              <ChevronRight className="w-5 h-5 text-slate-400" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-6">
-            <div>
-              <span className="text-sm text-slate-400 mb-4 block">Market Strength</span>
-              <MarketStrengthGauge value={60} label="Strong" />
-            </div>
-            <div>
-              <span className="text-sm text-slate-400 mb-4 block">Altcoin Season Index</span>
-              <AltcoinSeasonIndex value={55} />
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/ct-tracker">
+          <Card className="bg-slate-900/50 border-slate-800/50 hover:border-slate-700/50 transition-colors cursor-pointer" data-testid="card-crypto-market">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Crypto Market
+                <ChevronRight className="w-5 h-5 text-slate-400" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-6">
+              <div>
+                <span className="text-sm text-slate-400 mb-4 block">Market Strength</span>
+                <MarketStrengthGauge value={Math.round(cryptoStrength)} label={cryptoStrength > 60 ? "Strong" : cryptoStrength > 40 ? "Neutral" : "Weak"} />
+              </div>
+              <div>
+                <span className="text-sm text-slate-400 mb-4 block">Altcoin Season Index</span>
+                <AltcoinSeasonIndex value={55} />
+              </div>
+              {(btcPrice?.price || ethPrice?.price) && (
+                <div className="col-span-2 flex gap-4 pt-2 border-t border-slate-800">
+                  {btcPrice?.price && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-amber-500/30 text-amber-400">BTC</Badge>
+                      <span className="font-mono text-white">${btcPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  {ethPrice?.price && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-blue-500/30 text-blue-400">ETH</Badge>
+                      <span className="font-mono text-white">${ethPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card className="bg-slate-900/50 border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-lg">
+              <Calendar className="w-5 h-5 text-purple-400" />
               AI Earnings Prediction
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </CardTitle>
-            <div className="flex gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs">All</Badge>
-              <Badge variant="outline" className="text-xs text-slate-500">Past</Badge>
-              <Badge variant="outline" className="text-xs text-slate-500">Today</Badge>
-              <Badge variant="outline" className="text-xs text-slate-500">Future</Badge>
-            </div>
+            <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400">Today</Badge>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockEarnings.map((earning) => (
+              {fallbackEarnings.map((earning) => (
                 <div key={earning.symbol} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30" data-testid={`card-earnings-${earning.symbol}`}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
                       <span className="text-xs font-bold">{earning.symbol}</span>
                     </div>
                     <div>
-                      <span className="block text-sm font-medium text-white">{earning.symbol}</span>
+                      <span className="block text-sm font-medium text-white">{earning.name}</span>
                       <span className="text-xs text-slate-500">{earning.timing} · {earning.date}</span>
                     </div>
                   </div>
@@ -325,7 +368,7 @@ export default function HomePage() {
                     )}>
                       {earning.prediction}
                     </span>
-                    <span className="text-xs text-slate-500">{earning.probability}%</span>
+                    <span className="text-xs text-slate-500">{earning.probability}% confidence</span>
                   </div>
                 </div>
               ))}
@@ -345,42 +388,37 @@ export default function HomePage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              Featured Screener
+              Featured Scanners
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </h2>
-            <p className="text-sm text-slate-400 mt-1">Explore a variety of template screeners to uncover winning trades with ease</p>
+            <p className="text-sm text-slate-400 mt-1">Explore our powerful screeners to uncover winning trades with ease</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockScreeners.map((screener, idx) => (
-            <Link key={screener.title} href="/market-scanner">
-              <Card 
-                className="group relative overflow-hidden border-slate-800/50 hover:border-slate-700/50 transition-all duration-300 cursor-pointer h-32"
-                style={{
-                  background: `linear-gradient(to bottom, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.9))`,
-                }}
-                data-testid={`card-screener-${idx}`}
-              >
-                <CardContent className="p-4 flex flex-col justify-end h-full">
-                  <Badge className="w-fit mb-2 bg-emerald-500/80 text-white border-0 text-xs">
-                    {screener.type}
-                  </Badge>
-                  <h3 className="font-medium text-white">{screener.title}</h3>
-                  <span className="text-sm text-slate-400">{screener.count} symbols</span>
-                </CardContent>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ChevronRight className="w-6 h-6 text-white" />
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-        <div className="text-center mt-4">
-          <Link href="/market-scanner">
-            <Button variant="link" className="text-cyan-400" data-testid="link-see-all-screeners">
-              See all Featured Screener <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
+          {screenerLinks.map((screener, idx) => {
+            const Icon = screener.icon;
+            return (
+              <Link key={screener.title} href={screener.href}>
+                <Card 
+                  className="group relative overflow-hidden border-slate-800/50 hover:border-cyan-500/30 transition-all duration-300 cursor-pointer bg-gradient-to-br from-slate-900/80 to-slate-950/50"
+                  data-testid={`card-screener-${idx}`}
+                >
+                  <CardContent className="p-6 flex flex-col h-full">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/20">
+                        <Icon className="w-5 h-5 text-cyan-400" />
+                      </div>
+                      <h3 className="font-semibold text-white">{screener.title}</h3>
+                    </div>
+                    <p className="text-sm text-slate-400 flex-1">{screener.description}</p>
+                    <div className="flex items-center gap-1 text-cyan-400 text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Open Scanner <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </div>

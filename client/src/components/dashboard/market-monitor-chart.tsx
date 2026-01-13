@@ -1,9 +1,10 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Activity, TrendingUp, TrendingDown } from "lucide-react";
+import { useRealtimePrices } from "@/context/realtime-prices-context";
+import { Link } from "wouter";
 
 interface DataPoint {
   time: string;
@@ -265,9 +266,10 @@ export function MarketMonitorChart({
   );
 }
 
-function generateMockData(basePrice: number, points: number = 50): DataPoint[] {
+function generateInitialData(basePrice: number, points: number = 50): DataPoint[] {
   const data: DataPoint[] = [];
   let price = basePrice;
+  const now = new Date();
   const startHour = 9;
   const startMinute = 30;
   
@@ -277,7 +279,7 @@ function generateMockData(basePrice: number, points: number = 50): DataPoint[] {
     const minute = (startMinute + minutes) % 60;
     const time = `${hour}:${minute.toString().padStart(2, '0')}`;
     
-    const change = (Math.random() - 0.5) * 2;
+    const change = (Math.random() - 0.48) * 1.5;
     price = price + change;
     const changePercent = ((price - basePrice) / basePrice) * 100;
     
@@ -288,21 +290,125 @@ function generateMockData(basePrice: number, points: number = 50): DataPoint[] {
 }
 
 export function MarketMonitorSection() {
-  const mockSPYData = useMemo(() => generateMockData(693, 50), []);
+  const { getPrice, isConnected } = useRealtimePrices();
+  const [basePrice, setBasePrice] = useState<number | null>(null);
+  const [priceHistory, setPriceHistory] = useState<DataPoint[]>([]);
+  const [initialized, setInitialized] = useState(false);
+  
+  const spyPrice = getPrice("SPY");
+  
+  useEffect(() => {
+    if (spyPrice?.price && !initialized) {
+      const initialBase = spyPrice.price;
+      setBasePrice(initialBase);
+      setPriceHistory(generateInitialData(initialBase, 30));
+      setInitialized(true);
+    }
+  }, [spyPrice?.price, initialized]);
+  
+  useEffect(() => {
+    if (spyPrice?.price && basePrice && initialized) {
+      const now = new Date();
+      const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const changePercent = ((spyPrice.price - basePrice) / basePrice) * 100;
+      
+      setPriceHistory(prev => {
+        const newHistory = [...prev, { time, price: spyPrice.price, change: changePercent }];
+        if (newHistory.length > 100) newHistory.shift();
+        return newHistory;
+      });
+    }
+  }, [spyPrice?.price, basePrice, initialized]);
+
+  const currentPrice = spyPrice?.price || (priceHistory.length > 0 ? priceHistory[priceHistory.length - 1]?.price : 0);
+  const effectiveBase = basePrice || currentPrice || 1;
+  const changePercent = currentPrice && effectiveBase ? ((currentPrice - effectiveBase) / effectiveBase) * 100 : 0;
+  const isPositive = changePercent >= 0;
   
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h2 className="text-xl font-semibold text-white">Market Monitor</h2>
-        <ChevronRight className="w-5 h-5 text-slate-400" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            Market Monitor
+            <ChevronRight className="w-5 h-5 text-slate-400" />
+          </h2>
+          <Badge 
+            variant="outline" 
+            className={cn(
+              "text-xs",
+              isConnected ? "border-emerald-500/50 text-emerald-400" : "border-slate-600 text-slate-400"
+            )}
+          >
+            <Activity className={cn("w-3 h-3 mr-1", isConnected && "animate-pulse")} />
+            {isConnected ? "Live" : "Cached"}
+          </Badge>
+        </div>
+        <Link href="/market-scanner">
+          <Badge 
+            variant="outline" 
+            className="cursor-pointer border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+            data-testid="link-market-scanner"
+          >
+            Full Scanner
+            <ChevronRight className="w-3 h-3 ml-1" />
+          </Badge>
+        </Link>
       </div>
-      <MarketMonitorChart
-        symbol="SPY"
-        name="S&P 500"
-        data={mockSPYData}
-        currentPrice={mockSPYData[mockSPYData.length - 1]?.price || 693}
-        changePercent={2.70}
-      />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-3">
+          <MarketMonitorChart
+            symbol="SPY"
+            name="S&P 500"
+            data={priceHistory}
+            currentPrice={currentPrice}
+            changePercent={changePercent}
+            className="h-full"
+          />
+        </div>
+        
+        <div className="space-y-3">
+          <MarketIndexCard symbol="QQQ" name="Nasdaq 100" />
+          <MarketIndexCard symbol="DIA" name="Dow Jones" />
+          <MarketIndexCard symbol="IWM" name="Russell 2000" />
+        </div>
+      </div>
     </div>
+  );
+}
+
+function MarketIndexCard({ symbol, name }: { symbol: string; name: string }) {
+  const { getPrice } = useRealtimePrices();
+  const priceData = getPrice(symbol);
+  
+  const price = priceData?.price || 0;
+  const previousPrice = priceData?.previousPrice || price;
+  const changePercent = previousPrice > 0 ? ((price - previousPrice) / previousPrice) * 100 : 0;
+  const isPositive = changePercent >= 0;
+  
+  return (
+    <Card className="bg-slate-900/50 border-slate-800/50" data-testid={`card-index-${symbol.toLowerCase()}`}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-slate-400">{name}</span>
+          <Badge variant="outline" className="text-xs border-slate-700 text-slate-300">
+            {symbol}
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-bold font-mono text-white">
+            ${price > 0 ? price.toFixed(2) : '--'}
+          </span>
+          <div className={cn(
+            "flex items-center gap-1 text-sm font-mono",
+            isPositive ? "text-emerald-400" : "text-red-400"
+          )}>
+            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '--'}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
