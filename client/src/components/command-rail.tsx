@@ -1,9 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
-  Activity, BarChart3, Brain, History, LineChart, 
+  Activity, BarChart3, History, LineChart, 
   Settings, Zap, Search, ChevronLeft, ChevronRight,
-  Crosshair, TrendingUp, Bot, Wallet, BookOpen, Sparkles
+  Crosshair, TrendingUp, Bot, Wallet, BookOpen
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuroraLayout } from "@/contexts/aurora-layout-context";
@@ -21,7 +21,6 @@ const primaryNav: NavItem[] = [
   { icon: Crosshair, label: "Command Center", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
   { icon: Search, label: "Market Scanner", href: "/market-scanner", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
   { icon: BarChart3, label: "Chart Analysis", href: "/chart-analysis", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: Brain, label: "6-Engine Analysis", href: "/trading-engine", color: "text-purple-400", glow: "rgba(192,132,252,0.4)" },
 ];
 
 const secondaryNav: NavItem[] = [
