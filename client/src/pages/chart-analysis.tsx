@@ -2865,28 +2865,135 @@ interface UnifiedPatternResult {
   source: string;
 }
 
-function UnifiedPatternAnalysisTab() {
+function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }) {
   const { toast } = useToast();
-  const [symbol, setSymbol] = useState("");
-  const [analysisSymbol, setAnalysisSymbol] = useState("");
+  const [symbol, setSymbol] = useState(initialSymbol || "");
+  const [analysisSymbol, setAnalysisSymbol] = useState(initialSymbol || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analysisMode, setAnalysisMode] = useState<"day" | "swing">("day");
   const [timeframe, setTimeframe] = useState("1D");
   const [aiResult, setAiResult] = useState<ChartAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const lastUrlSymbolRef = useRef<string | null>(null);
+
+  const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+
+  // Shared query functions that use apiRequest for proper auth
+  // Must await res.json() to return actual data, not Promise
+  const patternScannerQueryFn = useCallback(async ({ queryKey }: { queryKey: readonly [string, string | null] }) => {
+    const [, ticker] = queryKey;
+    if (!ticker) return null;
+    const res = await apiRequest("GET", `/api/pattern-scanner/analyze/${ticker}`);
+    const data = await res.json();
+    return data as { patterns: UnifiedPatternResult[]; symbol: string; timestamp: string };
+  }, []);
+
+  const chartDataQueryFn = useCallback(async ({ queryKey }: { queryKey: readonly [string, string | null] }) => {
+    const [, ticker] = queryKey;
+    if (!ticker) return null;
+    const res = await apiRequest("GET", `/api/patterns?symbol=${encodeURIComponent(ticker)}`);
+    const data = await res.json();
+    return data as PatternResponse;
+  }, []);
 
   // Fetch quantitative patterns when symbol changes
-  const { data: quantPatterns, isLoading: quantLoading, refetch: refetchQuant } = useQuery({
-    queryKey: ["/api/pattern-scanner/analyze", analysisSymbol],
-    queryFn: async () => {
-      if (!analysisSymbol) return null;
-      const res = await fetch(`/api/pattern-scanner/analyze/${analysisSymbol}`, { credentials: "include" });
-      if (!res.ok) return null;
-      return res.json() as Promise<{ patterns: UnifiedPatternResult[]; symbol: string; timestamp: string }>;
-    },
+  const { data: quantPatterns, isLoading: quantLoading } = useQuery({
+    queryKey: ["/api/pattern-scanner/analyze", analysisSymbol] as const,
+    queryFn: patternScannerQueryFn,
     enabled: !!analysisSymbol,
   });
+
+  // Fetch price chart data for interactive display
+  const { data: chartData, isLoading: chartLoading } = useQuery<PatternResponse | null>({
+    queryKey: ['/api/patterns', analysisSymbol] as const,
+    queryFn: chartDataQueryFn,
+    enabled: !!analysisSymbol,
+  });
+
+  // Render interactive chart - with container width guard
+  useEffect(() => {
+    if (!chartContainerRef.current || !chartData?.candles?.length) return;
+    
+    // Guard: wait for container to have valid width
+    const containerWidth = chartContainerRef.current.clientWidth;
+    if (containerWidth === 0) return;
+    
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+    }
+    
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { color: "transparent" },
+        textColor: "#94a3b8",
+      },
+      grid: {
+        vertLines: { color: "#1e293b" },
+        horzLines: { color: "#1e293b" },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 350,
+      crosshair: { mode: 1 },
+      rightPriceScale: { borderColor: "#334155" },
+      timeScale: { borderColor: "#334155", timeVisible: true, secondsVisible: false },
+    });
+    
+    chartRef.current = chart;
+    
+    if (chartType === 'candlestick') {
+      const candleSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#22c55e",
+        downColor: "#ef4444",
+        borderUpColor: "#22c55e",
+        borderDownColor: "#ef4444",
+        wickUpColor: "#22c55e",
+        wickDownColor: "#ef4444",
+      });
+      
+      const candleData: CandlestickData[] = chartData.candles.map((c) => ({
+        time: c.time as Time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+      candleSeries.setData(candleData);
+    } else {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: "#22d3ee",
+        lineWidth: 2,
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      
+      const lineData: LineData[] = chartData.candles.map((c) => ({
+        time: c.time as Time,
+        value: c.close,
+      }));
+      lineSeries.setData(lineData);
+    }
+    
+    chart.timeScale().fitContent();
+    
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
+    };
+  }, [chartData, chartType]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2897,42 +3004,74 @@ function UnifiedPatternAnalysisTab() {
     }
   };
 
-  const runAnalysis = async () => {
-    if (!symbol) {
+  // runAnalysis with optional override symbol - uses queryClient.fetchQuery for proper cache hydration
+  const runAnalysis = useCallback(async (overrideSymbol?: string) => {
+    const targetSymbol = (overrideSymbol ?? symbol).trim().toUpperCase();
+    if (!targetSymbol) {
       toast({ title: "Enter Symbol", description: "Please enter a symbol to analyze", variant: "destructive" });
       return;
     }
     
-    setAnalysisSymbol(symbol);
+    setSymbol(targetSymbol);
+    setAnalysisSymbol(targetSymbol);
     setIsAnalyzing(true);
 
-    // Run AI analysis if chart uploaded
-    if (selectedFile) {
-      try {
-        const formData = new FormData();
-        formData.append('chart', selectedFile);
-        formData.append('symbol', symbol);
-        formData.append('timeframe', timeframe);
-        formData.append('mode', analysisMode);
+    try {
+      // Run AI analysis if chart uploaded
+      if (selectedFile) {
+        try {
+          const formData = new FormData();
+          formData.append('chart', selectedFile);
+          formData.append('symbol', targetSymbol);
+          formData.append('timeframe', timeframe);
+          formData.append('mode', analysisMode);
 
-        const response = await fetch('/api/chart-analysis', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        });
+          const response = await fetch('/api/chart-analysis', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
 
-        if (response.ok) {
-          const result = await response.json();
-          setAiResult(result);
+          if (response.ok) {
+            const result = await response.json();
+            setAiResult(result);
+          }
+        } catch (error) {
+          console.error('AI analysis failed:', error);
         }
-      } catch (error) {
-        console.error('AI analysis failed:', error);
       }
-    }
 
-    setIsAnalyzing(false);
-    refetchQuant();
-  };
+      // Fetch data using queryClient.fetchQuery with explicit symbol
+      // This ensures we get fresh data for the target symbol and update the cache
+      await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: ["/api/pattern-scanner/analyze", targetSymbol] as const,
+          queryFn: patternScannerQueryFn,
+          staleTime: 0,
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['/api/patterns', targetSymbol] as const,
+          queryFn: chartDataQueryFn,
+          staleTime: 0,
+        }),
+      ]);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [symbol, selectedFile, timeframe, analysisMode, patternScannerQueryFn, chartDataQueryFn, toast]);
+
+  // Auto-trigger analysis when initialSymbol comes from URL
+  // Uses ref to prevent duplicate triggers per unique symbol
+  useEffect(() => {
+    if (!initialSymbol) return;
+    const normalized = initialSymbol.trim().toUpperCase();
+    if (normalized && normalized !== lastUrlSymbolRef.current) {
+      lastUrlSymbolRef.current = normalized;
+      runAnalysis(normalized);
+    }
+  }, [initialSymbol, runAnalysis]);
 
   const hasQuantData = quantPatterns?.patterns && quantPatterns.patterns.length > 0;
   const hasAiData = !!aiResult;
@@ -3049,6 +3188,70 @@ function UnifiedPatternAnalysisTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Interactive Price Chart */}
+      {analysisSymbol && (
+        <Card className="bg-slate-900/50 border-slate-700/40">
+          <CardHeader className="pb-3 border-b border-slate-700/40">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base font-mono flex items-center gap-2">
+                  <LineChart className="h-4 w-4 text-cyan-400" />
+                  {analysisSymbol} Price Chart
+                </CardTitle>
+                {chartData && (
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-mono">
+                    ${chartData.currentPrice?.toFixed(2)}
+                    <span className={cn(
+                      "ml-1",
+                      (chartData.priceChange || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+                    )}>
+                      {(chartData.priceChange || 0) >= 0 ? "+" : ""}{chartData.priceChange?.toFixed(2)}%
+                    </span>
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={chartType === 'candlestick' ? 'default' : 'outline'}
+                  onClick={() => setChartType('candlestick')}
+                  className={cn("h-7 px-2", chartType === 'candlestick' && "bg-cyan-500 hover:bg-cyan-400 text-slate-950")}
+                  data-testid="button-chart-candlestick"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant={chartType === 'line' ? 'default' : 'outline'}
+                  onClick={() => setChartType('line')}
+                  className={cn("h-7 px-2", chartType === 'line' && "bg-cyan-500 hover:bg-cyan-400 text-slate-950")}
+                  data-testid="button-chart-line"
+                >
+                  <LineChart className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            <CardDescription className="font-mono text-xs">
+              Interactive {chartType === 'candlestick' ? 'candlestick' : 'line'} chart with {chartData?.dataPoints || 0} data points
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {chartLoading ? (
+              <div className="flex items-center justify-center h-[350px]">
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+              </div>
+            ) : chartData?.candles?.length ? (
+              <div ref={chartContainerRef} className="w-full" data-testid="interactive-chart-container" />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[350px] text-slate-500">
+                <BarChart3 className="h-12 w-12 mb-3 text-slate-600" />
+                <p className="text-sm">No chart data available for {analysisSymbol}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dual Engine Results */}
       {analysisSymbol && (
@@ -3273,7 +3476,7 @@ export default function ChartAnalysis() {
   
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const symbolParam = urlParams.get('symbol');
+    const symbolParam = urlParams.get('symbol') || urlParams.get('s');
     if (symbolParam) {
       setSymbol(symbolParam.toUpperCase());
       window.history.replaceState({}, '', '/chart-analysis');
@@ -3679,7 +3882,7 @@ export default function ChartAnalysis() {
         </TabsList>
 
         <TabsContent value="unified" className="mt-0">
-          <UnifiedPatternAnalysisTab />
+          <UnifiedPatternAnalysisTab initialSymbol={symbol} />
         </TabsContent>
 
         <TabsContent value="scanner" className="mt-0">

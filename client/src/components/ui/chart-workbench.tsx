@@ -180,7 +180,7 @@ export function ChartWorkbench({
       series.createPriceLine({
         price: level.price,
         color: level.color,
-        lineWidth: level.lineWidth ?? 1,
+        lineWidth: (level.lineWidth ?? 1) as 1 | 2 | 3 | 4,
         lineStyle: level.lineStyle ?? 2,
         axisLabelVisible: true,
         title: level.label,
