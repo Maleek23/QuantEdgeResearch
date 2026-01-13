@@ -20030,8 +20030,8 @@ Use this checklist before entering any trade:
       const { symbol } = req.params;
       
       // Get news headlines for sentiment analysis
-      const { fetchFinancialNews } = await import("./alpha-vantage-service");
-      const news = await fetchFinancialNews([symbol.toUpperCase()], 10);
+      const { fetchAlphaVantageNews } = await import("./news-service");
+      const news = await fetchAlphaVantageNews(symbol.toUpperCase(), undefined, undefined, 10);
       const headlines = news.map(n => n.title + ' ' + (n.summary || ''));
       
       const sentiment = await analyzeSentiment(symbol.toUpperCase(), headlines);
@@ -20138,14 +20138,14 @@ Use this checklist before entering any trade:
     try {
       const { generateMLSignal } = await import("./ml-intelligence-service");
       const { fetchOHLCData } = await import("./chart-analysis");
-      const { fetchFinancialNews } = await import("./alpha-vantage-service");
+      const { fetchAlphaVantageNews } = await import("./news-service");
       const { symbol } = req.params;
       const accountBalance = parseFloat(req.query.balance as string) || 300;
       
       // Fetch all required data in parallel
       const [ohlc, news] = await Promise.all([
         fetchOHLCData(symbol.toUpperCase(), 'stock', 30),
-        fetchFinancialNews([symbol.toUpperCase()], 5)
+        fetchAlphaVantageNews(symbol.toUpperCase(), undefined, undefined, 5)
       ]);
       
       if (!ohlc || ohlc.closes.length < 10) {
@@ -20196,6 +20196,85 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error clearing ML caches", { error });
       res.status(500).json({ error: "Failed to clear ML caches" });
+    }
+  });
+
+  // ============================================================================
+  // 🧠 ML RETRAINING & SELF-IMPROVEMENT ENDPOINTS
+  // ============================================================================
+  
+  // GET /api/ml/retraining/stats - Get ML retraining performance stats
+  app.get("/api/ml/retraining/stats", requireBetaAccess, async (_req, res) => {
+    try {
+      const { getMLPerformanceStats } = await import("./ml-retraining-service");
+      const stats = await getMLPerformanceStats();
+      res.json(stats);
+    } catch (error: any) {
+      logger.error("Error fetching ML retraining stats", { error });
+      res.status(500).json({ error: "Failed to fetch ML retraining stats" });
+    }
+  });
+  
+  // GET /api/ml/retraining/weights - Get current dynamic signal weights
+  app.get("/api/ml/retraining/weights", requireBetaAccess, async (_req, res) => {
+    try {
+      const { getSignalWeights } = await import("./ml-retraining-service");
+      const weights = await getSignalWeights();
+      res.json({ weights });
+    } catch (error: any) {
+      logger.error("Error fetching signal weights", { error });
+      res.status(500).json({ error: "Failed to fetch signal weights" });
+    }
+  });
+  
+  // POST /api/ml/retraining/trigger - Manually trigger a retraining run (admin only)
+  app.post("/api/ml/retraining/trigger", requireAdminJWT, async (req, res) => {
+    try {
+      const { runRetrainingPipeline } = await import("./ml-retraining-service");
+      const modelName = (req.body.modelName as string) || 'price_direction';
+      
+      // Run async - don't wait for completion
+      runRetrainingPipeline(modelName).catch(err => {
+        logger.error("Retraining pipeline failed", { error: err });
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Retraining pipeline triggered for model: ${modelName}. Check logs for progress.` 
+      });
+    } catch (error: any) {
+      logger.error("Error triggering retraining", { error });
+      res.status(500).json({ error: "Failed to trigger retraining" });
+    }
+  });
+  
+  // POST /api/ml/retraining/record-prediction - Record a prediction for training
+  app.post("/api/ml/retraining/record-prediction", async (req, res) => {
+    try {
+      const { recordPrediction } = await import("./ml-retraining-service");
+      await recordPrediction(req.body);
+      res.json({ success: true, message: "Prediction recorded for training" });
+    } catch (error: any) {
+      logger.error("Error recording prediction", { error });
+      res.status(500).json({ error: "Failed to record prediction" });
+    }
+  });
+  
+  // POST /api/ml/retraining/update-outcome - Update prediction outcome
+  app.post("/api/ml/retraining/update-outcome", async (req, res) => {
+    try {
+      const { updatePredictionOutcome } = await import("./ml-retraining-service");
+      const { tradeIdeaId, outcome } = req.body;
+      
+      if (!tradeIdeaId || !outcome) {
+        return res.status(400).json({ error: "Missing tradeIdeaId or outcome" });
+      }
+      
+      await updatePredictionOutcome(tradeIdeaId, outcome);
+      res.json({ success: true, message: "Outcome updated" });
+    } catch (error: any) {
+      logger.error("Error updating outcome", { error });
+      res.status(500).json({ error: "Failed to update outcome" });
     }
   });
 

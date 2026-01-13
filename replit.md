@@ -40,6 +40,13 @@ Key features and architectural decisions include:
 -   **Automations Hub UI**: Consolidated within the Command Center's "Bots" tab for streamlined access.
 -   **Beta Access Control System**: Implements an invite-only beta mode with `hasBetaAccess` and `betaInviteId` fields, protected routes, and API endpoints.
 -   **ML Intelligence System**: Provides Price Direction Prediction, Sentiment Analysis, Chart Pattern Recognition, Adaptive Position Sizing, and Market Regime Detection, integrating with the Auto-Lotto Bot.
+-   **ML Retraining Service (Self-Improving Models)**: Automated pipeline that:
+    -   Records all predictions with feature vectors and outcomes to `ml_training_samples` table
+    -   Runs daily retraining at 3 AM CT on accumulated historical data (minimum 100 samples)
+    -   Auto-adjusts signal weights based on prediction accuracy every 4 hours
+    -   Deploys new models only if they beat current champion by 2%+ accuracy
+    -   Model registry tracks all versions with performance metrics for rollback capability
+    -   API endpoints at `/api/ml/retraining/*` for stats, weights, and manual trigger
 -   **RBI Framework - Backtesting & Breakout Scanner**: Supports Research → Backtest → Implement framework with a backtesting module and a breakout scanner.
 -   **Dynamic Mover Discovery System**: Continuously fetches real-time most-active stocks, top gainers/losers from Yahoo Finance, dynamically expanding the scanner universe.
 -   **Trade Idea Aggregation System**: A centralized ingestion pipeline that aggregates trade ideas from various sources (Market Scanner, Bullish Trend Scanner, Watchlist Grading, Mover Discovery) with quality gates for deduplication, confidence thresholds, loss analyzer blocks, and price validation.
