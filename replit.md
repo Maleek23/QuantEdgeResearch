@@ -65,3 +65,33 @@ Key features and architectural decisions include:
 
 ### Other Integrations
 -   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
+
+## Claude vs Gemini Migration Strategy
+
+**Current Architecture**: Multi-provider AI with lazy-loaded clients in `server/ai-service.ts`
+- **Primary**: Claude (Anthropic) - Best for financial reasoning, analysis quality
+- **Backup**: OpenAI GPT - Fallback for rate limits
+- **Alternative**: Gemini - Cost-efficient for bulk operations
+
+**Recommendation**:
+1. **Keep Claude as Primary** - Superior for financial/market analysis, nuanced reasoning
+2. **Use Gemini for Bulk Operations** - Summaries, batch processing, cost savings
+3. **Feature Flags Already in Place** - Switch providers via environment variables
+
+**Cost Comparison**:
+- Claude Sonnet: Highest quality for trading decisions
+- Gemini Flash: ~10x cheaper for summaries and non-critical tasks
+- GPT-4: Solid backup for rate limit fallback
+
+## Platform Rules
+
+**Directional Conviction Rules**:
+- No flip-flopping between CALL and PUT
+- Minimum 10-point confidence advantage required for directional signal
+- 70% minimum confidence threshold for options (premium cost + time decay)
+- Stock/crypto: 60% minimum confidence threshold
+
+## Recent Cleanup (2026-01)
+- Removed unused files: `home.tsx`, `account.tsx`, `trade-ideas.tsx`
+- Fixed About page SidebarTrigger error
+- Updated landing content to 6-engine system (ML, AI, Quant, Flow, Sentiment, Technical)

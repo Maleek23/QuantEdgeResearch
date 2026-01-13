@@ -1,17 +1,13 @@
-import { User, Activity, Settings, GraduationCap, Award, Link2 } from "lucide-react";
+import { User, Activity, GraduationCap, Award, Link2, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SettingsDialog } from "@/components/settings-dialog";
 import { SEOHead } from "@/components/seo-head";
-import { useState } from "react";
+import { Link } from "wouter";
 import profileImage from "@assets/malikpic_1760579415191.jpg";
 
 export default function About() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-background">
       <SEOHead pageKey="about" />
@@ -19,7 +15,11 @@ export default function About() {
         <div className="container mx-auto px-4 lg:px-6">
           <div className="flex h-14 items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <Link href="/">
+                <Button variant="ghost" size="icon" data-testid="button-back">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
                 <h1 className="text-lg font-bold" data-testid="text-app-title">Quant Edge Labs</h1>
@@ -28,14 +28,6 @@ export default function About() {
 
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSettingsOpen(true)}
-                data-testid="button-settings"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>
@@ -156,8 +148,6 @@ export default function About() {
           </p>
         </div>
       </main>
-
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

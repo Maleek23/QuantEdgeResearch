@@ -118,7 +118,7 @@ export default function Landing() {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               {isAuthenticated ? (
-                <Button onClick={() => setLocation('/home')} data-testid="button-dashboard">
+                <Button onClick={() => setLocation('/trade-desk')} data-testid="button-dashboard">
                   Dashboard
                 </Button>
               ) : (
@@ -159,13 +159,13 @@ export default function Landing() {
               </div>
               
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
-                Multiple Engines<span className="text-cyan-400">.</span>
+                Six Engines<span className="text-cyan-400">.</span>
                 <br />
                 One Edge<span className="text-cyan-400">.</span>
               </h1>
               
               <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
-                Five-engine research platform. AI, Quant, Flow, Chart, and Futures signals converge for higher-conviction setups.
+                Six-engine research platform. ML, AI, Quant, Flow, Sentiment & Technical signals converge for higher-conviction setups.
                 Every signal verified. Every outcome tracked.
               </p>
               
@@ -225,7 +225,7 @@ export default function Landing() {
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">5</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">6</p>
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Markets</p>
@@ -242,7 +242,7 @@ export default function Landing() {
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Platform Capabilities
             </p>
-            <h2 className="text-2xl lg:text-3xl font-bold mb-3">Five Engines. Complete Coverage.</h2>
+            <h2 className="text-2xl lg:text-3xl font-bold mb-3">Six Engines. Complete Coverage.</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
               Every angle analyzed. Every signal tracked. Every outcome measured.
             </p>
@@ -251,7 +251,19 @@ export default function Landing() {
           {/* Research Engines - Visual Grid */}
           <div className="mb-12">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Research Engines</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+              {/* ML Engine */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-lg shadow-pink-500/20">
+                    <Sparkles className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">ML Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
+                </div>
+              </div>
+
               {/* AI Engine */}
               <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5 hover-elevate">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
@@ -260,7 +272,7 @@ export default function Landing() {
                     <Brain className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-1">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings.</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
                 </div>
               </div>
               
@@ -272,43 +284,43 @@ export default function Landing() {
                     <Calculator className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-1">Quant Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">RSI(2), VWAP, volume spike detection.</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
                 </div>
               </div>
               
-              {/* Flow Scanner */}
+              {/* Flow Engine */}
               <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-5 hover-elevate">
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
                 <div className="relative">
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
                     <Activity className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-1">Flow Scanner</h3>
+                  <h3 className="font-semibold mb-1">Flow Engine</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
                 </div>
               </div>
               
-              {/* Chart Analysis */}
+              {/* Sentiment Engine */}
               <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-5 hover-elevate">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
                 <div className="relative">
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
-                    <Target className="h-6 w-6 text-white" />
+                    <TrendingUp className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-1">Chart Analysis</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">AI pattern recognition from screenshots.</p>
+                  <h3 className="font-semibold mb-1">Sentiment Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Market mood, VIX levels, fear/greed analysis.</p>
                 </div>
               </div>
               
-              {/* Futures Engine */}
+              {/* Technical Engine */}
               <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-5 hover-elevate">
                 <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
                 <div className="relative">
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-lg shadow-green-500/20">
                     <CandlestickChart className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="font-semibold mb-1">Futures Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">NQ & GC with CME specs, tick targets.</p>
+                  <h3 className="font-semibold mb-1">Technical Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
                 </div>
               </div>
             </div>
