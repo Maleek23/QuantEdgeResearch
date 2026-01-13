@@ -106,7 +106,7 @@ export function HeaderNav() {
                 alt="Quant Edge Labs" 
                 className="h-8 w-8 object-contain" 
               />
-              <span className="font-semibold text-white hidden sm:block">Intellectia</span>
+              <span className="font-semibold text-white hidden sm:block whitespace-nowrap">Quant Edge</span>
             </div>
           </Link>
           
