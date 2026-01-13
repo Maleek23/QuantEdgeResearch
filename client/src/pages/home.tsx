@@ -190,9 +190,14 @@ function AltcoinSeasonIndex({ value }: { value: number }) {
 export default function HomePage() {
   const { getPrice } = useRealtimePrices();
   
-  const { data: bestSetups, isLoading: loadingSetups } = useQuery<any[]>({
+  const { data: bestSetups, isLoading: loadingSetups } = useQuery<any>({
     queryKey: ['/api/trade-ideas/best-setups'],
     staleTime: 60000,
+    select: (data) => {
+      if (Array.isArray(data)) return data;
+      if (data?.ideas && Array.isArray(data.ideas)) return data.ideas;
+      return [];
+    },
   });
 
   const btcPrice = getPrice("BTC");

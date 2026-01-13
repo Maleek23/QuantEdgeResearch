@@ -325,6 +325,40 @@ export function MarketMonitorSection() {
   const changePercent = currentPrice && effectiveBase ? ((currentPrice - effectiveBase) / effectiveBase) * 100 : 0;
   const isPositive = changePercent >= 0;
   
+  if (!initialized || priceHistory.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              Market Monitor
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </h2>
+            <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+              <Activity className="w-3 h-3 mr-1 animate-pulse" />
+              Connecting...
+            </Badge>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="lg:col-span-3">
+            <Card className="bg-slate-900/50 border-slate-800/50 h-[300px] flex items-center justify-center">
+              <div className="text-center">
+                <Activity className="w-8 h-8 text-cyan-400 animate-pulse mx-auto mb-2" />
+                <p className="text-slate-400">Loading market data...</p>
+              </div>
+            </Card>
+          </div>
+          <div className="space-y-3">
+            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
+            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
+            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
