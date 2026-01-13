@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,23 @@ import {
   ChevronRight,
   Globe,
   Bitcoin,
-  BarChart3
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
 import { useRealtimePrices } from "@/context/realtime-prices-context";
 import { Link } from "wouter";
+
+interface MarketContext {
+  regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
+  riskSentiment: 'risk_on' | 'risk_off' | 'neutral';
+  preferredDirection: 'LONG' | 'SHORT' | 'BOTH';
+  score: number;
+  shouldTrade: boolean;
+  reasons: string[];
+  spyData: { price: number; change: number; relativeVolume: number } | null;
+  vixLevel: number | null;
+}
 
 interface AssetData {
   symbol: string;
@@ -118,6 +132,11 @@ export function GlobalMarketPulse() {
   const { getPrice, isConnected } = useRealtimePrices();
   const [activeView, setActiveView] = useState<"all" | "equity" | "crypto">("all");
   
+  const { data: marketContext } = useQuery<MarketContext>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 60000,
+  });
+  
   const spyPrice = getPrice("SPY");
   const qqqPrice = getPrice("QQQ");
   const diaPrice = getPrice("DIA");
@@ -128,9 +147,9 @@ export function GlobalMarketPulse() {
     const list: AssetData[] = [];
     
     if (spyPrice?.price) {
-      const change = spyPrice.previousPrice 
+      const change = marketContext?.spyData?.change ?? (spyPrice.previousPrice 
         ? ((spyPrice.price - spyPrice.previousPrice) / spyPrice.previousPrice) * 100 
-        : 0;
+        : 0);
       list.push({ symbol: "SPY", name: "S&P 500", price: spyPrice.price, change, type: "equity" });
     }
     
@@ -163,19 +182,49 @@ export function GlobalMarketPulse() {
     }
     
     return list;
-  }, [spyPrice, qqqPrice, diaPrice, btcPrice, ethPrice]);
+  }, [spyPrice, qqqPrice, diaPrice, btcPrice, ethPrice, marketContext]);
   
   const filteredAssets = useMemo(() => {
     if (activeView === "all") return assets;
     return assets.filter(a => a.type === activeView);
   }, [assets, activeView]);
   
-  const equityStrength = useMemo(() => {
+  const marketSentiment = useMemo(() => {
+    if (marketContext?.score !== undefined) {
+      return marketContext.score;
+    }
     const equities = assets.filter(a => a.type === "equity");
     if (equities.length === 0) return 50;
     const avgChange = equities.reduce((sum, a) => sum + a.change, 0) / equities.length;
     return Math.min(100, Math.max(0, 50 + avgChange * 10));
-  }, [assets]);
+  }, [assets, marketContext]);
+  
+  const regimeLabel = useMemo(() => {
+    if (!marketContext) return "Loading...";
+    switch (marketContext.regime) {
+      case 'trending_up': return "BULLISH";
+      case 'trending_down': return "BEARISH";
+      case 'volatile': return "VOLATILE";
+      default: return "NEUTRAL";
+    }
+  }, [marketContext]);
+  
+  const regimeColor = useMemo(() => {
+    if (!marketContext) return "text-slate-400";
+    switch (marketContext.regime) {
+      case 'trending_up': return "text-emerald-400";
+      case 'trending_down': return "text-red-400";
+      case 'volatile': return "text-amber-400";
+      default: return "text-slate-400";
+    }
+  }, [marketContext]);
+  
+  const equityStrength = useMemo(() => {
+    const equities = assets.filter(a => a.type === "equity");
+    if (equities.length === 0) return marketSentiment;
+    const avgChange = equities.reduce((sum, a) => sum + a.change, 0) / equities.length;
+    return Math.min(100, Math.max(0, 50 + avgChange * 10));
+  }, [assets, marketSentiment]);
   
   const cryptoStrength = useMemo(() => {
     const cryptos = assets.filter(a => a.type === "crypto");
@@ -183,10 +232,6 @@ export function GlobalMarketPulse() {
     const avgChange = cryptos.reduce((sum, a) => sum + a.change, 0) / cryptos.length;
     return Math.min(100, Math.max(0, 50 + avgChange * 5));
   }, [assets]);
-  
-  const overallStrength = useMemo(() => {
-    return (equityStrength * 0.6 + cryptoStrength * 0.4);
-  }, [equityStrength, cryptoStrength]);
   
   return (
     <Card className="bg-slate-900/50 border-slate-800/50 overflow-hidden" data-testid="card-global-market-pulse">
@@ -247,9 +292,21 @@ export function GlobalMarketPulse() {
             )}
           </div>
           
-          <div className="flex flex-col items-center justify-center gap-4 p-4 rounded-xl bg-slate-800/30">
-            <MarketGauge value={overallStrength} label="Global Strength" />
-            <div className="grid grid-cols-2 gap-4 w-full pt-4 border-t border-slate-700/50">
+          <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl bg-slate-800/30">
+            <div className="text-center mb-1">
+              <span className={cn("text-sm font-bold uppercase tracking-wider", regimeColor)}>
+                {marketContext?.regime === 'trending_up' && <ArrowUpRight className="w-4 h-4 inline mr-1" />}
+                {marketContext?.regime === 'trending_down' && <ArrowDownRight className="w-4 h-4 inline mr-1" />}
+                {regimeLabel}
+              </span>
+              {marketContext?.vixLevel && (
+                <div className="text-[10px] text-slate-500 mt-0.5">
+                  VIX: {marketContext.vixLevel.toFixed(1)}
+                </div>
+              )}
+            </div>
+            <MarketGauge value={marketSentiment} label="Market Sentiment" />
+            <div className="grid grid-cols-2 gap-3 w-full pt-3 border-t border-slate-700/50">
               <MarketGauge value={equityStrength} label="Equities" size="small" />
               <MarketGauge value={cryptoStrength} label="Crypto" size="small" />
             </div>

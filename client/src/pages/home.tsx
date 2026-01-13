@@ -175,15 +175,15 @@ export default function HomePage() {
           </Badge>
           <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
             <LineChart className="w-4 h-4 mr-2 text-emerald-400" />
-            Price Prediction
+            Price Direction
           </Badge>
           <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
             <Target className="w-4 h-4 mr-2 text-purple-400" />
-            Should I Buy
+            Entry Signals
           </Badge>
           <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
             <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
-            Option Strategy
+            Options Flow
           </Badge>
         </div>
       </section>
@@ -206,49 +206,66 @@ export default function HomePage() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            QuantAI Alpha Pick
-            <ChevronRight className="w-5 h-5 text-slate-400" />
+            <Brain className="w-5 h-5 text-purple-400" />
+            High-Conviction Setups
           </h2>
-          <span className="text-sm text-slate-400">AI-powered stock selection with proven track record</span>
+          <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+            6-Engine Analysis
+          </Badge>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {loadingSetups ? (
             <div className="col-span-3 flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="ml-2 text-slate-400">Loading top setups...</span>
+              <span className="ml-2 text-slate-400">Scanning for opportunities...</span>
             </div>
           ) : (
-            displayWinners.map((winner: any) => (
-              <Card key={winner.symbol} className="bg-slate-900/50 border-slate-800/50" data-testid={`card-winner-${winner.symbol}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
-                        <span className="text-xs font-bold text-slate-300">{winner.symbol}</span>
-                      </div>
-                      <div>
-                        <span className="block text-sm font-medium text-white">{winner.name}</span>
-                        <span className="text-xs text-slate-500">Added: {winner.dateAdded}</span>
+            displayWinners.map((winner: any, idx: number) => (
+              <Link key={winner.symbol} href={`/chart-analysis?s=${winner.symbol}`}>
+                <Card className="group bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-slate-700/50 hover:border-cyan-500/30 transition-all duration-300 cursor-pointer" data-testid={`card-winner-${winner.symbol}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-slate-700/50">
+                          <span className="text-sm font-bold text-white">{winner.symbol}</span>
+                        </div>
+                        <div>
+                          <span className="block text-sm font-medium text-white group-hover:text-cyan-400 transition-colors">{winner.name}</span>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-purple-500/30 text-purple-400">ML</Badge>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-cyan-500/30 text-cyan-400">TA</Badge>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-500/30 text-emerald-400">Quant</Badge>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-                      <Zap className="w-3 h-3 mr-1" />
-                      Quant AI
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Confidence Score</span>
-                    <span className="text-lg font-bold font-mono text-emerald-400">+{typeof winner.return === 'number' ? winner.return.toFixed(2) : winner.return}%</span>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Conviction</span>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className={cn(
+                              "w-2 h-2 rounded-full",
+                              i < Math.ceil(winner.return / 20) ? "bg-cyan-400" : "bg-slate-700"
+                            )} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-500 uppercase">Target</span>
+                        <span className="block text-lg font-bold font-mono text-emerald-400">+{typeof winner.return === 'number' ? winner.return.toFixed(1) : winner.return}%</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))
           )}
         </div>
         <div className="text-center mt-4">
           <Link href="/trading-engine">
             <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" data-testid="link-see-all-winners">
-              See all most recent winners <ChevronRight className="w-4 h-4 ml-1" />
+              View All Trade Ideas <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>

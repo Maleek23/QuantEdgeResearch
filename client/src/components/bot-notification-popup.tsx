@@ -104,14 +104,14 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
   return (
     <div
       className={cn(
-        'relative flex items-start gap-3 p-4 rounded-lg border backdrop-blur-sm shadow-lg',
-        'transition-all duration-300 ease-out',
+        'relative flex items-start gap-2 p-2 rounded-md border backdrop-blur-sm shadow-md',
+        'transition-all duration-300 ease-out text-xs',
         config.bgClass,
         isVisible && !isLeaving ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       )}
     >
-      <div className={cn('flex-shrink-0 p-2 rounded-full bg-black/30', config.iconClass)}>
-        <Icon className="h-5 w-5" />
+      <div className={cn('flex-shrink-0 p-1.5 rounded-full bg-black/30', config.iconClass)}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
       
       <div className="flex-1 min-w-0">

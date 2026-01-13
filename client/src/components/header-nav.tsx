@@ -49,8 +49,9 @@ const aiStrategies: NavDropdownItem[] = [
 
 const products: NavDropdownItem[] = [
   { title: "Command Center", description: "Unified trading hub", href: "/command-center", icon: Target },
+  { title: "Automations", description: "Trading bots & alerts", href: "/automations", icon: Zap },
   { title: "Watchlist", description: "Track your favorite symbols", href: "/watchlist", icon: Eye },
-  { title: "Wallet Tracker", description: "Track institution moves", href: "/wallet-tracker", icon: FileBarChart },
+  { title: "Wallet Tracker", description: "Track whale & institution moves", href: "/wallet-tracker", icon: FileBarChart },
   { title: "Options Analyzer", description: "Options flow analysis", href: "/options-analyzer", icon: BarChart3 },
   { title: "Backtest", description: "Strategy backtesting", href: "/backtest", icon: Crosshair },
 ];

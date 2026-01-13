@@ -114,7 +114,7 @@ export function GlobalSearch({
     if (onSearch) {
       onSearch(symbol);
     } else {
-      setLocation(`/trade-desk?symbol=${symbol}`);
+      setLocation(`/chart-analysis?s=${symbol}`);
     }
   };
 
