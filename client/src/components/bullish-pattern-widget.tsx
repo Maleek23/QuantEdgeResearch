@@ -180,14 +180,19 @@ export function BullishPatternWidget() {
   );
 }
 
-export function SectorHeatWidget() {
-  const { data: heatMap, isLoading } = useQuery<{
+interface SectorData {
+  name: string;
+  symbols: {
     symbol: string;
-    heat_score: number;
-    distinct_sources: number;
-    convergence_level: string;
-    sector?: string;
-  }[]>({
+    heatScore: number;
+    distinctSources: number;
+    convergenceLevel: number;
+    direction: string;
+  }[];
+}
+
+export function SectorHeatWidget() {
+  const { data, isLoading } = useQuery<{ sectors: SectorData[] }>({
     queryKey: ['/api/bullish-trends/heat-map'],
     queryFn: async () => {
       const res = await fetch('/api/bullish-trends/heat-map');
@@ -197,26 +202,19 @@ export function SectorHeatWidget() {
     refetchInterval: 120000,
   });
 
-  const sectors = new Map<string, { total: number; count: number; symbols: string[] }>();
-  
-  heatMap?.forEach(item => {
-    const sector = item.sector || 'Other';
-    if (!sectors.has(sector)) {
-      sectors.set(sector, { total: 0, count: 0, symbols: [] });
-    }
-    const s = sectors.get(sector)!;
-    s.total += item.heat_score;
-    s.count += 1;
-    s.symbols.push(item.symbol);
-  });
-
-  const sectorHeat = Array.from(sectors.entries())
-    .map(([name, data]) => ({
-      name,
-      avgHeat: data.total / data.count,
-      count: data.count,
-      symbols: data.symbols.slice(0, 3)
-    }))
+  const sectorHeat = (data?.sectors || [])
+    .map(sector => {
+      const avgHeat = sector.symbols.length > 0
+        ? sector.symbols.reduce((sum, s) => sum + s.heatScore, 0) / sector.symbols.length
+        : 0;
+      return {
+        name: sector.name,
+        avgHeat,
+        count: sector.symbols.length,
+        symbols: sector.symbols.slice(0, 3).map(s => s.symbol)
+      };
+    })
+    .filter(s => s.count > 0)
     .sort((a, b) => b.avgHeat - a.avgHeat)
     .slice(0, 5);
 
