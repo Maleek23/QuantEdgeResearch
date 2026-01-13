@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
 import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
+import { HeaderNav } from "@/components/header-nav";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -75,6 +76,7 @@ const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
 const CommandCenter = lazy(() => import("@/pages/command-center"));
+const HomePage = lazy(() => import("@/pages/home"));
 const StrategyPlaybooks = lazy(() => import("@/pages/strategy-playbooks"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
 const AnalysisPage = lazy(() => import("@/pages/analysis"));
@@ -109,9 +111,9 @@ function SmartLanding() {
     return <PageLoader />;
   }
   
-  // If logged in, go straight to Command Center
+  // If logged in, go to homepage dashboard
   if (user) {
-    return <Redirect to="/trading-engine" />;
+    return <Redirect to="/home" />;
   }
   
   // Otherwise show landing page
@@ -128,9 +130,7 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
-      <Route path="/home">
-        <Redirect to="/trading-engine" />
-      </Route>
+      <Route path="/home" component={withBetaProtection(HomePage)} />
       <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/command-center" component={withBetaProtection(CommandCenter)} />
@@ -354,9 +354,17 @@ function App() {
                 <AuroraBackground />
                 {enableAuroraLayout ? (
                   <AuroraLayoutProvider>
-                    <div className="flex h-screen w-full">
-                      <CommandRail />
-                      <AuroraContentWrapper />
+                    <div className="flex flex-col h-screen w-full">
+                      <HeaderNav />
+                      <div className="flex-1 overflow-auto bg-slate-950/50">
+                        <main className="min-h-full p-6 max-w-[1600px] mx-auto">
+                          <ErrorBoundary>
+                            <Suspense fallback={<PageLoader />}>
+                              <Router />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </main>
+                      </div>
                     </div>
                   </AuroraLayoutProvider>
                 ) : (
