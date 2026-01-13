@@ -220,6 +220,7 @@ import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframe
 import { isRealLoss } from "@shared/constants";
 import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { SmartMoneyFlowTracker } from "@/components/smart-money-flow-tracker";
 
 interface BestSetup extends TradeIdea {
   convictionScore: number;
@@ -1716,6 +1717,9 @@ export default function TradeDeskPage() {
 
       {/* Best Setups - Top conviction plays */}
       <BestSetupsCard />
+
+      {/* Smart Money Flow Tracker - Unusual options activity */}
+      <SmartMoneyFlowTracker />
 
       {/* Engine Filter Tabs - Premium Design */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
