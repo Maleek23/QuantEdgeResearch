@@ -976,6 +976,7 @@ function QuickStatCard({ label, value, icon: Icon }: { label: string; value: str
 function PatternSearchTab() {
   const [symbol, setSymbol] = useState("");
   const [searchSymbol, setSearchSymbol] = useState("");
+  const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const rsiChartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -1032,23 +1033,42 @@ function PatternSearchTab() {
     
     chartRef.current = chart;
     
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      borderUpColor: "#22c55e",
-      borderDownColor: "#ef4444",
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
-    });
+    let mainSeries: ISeriesApi<"Candlestick"> | ISeriesApi<"Line">;
     
-    const candleData: CandlestickData[] = patternData.candles.map((c) => ({
-      time: c.time as Time,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
-    candleSeries.setData(candleData);
+    if (chartType === 'candlestick') {
+      const candleSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#22c55e",
+        downColor: "#ef4444",
+        borderUpColor: "#22c55e",
+        borderDownColor: "#ef4444",
+        wickUpColor: "#22c55e",
+        wickDownColor: "#ef4444",
+      });
+      
+      const candleData: CandlestickData[] = patternData.candles.map((c) => ({
+        time: c.time as Time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+      candleSeries.setData(candleData);
+      mainSeries = candleSeries;
+    } else {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: "#22c55e",
+        lineWidth: 2,
+        priceLineVisible: true,
+        lastValueVisible: true,
+      });
+      
+      const lineData: LineData[] = patternData.candles.map((c) => ({
+        time: c.time as Time,
+        value: c.close,
+      }));
+      lineSeries.setData(lineData);
+      mainSeries = lineSeries;
+    }
     
     if (patternData.bbSeries?.length) {
       const bbUpper = chart.addSeries(LineSeries, {
@@ -1093,7 +1113,7 @@ function PatternSearchTab() {
       bbLower.setData(lowerData);
     }
     
-    if (patternData.patterns.length > 0) {
+    if (patternData.patterns.length > 0 && chartType === 'candlestick') {
       const lastCandle = patternData.candles[patternData.candles.length - 1];
       const markers = patternData.patterns.map((pattern, index) => {
         const markerColor = pattern.type === "bullish" ? "#22c55e" : pattern.type === "bearish" ? "#ef4444" : "#f59e0b";
@@ -1109,7 +1129,7 @@ function PatternSearchTab() {
           id: `marker-${index}`,
         };
       });
-      createSeriesMarkers(candleSeries, markers);
+      createSeriesMarkers(mainSeries as ISeriesApi<"Candlestick">, markers);
     }
     
     chart.timeScale().fitContent();
@@ -1125,7 +1145,7 @@ function PatternSearchTab() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [patternData]);
+  }, [patternData, chartType]);
   
   useEffect(() => {
     if (!rsiChartContainerRef.current || !patternData?.rsiSeries?.length) return;
@@ -1342,11 +1362,31 @@ function PatternSearchTab() {
           <TradeSetupCard patternData={patternData} />
           
           <Card className="glass-card overflow-hidden">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between gap-4">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Target className="h-5 w-5 text-cyan-400" />
                 Price Chart with Bollinger Bands
               </CardTitle>
+              <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+                <Button
+                  size="sm"
+                  variant={chartType === 'candlestick' ? 'default' : 'ghost'}
+                  onClick={() => setChartType('candlestick')}
+                  data-testid="btn-chart-candlestick"
+                >
+                  <BarChart3 className="h-4 w-4 mr-1" />
+                  Candles
+                </Button>
+                <Button
+                  size="sm"
+                  variant={chartType === 'line' ? 'default' : 'ghost'}
+                  onClick={() => setChartType('line')}
+                  data-testid="btn-chart-line"
+                >
+                  <LineChart className="h-4 w-4 mr-1" />
+                  Line
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div ref={chartContainerRef} className="w-full" data-testid="chart-pattern-candlestick" />

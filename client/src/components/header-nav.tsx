@@ -39,27 +39,26 @@ interface NavDropdownItem {
 }
 
 const aiStrategies: NavDropdownItem[] = [
-  { title: "AI Stock Picker", description: "AI-selected daily top stocks", href: "/trade-desk", icon: Brain },
-  { title: "Swing Trading", description: "Real-time swing trade signals", href: "/swing-scanner", icon: TrendingUp },
-  { title: "Quant Alpha Pick", description: "Quantitative momentum plays", href: "/trading-engine", icon: Zap },
-  { title: "Daytrading Center", description: "Intraday trading signals", href: "/market-scanner", icon: Activity },
-  { title: "Pattern Detection", description: "Chart pattern recognition", href: "/chart-analysis", icon: BarChart3 },
-  { title: "Crypto Radar", description: "Crypto trading signals", href: "/ct-tracker", icon: Wallet },
+  { title: "Trade Desk", description: "AI-powered stock picks & earnings", href: "/trade-desk", icon: Brain },
+  { title: "Trading Engine", description: "Quantitative momentum plays", href: "/trading-engine", icon: Zap },
+  { title: "Market Scanner", description: "Intraday trading signals", href: "/market-scanner", icon: Activity },
+  { title: "Chart Analysis", description: "Pattern recognition & TA", href: "/chart-analysis", icon: BarChart3 },
+  { title: "Bullish Trends", description: "Momentum stock scanner", href: "/bullish-trends", icon: TrendingUp },
+  { title: "CT Tracker", description: "Crypto trading signals", href: "/ct-tracker", icon: Wallet },
 ];
 
 const products: NavDropdownItem[] = [
-  { title: "Featured Screeners", description: "Template screeners for winning trades", href: "/market-scanner", icon: Target },
-  { title: "Thematic Investing", description: "Sector-based investment themes", href: "/command-center?tab=thematic", icon: Layers },
+  { title: "Command Center", description: "Unified trading hub", href: "/command-center", icon: Target },
   { title: "Watchlist", description: "Track your favorite symbols", href: "/watchlist", icon: Eye },
-  { title: "Whales Tracker", description: "Track institution moves", href: "/wallet-tracker", icon: FileBarChart },
-  { title: "AI Earnings Calendar", description: "Earnings beat/miss predictions", href: "/trade-desk?tab=earnings", icon: Clock },
+  { title: "Wallet Tracker", description: "Track institution moves", href: "/wallet-tracker", icon: FileBarChart },
+  { title: "Options Analyzer", description: "Options flow analysis", href: "/options-analyzer", icon: BarChart3 },
+  { title: "Backtest", description: "Strategy backtesting", href: "/backtest", icon: Crosshair },
 ];
 
 const markets: NavDropdownItem[] = [
   { title: "Market Overview", description: "Real-time market data", href: "/market", icon: LineChart },
-  { title: "Options Analyzer", description: "Options flow analysis", href: "/options-analyzer", icon: BarChart3 },
-  { title: "Bullish Trends", description: "Momentum stock scanner", href: "/bullish-trends", icon: TrendingUp },
-  { title: "Backtest", description: "Strategy backtesting", href: "/backtest", icon: Crosshair },
+  { title: "Paper Trading", description: "Practice with virtual money", href: "/paper-trading", icon: Activity },
+  { title: "Performance", description: "Track your trading stats", href: "/performance", icon: TrendingUp },
 ];
 
 function DropdownItem({ item }: { item: NavDropdownItem }) {
@@ -119,14 +118,6 @@ export function HeaderNav() {
           
           <NavigationMenu className="hidden lg:flex">
             <NavigationMenuList className="gap-1">
-              <NavigationMenuItem>
-                <Link href="/trade-desk">
-                  <NavigationMenuLink className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap" data-testid="nav-trade-desk">
-                    Trade Desk
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              
               <NavigationMenuItem>
                 <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-ai-strategies">
                   AI Strategies

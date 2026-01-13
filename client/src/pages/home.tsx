@@ -30,54 +30,71 @@ interface StrategyCard {
   bgGradient: string;
 }
 
-const strategies: StrategyCard[] = [
+interface StrategyCardExtended extends StrategyCard {
+  metric?: string;
+  metricLabel?: string;
+}
+
+const strategies: StrategyCardExtended[] = [
   { 
-    title: "AI Stock Picker", 
-    description: "AI-selected daily top stocks", 
+    title: "Trade Desk", 
+    description: "AI-powered stock picks & earnings predictions", 
     href: "/trade-desk", 
     icon: Brain,
     color: "text-purple-400",
-    bgGradient: "from-purple-900/40 to-purple-950/20"
+    bgGradient: "from-purple-900/50 via-purple-900/30 to-slate-900/50",
+    metric: "95%",
+    metricLabel: "AI Accuracy"
   },
   { 
-    title: "Swing Trading", 
-    description: "Real-time swing trade signal", 
-    href: "/swing-scanner", 
-    icon: TrendingUp,
+    title: "Trading Engine", 
+    description: "Quantitative momentum strategies", 
+    href: "/trading-engine", 
+    icon: Zap,
+    color: "text-cyan-400",
+    bgGradient: "from-cyan-900/50 via-cyan-900/30 to-slate-900/50",
+    metric: "78%",
+    metricLabel: "Win Rate"
+  },
+  { 
+    title: "Market Scanner", 
+    description: "Real-time intraday trading signals", 
+    href: "/market-scanner", 
+    icon: Activity,
     color: "text-emerald-400",
-    bgGradient: "from-emerald-900/40 to-emerald-950/20"
+    bgGradient: "from-emerald-900/50 via-emerald-900/30 to-slate-900/50",
+    metric: "12",
+    metricLabel: "Live Signals"
   },
   { 
-    title: "Pattern Detection", 
-    description: "Price pattern for technical analysis", 
+    title: "Chart Analysis", 
+    description: "AI pattern recognition & technical analysis", 
     href: "/chart-analysis", 
     icon: BarChart3,
-    color: "text-cyan-400",
-    bgGradient: "from-cyan-900/40 to-cyan-950/20"
+    color: "text-blue-400",
+    bgGradient: "from-blue-900/50 via-blue-900/30 to-slate-900/50",
+    metric: "15+",
+    metricLabel: "Patterns"
   },
   { 
-    title: "Crypto Radar", 
-    description: "Daytrading signal for crypto", 
+    title: "Bullish Trends", 
+    description: "Momentum stocks with strong uptrends", 
+    href: "/bullish-trends", 
+    icon: TrendingUp,
+    color: "text-pink-400",
+    bgGradient: "from-pink-900/50 via-pink-900/30 to-slate-900/50",
+    metric: "24",
+    metricLabel: "Hot Stocks"
+  },
+  { 
+    title: "CT Tracker", 
+    description: "Crypto trading signals & analysis", 
     href: "/ct-tracker", 
     icon: Wallet,
     color: "text-amber-400",
-    bgGradient: "from-amber-900/40 to-amber-950/20"
-  },
-  { 
-    title: "Daytrading", 
-    description: "Daytrading signal for stock", 
-    href: "/market-scanner", 
-    icon: Activity,
-    color: "text-pink-400",
-    bgGradient: "from-pink-900/40 to-pink-950/20"
-  },
-  { 
-    title: "Quant Alpha", 
-    description: "AI-powered stock selection", 
-    href: "/trading-engine", 
-    icon: Zap,
-    color: "text-blue-400",
-    bgGradient: "from-blue-900/40 to-blue-950/20"
+    bgGradient: "from-amber-900/50 via-amber-900/30 to-slate-900/50",
+    metric: "8",
+    metricLabel: "Top Coins"
   },
 ];
 
@@ -99,23 +116,33 @@ const screenerLinks = [
   { title: "Pattern Scanner", description: "Technical pattern recognition", href: "/chart-analysis", icon: BarChart3 },
 ];
 
-function StrategyCardComponent({ strategy }: { strategy: StrategyCard }) {
+function StrategyCardComponent({ strategy }: { strategy: StrategyCardExtended }) {
   const Icon = strategy.icon;
   return (
     <Link href={strategy.href}>
       <Card className={cn(
-        "group relative overflow-hidden border-slate-800/50 hover:border-slate-700/50 transition-all duration-300 cursor-pointer h-full",
-        "bg-gradient-to-br",
+        "group relative overflow-hidden border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 cursor-pointer h-full",
+        "bg-gradient-to-br backdrop-blur-sm",
         strategy.bgGradient
       )} data-testid={`card-strategy-${strategy.title.toLowerCase().replace(/\s+/g, '-')}`}>
-        <CardContent className="p-6 flex flex-col h-full">
-          <div className={cn("p-3 rounded-xl bg-slate-800/50 w-fit mb-4", strategy.color)}>
-            <Icon className="w-6 h-6" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full" />
+        <CardContent className="p-5 flex flex-col h-full relative z-10">
+          <div className="flex items-start justify-between mb-3">
+            <div className={cn("p-2.5 rounded-xl bg-slate-800/70 backdrop-blur-sm border border-slate-700/50", strategy.color)}>
+              <Icon className="w-5 h-5" />
+            </div>
+            {strategy.metric && (
+              <div className="text-right">
+                <span className={cn("text-lg font-bold font-mono", strategy.color)}>{strategy.metric}</span>
+                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">{strategy.metricLabel}</span>
+              </div>
+            )}
           </div>
-          <h3 className="font-semibold text-white mb-1">{strategy.title}</h3>
-          <p className="text-sm text-slate-400 flex-1">{strategy.description}</p>
-          <div className="flex items-center gap-1 text-cyan-400 text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-            See More <ArrowRight className="w-4 h-4" />
+          <h3 className="font-semibold text-white mb-1 text-sm">{strategy.title}</h3>
+          <p className="text-xs text-slate-400 flex-1 line-clamp-2">{strategy.description}</p>
+          <div className="flex items-center gap-1 text-cyan-400 text-xs mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            Explore <ArrowRight className="w-3 h-3" />
           </div>
         </CardContent>
       </Card>
@@ -299,7 +326,7 @@ export default function HomePage() {
         </div>
         <div className="text-center mt-4">
           <Link href="/trading-engine">
-            <Button variant="link" className="text-cyan-400" data-testid="link-see-all-winners">
+            <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" data-testid="link-see-all-winners">
               See all most recent winners <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
@@ -380,7 +407,7 @@ export default function HomePage() {
             </div>
             <div className="text-center mt-4">
               <Link href="/trade-desk">
-                <Button variant="link" className="text-cyan-400" data-testid="link-see-all-earnings">
+                <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" data-testid="link-see-all-earnings">
                   See all AI Earnings Prediction <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
