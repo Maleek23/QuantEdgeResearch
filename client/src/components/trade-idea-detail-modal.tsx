@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import { getPnlColor } from "@/lib/signal-grade";
 import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp, Lightbulb, Star } from "lucide-react";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
+import { ChartWorkbench } from "@/components/ui/chart-workbench";
 import type { TradeIdea } from "@shared/schema";
 import { formatInTimeZone } from "date-fns-tz";
 
@@ -17,6 +19,36 @@ interface TradeIdeaDetailModalProps {
   onAddToWatchlist?: () => void;
 }
 
+function generateTradeChartData(basePrice: number, days: number = 30) {
+  const data: { time: string; open: number; high: number; low: number; close: number; value: number }[] = [];
+  let price = basePrice * (0.9 + Math.random() * 0.1);
+  const now = new Date();
+
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    
+    const change = (Math.random() - 0.48) * (basePrice * 0.02);
+    price = Math.max(basePrice * 0.7, Math.min(basePrice * 1.3, price + change));
+    
+    const open = price;
+    const close = price + (Math.random() - 0.5) * (basePrice * 0.015);
+    const high = Math.max(open, close) + Math.random() * (basePrice * 0.01);
+    const low = Math.min(open, close) - Math.random() * (basePrice * 0.01);
+
+    data.push({
+      time: date.toISOString().split("T")[0],
+      open,
+      high,
+      low,
+      close,
+      value: close,
+    });
+  }
+
+  return data;
+}
+
 export function TradeIdeaDetailModal({ 
   idea, 
   currentPrice, 
@@ -24,6 +56,20 @@ export function TradeIdeaDetailModal({
   onOpenChange,
   onAddToWatchlist 
 }: TradeIdeaDetailModalProps) {
+  const chartData = useMemo(() => {
+    if (!idea) return [];
+    return generateTradeChartData(idea.entryPrice, 30);
+  }, [idea?.id, idea?.entryPrice]);
+
+  const priceLevels = useMemo(() => {
+    if (!idea) return [];
+    return [
+      { price: idea.entryPrice, label: "Entry", color: "rgb(6, 182, 212)" },
+      { price: idea.targetPrice, label: "Target", color: "rgb(16, 185, 129)" },
+      { price: idea.stopLoss, label: "Stop", color: "rgb(239, 68, 68)" },
+    ];
+  }, [idea?.id, idea?.entryPrice, idea?.targetPrice, idea?.stopLoss]);
+
   if (!idea) return null;
 
   const isLong = idea.direction === 'long';
@@ -212,6 +258,32 @@ export function TradeIdeaDetailModal({
                   <div className="text-xs text-muted-foreground mb-1">Stop Loss</div>
                   <div className="text-lg font-bold font-mono text-red-500">{formatCurrency(idea.stopLoss)}</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Price Chart */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Price Chart</h3>
+              <ChartWorkbench
+                symbol={idea.symbol}
+                data={chartData}
+                chartType="candlestick"
+                height={250}
+                showToolbar={true}
+                showTimeframes={false}
+                className="border-0 bg-muted/20"
+                priceLevels={priceLevels}
+              />
+              <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-cyan-500 inline-block" /> Entry: {formatCurrency(idea.entryPrice)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-green-500 inline-block" /> Target: {formatCurrency(idea.targetPrice)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-red-500 inline-block" /> Stop: {formatCurrency(idea.stopLoss)}
+                </span>
               </div>
             </div>
 

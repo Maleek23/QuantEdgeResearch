@@ -23,8 +23,9 @@ import {
   BarChart3, Target, Shield, Clock, Bell, ChevronRight,
   Zap, AlertTriangle, CheckCircle, XCircle, Info,
   ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search,
-  Download, Compass, Lightbulb, CalendarPlus
+  Download, Compass, Lightbulb, CalendarPlus, LineChart
 } from "lucide-react";
+import { MiniSparkline, generateSparklineData } from "@/components/ui/mini-sparkline";
 
 // Enhanced tier configuration with psychology-driven colors and descriptions
 const TIER_CONFIG: Record<string, {
@@ -804,6 +805,15 @@ function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: Quote
             )}
           </div>
 
+          {/* Mini Sparkline */}
+          <div className="hidden md:block">
+            <MiniSparkline
+              data={generateSparklineData(item.targetPrice || item.currentPrice || 100, 14)}
+              width={80}
+              height={32}
+            />
+          </div>
+
           {/* Action hint */}
           <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
             <Icon className={`h-3 w-3 ${config.text}`} />
@@ -853,6 +863,20 @@ function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: Quote
 
         {/* Grade Explanation */}
         <GradeExplanation item={item} />
+
+        {/* Price Chart Section */}
+        <div className="mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+          <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-foreground">
+            <LineChart className="h-4 w-4 text-cyan-500" />
+            14-Day Price Trend
+          </div>
+          <MiniSparkline
+            data={generateSparklineData(item.targetPrice || item.currentPrice || 100, 14)}
+            width={360}
+            height={60}
+            className="mx-auto"
+          />
+        </div>
 
         {/* Premium Tracking Section */}
         {item.trackPremiums && (

@@ -24,10 +24,19 @@ interface ChartAnnotation {
   position?: "top" | "bottom";
 }
 
+interface PriceLevel {
+  price: number;
+  label: string;
+  color: string;
+  lineWidth?: number;
+  lineStyle?: number;
+}
+
 interface ChartWorkbenchProps {
   symbol: string;
   data: ChartDataPoint[];
   annotations?: ChartAnnotation[];
+  priceLevels?: PriceLevel[];
   chartType?: ChartType;
   timeFrame?: TimeFrame;
   height?: number;
@@ -41,6 +50,7 @@ export function ChartWorkbench({
   symbol,
   data,
   annotations = [],
+  priceLevels = [],
   chartType: initialChartType = "line",
   timeFrame: initialTimeFrame = "1M",
   height = 400,
@@ -166,6 +176,17 @@ export function ChartWorkbench({
 
     seriesRef.current = series;
 
+    priceLevels.forEach((level) => {
+      series.createPriceLine({
+        price: level.price,
+        color: level.color,
+        lineWidth: level.lineWidth ?? 1,
+        lineStyle: level.lineStyle ?? 2,
+        axisLabelVisible: true,
+        title: level.label,
+      });
+    });
+
     if (data.length > 0) {
       const lastPoint = data[data.length - 1];
       const firstPoint = data[0];
@@ -189,7 +210,7 @@ export function ChartWorkbench({
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, [data, chartType, height, getChartColors]);
+  }, [data, chartType, height, getChartColors, priceLevels]);
 
   const handleTimeFrameChange = (tf: TimeFrame) => {
     setTimeFrame(tf);
