@@ -1374,10 +1374,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user is admin (by email match OR by subscription tier)
       const isAdmin = checkIsAdmin(user);
       
-      logger.info(`[USER-TIER] User ${userId}: email=${user.email}, subscriptionTier=${user.subscriptionTier}, isAdmin=${isAdmin}`);
+      // Beta users get advanced tier access for testing all features
+      const hasBetaAccess = (user as any).hasBetaAccess === true;
       
-      // Admin gets pro tier limits, otherwise use their subscription tier
-      const tier = isAdmin ? 'pro' : ((user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free');
+      logger.info(`[USER-TIER] User ${userId}: email=${user.email}, subscriptionTier=${user.subscriptionTier}, isAdmin=${isAdmin}, hasBetaAccess=${hasBetaAccess}`);
+      
+      // Admin gets pro tier, beta users get advanced tier, otherwise use their subscription tier
+      let tier: 'free' | 'advanced' | 'pro';
+      if (isAdmin) {
+        tier = 'pro';
+      } else if (hasBetaAccess) {
+        // Beta users get advanced tier to test all core features
+        tier = 'advanced';
+      } else {
+        tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
+      }
       const limits = normalizeLimits(getTierLimits(tier));
       const today = new Date().toISOString().split('T')[0];
       const usage = await storage.getDailyUsage(userId, today);

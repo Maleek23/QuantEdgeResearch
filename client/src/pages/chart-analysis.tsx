@@ -3197,16 +3197,6 @@ function UnifiedPatternAnalysisTab() {
         </div>
       )}
 
-      {/* Full Pattern Scanner Table Below */}
-      {analysisSymbol && (
-        <div className="pt-4 border-t border-slate-700/40">
-          <h3 className="text-sm font-mono text-slate-400 mb-4 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            FULL SCANNER RESULTS
-          </h3>
-          <PatternScannerTab />
-        </div>
-      )}
     </div>
   );
 }

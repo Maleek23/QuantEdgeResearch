@@ -81,13 +81,14 @@ function isOptionPlayStillRelevant(play: OptionPlayValidation): { valid: boolean
   return { valid: true, reason: 'Play passes all relevance checks' };
 }
 
-// STRICT MODE - Only allow premium A/A+ alerts through
-// Disables: batch summaries, market movers, flow alerts to QUANTFLOOR
-const STRICT_PREMIUM_ONLY = true;
+// STRICT MODE - Controls auto-notifications
+// When true: Disables batch summaries, market movers, flow alerts
+// When false: Allows all auto-notifications based on quality gates
+const STRICT_PREMIUM_ONLY = false;
 
-// QUALITY GATE - B+ GRADE MINIMUM (85+ confidence, 4+ signals)
-const MIN_SIGNALS_REQUIRED = 4;
-const MIN_CONFIDENCE_REQUIRED = 85;
+// QUALITY GATE - B GRADE MINIMUM (70+ confidence, 3+ signals)
+const MIN_SIGNALS_REQUIRED = 3;
+const MIN_CONFIDENCE_REQUIRED = 70;
 
 // Maximum option premium cost
 const MAX_PREMIUM_COST = 1000;
