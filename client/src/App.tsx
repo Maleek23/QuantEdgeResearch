@@ -26,6 +26,7 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -440,9 +441,11 @@ function AuroraContentWrapper() {
       </header>
       <div className="flex-1 overflow-auto bg-slate-950/50">
         <main className="min-h-full p-6">
-          <Suspense fallback={<PageLoader />}>
-            <Router />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Router />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
