@@ -15,3 +15,4 @@ export { SymbolLeaderboard } from "./symbol-leaderboard";
 export { BotActivityMonitor } from "./bot-activity-monitor";
 export { ThematicInvestingTable } from "./thematic-investing-table";
 export { MarketMonitorChart, MarketMonitorSection } from "./market-monitor-chart";
+export { GlobalMarketPulse } from "./global-market-pulse";

@@ -3,9 +3,8 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MarketMonitorSection } from "@/components/dashboard";
+import { GlobalMarketPulse } from "@/components/dashboard";
 import { useQuery } from "@tanstack/react-query";
-import { useRealtimePrices } from "@/context/realtime-prices-context";
 import {
   Brain,
   TrendingUp,
@@ -110,11 +109,6 @@ const fallbackWinners = [
   { symbol: "SLV", name: "iShares Silver Trust", return: 64.31, dateAdded: "2025-11-21" },
 ];
 
-const screenerLinks = [
-  { title: "Day Trade Scanner", description: "High-momentum intraday opportunities", href: "/market-scanner", icon: Activity },
-  { title: "Swing Trade Scanner", description: "Multi-day swing setups", href: "/swing-scanner", icon: TrendingUp },
-  { title: "Pattern Scanner", description: "Technical pattern recognition", href: "/chart-analysis", icon: BarChart3 },
-];
 
 function StrategyCardComponent({ strategy }: { strategy: StrategyCardExtended }) {
   const Icon = strategy.icon;
@@ -150,73 +144,7 @@ function StrategyCardComponent({ strategy }: { strategy: StrategyCardExtended })
   );
 }
 
-function MarketStrengthGauge({ value, label }: { value: number; label: string }) {
-  const rotation = (value / 100) * 180 - 90;
-  const getColor = () => {
-    if (value < 30) return "#ef4444";
-    if (value < 50) return "#f59e0b";
-    if (value < 70) return "#22c55e";
-    return "#10b981";
-  };
-  
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-32 h-16 overflow-hidden">
-        <svg viewBox="0 0 100 50" className="w-full h-full">
-          <defs>
-            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ef4444" />
-              <stop offset="50%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#22c55e" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 10 45 A 40 40 0 0 1 90 45"
-            fill="none"
-            stroke="url(#gaugeGradient)"
-            strokeWidth="6"
-            strokeLinecap="round"
-          />
-          <circle
-            cx={50 + 35 * Math.cos((rotation * Math.PI) / 180)}
-            cy={45 + 35 * Math.sin((rotation * Math.PI) / 180)}
-            r="4"
-            fill={getColor()}
-            className="drop-shadow-lg"
-          />
-        </svg>
-      </div>
-      <span className="text-3xl font-bold font-mono text-white mt-2">{value}</span>
-      <span className="text-sm text-slate-400">{label}</span>
-    </div>
-  );
-}
-
-function AltcoinSeasonIndex({ value }: { value: number }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-4xl font-bold font-mono text-white text-center">{value}</span>
-      <div className="relative h-3 rounded-full overflow-hidden bg-slate-800">
-        <div 
-          className="absolute left-0 top-0 h-full bg-gradient-to-r from-amber-500 to-blue-500"
-          style={{ width: "100%" }}
-        />
-        <div 
-          className="absolute top-0 w-0 h-0 border-l-4 border-r-4 border-b-8 border-l-transparent border-r-transparent border-b-white"
-          style={{ left: `${value}%`, transform: "translateX(-50%) translateY(-2px)" }}
-        />
-      </div>
-      <div className="flex justify-between text-xs">
-        <span className="text-amber-400">Bitcoin</span>
-        <span className="text-blue-400">Altcoin</span>
-      </div>
-    </div>
-  );
-}
-
 export default function HomePage() {
-  const { getPrice } = useRealtimePrices();
-  
   const { data: bestSetups, isLoading: loadingSetups } = useQuery<any>({
     queryKey: ['/api/trade-ideas/best-setups'],
     staleTime: 60000,
@@ -227,13 +155,6 @@ export default function HomePage() {
     },
   });
 
-  const btcPrice = getPrice("BTC");
-  const ethPrice = getPrice("ETH");
-  
-  const cryptoStrength = btcPrice?.price && btcPrice.previousPrice 
-    ? Math.min(100, Math.max(0, 50 + ((btcPrice.price - btcPrice.previousPrice) / btcPrice.previousPrice) * 1000))
-    : 60;
-  
   const displayWinners = bestSetups?.slice(0, 3).map((idea: any) => ({
     symbol: idea.symbol,
     name: idea.companyName || idea.symbol,
@@ -279,7 +200,7 @@ export default function HomePage() {
       </section>
 
       <section>
-        <MarketMonitorSection />
+        <GlobalMarketPulse />
       </section>
 
       <section>
@@ -333,44 +254,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Link href="/ct-tracker">
-          <Card className="bg-slate-900/50 border-slate-800/50 hover:border-slate-700/50 transition-colors cursor-pointer" data-testid="card-crypto-market">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                Crypto Market
-                <ChevronRight className="w-5 h-5 text-slate-400" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-6">
-              <div>
-                <span className="text-sm text-slate-400 mb-4 block">Market Strength</span>
-                <MarketStrengthGauge value={Math.round(cryptoStrength)} label={cryptoStrength > 60 ? "Strong" : cryptoStrength > 40 ? "Neutral" : "Weak"} />
-              </div>
-              <div>
-                <span className="text-sm text-slate-400 mb-4 block">Altcoin Season Index</span>
-                <AltcoinSeasonIndex value={55} />
-              </div>
-              {(btcPrice?.price || ethPrice?.price) && (
-                <div className="col-span-2 flex gap-4 pt-2 border-t border-slate-800">
-                  {btcPrice?.price && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-amber-500/30 text-amber-400">BTC</Badge>
-                      <span className="font-mono text-white">${btcPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  {ethPrice?.price && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-blue-500/30 text-blue-400">ETH</Badge>
-                      <span className="font-mono text-white">${ethPrice.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-
+      <section>
         <Card className="bg-slate-900/50 border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -416,43 +300,6 @@ export default function HomePage() {
         </Card>
       </section>
 
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              Featured Scanners
-              <ChevronRight className="w-5 h-5 text-slate-400" />
-            </h2>
-            <p className="text-sm text-slate-400 mt-1">Explore our powerful screeners to uncover winning trades with ease</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {screenerLinks.map((screener, idx) => {
-            const Icon = screener.icon;
-            return (
-              <Link key={screener.title} href={screener.href}>
-                <Card 
-                  className="group relative overflow-hidden border-slate-800/50 hover:border-cyan-500/30 transition-all duration-300 cursor-pointer bg-gradient-to-br from-slate-900/80 to-slate-950/50"
-                  data-testid={`card-screener-${idx}`}
-                >
-                  <CardContent className="p-6 flex flex-col h-full">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-lg bg-cyan-500/20">
-                        <Icon className="w-5 h-5 text-cyan-400" />
-                      </div>
-                      <h3 className="font-semibold text-white">{screener.title}</h3>
-                    </div>
-                    <p className="text-sm text-slate-400 flex-1">{screener.description}</p>
-                    <div className="flex items-center gap-1 text-cyan-400 text-sm mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Open Scanner <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }
