@@ -118,8 +118,8 @@ export default function Landing() {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               {isAuthenticated ? (
-                <Button onClick={() => setLocation('/trade-desk')} data-testid="button-dashboard">
-                  Dashboard
+                <Button onClick={() => setLocation('/trading-engine')} data-testid="button-dashboard">
+                  Command Center
                 </Button>
               ) : (
                 <>

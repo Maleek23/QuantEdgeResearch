@@ -646,18 +646,29 @@ export default function TradeDeskPage() {
   // Timeframe tabs for temporal filtering
   const [activeTimeframe, setActiveTimeframe] = useState<TimeframeBucket>('all');
   
-  // Trade Type filter (Day vs Swing) - defaults to 'all' to show all trades
-  // Users can manually select 'swing' if they want PDT-friendly filtering
-  const [tradeTypeFilter, setTradeTypeFilter] = useState<'all' | 'day' | 'swing'>('all');
+  // Trade Type filter (Day vs Swing) - persisted to localStorage
+  const [tradeTypeFilter, setTradeTypeFilter] = useState<'all' | 'day' | 'swing'>(() => {
+    const saved = localStorage.getItem('tradeDesk_tradeTypeFilter');
+    return (saved as 'all' | 'day' | 'swing') || 'all';
+  });
   
-  // Price tier filter - for finding low-priced stocks for shares or options
-  const [priceTierFilter, setPriceTierFilter] = useState<'all' | 'under5' | 'under10' | 'under15' | 'under25'>('all');
+  // Price tier filter - for finding low-priced stocks for shares or options - persisted
+  const [priceTierFilter, setPriceTierFilter] = useState<'all' | 'under5' | 'under10' | 'under15' | 'under25'>(() => {
+    const saved = localStorage.getItem('tradeDesk_priceTierFilter');
+    return (saved as 'all' | 'under5' | 'under10' | 'under15' | 'under25') || 'all';
+  });
   
-  // Filter state for new filter toolbar
+  // Filter state for new filter toolbar - persisted to localStorage
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
-  const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
-  // Default to 'quality' which excludes D/F tier ideas (user requested no more D ratings)
-  const [gradeFilter, setGradeFilter] = useState<string>('quality');
+  const [assetTypeFilter, setAssetTypeFilter] = useState<string>(() => {
+    const saved = localStorage.getItem('tradeDesk_assetTypeFilter');
+    return saved || 'all';
+  });
+  // Default to 'quality' which excludes D/F tier ideas (user requested no more D ratings) - persisted
+  const [gradeFilter, setGradeFilter] = useState<string>(() => {
+    const saved = localStorage.getItem('tradeDesk_gradeFilter');
+    return saved || 'quality';
+  });
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('priority');
   const [symbolSearch, setSymbolSearch] = useState<string>('');
@@ -679,6 +690,23 @@ export default function TradeDeskPage() {
   const [groupPage, setGroupPage] = useState<Record<string, number>>({});
   const ITEMS_PER_PAGE = 20;
   
+  
+  // Persist key filters to localStorage
+  useEffect(() => {
+    localStorage.setItem('tradeDesk_tradeTypeFilter', tradeTypeFilter);
+  }, [tradeTypeFilter]);
+  
+  useEffect(() => {
+    localStorage.setItem('tradeDesk_priceTierFilter', priceTierFilter);
+  }, [priceTierFilter]);
+  
+  useEffect(() => {
+    localStorage.setItem('tradeDesk_assetTypeFilter', assetTypeFilter);
+  }, [assetTypeFilter]);
+  
+  useEffect(() => {
+    localStorage.setItem('tradeDesk_gradeFilter', gradeFilter);
+  }, [gradeFilter]);
   
   // Reset pagination when filters change
   useEffect(() => {

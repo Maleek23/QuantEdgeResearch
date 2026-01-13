@@ -107,9 +107,9 @@ function SmartLanding() {
     return <PageLoader />;
   }
   
-  // If logged in, go straight to trade desk
+  // If logged in, go straight to Command Center
   if (user) {
-    return <Redirect to="/trade-desk" />;
+    return <Redirect to="/trading-engine" />;
   }
   
   // Otherwise show landing page
@@ -127,7 +127,7 @@ function Router() {
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
       <Route path="/home">
-        <Redirect to="/trade-desk" />
+        <Redirect to="/trading-engine" />
       </Route>
       <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
