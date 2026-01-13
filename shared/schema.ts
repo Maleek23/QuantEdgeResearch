@@ -2945,3 +2945,235 @@ export const insertPatternSignalSchema = createInsertSchema(patternSignals).omit
 });
 export type InsertPatternSignal = z.infer<typeof insertPatternSignalSchema>;
 export type PatternSignal = typeof patternSignals.$inferSelect;
+
+// ==========================================
+// 🧠 ML TRAINING DATA LAKE - Self-Improving Models
+// ==========================================
+
+// ML Training Sample - Individual prediction with outcome for training
+export const mlTrainingSamples = pgTable("ml_training_samples", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to source
+  tradeIdeaId: varchar("trade_idea_id"),
+  symbol: varchar("symbol").notNull(),
+  assetType: text("asset_type").$type<AssetType>(),
+  
+  // Prediction at time of generation
+  predictedDirection: text("predicted_direction").notNull(), // 'bullish' | 'bearish' | 'neutral'
+  predictedConfidence: real("predicted_confidence").notNull(), // 0-100
+  predictionEngine: text("prediction_engine").notNull(), // 'ml' | 'ai' | 'quant' | 'flow' | 'sentiment' | 'technical'
+  modelVersion: text("model_version"),
+  
+  // Feature vector at prediction time
+  features: jsonb("features").$type<{
+    rsi: number;
+    macd: number;
+    momentum: number;
+    volatility: number;
+    volumeRatio: number;
+    priceChange24h: number;
+    trendStrength: number;
+    vwapDistance?: number;
+    ivPercentile?: number;
+    putCallRatio?: number;
+    marketRegime?: string;
+  }>(),
+  
+  // Signal weights used
+  signalWeights: jsonb("signal_weights").$type<Record<string, number>>(),
+  
+  // Price context at prediction
+  priceAtPrediction: real("price_at_prediction").notNull(),
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  
+  // Market context
+  marketRegime: text("market_regime"), // 'trending_bull' | 'trending_bear' | 'ranging' | 'high_volatility'
+  sectorPerformance: real("sector_performance"),
+  
+  // ACTUAL OUTCOME (filled after trade closes)
+  outcomeStatus: text("outcome_status").$type<'pending' | 'win' | 'loss' | 'breakeven' | 'expired'>().default('pending'),
+  actualDirection: text("actual_direction"), // What actually happened
+  actualPriceChange: real("actual_price_change"), // Percentage
+  exitPrice: real("exit_price"),
+  realizedPnL: real("realized_pnl"),
+  daysToOutcome: integer("days_to_outcome"),
+  
+  // Outcome resolution
+  closedAt: timestamp("closed_at"),
+  closureReason: text("closure_reason"), // 'target_hit' | 'stop_hit' | 'time_exit' | 'manual'
+  
+  // Learning flags
+  isUsableForTraining: boolean("is_usable_for_training").default(false), // Only true after outcome resolved
+  errorCategory: text("error_category"), // If prediction was wrong, why?
+  
+  // Timestamps
+  predictedAt: timestamp("predicted_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ml_training_symbol").on(table.symbol),
+  index("idx_ml_training_engine").on(table.predictionEngine),
+  index("idx_ml_training_outcome").on(table.outcomeStatus),
+  index("idx_ml_training_usable").on(table.isUsableForTraining),
+  index("idx_ml_training_predicted_at").on(table.predictedAt),
+]);
+
+export const insertMlTrainingSampleSchema = createInsertSchema(mlTrainingSamples).omit({ 
+  id: true, 
+  createdAt: true,
+  predictedAt: true 
+});
+export type InsertMlTrainingSample = z.infer<typeof insertMlTrainingSampleSchema>;
+export type MlTrainingSample = typeof mlTrainingSamples.$inferSelect;
+
+// ML Model Version Registry - Track trained models
+export const mlModelRegistry = pgTable("ml_model_registry", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Model identification
+  modelName: text("model_name").notNull(), // 'price_direction' | 'sentiment' | 'pattern' | 'position_sizing' | 'regime'
+  version: text("version").notNull(), // Semantic version e.g., "v1.2.3"
+  
+  // Training details
+  trainedAt: timestamp("trained_at").defaultNow().notNull(),
+  trainingDataStart: timestamp("training_data_start"),
+  trainingDataEnd: timestamp("training_data_end"),
+  samplesUsed: integer("samples_used").default(0),
+  
+  // Model configuration
+  hyperparameters: jsonb("hyperparameters").$type<Record<string, number | string>>(),
+  featureSet: jsonb("feature_set").$type<string[]>(),
+  signalWeights: jsonb("signal_weights").$type<Record<string, number>>(), // Learned weights
+  
+  // Performance metrics from validation
+  backtestAccuracy: real("backtest_accuracy"), // 0-100%
+  backtestPrecision: real("backtest_precision"),
+  backtestRecall: real("backtest_recall"),
+  backtestF1: real("backtest_f1"),
+  backtestSharpe: real("backtest_sharpe"),
+  backtestMaxDrawdown: real("backtest_max_drawdown"),
+  
+  // Live performance (updated as trades close)
+  liveAccuracy: real("live_accuracy"),
+  livePredictions: integer("live_predictions").default(0),
+  liveWins: integer("live_wins").default(0),
+  liveLosses: integer("live_losses").default(0),
+  liveWinRate: real("live_win_rate"),
+  liveProfitFactor: real("live_profit_factor"),
+  
+  // Status
+  status: text("status").$type<'training' | 'validating' | 'active' | 'champion' | 'deprecated' | 'failed'>().default('training'),
+  isChampion: boolean("is_champion").default(false), // Currently deployed production model
+  deployedAt: timestamp("deployed_at"),
+  deprecatedAt: timestamp("deprecated_at"),
+  deprecationReason: text("deprecation_reason"),
+  
+  // Notes
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ml_registry_name").on(table.modelName),
+  index("idx_ml_registry_status").on(table.status),
+  index("idx_ml_registry_champion").on(table.isChampion),
+]);
+
+export const insertMlModelRegistrySchema = createInsertSchema(mlModelRegistry).omit({ 
+  id: true, 
+  createdAt: true,
+  trainedAt: true 
+});
+export type InsertMlModelRegistry = z.infer<typeof insertMlModelRegistrySchema>;
+export type MlModelRegistry = typeof mlModelRegistry.$inferSelect;
+
+// ML Retraining Jobs - Track retraining runs
+export const mlRetrainingJobs = pgTable("ml_retraining_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Job identification
+  modelName: text("model_name").notNull(),
+  jobType: text("job_type").$type<'scheduled' | 'manual' | 'performance_triggered'>().default('scheduled'),
+  
+  // Job status
+  status: text("status").$type<'queued' | 'running' | 'completed' | 'failed' | 'cancelled'>().default('queued'),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Training data scope
+  samplesAvailable: integer("samples_available").default(0),
+  samplesUsed: integer("samples_used").default(0),
+  dataRangeStart: timestamp("data_range_start"),
+  dataRangeEnd: timestamp("data_range_end"),
+  
+  // Results
+  previousModelVersion: text("previous_model_version"),
+  newModelVersion: text("new_model_version"),
+  accuracyImprovement: real("accuracy_improvement"), // Percentage points improvement
+  performanceGate: boolean("performance_gate"), // Did it pass the gate?
+  gateReason: text("gate_reason"),
+  
+  // Deployment decision
+  autoDeployed: boolean("auto_deployed").default(false),
+  deploymentNotes: text("deployment_notes"),
+  
+  // Error handling
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ml_jobs_model").on(table.modelName),
+  index("idx_ml_jobs_status").on(table.status),
+]);
+
+export const insertMlRetrainingJobSchema = createInsertSchema(mlRetrainingJobs).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertMlRetrainingJob = z.infer<typeof insertMlRetrainingJobSchema>;
+export type MlRetrainingJob = typeof mlRetrainingJobs.$inferSelect;
+
+// Dynamic Signal Weights - Automatically adjusted based on performance
+export const dynamicSignalWeights = pgTable("dynamic_signal_weights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Signal identification
+  signalName: text("signal_name").notNull().unique(), // 'rsi' | 'macd' | 'volume' | 'vwap' | etc.
+  
+  // Current weight
+  currentWeight: real("current_weight").notNull().default(1.0), // Multiplier 0-2
+  baseWeight: real("base_weight").notNull().default(1.0), // Original weight
+  
+  // Performance tracking
+  correctPredictions: integer("correct_predictions").default(0),
+  incorrectPredictions: integer("incorrect_predictions").default(0),
+  accuracy: real("accuracy").default(50), // 0-100%
+  
+  // Weight adjustment history
+  lastAdjusted: timestamp("last_adjusted"),
+  adjustmentHistory: jsonb("adjustment_history").$type<Array<{
+    timestamp: string;
+    oldWeight: number;
+    newWeight: number;
+    reason: string;
+  }>>(),
+  
+  // Constraints
+  minWeight: real("min_weight").default(0.2),
+  maxWeight: real("max_weight").default(2.0),
+  
+  // Context-specific adjustments
+  regimeAdjustments: jsonb("regime_adjustments").$type<Record<string, number>>(), // Different weights for different regimes
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_signal_weights_name").on(table.signalName),
+]);
+
+export const insertDynamicSignalWeightSchema = createInsertSchema(dynamicSignalWeights).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+export type InsertDynamicSignalWeight = z.infer<typeof insertDynamicSignalWeightSchema>;
+export type DynamicSignalWeight = typeof dynamicSignalWeights.$inferSelect;

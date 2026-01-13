@@ -157,6 +157,11 @@ app.use((req, res, next) => {
     startPreMoveScanner();
     log('🔮 Pre-Move Detection Scanner started - monitoring for late-day sweeps, volume spikes, IV expansion, and defense contracts');
     
+    // Start ML Retraining Service (self-improving models)
+    const { startMLRetrainingService } = await import('./ml-retraining-service');
+    startMLRetrainingService();
+    log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
+    
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {
       try {
