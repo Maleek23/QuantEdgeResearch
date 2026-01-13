@@ -56,6 +56,7 @@ const iconMap: Record<string, any> = {
 
 const defaultNavItems: NavigationItemType[] = [
   { id: "home", title: "Home", icon: "Home", href: "/" },
+  { id: "strategy-playbooks", title: "Strategy Playbooks", icon: "Zap", href: "/strategy-playbooks", badge: "NEW" },
   { id: "command-center", title: "Command Center", icon: "Activity", href: "/trading-engine", badge: "LIVE" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
   { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
@@ -76,7 +77,7 @@ const defaultLayout: NavigationLayoutType = {
     {
       id: "trading",
       title: "Trading",
-      items: defaultNavItems.filter(i => ["home", "command-center", "trade-desk", "watchlist"].includes(i.id)),
+      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "trade-desk", "watchlist"].includes(i.id)),
     },
     {
       id: "analytics",
