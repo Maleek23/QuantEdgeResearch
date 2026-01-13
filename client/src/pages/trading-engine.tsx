@@ -1263,92 +1263,59 @@ export default function TradingEnginePage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Analysis Tab */}
-          <TabsContent value="analysis" className="mt-0 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <MarketOverviewWidget />
-                  <IVRankWidget />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <BullishPatternWidget />
-                  <SectorHeatWidget />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <WinRateWidget />
-                  <ExpiryPatternInsights />
-                </div>
-              </div>
-              <div className="space-y-4">
-                <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
-                <DataStatusBanner />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 space-y-8">
-                <Card className="bg-slate-900/50 backdrop-blur-2xl border-slate-700/40 shadow-[0_0_40px_-10px_rgba(34,211,238,0.08)] overflow-hidden">
-                  <div className="bg-slate-800/40 border-b border-slate-700/30 p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 bg-gradient-to-br from-cyan-500/15 to-purple-500/15 rounded-lg border border-cyan-500/20">
-                        <Search className="h-4 w-4 text-cyan-400" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-[0.15em]">Symbol Analysis</h3>
+          {/* Analysis Tab - Simplified Layout */}
+          <TabsContent value="analysis" className="mt-0 space-y-6">
+            {/* Symbol Search Bar - Clean and Prominent */}
+            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/40">
+              <CardContent className="p-6">
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[250px]">
+                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">Symbol</label>
+                    <div className="relative">
+                      <Input
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        placeholder="NVDA, QQQ, BTC..."
+                        className="h-12 bg-slate-800/60 border-slate-600/50 font-mono tracking-wide pl-10"
+                        data-testid="input-symbol"
+                      />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                     </div>
                   </div>
-                  <CardContent className="p-8">
-                    <div className="flex flex-wrap gap-5 items-end mb-8">
-                      <div className="flex-1 min-w-[280px]">
-                        <div className="flex justify-between mb-2 px-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Ticker</label>
-                          <span className="text-[10px] text-cyan-400 font-mono">Real-time</span>
-                        </div>
-                        <div className="relative group">
-                          <Input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder="ENTER SYMBOL (E.G. NVDA, QQQ, BTC)"
-                            className="h-14 bg-slate-800/60 border-slate-600/50 font-mono tracking-widest placeholder:text-slate-500 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all pl-12"
-                            data-testid="input-symbol"
-                          />
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-                        </div>
-                      </div>
-                      <div className="w-[200px]">
-                        <div className="mb-2 px-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Asset Class</label>
-                        </div>
-                        <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
-                          <TabsList className="grid grid-cols-2 h-14 bg-slate-800/60 border border-slate-600/50 p-1.5 rounded-lg">
-                            <TabsTrigger value="stock" className="text-[10px] font-bold uppercase rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-stock">Stock</TabsTrigger>
-                            <TabsTrigger value="options" className="text-[10px] font-bold uppercase rounded-md data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-options">Options</TabsTrigger>
-                          </TabsList>
-                        </Tabs>
-                      </div>
-                      <Button 
-                        onClick={handleSearch}
-                        disabled={!searchInput.trim()}
-                        className="h-14 px-10 font-bold uppercase tracking-widest bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
-                        data-testid="button-analyze"
-                      >
-                        Run Scan
-                      </Button>
-                    </div>
+                  <div className="w-[160px]">
+                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">Type</label>
+                    <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
+                      <TabsList className="grid grid-cols-2 h-12 bg-slate-800/60 border border-slate-600/50 p-1 rounded-lg">
+                        <TabsTrigger value="stock" className="text-xs font-medium rounded data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-stock">Stock</TabsTrigger>
+                        <TabsTrigger value="options" className="text-xs font-medium rounded data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-options">Options</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                  <Button 
+                    onClick={handleSearch}
+                    disabled={!searchInput.trim()}
+                    className="h-12 px-8 font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white shadow-lg shadow-cyan-500/20"
+                    data-testid="button-analyze"
+                  >
+                    Analyze
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-                    <div className="space-y-8">
-                      <AnalysisResults symbol={symbol} assetClass={assetClass} />
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+              {/* Left Column - Analysis Results */}
+              <div className="xl:col-span-3 space-y-6">
+                <AnalysisResults symbol={symbol} assetClass={assetClass} />
               </div>
 
-              <div className="lg:col-span-4 space-y-6">
-                <MLIntelligenceWidget />
-                <BotActivityMonitor />
+              {/* Right Column - Quick Info */}
+              <div className="space-y-4">
                 <HotSymbolsWidget onSelectSymbol={handleSelectHotSymbol} />
-                <PaperPortfolios />
+                <MarketOverviewWidget />
+                <BotActivityMonitor />
               </div>
             </div>
           </TabsContent>
