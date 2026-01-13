@@ -121,7 +121,7 @@ export function HeaderNav() {
             <NavigationMenuList className="gap-1">
               <NavigationMenuItem>
                 <Link href="/trade-desk">
-                  <NavigationMenuLink className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer" data-testid="nav-trade-desk">
+                  <NavigationMenuLink className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer whitespace-nowrap" data-testid="nav-trade-desk">
                     Trade Desk
                   </NavigationMenuLink>
                 </Link>
