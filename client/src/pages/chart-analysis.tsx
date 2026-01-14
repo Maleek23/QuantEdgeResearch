@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2883,33 +2883,31 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
 
   // Shared query functions that use apiRequest for proper auth
   // Must await res.json() to return actual data, not Promise
-  const patternScannerQueryFn = useCallback(async ({ queryKey }: { queryKey: readonly [string, string | null] }) => {
-    const [, ticker] = queryKey;
-    if (!ticker) return null;
-    const res = await apiRequest("GET", `/api/pattern-scanner/analyze/${ticker}`);
+  const patternScannerQueryFn = useCallback(async (symbol: string) => {
+    if (!symbol) return null;
+    const res = await apiRequest("GET", `/api/pattern-scanner/analyze/${symbol}`);
     const data = await res.json();
     return data as { patterns: UnifiedPatternResult[]; symbol: string; timestamp: string };
   }, []);
 
-  const chartDataQueryFn = useCallback(async ({ queryKey }: { queryKey: readonly [string, string | null] }) => {
-    const [, ticker] = queryKey;
-    if (!ticker) return null;
-    const res = await apiRequest("GET", `/api/patterns?symbol=${encodeURIComponent(ticker)}`);
+  const chartDataQueryFn = useCallback(async (symbol: string) => {
+    if (!symbol) return null;
+    const res = await apiRequest("GET", `/api/patterns?symbol=${encodeURIComponent(symbol)}`);
     const data = await res.json();
     return data as PatternResponse;
   }, []);
 
   // Fetch quantitative patterns when symbol changes
-  const { data: quantPatterns, isLoading: quantLoading } = useQuery({
+  const { data: quantPatterns, isLoading: quantLoading } = useQuery<{ patterns: UnifiedPatternResult[]; symbol: string; timestamp: string } | null>({
     queryKey: ["/api/pattern-scanner/analyze", analysisSymbol] as const,
-    queryFn: patternScannerQueryFn,
+    queryFn: () => patternScannerQueryFn(analysisSymbol),
     enabled: !!analysisSymbol,
   });
 
   // Fetch price chart data for interactive display
   const { data: chartData, isLoading: chartLoading } = useQuery<PatternResponse | null>({
     queryKey: ['/api/patterns', analysisSymbol] as const,
-    queryFn: chartDataQueryFn,
+    queryFn: () => chartDataQueryFn(analysisSymbol),
     enabled: !!analysisSymbol,
   });
 
@@ -3046,12 +3044,12 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
       await Promise.all([
         queryClient.fetchQuery({
           queryKey: ["/api/pattern-scanner/analyze", targetSymbol] as const,
-          queryFn: patternScannerQueryFn,
+          queryFn: () => patternScannerQueryFn(targetSymbol),
           staleTime: 0,
         }),
         queryClient.fetchQuery({
           queryKey: ['/api/patterns', targetSymbol] as const,
-          queryFn: chartDataQueryFn,
+          queryFn: () => chartDataQueryFn(targetSymbol),
           staleTime: 0,
         }),
       ]);
@@ -3129,7 +3127,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   data-testid="input-unified-symbol"
                 />
                 <Button
-                  onClick={runAnalysis}
+                  onClick={() => runAnalysis()}
                   disabled={!symbol || isAnalyzing || quantLoading}
                   className="h-10 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
                   data-testid="button-unified-analyze"
