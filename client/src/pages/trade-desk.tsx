@@ -1496,10 +1496,10 @@ export default function TradeDeskPage() {
           const bExp = new Date(b.expiryDate || b.exitBy || b.timestamp).getTime();
           return aExp - bExp;
         case 'confidence':
-          // Sort by signal count (signal strength) - more signals = higher strength
-          const aSignals = (a.qualitySignals?.length || 0);
-          const bSignals = (b.qualitySignals?.length || 0);
-          return bSignals - aSignals;
+          // Sort by confidenceScore (higher = stronger trade setup)
+          const aConfidence = a.confidenceScore || 0;
+          const bConfidence = b.confidenceScore || 0;
+          return bConfidence - aConfidence;
         case 'rr':
           return b.riskRewardRatio - a.riskRewardRatio;
         case 'price_asc':
