@@ -31,11 +31,16 @@ import {
   Sparkles
 } from "lucide-react";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+import { LiveActivityFeed } from "@/components/live-activity-feed";
+import { AnimatedStat } from "@/components/animated-stat";
+import { SocialProofSection } from "@/components/social-proof-section";
+import { ComparisonTable } from "@/components/comparison-table";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
@@ -163,35 +168,41 @@ export default function Landing() {
                 <br />
                 One Edge<span className="text-cyan-400">.</span>
               </h1>
-              
-              <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
-                Six-engine research platform. ML, AI, Quant, Flow, Sentiment & Technical signals converge for higher-conviction setups.
-                Every signal verified. Every outcome tracked.
+
+              <p className="text-xl text-foreground/90 max-w-xl mb-3 font-medium" data-testid="text-hero-subheadline">
+                AI-powered trading research for stocks, options, crypto & futures
+              </p>
+
+              <p className="text-base text-muted-foreground max-w-xl mb-8">
+                Six independent engines analyze every setup. ML, AI, Quant, Flow, Sentiment & Technical signals converge for higher conviction. Every signal verified. Every outcome tracked.
               </p>
               
-              <div className="flex flex-wrap gap-4">
-                <Button 
+              <div className="flex flex-wrap gap-4 items-center">
+                <Button
                   className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-12 px-8 text-base font-semibold shadow-lg shadow-cyan-500/20"
                   onClick={() => setWaitlistOpen(true)}
                   data-testid="button-join-waitlist"
                 >
                   Join Waitlist <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="border-slate-700 h-12 px-8 text-base font-semibold gap-2"
+                <button
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                  data-testid="button-join-discord"
+                  className="text-sm text-muted-foreground hover:text-cyan-400 transition-colors flex items-center gap-2"
                 >
-                  <SiDiscord className="h-5 w-5" />
-                  Join Discord
-                </Button>
+                  <SiDiscord className="h-4 w-4" />
+                  Join Discord Community
+                </button>
               </div>
             </div>
             
-            {/* Right: Product Preview Panel */}
-            <div className="hidden lg:block">
-              <HeroProductPanel className="w-full" />
+            {/* Right: Product Preview Panel + Live Activity */}
+            <div className="space-y-4">
+              <div className="hidden lg:block">
+                <HeroProductPanel className="w-full" />
+              </div>
+              <div className="lg:block hidden">
+                <LiveActivityFeed />
+              </div>
             </div>
           </div>
         </div>
@@ -201,36 +212,38 @@ export default function Landing() {
       <div className="border-y border-slate-800 bg-slate-950 py-6" data-testid="stats-strip">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Ideas</p>
-              <div className="text-2xl font-bold font-mono tabular-nums text-foreground">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : (
-                  perfStats?.overall?.totalIdeas || '—'
-                )}
-              </div>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Active</p>
-              <div className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : perfStats?.overall?.openIdeas ? (
-                  perfStats.overall.openIdeas
-                ) : (
-                  '—'
-                )}
-              </div>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">6</p>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Markets</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">4</p>
-            </div>
+            {statsLoading ? (
+              <>
+                <div className="stat-glass rounded-lg p-4"><Skeleton className="h-12 w-full" /></div>
+                <div className="stat-glass rounded-lg p-4"><Skeleton className="h-12 w-full" /></div>
+                <div className="stat-glass rounded-lg p-4"><Skeleton className="h-12 w-full" /></div>
+                <div className="stat-glass rounded-lg p-4"><Skeleton className="h-12 w-full" /></div>
+              </>
+            ) : (
+              <>
+                <AnimatedStat
+                  label="Ideas Tracked"
+                  value={perfStats?.overall?.totalIdeas || 0}
+                  duration={2}
+                />
+                <AnimatedStat
+                  label="Active Now"
+                  value={perfStats?.overall?.openIdeas || 0}
+                  duration={1.5}
+                  highlight
+                />
+                <AnimatedStat
+                  label="Research Engines"
+                  value={6}
+                  duration={1}
+                />
+                <AnimatedStat
+                  label="Markets Covered"
+                  value={4}
+                  duration={1}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -253,16 +266,23 @@ export default function Landing() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Research Engines</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
               {/* ML Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-5 hover-elevate">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: 0 }}
+                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+                className="group relative overflow-visible rounded-xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-5 cursor-pointer"
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-lg shadow-pink-500/20">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-lg shadow-pink-500/20 group-hover:shadow-pink-500/40 transition-shadow">
                     <Sparkles className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="font-semibold mb-1">ML Engine</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
                 </div>
-              </div>
+              </motion.div>
 
               {/* AI Engine */}
               <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5 hover-elevate">
@@ -367,40 +387,14 @@ export default function Landing() {
               </div>
             </div>
           </div>
-          
-          {/* Market Coverage - Pill badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <TrendingUp className="h-4 w-4 text-cyan-400" />
-              <span className="text-sm">Stocks</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <LineChart className="h-4 w-4 text-purple-400" />
-              <span className="text-sm">Options</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <Coins className="h-4 w-4 text-amber-400" />
-              <span className="text-sm">Crypto</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <CandlestickChart className="h-4 w-4 text-green-400" />
-              <span className="text-sm">Futures (NQ, GC)</span>
-            </div>
-          </div>
-          
-          {/* See All Features CTA */}
-          <div className="text-center">
-            <Button 
-              variant="outline" 
-              className="border-slate-700"
-              onClick={() => setLocation('/features')}
-              data-testid="button-see-features"
-            >
-              See All Features <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </section>
+
+      {/* Social Proof Section */}
+      <SocialProofSection />
+
+      {/* Comparison Table */}
+      <ComparisonTable />
 
       {/* Pricing Section */}
       <section className="py-10 lg:py-16" id="pricing" data-testid="section-pricing">
@@ -687,88 +681,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Discord Community Section */}
-      <section className="py-12 lg:py-16" data-testid="section-discord">
-        <div className="container mx-auto px-6">
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-indigo-600/20 border border-indigo-500/20 p-8 lg:p-12 max-w-4xl mx-auto">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
-            
-            <div className="relative flex flex-col lg:flex-row items-center gap-8">
-              <div className="flex-shrink-0">
-                <div className="h-20 w-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                  <SiDiscord className="h-10 w-10 text-white" />
-                </div>
-              </div>
-              
-              <div className="flex-1 text-center lg:text-left">
-                <h2 className="text-2xl font-bold mb-2">Join the Lab Community</h2>
-                <p className="text-muted-foreground mb-4 max-w-lg">
-                  Connect with traders, get real-time signal alerts, ask questions, and learn together. 
-                  Our Discord is where the action happens.
-                </p>
-                <div className="flex flex-wrap gap-4 justify-center lg:justify-start text-sm text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Live signal alerts
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Trading discussions
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Educational content
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex-shrink-0">
-                <Button 
-                  className="bg-indigo-600 hover:bg-indigo-500 h-12 px-8 text-base font-semibold gap-2"
-                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                  data-testid="button-discord-section"
-                >
-                  <SiDiscord className="h-5 w-5" />
-                  Join Discord
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-10 lg:py-12" data-testid="section-cta">
-        <div className="container mx-auto px-6">
-          <div className="glass-card rounded-lg p-8 text-center max-w-3xl mx-auto">
-            <h2 className="text-lg font-semibold mb-3">
-              Ready to Trade with Precision?
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-6">
-              Research platform for self-directed traders. Paper trade first, risk second.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <ShimmerButton 
-                shimmerColor="#22d3ee"
-                shimmerSize="0.1em"
-                background="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"
-                borderRadius="8px"
-                onClick={() => setWaitlistOpen(true)} 
-                data-testid="button-cta-signup"
-                className="font-medium"
-              >
-                Join Waitlist <ArrowRight className="h-4 w-4 ml-2" />
-              </ShimmerButton>
-              <Button 
-                variant="outline" 
-                className="border-slate-700"
-                onClick={() => setLocation('/chart-analysis')} 
-                data-testid="button-cta-demo"
-              >
-                Try Chart Analysis
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Footer - Compact */}
       <footer className="py-6 border-t border-slate-800" data-testid="footer">

@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
+import {
+  TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft,
   Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain, Activity
+  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain, Activity, Sparkles
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -52,6 +52,7 @@ const iconMap: Record<string, any> = {
   FileBarChart,
   LayoutDashboard,
   Zap,
+  Sparkles,
 };
 
 const defaultNavItems: NavigationItemType[] = [
@@ -60,7 +61,9 @@ const defaultNavItems: NavigationItemType[] = [
   { id: "command-center", title: "Command Center", icon: "Activity", href: "/command-center", badge: "NEW" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
   { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
+  { id: "whale-flow", title: "Whale Flow", icon: "Target", href: "/whale-flow", badge: "NEW" },
   { id: "performance", title: "Performance", icon: "Target", href: "/performance" },
+  { id: "ai-learning", title: "AI Learning", icon: "Sparkles", href: "/learning", badge: "NEW" },
   { id: "chart-analysis", title: "Chart Analysis", icon: "Upload", href: "/chart-analysis" },
   { id: "options", title: "Options", icon: "BarChart2", href: "/options-analyzer" },
   { id: "trends", title: "Trends", icon: "TrendingUp", href: "/bullish-trends" },
@@ -77,12 +80,12 @@ const defaultLayout: NavigationLayoutType = {
     {
       id: "trading",
       title: "Trading",
-      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "trade-desk", "watchlist"].includes(i.id)),
+      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "trade-desk", "watchlist", "whale-flow"].includes(i.id)),
     },
     {
       id: "analytics",
       title: "Analytics",
-      items: defaultNavItems.filter(i => ["performance", "chart-analysis", "options", "trends", "historical"].includes(i.id)),
+      items: defaultNavItems.filter(i => ["performance", "ai-learning", "chart-analysis", "options", "trends", "historical"].includes(i.id)),
     },
     {
       id: "learn",

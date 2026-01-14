@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import compression from "compression";
@@ -156,11 +157,17 @@ app.use((req, res, next) => {
     const { startPreMoveScanner } = await import('./pre-move-detection-service');
     startPreMoveScanner();
     log('🔮 Pre-Move Detection Scanner started - monitoring for late-day sweeps, volume spikes, IV expansion, and defense contracts');
-    
+
+    // Start Self-Learning Service (engines learn from their own performance)
+    const { selfLearning } = await import('./self-learning-service');
+    selfLearning.start();
+    log('🧠 Self-Learning Service started - engines will adapt based on trade outcomes');
+
     // Start ML Retraining Service (self-improving models)
-    const { startMLRetrainingService } = await import('./ml-retraining-service');
-    startMLRetrainingService();
-    log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
+    // TODO: Implement ML retraining service
+    // const { startMLRetrainingService } = await import('./ml-retraining-service');
+    // startMLRetrainingService();
+    // log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
     
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {

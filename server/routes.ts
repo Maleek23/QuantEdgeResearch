@@ -1252,8 +1252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid access code" });
       }
       
-      // Login as admin user (Abdulmalik)
-      const adminEmail = "abdulmalikajisegiri@gmail.com";
+      // Login as admin user (use ADMIN_EMAIL from env)
+      const adminEmail = process.env.ADMIN_EMAIL || "abdulamlikajisegiri@gmail.com";
       let user = await storage.getUserByEmail(adminEmail);
       
       if (!user) {
@@ -1264,10 +1264,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: "Abdulmalik",
           lastName: "Ajisegiri",
           profileImageUrl: null,
+          hasBetaAccess: true,
         });
+      } else {
+        // Ensure existing user has beta access
+        if (!user.hasBetaAccess) {
+          await storage.updateUser(user.id, { hasBetaAccess: true });
+          user = await storage.getUser(user.id);
+        }
       }
       logger.info('Admin user logged in via dev access', { userId: user.id, email: user.email });
-      
+
       // Store userId in session
       (req.session as any).userId = user.id;
       
@@ -21303,6 +21310,85 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error calibrating SABR", { error });
       res.status(500).json({ error: "Failed to calibrate SABR model" });
+    }
+  });
+
+  // ============================================
+  // SELF-LEARNING & ENGINE INSIGHTS API
+  // ============================================
+
+  // GET /api/learning-insights - Get AI self-learning insights and recommendations
+  app.get("/api/learning-insights", async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+
+      // Get all engine metrics
+      const allMetrics = selfLearning.getAllEngineMetrics();
+      const learnedThresholds = selfLearning.getLearnedThresholds();
+
+      // Convert Map to object for JSON
+      const engineMetrics: Record<string, any> = {};
+      for (const [engine, metrics] of allMetrics) {
+        engineMetrics[engine] = metrics;
+      }
+
+      res.json({
+        success: true,
+        engineMetrics,
+        learnedThresholds,
+        summary: {
+          totalEngines: allMetrics.size,
+          bestPerformer: [...allMetrics.entries()]
+            .sort((a, b) => b[1].winRate - a[1].winRate)[0]?.[0] || 'N/A',
+          overallWinRate: [...allMetrics.values()]
+            .reduce((sum, m) => sum + m.winRate, 0) / Math.max(allMetrics.size, 1),
+        }
+      });
+    } catch (error: any) {
+      logger.error("Error fetching learning insights", { error });
+      res.status(500).json({ error: "Failed to fetch learning insights" });
+    }
+  });
+
+  // POST /api/learning/analyze - Trigger manual learning analysis
+  app.post("/api/learning/analyze", async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+      await selfLearning.runLearningCycle();
+
+      res.json({
+        success: true,
+        message: "Learning cycle completed",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error("Error running learning cycle", { error });
+      res.status(500).json({ error: "Failed to run learning cycle" });
+    }
+  });
+
+  // GET /api/learning/should-trade - Check if a trade passes learned criteria
+  app.get("/api/learning/should-trade", async (req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+
+      const trade = {
+        source: req.query.source as string,
+        confluenceScore: req.query.confluenceScore ? parseInt(req.query.confluenceScore as string) : undefined,
+        assetType: req.query.assetType as string,
+        direction: req.query.direction as string,
+      };
+
+      const decision = selfLearning.shouldTakeTrade(trade);
+
+      res.json({
+        success: true,
+        trade,
+        decision,
+      });
+    } catch (error: any) {
+      logger.error("Error checking trade criteria", { error });
+      res.status(500).json({ error: "Failed to check trade criteria" });
     }
   });
 

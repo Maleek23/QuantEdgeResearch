@@ -1,31 +1,62 @@
+# QuantEdge Research - Render.com Deployment
+# Deploy: https://render.com/deploy?repo=https://github.com/Maleek23/QuantEdgeResearch
+
 services:
   - type: web
     name: quantedge-research
     runtime: node
-    region: oregon
+    region: ohio # Closer to Neon DB (US East)
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     nodeVersion: "20"
+    autoDeploy: true # Auto-deploy on git push to main
     envVars:
       - key: NODE_ENV
         value: production
+      # Database (Neon PostgreSQL)
       - key: DATABASE_URL
         sync: false
+      # Session Security
       - key: SESSION_SECRET
+        generateValue: true
+      # FREE AI Services (no paid APIs!)
+      - key: GEMINI_API_KEY
         sync: false
+      - key: GROK_API_KEY
+        sync: false
+      # Trading APIs
       - key: TRADIER_API_KEY
         sync: false
       - key: TRADIER_ACCOUNT_ID
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: ALPHA_VANTAGE_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
+      # FREE Market Data (optional)
+      - key: FINNHUB_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: TWELVE_DATA_API_KEY
         sync: false
+      # Discord Webhooks
       - key: DISCORD_WEBHOOK_URL
         sync: false
-      - key: ALPHA_VANTAGE_API_KEY
+      - key: DISCORD_WEBHOOK_QUANTBOT
+        sync: false
+      - key: DISCORD_WEBHOOK_LOTTO
+        sync: false
+      # Email
+      - key: RESEND_API_KEY
+        sync: false
+      # Admin Access
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_ACCESS_CODE
+        sync: false
+      # Google OAuth (for production domain)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: APP_URL
         sync: false

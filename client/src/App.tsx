@@ -76,6 +76,7 @@ const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
 const CommandCenter = lazy(() => import("@/pages/command-center"));
+const CommandCenterV2 = lazy(() => import("@/pages/command-center-v2"));
 const HomePage = lazy(() => import("@/pages/home"));
 const StrategyPlaybooks = lazy(() => import("@/pages/strategy-playbooks"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
@@ -86,6 +87,8 @@ const InviteWelcome = lazy(() => import("@/pages/invite-welcome"));
 const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
+const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
+const WhaleFlowPage = lazy(() => import("@/pages/whale-flow"));
 
 function PageLoader() {
   return (
@@ -106,16 +109,16 @@ function withBetaProtection<P extends object>(Component: ComponentType<P>) {
 }
 function SmartLanding() {
   const { user, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return <PageLoader />;
   }
-  
-  // If logged in, go to homepage dashboard
+
+  // If logged in, go to unified Command Center
   if (user) {
-    return <Redirect to="/home" />;
+    return <Redirect to="/command-center-v2" />;
   }
-  
+
   // Otherwise show landing page
   return <Landing />;
 }
@@ -130,10 +133,26 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
-      <Route path="/home" component={withBetaProtection(HomePage)} />
-      <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
+      {/* New unified Command Center */}
+      <Route path="/command-center-v2" component={withBetaProtection(CommandCenterV2)} />
+
+      {/* AI Learning Dashboard */}
+      <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
+
+      {/* Whale Flow Monitor - Institutional Options Flow */}
+      <Route path="/whale-flow" component={withBetaProtection(WhaleFlowPage)} />
+
+      {/* Redirect old dashboards to new unified Command Center */}
+      <Route path="/home">
+        <Redirect to="/command-center-v2" />
+      </Route>
+      <Route path="/dashboard">
+        <Redirect to="/command-center-v2" />
+      </Route>
+      <Route path="/command-center">
+        <Redirect to="/command-center-v2" />
+      </Route>
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
-      <Route path="/command-center" component={withBetaProtection(CommandCenter)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
       <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />

@@ -3,6 +3,7 @@ import { getTradierQuote, getTradierHistory } from './tradier-api';
 import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { getCryptoPrice as getRealtimeCryptoPrice, getFuturesPrice as getRealtimeFuturesPrice } from './realtime-price-service';
+import { marketData as multiSourceMarketData, getStockPrice as getMultiSourcePrice } from './multi-source-market-data';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -371,6 +372,31 @@ export async function fetchYahooFinancePrice(
   }
 }
 
+/**
+ * Use multi-source market data service as fallback
+ * Tries: Finnhub (FREE) → Twelve Data (FREE) → Tradier → Alpha Vantage
+ */
+async function fetchWithMultiSource(symbol: string): Promise<ExternalMarketData | null> {
+  try {
+    logger.info(`🔄 Using multi-source fallback for ${symbol}`);
+    const quote = await multiSourceMarketData.getQuote(symbol);
+
+    if (quote) {
+      logger.info(`✅ Multi-source got ${symbol}: $${quote.price} (via ${quote.source})`);
+      return {
+        symbol: symbol.toUpperCase(),
+        assetType: 'stock',
+        currentPrice: quote.price,
+        changePercent: quote.changePercent,
+        volume: quote.volume || 0,
+      };
+    }
+  } catch (error) {
+    logger.warn(`Multi-source fallback failed for ${symbol}:`, error);
+  }
+  return null;
+}
+
 export async function fetchStockPrice(
   symbol: string,
   apiKey?: string
@@ -456,9 +482,16 @@ export async function fetchStockPrice(
       return avData;
     } catch (error) {
       logger.error(`Error fetching stock price for ${symbol}:`, error);
+      // Try multi-source fallback which includes FREE APIs (Finnhub, Twelve Data)
+      const multiResult = await fetchWithMultiSource(symbol);
+      if (multiResult) return multiResult;
       return await fetchYahooFinancePrice(symbol);
     }
   }
+
+  // Try multi-source fallback first (has FREE options like Finnhub, Twelve Data)
+  const multiResult = await fetchWithMultiSource(symbol);
+  if (multiResult) return multiResult;
 
   return await fetchYahooFinancePrice(symbol);
 }

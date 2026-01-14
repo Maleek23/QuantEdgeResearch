@@ -32,7 +32,17 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
     return <Redirect to="/login" />;
   }
 
-  const hasBetaAccess = user.hasBetaAccess || user.subscriptionTier === 'admin' || user.subscriptionTier === 'pro';
+  // Debug logging
+  console.log('ProtectedRoute - User data:', {
+    email: user.email,
+    hasBetaAccess: user.hasBetaAccess,
+    isAdmin: user.isAdmin,
+    subscriptionTier: user.subscriptionTier
+  });
+
+  const hasBetaAccess = user.hasBetaAccess || user.isAdmin || user.subscriptionTier === 'admin' || user.subscriptionTier === 'pro';
+
+  console.log('ProtectedRoute - hasBetaAccess computed:', hasBetaAccess);
 
   if (requireBetaAccess && !hasBetaAccess) {
     const handleRedeemInvite = async () => {
@@ -56,7 +66,10 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
             title: "Welcome to the Beta!",
             description: "Your invite code has been redeemed. Enjoy the platform!",
           });
+          // Invalidate both auth endpoints
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+          // Force reload to clear all cache
           window.location.reload();
         } else {
           const data = await response.json();
@@ -142,6 +155,20 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
             <p className="text-xs text-center text-muted-foreground mt-4">
               Logged in as: {user.email}
             </p>
+
+            {/* Debug: Force refresh button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                window.location.reload();
+              }}
+              className="w-full mt-2 text-xs"
+            >
+              Force Refresh Session
+            </Button>
           </CardContent>
         </Card>
       </div>
