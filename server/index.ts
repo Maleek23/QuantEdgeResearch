@@ -611,11 +611,19 @@ app.use((req, res, next) => {
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
     
     // ONE-TIME STARTUP TRIGGER: Generate quant ideas immediately on server start
-    // This ensures fresh ideas are available even outside scheduled times
+    // DISABLED IN PRODUCTION to prevent memory exhaustion and rate limiting on Render
+    const SKIP_STARTUP_SCANS = process.env.NODE_ENV === 'production';
+
+    if (SKIP_STARTUP_SCANS) {
+      logger.info('🚀 [QUANT-STARTUP] Skipping startup scans in production (memory optimization)');
+    }
+
     (async () => {
+      if (SKIP_STARTUP_SCANS) return; // Skip heavy startup operations in production
+
       try {
         logger.info('🚀 [QUANT-STARTUP] Running one-time quant generation on server startup...');
-        
+
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const { storage: quantStorage } = await import('./storage');
         const marketData = await quantStorage.getAllMarketData();

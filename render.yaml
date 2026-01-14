@@ -15,6 +15,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Memory optimization for Render free tier (512MB limit)
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=460"
       # Database (Neon PostgreSQL)
       - key: DATABASE_URL
         sync: false

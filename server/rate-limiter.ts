@@ -215,3 +215,201 @@ export const trackingLimiter = rateLimit({
     });
   },
 });
+
+// ============================================
+// INTERNAL API RATE LIMITERS
+// For outgoing calls to Yahoo Finance, CoinGecko, etc.
+// ============================================
+
+interface InternalRateLimiterConfig {
+  maxRequestsPerSecond: number;
+  maxConcurrent: number;
+}
+
+interface QueuedRequest<T> {
+  fn: () => Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
+  priority: number;
+}
+
+class InternalRateLimiter {
+  private tokens: number;
+  private maxTokens: number;
+  private refillRate: number;
+  private lastRefill: number;
+  private queue: QueuedRequest<any>[] = [];
+  private activeRequests: number = 0;
+  private maxConcurrent: number;
+  private processing: boolean = false;
+
+  constructor(config: InternalRateLimiterConfig) {
+    this.maxTokens = config.maxRequestsPerSecond;
+    this.tokens = this.maxTokens;
+    this.refillRate = config.maxRequestsPerSecond / 1000;
+    this.lastRefill = Date.now();
+    this.maxConcurrent = config.maxConcurrent;
+  }
+
+  private refillTokens(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    const tokensToAdd = elapsed * this.refillRate;
+    this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
+    this.lastRefill = now;
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      this.refillTokens();
+
+      if (this.tokens < 1 || this.activeRequests >= this.maxConcurrent) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        continue;
+      }
+
+      this.queue.sort((a, b) => b.priority - a.priority);
+      const request = this.queue.shift();
+      if (!request) continue;
+
+      this.tokens -= 1;
+      this.activeRequests += 1;
+
+      request.fn()
+        .then(result => {
+          this.activeRequests -= 1;
+          request.resolve(result);
+        })
+        .catch(error => {
+          this.activeRequests -= 1;
+          request.reject(error);
+        });
+    }
+
+    this.processing = false;
+  }
+
+  async execute<T>(fn: () => Promise<T>, priority: number = 0): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject, priority });
+      this.processQueue();
+    });
+  }
+
+  getStats(): { queueLength: number; activeRequests: number; tokens: number } {
+    this.refillTokens();
+    return {
+      queueLength: this.queue.length,
+      activeRequests: this.activeRequests,
+      tokens: Math.floor(this.tokens),
+    };
+  }
+}
+
+// Global rate limiters for external APIs
+const yahooFinanceLimiter = new InternalRateLimiter({
+  maxRequestsPerSecond: 2, // Conservative - Yahoo is strict
+  maxConcurrent: 2,
+});
+
+const coinGeckoLimiter = new InternalRateLimiter({
+  maxRequestsPerSecond: 1, // CoinGecko free tier is very strict
+  maxConcurrent: 1,
+});
+
+/**
+ * Execute a Yahoo Finance API call with rate limiting
+ */
+export async function rateLimitedYahooCall<T>(
+  fn: () => Promise<T>,
+  priority: number = 0
+): Promise<T> {
+  return yahooFinanceLimiter.execute(fn, priority);
+}
+
+/**
+ * Execute a CoinGecko API call with rate limiting
+ */
+export async function rateLimitedCoinGeckoCall<T>(
+  fn: () => Promise<T>,
+  priority: number = 0
+): Promise<T> {
+  return coinGeckoLimiter.execute(fn, priority);
+}
+
+/**
+ * Batch execute with delays between batches
+ */
+export async function batchExecute<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  batchSize: number = 5,
+  delayBetweenBatchesMs: number = 1500
+): Promise<R[]> {
+  const results: R[] = [];
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.allSettled(batch.map(item => fn(item)));
+
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        results.push(result.value);
+      }
+    }
+
+    if (i + batchSize < items.length) {
+      await new Promise(resolve => setTimeout(resolve, delayBetweenBatchesMs));
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get rate limiter statistics
+ */
+export function getInternalRateLimiterStats(): {
+  yahooFinance: { queueLength: number; activeRequests: number; tokens: number };
+  coinGecko: { queueLength: number; activeRequests: number; tokens: number };
+} {
+  return {
+    yahooFinance: yahooFinanceLimiter.getStats(),
+    coinGecko: coinGeckoLimiter.getStats(),
+  };
+}
+
+/**
+ * Check if we're in production environment
+ */
+export function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+/**
+ * Check if current time is during US market hours
+ */
+export function isMarketHours(): boolean {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+
+  if (day === 0 || day === 6) return false;
+  return timeInMinutes >= 570 && timeInMinutes < 960;
+}
+
+/**
+ * Sleep with random jitter
+ */
+export function sleepWithJitter(baseMs: number, maxJitterMs: number = 500): Promise<void> {
+  const jitter = Math.random() * maxJitterMs;
+  return new Promise(resolve => setTimeout(resolve, baseMs + jitter));
+}
+
+logger.info('[RATE-LIMITER] Internal API rate limiters initialized');
