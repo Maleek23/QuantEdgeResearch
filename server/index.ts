@@ -1064,7 +1064,7 @@ app.use((req, res, next) => {
 
     // Unified options bot - fast 3-minute scanning cycle
     if (!SKIP_STARTUP_SCANS) { // Only run in development
-    cron.default.schedule('*/3 * * * *', async () => {
+    cron.default.schedule('*/6 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
@@ -1109,7 +1109,7 @@ app.use((req, res, next) => {
     // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     // Fast 3-minute scanning cycle
     if (!SKIP_STARTUP_SCANS) { // Only run in development
-    cron.default.schedule('*/3 * * * *', async () => {
+    cron.default.schedule('*/6 * * * *', async () => {
       try {
         const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
         
@@ -1157,7 +1157,7 @@ app.use((req, res, next) => {
     // CRYPTO BOT - Fast 3-minute scanning cycle (24/7 markets)
     // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     if (!SKIP_STARTUP_SCANS) { // Only run in development
-    cron.default.schedule('*/3 * * * *', async () => {
+    cron.default.schedule('*/6 * * * *', async () => {
       try {
         const now = Date.now();
         const lastCryptoScan = lastScanTime['crypto'] || 0;
@@ -1621,5 +1621,23 @@ app.use((req, res, next) => {
     });
     
     log('📈 Bullish Trend Scanner started - analyzing momentum stocks every 30 min during market hours');
+
+    // ============================================================================
+    // AUTO-CLEANUP - Remove stale/expired trades to free memory
+    // Runs every hour to keep Trade Desk showing only RELEVANT opportunities
+    // ============================================================================
+    cron.default.schedule('0 * * * *', async () => {
+      try {
+        const { storage } = await import('./storage');
+        const deletedCount = await storage.cleanupStaleTradeIdeas();
+        if (deletedCount > 0) {
+          logger.info(`🧹 [AUTO-CLEANUP] Removed ${deletedCount} stale/expired trades from memory`);
+        }
+      } catch (error: any) {
+        logger.error('🧹 [AUTO-CLEANUP] Cleanup failed:', error);
+      }
+    });
+
+    log('🧹 Auto-Cleanup started - removing stale trades every hour to free memory');
   });
 })();

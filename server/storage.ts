@@ -1275,21 +1275,76 @@ export class MemStorage implements IStorage {
     return Array.from(this.tradeIdeas.values());
   }
 
-  // MEMORY-OPTIMIZED: Get only recent trade ideas (reduces memory usage by 80%+)
+  // MEMORY-OPTIMIZED: Get only ACTIVE/RELEVANT trade ideas
+  // Filters out expired, exited, and stale trades to keep Trade Desk clean
   async getRecentTradeIdeas(hoursBack: number = 24, limit: number = 1000): Promise<TradeIdea[]> {
     const cutoffTime = Date.now() - (hoursBack * 60 * 60 * 1000);
+    const now = Date.now();
     const recent: TradeIdea[] = [];
 
     for (const idea of this.tradeIdeas.values()) {
       const createdAt = new Date(idea.timestamp).getTime();
-      if (createdAt > cutoffTime) {
-        recent.push(idea);
+
+      // Skip if too old
+      if (createdAt < cutoffTime) continue;
+
+      // Skip if already exited/closed
+      if (idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed') {
+        continue;
       }
+
+      // Skip if expired (for options)
+      if (idea.expiryDate) {
+        const expiryTime = new Date(idea.expiryDate).getTime();
+        if (expiryTime < now) continue; // Expired
+      }
+
+      recent.push(idea);
+
       // Stop if we hit the limit (prevent loading everything)
       if (recent.length >= limit) break;
     }
 
     return recent.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  // AUTO-CLEANUP: Remove stale trades to free memory
+  async cleanupStaleTradeIdeas(): Promise<number> {
+    const RETENTION_DAYS = 7; // Keep closed/won/lost trades for 7 days
+    const STALE_HOURS = 72; // Remove open trades older than 72 hours
+    const cutoffClosed = Date.now() - (RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const cutoffStale = Date.now() - (STALE_HOURS * 60 * 60 * 1000);
+    let deletedCount = 0;
+
+    for (const [id, idea] of this.tradeIdeas.entries()) {
+      const createdAt = new Date(idea.timestamp).getTime();
+      const isClosed = idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed';
+
+      // Delete old closed trades
+      if (isClosed && createdAt < cutoffClosed) {
+        this.tradeIdeas.delete(id);
+        deletedCount++;
+        continue;
+      }
+
+      // Delete stale open trades (no activity for 72 hours)
+      if (!isClosed && createdAt < cutoffStale) {
+        this.tradeIdeas.delete(id);
+        deletedCount++;
+        continue;
+      }
+
+      // Delete expired options
+      if (idea.expiryDate) {
+        const expiryTime = new Date(idea.expiryDate).getTime();
+        if (expiryTime < Date.now() - (24 * 60 * 60 * 1000)) { // 1 day after expiry
+          this.tradeIdeas.delete(id);
+          deletedCount++;
+        }
+      }
+    }
+
+    return deletedCount;
   }
 
   async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
