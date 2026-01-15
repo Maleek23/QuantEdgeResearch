@@ -1056,12 +1056,14 @@ app.use((req, res, next) => {
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
     
     // CONSOLIDATED BOT SCANNING - Fast opportunistic scanning every 3 minutes
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     // Single unified scan loop that checks for opportunities then monitors positions
     const lastScanTime: Record<string, number> = {};
     const SCAN_COOLDOWN_MS = 6 * 60 * 1000; // 6 minute cooldown between full scans (every other cycle)
     const POSITION_CHECK_MS = 3 * 60 * 1000; // 3 minute cooldown for position monitoring
-    
+
     // Unified options bot - fast 3-minute scanning cycle
+    if (!SKIP_STARTUP_SCANS) { // Only run in development
     cron.default.schedule('*/3 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
@@ -1095,12 +1097,18 @@ app.use((req, res, next) => {
         logger.error('🤖 [UNIFIED-BOT] Options scan failed:', error);
       }
     });
-    
+
     log('🤖 Unified Options Bot started - fast 3-minute scanning cycle (9:30 AM-4:00 PM ET)');
     log('🎰 Lotto Scanner added - hunts cheap far-OTM weeklies during market hours');
-    
+    } else {
+      log('🤖 Unified Options Bot DISABLED in production (memory optimization)');
+      log('🎰 Lotto Scanner DISABLED in production (memory optimization)');
+    }
+
     // UNIFIED FUTURES BOT - Combines Futures + Prop Firm (both scan NQ, no need for redundancy)
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     // Fast 3-minute scanning cycle
+    if (!SKIP_STARTUP_SCANS) { // Only run in development
     cron.default.schedule('*/3 * * * *', async () => {
       try {
         const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
@@ -1140,10 +1148,15 @@ app.use((req, res, next) => {
         logger.error('🔮 [UNIFIED-FUTURES] Futures scan failed:', error);
       }
     });
-    
+
     log('🔮 Unified Futures Bot started - fast 3-minute scanning cycle (CME hours)');
-    
+    } else {
+      log('🔮 Unified Futures Bot DISABLED in production (memory optimization)');
+    }
+
     // CRYPTO BOT - Fast 3-minute scanning cycle (24/7 markets)
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
+    if (!SKIP_STARTUP_SCANS) { // Only run in development
     cron.default.schedule('*/3 * * * *', async () => {
       try {
         const now = Date.now();
@@ -1163,8 +1176,11 @@ app.use((req, res, next) => {
         logger.error('🪙 [CRYPTO-BOT] Crypto scan failed:', error);
       }
     });
-    
+
     log('🪙 Crypto Bot started - fast 3-minute scanning cycle (24/7 markets)');
+    } else {
+      log('🪙 Crypto Bot DISABLED in production (memory optimization)');
+    }
     
     // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
     cron.default.schedule('*/30 * * * *', async () => {
