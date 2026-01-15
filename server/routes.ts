@@ -4975,6 +4975,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // WHALE FLOWS - Institutional options tracking
+  // ============================================
+
+  // Get all whale flows (with optional filters)
+  app.get("/api/whale-flows", requireBetaAccess, async (req: any, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const megaOnly = req.query.megaOnly === 'true';
+
+      let flows = megaOnly
+        ? await storage.getMegaWhaleFlows(days)
+        : await storage.getAllWhaleFlows(days);
+
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch whale flows:", error);
+      res.status(500).json({ error: "Failed to fetch whale flows" });
+    }
+  });
+
+  // Get recent whale flows (for dashboard widget)
+  app.get("/api/whale-flows/recent", requireBetaAccess, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const flows = await storage.getRecentWhaleFlows(limit);
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch recent whale flows:", error);
+      res.status(500).json({ error: "Failed to fetch recent whale flows" });
+    }
+  });
+
+  // Get whale flows for a specific symbol
+  app.get("/api/whale-flows/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { symbol } = req.params;
+      const days = parseInt(req.query.days as string) || 30;
+      const flows = await storage.getWhaleFlowsBySymbol(symbol, days);
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch whale flows for symbol:", error);
+      res.status(500).json({ error: "Failed to fetch whale flows for symbol" });
+    }
+  });
+
   // 🎯 BEST SETUPS - Top 5 conviction plays for daily/weekly view
   // Forces discipline: wait for the perfect pitch instead of swinging at everything
   app.get("/api/trade-ideas/best-setups", async (req: any, res) => {

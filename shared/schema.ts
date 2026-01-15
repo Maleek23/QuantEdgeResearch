@@ -3181,10 +3181,62 @@ export const dynamicSignalWeights = pgTable("dynamic_signal_weights", {
   index("idx_signal_weights_name").on(table.signalName),
 ]);
 
-export const insertDynamicSignalWeightSchema = createInsertSchema(dynamicSignalWeights).omit({ 
-  id: true, 
+export const insertDynamicSignalWeightSchema = createInsertSchema(dynamicSignalWeights).omit({
+  id: true,
   createdAt: true,
-  updatedAt: true 
+  updatedAt: true
 });
 export type InsertDynamicSignalWeight = z.infer<typeof insertDynamicSignalWeightSchema>;
 export type DynamicSignalWeight = typeof dynamicSignalWeights.$inferSelect;
+
+// ============================================
+// WHALE FLOWS - Institutional options tracking
+// Tracks high-premium options activity ($10k+) for lotto plays
+// ============================================
+export const whaleFlows = pgTable("whale_flows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Symbol & option details
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  optionType: text("option_type").$type<'call' | 'put'>().notNull(),
+  strikePrice: real("strike_price").notNull(),
+  expiryDate: varchar("expiry_date").notNull(), // ISO date string
+
+  // Pricing & flow details
+  entryPrice: real("entry_price").notNull(),
+  targetPrice: real("target_price").notNull(),
+  stopLoss: real("stop_loss").notNull(),
+  premiumPerContract: real("premium_per_contract").notNull(), // Total premium for this contract
+
+  // Whale classification
+  isMegaWhale: boolean("is_mega_whale").default(false), // $50k+ vs $10k+
+  flowSize: varchar("flow_size"), // 'whale' | 'mega_whale'
+
+  // Analysis
+  grade: varchar("grade", { length: 10 }), // A+, A, B, etc.
+  confidenceScore: integer("confidence_score"),
+  direction: text("direction").$type<'long' | 'short'>().notNull(),
+
+  // Tracking
+  detectedAt: timestamp("detected_at").defaultNow(),
+  outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'),
+  finalPnL: real("final_pnl"), // If we tracked outcome
+
+  // Discord notification
+  discordNotified: boolean("discord_notified").default(false),
+
+  // Link to trade idea if created
+  tradeIdeaId: varchar("trade_idea_id"),
+}, (table) => [
+  index("idx_whale_flows_symbol").on(table.symbol),
+  index("idx_whale_flows_detected_at").on(table.detectedAt),
+  index("idx_whale_flows_is_mega").on(table.isMegaWhale),
+  index("idx_whale_flows_status").on(table.outcomeStatus),
+]);
+
+export const insertWhaleFlowSchema = createInsertSchema(whaleFlows).omit({
+  id: true,
+  detectedAt: true
+});
+export type InsertWhaleFlow = z.infer<typeof insertWhaleFlowSchema>;
+export type WhaleFlow = typeof whaleFlows.$inferSelect;

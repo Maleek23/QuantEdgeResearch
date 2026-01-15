@@ -104,6 +104,8 @@ import type {
   UserNavigationLayout,
   InsertUserNavigationLayout,
   NavigationLayoutType,
+  WhaleFlow,
+  InsertWhaleFlow,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
@@ -155,6 +157,7 @@ import {
   watchlistHistory,
   symbolNotes,
   userNavigationLayouts,
+  whaleFlows,
 } from "@shared/schema";
 
 // ========================================
@@ -385,6 +388,15 @@ export interface IStorage {
   createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote>;
   updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined>;
   deleteSymbolNote(id: string): Promise<boolean>;
+
+  // Whale Flows (Institutional options tracking)
+  getAllWhaleFlows(days?: number): Promise<WhaleFlow[]>;
+  getWhaleFlowById(id: string): Promise<WhaleFlow | undefined>;
+  getWhaleFlowsBySymbol(symbol: string, days?: number): Promise<WhaleFlow[]>;
+  createWhaleFlow(flow: InsertWhaleFlow): Promise<WhaleFlow>;
+  updateWhaleFlowOutcome(id: string, updates: { outcomeStatus: OutcomeStatus; finalPnL?: number }): Promise<WhaleFlow | undefined>;
+  getRecentWhaleFlows(limit?: number): Promise<WhaleFlow[]>;
+  getMegaWhaleFlows(days?: number): Promise<WhaleFlow[]>;
 
   // Research History (Year-long learning tracking)
   getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]>;
@@ -3004,6 +3016,69 @@ export class DatabaseStorage implements IStorage {
   async deleteSymbolNote(id: string): Promise<boolean> {
     const result = await db.delete(symbolNotes).where(eq(symbolNotes.id, id));
     return true;
+  }
+
+  // Whale Flows Methods
+  async getAllWhaleFlows(days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(gte(whaleFlows.detectedAt, cutoffStr))
+      .orderBy(desc(whaleFlows.detectedAt));
+  }
+
+  async getWhaleFlowById(id: string): Promise<WhaleFlow | undefined> {
+    const [flow] = await db.select().from(whaleFlows)
+      .where(eq(whaleFlows.id, id))
+      .limit(1);
+    return flow;
+  }
+
+  async getWhaleFlowsBySymbol(symbol: string, days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(and(
+        eq(whaleFlows.symbol, symbol.toUpperCase()),
+        gte(whaleFlows.detectedAt, cutoffStr)
+      ))
+      .orderBy(desc(whaleFlows.detectedAt));
+  }
+
+  async createWhaleFlow(flow: InsertWhaleFlow): Promise<WhaleFlow> {
+    const [created] = await db.insert(whaleFlows).values(flow).returning();
+    return created;
+  }
+
+  async updateWhaleFlowOutcome(id: string, updates: { outcomeStatus: OutcomeStatus; finalPnL?: number }): Promise<WhaleFlow | undefined> {
+    const [updated] = await db.update(whaleFlows)
+      .set(updates)
+      .where(eq(whaleFlows.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getRecentWhaleFlows(limit: number = 20): Promise<WhaleFlow[]> {
+    return await db.select().from(whaleFlows)
+      .orderBy(desc(whaleFlows.detectedAt))
+      .limit(limit);
+  }
+
+  async getMegaWhaleFlows(days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(and(
+        eq(whaleFlows.isMegaWhale, true),
+        gte(whaleFlows.detectedAt, cutoffStr)
+      ))
+      .orderBy(desc(whaleFlows.detectedAt));
   }
 
   // Research History Methods

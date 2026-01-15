@@ -992,6 +992,32 @@ app.use((req, res, next) => {
 
             // 🐋 WHALE FLOW ALERT - Send regardless of affordability
             if (isWhaleFlow || isMegaWhale) {
+              // Save whale flow to database for tracking
+              try {
+                await storage.createWhaleFlow({
+                  symbol: tradeIdea.symbol,
+                  optionType: (tradeIdea.optionType as 'call' | 'put') || 'call',
+                  strikePrice: tradeIdea.strikePrice || 0,
+                  expiryDate: tradeIdea.expiryDate || '',
+                  entryPrice: entryPrice,
+                  targetPrice: tradeIdea.targetPrice || 0,
+                  stopLoss: tradeIdea.stopLoss || 0,
+                  premiumPerContract: totalPremium,
+                  isMegaWhale,
+                  flowSize: isMegaWhale ? 'mega_whale' : 'whale',
+                  grade,
+                  confidenceScore: tradeIdea.confidenceScore || 0,
+                  direction: tradeIdea.direction as 'long' | 'short',
+                  outcomeStatus: 'open',
+                  discordNotified: false,
+                  tradeIdeaId: tradeIdea.id,
+                });
+                logger.info(`🐋 [WHALE-DB] Saved whale flow to database: ${tradeIdea.symbol}`);
+              } catch (err) {
+                logger.error(`🐋 [WHALE-DB] Failed to save whale flow: ${err}`);
+              }
+
+              // Send Discord alert
               const { sendWhaleFlowAlertToDiscord } = await import('./discord-service');
               sendWhaleFlowAlertToDiscord({
                 symbol: tradeIdea.symbol,
