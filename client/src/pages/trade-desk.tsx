@@ -221,6 +221,7 @@ import { isRealLoss } from "@shared/constants";
 import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SmartMoneyFlowTracker } from "@/components/smart-money-flow-tracker";
+import { WatchlistTracker } from "@/components/watchlist-tracker";
 import { TradeHeatmap } from "@/components/trade-heatmap";
 
 interface BestSetup extends TradeIdea {
@@ -1749,6 +1750,9 @@ export default function TradeDeskPage() {
 
       {/* Smart Money Flow Tracker - Unusual options activity */}
       <SmartMoneyFlowTracker />
+
+      {/* Watchlist Tracker - Track stocks and whale flows */}
+      <WatchlistTracker />
 
       {/* Engine Filter Tabs - Premium Design */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
