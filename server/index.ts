@@ -1114,27 +1114,27 @@ app.use((req, res, next) => {
     const SCAN_COOLDOWN_MS = 6 * 60 * 1000; // 6 minute cooldown between full scans (every other cycle)
     const POSITION_CHECK_MS = 3 * 60 * 1000; // 3 minute cooldown for position monitoring
 
-    // Unified options bot - fast 3-minute scanning cycle
-    if (!SKIP_STARTUP_SCANS) { // Only run in development
+    // Unified options bot - 6-minute scanning cycle during market hours
+    // RE-ENABLED: Now with proper rate limiting and memory optimizations
     cron.default.schedule('*/6 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
         }
-        
+
         const now = Date.now();
         const lastOptionsScan = lastScanTime['options'] || 0;
         const { runAutonomousBotScan, monitorLottoPositions } = await import('./auto-lotto-trader');
-        
+
         // Always monitor existing positions (quick check)
         await monitorLottoPositions();
-        
+
         // Only do full scan if cooldown has passed (prevents redundant scanning)
         if (now - lastOptionsScan >= SCAN_COOLDOWN_MS) {
           logger.info('🤖 [UNIFIED-BOT] Running opportunistic OPTIONS scan...');
           await runAutonomousBotScan();
           lastScanTime['options'] = now;
-          
+
           // 🎰 LOTTO SCANNER - Generate and auto-execute lotto plays
           try {
             const { runLottoScanner } = await import('./lotto-scanner');
@@ -1144,18 +1144,60 @@ app.use((req, res, next) => {
             logger.error('🎰 [LOTTO-SCANNER] Lotto scan failed:', lottoError);
           }
         }
-        
+
       } catch (error: any) {
         logger.error('🤖 [UNIFIED-BOT] Options scan failed:', error);
       }
     });
 
-    log('🤖 Unified Options Bot started - fast 3-minute scanning cycle (9:30 AM-4:00 PM ET)');
-    log('🎰 Lotto Scanner added - hunts cheap far-OTM weeklies during market hours');
-    } else {
-      log('🤖 Unified Options Bot DISABLED in production (memory optimization)');
-      log('🎰 Lotto Scanner DISABLED in production (memory optimization)');
-    }
+    log('🤖 Unified Options Bot ENABLED - 6-minute scanning cycle (9:30 AM-4:00 PM ET)');
+    log('🎰 Lotto Scanner ENABLED - hunts cheap far-OTM weeklies during market hours');
+
+    // Crypto Bot - 10-minute scanning cycle (24/7 since crypto markets never close)
+    // RE-ENABLED: Staggered 2 minutes after options bot to prevent memory spikes
+    cron.default.schedule('2,12,22,32,42,52 * * * *', async () => {
+      try {
+        const now = Date.now();
+        const lastCryptoScan = lastScanTime['crypto'] || 0;
+
+        // Only scan if cooldown has passed
+        if (now - lastCryptoScan >= 10 * 60 * 1000) {
+          const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
+
+          logger.info('🪙 [CRYPTO-BOT] Running crypto scan...');
+          await runCryptoBotScan();
+          await monitorCryptoPositions();
+          lastScanTime['crypto'] = now;
+        }
+      } catch (error: any) {
+        logger.error('🪙 [CRYPTO-BOT] Scan failed:', error);
+      }
+    });
+
+    log('🪙 Crypto Bot ENABLED - 10-minute scanning cycle (24/7)');
+
+    // Futures Bot - 10-minute scanning cycle during CME market hours
+    // RE-ENABLED: Staggered 4 minutes after options bot
+    cron.default.schedule('4,14,24,34,44,54 * * * *', async () => {
+      try {
+        const now = Date.now();
+        const lastFuturesScan = lastScanTime['futures'] || 0;
+
+        // Only scan if cooldown has passed
+        if (now - lastFuturesScan >= 10 * 60 * 1000) {
+          const { runFuturesBotScan, monitorFuturesPositions } = await import('./auto-lotto-trader');
+
+          logger.info('📈 [FUTURES-BOT] Running futures scan...');
+          await runFuturesBotScan();
+          await monitorFuturesPositions();
+          lastScanTime['futures'] = now;
+        }
+      } catch (error: any) {
+        logger.error('📈 [FUTURES-BOT] Scan failed:', error);
+      }
+    });
+
+    log('📈 Futures Bot ENABLED - 10-minute scanning cycle (during CME hours)');
 
     // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
     cron.default.schedule('*/30 * * * *', async () => {
