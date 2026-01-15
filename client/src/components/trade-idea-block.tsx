@@ -1140,7 +1140,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 targetPrice={idea.targetPrice}
                 stopLoss={idea.stopLoss}
                 direction={idea.direction as 'long' | 'short'}
-                expiryDate={idea.expiryDate}
+                expiryDate={idea.expiryDate || undefined}
                 assetType={idea.assetType as 'stock' | 'option' | 'crypto'}
                 confidence={idea.confidenceScore}
               />
