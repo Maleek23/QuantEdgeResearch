@@ -30,6 +30,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Ensure consistent chunk naming to avoid cache issues
+        manualChunks: undefined,
+      },
+    },
   },
   server: {
     hmr: {
