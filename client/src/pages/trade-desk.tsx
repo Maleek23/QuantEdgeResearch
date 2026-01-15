@@ -221,6 +221,7 @@ import { isRealLoss } from "@shared/constants";
 import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SmartMoneyFlowTracker } from "@/components/smart-money-flow-tracker";
+import { TradeHeatmap } from "@/components/trade-heatmap";
 
 interface BestSetup extends TradeIdea {
   convictionScore: number;
@@ -637,7 +638,7 @@ export default function TradeDeskPage() {
   };
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'heatmap'>('list');
   
   // NEW: Source tabs and status view state
   const [sourceTab, setSourceTab] = useState<IdeaSource | "all">("all");
@@ -2071,9 +2072,18 @@ export default function TradeDeskPage() {
                       size="icon"
                       onClick={() => setViewMode("grid")}
                       data-testid="button-view-grid"
-                      className="h-8 w-8 rounded-none rounded-r-md"
+                      className="h-8 w-8 rounded-none"
                     >
                       <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "heatmap" ? "secondary" : "ghost"}
+                      size="icon"
+                      onClick={() => setViewMode("heatmap")}
+                      data-testid="button-view-heatmap"
+                      className="h-8 w-8 rounded-none rounded-r-md"
+                    >
+                      <Flame className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -2152,23 +2162,31 @@ export default function TradeDeskPage() {
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="px-4 pb-4">
-                            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}>
-                              {pageIdeas.map(idea => (
-                                <TradeIdeaBlock
-                                  key={idea.id}
-                                  idea={idea}
-                                  currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
-                                  catalysts={catalysts}
-                                  isExpanded={expandedIdeaId === idea.id}
-                                  onToggleExpand={() => handleToggleExpand(idea.id)}
-                                  onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
-                                  onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
-                                  data-testid={`idea-card-${idea.id}`}
-                                />
-                              ))}
-                            </div>
-                            {/* Numbered Pagination */}
-                            {totalPages > 1 && (
+                            {viewMode === 'heatmap' ? (
+                              <TradeHeatmap
+                                trades={ideas}
+                                priceMap={priceMap}
+                                onTradeClick={(tradeId) => handleToggleExpand(tradeId)}
+                              />
+                            ) : (
+                              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}>
+                                {pageIdeas.map(idea => (
+                                  <TradeIdeaBlock
+                                    key={idea.id}
+                                    idea={idea}
+                                    currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
+                                    catalysts={catalysts}
+                                    isExpanded={expandedIdeaId === idea.id}
+                                    onToggleExpand={() => handleToggleExpand(idea.id)}
+                                    onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
+                                    onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
+                                    data-testid={`idea-card-${idea.id}`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {/* Numbered Pagination - Hidden in heatmap mode */}
+                            {viewMode !== 'heatmap' && totalPages > 1 && (
                               <div className="pt-4 flex items-center justify-center gap-1">
                                 <span className="text-xs text-muted-foreground mr-2 font-mono">
                                   {startIdx + 1}-{Math.min(endIdx, ideas.length)} of {ideas.length}

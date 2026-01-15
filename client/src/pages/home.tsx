@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GlobalMarketPulse } from "@/components/dashboard";
+import { LivePortfolioSummary } from "@/components/live-portfolio-summary";
 import { useQuery } from "@tanstack/react-query";
 import {
   Brain,
@@ -201,6 +202,10 @@ export default function HomePage() {
 
       <section>
         <GlobalMarketPulse />
+      </section>
+
+      <section>
+        <LivePortfolioSummary />
       </section>
 
       <section>

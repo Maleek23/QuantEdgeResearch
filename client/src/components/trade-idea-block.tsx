@@ -28,6 +28,7 @@ import { TimingDisplay } from "@/components/timing-display";
 import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
 import { SignalStrengthBadge } from "@/components/signal-strength-badge";
 import { EngineConsensusBadge } from "@/components/engine-mini-scores";
+import { MLTimingIndicator } from "@/components/ml-timing-indicator";
 import { getResolutionReasonLabel, getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
@@ -452,6 +453,35 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
             {/* Center: Quick Metrics */}
             <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Live P/L Display - Only for open trades with current price */}
+              {idea.outcomeStatus === 'open' && currentPrice && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className={cn(
+                      "flex flex-col items-center justify-center px-3 py-1 rounded-lg border-2 cursor-help",
+                      priceChangePercent >= 5 ? "bg-green-500/20 border-green-500/50" :
+                      priceChangePercent >= 0 ? "bg-green-500/10 border-green-500/30" :
+                      priceChangePercent <= -5 ? "bg-red-500/20 border-red-500/50" :
+                      "bg-red-500/10 border-red-500/30"
+                    )}>
+                      <span className="text-[9px] text-muted-foreground uppercase tracking-wider">P/L</span>
+                      <span className={cn(
+                        "text-base font-bold font-mono",
+                        priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
+                      )}>
+                        {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Current Profit/Loss</p>
+                    <p className="text-xs text-muted-foreground">
+                      Entry: ${idea.entryPrice.toFixed(2)} → Now: ${currentPrice.toFixed(2)}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               {/* R:R Ratio - Clear badge format */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -459,8 +489,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <span className="text-muted-foreground mr-1">R:R</span>
                     <span className={cn(
                       "font-bold",
-                      idea.riskRewardRatio >= 2 ? "text-green-400" : 
-                      idea.riskRewardRatio >= 1.5 ? "text-cyan-400" : 
+                      idea.riskRewardRatio >= 2 ? "text-green-400" :
+                      idea.riskRewardRatio >= 1.5 ? "text-cyan-400" :
                       "text-amber-400"
                     )}>
                       {idea.riskRewardRatio?.toFixed(1) || '—'}
@@ -1016,6 +1046,26 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               )
             )}
           </div>
+
+          {/* ML Entry/Exit Timing Indicator - Only for open trades */}
+          {idea.outcomeStatus === 'open' && (
+            <div className="p-4 rounded-lg border-2 bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="h-4 w-4 text-cyan-400" />
+                <span className="text-sm font-bold text-cyan-400 uppercase tracking-wider">ML Entry/Exit Timing</span>
+              </div>
+              <MLTimingIndicator
+                entryPrice={idea.entryPrice}
+                currentPrice={currentPrice}
+                targetPrice={idea.targetPrice}
+                stopLoss={idea.stopLoss}
+                direction={idea.direction as 'long' | 'short'}
+                expiryDate={idea.expiryDate}
+                assetType={idea.assetType as 'stock' | 'option' | 'crypto'}
+                confidence={idea.confidenceScore}
+              />
+            </div>
+          )}
 
           {/* Option Contract Details */}
           {idea.assetType === 'option' && (
