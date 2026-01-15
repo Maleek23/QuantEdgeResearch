@@ -4584,6 +4584,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch Price Quotes - Get live prices for all active trade symbols
+  app.get("/api/prices/batch", async (_req, res) => {
+    try {
+      const { getRealtimeQuote } = await import('./realtime-pricing-service');
+
+      // Get all active trades to determine which symbols need prices
+      const trades = await storage.getRecentTradeIdeas(24, 1000);
+      const activeSymbols = new Set<string>();
+
+      // Collect unique symbols from active trades (excluding options)
+      trades.forEach(trade => {
+        if (trade.outcomeStatus === 'open' && trade.assetType !== 'option') {
+          activeSymbols.add(trade.symbol.toUpperCase());
+        }
+      });
+
+      // Fetch prices for all active symbols
+      const priceMap: Record<string, number> = {};
+      const symbolArray = Array.from(activeSymbols);
+
+      // Fetch in parallel with Promise.allSettled to handle failures gracefully
+      const results = await Promise.allSettled(
+        symbolArray.map(async (symbol) => {
+          const assetType = trades.find(t => t.symbol.toUpperCase() === symbol)?.assetType || 'stock';
+          const quote = await getRealtimeQuote(symbol, assetType as any);
+          return { symbol, price: quote?.price };
+        })
+      );
+
+      // Build price map from successful results
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.price !== undefined) {
+          priceMap[symbolArray[index]] = result.value.price;
+        }
+      });
+
+      logger.info(`📊 Batch prices: ${Object.keys(priceMap).length}/${symbolArray.length} symbols fetched`);
+
+      res.json(priceMap);
+    } catch (error) {
+      logger.error("Batch prices error:", error);
+      res.status(500).json({ error: "Failed to fetch batch prices" });
+    }
+  });
+
   // Trade Ideas Routes - Protected by beta access
   app.get("/api/trade-ideas", requireBetaAccess, async (req: any, res) => {
     try {
