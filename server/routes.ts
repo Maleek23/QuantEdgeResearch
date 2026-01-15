@@ -10171,8 +10171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         date: today,
-        todayMetrics,
-        weekMetrics,
+        today: todayMetrics,  // Frontend expects 'today', not 'todayMetrics'
+        week: weekMetrics,    // Frontend expects 'week', not 'weekMetrics'
         historicalMetrics: [], // Empty for now, will be populated by daily rollup
         activeAlerts,
       });
