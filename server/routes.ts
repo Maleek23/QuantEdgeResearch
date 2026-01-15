@@ -1200,9 +1200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(resendKey);
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
           
           await resend.emails.send({
-            from: 'Quant Edge Labs <beta@quantedgelabs.com>',
+            from: `Quant Edge Labs <${process.env.FROM_EMAIL || 'beta@quantedgelabs.net'}>`,
             to: email,
             subject: 'Welcome to the Quant Edge Labs Beta!',
             html: `
@@ -1214,7 +1215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   <li><strong>Elite Trading Engine</strong> - Institutional-grade entry validation matching top 1% trader standards</li>
                   <li><strong>Research Tools</strong> - Chart analysis, market scanner, and trade ideas</li>
                 </ul>
-                <p>Start exploring: <a href="https://quantedgelabs.replit.app/automations" style="color: #0891b2;">View Automations Hub</a></p>
+                <p>Start exploring: <a href="${baseUrl}/automations" style="color: #0891b2;">View Automations Hub</a></p>
                 <p style="color: #666; font-size: 12px;">
                   <strong>Educational Disclaimer:</strong> This platform is for research and educational purposes only. 
                   Past performance is not indicative of future results. Never risk more than you can afford to lose.
@@ -2233,7 +2234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       configured: isEmailServiceConfigured(),
       provider: 'resend',
-      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.com',
+      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.net',
     });
   });
 

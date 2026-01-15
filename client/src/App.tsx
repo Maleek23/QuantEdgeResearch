@@ -92,8 +92,9 @@ const WhaleFlowPage = lazy(() => import("@/pages/whale-flow"));
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+    <div className="flex flex-col items-center justify-center min-h-screen w-full fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
+      <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
+      <p className="mt-4 text-sm text-slate-400 font-medium animate-pulse">Initializing Quant Edge...</p>
     </div>
   );
 }
@@ -350,6 +351,7 @@ function App() {
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
           <TooltipProvider>
             <RealtimePricesProvider>
+              <AuroraBackground />
               <ScrollParticles />
               <Router />
               <Toaster />

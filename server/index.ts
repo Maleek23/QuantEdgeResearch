@@ -26,8 +26,19 @@ app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
-  }
-}));
+  }}));
+
+// Add a simple health check endpoint
+app.get("/health", (req: Request, res: Response) => {
+  const realtimeStatus = getRealtimeStatus();
+  const overallStatus = realtimeStatus.isHealthy ? "OK" : "DEGRADED";
+  res.status(realtimeStatus.isHealthy ? 200 : 503).json({
+    status: overallStatus,
+    timestamp: new Date().toISOString(),
+    realtimePrices: realtimeStatus,
+    message: realtimeStatus.isHealthy ? "Server is healthy" : "Realtime price service is degraded",
+  });
+});
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
@@ -35,7 +46,12 @@ app.use(cookieParser());
 
 app.use(securityHeaders);
 app.use(csrfMiddleware);
-app.use(validateCSRF);
+app.use((req, res, next) => {
+  if (/^(GET|HEAD|OPTIONS)$/i.test(req.method)) {
+    return next();
+  }
+  validateCSRF(req, res, next);
+});
 
 // SECURITY: Safe logging middleware - prevents sensitive data leakage
 app.use((req, res, next) => {
