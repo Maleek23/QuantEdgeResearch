@@ -30,6 +30,7 @@ interface OptionsFlow {
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore: number;
   detectedAt: string;
+  isMegaWhale?: boolean; // For whale flow tracking
 }
 
 interface FlowStatus {
@@ -66,22 +67,57 @@ export function SmartMoneyFlowTracker() {
     notes: ''
   });
 
-  const { data: flowStatus, isLoading, refetch } = useQuery<FlowStatus>({
-    queryKey: ['/api/automations/options-flow/status'],
-    refetchInterval: 60000,
+  // UPDATED: Fetch whale flows from our dedicated API
+  const { data: whaleFlowsRaw, isLoading } = useQuery({
+    queryKey: ['/api/whale-flows/recent'],
+    queryFn: async () => {
+      const res = await fetch('/api/whale-flows/recent?limit=20');
+      if (!res.ok) throw new Error('Failed to fetch whale flows');
+      return res.json();
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const { data: todayFlows = [] } = useQuery<OptionsFlow[]>({
-    queryKey: ['/api/automations/options-flow/today'],
-    refetchInterval: 30000,
-  });
+  // Transform whale flows to match OptionsFlow format
+  const todayFlows: OptionsFlow[] = (whaleFlowsRaw || []).map((flow: any) => ({
+    id: flow.id,
+    symbol: flow.symbol,
+    optionType: flow.optionType,
+    strikePrice: flow.strikePrice,
+    expiryDate: flow.expiryDate,
+    volume: 0, // Not tracked in whale flows
+    openInterest: 0,
+    volumeOIRatio: 0,
+    premium: flow.premiumPerContract,
+    impliedVolatility: 0,
+    delta: 0,
+    sentiment: flow.optionType === 'call' ? 'bullish' : 'bearish',
+    flowType: 'block', // All whale flows shown as blocks
+    unusualScore: flow.confidenceScore || 70,
+    detectedAt: flow.detectedAt,
+    isMegaWhale: flow.isMegaWhale, // Track mega whale status
+  }));
+
+  const flowStatus: FlowStatus = {
+    isActive: true,
+    lastScan: todayFlows[0]?.detectedAt || null,
+    flowsDetected: todayFlows.length,
+    todayFlows,
+    settings: {
+      minPremium: 10000, // $10k minimum for whale flows
+      minVolumeOIRatio: 0,
+      watchlist: [],
+      alertThreshold: 70,
+    },
+  };
 
   const scanMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/automations/options-flow/scan'),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/whale-flows/recent'] });
       queryClient.invalidateQueries({ queryKey: ['/api/automations/options-flow/today'] });
       queryClient.invalidateQueries({ queryKey: ['/api/automations/options-flow/status'] });
-      toast({ title: 'Flow scan complete', description: 'Unusual options activity updated' });
+      toast({ title: 'Flow scan complete', description: 'Whale flows updated' });
     },
     onError: () => {
       toast({ title: 'Scan failed', description: 'Check console for details', variant: 'destructive' });
@@ -122,9 +158,9 @@ export function SmartMoneyFlowTracker() {
     }
   });
 
-  const getFlowTypeIcon = (type: string) => {
+  const getFlowTypeIcon = (type: string, isMegaWhale?: boolean) => {
+    if (type === 'block') return isMegaWhale ? '🐋🐋' : '🐋'; // Double whale for mega whales
     switch (type) {
-      case 'block': return '🐋';
       case 'sweep': return '🧹';
       case 'dark_pool': return '🌑';
       case 'unusual_volume': return '📈';
@@ -132,14 +168,19 @@ export function SmartMoneyFlowTracker() {
     }
   };
 
-  const getFlowTypeBadge = (type: string) => {
+  const getFlowTypeBadge = (type: string, isMegaWhale?: boolean) => {
     const variants: Record<string, string> = {
-      block: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      block: isMegaWhale ? 'bg-purple-600/30 text-purple-300 border-purple-500/50' : 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       sweep: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
       dark_pool: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
       unusual_volume: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     };
     return variants[type] || 'bg-muted text-muted-foreground';
+  };
+
+  const getFlowTypeLabel = (type: string, isMegaWhale?: boolean) => {
+    if (type === 'block') return isMegaWhale ? 'MEGA WHALE' : 'WHALE';
+    return type.replace('_', ' ').toUpperCase();
   };
 
   const formatPremium = (premium: number) => {
@@ -288,22 +329,22 @@ export function SmartMoneyFlowTracker() {
                   data-testid={`flow-item-${flow.symbol}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-xl">{getFlowTypeIcon(flow.flowType)}</div>
+                    <div className="text-xl">{getFlowTypeIcon(flow.flowType, flow.isMegaWhale)}</div>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{flow.symbol}</span>
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={flow.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}
                         >
                           {flow.optionType.toUpperCase()}
                         </Badge>
-                        <Badge variant="outline" className={getFlowTypeBadge(flow.flowType)}>
-                          {flow.flowType.replace('_', ' ').toUpperCase()}
+                        <Badge variant="outline" className={getFlowTypeBadge(flow.flowType, flow.isMegaWhale)}>
+                          {getFlowTypeLabel(flow.flowType, flow.isMegaWhale)}
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        ${flow.strikePrice} • {flow.expiryDate} • Vol/OI: {flow.volumeOIRatio.toFixed(1)}x
+                        ${flow.strikePrice} • {flow.expiryDate.split('T')[0]} • Premium: {formatPremium(flow.premium)}
                       </div>
                     </div>
                   </div>
