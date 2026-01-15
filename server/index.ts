@@ -974,9 +974,14 @@ app.use((req, res, next) => {
             const tradeIdea = await storage.createTradeIdea(idea);
             savedIdeas.push(tradeIdea);
             savedCount++;
-            
+
             logger.info(`✅ [FLOW-CRON] Created flow trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} - Entry=$${tradeIdea.entryPrice}, Target=$${tradeIdea.targetPrice}, R:R=${tradeIdea.riskRewardRatio.toFixed(2)}:1`);
-            
+
+            // 🐋 WHALE FLOW DETECTION - Check if this is institutional-level flow
+            const totalPremium = (tradeIdea.entryPrice || 0) * 100; // Premium per contract * 100 shares
+            const isWhaleFlow = totalPremium >= 10000; // $10k+ per contract = whale territory
+            const isMegaWhale = totalPremium >= 50000; // $50k+ per contract = mega whale
+
             // 📣 Send individual Discord alert AFTER successful save (prevents ghost alerts)
             const grade = tradeIdea.probabilityBand || '';
             const entryPrice = tradeIdea.entryPrice || 0;
@@ -984,7 +989,28 @@ app.use((req, res, next) => {
             const isValidGrade = DISCORD_ALERT_GRADES.includes(grade);
             const maxPremiumFor5Contracts = 2.00; // $1000 budget / 5 contracts / 100 shares
             const isAffordable = entryPrice <= maxPremiumFor5Contracts;
-            
+
+            // 🐋 WHALE FLOW ALERT - Send regardless of affordability
+            if (isWhaleFlow || isMegaWhale) {
+              const { sendWhaleFlowAlertToDiscord } = await import('./discord-service');
+              sendWhaleFlowAlertToDiscord({
+                symbol: tradeIdea.symbol,
+                optionType: (tradeIdea.optionType as 'call' | 'put') || 'call',
+                strikePrice: tradeIdea.strikePrice || 0,
+                expiryDate: tradeIdea.expiryDate || '',
+                entryPrice: entryPrice,
+                targetPrice: tradeIdea.targetPrice || 0,
+                stopLoss: tradeIdea.stopLoss || 0,
+                grade,
+                premiumPerContract: totalPremium,
+                isMegaWhale,
+                direction: tradeIdea.direction as 'long' | 'short',
+                confidenceScore: tradeIdea.confidenceScore || 0
+              }).catch(err => logger.error(`🐋 [FLOW-CRON] Whale alert failed for ${tradeIdea.symbol}:`, err));
+              logger.warn(`🐋 [WHALE-ALERT] ${isMegaWhale ? 'MEGA ' : ''}WHALE FLOW: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} - $${(totalPremium / 1000).toFixed(1)}k premium per contract`);
+            }
+
+            // 📣 REGULAR AFFORDABILITY-BASED ALERTS
             if (isValidGrade && isAffordable) {
               const { sendFlowAlertToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
               const targetPercent = tradeIdea.targetPrice && entryPrice 

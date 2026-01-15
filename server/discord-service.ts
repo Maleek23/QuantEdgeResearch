@@ -1437,6 +1437,103 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   }
 }
 
+// ============ WHALE FLOW ALERTS ============
+// Institutional-level options flow detection ($10k+ per contract)
+
+export async function sendWhaleFlowAlertToDiscord(whale: {
+  symbol: string;
+  optionType: 'call' | 'put';
+  strikePrice: number;
+  expiryDate: string;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  grade: string;
+  premiumPerContract: number;
+  isMegaWhale: boolean;
+  direction: 'long' | 'short';
+  confidenceScore: number;
+}): Promise<void> {
+  if (DISCORD_DISABLED) {
+    logger.debug('[DISCORD] Whale flow alert skipped - Discord disabled');
+    return;
+  }
+
+  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn('[DISCORD] No webhook URL for whale flow alerts');
+    return;
+  }
+
+  try {
+    const whaleEmoji = whale.isMegaWhale ? '🐋🐋' : '🐋';
+    const whaleLabel = whale.isMegaWhale ? 'MEGA WHALE' : 'WHALE FLOW';
+    const premiumFormatted = whale.premiumPerContract >= 1000
+      ? `$${(whale.premiumPerContract / 1000).toFixed(1)}k`
+      : `$${whale.premiumPerContract.toFixed(0)}`;
+
+    // Calculate potential profit
+    const profitPotential = ((whale.targetPrice - whale.entryPrice) / whale.entryPrice * 100).toFixed(0);
+    const riskAmount = ((whale.entryPrice - whale.stopLoss) / whale.entryPrice * 100).toFixed(0);
+    const rr = (parseFloat(profitPotential) / parseFloat(riskAmount)).toFixed(1);
+
+    const embed: DiscordEmbed = {
+      title: `${whaleEmoji} ${whaleLabel} DETECTED`,
+      description: `**${whale.symbol} ${whale.optionType.toUpperCase()} $${whale.strikePrice}**\n\nInstitutional-level options activity detected. Premium per contract: **${premiumFormatted}**`,
+      color: whale.optionType === 'call' ? COLORS.LONG : COLORS.SHORT,
+      fields: [
+        {
+          name: '💎 Grade & Confidence',
+          value: `**${whale.grade}** (${whale.confidenceScore}% confidence)`,
+          inline: true
+        },
+        {
+          name: '💰 Premium/Contract',
+          value: premiumFormatted,
+          inline: true
+        },
+        {
+          name: '📅 Expiry',
+          value: whale.expiryDate.split('T')[0],
+          inline: true
+        },
+        {
+          name: '🎯 Entry → Target',
+          value: `$${whale.entryPrice.toFixed(2)} → $${whale.targetPrice.toFixed(2)} (+${profitPotential}%)`,
+          inline: false
+        },
+        {
+          name: '🛡️ Stop Loss',
+          value: `$${whale.stopLoss.toFixed(2)} (-${riskAmount}%)`,
+          inline: true
+        },
+        {
+          name: '⚖️ Risk/Reward',
+          value: `1:${rr}`,
+          inline: true
+        },
+      ],
+      footer: {
+        text: `${whaleLabel} • Follow the smart money • QuantEdge Lotto Scanner`
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `${whaleEmoji} **${whaleLabel}**: ${whale.symbol} ${whale.optionType.toUpperCase()} $${whale.strikePrice} - ${premiumFormatted} per contract!`,
+        embeds: [embed]
+      }),
+    });
+
+    logger.info(`[DISCORD] Sent whale flow alert: ${whale.symbol} ${whale.optionType.toUpperCase()} $${whale.strikePrice} - ${premiumFormatted}`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send whale flow alert: ${e}`);
+  }
+}
+
 // ============ DAILY PREVIEW SYSTEM ============
 // Sends a single consolidated morning preview instead of individual alerts throughout the day
 
