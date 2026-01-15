@@ -1173,17 +1173,18 @@ app.use((req, res, next) => {
         }
         
         lastDailySummaryDate = dateKey;
-        
-        logger.info('📨 [DAILY-SUMMARY] Sending morning summary to Discord...');
-        
-        // Get all open ideas
-        const allIdeas = await storage.getAllTradeIdeas();
-        
-        // Send daily summary
-        const { sendDailySummaryToDiscord } = await import('./discord-service');
-        await sendDailySummaryToDiscord(allIdeas);
-        
-        logger.info('📨 [DAILY-SUMMARY] Morning summary sent successfully');
+
+        logger.info('📨 [DAILY-PREVIEW] Sending 8:30 AM trading preview to Discord...');
+
+        // Send daily preview with market movers and breakouts
+        const { sendDailyPreview } = await import('./discord-service');
+        const result = await sendDailyPreview();
+
+        if (result.success) {
+          logger.info(`📨 [DAILY-PREVIEW] ${result.message}`);
+        } else {
+          logger.error(`📨 [DAILY-PREVIEW] Failed: ${result.message}`);
+        }
         
       } catch (error: any) {
         logger.error('📨 [DAILY-SUMMARY] Failed to send daily summary:', error);
