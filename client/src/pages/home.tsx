@@ -35,80 +35,59 @@ interface StrategyCardExtended extends StrategyCard {
   metricLabel?: string;
 }
 
+// Strategy cards - metrics removed to avoid showing fake performance data
 const strategies: StrategyCardExtended[] = [
-  { 
-    title: "Trade Desk", 
-    description: "AI-powered stock picks & earnings predictions", 
-    href: "/trade-desk", 
+  {
+    title: "Trade Desk",
+    description: "AI-powered stock picks & earnings predictions",
+    href: "/trade-desk",
     icon: Brain,
     color: "text-purple-400",
     bgGradient: "from-purple-900/50 via-purple-900/30 to-slate-900/50",
-    metric: "95%",
-    metricLabel: "AI Accuracy"
   },
-  { 
-    title: "Trading Engine", 
-    description: "Quantitative momentum strategies", 
-    href: "/trading-engine", 
+  {
+    title: "Trading Engine",
+    description: "Quantitative momentum strategies",
+    href: "/trading-engine",
     icon: Zap,
     color: "text-cyan-400",
     bgGradient: "from-cyan-900/50 via-cyan-900/30 to-slate-900/50",
-    metric: "78%",
-    metricLabel: "Win Rate"
   },
-  { 
-    title: "Market Scanner", 
-    description: "Real-time intraday trading signals", 
-    href: "/market-scanner", 
+  {
+    title: "Market Scanner",
+    description: "Real-time intraday trading signals",
+    href: "/market-scanner",
     icon: Activity,
     color: "text-emerald-400",
     bgGradient: "from-emerald-900/50 via-emerald-900/30 to-slate-900/50",
-    metric: "12",
-    metricLabel: "Live Signals"
   },
-  { 
-    title: "Chart Analysis", 
-    description: "AI pattern recognition & technical analysis", 
-    href: "/chart-analysis", 
+  {
+    title: "Chart Analysis",
+    description: "AI pattern recognition & technical analysis",
+    href: "/chart-analysis",
     icon: BarChart3,
     color: "text-blue-400",
     bgGradient: "from-blue-900/50 via-blue-900/30 to-slate-900/50",
-    metric: "15+",
-    metricLabel: "Patterns"
   },
-  { 
-    title: "Bullish Trends", 
-    description: "Momentum stocks with strong uptrends", 
-    href: "/bullish-trends", 
+  {
+    title: "Bullish Trends",
+    description: "Momentum stocks with strong uptrends",
+    href: "/bullish-trends",
     icon: TrendingUp,
     color: "text-pink-400",
     bgGradient: "from-pink-900/50 via-pink-900/30 to-slate-900/50",
-    metric: "24",
-    metricLabel: "Hot Stocks"
   },
-  { 
-    title: "CT Tracker", 
-    description: "Crypto trading signals & analysis", 
-    href: "/ct-tracker", 
+  {
+    title: "CT Tracker",
+    description: "Crypto trading signals & analysis",
+    href: "/ct-tracker",
     icon: Wallet,
     color: "text-amber-400",
     bgGradient: "from-amber-900/50 via-amber-900/30 to-slate-900/50",
-    metric: "8",
-    metricLabel: "Top Coins"
   },
 ];
 
-const fallbackEarnings = [
-  { symbol: "BK", name: "Bank of New York Mellon Corp", prediction: "Beat", probability: 75, timing: "Pre-Market", date: "Today ET" },
-  { symbol: "DAL", name: "Delta Air Lines Inc", prediction: "Neutral", probability: 35, timing: "Pre-Market", date: "Today ET" },
-  { symbol: "JPM", name: "JPMorgan Chase & Co", prediction: "Beat", probability: 70, timing: "Pre-Market", date: "Today ET" },
-];
-
-const fallbackWinners = [
-  { symbol: "ASTS", name: "AST SpaceMobile Inc", return: 78.91, dateAdded: "2025-09-22" },
-  { symbol: "PL", name: "Planet Labs PBC", return: 78.40, dateAdded: "2025-12-05" },
-  { symbol: "SLV", name: "iShares Silver Trust", return: 64.31, dateAdded: "2025-11-21" },
-];
+// REMOVED: Fake fallback data - all data now comes from real API
 
 
 function StrategyCardComponent({ strategy }: { strategy: StrategyCardExtended }) {
@@ -156,12 +135,13 @@ export default function HomePage() {
     },
   });
 
+  // Only show winners if we have real data from API
   const displayWinners = bestSetups?.slice(0, 3).map((idea: any) => ({
     symbol: idea.symbol,
     name: idea.companyName || idea.symbol,
     return: idea.targetPercentage || idea.confidenceScore / 2 || 0,
     dateAdded: idea.createdAt ? new Date(idea.createdAt).toLocaleDateString() : 'Recent'
-  })) || fallbackWinners;
+  })) || [];
 
   return (
     <div className="space-y-12 pb-12">
@@ -276,51 +256,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
-        <Card className="bg-slate-900/50 border-slate-800/50">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Calendar className="w-5 h-5 text-purple-400" />
-              AI Earnings Prediction
-              <ChevronRight className="w-5 h-5 text-slate-400" />
-            </CardTitle>
-            <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400">Today</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {fallbackEarnings.map((earning) => (
-                <div key={earning.symbol} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30" data-testid={`card-earnings-${earning.symbol}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center">
-                      <span className="text-xs font-bold">{earning.symbol}</span>
-                    </div>
-                    <div>
-                      <span className="block text-sm font-medium text-white">{earning.name}</span>
-                      <span className="text-xs text-slate-500">{earning.timing} · {earning.date}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={cn(
-                      "block text-sm font-medium",
-                      earning.prediction === "Beat" ? "text-emerald-400" : "text-slate-400"
-                    )}>
-                      {earning.prediction}
-                    </span>
-                    <span className="text-xs text-slate-500">{earning.probability}% confidence</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-center mt-4">
-              <Link href="/trade-desk">
-                <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" data-testid="link-see-all-earnings">
-                  See all AI Earnings Prediction <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      {/* REMOVED: Fake earnings prediction section - will add back when real earnings data is available */}
 
     </div>
   );
