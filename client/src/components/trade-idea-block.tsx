@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
@@ -293,6 +294,48 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
   const upcomingEarnings = getUpcomingEarnings();
 
+  // Color theme based on asset type and direction
+  const getCardTheme = () => {
+    const base = {
+      stock: {
+        gradient: 'from-blue-500/10 via-cyan-500/5 to-transparent',
+        border: isLong ? 'border-l-green-500/50' : 'border-l-red-500/50',
+        borderWidth: 'border-l-4',
+        glow: isLong ? 'hover:shadow-green-500/20' : 'hover:shadow-red-500/20',
+        iconColor: 'text-cyan-400',
+        bgAccent: 'bg-blue-500/5'
+      },
+      option: {
+        gradient: 'from-purple-500/15 via-pink-500/5 to-transparent',
+        border: isLong ? 'border-l-green-500/60' : 'border-l-red-500/60',
+        borderWidth: 'border-l-4',
+        glow: isLong ? 'hover:shadow-green-500/25' : 'hover:shadow-red-500/25',
+        iconColor: 'text-purple-400',
+        bgAccent: 'bg-purple-500/10'
+      },
+      crypto: {
+        gradient: 'from-orange-500/10 via-amber-500/5 to-transparent',
+        border: isLong ? 'border-l-green-500/50' : 'border-l-red-500/50',
+        borderWidth: 'border-l-4',
+        glow: isLong ? 'hover:shadow-green-500/20' : 'hover:shadow-red-500/20',
+        iconColor: 'text-orange-400',
+        bgAccent: 'bg-orange-500/5'
+      },
+      penny_stock: {
+        gradient: 'from-emerald-500/10 via-teal-500/5 to-transparent',
+        border: isLong ? 'border-l-green-500/50' : 'border-l-red-500/50',
+        borderWidth: 'border-l-4',
+        glow: isLong ? 'hover:shadow-green-500/20' : 'hover:shadow-red-500/20',
+        iconColor: 'text-emerald-400',
+        bgAccent: 'bg-emerald-500/5'
+      }
+    };
+
+    return base[idea.assetType as keyof typeof base] || base.stock;
+  };
+
+  const theme = getCardTheme();
+
   return (
     <Collapsible
       open={isOpen}
@@ -300,21 +343,61 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       className="group"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        {/* ===== COLLAPSED VIEW - Minimal, Clean ===== */}
+        {/* ===== COLLAPSED VIEW - Enhanced with Color Themes ===== */}
         <div className={cn(
-          "p-3 border rounded-lg bg-card hover-elevate transition-all",
-          isOpen && "rounded-b-none border-b-0"
+          "p-4 border-2 rounded-xl transition-all duration-300",
+          "bg-gradient-to-r backdrop-blur-sm",
+          theme.gradient,
+          theme.border,
+          theme.borderWidth,
+          theme.glow,
+          "hover:shadow-lg hover:scale-[1.01]",
+          isOpen && "rounded-b-none border-b-0 shadow-lg"
         )}>
           <div className="flex items-center justify-between gap-3">
             {/* Left: Identity - Symbol + Core Badges */}
             <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap overflow-hidden">
-              {/* Symbol */}
-              <h3 className="text-lg font-bold font-mono flex-shrink-0" data-testid={`text-symbol-${idea.symbol}`}>
-                {idea.symbol}
-              </h3>
-              
+              {/* Symbol with Asset Type Icon */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center",
+                  theme.bgAccent,
+                  "border border-border/50"
+                )}>
+                  {idea.assetType === 'option' ? (
+                    <Coins className={cn("h-5 w-5", theme.iconColor)} />
+                  ) : idea.assetType === 'crypto' ? (
+                    <Zap className={cn("h-5 w-5", theme.iconColor)} />
+                  ) : idea.assetType === 'penny_stock' ? (
+                    <TrendingUp className={cn("h-5 w-5", theme.iconColor)} />
+                  ) : (
+                    <BarChart3 className={cn("h-5 w-5", theme.iconColor)} />
+                  )}
+                </div>
+                <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+                  {idea.symbol}
+                </h3>
+              </div>
+
+              {/* Direction Badge - More Prominent */}
+              <Badge
+                className={cn(
+                  "font-bold text-xs h-6 px-3 flex-shrink-0 shadow-sm",
+                  isLong
+                    ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/50 hover:from-green-500/30 hover:to-emerald-500/30"
+                    : "bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border-red-500/50 hover:from-red-500/30 hover:to-rose-500/30"
+                )}
+                data-testid={`badge-direction-${idea.symbol}`}
+              >
+                {isLong ? (
+                  <><ArrowUpRight className="h-3.5 w-3.5 mr-1" />LONG</>
+                ) : (
+                  <><ArrowDownRight className="h-3.5 w-3.5 mr-1" />SHORT</>
+                )}
+              </Badge>
+
               {/* Source Badge */}
-              <Badge 
+              <Badge
                 variant="outline"
                 className={cn("font-semibold border text-[10px] h-5 flex-shrink-0", sourceBadge.className)}
                 data-testid={`badge-source-${idea.symbol}`}
@@ -322,26 +405,17 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 <sourceBadge.icon className="h-2.5 w-2.5 mr-1" />
                 {sourceBadge.label}
               </Badge>
-              
-              {/* Direction Badge */}
-              <Badge 
-                variant={isLong ? "default" : "destructive"}
-                className="font-semibold text-[10px] h-5 flex-shrink-0"
-                data-testid={`badge-direction-${idea.symbol}`}
-              >
-                {isLong ? (
-                  <><ArrowUpRight className="h-2.5 w-2.5 mr-0.5" />LONG</>
-                ) : (
-                  <><ArrowDownRight className="h-2.5 w-2.5 mr-0.5" />SHORT</>
-                )}
-              </Badge>
 
-              {/* Asset Type - Only show for options (important distinction) */}
-              {idea.assetType === 'option' && (
-                <Badge variant="outline" className="text-[10px] h-5 font-semibold uppercase bg-purple-500/20 text-purple-400 border-purple-500/40 flex-shrink-0 whitespace-nowrap">
-                  OPT
-                </Badge>
-              )}
+              {/* Asset Type Label - Show for all types */}
+              <Badge variant="outline" className={cn(
+                "text-[10px] h-5 font-semibold uppercase flex-shrink-0 whitespace-nowrap",
+                idea.assetType === 'option' && "bg-purple-500/20 text-purple-400 border-purple-500/40",
+                idea.assetType === 'crypto' && "bg-orange-500/20 text-orange-400 border-orange-500/40",
+                idea.assetType === 'penny_stock' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
+                idea.assetType === 'stock' && "bg-blue-500/20 text-blue-400 border-blue-500/40"
+              )}>
+                {idea.assetType === 'penny_stock' ? 'PENNY' : idea.assetType.toUpperCase()}
+              </Badge>
 
               {/* Urgent earnings warning - only show if catalysts array actually contains earnings */}
               {upcomingEarnings && catalysts.length > 0 && (
@@ -612,12 +686,18 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         </div>
       </CollapsibleTrigger>
 
-      {/* ===== EXPANDED VIEW - Full Details ===== */}
+      {/* ===== EXPANDED VIEW - Tabbed Analysis ===== */}
       <CollapsibleContent>
-        <div className="p-4 border border-t-0 rounded-b-lg bg-card space-y-4">
-          
+        <div className={cn(
+          "border-2 border-t-0 rounded-b-xl transition-all",
+          "bg-gradient-to-br",
+          theme.gradient,
+          theme.border,
+          theme.borderWidth
+        )}>
+
           {/* Secondary Badges Row - Sector, Risk, Liquidity */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 px-4 pt-4">
             {/* Sector Focus Badge */}
             {idea.sectorFocus && idea.sectorFocus !== 'other' && (
               <Badge 
