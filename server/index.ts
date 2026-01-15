@@ -755,10 +755,12 @@ app.use((req, res, next) => {
     })();
     
     // Start automated news-driven trade generation (every 15 minutes during market hours)
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
+    if (!SKIP_STARTUP_SCANS) { // Only run in development
     const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
     const { generateTradeIdeasFromNews } = await import('./ai-service');
     const { storage } = await import('./storage');
-    
+
     // Schedule news fetching every 15 minutes
     cron.default.schedule('*/15 * * * *', async () => {
       try {
@@ -881,13 +883,18 @@ app.use((req, res, next) => {
         logger.error('📰 [NEWS-CRON] News processing failed:', error);
       }
     });
-    
+
     log('📰 News Monitor started - fetching breaking news every 15 minutes during market hours (08:00-20:00 ET)');
-    
+    } else {
+      log('📰 News Monitor DISABLED in production (memory optimization)');
+    }
+
     // Start automated unusual options flow scanner (every 15 minutes during market hours)
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
+    if (!SKIP_STARTUP_SCANS) { // Only run in development
     const { scanUnusualOptionsFlow, isMarketHoursForFlow } = await import('./flow-scanner');
     const { validateAndLog: validateTradeStructure } = await import('./trade-validation');
-    
+
     // Schedule flow scanning every 15 minutes
     cron.default.schedule('*/15 * * * *', async () => {
       try {
@@ -1052,9 +1059,12 @@ app.use((req, res, next) => {
         logger.error('📊 [FLOW-CRON] Flow scan failed:', error);
       }
     });
-    
+
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
-    
+    } else {
+      log('📊 Flow Scanner DISABLED in production (memory optimization)');
+    }
+
     // CONSOLIDATED BOT SCANNING - Fast opportunistic scanning every 3 minutes
     // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     // Single unified scan loop that checks for opportunities then monitors positions
