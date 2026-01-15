@@ -4611,11 +4611,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Quality filter: ?quality=high filters to 70%+ confidence AND 4+ signals
       const qualityFilter = req.query.quality as string;
       
-      // Admin sees all ideas, logged-in users see system-generated ideas + their own
+      // Admin sees recent ideas (24h), logged-in users see system-generated ideas + their own
       // System-generated ideas have user_id = NULL and should be visible to all users
-      let ideas = isAdmin 
-        ? await storage.getAllTradeIdeas()
-        : userId 
+      // Use getRecentTradeIdeas() to filter out expired/closed trades and reduce memory usage
+      let ideas = isAdmin
+        ? await storage.getRecentTradeIdeas(24, 1000) // Last 24h, max 1000 trades
+        : userId
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       

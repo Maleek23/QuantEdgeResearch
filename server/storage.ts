@@ -106,7 +106,7 @@ import type {
   NavigationLayoutType,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
   marketData as marketDataTable,
@@ -2008,8 +2008,32 @@ export class MemStorage implements IStorage {
   }
 
   async getTradeIdeasForUser(_userId: string): Promise<TradeIdea[]> {
-    // In MemStorage, return all ideas (no filtering)
-    return Array.from(this.tradeIdeas.values());
+    // In MemStorage, filter to recent and active trades only
+    const now = Date.now();
+    const cutoffTime = now - (24 * 60 * 60 * 1000); // Last 24 hours
+
+    return Array.from(this.tradeIdeas.values())
+      .filter(idea => {
+        const createdAt = new Date(idea.timestamp).getTime();
+
+        // Only recent trades
+        if (createdAt < cutoffTime) return false;
+
+        // Skip closed trades
+        if (idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed') {
+          return false;
+        }
+
+        // Skip expired options
+        if (idea.expiryDate) {
+          const expiryTime = new Date(idea.expiryDate).getTime();
+          if (expiryTime < now) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 1000); // Safety limit
   }
 
   // Active Trades (stub - not persisted in MemStorage)
@@ -3395,13 +3419,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get system-generated ideas (userId is NULL) plus user's own ideas
+  // Filter out expired and closed trades to show only relevant active positions
   async getTradeIdeasForUser(userId: string): Promise<TradeIdea[]> {
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // Last 24 hours
+
     return await db.select().from(tradeIdeas)
-      .where(or(
-        isNull(tradeIdeas.userId),  // System-generated ideas
-        eq(tradeIdeas.userId, userId)  // User's own ideas
+      .where(and(
+        or(
+          isNull(tradeIdeas.userId),  // System-generated ideas
+          eq(tradeIdeas.userId, userId)  // User's own ideas
+        ),
+        // Filter out closed trades
+        not(or(
+          eq(tradeIdeas.outcomeStatus, 'won'),
+          eq(tradeIdeas.outcomeStatus, 'lost'),
+          eq(tradeIdeas.outcomeStatus, 'closed')
+        )),
+        // Filter out expired options (expiryDate < now)
+        or(
+          isNull(tradeIdeas.expiryDate),  // Not an option, or no expiry set
+          gte(tradeIdeas.expiryDate, now.toISOString())  // Not yet expired
+        ),
+        // Only recent trades (last 24 hours)
+        gte(tradeIdeas.timestamp, cutoffTime.toISOString())
       ))
-      .orderBy(desc(tradeIdeas.timestamp));
+      .orderBy(desc(tradeIdeas.timestamp))
+      .limit(1000); // Safety limit
   }
 
   // Active Trades (Live Position Tracking)
