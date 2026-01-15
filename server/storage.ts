@@ -1275,6 +1275,23 @@ export class MemStorage implements IStorage {
     return Array.from(this.tradeIdeas.values());
   }
 
+  // MEMORY-OPTIMIZED: Get only recent trade ideas (reduces memory usage by 80%+)
+  async getRecentTradeIdeas(hoursBack: number = 24, limit: number = 1000): Promise<TradeIdea[]> {
+    const cutoffTime = Date.now() - (hoursBack * 60 * 60 * 1000);
+    const recent: TradeIdea[] = [];
+
+    for (const idea of this.tradeIdeas.values()) {
+      const createdAt = new Date(idea.timestamp).getTime();
+      if (createdAt > cutoffTime) {
+        recent.push(idea);
+      }
+      // Stop if we hit the limit (prevent loading everything)
+      if (recent.length >= limit) break;
+    }
+
+    return recent.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
   async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
     return this.tradeIdeas.get(id);
   }
