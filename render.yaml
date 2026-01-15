@@ -8,16 +8,13 @@ services:
     region: ohio # Closer to Neon DB (US East)
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: NODE_OPTIONS="--max-old-space-size=460" npm start
     healthCheckPath: /api/health
     nodeVersion: "20"
     autoDeploy: true # Auto-deploy on git push to main
     envVars:
       - key: NODE_ENV
         value: production
-      # Memory optimization for Render free tier (512MB limit)
-      - key: NODE_OPTIONS
-        value: "--max-old-space-size=460"
       # Database (Neon PostgreSQL)
       - key: DATABASE_URL
         sync: false
