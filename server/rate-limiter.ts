@@ -22,10 +22,10 @@ export const generalApiLimiter = rateLimit({
   },
 });
 
-// AI generation rate limiter - 10 requests per 15 minutes (more restrictive due to cost)
+// AI generation rate limiter - 50 requests per 15 minutes (generous for testing/development)
 export const aiGenerationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 50, // Increased from 10 to 50
   message: 'AI generation limit exceeded. Please wait before generating more ideas.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -36,17 +36,17 @@ export const aiGenerationLimiter = rateLimit({
       path: req.path,
     });
     res.status(429).json({
-      error: 'AI generation limit exceeded',
-      message: 'You have exceeded the AI generation limit. Please wait 15 minutes before generating more ideas.',
+      error: 'Rate limit exceeded',
+      message: 'You have generated too many AI ideas. Please wait a few minutes before trying again. (Limit: 50 per 15 minutes)',
       retryAfter: Math.ceil(15 * 60 * 1000 / 1000),
     });
   },
 });
 
-// Quant generation rate limiter - 20 requests per 15 minutes
+// Quant generation rate limiter - 100 requests per 15 minutes (generous for active trading)
 export const quantGenerationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 100, // Increased from 20 to 100
   message: 'Quant generation limit exceeded. Please wait before generating more ideas.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -57,8 +57,8 @@ export const quantGenerationLimiter = rateLimit({
       path: req.path,
     });
     res.status(429).json({
-      error: 'Quant generation limit exceeded',
-      message: 'You have exceeded the quant generation limit. Please wait before generating more ideas.',
+      error: 'Rate limit exceeded',
+      message: 'You have generated too many quant/flow ideas. Please wait a few minutes before trying again. (Limit: 100 per 15 minutes)',
       retryAfter: Math.ceil(15 * 60 * 1000 / 1000),
     });
   },
