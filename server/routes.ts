@@ -1610,6 +1610,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {
+      // Admin stats are NOT timing-critical - safe to cache for 2 minutes
+      const { cacheService, CACHE_TTL } = await import('./cache-service');
+      const cacheKey = 'admin:stats';
+      const cached = cacheService.get(cacheKey);
+
+      if (cached) {
+        return res.json(cached);
+      }
+
       const allUsers = await storage.getAllUsers();
       const allIdeas = await storage.getAllTradeIdeas();
       
@@ -1630,11 +1639,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiredIdeas = cleanIdeas.filter((i: any) => i.outcomeStatus === 'expired');
       
       // Win rate = wins / (wins + real losses) - canonical methodology
-      const winRate = decidedTrades.length > 0 
-        ? Math.round((wins.length / decidedTrades.length) * 100) 
+      const winRate = decidedTrades.length > 0
+        ? Math.round((wins.length / decidedTrades.length) * 100)
         : 0;
-      
-      res.json({
+
+      const stats = {
         totalUsers: allUsers.length,
         premiumUsers: allUsers.filter(u => u.subscriptionTier === 'advanced' || u.subscriptionTier === 'pro' || u.subscriptionTier === 'admin').length,
         totalIdeas: allIdeas.length,
@@ -1645,7 +1654,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         losses: realLosses.length,
         winRate,
         dbSize: "N/A"
-      });
+      };
+
+      // Cache for 2 minutes (admin dashboard not timing-critical)
+      cacheService.set(cacheKey, stats, CACHE_TTL.ADMIN_STATS);
+      res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
     }

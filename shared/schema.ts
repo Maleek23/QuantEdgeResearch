@@ -223,7 +223,18 @@ export const tradeIdeas = pgTable("trade_ideas", {
   researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
   riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative
   sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear_fusion, healthcare, ai_ml, etc.
-});
+}, (table) => [
+  // CRITICAL PERFORMANCE INDEXES - Speed up queries without affecting timing
+  index("idx_trade_ideas_timestamp").on(table.timestamp), // Fast recent trades lookup
+  index("idx_trade_ideas_outcome_status").on(table.outcomeStatus), // Fast open trades filter
+  index("idx_trade_ideas_expiry_date").on(table.expiryDate), // Fast options expiry check
+  index("idx_trade_ideas_source").on(table.source), // Fast engine filtering
+  index("idx_trade_ideas_symbol").on(table.symbol), // Fast symbol lookup
+  index("idx_trade_ideas_user_id").on(table.userId), // Fast user trades
+  index("idx_trade_ideas_entry_valid").on(table.entryValidUntil), // Fast timing window checks
+  // Compound index for most common query: recent open trades
+  index("idx_trade_ideas_status_timestamp").on(table.outcomeStatus, table.timestamp),
+]);
 
 // Ticker Data Types
 export type TickerMention = {
