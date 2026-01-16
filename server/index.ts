@@ -515,20 +515,26 @@ app.use((req, res, next) => {
         const minute = nowCT.getMinutes();
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
-        
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
+
+        // DEVELOPMENT MODE: Allow weekend testing
+        // PRODUCTION MODE: Only weekdays
+        const isDevelopment = process.env.NODE_ENV !== 'production';
+        if (!isDevelopment && (dayOfWeek === 0 || dayOfWeek === 6)) {
           return;
         }
-        
-        // Run at 9:35 AM CT and 1:00 PM CT for afternoon opportunities
-        const isQuantTime = (hour === 9 && minute >= 35 && minute < 40) || 
-                            (hour === 13 && minute >= 0 && minute < 5);
-        
+
+        // DEVELOPMENT MODE: Run every 30 minutes for testing
+        // PRODUCTION MODE: Run at 9:35 AM CT and 1:00 PM CT only
+        const isQuantTime = isDevelopment
+          ? (minute >= 0 && minute < 5) || (minute >= 30 && minute < 35) // Every 30 min in dev
+          : ((hour === 9 && minute >= 35 && minute < 40) || (hour === 13 && minute >= 0 && minute < 5)); // Scheduled times in prod
+
         if (!isQuantTime) {
           return;
         }
-        
-        if (lastQuantRunDate === dateKey && hour === 9) {
+
+        // In production, only run morning session once per day
+        if (!isDevelopment && lastQuantRunDate === dateKey && hour === 9) {
           return; // Already ran morning session today
         }
         
