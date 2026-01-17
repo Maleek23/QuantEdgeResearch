@@ -11,6 +11,9 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
+import { db } from './db';
+import { optionsFlowHistory, watchlist } from '@shared/schema';
+import { eq, desc, gte, inArray, and, sql } from 'drizzle-orm';
 
 interface OptionsFlow {
   id: string;
@@ -252,6 +255,71 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   
   logger.info(`[OPTIONS-FLOW] Found ${unusualFlows.length} unusual flows`);
   
+  // 📊 PERSIST FLOWS TO DATABASE - Track for historical analysis
+  if (unusualFlows.length > 0) {
+    try {
+      // Get all watchlist symbols to mark matching flows
+      const allWatchlistSymbols = await db.select({ symbol: watchlist.symbol })
+        .from(watchlist);
+      const watchlistSet = new Set(allWatchlistSymbols.map(w => w.symbol.toUpperCase()));
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Persist flows meeting quality criteria: premium >= $50k OR unusualScore >= 75
+      const flowsToSave = unusualFlows.filter(f => f.premium >= 50000 || f.unusualScore >= 75);
+      
+      // Query existing flows for today to prevent duplicates
+      const existingFlows = await db.select({
+        symbol: optionsFlowHistory.symbol,
+        optionType: optionsFlowHistory.optionType,
+        strikePrice: optionsFlowHistory.strikePrice,
+        expirationDate: optionsFlowHistory.expirationDate,
+      }).from(optionsFlowHistory)
+        .where(eq(optionsFlowHistory.detectedDate, today));
+      
+      // Create dedup set for fast lookup
+      const existingSet = new Set(existingFlows.map(f => 
+        `${f.symbol}-${f.optionType}-${f.strikePrice}-${f.expirationDate}`.toUpperCase()
+      ));
+      
+      let savedCount = 0;
+      for (const flow of flowsToSave) {
+        const flowKey = `${flow.symbol}-${flow.optionType}-${flow.strikePrice}-${flow.expiryDate}`.toUpperCase();
+        
+        // Skip if already exists for today
+        if (existingSet.has(flowKey)) continue;
+        
+        try {
+          await db.insert(optionsFlowHistory).values({
+            symbol: flow.symbol,
+            optionType: flow.optionType,
+            strikePrice: flow.strikePrice,
+            expirationDate: flow.expiryDate,
+            volume: flow.volume,
+            openInterest: flow.openInterest,
+            volumeOIRatio: flow.volumeOIRatio,
+            premium: flow.premium / 100, // Store per-contract premium
+            totalPremium: flow.premium,
+            impliedVolatility: flow.impliedVolatility,
+            delta: flow.delta,
+            sentiment: flow.sentiment,
+            flowType: flow.flowType,
+            unusualScore: flow.unusualScore,
+            isWatchlistSymbol: watchlistSet.has(flow.symbol.toUpperCase()),
+            detectedDate: today,
+          });
+          existingSet.add(flowKey); // Mark as saved for remaining flows
+          savedCount++;
+        } catch (insertErr) {
+          // Skip insert errors (e.g., constraint violations)
+        }
+      }
+      logger.info(`[OPTIONS-FLOW] Persisted ${savedCount} new flows to history (${flowsToSave.length} qualified, ${flowsToSave.length - savedCount} skipped as duplicates)`);
+    } catch (dbErr) {
+      logger.warn(`[OPTIONS-FLOW] Failed to persist flows:`, dbErr);
+    }
+  }
+  
   // 🎯 CONVERGENCE TRACKING: Record unusual flow for heat map
   for (const flow of unusualFlows.slice(0, 10)) {
     try {
@@ -358,4 +426,109 @@ export function removeFromWatchlist(symbol: string): void {
  */
 export function resetDailyFlows(): void {
   scannerStatus.todayFlows = [];
+}
+
+/**
+ * Get flow history for watchlist symbols over the past N days
+ */
+export async function getWatchlistFlowHistory(days: number = 7): Promise<{
+  flows: any[];
+  summary: {
+    totalFlows: number;
+    bullishFlows: number;
+    bearishFlows: number;
+    totalPremium: number;
+    topSymbols: { symbol: string; flowCount: number; totalPremium: number }[];
+  };
+}> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    
+    // Get all watchlist symbols
+    const watchlistSymbols = await db.select({ symbol: watchlist.symbol })
+      .from(watchlist);
+    const symbols = watchlistSymbols.map(w => w.symbol.toUpperCase());
+    
+    if (symbols.length === 0) {
+      return {
+        flows: [],
+        summary: { totalFlows: 0, bullishFlows: 0, bearishFlows: 0, totalPremium: 0, topSymbols: [] }
+      };
+    }
+    
+    // Query flow history for watchlist symbols
+    const flows = await db.select()
+      .from(optionsFlowHistory)
+      .where(and(
+        gte(optionsFlowHistory.detectedDate, startDateStr),
+        inArray(sql`UPPER(${optionsFlowHistory.symbol})`, symbols)
+      ))
+      .orderBy(desc(optionsFlowHistory.detectedAt))
+      .limit(100);
+    
+    // Calculate summary stats
+    const bullishFlows = flows.filter(f => f.sentiment === 'bullish').length;
+    const bearishFlows = flows.filter(f => f.sentiment === 'bearish').length;
+    const totalPremium = flows.reduce((sum, f) => sum + (f.totalPremium || 0), 0);
+    
+    // Group by symbol for top symbols
+    const symbolStats: Record<string, { flowCount: number; totalPremium: number }> = {};
+    for (const flow of flows) {
+      const sym = flow.symbol.toUpperCase();
+      if (!symbolStats[sym]) {
+        symbolStats[sym] = { flowCount: 0, totalPremium: 0 };
+      }
+      symbolStats[sym].flowCount++;
+      symbolStats[sym].totalPremium += flow.totalPremium || 0;
+    }
+    
+    const topSymbols = Object.entries(symbolStats)
+      .map(([symbol, stats]) => ({ symbol, ...stats }))
+      .sort((a, b) => b.totalPremium - a.totalPremium)
+      .slice(0, 10);
+    
+    return {
+      flows,
+      summary: {
+        totalFlows: flows.length,
+        bullishFlows,
+        bearishFlows,
+        totalPremium,
+        topSymbols
+      }
+    };
+  } catch (error) {
+    logger.error('[OPTIONS-FLOW] Failed to get watchlist flow history:', error);
+    return {
+      flows: [],
+      summary: { totalFlows: 0, bullishFlows: 0, bearishFlows: 0, totalPremium: 0, topSymbols: [] }
+    };
+  }
+}
+
+/**
+ * Get flow history for a specific symbol
+ */
+export async function getSymbolFlowHistory(symbol: string, days: number = 30): Promise<any[]> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    
+    const flows = await db.select()
+      .from(optionsFlowHistory)
+      .where(and(
+        gte(optionsFlowHistory.detectedDate, startDateStr),
+        eq(sql`UPPER(${optionsFlowHistory.symbol})`, symbol.toUpperCase())
+      ))
+      .orderBy(desc(optionsFlowHistory.detectedAt))
+      .limit(50);
+    
+    return flows;
+  } catch (error) {
+    logger.error(`[OPTIONS-FLOW] Failed to get flow history for ${symbol}:`, error);
+    return [];
+  }
 }

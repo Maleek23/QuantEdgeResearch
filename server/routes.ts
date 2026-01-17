@@ -19305,6 +19305,33 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Get flow history for watchlist symbols (last 7 days by default)
+  app.get("/api/watchlist/flow-history", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const { getWatchlistFlowHistory } = await import("./options-flow-scanner");
+      const result = await getWatchlistFlowHistory(days);
+      res.json(result);
+    } catch (error) {
+      logger.error("Error getting watchlist flow history", { error });
+      res.status(500).json({ error: "Failed to get watchlist flow history" });
+    }
+  });
+
+  // Get flow history for a specific symbol
+  app.get("/api/symbol/:symbol/flow-history", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const days = parseInt(req.query.days as string) || 30;
+      const { getSymbolFlowHistory } = await import("./options-flow-scanner");
+      const flows = await getSymbolFlowHistory(symbol, days);
+      res.json({ symbol, flows });
+    } catch (error) {
+      logger.error("Error getting symbol flow history", { error });
+      res.status(500).json({ error: "Failed to get symbol flow history" });
+    }
+  });
+
   app.post("/api/automations/options-flow/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateOptionsFlowSettings, getOptionsFlowStatus } = await import("./options-flow-scanner");
