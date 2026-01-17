@@ -538,6 +538,10 @@ export type InsertPremiumHistory = z.infer<typeof insertPremiumHistorySchema>;
 export type PremiumHistoryRecord = typeof premiumHistory.$inferSelect;
 
 // Options Flow History - Track unusual options activity on watchlist symbols
+// Strategy categories for flow classification
+export type FlowStrategyCategory = 'lotto' | 'swing' | 'monthly' | 'institutional' | 'scalp';
+export type FlowDteCategory = '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'leaps';
+
 export const optionsFlowHistory = pgTable("options_flow_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   symbol: text("symbol").notNull(),
@@ -558,6 +562,11 @@ export const optionsFlowHistory = pgTable("options_flow_history", {
   sentiment: text("sentiment").$type<'bullish' | 'bearish' | 'neutral'>().notNull(),
   flowType: text("flow_type").$type<'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal'>().notNull(),
   unusualScore: real("unusual_score").notNull(),
+  
+  // Strategy classification for filtering whale plays
+  strategyCategory: text("strategy_category").$type<FlowStrategyCategory>().default('institutional'),
+  dteCategory: text("dte_category").$type<FlowDteCategory>().default('swing'),
+  isLotto: boolean("is_lotto").default(false), // Far OTM cheap premiums (lotto plays)
   
   isWatchlistSymbol: boolean("is_watchlist_symbol").default(false),
   detectedAt: timestamp("detected_at").defaultNow(),

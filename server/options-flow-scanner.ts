@@ -12,8 +12,67 @@ import { logger } from './logger';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { db } from './db';
-import { optionsFlowHistory, watchlist } from '@shared/schema';
+import { optionsFlowHistory, watchlist, FlowStrategyCategory, FlowDteCategory } from '@shared/schema';
 import { eq, desc, gte, inArray, and, sql } from 'drizzle-orm';
+
+/**
+ * Classify a flow by strategy category and DTE horizon
+ * Identifies lotto plays (whale OTM calls/puts) vs institutional blocks
+ */
+function classifyFlowStrategy(flow: {
+  premium: number;
+  delta: number;
+  expiryDate: string;
+  flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
+}): { strategyCategory: FlowStrategyCategory; dteCategory: FlowDteCategory; isLotto: boolean } {
+  const today = new Date();
+  const expiry = new Date(flow.expiryDate);
+  const dte = Math.max(0, Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  // Determine DTE category
+  let dteCategory: FlowDteCategory;
+  if (dte === 0) {
+    dteCategory = '0DTE';
+  } else if (dte <= 2) {
+    dteCategory = '1-2DTE';
+  } else if (dte <= 7) {
+    dteCategory = '3-7DTE';
+  } else if (dte <= 21) {
+    dteCategory = 'swing';
+  } else if (dte <= 60) {
+    dteCategory = 'monthly';
+  } else {
+    dteCategory = 'leaps';
+  }
+  
+  // Lotto detection: Far OTM (low delta) with moderate premium
+  // Premium per contract between $20-$500 ($0.20-$5.00) with delta < 0.15
+  const perContractPremium = flow.premium / 100; // Convert to per-contract
+  const absDelta = Math.abs(flow.delta);
+  
+  const isLotto = (
+    perContractPremium >= 0.20 &&
+    perContractPremium <= 5.00 &&
+    absDelta <= 0.15 &&
+    dte <= 45
+  );
+  
+  // Determine strategy category
+  let strategyCategory: FlowStrategyCategory;
+  if (isLotto) {
+    strategyCategory = 'lotto';
+  } else if (flow.flowType === 'block' || flow.flowType === 'dark_pool') {
+    strategyCategory = 'institutional';
+  } else if (dte === 0) {
+    strategyCategory = 'scalp';
+  } else if (dte <= 7) {
+    strategyCategory = 'swing';
+  } else {
+    strategyCategory = 'monthly';
+  }
+  
+  return { strategyCategory, dteCategory, isLotto };
+}
 
 interface OptionsFlow {
   id: string;
@@ -290,6 +349,14 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
         if (existingSet.has(flowKey)) continue;
         
         try {
+          // Classify the flow by strategy type
+          const classification = classifyFlowStrategy({
+            premium: flow.premium,
+            delta: flow.delta,
+            expiryDate: flow.expiryDate,
+            flowType: flow.flowType
+          });
+          
           await db.insert(optionsFlowHistory).values({
             symbol: flow.symbol,
             optionType: flow.optionType,
@@ -305,11 +372,18 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
             sentiment: flow.sentiment,
             flowType: flow.flowType,
             unusualScore: flow.unusualScore,
+            strategyCategory: classification.strategyCategory,
+            dteCategory: classification.dteCategory,
+            isLotto: classification.isLotto,
             isWatchlistSymbol: watchlistSet.has(flow.symbol.toUpperCase()),
             detectedDate: today,
           });
           existingSet.add(flowKey); // Mark as saved for remaining flows
           savedCount++;
+          
+          if (classification.isLotto) {
+            logger.info(`[OPTIONS-FLOW] 🎰 LOTTO DETECTED: ${flow.symbol} ${flow.optionType.toUpperCase()} $${flow.strikePrice} (${classification.dteCategory})`);
+          }
         } catch (insertErr) {
           // Skip insert errors (e.g., constraint violations)
         }
