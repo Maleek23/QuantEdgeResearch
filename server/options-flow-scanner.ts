@@ -188,56 +188,95 @@ async function fetchOptionsChain(symbol: string): Promise<any[]> {
 }
 
 /**
+ * Get best available price for an option (with fallbacks)
+ * Uses last price, then mid-price (bid+ask)/2, then bid, then ask
+ */
+function getOptionPrice(option: any): number {
+  if (option.last && option.last > 0) return option.last;
+  if (option.bid && option.ask) return (option.bid + option.ask) / 2;
+  if (option.bid && option.bid > 0) return option.bid;
+  if (option.ask && option.ask > 0) return option.ask;
+  return 0;
+}
+
+/**
+ * Calculate estimated total premium for an option
+ */
+function calculatePremium(option: any): number {
+  const price = getOptionPrice(option);
+  const volume = option.volume || 0;
+  return volume * price * 100; // Each contract = 100 shares
+}
+
+/**
  * Calculate unusual score for an option
+ * Scores based on: volume/OI, premium size, IV, delta, and DTE
  */
 function calculateUnusualScore(option: any): number {
   let score = 0;
+  const volume = option.volume || 0;
+  const openInterest = option.open_interest || 1;
   
-  // Volume/OI ratio (max 30 points)
-  const volumeOI = option.volume / (option.open_interest || 1);
+  // Skip if no volume
+  if (volume === 0) return 0;
+  
+  // Volume/OI ratio (max 30 points) - key indicator of unusual activity
+  const volumeOI = volume / openInterest;
   if (volumeOI > 5) score += 30;
   else if (volumeOI > 3) score += 25;
   else if (volumeOI > 2) score += 20;
   else if (volumeOI > 1.5) score += 15;
+  else if (volumeOI > 1) score += 10;
   
-  // Premium size (max 25 points)
-  const premium = option.volume * option.last * 100;
-  if (premium > 1000000) score += 25;
-  else if (premium > 500000) score += 20;
-  else if (premium > 250000) score += 15;
-  else if (premium > 100000) score += 10;
+  // Premium size (max 30 points) - huge money indicator
+  const premium = calculatePremium(option);
+  if (premium > 1000000) score += 30;      // $1M+ = major institutional
+  else if (premium > 500000) score += 25;  // $500k+
+  else if (premium > 250000) score += 20;  // $250k+
+  else if (premium > 100000) score += 15;  // $100k+
+  else if (premium > 50000) score += 10;   // $50k+
+  else if (premium > 25000) score += 5;    // $25k+
   
-  // IV percentile (max 20 points)
+  // IV percentile (max 15 points) - high IV = expected move
   const iv = option.greeks?.mid_iv || 0;
-  if (iv > 0.8) score += 20;
-  else if (iv > 0.6) score += 15;
-  else if (iv > 0.4) score += 10;
+  if (iv > 1.0) score += 15;
+  else if (iv > 0.8) score += 12;
+  else if (iv > 0.6) score += 10;
+  else if (iv > 0.4) score += 5;
   
-  // Delta exposure (max 15 points)
+  // Delta exposure (max 15 points) - ATM options most valuable
   const delta = Math.abs(option.greeks?.delta || 0);
-  if (delta > 0.3 && delta < 0.7) score += 15; // ATM options
-  else if (delta > 0.1) score += 10;
+  if (delta > 0.4 && delta < 0.6) score += 15; // ATM sweet spot
+  else if (delta > 0.3 && delta < 0.7) score += 12;
+  else if (delta > 0.2) score += 8;
+  else if (delta > 0.1) score += 5;
   
   // Time to expiry bonus for near-term (max 10 points)
   const expiry = new Date(option.expiration_date);
   const daysToExpiry = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (daysToExpiry <= 7) score += 10;
+  if (daysToExpiry <= 2) score += 10;  // 0-2 DTE highest urgency
+  else if (daysToExpiry <= 7) score += 8;
   else if (daysToExpiry <= 14) score += 5;
+  else if (daysToExpiry <= 30) score += 3;
   
   return Math.min(100, score);
 }
 
 /**
- * Determine flow type
+ * Determine flow type based on premium and volume/OI ratio
  */
 function determineFlowType(option: any, score: number): OptionsFlow['flowType'] {
-  const premium = option.volume * option.last * 100;
-  const volumeOI = option.volume / (option.open_interest || 1);
+  const premium = calculatePremium(option);
+  const volumeOI = (option.volume || 0) / (option.open_interest || 1);
   
-  if (premium > 1000000) return 'block';
+  // Block trade: $500k+ premium on single strike (institutional)
+  if (premium >= 500000) return 'block';
+  // Sweep: High volume relative to OI (aggressive buying)
   if (volumeOI > 5) return 'sweep';
+  // Unusual volume: Volume exceeds 2x OI
   if (volumeOI > 2) return 'unusual_volume';
-  if (score > 70) return 'dark_pool';
+  // Dark pool: High score but not matching other criteria
+  if (score >= 70) return 'dark_pool';
   return 'normal';
 }
 
@@ -657,7 +696,7 @@ export async function getSymbolFlowHistory(symbol: string, days: number = 30): P
  */
 export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsFound: number; saved: number }> {
   try {
-    logger.info('[OPTIONS-FLOW] Starting watchlist-specific flow scan...');
+    logger.info('[OPTIONS-FLOW] Starting watchlist-specific flow scan for HUGE MONEY flows...');
     
     // Get all watchlist symbols
     const watchlistSymbols = await db.select({ symbol: watchlist.symbol })
@@ -669,11 +708,14 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     }
     
     const symbols = watchlistSymbols.map(w => w.symbol.toUpperCase());
-    logger.info(`[OPTIONS-FLOW] Scanning ${symbols.length} watchlist symbols for flows...`);
+    logger.info(`[OPTIONS-FLOW] Scanning ALL ${symbols.length} watchlist symbols for unusual flows...`);
     
     const allFlows: OptionsFlow[] = [];
+    let symbolsWithVolume = 0;
+    let totalOptionsScanned = 0;
     
-    for (const symbol of symbols.slice(0, 25)) { // Limit to 25 symbols per scan
+    // Scan ALL watchlist symbols (no limit)
+    for (const symbol of symbols) {
       try {
         const chain = await fetchOptionsChain(symbol);
         
@@ -681,18 +723,32 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
           continue;
         }
         
+        let symbolHasVolume = false;
+        
         for (const option of chain) {
-          // Require minimum volume
-          if (!option.volume || option.volume < 50) continue;
+          totalOptionsScanned++;
           
-          // Use last price as fallback when bid/ask not available (market closed)
-          const price = option.last || ((option.bid || 0) + (option.ask || 0)) / 2;
+          // Skip options with no volume at all
+          if (!option.volume || option.volume === 0) continue;
+          
+          symbolHasVolume = true;
+          
+          // Get best available price (with fallback)
+          const price = getOptionPrice(option);
           if (price <= 0) continue;
           
+          const premium = calculatePremium(option);
           const score = calculateUnusualScore(option);
+          const volumeOI = option.volume / (option.open_interest || 1);
           
-          // Lower threshold for watchlist symbols (they're already pre-filtered by user)
-          if (score >= 50) {
+          // HUGE MONEY DETECTION: Focus on high premium OR high unusual score
+          // - $25k+ premium (significant position)
+          // - OR score >= 40 with any volume (unusual activity)
+          // - OR volume/OI > 2 (heavy accumulation)
+          const isHugeMoney = premium >= 25000;
+          const isUnusual = score >= 40 || volumeOI > 2;
+          
+          if (isHugeMoney || isUnusual) {
             const flow: OptionsFlow = {
               id: `${symbol}-${option.symbol}-${Date.now()}`,
               symbol,
@@ -701,8 +757,8 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
               expiryDate: option.expiration_date,
               volume: option.volume,
               openInterest: option.open_interest || 0,
-              volumeOIRatio: option.volume / (option.open_interest || 1),
-              premium: option.volume * price * 100,
+              volumeOIRatio: volumeOI,
+              premium: premium,
               impliedVolatility: option.greeks?.mid_iv || 0,
               delta: option.greeks?.delta || 0,
               sentiment: determineSentiment(option),
@@ -712,17 +768,27 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
             };
             
             allFlows.push(flow);
+            
+            // Log big flows immediately
+            if (premium >= 100000) {
+              logger.info(`[OPTIONS-FLOW] 💰 BIG MONEY: ${symbol} ${option.option_type.toUpperCase()} $${option.strike} - $${(premium/1000).toFixed(0)}k premium, Vol/OI: ${volumeOI.toFixed(1)}`);
+            }
           }
         }
         
-        // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 300));
+        if (symbolHasVolume) symbolsWithVolume++;
+        
+        // Rate limiting - 200ms between symbols
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
         logger.warn(`[OPTIONS-FLOW] Error scanning ${symbol}:`, error);
       }
     }
     
-    logger.info(`[OPTIONS-FLOW] Found ${allFlows.length} potential flows from watchlist`);
+    // Sort by premium (biggest money first)
+    allFlows.sort((a, b) => b.premium - a.premium);
+    
+    logger.info(`[OPTIONS-FLOW] Scan complete: ${symbols.length} symbols, ${symbolsWithVolume} with volume, ${totalOptionsScanned} options checked, ${allFlows.length} flows found`);
     
     // Persist to database
     let savedCount = 0;
