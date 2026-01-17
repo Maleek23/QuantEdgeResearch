@@ -29,7 +29,7 @@ function classifyFlowStrategy(flow: {
   const expiry = new Date(flow.expiryDate);
   const dte = Math.max(0, Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
   
-  // Determine DTE category
+  // Determine DTE category - aligned with lotto-detector categories
   let dteCategory: FlowDteCategory;
   if (dte === 0) {
     dteCategory = '0DTE';
@@ -37,24 +37,26 @@ function classifyFlowStrategy(flow: {
     dteCategory = '1-2DTE';
   } else if (dte <= 7) {
     dteCategory = '3-7DTE';
-  } else if (dte <= 21) {
-    dteCategory = 'swing';
-  } else if (dte <= 60) {
-    dteCategory = 'monthly';
+  } else if (dte <= 30) {
+    dteCategory = 'swing';      // 8-30 DTE = swing
+  } else if (dte <= 90) {
+    dteCategory = 'monthly';    // 31-90 DTE = monthly/quarterly
   } else {
-    dteCategory = 'leaps';
+    dteCategory = 'leaps';      // 90+ DTE = LEAPS
   }
   
-  // Lotto detection: Far OTM (low delta) with moderate premium
-  // Premium per contract between $20-$500 ($0.20-$5.00) with delta < 0.15
+  // Lotto detection - ALIGNED with lotto-detector.ts thresholds:
+  // - Entry: $0.20-$8.00 per contract (LOTTO_ENTRY_MIN/MAX)
+  // - Delta: <= 0.15 (LOTTO_DELTA_MAX)
+  // - DTE: 0-540 days (LOTTO_MAX_DTE) - includes LEAPS lottos
   const perContractPremium = flow.premium / 100; // Convert to per-contract
   const absDelta = Math.abs(flow.delta);
   
   const isLotto = (
     perContractPremium >= 0.20 &&
-    perContractPremium <= 5.00 &&
+    perContractPremium <= 8.00 &&    // Expanded for LEAPS lottos
     absDelta <= 0.15 &&
-    dte <= 45
+    dte <= 540                        // Allow LEAPS up to 18 months
   );
   
   // Determine strategy category
@@ -646,5 +648,154 @@ export async function getSymbolFlowHistory(symbol: string, days: number = 30): P
   } catch (error) {
     logger.error(`[OPTIONS-FLOW] Failed to get flow history for ${symbol}:`, error);
     return [];
+  }
+}
+
+/**
+ * Scan watchlist symbols for unusual options activity and persist to database
+ * Works even outside market hours by using last price when bid/ask unavailable
+ */
+export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsFound: number; saved: number }> {
+  try {
+    logger.info('[OPTIONS-FLOW] Starting watchlist-specific flow scan...');
+    
+    // Get all watchlist symbols
+    const watchlistSymbols = await db.select({ symbol: watchlist.symbol })
+      .from(watchlist);
+    
+    if (watchlistSymbols.length === 0) {
+      logger.info('[OPTIONS-FLOW] No watchlist symbols to scan');
+      return { scanned: 0, flowsFound: 0, saved: 0 };
+    }
+    
+    const symbols = watchlistSymbols.map(w => w.symbol.toUpperCase());
+    logger.info(`[OPTIONS-FLOW] Scanning ${symbols.length} watchlist symbols for flows...`);
+    
+    const allFlows: OptionsFlow[] = [];
+    
+    for (const symbol of symbols.slice(0, 25)) { // Limit to 25 symbols per scan
+      try {
+        const chain = await fetchOptionsChain(symbol);
+        
+        if (!chain || chain.length === 0) {
+          continue;
+        }
+        
+        for (const option of chain) {
+          // Require minimum volume
+          if (!option.volume || option.volume < 50) continue;
+          
+          // Use last price as fallback when bid/ask not available (market closed)
+          const price = option.last || ((option.bid || 0) + (option.ask || 0)) / 2;
+          if (price <= 0) continue;
+          
+          const score = calculateUnusualScore(option);
+          
+          // Lower threshold for watchlist symbols (they're already pre-filtered by user)
+          if (score >= 50) {
+            const flow: OptionsFlow = {
+              id: `${symbol}-${option.symbol}-${Date.now()}`,
+              symbol,
+              optionType: option.option_type as 'call' | 'put',
+              strikePrice: option.strike,
+              expiryDate: option.expiration_date,
+              volume: option.volume,
+              openInterest: option.open_interest || 0,
+              volumeOIRatio: option.volume / (option.open_interest || 1),
+              premium: option.volume * price * 100,
+              impliedVolatility: option.greeks?.mid_iv || 0,
+              delta: option.greeks?.delta || 0,
+              sentiment: determineSentiment(option),
+              flowType: determineFlowType(option, score),
+              unusualScore: score,
+              detectedAt: new Date().toISOString(),
+            };
+            
+            allFlows.push(flow);
+          }
+        }
+        
+        // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        logger.warn(`[OPTIONS-FLOW] Error scanning ${symbol}:`, error);
+      }
+    }
+    
+    logger.info(`[OPTIONS-FLOW] Found ${allFlows.length} potential flows from watchlist`);
+    
+    // Persist to database
+    let savedCount = 0;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get existing flows for deduplication
+    const existingFlows = await db.select({
+      symbol: optionsFlowHistory.symbol,
+      optionType: optionsFlowHistory.optionType,
+      strikePrice: optionsFlowHistory.strikePrice,
+      expirationDate: optionsFlowHistory.expirationDate,
+    }).from(optionsFlowHistory)
+      .where(eq(optionsFlowHistory.detectedDate, today));
+    
+    const existingSet = new Set(existingFlows.map(f => 
+      `${f.symbol}-${f.optionType}-${f.strikePrice}-${f.expirationDate}`.toUpperCase()
+    ));
+    
+    // Save top flows by score
+    const flowsToSave = allFlows
+      .filter(f => f.premium >= 10000 || f.unusualScore >= 60) // Lower threshold for watchlist
+      .sort((a, b) => b.unusualScore - a.unusualScore)
+      .slice(0, 50);
+    
+    for (const flow of flowsToSave) {
+      const flowKey = `${flow.symbol}-${flow.optionType}-${flow.strikePrice}-${flow.expiryDate}`.toUpperCase();
+      
+      if (existingSet.has(flowKey)) continue;
+      
+      try {
+        const classification = classifyFlowStrategy({
+          premium: flow.premium,
+          delta: flow.delta,
+          expiryDate: flow.expiryDate,
+          flowType: flow.flowType
+        });
+        
+        await db.insert(optionsFlowHistory).values({
+          symbol: flow.symbol,
+          optionType: flow.optionType,
+          strikePrice: flow.strikePrice,
+          expirationDate: flow.expiryDate,
+          volume: flow.volume,
+          openInterest: flow.openInterest,
+          volumeOIRatio: flow.volumeOIRatio,
+          premium: flow.premium / 100,
+          totalPremium: flow.premium,
+          impliedVolatility: flow.impliedVolatility,
+          delta: flow.delta,
+          sentiment: flow.sentiment,
+          flowType: flow.flowType,
+          unusualScore: flow.unusualScore,
+          strategyCategory: classification.strategyCategory,
+          dteCategory: classification.dteCategory,
+          isLotto: classification.isLotto,
+          isWatchlistSymbol: true,
+          detectedDate: today,
+        });
+        
+        existingSet.add(flowKey);
+        savedCount++;
+        
+        logger.info(`[OPTIONS-FLOW] ✅ Saved ${flow.symbol} ${flow.optionType.toUpperCase()} $${flow.strikePrice} - Score: ${flow.unusualScore}`);
+      } catch (insertErr) {
+        // Skip insert errors
+      }
+    }
+    
+    logger.info(`[OPTIONS-FLOW] Watchlist scan complete: ${symbols.length} scanned, ${allFlows.length} flows found, ${savedCount} saved`);
+    
+    return { scanned: symbols.length, flowsFound: allFlows.length, saved: savedCount };
+  } catch (error) {
+    logger.error('[OPTIONS-FLOW] Watchlist flow scan failed:', error);
+    return { scanned: 0, flowsFound: 0, saved: 0 };
   }
 }

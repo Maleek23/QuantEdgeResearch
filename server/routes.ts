@@ -19332,6 +19332,40 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Scan watchlist symbols for options flow (works even outside market hours)
+  app.post("/api/watchlist/scan-flows", async (req, res) => {
+    try {
+      logger.info('[API] Triggering watchlist flow scan...');
+      const { scanWatchlistForFlows } = await import("./options-flow-scanner");
+      const result = await scanWatchlistForFlows();
+      res.json({ 
+        success: true, 
+        message: `Scanned ${result.scanned} symbols, found ${result.flowsFound} flows, saved ${result.saved} to history`,
+        ...result 
+      });
+    } catch (error) {
+      logger.error("Error scanning watchlist for flows", { error });
+      res.status(500).json({ error: "Failed to scan watchlist for flows" });
+    }
+  });
+
+  // GET endpoint for triggering watchlist flow scan (requires auth for state-changing operation)
+  app.get("/api/watchlist/scan-flows", isAuthenticated, async (req, res) => {
+    try {
+      logger.info('[API] Triggering watchlist flow scan via GET...');
+      const { scanWatchlistForFlows } = await import("./options-flow-scanner");
+      const result = await scanWatchlistForFlows();
+      res.json({ 
+        success: true, 
+        message: `Scanned ${result.scanned} symbols, found ${result.flowsFound} flows, saved ${result.saved} to history`,
+        ...result 
+      });
+    } catch (error) {
+      logger.error("Error scanning watchlist for flows", { error });
+      res.status(500).json({ error: "Failed to scan watchlist for flows" });
+    }
+  });
+
   app.post("/api/automations/options-flow/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateOptionsFlowSettings, getOptionsFlowStatus } = await import("./options-flow-scanner");
