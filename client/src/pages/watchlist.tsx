@@ -735,6 +735,8 @@ function AlertDialog({ item }: { item: WatchlistItem }) {
 
 // Flow Intelligence Component - Shows last 7 days of options flow on watchlist stocks
 function FlowIntelligence() {
+  const [activeTab, setActiveTab] = useState<'all' | 'lotto' | 'institutional'>('all');
+  
   const { data: flowData, isLoading, error, isError } = useQuery<{
     flows: Array<{
       id: string;
@@ -748,12 +750,28 @@ function FlowIntelligence() {
       flowType: string;
       unusualScore: number;
       detectedDate: string;
+      strategyCategory?: 'lotto' | 'swing' | 'monthly' | 'institutional' | 'scalp';
+      dteCategory?: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'leaps';
+      isLotto?: boolean;
+    }>;
+    lottoFlows?: Array<{
+      id: string;
+      symbol: string;
+      optionType: 'call' | 'put';
+      strikePrice: number;
+      expirationDate: string;
+      totalPremium: number;
+      sentiment: 'bullish' | 'bearish' | 'neutral';
+      dteCategory?: string;
     }>;
     summary: {
       totalFlows: number;
       bullishFlows: number;
       bearishFlows: number;
       totalPremium: number;
+      lottoCount?: number;
+      strategyCounts?: Record<string, number>;
+      dteCounts?: Record<string, number>;
       topSymbols: { symbol: string; flowCount: number; totalPremium: number }[];
     };
   }>({
@@ -802,6 +820,7 @@ function FlowIntelligence() {
 
   const summary = flowData?.summary;
   const flows = flowData?.flows || [];
+  const lottoFlows = flowData?.lottoFlows || [];
   
   if (!summary || summary.totalFlows === 0) {
     return (
@@ -816,7 +835,7 @@ function FlowIntelligence() {
         <CardContent>
           <p className="text-sm text-muted-foreground">
             No unusual options flow detected on your watchlist symbols this week. 
-            Flow data will appear here when institutional activity is detected.
+            Flow data will appear here when institutional activity is detected during market hours.
           </p>
         </CardContent>
       </Card>
@@ -828,6 +847,13 @@ function FlowIntelligence() {
     if (premium >= 1000) return `$${(premium / 1000).toFixed(0)}k`;
     return `$${premium.toFixed(0)}`;
   };
+
+  // Filter flows based on active tab
+  const displayFlows = activeTab === 'lotto' 
+    ? flows.filter(f => f.isLotto)
+    : activeTab === 'institutional'
+    ? flows.filter(f => f.strategyCategory === 'institutional' || f.flowType === 'block')
+    : flows;
 
   return (
     <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent">
@@ -849,7 +875,8 @@ function FlowIntelligence() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div className="bg-background/50 rounded-lg p-3 border">
             <div className="text-2xl font-bold text-cyan-500">{summary.totalFlows}</div>
             <div className="text-xs text-muted-foreground">Total Flows</div>
@@ -863,10 +890,54 @@ function FlowIntelligence() {
             <div className="text-xs text-muted-foreground">Bearish</div>
           </div>
           <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-purple-500">{summary.lottoCount || 0}</div>
+            <div className="text-xs text-muted-foreground">Lotto Plays</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-3 border">
             <div className="text-2xl font-bold text-amber-500">{formatPremium(summary.totalPremium)}</div>
             <div className="text-xs text-muted-foreground">Premium</div>
           </div>
         </div>
+
+        {/* Tab Filter */}
+        <div className="flex gap-2">
+          <Button 
+            variant={activeTab === 'all' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('all')}
+            data-testid="button-tab-all-flows"
+          >
+            All Flows ({summary.totalFlows})
+          </Button>
+          <Button 
+            variant={activeTab === 'lotto' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('lotto')}
+            className={activeTab === 'lotto' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+            data-testid="button-tab-lotto-flows"
+          >
+            Lotto Plays ({summary.lottoCount || 0})
+          </Button>
+          <Button 
+            variant={activeTab === 'institutional' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('institutional')}
+            data-testid="button-tab-institutional-flows"
+          >
+            Institutional ({summary.strategyCounts?.institutional || 0})
+          </Button>
+        </div>
+
+        {/* DTE Breakdown */}
+        {summary.dteCounts && Object.keys(summary.dteCounts).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {Object.entries(summary.dteCounts).map(([dte, count]) => (
+              <Badge key={dte} variant="outline" className="text-xs">
+                {dte}: {count}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {summary.topSymbols.length > 0 && (
           <div>
@@ -889,14 +960,22 @@ function FlowIntelligence() {
           </div>
         )}
 
-        {flows.length > 0 && (
+        {displayFlows.length > 0 && (
           <div>
-            <div className="text-xs font-medium text-muted-foreground mb-2">RECENT FLOWS</div>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {flows.slice(0, 5).map((flow) => (
+            <div className="text-xs font-medium text-muted-foreground mb-2">
+              {activeTab === 'lotto' ? 'WHALE LOTTO PLAYS (Far OTM)' : 
+               activeTab === 'institutional' ? 'INSTITUTIONAL BLOCK TRADES' : 
+               'RECENT FLOWS'}
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {displayFlows.slice(0, 8).map((flow) => (
                 <div 
                   key={flow.id} 
-                  className="flex items-center justify-between text-sm bg-background/30 rounded-lg p-2 border"
+                  className={`flex items-center justify-between text-sm rounded-lg p-2 border ${
+                    flow.isLotto 
+                      ? 'bg-purple-500/10 border-purple-500/30' 
+                      : 'bg-background/30'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Badge 
@@ -913,8 +992,16 @@ function FlowIntelligence() {
                     <span className="text-muted-foreground text-xs">
                       ${flow.strikePrice} {flow.expirationDate}
                     </span>
+                    {flow.isLotto && (
+                      <Badge className="bg-purple-600 text-white text-xs">LOTTO</Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {flow.dteCategory && (
+                      <Badge variant="outline" className="text-xs">
+                        {flow.dteCategory}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className="text-xs">
                       {flow.flowType}
                     </Badge>

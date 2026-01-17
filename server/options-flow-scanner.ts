@@ -507,11 +507,15 @@ export function resetDailyFlows(): void {
  */
 export async function getWatchlistFlowHistory(days: number = 7): Promise<{
   flows: any[];
+  lottoFlows: any[];
   summary: {
     totalFlows: number;
     bullishFlows: number;
     bearishFlows: number;
     totalPremium: number;
+    lottoCount: number;
+    strategyCounts: Record<string, number>;
+    dteCounts: Record<string, number>;
     topSymbols: { symbol: string; flowCount: number; totalPremium: number }[];
   };
 }> {
@@ -528,7 +532,17 @@ export async function getWatchlistFlowHistory(days: number = 7): Promise<{
     if (symbols.length === 0) {
       return {
         flows: [],
-        summary: { totalFlows: 0, bullishFlows: 0, bearishFlows: 0, totalPremium: 0, topSymbols: [] }
+        lottoFlows: [],
+        summary: { 
+          totalFlows: 0, 
+          bullishFlows: 0, 
+          bearishFlows: 0, 
+          totalPremium: 0, 
+          lottoCount: 0,
+          strategyCounts: {},
+          dteCounts: {},
+          topSymbols: [] 
+        }
       };
     }
     
@@ -546,6 +560,20 @@ export async function getWatchlistFlowHistory(days: number = 7): Promise<{
     const bullishFlows = flows.filter(f => f.sentiment === 'bullish').length;
     const bearishFlows = flows.filter(f => f.sentiment === 'bearish').length;
     const totalPremium = flows.reduce((sum, f) => sum + (f.totalPremium || 0), 0);
+    
+    // Count by strategy category
+    const lottoFlows = flows.filter(f => f.isLotto).length;
+    const lottoList = flows.filter(f => f.isLotto);
+    
+    // Count by DTE category
+    const dteCounts: Record<string, number> = {};
+    const strategyCounts: Record<string, number> = {};
+    for (const flow of flows) {
+      const dte = flow.dteCategory || 'swing';
+      const strategy = flow.strategyCategory || 'institutional';
+      dteCounts[dte] = (dteCounts[dte] || 0) + 1;
+      strategyCounts[strategy] = (strategyCounts[strategy] || 0) + 1;
+    }
     
     // Group by symbol for top symbols
     const symbolStats: Record<string, { flowCount: number; totalPremium: number }> = {};
@@ -565,11 +593,15 @@ export async function getWatchlistFlowHistory(days: number = 7): Promise<{
     
     return {
       flows,
+      lottoFlows: lottoList,
       summary: {
         totalFlows: flows.length,
         bullishFlows,
         bearishFlows,
         totalPremium,
+        lottoCount: lottoFlows,
+        strategyCounts,
+        dteCounts,
         topSymbols
       }
     };
@@ -577,7 +609,17 @@ export async function getWatchlistFlowHistory(days: number = 7): Promise<{
     logger.error('[OPTIONS-FLOW] Failed to get watchlist flow history:', error);
     return {
       flows: [],
-      summary: { totalFlows: 0, bullishFlows: 0, bearishFlows: 0, totalPremium: 0, topSymbols: [] }
+      lottoFlows: [],
+      summary: { 
+        totalFlows: 0, 
+        bullishFlows: 0, 
+        bearishFlows: 0, 
+        totalPremium: 0, 
+        lottoCount: 0,
+        strategyCounts: {},
+        dteCounts: {},
+        topSymbols: [] 
+      }
     };
   }
 }
