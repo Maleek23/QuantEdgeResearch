@@ -20970,6 +20970,72 @@ Use this checklist before entering any trade:
   });
 
   // ============================================================================
+  // NET GAMMA EXPOSURE (GEX) API
+  // Shows where market makers need to hedge - indicates support/resistance
+  // ============================================================================
+
+  // GET /api/gamma-exposure/:symbol - Get net gamma exposure by strike
+  app.get("/api/gamma-exposure/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase();
+      const { expiration, aggregate } = req.query;
+      
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol required" });
+      }
+      
+      const { calculateGammaExposure, calculateAggregateGammaExposure } = await import("./gamma-exposure");
+      
+      let result;
+      if (aggregate === 'true') {
+        result = await calculateAggregateGammaExposure(symbol);
+      } else {
+        result = await calculateGammaExposure(symbol, expiration as string | undefined);
+      }
+      
+      if (!result) {
+        return res.status(404).json({ error: `No gamma data for ${symbol}` });
+      }
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error calculating gamma exposure", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to calculate gamma exposure" });
+    }
+  });
+
+  // POST /api/gamma-exposure/batch - Get GEX for multiple symbols
+  app.post("/api/gamma-exposure/batch", async (req, res) => {
+    try {
+      const { symbols } = req.body;
+      
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: "symbols array required" });
+      }
+      
+      // Limit to 10 symbols to prevent abuse
+      const limitedSymbols = symbols.slice(0, 10).map((s: string) => s.toUpperCase());
+      
+      const { calculateGammaExposure } = await import("./gamma-exposure");
+      
+      const results = await Promise.all(
+        limitedSymbols.map(async (symbol: string) => {
+          const gex = await calculateGammaExposure(symbol);
+          return { symbol, data: gex };
+        })
+      );
+      
+      res.json({
+        results: results.filter(r => r.data !== null),
+        failed: results.filter(r => r.data === null).map(r => r.symbol)
+      });
+    } catch (error: any) {
+      logger.error("Error in batch gamma exposure", { error });
+      res.status(500).json({ error: "Failed to calculate batch gamma exposure" });
+    }
+  });
+
+  // ============================================================================
   // INSTITUTIONAL-GRADE RISK ENGINE API
   // PhD-level quantitative risk management
   // ============================================================================
