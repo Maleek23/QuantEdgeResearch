@@ -28,7 +28,9 @@ import {
   Target,
   Coins,
   CandlestickChart,
-  Sparkles
+  Sparkles,
+  Zap,
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import { SiDiscord } from "react-icons/si";
@@ -36,6 +38,8 @@ import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
+import { motion } from "framer-motion";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
@@ -145,184 +149,394 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Clean & Technical */}
-      <section className="relative min-h-[70vh] flex items-center pt-16" data-testid="hero-section">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      {/* Hero Section - Gemini-Inspired */}
+      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden" data-testid="hero-section">
+        <GeminiGradient variant="hero" />
+        <FloatingParticles count={30} />
+        
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
         
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-8 items-center">
-            {/* Left: Copy */}
-            <div>
-              <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 mb-6">
-                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: Copy with animations */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <motion.div 
+                className="inline-flex items-center gap-2 backdrop-blur-md bg-slate-900/40 border border-cyan-500/30 rounded-full px-4 py-2 mb-6"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <motion.span 
+                  className="w-2 h-2 rounded-full bg-cyan-400"
+                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
                 <span className="text-sm font-mono text-cyan-400">LIVE BETA</span>
-              </div>
+              </motion.div>
               
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
-                Six Engines<span className="text-cyan-400">.</span>
+              <motion.h1 
+                className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                data-testid="text-hero-headline"
+              >
+                <span className="bg-gradient-to-r from-white via-white to-slate-400 bg-clip-text text-transparent">Six Engines</span>
+                <span className="text-cyan-400">.</span>
                 <br />
-                One Edge<span className="text-cyan-400">.</span>
-              </h1>
+                <span className="bg-gradient-to-r from-cyan-300 via-cyan-400 to-purple-400 bg-clip-text text-transparent">One Edge</span>
+                <span className="text-purple-400">.</span>
+              </motion.h1>
               
-              <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
-                Six-engine research platform. ML, AI, Quant, Flow, Sentiment & Technical signals converge for higher-conviction setups.
+              <motion.p 
+                className="text-lg text-slate-300 max-w-xl mb-8 leading-relaxed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                data-testid="text-hero-subheadline"
+              >
+                ML, AI, Quant, Flow, Sentiment & Technical signals converge into{" "}
+                <span className="text-cyan-400 font-medium">higher-conviction setups</span>.
                 Every signal verified. Every outcome tracked.
-              </p>
+              </motion.p>
               
-              <div className="flex flex-wrap gap-4">
+              <motion.div 
+                className="flex flex-wrap gap-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
                 <Button 
-                  className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-12 px-8 text-base font-semibold shadow-lg shadow-cyan-500/20"
+                  className="relative bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 hover:from-cyan-400 hover:to-cyan-300 h-12 px-8 text-base font-semibold shadow-xl shadow-cyan-500/30 transition-all hover:shadow-cyan-400/40 hover:scale-105"
                   onClick={() => setWaitlistOpen(true)}
                   data-testid="button-join-waitlist"
                 >
-                  Join Waitlist <ArrowRight className="ml-2 h-5 w-5" />
+                  <Zap className="mr-2 h-5 w-5" />
+                  Join Waitlist
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-slate-700 h-12 px-8 text-base font-semibold gap-2"
+                  className="border-slate-600 bg-slate-900/50 backdrop-blur-sm h-12 px-8 text-base font-semibold gap-2 hover:bg-slate-800/50 hover:border-slate-500 transition-all"
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                   data-testid="button-join-discord"
                 >
                   <SiDiscord className="h-5 w-5" />
                   Join Discord
                 </Button>
-              </div>
-            </div>
+              </motion.div>
+
+              {/* Trust indicators */}
+              <motion.div 
+                className="mt-10 pt-8 border-t border-slate-800/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Powered by</p>
+                <div className="flex flex-wrap gap-4 items-center">
+                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Claude Sonnet</Badge>
+                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">GPT-4</Badge>
+                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Gemini</Badge>
+                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Tradier</Badge>
+                </div>
+              </motion.div>
+            </motion.div>
             
-            {/* Right: Product Preview Panel */}
-            <div className="hidden lg:block">
-              <HeroProductPanel className="w-full" />
-            </div>
+            {/* Right: Visual orbs + floating metrics */}
+            <motion.div 
+              className="hidden lg:block relative h-[500px]"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              {/* Main orb cluster */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <GeminiOrb size="xl" color="cyan" className="absolute" />
+                <GeminiOrb size="lg" color="purple" className="absolute translate-x-20 -translate-y-16" />
+                <GeminiOrb size="md" color="pink" className="absolute -translate-x-24 translate-y-12" />
+                <GeminiOrb size="sm" color="blue" className="absolute translate-x-32 translate-y-20" />
+              </div>
+
+              {/* Floating metric cards */}
+              <motion.div 
+                className="absolute top-8 right-0 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Engines Live</p>
+                    <p className="text-xl font-bold text-green-400">6</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="absolute bottom-16 left-0 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Markets</p>
+                    <p className="text-xl font-bold text-cyan-400">4</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div 
+                className="absolute top-1/2 right-4 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">AI Models</p>
+                    <p className="text-xl font-bold text-purple-400">3</p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
+        
+        {/* Scroll indicator */}
+        <motion.div 
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <div className="w-6 h-10 rounded-full border-2 border-slate-600 flex items-start justify-center p-2">
+            <motion.div 
+              className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+              animate={{ y: [0, 12, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          </div>
+        </motion.div>
       </section>
 
-      {/* Stats Strip - Terminal Style */}
-      <div className="border-y border-slate-800 bg-slate-950 py-6" data-testid="stats-strip">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Ideas</p>
-              <div className="text-2xl font-bold font-mono tabular-nums text-foreground">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : (
-                  perfStats?.overall?.totalIdeas || '—'
-                )}
-              </div>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Active</p>
-              <div className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16" />
-                ) : perfStats?.overall?.openIdeas ? (
-                  perfStats.overall.openIdeas
-                ) : (
-                  '—'
-                )}
-              </div>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">6</p>
-            </div>
-            <div className="stat-glass rounded-lg p-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Markets</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">4</p>
-            </div>
-          </div>
+      {/* Stats Strip - Animated Metrics */}
+      <div className="relative py-12 overflow-hidden" data-testid="stats-strip">
+        <GeminiGradient variant="subtle" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/80 to-transparent" />
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ staggerChildren: 0.1 }}
+          >
+            <AnimatedMetricCard
+              label="Trade Ideas"
+              value={statsLoading ? "—" : (perfStats?.overall?.totalIdeas || "—")}
+              color="cyan"
+              icon={<LineChart className="w-4 h-4" />}
+            />
+            <AnimatedMetricCard
+              label="Active"
+              value={statsLoading ? "—" : (perfStats?.overall?.openIdeas || "—")}
+              color="green"
+              icon={<Activity className="w-4 h-4" />}
+            />
+            <AnimatedMetricCard
+              label="Engines"
+              value="6"
+              color="purple"
+              icon={<Brain className="w-4 h-4" />}
+            />
+            <AnimatedMetricCard
+              label="Markets"
+              value="4"
+              color="amber"
+              icon={<BarChart3 className="w-4 h-4" />}
+            />
+          </motion.div>
         </div>
       </div>
 
       {/* Platform Capabilities - Visual Cards */}
-      <section className="py-12 lg:py-20 bg-slate-900/30" id="features" data-testid="section-features">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
+      <section className="relative py-16 lg:py-24 overflow-hidden" id="features" data-testid="section-features">
+        <GeminiGradient variant="subtle" />
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <motion.p 
+              className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
               Platform Capabilities
-            </p>
-            <h2 className="text-2xl lg:text-3xl font-bold mb-3">Six Engines. Complete Coverage.</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
+            </motion.p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              Six Engines. Complete Coverage.
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto text-lg">
               Every angle analyzed. Every signal tracked. Every outcome measured.
             </p>
-          </div>
+          </motion.div>
           
-          {/* Research Engines - Visual Grid */}
-          <div className="mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Research Engines</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+          {/* Research Engines - Animated Visual Grid */}
+          <div className="mb-16">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Research Engines</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* ML Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-lg shadow-pink-500/20">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">ML Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-xl shadow-pink-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Sparkles className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">ML Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
                 </div>
-              </div>
+              </motion.div>
 
               {/* AI Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/20">
-                    <Brain className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-purple-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Brain className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">AI Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
                 </div>
-              </div>
-              
+              </motion.div>
+
               {/* Quant Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
-                    <Calculator className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">Quant Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-xl shadow-blue-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Calculator className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Quant Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
                 </div>
-              </div>
-              
+              </motion.div>
+
               {/* Flow Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
-                    <Activity className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">Flow Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-xl shadow-cyan-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Activity className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Flow Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
                 </div>
-              </div>
-              
+              </motion.div>
+
               {/* Sentiment Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
-                    <TrendingUp className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">Sentiment Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Market mood, VIX levels, fear/greed analysis.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-xl shadow-amber-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <TrendingUp className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Sentiment Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Market mood, VIX levels, fear/greed analysis.</p>
                 </div>
-              </div>
-              
+              </motion.div>
+
               {/* Technical Engine */}
-              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-5 hover-elevate">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
                 <div className="relative">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-lg shadow-green-500/20">
-                    <CandlestickChart className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="font-semibold mb-1">Technical Engine</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-xl shadow-green-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <CandlestickChart className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Technical Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
           
