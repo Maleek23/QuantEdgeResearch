@@ -211,7 +211,8 @@ export default function Landing() {
                 transition={{ delay: 0.6 }}
               >
                 <Button 
-                  className="relative bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 hover:from-cyan-400 hover:to-cyan-300 h-12 px-8 text-base font-semibold shadow-xl shadow-cyan-500/30 transition-all hover:shadow-cyan-400/40 hover:scale-105"
+                  size="lg"
+                  className="bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 shadow-xl shadow-cyan-500/30 font-semibold"
                   onClick={() => setWaitlistOpen(true)}
                   data-testid="button-join-waitlist"
                 >
@@ -220,7 +221,8 @@ export default function Landing() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-slate-600 bg-slate-900/50 backdrop-blur-sm h-12 px-8 text-base font-semibold gap-2 hover:bg-slate-800/50 hover:border-slate-500 transition-all"
+                  size="lg"
+                  className="border-slate-600 bg-slate-900/50 backdrop-blur-sm font-semibold gap-2"
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                   data-testid="button-join-discord"
                 >
@@ -936,7 +938,8 @@ export default function Landing() {
               
               <div className="flex-shrink-0">
                 <Button 
-                  className="bg-indigo-600 hover:bg-indigo-500 h-12 px-8 text-base font-semibold gap-2"
+                  size="lg"
+                  className="bg-indigo-600 font-semibold gap-2"
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                   data-testid="button-discord-section"
                 >
