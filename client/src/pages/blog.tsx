@@ -119,10 +119,27 @@ export default function Blog() {
             </div>
           </div>
           
-          <p className="text-base text-muted-foreground max-w-2xl mb-8 leading-relaxed">
+          <p className="text-base text-muted-foreground max-w-2xl mb-6 leading-relaxed">
             Free educational content to help you understand options trading, risk management, 
             and market analysis. Written by traders, for traders.
           </p>
+          
+          {/* Quick Links */}
+          <div className="flex items-center gap-3 mb-8">
+            <Link href="/academy">
+              <Button variant="outline" size="sm" className="border-slate-700 gap-2" data-testid="link-to-academy">
+                <GraduationCap className="h-4 w-4" />
+                Trading Academy
+                <ChevronRight className="h-3 w-3" />
+              </Button>
+            </Link>
+            <Link href="/trading-rules">
+              <Button variant="outline" size="sm" className="border-slate-700 gap-2" data-testid="link-to-rules">
+                <Shield className="h-4 w-4" />
+                Trading Rules
+              </Button>
+            </Link>
+          </div>
           
           {/* Category Tabs */}
           <div className="flex flex-wrap gap-2">
