@@ -19449,6 +19449,43 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Get whale signals - directional trade suggestions from massive flow
+  app.get("/api/whale-flow/signals", async (req, res) => {
+    try {
+      const { generateWhaleSignals } = await import("./whale-signal-generator");
+      const signals = await generateWhaleSignals();
+      res.json({ success: true, signals });
+    } catch (error) {
+      logger.error("Error generating whale signals", { error });
+      res.status(500).json({ error: "Failed to generate whale signals" });
+    }
+  });
+
+  // Get actionable whale signals (filtered for high conviction)
+  app.get("/api/whale-flow/signals/actionable", async (req, res) => {
+    try {
+      const { getActionableWhaleSignals } = await import("./whale-signal-generator");
+      const signals = await getActionableWhaleSignals();
+      res.json({ success: true, signals });
+    } catch (error) {
+      logger.error("Error getting actionable whale signals", { error });
+      res.status(500).json({ error: "Failed to get actionable whale signals" });
+    }
+  });
+
+  // Check whale flow boost for a specific symbol
+  app.get("/api/whale-flow/boost/:symbol", async (req, res) => {
+    try {
+      const { getWhaleFlowBoost } = await import("./whale-signal-generator");
+      const { symbol } = req.params;
+      const boost = await getWhaleFlowBoost(symbol);
+      res.json({ success: true, data: boost });
+    } catch (error) {
+      logger.error(`Error getting whale boost for ${req.params.symbol}`, { error });
+      res.status(500).json({ error: "Failed to get whale flow boost" });
+    }
+  });
+
   // Social Sentiment Scanner endpoints
   app.get("/api/automations/social-sentiment/status", async (_req, res) => {
     try {

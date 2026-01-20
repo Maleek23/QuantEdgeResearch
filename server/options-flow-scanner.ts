@@ -107,7 +107,7 @@ interface ScannerStatus {
   };
 }
 
-// Expanded watchlist for options flow scanning (80+ high-volume optionable stocks)
+// Expanded watchlist for options flow scanning (100+ high-volume optionable stocks)
 const DEFAULT_OPTIONS_WATCHLIST = [
   // Major Indices & ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
@@ -119,12 +119,12 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   'IONQ', 'RGTI', 'QUBT', 'MSTR', 'COIN', 'HOOD', 'SOFI', 'AFRM', 'SQ', 'PYPL',
   // Growth & Momentum
   'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
-  // EV & Energy
-  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR',
+  // EV & Energy / Nuclear / Clean Tech
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR', 'SMR', 'OKLO', 'CEG', 'VST',
   // Financials
   'JPM', 'GS', 'BAC', 'V', 'MA',
-  // Healthcare
-  'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE',
+  // Healthcare & Biotech
+  'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE', 'DNA', 'CRSP', 'EDIT', 'NTLA', 'BEAM',
   // Other High Volume
   'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST',
   // High-Momentum Mid-Caps (frequently have big moves)
@@ -134,7 +134,17 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   // Meme & Retail Favorites
   'GME', 'AMC', 'BBBY', 'FUBO', 'OPEN', 'CLOV',
   // Biotech High-Vol
-  'MRNA', 'BNTX', 'NVAX', 'SGEN', 'REGN'
+  'MRNA', 'BNTX', 'NVAX', 'SGEN', 'REGN',
+  // Space & Defense
+  'RKLB', 'RDW', 'ASTS', 'LUNR', 'LMT', 'RTX', 'NOC', 'GD',
+  // Fintech & Payments (User Requested)
+  'ONDS', 'ZETA', 'BILL', 'TOST', 'FOUR', 'FLYW', 'PAYO',
+  // Quantum & Emerging Tech
+  'ARQQ', 'QBTS', 'LAES',
+  // Cannabis (High Vol Options)
+  'TLRY', 'CGC', 'SNDL',
+  // SPACs & Recent IPOs with Options
+  'DWAC', 'DKNG', 'LCID', 'RIVN', 'JOBY',
 ];
 
 let scannerStatus: ScannerStatus = {
