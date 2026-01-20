@@ -1,16 +1,20 @@
 /**
- * Multi-LLM Validation Layer (FREE PROVIDERS ONLY)
+ * Multi-LLM Validation Layer (FREE PROVIDERS ONLY - $0.00 COST)
  * 
  * Uses FREE LLM APIs to validate trade ideas through consensus analysis:
- * - Gemini (Google AI Studio): 1M tokens/min FREE - Already configured!
- * - Groq: 14,400 req/day FREE (requires GROQ_API_KEY)
+ * - Gemini (Google AI Studio): 1,500 req/day FREE - Already configured!
+ * - Groq: 14,400 req/day FREE - FASTEST (requires GROQ_API_KEY) ✅
+ * - Together AI: $25 free credits (~50,000 requests) (requires TOGETHER_API_KEY)
  * - OpenRouter: 200 req/day FREE (requires OPENROUTER_API_KEY)
- * - SambaNova: Generous free tier (requires SAMBANOVA_API_KEY)
+ * 
+ * NO PAID PROVIDERS: Claude/Anthropic and OpenAI are explicitly excluded
+ * to ensure zero billing. All validation is 100% free.
  * 
  * Benefits:
  * - Zero cost for trade validation
  * - Reduced false positives through cross-validation
  * - Multiple provider resilience
+ * - Consensus-based approval (majority must agree)
  */
 
 import { logger } from './logger';
@@ -56,11 +60,11 @@ interface ConsensusResult {
   costSavings: string;
 }
 
-// Lazy-loaded clients (FREE PROVIDERS ONLY)
+// Lazy-loaded clients (FREE PROVIDERS ONLY - NO Claude/OpenAI to avoid billing)
 let geminiClient: GoogleGenAI | null = null;
 let groqClient: OpenAI | null = null;
+let togetherClient: OpenAI | null = null;
 let openRouterClient: OpenAI | null = null;
-let sambanovaClient: OpenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI | null {
   if (!geminiClient && process.env.GEMINI_API_KEY) {
@@ -79,6 +83,16 @@ function getGroqClient(): OpenAI | null {
   return groqClient;
 }
 
+function getTogetherClient(): OpenAI | null {
+  if (!togetherClient && process.env.TOGETHER_API_KEY) {
+    togetherClient = new OpenAI({
+      apiKey: process.env.TOGETHER_API_KEY,
+      baseURL: 'https://api.together.xyz/v1'
+    });
+  }
+  return togetherClient;
+}
+
 function getOpenRouterClient(): OpenAI | null {
   if (!openRouterClient && process.env.OPENROUTER_API_KEY) {
     openRouterClient = new OpenAI({
@@ -89,15 +103,6 @@ function getOpenRouterClient(): OpenAI | null {
   return openRouterClient;
 }
 
-function getSambanovaClient(): OpenAI | null {
-  if (!sambanovaClient && process.env.SAMBANOVA_API_KEY) {
-    sambanovaClient = new OpenAI({
-      apiKey: process.env.SAMBANOVA_API_KEY,
-      baseURL: 'https://api.sambanova.ai/v1'
-    });
-  }
-  return sambanovaClient;
-}
 
 // Validation prompt template
 function createValidationPrompt(idea: TradeIdea, marketContext: string): string {
@@ -268,6 +273,73 @@ async function validateWithGroq(idea: TradeIdea, marketContext: string): Promise
   }
 }
 
+// Together AI validation (FREE - $25 credits = ~50,000 requests)
+async function validateWithTogether(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
+  const startTime = Date.now();
+  const client = getTogetherClient();
+  
+  if (!client) {
+    return {
+      provider: 'together',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Together AI unavailable - add TOGETHER_API_KEY for free LLM validation',
+      warnings: ['Together API not configured - get $25 free credits at together.ai'],
+      responseTime: 0,
+      isFree: true
+    };
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: createValidationPrompt(idea, marketContext)
+      }]
+    });
+
+    const text = response.choices[0]?.message?.content || '';
+    
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        provider: 'together',
+        approved: parsed.approved ?? true,
+        confidence: parsed.confidence ?? idea.confidenceScore,
+        reasoning: parsed.reasoning ?? 'Validated via Together AI (FREE)',
+        warnings: parsed.warnings ?? [],
+        suggestedAdjustments: parsed.suggestedAdjustments,
+        responseTime: Date.now() - startTime,
+        isFree: true
+      };
+    }
+    
+    return {
+      provider: 'together',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Could not parse Together AI response',
+      warnings: [],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  } catch (error) {
+    logger.error('[MULTI-LLM] Together AI validation error:', error);
+    return {
+      provider: 'together',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Together AI validation failed - defaulting to approve',
+      warnings: ['Together validation error'],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  }
+}
+
 // OpenRouter validation (FREE - 200 requests/day with free models)
 async function validateWithOpenRouter(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
   const startTime = Date.now();
@@ -376,10 +448,12 @@ export async function validateTradeWithConsensus(
   });
 
   // Run all FREE validations with individual timeouts
-  // FREE PROVIDERS ONLY: Gemini, Groq, OpenRouter
+  // FREE PROVIDERS ONLY: Gemini, Groq, Together AI, OpenRouter
+  // NO Claude/OpenAI to avoid billing - all providers are 100% free
   const validationPromises = [
     wrapWithTimeout(validateWithGemini(idea, marketContext), timeout, timeoutFallback('gemini')),
     wrapWithTimeout(validateWithGroq(idea, marketContext), timeout, timeoutFallback('groq')),
+    wrapWithTimeout(validateWithTogether(idea, marketContext), timeout, timeoutFallback('together')),
     wrapWithTimeout(validateWithOpenRouter(idea, marketContext), timeout, timeoutFallback('openrouter'))
   ];
 
@@ -447,6 +521,7 @@ export async function validateTradeWithConsensus(
 /**
  * Quick validation using single fastest FREE provider (Groq or Gemini)
  * Use this for high-volume, lower-stakes validations - 100% FREE
+ * Priority: Groq (fastest) → Gemini → Together AI → OpenRouter
  */
 export async function quickValidation(idea: TradeIdea, marketContext: string = ''): Promise<ValidationResult> {
   // Try Groq first (free + fastest - 14,400 req/day)
@@ -454,9 +529,14 @@ export async function quickValidation(idea: TradeIdea, marketContext: string = '
     return validateWithGroq(idea, marketContext);
   }
   
-  // Fall back to Gemini (free - 1M tokens/min)
+  // Fall back to Gemini (free - 1,500 req/day)
   if (process.env.GEMINI_API_KEY) {
     return validateWithGemini(idea, marketContext);
+  }
+
+  // Try Together AI (free - $25 credits = ~50K requests)
+  if (process.env.TOGETHER_API_KEY) {
+    return validateWithTogether(idea, marketContext);
   }
 
   // Try OpenRouter (free - 200 req/day)
@@ -470,14 +550,14 @@ export async function quickValidation(idea: TradeIdea, marketContext: string = '
     approved: true,
     confidence: idea.confidenceScore,
     reasoning: 'No FREE validation providers configured',
-    warnings: ['Add GROQ_API_KEY (14,400/day), GEMINI_API_KEY (1M tokens/min), or OPENROUTER_API_KEY (200/day) for free validation'],
+    warnings: ['Add GROQ_API_KEY (14,400/day), GEMINI_API_KEY, TOGETHER_API_KEY, or OPENROUTER_API_KEY for free validation'],
     responseTime: 0,
     isFree: true
   };
 }
 
 /**
- * Get validation service status (FREE PROVIDERS ONLY)
+ * Get validation service status (FREE PROVIDERS ONLY - NO Claude/OpenAI billing)
  */
 export function getValidationServiceStatus(): {
   providers: { name: string; available: boolean; freeLimit: string }[];
@@ -486,26 +566,29 @@ export function getValidationServiceStatus(): {
   totalCost: string;
 } {
   const providers = [
-    { name: 'Gemini (Google)', available: !!process.env.GEMINI_API_KEY, freeLimit: '1M tokens/min' },
-    { name: 'Groq (Llama 3.3)', available: !!process.env.GROQ_API_KEY, freeLimit: '14,400 req/day' },
-    { name: 'OpenRouter (Multi-model)', available: !!process.env.OPENROUTER_API_KEY, freeLimit: '200 req/day' },
-    { name: 'SambaNova (Llama)', available: !!process.env.SAMBANOVA_API_KEY, freeLimit: 'Generous free tier' }
+    { name: 'Groq (Llama 3.3 70B)', available: !!process.env.GROQ_API_KEY, freeLimit: '14,400 req/day ⚡FASTEST' },
+    { name: 'Gemini (Google)', available: !!process.env.GEMINI_API_KEY, freeLimit: '1,500 req/day' },
+    { name: 'Together AI (Llama 3.3)', available: !!process.env.TOGETHER_API_KEY, freeLimit: '$25 credits (~50K req)' },
+    { name: 'OpenRouter (Multi-model)', available: !!process.env.OPENROUTER_API_KEY, freeLimit: '200 req/day' }
   ];
   
   const totalAvailable = providers.filter(p => p.available).length;
   
   const recommendedProviders: string[] = [];
   if (!process.env.GROQ_API_KEY) {
-    recommendedProviders.push('Add GROQ_API_KEY for 14,400 free validations/day (groq.com)');
+    recommendedProviders.push('Add GROQ_API_KEY for 14,400 free validations/day - FASTEST (groq.com)');
+  }
+  if (!process.env.TOGETHER_API_KEY) {
+    recommendedProviders.push('Add TOGETHER_API_KEY for $25 free credits = ~50,000 validations (together.ai)');
   }
   if (!process.env.OPENROUTER_API_KEY) {
-    recommendedProviders.push('Add OPENROUTER_API_KEY for 200 free validations/day with 30+ models (openrouter.ai)');
+    recommendedProviders.push('Add OPENROUTER_API_KEY for 200 free validations/day (openrouter.ai)');
   }
   
   return {
     providers,
     totalAvailable,
     recommendedProviders,
-    totalCost: '$0.00 - All providers are FREE'
+    totalCost: '$0.00 - All providers are 100% FREE (NO Claude/OpenAI billing)'
   };
 }
