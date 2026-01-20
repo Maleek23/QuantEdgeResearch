@@ -1200,9 +1200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(resendKey);
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
           
           await resend.emails.send({
-            from: 'Quant Edge Labs <beta@quantedgelabs.com>',
+            from: `Quant Edge Labs <${process.env.FROM_EMAIL || 'beta@quantedgelabs.net'}>`,
             to: email,
             subject: 'Welcome to the Quant Edge Labs Beta!',
             html: `
@@ -1214,7 +1215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   <li><strong>Elite Trading Engine</strong> - Institutional-grade entry validation matching top 1% trader standards</li>
                   <li><strong>Research Tools</strong> - Chart analysis, market scanner, and trade ideas</li>
                 </ul>
-                <p>Start exploring: <a href="https://quantedgelabs.replit.app/automations" style="color: #0891b2;">View Automations Hub</a></p>
+                <p>Start exploring: <a href="${baseUrl}/automations" style="color: #0891b2;">View Automations Hub</a></p>
                 <p style="color: #666; font-size: 12px;">
                   <strong>Educational Disclaimer:</strong> This platform is for research and educational purposes only. 
                   Past performance is not indicative of future results. Never risk more than you can afford to lose.
@@ -1252,8 +1253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid access code" });
       }
       
-      // Login as admin user (Abdulmalik)
-      const adminEmail = "abdulmalikajisegiri@gmail.com";
+      // Login as admin user (use ADMIN_EMAIL from env)
+      const adminEmail = process.env.ADMIN_EMAIL || "abdulamlikajisegiri@gmail.com";
       let user = await storage.getUserByEmail(adminEmail);
       
       if (!user) {
@@ -1264,10 +1265,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName: "Abdulmalik",
           lastName: "Ajisegiri",
           profileImageUrl: null,
+          hasBetaAccess: true,
         });
+      } else {
+        // Ensure existing user has beta access
+        if (!user.hasBetaAccess) {
+          await storage.updateUser(user.id, { hasBetaAccess: true });
+          user = await storage.getUser(user.id);
+        }
       }
       logger.info('Admin user logged in via dev access', { userId: user.id, email: user.email });
-      
+
       // Store userId in session
       (req.session as any).userId = user.id;
       
@@ -1602,6 +1610,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {
+      // Admin stats are NOT timing-critical - safe to cache for 2 minutes
+      const { cacheService, CACHE_TTL } = await import('./cache-service');
+      const cacheKey = 'admin:stats';
+      const cached = cacheService.get(cacheKey);
+
+      if (cached) {
+        return res.json(cached);
+      }
+
       const allUsers = await storage.getAllUsers();
       const allIdeas = await storage.getAllTradeIdeas();
       
@@ -1622,11 +1639,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiredIdeas = cleanIdeas.filter((i: any) => i.outcomeStatus === 'expired');
       
       // Win rate = wins / (wins + real losses) - canonical methodology
-      const winRate = decidedTrades.length > 0 
-        ? Math.round((wins.length / decidedTrades.length) * 100) 
+      const winRate = decidedTrades.length > 0
+        ? Math.round((wins.length / decidedTrades.length) * 100)
         : 0;
-      
-      res.json({
+
+      const stats = {
         totalUsers: allUsers.length,
         premiumUsers: allUsers.filter(u => u.subscriptionTier === 'advanced' || u.subscriptionTier === 'pro' || u.subscriptionTier === 'admin').length,
         totalIdeas: allIdeas.length,
@@ -1637,7 +1654,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         losses: realLosses.length,
         winRate,
         dbSize: "N/A"
-      });
+      };
+
+      // Cache for 2 minutes (admin dashboard not timing-critical)
+      cacheService.set(cacheKey, stats, CACHE_TTL.ADMIN_STATS);
+      res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
     }
@@ -2226,7 +2247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({
       configured: isEmailServiceConfigured(),
       provider: 'resend',
-      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.com',
+      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.net',
     });
   });
 
@@ -4576,6 +4597,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch Price Quotes - Get live prices for all active trade symbols
+  app.get("/api/prices/batch", async (_req, res) => {
+    try {
+      const { getRealtimeQuote } = await import('./realtime-pricing-service');
+
+      // Get all active trades to determine which symbols need prices
+      const trades = await storage.getRecentTradeIdeas(24, 1000);
+      const activeSymbols = new Set<string>();
+
+      // Collect unique symbols from active trades (excluding options)
+      trades.forEach(trade => {
+        if (trade.outcomeStatus === 'open' && trade.assetType !== 'option') {
+          activeSymbols.add(trade.symbol.toUpperCase());
+        }
+      });
+
+      // Fetch prices for all active symbols
+      const priceMap: Record<string, number> = {};
+      const symbolArray = Array.from(activeSymbols);
+
+      // Fetch in parallel with Promise.allSettled to handle failures gracefully
+      const results = await Promise.allSettled(
+        symbolArray.map(async (symbol) => {
+          const assetType = trades.find(t => t.symbol.toUpperCase() === symbol)?.assetType || 'stock';
+          const quote = await getRealtimeQuote(symbol, assetType as any);
+          return { symbol, price: quote?.price };
+        })
+      );
+
+      // Build price map from successful results
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.price !== undefined) {
+          priceMap[symbolArray[index]] = result.value.price;
+        }
+      });
+
+      logger.info(`📊 Batch prices: ${Object.keys(priceMap).length}/${symbolArray.length} symbols fetched`);
+
+      res.json(priceMap);
+    } catch (error) {
+      logger.error("Batch prices error:", error);
+      res.status(500).json({ error: "Failed to fetch batch prices" });
+    }
+  });
+
   // Trade Ideas Routes - Protected by beta access
   app.get("/api/trade-ideas", requireBetaAccess, async (req: any, res) => {
     try {
@@ -4603,11 +4669,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Quality filter: ?quality=high filters to 70%+ confidence AND 4+ signals
       const qualityFilter = req.query.quality as string;
       
-      // Admin sees all ideas, logged-in users see system-generated ideas + their own
+      // Admin sees recent ideas (24h), logged-in users see system-generated ideas + their own
       // System-generated ideas have user_id = NULL and should be visible to all users
-      let ideas = isAdmin 
-        ? await storage.getAllTradeIdeas()
-        : userId 
+      // Use getRecentTradeIdeas() to filter out expired/closed trades and reduce memory usage
+      let ideas = isAdmin
+        ? await storage.getRecentTradeIdeas(24, 1000) // Last 24h, max 1000 trades
+        : userId
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       
@@ -4905,6 +4972,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(deduplicatedIdeas);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch trade ideas" });
+    }
+  });
+
+  // ============================================
+  // WHALE FLOWS - Institutional options tracking
+  // ============================================
+
+  // Get all whale flows (with optional filters)
+  app.get("/api/whale-flows", requireBetaAccess, async (req: any, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const megaOnly = req.query.megaOnly === 'true';
+
+      let flows = megaOnly
+        ? await storage.getMegaWhaleFlows(days)
+        : await storage.getAllWhaleFlows(days);
+
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch whale flows:", error);
+      res.status(500).json({ error: "Failed to fetch whale flows" });
+    }
+  });
+
+  // Get recent whale flows (for dashboard widget)
+  app.get("/api/whale-flows/recent", requireBetaAccess, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const flows = await storage.getRecentWhaleFlows(limit);
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch recent whale flows:", error);
+      res.status(500).json({ error: "Failed to fetch recent whale flows" });
+    }
+  });
+
+  // Get whale flows for a specific symbol
+  app.get("/api/whale-flows/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { symbol } = req.params;
+      const days = parseInt(req.query.days as string) || 30;
+      const flows = await storage.getWhaleFlowsBySymbol(symbol, days);
+      res.json(flows);
+    } catch (error) {
+      logger.error("[API] Failed to fetch whale flows for symbol:", error);
+      res.status(500).json({ error: "Failed to fetch whale flows for symbol" });
     }
   });
 
@@ -10162,8 +10275,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         date: today,
-        todayMetrics,
-        weekMetrics,
+        today: todayMetrics,  // Frontend expects 'today', not 'todayMetrics'
+        week: weekMetrics,    // Frontend expects 'week', not 'weekMetrics'
         historicalMetrics: [], // Empty for now, will be populated by daily rollup
         activeAlerts,
       });
@@ -21539,6 +21652,85 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error calibrating SABR", { error });
       res.status(500).json({ error: "Failed to calibrate SABR model" });
+    }
+  });
+
+  // ============================================
+  // SELF-LEARNING & ENGINE INSIGHTS API
+  // ============================================
+
+  // GET /api/learning-insights - Get AI self-learning insights and recommendations
+  app.get("/api/learning-insights", async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+
+      // Get all engine metrics
+      const allMetrics = selfLearning.getAllEngineMetrics();
+      const learnedThresholds = selfLearning.getLearnedThresholds();
+
+      // Convert Map to object for JSON
+      const engineMetrics: Record<string, any> = {};
+      for (const [engine, metrics] of allMetrics) {
+        engineMetrics[engine] = metrics;
+      }
+
+      res.json({
+        success: true,
+        engineMetrics,
+        learnedThresholds,
+        summary: {
+          totalEngines: allMetrics.size,
+          bestPerformer: [...allMetrics.entries()]
+            .sort((a, b) => b[1].winRate - a[1].winRate)[0]?.[0] || 'N/A',
+          overallWinRate: [...allMetrics.values()]
+            .reduce((sum, m) => sum + m.winRate, 0) / Math.max(allMetrics.size, 1),
+        }
+      });
+    } catch (error: any) {
+      logger.error("Error fetching learning insights", { error });
+      res.status(500).json({ error: "Failed to fetch learning insights" });
+    }
+  });
+
+  // POST /api/learning/analyze - Trigger manual learning analysis
+  app.post("/api/learning/analyze", async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+      await selfLearning.runLearningCycle();
+
+      res.json({
+        success: true,
+        message: "Learning cycle completed",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error("Error running learning cycle", { error });
+      res.status(500).json({ error: "Failed to run learning cycle" });
+    }
+  });
+
+  // GET /api/learning/should-trade - Check if a trade passes learned criteria
+  app.get("/api/learning/should-trade", async (req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+
+      const trade = {
+        source: req.query.source as string,
+        confluenceScore: req.query.confluenceScore ? parseInt(req.query.confluenceScore as string) : undefined,
+        assetType: req.query.assetType as string,
+        direction: req.query.direction as string,
+      };
+
+      const decision = selfLearning.shouldTakeTrade(trade);
+
+      res.json({
+        success: true,
+        trade,
+        decision,
+      });
+    } catch (error: any) {
+      logger.error("Error checking trade criteria", { error });
+      res.status(500).json({ error: "Failed to check trade criteria" });
     }
   });
 

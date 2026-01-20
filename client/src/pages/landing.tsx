@@ -1,15 +1,13 @@
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { SEOHead } from "@/components/seo-head";
@@ -33,13 +31,17 @@ import {
   BarChart3
 } from "lucide-react";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
-import { motion } from "framer-motion";
+import { LiveActivityFeed } from "@/components/live-activity-feed";
+import { AnimatedStat } from "@/components/animated-stat";
+import { SocialProofSection } from "@/components/social-proof-section";
+import { ComparisonTable } from "@/components/comparison-table";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
@@ -117,48 +119,50 @@ export default function Landing() {
               >
                 Blog
               </Link>
+              <Link 
+                href="/about" 
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="link-about"
+              >
+                About
+              </Link>
             </nav>
 
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                data-testid="button-discord-nav"
+              >
+                <SiDiscord className="h-4 w-4" />
+              </Button>
               {isAuthenticated ? (
-                <Button onClick={() => setLocation('/trading-engine')} data-testid="button-dashboard">
-                  Command Center
-                </Button>
+                <Link href="/trade-desk">
+                  <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="button-dashboard">
+                    Dashboard
+                  </Button>
+                </Link>
               ) : (
-                <>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setLocation('/login')}
-                    className="hidden sm:inline-flex border-slate-700"
-                    data-testid="button-login"
-                  >
-                    Login
+                <Link href="/auth">
+                  <Button size="sm" variant="outline" data-testid="button-login">
+                    Sign In
                   </Button>
-                  <Button 
-                    onClick={() => setWaitlistOpen(true)}
-                    className="bg-cyan-500 text-slate-950"
-                    data-testid="button-join-beta"
-                  >
-                    Join Beta
-                  </Button>
-                </>
+                </Link>
               )}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section - Gemini-Inspired */}
-      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden" data-testid="hero-section">
+      {/* Hero Section - Gemini Inspired with Orbs */}
+      <section className="relative min-h-[90vh] pt-24 flex items-center overflow-hidden" data-testid="hero-section">
         <GeminiGradient variant="hero" />
         <FloatingParticles count={30} />
         
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
-        
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Copy with animations */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -224,7 +228,6 @@ export default function Landing() {
                   size="lg"
                   className="border-slate-600 bg-slate-900/50 backdrop-blur-sm font-semibold gap-2"
                   onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                  data-testid="button-join-discord"
                 >
                   <SiDiscord className="h-5 w-5" />
                   Join Discord
@@ -510,10 +513,10 @@ export default function Landing() {
                     whileHover={{ rotate: [0, -5, 5, 0] }}
                     transition={{ duration: 0.5 }}
                   >
-                    <TrendingUp className="h-7 w-7 text-white" />
+                    <Target className="h-7 w-7 text-white" />
                   </motion.div>
                   <h3 className="font-semibold text-lg mb-2">Sentiment Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Market mood, VIX levels, fear/greed analysis.</p>
+                  <p className="text-sm text-slate-400 leading-relaxed">Social buzz, fear/greed, put/call ratios.</p>
                 </div>
               </motion.div>
 
@@ -541,327 +544,191 @@ export default function Landing() {
               </motion.div>
             </div>
           </div>
-          
-          {/* Tools & Analytics - Horizontal Cards */}
-          <div className="mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Tools & Analytics</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-              {/* Auto-Lotto Bot */}
-              <div className="glass-card rounded-xl p-5 border-l-2 border-pink-500/50">
-                <div className="flex items-center gap-3 mb-2">
-                  <Sparkles className="h-5 w-5 text-pink-400" />
-                  <h3 className="font-semibold text-sm">Auto-Lotto Bot</h3>
-                </div>
-                <p className="text-xs text-muted-foreground">Autonomous paper trading. Scans for high R:R setups automatically.</p>
-              </div>
-              
-              {/* Performance Analytics */}
-              <div className="glass-card rounded-xl p-5 border-l-2 border-cyan-500/50">
-                <div className="flex items-center gap-3 mb-2">
-                  <LineChart className="h-5 w-5 text-cyan-400" />
-                  <h3 className="font-semibold text-sm">Performance</h3>
-                </div>
-                <p className="text-xs text-muted-foreground">Win rates, symbol leaderboards, confidence calibration.</p>
-              </div>
-              
-              {/* Loss Analysis */}
-              <div className="glass-card rounded-xl p-5 border-l-2 border-red-500/50">
-                <div className="flex items-center gap-3 mb-2">
-                  <Target className="h-5 w-5 text-red-400" />
-                  <h3 className="font-semibold text-sm">Loss Analysis</h3>
-                </div>
-                <p className="text-xs text-muted-foreground">Automatic post-mortem. Patterns, lessons, prevention.</p>
-              </div>
-              
-              {/* Paper Trading */}
-              <div className="glass-card rounded-xl p-5 border-l-2 border-green-500/50">
-                <div className="flex items-center gap-3 mb-2">
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                  <h3 className="font-semibold text-sm">Paper Trading</h3>
-                </div>
-                <p className="text-xs text-muted-foreground">Virtual portfolios. Track P&L, learn without risk.</p>
-              </div>
+
+          {/* Asset Classes */}
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Asset Classes</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              {[
+                { name: 'Stocks', icon: <TrendingUp className="h-5 w-5" />, desc: 'US Equities' },
+                { name: 'Options', icon: <Activity className="h-5 w-5" />, desc: 'Calls & Puts' },
+                { name: 'Crypto', icon: <Coins className="h-5 w-5" />, desc: 'BTC, ETH, SOL' },
+                { name: 'Futures', icon: <BarChart3 className="h-5 w-5" />, desc: 'NQ, ES, GC' },
+              ].map((asset, i) => (
+                <motion.div 
+                  key={asset.name}
+                  className="text-center p-4 rounded-xl bg-slate-900/50 border border-slate-800"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-slate-800 flex items-center justify-center mx-auto mb-2">
+                    {asset.icon}
+                  </div>
+                  <p className="font-medium">{asset.name}</p>
+                  <p className="text-xs text-muted-foreground">{asset.desc}</p>
+                </motion.div>
+              ))}
             </div>
           </div>
-          
-          {/* Market Coverage - Pill badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <TrendingUp className="h-4 w-4 text-cyan-400" />
-              <span className="text-sm">Stocks</span>
+        </div>
+      </section>
+
+      {/* Live Activity Feed Section */}
+      <section className="py-12 bg-slate-950/50" data-testid="section-activity">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Real-Time Platform Activity</h2>
+              <p className="text-muted-foreground mb-6">
+                Watch as our engines analyze markets and generate trade ideas in real-time.
+              </p>
+              <LiveActivityFeed />
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <LineChart className="h-4 w-4 text-purple-400" />
-              <span className="text-sm">Options</span>
+            <div>
+              <HeroProductPanel className="w-full" />
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <Coins className="h-4 w-4 text-amber-400" />
-              <span className="text-sm">Crypto</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
-              <CandlestickChart className="h-4 w-4 text-green-400" />
-              <span className="text-sm">Futures (NQ, GC)</span>
-            </div>
-          </div>
-          
-          {/* See All Features CTA */}
-          <div className="text-center">
-            <Button 
-              variant="outline" 
-              className="border-slate-700"
-              onClick={() => setLocation('/features')}
-              data-testid="button-see-features"
-            >
-              See All Features <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
           </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section className="py-10 lg:py-16" id="pricing" data-testid="section-pricing">
+      <section className="py-16 lg:py-24" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Pricing Plans
-              </p>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30" data-testid="badge-pricing-beta">
-                BETA
-              </span>
-            </div>
-            <h2 className="text-xl font-semibold mb-4">Choose Your Plan</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              Early access pricing - lock in these rates before launch
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3">Pricing</p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Start with paper trading. Upgrade when you're ready.
             </p>
-            
-            <div className="flex items-center justify-center gap-4" data-testid="billing-toggle">
-              <span className={`text-sm ${billingPeriod === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                Monthly
-              </span>
+          </motion.div>
+
+          {/* Billing Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center gap-2 p-1 bg-slate-900 rounded-lg border border-slate-800">
               <button
-                onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
-                className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors border ${
-                  billingPeriod === 'yearly' ? 'bg-cyan-500 border-cyan-400' : 'bg-slate-800 border-slate-700'
+                onClick={() => setBillingPeriod('monthly')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  billingPeriod === 'monthly' 
+                    ? 'bg-cyan-500 text-slate-950' 
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
-                data-testid="button-billing-toggle"
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    billingPeriod === 'yearly' ? 'translate-x-7' : 'translate-x-1'
-                  }`}
-                />
+                Monthly
               </button>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${billingPeriod === 'yearly' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  Yearly
-                </span>
-                <Badge className="text-xs bg-green-500/10 text-green-400 border-green-500/30">
-                  Save 17%
-                </Badge>
-              </div>
+              <button
+                onClick={() => setBillingPeriod('yearly')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  billingPeriod === 'yearly' 
+                    ? 'bg-cyan-500 text-slate-950' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Yearly <span className="text-xs opacity-80">(-20%)</span>
+              </button>
             </div>
           </div>
 
+          {/* Pricing Cards */}
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Free Tier */}
-            <Card className="glass-card" data-testid="card-pricing-free">
-              <CardContent className="p-6 flex flex-col h-full">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Free</h3>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono tabular-nums">$0</span>
-                    <span className="text-muted-foreground text-sm">/month</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Preview the platform</p>
-                </div>
-                
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    5 research briefs per day
+            <motion.div 
+              className="rounded-xl border border-slate-800 bg-slate-900/50 p-6"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <h3 className="font-semibold text-lg mb-2">Paper Trader</h3>
+              <p className="text-3xl font-bold mb-4">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+              <ul className="space-y-2 mb-6">
+                {['Paper trading journal', 'Basic research briefs', 'Chart analysis', 'Community Discord'].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="h-4 w-4 text-green-500" /> {f}
                   </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Delayed market data (15min)
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    7-day performance history
-                  </li>
-                </ul>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full border-slate-700"
-                  onClick={() => setWaitlistOpen(true)}
-                  data-testid="button-pricing-free"
-                >
-                  Join Waitlist
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Advanced Tier */}
-            <Card className="glass-card border-cyan-500/50" data-testid="card-pricing-advanced">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1">
-                <Badge className="bg-cyan-500 text-slate-950">Most Popular</Badge>
-                <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30">BETA</Badge>
-              </div>
-              <CardContent className="p-6 pt-8 flex flex-col h-full">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Advanced</h3>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono tabular-nums text-cyan-400">
-                      ${billingPeriod === 'monthly' ? '39' : '33'}
-                    </span>
-                    <span className="text-muted-foreground text-sm">/month</span>
-                  </div>
-                  {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-cyan-400 font-mono tabular-nums">Billed $390/year (save $78)</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">Full stock & crypto access</p>
-                </div>
-                
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center gap-2 text-sm font-medium">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Everything in Free
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Unlimited research briefs
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Real-time market data
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Discord alerts
-                  </li>
-                  <li className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Full performance history
-                  </li>
-                </ul>
-                
-                <Button 
-                  className="w-full bg-cyan-500 text-slate-950"
-                  onClick={() => setWaitlistOpen(true)}
-                  data-testid="button-pricing-advanced"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Join Waitlist
-                </Button>
-              </CardContent>
-            </Card>
+                ))}
+              </ul>
+              <Button variant="outline" className="w-full" onClick={() => setLocation('/auth')}>
+                Get Started
+              </Button>
+            </motion.div>
 
             {/* Pro Tier */}
-            <Card className="glass-card border-slate-700" data-testid="card-pricing-pro">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge variant="outline" className="border-slate-600 text-muted-foreground bg-slate-900">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Coming Soon
-                </Badge>
-              </div>
-              <CardContent className="p-6 pt-8 flex flex-col h-full">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Pro</h3>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono tabular-nums text-muted-foreground">$79</span>
-                    <span className="text-muted-foreground text-sm">/month</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Institutional-grade tools</p>
-                </div>
-                
-                <ul className="space-y-3 mb-6 flex-1">
-                  <li className="flex items-center gap-2 text-sm font-medium">
-                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                    Everything in Advanced
+            <motion.div 
+              className="rounded-xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 to-transparent p-6 relative"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500">Most Popular</Badge>
+              <h3 className="font-semibold text-lg mb-2">Pro Trader</h3>
+              <p className="text-3xl font-bold mb-4">
+                ${billingPeriod === 'monthly' ? '49' : '39'}
+                <span className="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+              <ul className="space-y-2 mb-6">
+                {['Everything in Free', 'All 6 research engines', 'Real-time alerts', 'Auto-Lotto bot', 'Priority support'].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 text-cyan-500" /> {f}
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    Futures trading
+                ))}
+              </ul>
+              <Button className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950" onClick={() => setWaitlistOpen(true)}>
+                Join Waitlist
+              </Button>
+            </motion.div>
+
+            {/* Institutional */}
+            <motion.div 
+              className="rounded-xl border border-slate-800 bg-slate-900/50 p-6"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+            >
+              <h3 className="font-semibold text-lg mb-2">Institutional</h3>
+              <p className="text-3xl font-bold mb-4">Custom</p>
+              <ul className="space-y-2 mb-6">
+                {['Everything in Pro', 'API access', 'Custom integrations', 'Dedicated support', 'White-label options'].map(f => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="h-4 w-4 text-purple-500" /> {f}
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    REST API access
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    Backtesting module
-                  </li>
-                </ul>
-                
-                <Button 
-                  variant="outline"
-                  className="w-full border-slate-700"
-                  data-testid="button-pricing-pro"
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Join Waitlist
-                </Button>
-              </CardContent>
-            </Card>
+                ))}
+              </ul>
+              <Button variant="outline" className="w-full">
+                Contact Sales
+              </Button>
+            </motion.div>
           </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="py-10 lg:py-16 border-t border-slate-800" id="faq" data-testid="section-faq">
+      <section className="py-12 lg:py-16 bg-slate-950/50" data-testid="section-faq">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              FAQ
-            </p>
-            <h2 className="text-xl font-semibold">Frequently Asked Questions</h2>
-          </div>
-
-          <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
+          <div className="max-w-2xl mx-auto">
             <Accordion type="single" collapsible className="space-y-2">
-              <AccordionItem value="accuracy" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-accuracy">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-accuracy">
-                  How accurate are the research briefs?
+              <AccordionItem value="what" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-what">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-what">
+                  What is Quant Edge Labs?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-accuracy">
-                  All research briefs are tracked transparently with actual outcomes visible on the Performance page. 
-                  Past patterns do not guarantee future results. This is educational research only.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="markets" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-markets">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-markets">
-                  What markets does Quant Edge Labs cover?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-markets">
-                  US equities, options, cryptocurrencies, and futures contracts. Data sourced from Yahoo Finance, Alpha Vantage, Tradier, and CoinGecko.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="five-engine" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-engine">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-engine">
-                  How does the five-engine system work?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-engine">
-                  AI Engine uses multi-provider LLMs for fundamental analysis. Quant Engine runs RSI, VWAP, and volume strategies. 
-                  Flow Scanner detects institutional activity. Chart Analysis provides technical pattern recognition. 
-                  Futures Engine specializes in NQ and GC contracts. When multiple engines agree, you get higher-conviction setups.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="premium" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-premium">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-premium">
-                  What's included in each plan?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-premium">
-                  <strong>Free:</strong> 5 briefs/day, delayed data. <strong>Advanced ($39/mo):</strong> Unlimited briefs, real-time data, chart analysis, Discord alerts, full history.
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-what">
+                  Quant Edge Labs is an educational research platform for self-directed traders. 
+                  We use 6 engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets and surface potential setups. 
+                  This is a learning tool—not a signal service or financial advice.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="risk" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-risk">
                 <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-risk">
-                  How do you handle risk management?
+                  How does the platform handle risk management?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-risk">
                   Research briefs display calculated risk/reward ratios and suggested exit levels for educational context. 

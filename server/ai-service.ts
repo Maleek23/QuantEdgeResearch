@@ -7,6 +7,7 @@ import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { validateAndLog } from './trade-validation';
 import { enrichOptionIdea } from './options-enricher';
+import { multiLLM, generateAI } from './multi-llm-service';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -512,7 +513,7 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
   }
 }
 
-// Chat with QuantAI Bot (using FREE Gemini tier with OpenAI fallback)
+// Chat with QuantAI Bot (using multi-LLM service with automatic fallback)
 export async function chatWithQuantAI(userMessage: string, conversationHistory: Array<{role: string, content: string}>): Promise<string> {
   const systemPrompt = `You are QuantAI Bot, an expert quantitative trading assistant for Quant Edge Labs platform.
 
@@ -525,52 +526,32 @@ Your role:
 
 Be concise, professional, and data-driven. Use plain language while maintaining technical accuracy.`;
 
-  // Use FREE Gemini tier first
+  // Build conversation context
+  const conversationText = conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+  const fullPrompt = conversationText ? `${conversationText}\nuser: ${userMessage}` : userMessage;
+
   try {
-    logger.info("🆓 Using FREE Gemini for chat");
-    const conversationText = conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
-    const fullPrompt = conversationText ? `${conversationText}\nuser: ${userMessage}` : userMessage;
-    
-    const geminiResponse = await getGemini().models.generateContent({
-      model: "gemini-2.5-flash", // Free tier model
-      config: {
-        systemInstruction: systemPrompt,
-      },
-      contents: fullPrompt,
+    // Use multi-LLM service with automatic fallback (cheap/fast strategy)
+    logger.info("🤖 Using Multi-LLM service for chat (all 4 LLMs with fallback)");
+    const response = await generateAI(fullPrompt, {
+      system: systemPrompt,
+      mode: 'fallback',
+      strategy: 'cheap', // Uses free models first: Gemini → Grok → OpenAI → Anthropic
     });
 
-    return geminiResponse.text || "I couldn't process that request";
-  } catch (geminiError: any) {
-    logger.error("Gemini chat failed:", geminiError);
-    
-    // Provide helpful error message for rate limits
-    if (geminiError?.status === 429) {
-      throw new Error("Free AI limit reached (25/day). Try again tomorrow.");
+    return response || "I couldn't process that request";
+  } catch (error: any) {
+    logger.error("All LLM providers failed for chat:", error);
+
+    if (error?.message?.includes('rate limit') || error?.message?.includes('429')) {
+      throw new Error("AI rate limit reached. Please try again in a few minutes.");
     }
-    
-    // Try OpenAI as fallback (skip Claude - credits depleted)
-    try {
-      logger.info("🔄 Falling back to OpenAI for chat...");
-      const openaiResponse = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory.map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })),
-          { role: "user", content: userMessage }
-        ],
-        max_tokens: 2000,
-      });
-      
-      return openaiResponse.choices[0].message.content || "I couldn't process that request";
-    } catch (openaiError: any) {
-      logger.error("OpenAI chat also failed:", openaiError);
-      
-      if (geminiError?.status === 401 || openaiError?.status === 401) {
-        throw new Error("AI service unavailable: Invalid API credentials");
-      }
-      
-      throw new Error("AI chat temporarily unavailable. The quant engines are still generating trade ideas automatically.");
+
+    if (error?.message?.includes('401') || error?.message?.includes('credentials')) {
+      throw new Error("AI service unavailable: Invalid API credentials");
     }
+
+    throw new Error("AI chat temporarily unavailable. The quant engines are still generating trade ideas automatically.");
   }
 }
 

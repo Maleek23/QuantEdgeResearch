@@ -12,13 +12,14 @@ export function generateCSRFToken(): string {
 
 export function csrfMiddleware(req: Request, res: Response, next: NextFunction) {
   const isProduction = process.env.NODE_ENV === 'production';
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   
   if (!req.cookies[CSRF_COOKIE_NAME]) {
     const token = generateCSRFToken();
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false,
-      secure: isProduction,
-      sameSite: 'strict',
+      secure: isProduction && isSecure,
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     });
   }

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import compression from "compression";
@@ -25,8 +26,19 @@ app.use(compression({
   filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
-  }
-}));
+  }}));
+
+// Add a simple health check endpoint
+app.get("/health", (req: Request, res: Response) => {
+  const realtimeStatus = getRealtimeStatus();
+  const overallStatus = realtimeStatus.isHealthy ? "OK" : "DEGRADED";
+  res.status(realtimeStatus.isHealthy ? 200 : 503).json({
+    status: overallStatus,
+    timestamp: new Date().toISOString(),
+    realtimePrices: realtimeStatus,
+    message: realtimeStatus.isHealthy ? "Server is healthy" : "Realtime price service is degraded",
+  });
+});
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
@@ -34,7 +46,12 @@ app.use(cookieParser());
 
 app.use(securityHeaders);
 app.use(csrfMiddleware);
-app.use(validateCSRF);
+app.use((req, res, next) => {
+  if (/^(GET|HEAD|OPTIONS)$/i.test(req.method)) {
+    return next();
+  }
+  validateCSRF(req, res, next);
+});
 
 // SECURITY: Safe logging middleware - prevents sensitive data leakage
 app.use((req, res, next) => {
@@ -156,11 +173,17 @@ app.use((req, res, next) => {
     const { startPreMoveScanner } = await import('./pre-move-detection-service');
     startPreMoveScanner();
     log('🔮 Pre-Move Detection Scanner started - monitoring for late-day sweeps, volume spikes, IV expansion, and defense contracts');
-    
+
+    // Start Self-Learning Service (engines learn from their own performance)
+    const { selfLearning } = await import('./self-learning-service');
+    selfLearning.start();
+    log('🧠 Self-Learning Service started - engines will adapt based on trade outcomes');
+
     // Start ML Retraining Service (self-improving models)
-    const { startMLRetrainingService } = await import('./ml-retraining-service');
-    startMLRetrainingService();
-    log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
+    // TODO: Implement ML retraining service
+    // const { startMLRetrainingService } = await import('./ml-retraining-service');
+    // startMLRetrainingService();
+    // log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
     
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {
@@ -492,20 +515,26 @@ app.use((req, res, next) => {
         const minute = nowCT.getMinutes();
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
-        
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
+
+        // DEVELOPMENT MODE: Allow weekend testing
+        // PRODUCTION MODE: Only weekdays
+        const isDevelopment = process.env.NODE_ENV !== 'production';
+        if (!isDevelopment && (dayOfWeek === 0 || dayOfWeek === 6)) {
           return;
         }
-        
-        // Run at 9:35 AM CT and 1:00 PM CT for afternoon opportunities
-        const isQuantTime = (hour === 9 && minute >= 35 && minute < 40) || 
-                            (hour === 13 && minute >= 0 && minute < 5);
-        
+
+        // DEVELOPMENT MODE: Run every 30 minutes for testing
+        // PRODUCTION MODE: Run at 9:35 AM CT and 1:00 PM CT only
+        const isQuantTime = isDevelopment
+          ? (minute >= 0 && minute < 5) || (minute >= 30 && minute < 35) // Every 30 min in dev
+          : ((hour === 9 && minute >= 35 && minute < 40) || (hour === 13 && minute >= 0 && minute < 5)); // Scheduled times in prod
+
         if (!isQuantTime) {
           return;
         }
-        
-        if (lastQuantRunDate === dateKey && hour === 9) {
+
+        // In production, only run morning session once per day
+        if (!isDevelopment && lastQuantRunDate === dateKey && hour === 9) {
           return; // Already ran morning session today
         }
         
@@ -604,11 +633,19 @@ app.use((req, res, next) => {
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
     
     // ONE-TIME STARTUP TRIGGER: Generate quant ideas immediately on server start
-    // This ensures fresh ideas are available even outside scheduled times
+    // DISABLED IN PRODUCTION to prevent memory exhaustion and rate limiting on Render
+    const SKIP_STARTUP_SCANS = process.env.NODE_ENV === 'production';
+
+    if (SKIP_STARTUP_SCANS) {
+      logger.info('🚀 [QUANT-STARTUP] Skipping startup scans in production (memory optimization)');
+    }
+
     (async () => {
+      if (SKIP_STARTUP_SCANS) return; // Skip heavy startup operations in production
+
       try {
         logger.info('🚀 [QUANT-STARTUP] Running one-time quant generation on server startup...');
-        
+
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const { storage: quantStorage } = await import('./storage');
         const marketData = await quantStorage.getAllMarketData();
@@ -943,9 +980,14 @@ app.use((req, res, next) => {
             const tradeIdea = await storage.createTradeIdea(idea);
             savedIdeas.push(tradeIdea);
             savedCount++;
-            
+
             logger.info(`✅ [FLOW-CRON] Created flow trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} - Entry=$${tradeIdea.entryPrice}, Target=$${tradeIdea.targetPrice}, R:R=${tradeIdea.riskRewardRatio.toFixed(2)}:1`);
-            
+
+            // 🐋 WHALE FLOW DETECTION - Check if this is institutional-level flow
+            const totalPremium = (tradeIdea.entryPrice || 0) * 100; // Premium per contract * 100 shares
+            const isWhaleFlow = totalPremium >= 10000; // $10k+ per contract = whale territory
+            const isMegaWhale = totalPremium >= 50000; // $50k+ per contract = mega whale
+
             // 📣 Send individual Discord alert AFTER successful save (prevents ghost alerts)
             const grade = tradeIdea.probabilityBand || '';
             const entryPrice = tradeIdea.entryPrice || 0;
@@ -953,7 +995,54 @@ app.use((req, res, next) => {
             const isValidGrade = DISCORD_ALERT_GRADES.includes(grade);
             const maxPremiumFor5Contracts = 2.00; // $1000 budget / 5 contracts / 100 shares
             const isAffordable = entryPrice <= maxPremiumFor5Contracts;
-            
+
+            // 🐋 WHALE FLOW ALERT - Send regardless of affordability
+            if (isWhaleFlow || isMegaWhale) {
+              // Save whale flow to database for tracking
+              try {
+                await storage.createWhaleFlow({
+                  symbol: tradeIdea.symbol,
+                  optionType: (tradeIdea.optionType as 'call' | 'put') || 'call',
+                  strikePrice: tradeIdea.strikePrice || 0,
+                  expiryDate: tradeIdea.expiryDate || '',
+                  entryPrice: entryPrice,
+                  targetPrice: tradeIdea.targetPrice || 0,
+                  stopLoss: tradeIdea.stopLoss || 0,
+                  premiumPerContract: totalPremium,
+                  isMegaWhale,
+                  flowSize: isMegaWhale ? 'mega_whale' : 'whale',
+                  grade,
+                  confidenceScore: tradeIdea.confidenceScore || 0,
+                  direction: tradeIdea.direction as 'long' | 'short',
+                  outcomeStatus: 'open',
+                  discordNotified: false,
+                  tradeIdeaId: tradeIdea.id,
+                });
+                logger.info(`🐋 [WHALE-DB] Saved whale flow to database: ${tradeIdea.symbol}`);
+              } catch (err) {
+                logger.error(`🐋 [WHALE-DB] Failed to save whale flow: ${err}`);
+              }
+
+              // Send Discord alert
+              const { sendWhaleFlowAlertToDiscord } = await import('./discord-service');
+              sendWhaleFlowAlertToDiscord({
+                symbol: tradeIdea.symbol,
+                optionType: (tradeIdea.optionType as 'call' | 'put') || 'call',
+                strikePrice: tradeIdea.strikePrice || 0,
+                expiryDate: tradeIdea.expiryDate || '',
+                entryPrice: entryPrice,
+                targetPrice: tradeIdea.targetPrice || 0,
+                stopLoss: tradeIdea.stopLoss || 0,
+                grade,
+                premiumPerContract: totalPremium,
+                isMegaWhale,
+                direction: tradeIdea.direction as 'long' | 'short',
+                confidenceScore: tradeIdea.confidenceScore || 0
+              }).catch(err => logger.error(`🐋 [FLOW-CRON] Whale alert failed for ${tradeIdea.symbol}:`, err));
+              logger.warn(`🐋 [WHALE-ALERT] ${isMegaWhale ? 'MEGA ' : ''}WHALE FLOW: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} - $${(totalPremium / 1000).toFixed(1)}k premium per contract`);
+            }
+
+            // 📣 REGULAR AFFORDABILITY-BASED ALERTS
             if (isValidGrade && isAffordable) {
               const { sendFlowAlertToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
               const targetPercent = tradeIdea.targetPrice && entryPrice 
@@ -1025,31 +1114,33 @@ app.use((req, res, next) => {
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
     
     // CONSOLIDATED BOT SCANNING - Fast opportunistic scanning every 3 minutes
+    // DISABLED IN PRODUCTION to prevent memory exhaustion on Render
     // Single unified scan loop that checks for opportunities then monitors positions
     const lastScanTime: Record<string, number> = {};
     const SCAN_COOLDOWN_MS = 6 * 60 * 1000; // 6 minute cooldown between full scans (every other cycle)
     const POSITION_CHECK_MS = 3 * 60 * 1000; // 3 minute cooldown for position monitoring
-    
-    // Unified options bot - fast 3-minute scanning cycle
-    cron.default.schedule('*/3 * * * *', async () => {
+
+    // Unified options bot - 6-minute scanning cycle during market hours
+    // RE-ENABLED: Now with proper rate limiting and memory optimizations
+    cron.default.schedule('*/6 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
         }
-        
+
         const now = Date.now();
         const lastOptionsScan = lastScanTime['options'] || 0;
         const { runAutonomousBotScan, monitorLottoPositions } = await import('./auto-lotto-trader');
-        
+
         // Always monitor existing positions (quick check)
         await monitorLottoPositions();
-        
+
         // Only do full scan if cooldown has passed (prevents redundant scanning)
         if (now - lastOptionsScan >= SCAN_COOLDOWN_MS) {
           logger.info('🤖 [UNIFIED-BOT] Running opportunistic OPTIONS scan...');
           await runAutonomousBotScan();
           lastScanTime['options'] = now;
-          
+
           // 🎰 LOTTO SCANNER - Generate and auto-execute lotto plays
           try {
             const { runLottoScanner } = await import('./lotto-scanner');
@@ -1059,82 +1150,61 @@ app.use((req, res, next) => {
             logger.error('🎰 [LOTTO-SCANNER] Lotto scan failed:', lottoError);
           }
         }
-        
+
       } catch (error: any) {
         logger.error('🤖 [UNIFIED-BOT] Options scan failed:', error);
       }
     });
-    
-    log('🤖 Unified Options Bot started - fast 3-minute scanning cycle (9:30 AM-4:00 PM ET)');
-    log('🎰 Lotto Scanner added - hunts cheap far-OTM weeklies during market hours');
-    
-    // UNIFIED FUTURES BOT - Combines Futures + Prop Firm (both scan NQ, no need for redundancy)
-    // Fast 3-minute scanning cycle
-    cron.default.schedule('*/3 * * * *', async () => {
-      try {
-        const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
-        
-        if (!isCMEOpen()) {
-          return; // Silent skip when market is closed
-        }
-        
-        const now = Date.now();
-        const lastFuturesScan = lastScanTime['futures'] || 0;
-        
-        // Always monitor existing positions (quick)
-        await monitorFuturesPositions();
-        await monitorPropFirmPositions();
-        
-        // Only do full scan if cooldown has passed (15 min)
-        if (now - lastFuturesScan >= SCAN_COOLDOWN_MS) {
-          logger.info('🔮 [UNIFIED-FUTURES] Running opportunistic NQ/GC scan...');
-          await runFuturesBotScan();
-          await runPropFirmBotScan();
-          lastScanTime['futures'] = now;
-          
-          // Generate research ideas only on full scan
-          const { generateFuturesIdeas } = await import('./quantitative-engine');
-          const futuresIdeas = await generateFuturesIdeas();
-          if (futuresIdeas.length > 0) {
-            const savedFuturesIdeas = [];
-            for (const idea of futuresIdeas) {
-              const saved = await storage.createTradeIdea(idea);
-              savedFuturesIdeas.push(saved);
-            }
-            logger.info(`🔮 [UNIFIED-FUTURES] Generated ${futuresIdeas.length} futures research ideas`);
-          }
-        }
-        
-      } catch (error: any) {
-        logger.error('🔮 [UNIFIED-FUTURES] Futures scan failed:', error);
-      }
-    });
-    
-    log('🔮 Unified Futures Bot started - fast 3-minute scanning cycle (CME hours)');
-    
-    // CRYPTO BOT - Fast 3-minute scanning cycle (24/7 markets)
-    cron.default.schedule('*/3 * * * *', async () => {
+
+    log('🤖 Unified Options Bot ENABLED - 6-minute scanning cycle (9:30 AM-4:00 PM ET)');
+    log('🎰 Lotto Scanner ENABLED - hunts cheap far-OTM weeklies during market hours');
+
+    // Crypto Bot - 10-minute scanning cycle (24/7 since crypto markets never close)
+    // RE-ENABLED: Staggered 2 minutes after options bot to prevent memory spikes
+    cron.default.schedule('2,12,22,32,42,52 * * * *', async () => {
       try {
         const now = Date.now();
         const lastCryptoScan = lastScanTime['crypto'] || 0;
-        const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
-        
-        // Always monitor positions
-        await monitorCryptoPositions();
-        
-        // Full scan every 6 min (every other cycle)
-        if (now - lastCryptoScan >= SCAN_COOLDOWN_MS) {
+
+        // Only scan if cooldown has passed
+        if (now - lastCryptoScan >= 10 * 60 * 1000) {
+          const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
+
           logger.info('🪙 [CRYPTO-BOT] Running crypto scan...');
           await runCryptoBotScan();
+          await monitorCryptoPositions();
           lastScanTime['crypto'] = now;
         }
       } catch (error: any) {
-        logger.error('🪙 [CRYPTO-BOT] Crypto scan failed:', error);
+        logger.error('🪙 [CRYPTO-BOT] Scan failed:', error);
       }
     });
-    
-    log('🪙 Crypto Bot started - fast 3-minute scanning cycle (24/7 markets)');
-    
+
+    log('🪙 Crypto Bot ENABLED - 10-minute scanning cycle (24/7)');
+
+    // Futures Bot - 10-minute scanning cycle during CME market hours
+    // RE-ENABLED: Staggered 4 minutes after options bot
+    cron.default.schedule('4,14,24,34,44,54 * * * *', async () => {
+      try {
+        const now = Date.now();
+        const lastFuturesScan = lastScanTime['futures'] || 0;
+
+        // Only scan if cooldown has passed
+        if (now - lastFuturesScan >= 10 * 60 * 1000) {
+          const { runFuturesBotScan, monitorFuturesPositions } = await import('./auto-lotto-trader');
+
+          logger.info('📈 [FUTURES-BOT] Running futures scan...');
+          await runFuturesBotScan();
+          await monitorFuturesPositions();
+          lastScanTime['futures'] = now;
+        }
+      } catch (error: any) {
+        logger.error('📈 [FUTURES-BOT] Scan failed:', error);
+      }
+    });
+
+    log('📈 Futures Bot ENABLED - 10-minute scanning cycle (during CME hours)');
+
     // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
     cron.default.schedule('*/30 * * * *', async () => {
       try {
@@ -1203,17 +1273,18 @@ app.use((req, res, next) => {
         }
         
         lastDailySummaryDate = dateKey;
-        
-        logger.info('📨 [DAILY-SUMMARY] Sending morning summary to Discord...');
-        
-        // Get all open ideas
-        const allIdeas = await storage.getAllTradeIdeas();
-        
-        // Send daily summary
-        const { sendDailySummaryToDiscord } = await import('./discord-service');
-        await sendDailySummaryToDiscord(allIdeas);
-        
-        logger.info('📨 [DAILY-SUMMARY] Morning summary sent successfully');
+
+        logger.info('📨 [DAILY-PREVIEW] Sending 8:30 AM trading preview to Discord...');
+
+        // Send daily preview with market movers and breakouts
+        const { sendDailyPreview } = await import('./discord-service');
+        const result = await sendDailyPreview();
+
+        if (result.success) {
+          logger.info(`📨 [DAILY-PREVIEW] ${result.message}`);
+        } else {
+          logger.error(`📨 [DAILY-PREVIEW] Failed: ${result.message}`);
+        }
         
       } catch (error: any) {
         logger.error('📨 [DAILY-SUMMARY] Failed to send daily summary:', error);
@@ -1574,5 +1645,23 @@ app.use((req, res, next) => {
     });
     
     log('📈 Bullish Trend Scanner started - analyzing momentum stocks every 30 min during market hours');
+
+    // ============================================================================
+    // AUTO-CLEANUP - Remove stale/expired trades to free memory
+    // Runs every hour to keep Trade Desk showing only RELEVANT opportunities
+    // ============================================================================
+    cron.default.schedule('0 * * * *', async () => {
+      try {
+        const { storage } = await import('./storage');
+        const deletedCount = await storage.cleanupStaleTradeIdeas();
+        if (deletedCount > 0) {
+          logger.info(`🧹 [AUTO-CLEANUP] Removed ${deletedCount} stale/expired trades from memory`);
+        }
+      } catch (error: any) {
+        logger.error('🧹 [AUTO-CLEANUP] Cleanup failed:', error);
+      }
+    });
+
+    log('🧹 Auto-Cleanup started - removing stale trades every hour to free memory');
   });
 })();

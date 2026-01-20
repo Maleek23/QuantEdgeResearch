@@ -3,6 +3,7 @@ import { getTradierQuote, getTradierHistory } from './tradier-api';
 import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { getCryptoPrice as getRealtimeCryptoPrice, getFuturesPrice as getRealtimeFuturesPrice } from './realtime-price-service';
+import { marketData as multiSourceMarketData, getStockPrice as getMultiSourcePrice } from './multi-source-market-data';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -371,6 +372,31 @@ export async function fetchYahooFinancePrice(
   }
 }
 
+/**
+ * Use multi-source market data service as fallback
+ * Tries: Finnhub (FREE) → Twelve Data (FREE) → Tradier → Alpha Vantage
+ */
+async function fetchWithMultiSource(symbol: string): Promise<ExternalMarketData | null> {
+  try {
+    logger.info(`🔄 Using multi-source fallback for ${symbol}`);
+    const quote = await multiSourceMarketData.getQuote(symbol);
+
+    if (quote) {
+      logger.info(`✅ Multi-source got ${symbol}: $${quote.price} (via ${quote.source})`);
+      return {
+        symbol: symbol.toUpperCase(),
+        assetType: 'stock',
+        currentPrice: quote.price,
+        changePercent: quote.changePercent,
+        volume: quote.volume || 0,
+      };
+    }
+  } catch (error) {
+    logger.warn(`Multi-source fallback failed for ${symbol}:`, error);
+  }
+  return null;
+}
+
 export async function fetchStockPrice(
   symbol: string,
   apiKey?: string
@@ -456,9 +482,16 @@ export async function fetchStockPrice(
       return avData;
     } catch (error) {
       logger.error(`Error fetching stock price for ${symbol}:`, error);
+      // Try multi-source fallback which includes FREE APIs (Finnhub, Twelve Data)
+      const multiResult = await fetchWithMultiSource(symbol);
+      if (multiResult) return multiResult;
       return await fetchYahooFinancePrice(symbol);
     }
   }
+
+  // Try multi-source fallback first (has FREE options like Finnhub, Twelve Data)
+  const multiResult = await fetchWithMultiSource(symbol);
+  if (multiResult) return multiResult;
 
   return await fetchYahooFinancePrice(symbol);
 }
@@ -732,33 +765,33 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
   try {
     logger.info('🔍 PREDICTIVE SCAN: Finding stocks BEFORE big moves (high volume + small price changes)...');
     
-    // REDESIGNED STRATEGY:
-    // 1. Scan "most_actives" (high volume, but NOT necessarily big price moves)
-    // 2. Scan "small_cap_gainers" (smaller stocks more likely to have explosive moves)
-    // 3. Scan "aggressive_small_caps" for high-risk/high-reward plays
-    // 4. Scan "growth_technology_stocks" for tech momentum plays
-    // 5. Skip "top gainers/losers" (those already moved - we want to catch BEFORE the rally)
-    // 6. Let quant engine filter for: unusual volume (3x+), small moves (<2%), RSI divergence
+    // MEMORY-OPTIMIZED STRATEGY:
+    // Reduced from 6 categories to 3 most important ones to prevent rate limiting
+    // Count reduced from 250 to 50-100 to reduce memory usage
     const categories = [
-      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=250', retries: 3 },
-      { name: 'smallCapsGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=small_cap_gainers&count=100', retries: 3 },
-      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=150', retries: 3 },
-      { name: 'aggressiveSmallCaps', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=aggressive_small_caps&count=100', retries: 2 },
-      { name: 'growthTech', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=growth_technology_stocks&count=100', retries: 2 },
-      { name: 'dayGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=50', retries: 2 }
+      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=100', retries: 2 },
+      { name: 'smallCapsGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=small_cap_gainers&count=50', retries: 2 },
+      { name: 'dayGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=50', retries: 1 }
     ];
     
-    for (const category of categories) {
+    for (let catIdx = 0; catIdx < categories.length; catIdx++) {
+      const category = categories[catIdx];
+
+      // Add delay between categories to prevent rate limiting
+      if (catIdx > 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       let attempt = 0;
       let success = false;
-      
+
       while (attempt < category.retries && !success) {
         try {
           attempt++;
-          
+
           // Add delay between retries (exponential backoff)
           if (attempt > 1) {
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000); // Max 8s delay
+            const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // Max 10s delay
             logger.info(`  ⏳ Retry attempt ${attempt}/${category.retries} for ${category.name} after ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
@@ -921,249 +954,81 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
   try {
     logger.info('🔍 Discovering popular stocks ($1-$50 range - penny stocks + retail favorites)...');
     
-    // EXPANDED NICHE STOCK UNIVERSE - Hidden gems + lesser-known opportunities
-    // Includes penny stocks ($1-$7), niche small caps, and sector plays
+    // MEMORY-OPTIMIZED STOCK UNIVERSE - Top 50 most important symbols
+    // Reduced from 200+ to prevent memory exhaustion and rate limiting
     const pennyStockSymbols = [
-      // === NICHE PENNY STOCKS (Under $7) ===
-      // ========================================
-      // === NEXT BIG THINGS: QUANTUM + FUSION ===
-      // ========================================
-      
-      // 🔬 QUANTUM COMPUTING (THE #1 NEXT BIG THING)
-      'IONQ',   // IonQ - Leading trapped ion quantum
-      'RGTI',   // Rigetti Computing - Superconducting qubits  
-      'QUBT',   // Quantum Computing Inc - Photonic quantum
-      'QBTS',   // D-Wave Quantum - Quantum annealing leader
-      'ARQQ',   // Arqit Quantum - Quantum encryption/cybersecurity
-      'QTUM',   // Defiance Quantum ETF - Quantum basket
-      'FORM',   // FormFactor - Quantum probe cards
-      'IBM',    // IBM - Quantum roadmap leader (large cap exposure)
-      'GOOG',   // Google/Alphabet - Sycamore processor
-      'HON',    // Honeywell - Quantinuum (spun off but HON exposure)
-      
-      // ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (THE #2 NEXT BIG THING)
-      'NNE',    // Nano Nuclear Energy - Micro modular reactors
-      'OKLO',   // Oklo Inc - Advanced fission/fusion tech
-      'SMR',    // NuScale Power - Small modular reactors
-      'LEU',    // Centrus Energy - Uranium enrichment, HALEU for fusion
-      'CCJ',    // Cameco - Uranium mining leader
-      'UEC',    // Uranium Energy Corp - US uranium producer
-      'URA',    // Global X Uranium ETF
-      'UUUU',   // Energy Fuels - Uranium + rare earths
-      'DNN',    // Denison Mines - Uranium developer
-      'NXE',    // NexGen Energy - High-grade uranium
-      'BWXT',   // BWX Technologies - Nuclear components
-      'CEG',    // Constellation Energy - Nuclear fleet operator
-      'VST',    // Vistra - Nuclear power generation
-      
-      // 🤖 AI & MACHINE LEARNING (CURRENT BIG THING)
-      'SOUN',   // SoundHound AI - Voice AI
-      'BBAI',   // BigBear.ai - AI analytics
-      'AI',     // C3.ai - Enterprise AI
-      'PLTR',   // Palantir - AI/data analytics
-      'PATH',   // UiPath - AI automation
-      'SNOW',   // Snowflake - AI data cloud
-      'DDOG',   // Datadog - AI observability
-      'MDB',    // MongoDB - AI database
-      'ESTC',   // Elastic - AI search
-      'GTLB',   // GitLab - AI DevOps
-      
-      // 🚀 SPACE & SATELLITE TECH
-      'ASTS',   // AST SpaceMobile - Space-based cellular
-      'SPCE',   // Virgin Galactic - Space tourism
-      'RKLB',   // Rocket Lab - Small satellite launch
-      'LUNR',   // Intuitive Machines - Lunar landers
-      'RDW',    // Redwire - Space infrastructure
-      'BKSY',   // BlackSky - Geospatial intelligence
-      'IRDM',   // Iridium - Satellite communications
-      'VSAT',   // Viasat - Satellite internet
-      'SATL',   // Satellogic - Earth observation
-      // REMOVED: MAXR (acquired), LLAP (delisted)
-      
-      // 🧬 BIOTECH/PHARMA (CATALYST-DRIVEN)
-      'NVAX',   // Novavax - Vaccines
-      'INO',    // Inovio - DNA medicines
-      'SRNE',   // Sorrento Therapeutics
-      'VXRT',   // Vaxart - Oral vaccines
-      'CRSP',   // CRISPR Therapeutics - Gene editing
-      'EDIT',   // Editas Medicine - Gene editing
-      'NTLA',   // Intellia Therapeutics - CRISPR
-      'BEAM',   // Beam Therapeutics - Base editing
-      // REMOVED: VERV (delisted), BLUE (delisted)
-      
-      // ⚡ CLEAN ENERGY & EV
-      'FCEL',   // FuelCell Energy
-      'PLUG',   // Plug Power - Green hydrogen
-      'BE',     // Bloom Energy - Solid oxide fuel cells
-      'CHPT',   // ChargePoint - EV charging
-      'BLNK',   // Blink Charging
-      'EVGO',   // EVgo - Fast charging
-      // REMOVED: PTRA (bankrupt/delisted)
-      'ENVX',   // Enovix - Next-gen batteries
-      'QS',     // QuantumScape - Solid-state batteries
-      'STEM',   // Stem Inc - AI energy storage
-      'RUN',    // Sunrun - Residential solar
-      'SEDG',   // SolarEdge - Solar inverters
-      'ENPH',   // Enphase - Microinverters
-      
-      // 🚗 EV & AUTONOMOUS VEHICLES
-      'RIVN',   // Rivian - Electric trucks
-      'LCID',   // Lucid - Luxury EV
-      'NIO',    // NIO - Chinese premium EV
-      'XPEV',   // XPeng - Chinese EV
-      'LI',     // Li Auto - Chinese hybrid EV
-      // REMOVED: FSR (bankrupt), FFIE (delisted), GOEV (delisted)
-      'NKLA',   // Nikola - Hydrogen trucks
-      'TSLA',   // Tesla - EV + AI + Energy
-      
-      // 🛡️ DEFENSE & DRONES
-      'RCAT',   // Red Cat Holdings - Drones
-      'UAVS',   // AgEagle Aerial - Drone tech
-      'JOBY',   // Joby Aviation - eVTOL
-      'ACHR',   // Archer Aviation - eVTOL
-      'EVTL',   // Vertical Aerospace - eVTOL
-      'KTOS',   // Kratos Defense - Drones
-      'AVAV',   // AeroVironment - Military drones
-      'AMBA',   // Ambarella - AI vision processors
-      
-      // 💰 CRYPTO/BLOCKCHAIN
-      'MARA',   // Marathon Digital - BTC mining
-      'RIOT',   // Riot Platforms - BTC mining
-      'CLSK',   // CleanSpark - BTC mining
-      'BTBT',   // Bit Digital
-      'BITF',   // Bitfarms
-      'HUT',    // Hut 8 Mining
-      'CIFR',   // Cipher Mining
-      'COIN',   // Coinbase - Crypto exchange
-      'MSTR',   // MicroStrategy - BTC treasury
-      
-      // 🔐 CYBERSECURITY
-      'CRWD',   // CrowdStrike
-      'S',      // SentinelOne
-      'ZS',     // Zscaler
-      'NET',    // Cloudflare
-      'PANW',   // Palo Alto Networks
-      'TENB',   // Tenable
-      'CYBR',   // CyberArk
-      'OKTA',   // Okta - Identity
-      'FTNT',   // Fortinet
-      
-      // 💳 FINTECH
-      'UPST',   // Upstart - AI lending
-      'AFRM',   // Affirm - BNPL
-      'SOFI',   // SoFi - Digital banking
-      'DAVE',   // Dave - Neobank
-      'HOOD',   // Robinhood - Trading app
-      'XYZ',    // Block (formerly Square) - Payments
-      'PYPL',   // PayPal
-      'NU',     // Nu Holdings - Brazilian fintech
-      
-      // 🎮 GAMING & METAVERSE
-      'RBLX',   // Roblox
-      'U',      // Unity Software
-      'DKNG',   // DraftKings
-      'SKLZ',   // Skillz
-      
-      // 🌿 CANNABIS
-      'TLRY',   // Tilray
-      'CGC',    // Canopy Growth
-      'ACB',    // Aurora Cannabis
-      'SNDL',   // SNDL
-      
-      // 💎 SEMICONDUCTORS (NON MEGA-CAP)
-      'SMCI',   // Super Micro Computer
-      'AEHR',   // Aehr Test Systems
-      'WOLF',   // Wolfspeed - SiC
-      'LSCC',   // Lattice Semiconductor
-      'SITM',   // SiTime - Timing solutions
-      'ARM',    // Arm Holdings
-      'AVGO',   // Broadcom
-      'MU',     // Micron
-      
-      // 🌏 INTERNATIONAL ADRs
-      'GRAB',   // Grab Holdings - SE Asia super app
-      'SE',     // Sea Limited - SE Asia tech
-      'BABA',   // Alibaba
-      'PDD',    // PDD Holdings
-      'JD',     // JD.com
-      'BIDU',   // Baidu - Chinese AI
-      'MELI',   // MercadoLibre - LatAm e-commerce
-      
-      // 📺 STREAMING/MEDIA
-      'FUBO',   // FuboTV
-      // REMOVED: PARA (merged/delisted)
-      'WBD',    // Warner Bros Discovery
-      
-      // ✈️ TRAVEL/LEISURE (HIGH BETA)
-      'AAL',    // American Airlines
-      'CCL',    // Carnival Cruise
-      'NCLH',   // Norwegian Cruise
-      'UAL',    // United Airlines
-      'DAL',    // Delta Airlines
-      
-      // 🏠 REAL ESTATE TECH
-      'OPEN',   // Opendoor
-      'Z',      // Zillow
-      // REMOVED: RDFN (delisted)
-      
-      // 📱 TECH RETAIL FAVORITES
-      'F',      // Ford
-      'NOK',    // Nokia
-      'BB',     // BlackBerry
-      'SNAP',   // Snapchat
-      'AMC',    // AMC Entertainment
-      'GME',    // GameStop
-      
-      // 🏛️ MEGA-CAP TECH (NEWS-DRIVEN)
-      'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN',
-      'INTC', 'AMD', 'ROKU',
-      
-      // ⛏️ COMMODITIES/MATERIALS
-      'BTU',    // Peabody Energy - Coal
-      'KGC',    // Kinross Gold
-      'VALE',   // Vale - Mining
-      'PBF',    // PBF Energy
-      'GOLD',   // Barrick Gold
-      'NEM',    // Newmont Mining
-      'FCX',    // Freeport-McMoRan - Copper
-      'MP',     // MP Materials - Rare earths
-      'LAC',    // Lithium Americas
-      'ALB'     // Albemarle - Lithium
+      // === TOP RETAIL FAVORITES (20 symbols) ===
+      'NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMD', 'META', 'GOOGL', 'AMZN',
+      'GME', 'AMC', 'PLTR', 'SOFI', 'HOOD', 'COIN', 'MSTR',
+      'NIO', 'RIVN', 'LCID', 'SMCI', 'ARM',
+
+      // === QUANTUM & AI (10 symbols) ===
+      'IONQ', 'RGTI', 'QUBT', 'QBTS', 'AI', 'SOUN', 'BBAI', 'PATH', 'SNOW', 'DDOG',
+
+      // === CRYPTO MINERS (5 symbols) ===
+      'MARA', 'RIOT', 'CLSK', 'BITF', 'HUT',
+
+      // === CLEAN ENERGY (8 symbols) ===
+      'PLUG', 'FCEL', 'BE', 'CHPT', 'ENVX', 'QS', 'ENPH', 'SEDG',
+
+      // === NUCLEAR/URANIUM (5 symbols) ===
+      'SMR', 'OKLO', 'CCJ', 'LEU', 'UEC',
+
+      // === SPACE (4 symbols) ===
+      'RKLB', 'LUNR', 'ASTS', 'SPCE'
     ];
     
     const pennyStocks: StockGem[] = [];
-    
-    // Fetch current prices for penny stock candidates
-    for (const symbol of pennyStockSymbols) {
-      try {
-        const priceData = await fetchStockPrice(symbol);
-        if (!priceData) continue;
-        
-        const price = priceData.currentPrice;
-        const change = priceData.changePercent || 0;
-        // Use avgVolume as fallback when current volume is 0 (off-hours)
-        const volume = priceData.volume || priceData.avgVolume || 0;
-        const avgVolume = priceData.avgVolume || 0;
-        const marketCap = priceData.marketCap || 0;
-        
-        // Filter: Must be $0.50-$500 (expanded to include all actionable stocks)
-        // Use avgVolume threshold during off-hours when volume is 0
-        // Make marketCap optional - many stocks don't report it
-        const volumeOk = volume >= 50000 || avgVolume >= 50000;
-        const priceOk = price >= 0.50 && price <= 500;
-        // Skip marketCap filter if not available (focus on volume/price)
-        if (priceOk && volumeOk) {
-          pennyStocks.push({
-            symbol,
-            currentPrice: price,
-            changePercent: change,
-            volume,
-            marketCap
-          });
+
+    // Fetch current prices in batches of 5 with 1.5s delays to prevent rate limiting
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY_MS = 1500;
+
+    for (let i = 0; i < pennyStockSymbols.length; i += BATCH_SIZE) {
+      const batch = pennyStockSymbols.slice(i, i + BATCH_SIZE);
+
+      // Process batch in parallel
+      const batchResults = await Promise.allSettled(
+        batch.map(async (symbol) => {
+          try {
+            const priceData = await fetchStockPrice(symbol);
+            if (!priceData) return null;
+
+            const price = priceData.currentPrice;
+            const change = priceData.changePercent || 0;
+            const volume = priceData.volume || priceData.avgVolume || 0;
+            const avgVolume = priceData.avgVolume || 0;
+            const marketCap = priceData.marketCap || 0;
+
+            const volumeOk = volume >= 50000 || avgVolume >= 50000;
+            const priceOk = price >= 0.50 && price <= 500;
+
+            if (priceOk && volumeOk) {
+              return {
+                symbol,
+                currentPrice: price,
+                changePercent: change,
+                volume,
+                marketCap
+              };
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      // Collect successful results
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          pennyStocks.push(result.value);
         }
-      } catch (error) {
-        // Skip this symbol if fetch fails
-        continue;
+      }
+
+      // Delay between batches (except for last batch)
+      if (i + BATCH_SIZE < pennyStockSymbols.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
     

@@ -61,7 +61,7 @@ export const users = pgTable("users", {
 });
 
 export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & { isAdmin?: boolean };
 
 // Onboarding form validation schema (for beta signup)
 export const betaOnboardingSchema = z.object({
@@ -223,7 +223,18 @@ export const tradeIdeas = pgTable("trade_ideas", {
   researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
   riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative
   sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear_fusion, healthcare, ai_ml, etc.
-});
+}, (table) => [
+  // CRITICAL PERFORMANCE INDEXES - Speed up queries without affecting timing
+  index("idx_trade_ideas_timestamp").on(table.timestamp), // Fast recent trades lookup
+  index("idx_trade_ideas_outcome_status").on(table.outcomeStatus), // Fast open trades filter
+  index("idx_trade_ideas_expiry_date").on(table.expiryDate), // Fast options expiry check
+  index("idx_trade_ideas_source").on(table.source), // Fast engine filtering
+  index("idx_trade_ideas_symbol").on(table.symbol), // Fast symbol lookup
+  index("idx_trade_ideas_user_id").on(table.userId), // Fast user trades
+  index("idx_trade_ideas_entry_valid").on(table.entryValidUntil), // Fast timing window checks
+  // Compound index for most common query: recent open trades
+  index("idx_trade_ideas_status_timestamp").on(table.outcomeStatus, table.timestamp),
+]);
 
 // Ticker Data Types
 export type TickerMention = {
@@ -3210,10 +3221,62 @@ export const dynamicSignalWeights = pgTable("dynamic_signal_weights", {
   index("idx_signal_weights_name").on(table.signalName),
 ]);
 
-export const insertDynamicSignalWeightSchema = createInsertSchema(dynamicSignalWeights).omit({ 
-  id: true, 
+export const insertDynamicSignalWeightSchema = createInsertSchema(dynamicSignalWeights).omit({
+  id: true,
   createdAt: true,
-  updatedAt: true 
+  updatedAt: true
 });
 export type InsertDynamicSignalWeight = z.infer<typeof insertDynamicSignalWeightSchema>;
 export type DynamicSignalWeight = typeof dynamicSignalWeights.$inferSelect;
+
+// ============================================
+// WHALE FLOWS - Institutional options tracking
+// Tracks high-premium options activity ($10k+) for lotto plays
+// ============================================
+export const whaleFlows = pgTable("whale_flows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Symbol & option details
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  optionType: text("option_type").$type<'call' | 'put'>().notNull(),
+  strikePrice: real("strike_price").notNull(),
+  expiryDate: varchar("expiry_date").notNull(), // ISO date string
+
+  // Pricing & flow details
+  entryPrice: real("entry_price").notNull(),
+  targetPrice: real("target_price").notNull(),
+  stopLoss: real("stop_loss").notNull(),
+  premiumPerContract: real("premium_per_contract").notNull(), // Total premium for this contract
+
+  // Whale classification
+  isMegaWhale: boolean("is_mega_whale").default(false), // $50k+ vs $10k+
+  flowSize: varchar("flow_size"), // 'whale' | 'mega_whale'
+
+  // Analysis
+  grade: varchar("grade", { length: 10 }), // A+, A, B, etc.
+  confidenceScore: integer("confidence_score"),
+  direction: text("direction").$type<'long' | 'short'>().notNull(),
+
+  // Tracking
+  detectedAt: timestamp("detected_at").defaultNow(),
+  outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'),
+  finalPnL: real("final_pnl"), // If we tracked outcome
+
+  // Discord notification
+  discordNotified: boolean("discord_notified").default(false),
+
+  // Link to trade idea if created
+  tradeIdeaId: varchar("trade_idea_id"),
+}, (table) => [
+  index("idx_whale_flows_symbol").on(table.symbol),
+  index("idx_whale_flows_detected_at").on(table.detectedAt),
+  index("idx_whale_flows_is_mega").on(table.isMegaWhale),
+  index("idx_whale_flows_status").on(table.outcomeStatus),
+]);
+
+export const insertWhaleFlowSchema = createInsertSchema(whaleFlows).omit({
+  id: true,
+  detectedAt: true
+});
+export type InsertWhaleFlow = z.infer<typeof insertWhaleFlowSchema>;
+export type WhaleFlow = typeof whaleFlows.$inferSelect;

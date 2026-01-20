@@ -104,9 +104,11 @@ import type {
   UserNavigationLayout,
   InsertUserNavigationLayout,
   NavigationLayoutType,
+  WhaleFlow,
+  InsertWhaleFlow,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
   marketData as marketDataTable,
@@ -155,6 +157,7 @@ import {
   watchlistHistory,
   symbolNotes,
   userNavigationLayouts,
+  whaleFlows,
 } from "@shared/schema";
 
 // ========================================
@@ -385,6 +388,15 @@ export interface IStorage {
   createSymbolNote(note: InsertSymbolNote): Promise<SymbolNote>;
   updateSymbolNote(id: string, updates: Partial<SymbolNote>): Promise<SymbolNote | undefined>;
   deleteSymbolNote(id: string): Promise<boolean>;
+
+  // Whale Flows (Institutional options tracking)
+  getAllWhaleFlows(days?: number): Promise<WhaleFlow[]>;
+  getWhaleFlowById(id: string): Promise<WhaleFlow | undefined>;
+  getWhaleFlowsBySymbol(symbol: string, days?: number): Promise<WhaleFlow[]>;
+  createWhaleFlow(flow: InsertWhaleFlow): Promise<WhaleFlow>;
+  updateWhaleFlowOutcome(id: string, updates: { outcomeStatus: OutcomeStatus; finalPnL?: number }): Promise<WhaleFlow | undefined>;
+  getRecentWhaleFlows(limit?: number): Promise<WhaleFlow[]>;
+  getMegaWhaleFlows(days?: number): Promise<WhaleFlow[]>;
 
   // Research History (Year-long learning tracking)
   getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]>;
@@ -1275,6 +1287,78 @@ export class MemStorage implements IStorage {
     return Array.from(this.tradeIdeas.values());
   }
 
+  // MEMORY-OPTIMIZED: Get only ACTIVE/RELEVANT trade ideas
+  // Filters out expired, exited, and stale trades to keep Trade Desk clean
+  async getRecentTradeIdeas(hoursBack: number = 24, limit: number = 1000): Promise<TradeIdea[]> {
+    const cutoffTime = Date.now() - (hoursBack * 60 * 60 * 1000);
+    const now = Date.now();
+    const recent: TradeIdea[] = [];
+
+    for (const idea of this.tradeIdeas.values()) {
+      const createdAt = new Date(idea.timestamp).getTime();
+
+      // Skip if too old
+      if (createdAt < cutoffTime) continue;
+
+      // Skip if already exited/closed
+      if (idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed') {
+        continue;
+      }
+
+      // Skip if expired (for options)
+      if (idea.expiryDate) {
+        const expiryTime = new Date(idea.expiryDate).getTime();
+        if (expiryTime < now) continue; // Expired
+      }
+
+      recent.push(idea);
+
+      // Stop if we hit the limit (prevent loading everything)
+      if (recent.length >= limit) break;
+    }
+
+    return recent.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  // AUTO-CLEANUP: Remove stale trades to free memory
+  async cleanupStaleTradeIdeas(): Promise<number> {
+    const RETENTION_DAYS = 7; // Keep closed/won/lost trades for 7 days
+    const STALE_HOURS = 72; // Remove open trades older than 72 hours
+    const cutoffClosed = Date.now() - (RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const cutoffStale = Date.now() - (STALE_HOURS * 60 * 60 * 1000);
+    let deletedCount = 0;
+
+    for (const [id, idea] of this.tradeIdeas.entries()) {
+      const createdAt = new Date(idea.timestamp).getTime();
+      const isClosed = idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed';
+
+      // Delete old closed trades
+      if (isClosed && createdAt < cutoffClosed) {
+        this.tradeIdeas.delete(id);
+        deletedCount++;
+        continue;
+      }
+
+      // Delete stale open trades (no activity for 72 hours)
+      if (!isClosed && createdAt < cutoffStale) {
+        this.tradeIdeas.delete(id);
+        deletedCount++;
+        continue;
+      }
+
+      // Delete expired options
+      if (idea.expiryDate) {
+        const expiryTime = new Date(idea.expiryDate).getTime();
+        if (expiryTime < Date.now() - (24 * 60 * 60 * 1000)) { // 1 day after expiry
+          this.tradeIdeas.delete(id);
+          deletedCount++;
+        }
+      }
+    }
+
+    return deletedCount;
+  }
+
   async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
     return this.tradeIdeas.get(id);
   }
@@ -1936,8 +2020,32 @@ export class MemStorage implements IStorage {
   }
 
   async getTradeIdeasForUser(_userId: string): Promise<TradeIdea[]> {
-    // In MemStorage, return all ideas (no filtering)
-    return Array.from(this.tradeIdeas.values());
+    // In MemStorage, filter to recent and active trades only
+    const now = Date.now();
+    const cutoffTime = now - (24 * 60 * 60 * 1000); // Last 24 hours
+
+    return Array.from(this.tradeIdeas.values())
+      .filter(idea => {
+        const createdAt = new Date(idea.timestamp).getTime();
+
+        // Only recent trades
+        if (createdAt < cutoffTime) return false;
+
+        // Skip closed trades
+        if (idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed') {
+          return false;
+        }
+
+        // Skip expired options
+        if (idea.expiryDate) {
+          const expiryTime = new Date(idea.expiryDate).getTime();
+          if (expiryTime < now) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 1000); // Safety limit
   }
 
   // Active Trades (stub - not persisted in MemStorage)
@@ -2910,6 +3018,69 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  // Whale Flows Methods
+  async getAllWhaleFlows(days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(gte(whaleFlows.detectedAt, cutoffStr))
+      .orderBy(desc(whaleFlows.detectedAt));
+  }
+
+  async getWhaleFlowById(id: string): Promise<WhaleFlow | undefined> {
+    const [flow] = await db.select().from(whaleFlows)
+      .where(eq(whaleFlows.id, id))
+      .limit(1);
+    return flow;
+  }
+
+  async getWhaleFlowsBySymbol(symbol: string, days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(and(
+        eq(whaleFlows.symbol, symbol.toUpperCase()),
+        gte(whaleFlows.detectedAt, cutoffStr)
+      ))
+      .orderBy(desc(whaleFlows.detectedAt));
+  }
+
+  async createWhaleFlow(flow: InsertWhaleFlow): Promise<WhaleFlow> {
+    const [created] = await db.insert(whaleFlows).values(flow).returning();
+    return created;
+  }
+
+  async updateWhaleFlowOutcome(id: string, updates: { outcomeStatus: OutcomeStatus; finalPnL?: number }): Promise<WhaleFlow | undefined> {
+    const [updated] = await db.update(whaleFlows)
+      .set(updates)
+      .where(eq(whaleFlows.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getRecentWhaleFlows(limit: number = 20): Promise<WhaleFlow[]> {
+    return await db.select().from(whaleFlows)
+      .orderBy(desc(whaleFlows.detectedAt))
+      .limit(limit);
+  }
+
+  async getMegaWhaleFlows(days: number = 30): Promise<WhaleFlow[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffStr = cutoffDate.toISOString();
+
+    return await db.select().from(whaleFlows)
+      .where(and(
+        eq(whaleFlows.isMegaWhale, true),
+        gte(whaleFlows.detectedAt, cutoffStr)
+      ))
+      .orderBy(desc(whaleFlows.detectedAt));
+  }
+
   // Research History Methods
   async getResearchHistory(userId: string, filters?: { symbol?: string; year?: number; action?: string; limit?: number }): Promise<ResearchHistoryRecord[]> {
     const conditions = [eq(researchHistory.userId, userId)];
@@ -3323,13 +3494,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get system-generated ideas (userId is NULL) plus user's own ideas
+  // Filter out expired and closed trades to show only relevant active positions
   async getTradeIdeasForUser(userId: string): Promise<TradeIdea[]> {
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // Last 24 hours
+
     return await db.select().from(tradeIdeas)
-      .where(or(
-        isNull(tradeIdeas.userId),  // System-generated ideas
-        eq(tradeIdeas.userId, userId)  // User's own ideas
+      .where(and(
+        or(
+          isNull(tradeIdeas.userId),  // System-generated ideas
+          eq(tradeIdeas.userId, userId)  // User's own ideas
+        ),
+        // Filter out closed trades
+        not(or(
+          eq(tradeIdeas.outcomeStatus, 'won'),
+          eq(tradeIdeas.outcomeStatus, 'lost'),
+          eq(tradeIdeas.outcomeStatus, 'closed')
+        )),
+        // Filter out expired options (expiryDate < now)
+        or(
+          isNull(tradeIdeas.expiryDate),  // Not an option, or no expiry set
+          gte(tradeIdeas.expiryDate, now.toISOString())  // Not yet expired
+        ),
+        // Only recent trades (last 24 hours)
+        gte(tradeIdeas.timestamp, cutoffTime.toISOString())
       ))
-      .orderBy(desc(tradeIdeas.timestamp));
+      .orderBy(desc(tradeIdeas.timestamp))
+      .limit(1000); // Safety limit
   }
 
   // Active Trades (Live Position Tracking)

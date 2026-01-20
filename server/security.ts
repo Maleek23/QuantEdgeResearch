@@ -1,11 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
 
 export function securityHeaders(req: Request, res: Response, next: NextFunction) {
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // Only enable HSTS in production to prevent localhost access issues
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   
   res.setHeader('X-Content-Type-Options', 'nosniff');
   
-  res.setHeader('X-Frame-Options', 'DENY');
+  // Removed X-Frame-Options to allow Replit framing (handled by CSP frame-ancestors)
   
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
@@ -20,7 +23,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
       "connect-src 'self' wss: https:",
-      "frame-ancestors 'none'",
+      "frame-ancestors 'self' https://*.replit.com https://replit.com",
       "base-uri 'self'",
       "form-action 'self'",
     ].join('; ')
