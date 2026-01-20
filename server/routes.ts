@@ -3766,6 +3766,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  app.get("/api/quotes/batch/:symbols", async (req, res) => {
+    try {
+      const { symbols } = req.params;
+      if (!symbols) {
+        return res.status(400).json({ error: "Symbols required" });
+      }
+      
+      const symbolList = symbols.split(",").filter(s => s.length > 0 && s.length <= 10).slice(0, 50);
+      if (symbolList.length === 0) {
+        return res.json({ quotes: {} });
+      }
+      
+      const { fetchTradierQuotes } = await import("./market-data-service");
+      const quotesData = await fetchTradierQuotes(symbolList);
+      
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number }> = {};
+      for (const symbol of symbolList) {
+        const q = quotesData[symbol];
+        if (q && q.last) {
+          quotes[symbol] = {
+            symbol,
+            price: q.last,
+            change: q.change || 0,
+            changePercent: q.change_percentage || 0,
+            volume: q.volume || 0
+          };
+        }
+      }
+      
+      res.json({ quotes });
+    } catch (error) {
+      logger.error("Error fetching batch quotes:", error);
+      res.status(500).json({ error: "Failed to fetch batch quotes" });
+    }
+  });
+
   // Real-time WebSocket status endpoint
   app.get("/api/realtime-status", async (req, res) => {
     try {
@@ -19751,6 +19788,121 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error refreshing WSB trending", { error });
       res.status(500).json({ error: "Failed to refresh WSB trending data" });
+    }
+  });
+
+  // Feed social trending stocks to Trade Desk
+  app.post("/api/automations/social-trends/feed-to-trade-desk", isAuthenticated, async (req, res) => {
+    try {
+      const { symbols, minMentions = 20, sentimentFilter = 'bullish' } = req.body;
+      
+      const { fetchWSBTrending, getWSBTrending } = await import("./social-sentiment-scanner");
+      const { generateUniversalIdea, IdeaSignal } = await import("./universal-idea-generator");
+      const { fetchTradierQuotes } = await import("./market-data-service");
+      
+      // Get trending data
+      let trendingData = getWSBTrending();
+      if (trendingData.length === 0) {
+        trendingData = await fetchWSBTrending();
+      }
+      
+      // Filter by provided symbols or use top trending
+      let stocksToProcess = trendingData;
+      if (symbols && Array.isArray(symbols) && symbols.length > 0) {
+        stocksToProcess = trendingData.filter(t => symbols.includes(t.symbol));
+      } else {
+        stocksToProcess = trendingData
+          .filter(t => t.mentionCount >= minMentions)
+          .filter(t => sentimentFilter === 'all' || t.sentiment === sentimentFilter)
+          .slice(0, 20);
+      }
+      
+      if (stocksToProcess.length === 0) {
+        return res.json({ success: true, message: "No stocks matching criteria", ideasCreated: 0 });
+      }
+      
+      // Fetch quotes for valid symbols
+      const validSymbols = stocksToProcess.map(s => s.symbol).filter(s => !s.includes('/') && s.length <= 5);
+      const quotes = await fetchTradierQuotes(validSymbols);
+      
+      let ideasCreated = 0;
+      const results: any[] = [];
+      
+      for (const stock of stocksToProcess) {
+        try {
+          const quote = quotes[stock.symbol];
+          if (!quote || !quote.last || quote.last <= 0) continue;
+          
+          // Build signals based on social data
+          const signals: IdeaSignal[] = [
+            {
+              type: 'TRENDING_TICKER',
+              weight: Math.min(15, Math.floor(stock.mentionCount / 10)),
+              description: `${stock.mentionCount} mentions on Reddit/WSB`
+            }
+          ];
+          
+          if (stock.sentiment === 'bullish' && stock.sentimentScore > 50) {
+            signals.push({
+              type: 'SENTIMENT_BULLISH',
+              weight: Math.min(12, Math.floor(stock.sentimentScore / 10)),
+              description: `Strong bullish sentiment (${stock.sentimentScore}%)`
+            });
+          }
+          
+          if (stock.mentionCount >= 50) {
+            signals.push({
+              type: 'HIGH_ENGAGEMENT',
+              weight: 8,
+              description: 'High social engagement (50+ mentions)'
+            });
+          }
+          
+          // Skip if not enough signal strength
+          if (signals.reduce((sum, s) => sum + s.weight, 0) < 15) continue;
+          
+          const result = await generateUniversalIdea({
+            symbol: stock.symbol,
+            source: 'social_sentiment',
+            assetType: 'stock',
+            direction: stock.sentiment === 'bearish' ? 'bearish' : 'bullish',
+            currentPrice: quote.last,
+            signals,
+            sourceMetadata: {
+              mentionCount: stock.mentionCount,
+              sentimentScore: stock.sentimentScore
+            },
+            holdingPeriod: 'day',
+            catalyst: `Trending on Reddit/WSB with ${stock.mentionCount} mentions`,
+            analysis: `Social sentiment ${stock.sentiment} with score ${stock.sentimentScore}. ${stock.change24h > 0 ? '+' : ''}${stock.change24h.toFixed(1)}% 24h change.`
+          });
+          
+          if (result.success && result.idea) {
+            ideasCreated++;
+            results.push({
+              symbol: stock.symbol,
+              grade: result.idea.grade,
+              confidence: result.idea.confidenceScore,
+              id: result.idea.id
+            });
+          }
+        } catch (err) {
+          logger.warn(`[SOCIAL-FEED] Failed to create idea for ${stock.symbol}`, { error: err });
+        }
+      }
+      
+      logger.info(`[SOCIAL-FEED] Created ${ideasCreated} trade ideas from social trends`);
+      
+      res.json({
+        success: true,
+        ideasCreated,
+        processed: stocksToProcess.length,
+        results,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error("Error feeding social trends to Trade Desk", { error });
+      res.status(500).json({ error: "Failed to feed social trends to Trade Desk" });
     }
   });
 
