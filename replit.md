@@ -20,6 +20,20 @@ Two core analytical engines drive the platform:
 1.  **AI Engine**: Integrates Anthropic Claude, OpenAI GPT, and Google Gemini for advanced market analysis.
 2.  **Quantitative Engine**: Executes strategies such as RSI(2) Mean Reversion, VWAP Institutional Flow, Volume Spike Early Entry, and ADX Regime Filtering.
 
+**Multi-LLM Validation Layer** (server/multi-llm-validation.ts):
+- Validates trade ideas using Claude, GPT, Gemini in parallel
+- Consensus-based approval requiring majority agreement
+- Individual timeouts per provider with Promise.allSettled (no dropped results)
+- Zero-provider case defaults to REJECT for safety
+- Optional free Groq integration (14,400 req/day - requires GROQ_API_KEY)
+- API: GET /api/validation/status, POST /api/validation/validate, POST /api/validation/quick
+
+**WSB/Reddit Trending Integration** (server/social-sentiment-scanner.ts):
+- Fetches 100+ trending stocks from ApeWisdom API
+- Real-time mention counts and sentiment scores
+- Auto-expands watchlist with top 30 discovered tickers
+- API: GET /api/automations/wsb-trending
+
 The UI/UX adopts a "Tech-Minimalist" design inspired by institutional trading interfaces, prioritizing dark mode, a specific color palette (slate, cyan, green, red, amber, purple, blue), glassmorphism-inspired components, and a clear typography hierarchy using Inter and JetBrains Mono.
 
 Key features and architectural decisions include:
