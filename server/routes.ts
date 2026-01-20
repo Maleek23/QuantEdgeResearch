@@ -4971,7 +4971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(deduplicatedIdeas);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch trade ideas" });
+      logger.error("[TRADE-IDEAS] Error fetching trade ideas:", error);
+      res.status(500).json({ error: "Failed to fetch trade ideas", details: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
