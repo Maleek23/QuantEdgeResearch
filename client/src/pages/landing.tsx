@@ -145,7 +145,7 @@ export default function Landing() {
                   </Button>
                 </Link>
               ) : (
-                <Link href="/auth">
+                <Link href="/login">
                   <Button size="sm" variant="outline" data-testid="button-login">
                     Sign In
                   </Button>
