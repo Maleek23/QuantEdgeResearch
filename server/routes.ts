@@ -19377,6 +19377,78 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================================================
+  // WHALE FLOW ENDPOINTS - Track large institutional options flow & directionality
+  // ============================================================================
+
+  // Get whale flow for today or specific date range
+  app.get("/api/whale-flow", async (req, res) => {
+    try {
+      const { getWhaleFlows } = await import("./whale-flow-service");
+      const { symbol, startDate, endDate, minPremium, limit } = req.query;
+      
+      const flows = await getWhaleFlows({
+        symbol: symbol as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+        minPremium: minPremium ? parseInt(minPremium as string) : undefined,
+        limit: limit ? parseInt(limit as string) : 100,
+      });
+      
+      res.json({ success: true, flows });
+    } catch (error) {
+      logger.error("Error fetching whale flow", { error });
+      res.status(500).json({ error: "Failed to fetch whale flow" });
+    }
+  });
+
+  // Get directionality for a specific symbol
+  app.get("/api/whale-flow/symbol/:symbol", async (req, res) => {
+    try {
+      const { getSymbolDirectionality } = await import("./whale-flow-service");
+      const { symbol } = req.params;
+      const { date } = req.query;
+      
+      const directionality = await getSymbolDirectionality(symbol, date as string);
+      
+      if (!directionality) {
+        res.json({ success: true, data: null, message: "No whale activity for this symbol today" });
+        return;
+      }
+      
+      res.json({ success: true, data: directionality });
+    } catch (error) {
+      logger.error(`Error fetching directionality for ${req.params.symbol}`, { error });
+      res.status(500).json({ error: "Failed to fetch symbol directionality" });
+    }
+  });
+
+  // Get overall market directionality from whale flow
+  app.get("/api/whale-flow/market", async (req, res) => {
+    try {
+      const { getMarketDirectionality } = await import("./whale-flow-service");
+      const { date } = req.query;
+      
+      const directionality = await getMarketDirectionality(date as string);
+      res.json({ success: true, data: directionality });
+    } catch (error) {
+      logger.error("Error fetching market directionality", { error });
+      res.status(500).json({ error: "Failed to fetch market directionality" });
+    }
+  });
+
+  // Get whale flow stats for dashboard
+  app.get("/api/whale-flow/stats", async (req, res) => {
+    try {
+      const { getWhaleFlowStats } = await import("./whale-flow-service");
+      const stats = await getWhaleFlowStats();
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      logger.error("Error fetching whale flow stats", { error });
+      res.status(500).json({ error: "Failed to fetch whale flow stats" });
+    }
+  });
+
   // Social Sentiment Scanner endpoints
   app.get("/api/automations/social-sentiment/status", async (_req, res) => {
     try {
