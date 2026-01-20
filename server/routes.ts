@@ -19714,6 +19714,45 @@ Use this checklist before entering any trade:
     }
   });
 
+  // WSB-specific trending endpoint - fetches LIVE data from Reddit/WSB
+  app.get("/api/automations/wsb-trending", async (_req, res) => {
+    try {
+      const { fetchWSBTrending, getWSBTrending } = await import("./social-sentiment-scanner");
+      // Try to get cached data first, or fetch fresh
+      let wsbData = getWSBTrending();
+      if (wsbData.length === 0) {
+        wsbData = await fetchWSBTrending();
+      }
+      res.json({
+        success: true,
+        count: wsbData.length,
+        lastUpdated: new Date().toISOString(),
+        trending: wsbData.slice(0, 50),
+        sources: ['tradestie', 'apewisdom']
+      });
+    } catch (error) {
+      logger.error("Error getting WSB trending", { error });
+      res.status(500).json({ error: "Failed to get WSB trending data" });
+    }
+  });
+
+  // Force refresh WSB trending data
+  app.post("/api/automations/wsb-trending/refresh", requireAdminJWT, async (_req, res) => {
+    try {
+      const { fetchWSBTrending } = await import("./social-sentiment-scanner");
+      const wsbData = await fetchWSBTrending();
+      res.json({
+        success: true,
+        count: wsbData.length,
+        refreshedAt: new Date().toISOString(),
+        trending: wsbData.slice(0, 50)
+      });
+    } catch (error) {
+      logger.error("Error refreshing WSB trending", { error });
+      res.status(500).json({ error: "Failed to refresh WSB trending data" });
+    }
+  });
+
   app.get("/api/automations/social-sentiment/mentions", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
@@ -19746,6 +19785,52 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error updating social sentiment settings", { error });
       res.status(500).json({ error: "Failed to update social sentiment settings" });
+    }
+  });
+
+  // Multi-LLM Validation Service endpoints
+  app.get("/api/validation/status", async (_req, res) => {
+    try {
+      const { getValidationServiceStatus } = await import("./multi-llm-validation");
+      const status = getValidationServiceStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting validation service status", { error });
+      res.status(500).json({ error: "Failed to get validation service status" });
+    }
+  });
+
+  app.post("/api/validation/validate", requireAdminJWT, async (req, res) => {
+    try {
+      const { validateTradeWithConsensus } = await import("./multi-llm-validation");
+      const { idea, marketContext, options } = req.body;
+      
+      if (!idea || !idea.symbol) {
+        return res.status(400).json({ error: "Trade idea with symbol is required" });
+      }
+      
+      const result = await validateTradeWithConsensus(idea, marketContext || '', options || {});
+      res.json(result);
+    } catch (error) {
+      logger.error("Error validating trade", { error });
+      res.status(500).json({ error: "Failed to validate trade with LLMs" });
+    }
+  });
+
+  app.post("/api/validation/quick", requireAdminJWT, async (req, res) => {
+    try {
+      const { quickValidation } = await import("./multi-llm-validation");
+      const { idea, marketContext } = req.body;
+      
+      if (!idea || !idea.symbol) {
+        return res.status(400).json({ error: "Trade idea with symbol is required" });
+      }
+      
+      const result = await quickValidation(idea, marketContext || '');
+      res.json(result);
+    } catch (error) {
+      logger.error("Error in quick validation", { error });
+      res.status(500).json({ error: "Quick validation failed" });
     }
   });
 
