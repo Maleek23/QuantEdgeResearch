@@ -594,46 +594,7 @@ export default function BlogPostPage() {
     enabled: !!slug,
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="container mx-auto max-w-4xl">
-          <Skeleton className="h-8 w-32 mb-6" />
-          <Skeleton className="h-64 w-full rounded-lg mb-8" />
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-4 w-full" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !post) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="container mx-auto max-w-4xl text-center py-20">
-          <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            The article you're looking for doesn't exist or has been removed.
-          </p>
-          <Link href="/blog">
-            <Button variant="outline" className="border-slate-700" data-testid="button-back-to-blog">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Blog
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const isTradeGuide = slug === 'how-to-trade-like-a-pro';
-  const visual = getVisualForCategory(post.category);
-  const Icon = visual.icon;
-
-  // Inject JSON-LD structured data for SEO
+  // Inject JSON-LD structured data for SEO - MUST be before any conditional returns
   useEffect(() => {
     if (!post) return;
 
@@ -692,6 +653,45 @@ export default function BlogPostPage() {
       }
     };
   }, [post]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="container mx-auto max-w-4xl">
+          <Skeleton className="h-8 w-32 mb-6" />
+          <Skeleton className="h-64 w-full rounded-lg mb-8" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-4 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !post) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="container mx-auto max-w-4xl text-center py-20">
+          <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
+          <p className="text-muted-foreground mb-6">
+            The article you're looking for doesn't exist or has been removed.
+          </p>
+          <Link href="/blog">
+            <Button variant="outline" className="border-slate-700" data-testid="button-back-to-blog">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Blog
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isTradeGuide = slug === 'how-to-trade-like-a-pro';
+  const visual = getVisualForCategory(post.category);
+  const Icon = visual.icon;
 
   return (
     <div className="min-h-screen bg-background">
