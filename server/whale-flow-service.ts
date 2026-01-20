@@ -11,10 +11,10 @@ import { db } from './db';
 import { optionsFlowHistory } from '@shared/schema';
 import { eq, desc, gte, and, sql, between } from 'drizzle-orm';
 
-// Whale thresholds
-const WHALE_MIN_PREMIUM = 100000;  // $100k minimum for whale classification
-const MEGA_WHALE_PREMIUM = 500000; // $500k+ = mega whale (institutional block)
-const ULTRA_WHALE_PREMIUM = 1000000; // $1M+ = ultra whale (major institution)
+// Whale thresholds (lowered for educational purposes to capture more flow data)
+const WHALE_MIN_PREMIUM = 25000;   // $25k minimum for whale classification
+const MEGA_WHALE_PREMIUM = 100000; // $100k+ = mega whale (institutional block)
+const ULTRA_WHALE_PREMIUM = 500000; // $500k+ = ultra whale (major institution)
 
 export interface WhaleFlow {
   id: number | string;

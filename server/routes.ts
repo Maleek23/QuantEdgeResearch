@@ -4997,11 +4997,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent whale flows (for dashboard widget)
+  // Sources: 1) options_flow_history with $25k+ premium, 2) whale_flows table, 3) A/A+ trade ideas fallback
   app.get("/api/whale-flows/recent", requireBetaAccess, async (req: any, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
-      const flows = await storage.getRecentWhaleFlows(limit);
-      res.json(flows);
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      // Get flows from options_flow_history (scanner-detected flows with $25k+ premium)
+      const { getWhaleFlows } = await import("./whale-flow-service");
+      const optionsFlows = await getWhaleFlows({ minPremium: 25000, limit });
+      
+      // Also get from whale_flows table (trade idea derived flows)
+      const whaleFlowsData = await storage.getRecentWhaleFlows(limit);
+      
+      // Transform options flows to match expected format
+      const transformedFlows = optionsFlows.map((f: any) => ({
+        id: f.id.toString(),
+        symbol: f.symbol,
+        optionType: f.optionType,
+        strikePrice: f.strikePrice,
+        expiryDate: f.expirationDate,
+        premiumPerContract: f.totalPremium,
+        isMegaWhale: f.whaleSize === 'mega' || f.whaleSize === 'ultra',
+        confidenceScore: f.unusualScore || 70,
+        detectedAt: f.detectedAt,
+        flowType: f.flowType,
+        sentiment: f.sentiment,
+        dteCategory: f.dteCategory,
+      }));
+      
+      // Combine both sources, remove duplicates by symbol+strike+expiry
+      const seen = new Set<string>();
+      let allFlows = [...transformedFlows, ...whaleFlowsData.map(w => ({
+        ...w,
+        expiryDate: w.expiryDate,
+        premiumPerContract: w.premiumPerContract,
+      }))].filter(f => {
+        const key = `${f.symbol}-${f.strikePrice}-${f.expiryDate}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      
+      // Fallback: If no whale flows, show A/A+ grade trade ideas as "smart money" signals
+      if (allFlows.length === 0) {
+        const topIdeas = await storage.getAllTradeIdeas();
+        const highConvictionIdeas = topIdeas
+          .filter(i => ['A+', 'A', 'A-'].includes(i.probabilityBand || '') && 
+                       i.assetType === 'option' && 
+                       i.outcomeStatus === 'open')
+          .slice(0, limit)
+          .map(i => ({
+            id: i.id,
+            symbol: i.symbol,
+            optionType: i.optionType || 'call',
+            strikePrice: i.strikePrice || 0,
+            expiryDate: i.expiryDate || '',
+            premiumPerContract: (i.entryPrice || 0) * 100,
+            isMegaWhale: false,
+            confidenceScore: i.confidenceScore || 85,
+            detectedAt: i.timestamp,
+            flowType: 'smart_money_signal',
+            sentiment: i.direction === 'LONG' ? 'bullish' : 'bearish',
+            dteCategory: 'swing',
+            grade: i.probabilityBand,
+            source: 'high_conviction_idea',
+          }));
+        allFlows = highConvictionIdeas;
+      }
+      
+      // Sort by most recent and limit
+      const sorted = allFlows
+        .sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime())
+        .slice(0, limit);
+      
+      res.json(sorted);
     } catch (error) {
       logger.error("[API] Failed to fetch recent whale flows:", error);
       res.status(500).json({ error: "Failed to fetch recent whale flows" });

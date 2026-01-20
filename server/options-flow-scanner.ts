@@ -405,8 +405,9 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
       
       const today = new Date().toISOString().split('T')[0];
       
-      // Persist flows meeting quality criteria: premium >= $50k OR unusualScore >= 75
-      const flowsToSave = unusualFlows.filter(f => f.premium >= 50000 || f.unusualScore >= 75);
+      // Persist flows meeting quality criteria: premium >= $10k OR unusualScore >= 65
+      // Lowered from $50k/$75 to capture more educational flow data
+      const flowsToSave = unusualFlows.filter(f => f.premium >= 10000 || f.unusualScore >= 65);
       
       // Query existing flows for today to prevent duplicates
       const existingFlows = await db.select({
