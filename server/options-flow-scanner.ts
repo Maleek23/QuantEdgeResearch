@@ -162,6 +162,7 @@ let scannerStatus: ScannerStatus = {
 
 /**
  * Fetch options chain data from Tradier
+ * Gets expirations first, then fetches chains for each expiration
  */
 async function fetchOptionsChain(symbol: string): Promise<any[]> {
   try {
@@ -171,12 +172,9 @@ async function fetchOptionsChain(symbol: string): Promise<any[]> {
       return [];
     }
     
-    // Get current date and next month expiration
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    
-    const response = await fetch(
-      `https://api.tradier.com/v1/markets/options/chains?symbol=${symbol}&greeks=true`,
+    // Step 1: Get available expirations first (REQUIRED by Tradier)
+    const expResponse = await fetch(
+      `https://api.tradier.com/v1/markets/options/expirations?symbol=${symbol}`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -185,12 +183,44 @@ async function fetchOptionsChain(symbol: string): Promise<any[]> {
       }
     );
     
-    if (!response.ok) {
-      throw new Error(`Tradier API error: ${response.status}`);
+    if (!expResponse.ok) {
+      logger.warn(`[OPTIONS-FLOW] Failed to get expirations for ${symbol}: ${expResponse.status}`);
+      return [];
     }
     
-    const data = await response.json();
-    return data.options?.option || [];
+    const expData = await expResponse.json();
+    const expirations: string[] = expData.expirations?.date || [];
+    
+    if (expirations.length === 0) {
+      return [];
+    }
+    
+    // Step 2: Get next 4 expirations to capture near-term flow
+    const nearTermExpirations = expirations.slice(0, 4);
+    const allOptions: any[] = [];
+    
+    for (const expiration of nearTermExpirations) {
+      const response = await fetch(
+        `https://api.tradier.com/v1/markets/options/chains?symbol=${symbol}&expiration=${expiration}&greeks=true`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const options = data.options?.option || [];
+        allOptions.push(...options);
+      }
+      
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return allOptions;
   } catch (error) {
     logger.error(`[OPTIONS-FLOW] Error fetching options chain for ${symbol}:`, error);
     return [];
