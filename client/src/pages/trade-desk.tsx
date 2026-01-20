@@ -720,11 +720,14 @@ export default function TradeDeskPage() {
   // Memoize market status to avoid recalculating on every render
   const marketStatus = useMemo(() => getMarketStatus(), []);
 
-  const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
+  const { data: tradeIdeas = [], isLoading: ideasLoading, isError: ideasError, error: ideasErrorDetails } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
     refetchInterval: 5000, // FAST UPDATE: 5s for active trading
     staleTime: 2000,
   });
+  
+  // Check if error is authentication related
+  const isAuthError = ideasError && (ideasErrorDetails?.message?.includes('401') || ideasErrorDetails?.message?.includes('Authentication'));
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -2012,12 +2015,28 @@ export default function TradeDeskPage() {
         {/* Loading State */}
         {ideasLoading ? (
           <TerminalLoading message="Fetching research briefs..." />
+        ) : isAuthError ? (
+          <div className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-4">
+              Please log in to view research briefs and trade ideas.
+            </p>
+            <Button
+              onClick={() => window.location.href = '/login'}
+              data-testid="button-login-prompt"
+            >
+              Log In
+            </Button>
+          </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
           <div className="py-16 text-center">
             <h3 className="text-lg font-semibold mb-2">No Research Briefs Found</h3>
             <p className="text-muted-foreground max-w-md mx-auto mb-4">
               {tradeIdeas.length === 0 
-                ? "Generate research briefs using the toolbar above."
+                ? "The research engine is scanning markets. New briefs will appear automatically."
                 : "No briefs match your current filters."}
             </p>
             {statusFilter !== 'all' && tradeIdeas.length > 0 && (
