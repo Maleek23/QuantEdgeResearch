@@ -39,20 +39,17 @@ interface NavDropdownItem {
 }
 
 const aiStrategies: NavDropdownItem[] = [
-  { title: "Trade Desk", description: "AI-powered stock picks & earnings", href: "/trade-desk", icon: Brain },
-  { title: "Trading Engine", description: "Quantitative momentum plays", href: "/trading-engine", icon: Zap },
-  { title: "Market Scanner", description: "Intraday trading signals", href: "/market-scanner", icon: Activity },
+  { title: "Trade Desk", description: "6-engine AI research briefs & trade ideas", href: "/trade-desk", icon: Brain },
+  { title: "Market Scanner", description: "Intraday & momentum signals", href: "/market-scanner", icon: Activity },
   { title: "Chart Analysis", description: "Pattern recognition & TA", href: "/chart-analysis", icon: BarChart3 },
-  { title: "Bullish Trends", description: "Momentum stock scanner", href: "/bullish-trends", icon: TrendingUp },
-  { title: "CT Tracker", description: "Crypto trading signals", href: "/ct-tracker", icon: Wallet },
+  { title: "CT Tracker", description: "Crypto sentiment & signals", href: "/ct-tracker", icon: Wallet },
 ];
 
 const products: NavDropdownItem[] = [
-  { title: "Command Center", description: "Unified trading hub", href: "/command-center", icon: Target },
   { title: "Automations", description: "Trading bots & alerts", href: "/automations", icon: Zap },
   { title: "Watchlist", description: "Track your favorite symbols", href: "/watchlist", icon: Eye },
-  { title: "Wallet Tracker", description: "Track whale & institution moves", href: "/wallet-tracker", icon: FileBarChart },
-  { title: "Options Analyzer", description: "Options flow analysis", href: "/options-analyzer", icon: BarChart3 },
+  { title: "Whale Flow", description: "Smart money & options flow", href: "/whale-flow", icon: TrendingUp },
+  { title: "Wallet Tracker", description: "Track whale wallets", href: "/wallet-tracker", icon: FileBarChart },
   { title: "Backtest", description: "Strategy backtesting", href: "/backtest", icon: Crosshair },
 ];
 
