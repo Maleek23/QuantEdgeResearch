@@ -1,20 +1,19 @@
 /**
- * Multi-LLM Validation Layer
+ * Multi-LLM Validation Layer (FREE PROVIDERS ONLY)
  * 
- * Uses multiple LLMs (Claude, GPT, Gemini + optional Groq) to validate
- * trade ideas through consensus analysis. This provides:
+ * Uses FREE LLM APIs to validate trade ideas through consensus analysis:
+ * - Gemini (Google AI Studio): 1M tokens/min FREE - Already configured!
+ * - Groq: 14,400 req/day FREE (requires GROQ_API_KEY)
+ * - OpenRouter: 200 req/day FREE (requires OPENROUTER_API_KEY)
+ * - SambaNova: Generous free tier (requires SAMBANOVA_API_KEY)
+ * 
+ * Benefits:
+ * - Zero cost for trade validation
  * - Reduced false positives through cross-validation
- * - More robust analysis by combining strengths of different models
- * - Fallback resilience if one provider is unavailable
- * 
- * FREE LLM OPTIONS:
- * - Groq: 14,400 req/day free (requires GROQ_API_KEY)
- * - Mistral: 1B tokens/month free (requires MISTRAL_API_KEY)
- * - We already have: Claude, GPT, Gemini configured
+ * - Multiple provider resilience
  */
 
 import { logger } from './logger';
-import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 
@@ -41,6 +40,7 @@ interface ValidationResult {
     confidenceAdjustment?: number;
   };
   responseTime: number;
+  isFree: boolean;
 }
 
 interface ConsensusResult {
@@ -53,34 +53,14 @@ interface ConsensusResult {
   warnings: string[];
   adjustedConfidence: number;
   validationTimestamp: string;
+  costSavings: string;
 }
 
-// LLM Provider configuration
-interface LLMProvider {
-  name: string;
-  enabled: boolean;
-  validate: (idea: TradeIdea, marketContext: string) => Promise<ValidationResult>;
-}
-
-// Lazy-loaded clients
-let anthropicClient: Anthropic | null = null;
-let openaiClient: OpenAI | null = null;
+// Lazy-loaded clients (FREE PROVIDERS ONLY)
 let geminiClient: GoogleGenAI | null = null;
-let groqClient: OpenAI | null = null; // Groq uses OpenAI-compatible API
-
-function getAnthropicClient(): Anthropic | null {
-  if (!anthropicClient && process.env.ANTHROPIC_API_KEY) {
-    anthropicClient = new Anthropic();
-  }
-  return anthropicClient;
-}
-
-function getOpenAIClient(): OpenAI | null {
-  if (!openaiClient && process.env.OPENAI_API_KEY) {
-    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return openaiClient;
-}
+let groqClient: OpenAI | null = null;
+let openRouterClient: OpenAI | null = null;
+let sambanovaClient: OpenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI | null {
   if (!geminiClient && process.env.GEMINI_API_KEY) {
@@ -97,6 +77,26 @@ function getGroqClient(): OpenAI | null {
     });
   }
   return groqClient;
+}
+
+function getOpenRouterClient(): OpenAI | null {
+  if (!openRouterClient && process.env.OPENROUTER_API_KEY) {
+    openRouterClient = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: 'https://openrouter.ai/api/v1'
+    });
+  }
+  return openRouterClient;
+}
+
+function getSambanovaClient(): OpenAI | null {
+  if (!sambanovaClient && process.env.SAMBANOVA_API_KEY) {
+    sambanovaClient = new OpenAI({
+      apiKey: process.env.SAMBANOVA_API_KEY,
+      baseURL: 'https://api.sambanova.ai/v1'
+    });
+  }
+  return sambanovaClient;
 }
 
 // Validation prompt template
@@ -138,124 +138,7 @@ Respond in JSON format:
 }`;
 }
 
-// Claude validation
-async function validateWithClaude(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
-  const startTime = Date.now();
-  const client = getAnthropicClient();
-  
-  if (!client) {
-    return {
-      provider: 'claude',
-      approved: true, // Default approve if unavailable
-      confidence: idea.confidenceScore,
-      reasoning: 'Claude unavailable - skipped validation',
-      warnings: ['Anthropic API not configured'],
-      responseTime: 0
-    };
-  }
-
-  try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: createValidationPrompt(idea, marketContext)
-      }]
-    });
-
-    const content = response.content[0];
-    const text = content.type === 'text' ? content.text : '';
-    
-    // Parse JSON response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        provider: 'claude',
-        approved: parsed.approved ?? true,
-        confidence: parsed.confidence ?? idea.confidenceScore,
-        reasoning: parsed.reasoning ?? 'Validated',
-        warnings: parsed.warnings ?? [],
-        suggestedAdjustments: parsed.suggestedAdjustments,
-        responseTime: Date.now() - startTime
-      };
-    }
-    
-    return {
-      provider: 'claude',
-      approved: true,
-      confidence: idea.confidenceScore,
-      reasoning: 'Could not parse validation response',
-      warnings: [],
-      responseTime: Date.now() - startTime
-    };
-  } catch (error) {
-    logger.error('[MULTI-LLM] Claude validation error:', error);
-    return {
-      provider: 'claude',
-      approved: true,
-      confidence: idea.confidenceScore,
-      reasoning: 'Claude validation failed - defaulting to approve',
-      warnings: ['Validation error'],
-      responseTime: Date.now() - startTime
-    };
-  }
-}
-
-// GPT validation
-async function validateWithGPT(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
-  const startTime = Date.now();
-  const client = getOpenAIClient();
-  
-  if (!client) {
-    return {
-      provider: 'gpt',
-      approved: true,
-      confidence: idea.confidenceScore,
-      reasoning: 'GPT unavailable - skipped validation',
-      warnings: ['OpenAI API not configured'],
-      responseTime: 0
-    };
-  }
-
-  try {
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: createValidationPrompt(idea, marketContext)
-      }],
-      response_format: { type: 'json_object' }
-    });
-
-    const text = response.choices[0]?.message?.content || '';
-    const parsed = JSON.parse(text);
-    
-    return {
-      provider: 'gpt',
-      approved: parsed.approved ?? true,
-      confidence: parsed.confidence ?? idea.confidenceScore,
-      reasoning: parsed.reasoning ?? 'Validated',
-      warnings: parsed.warnings ?? [],
-      suggestedAdjustments: parsed.suggestedAdjustments,
-      responseTime: Date.now() - startTime
-    };
-  } catch (error) {
-    logger.error('[MULTI-LLM] GPT validation error:', error);
-    return {
-      provider: 'gpt',
-      approved: true,
-      confidence: idea.confidenceScore,
-      reasoning: 'GPT validation failed - defaulting to approve',
-      warnings: ['Validation error'],
-      responseTime: Date.now() - startTime
-    };
-  }
-}
-
-// Gemini validation
+// Gemini validation (FREE - 1M tokens/min)
 async function validateWithGemini(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
   const startTime = Date.now();
   const client = getGeminiClient();
@@ -267,7 +150,8 @@ async function validateWithGemini(idea: TradeIdea, marketContext: string): Promi
       confidence: idea.confidenceScore,
       reasoning: 'Gemini unavailable - skipped validation',
       warnings: ['Gemini API not configured'],
-      responseTime: 0
+      responseTime: 0,
+      isFree: true
     };
   }
 
@@ -286,10 +170,11 @@ async function validateWithGemini(idea: TradeIdea, marketContext: string): Promi
         provider: 'gemini',
         approved: parsed.approved ?? true,
         confidence: parsed.confidence ?? idea.confidenceScore,
-        reasoning: parsed.reasoning ?? 'Validated',
+        reasoning: parsed.reasoning ?? 'Validated (FREE)',
         warnings: parsed.warnings ?? [],
         suggestedAdjustments: parsed.suggestedAdjustments,
-        responseTime: Date.now() - startTime
+        responseTime: Date.now() - startTime,
+        isFree: true
       };
     }
     
@@ -299,7 +184,8 @@ async function validateWithGemini(idea: TradeIdea, marketContext: string): Promi
       confidence: idea.confidenceScore,
       reasoning: 'Could not parse Gemini response',
       warnings: [],
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      isFree: true
     };
   } catch (error) {
     logger.error('[MULTI-LLM] Gemini validation error:', error);
@@ -309,7 +195,8 @@ async function validateWithGemini(idea: TradeIdea, marketContext: string): Promi
       confidence: idea.confidenceScore,
       reasoning: 'Gemini validation failed - defaulting to approve',
       warnings: ['Validation error'],
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      isFree: true
     };
   }
 }
@@ -326,7 +213,8 @@ async function validateWithGroq(idea: TradeIdea, marketContext: string): Promise
       confidence: idea.confidenceScore,
       reasoning: 'Groq unavailable - add GROQ_API_KEY for free LLM validation',
       warnings: ['Groq API not configured - get free key at groq.com'],
-      responseTime: 0
+      responseTime: 0,
+      isFree: true
     };
   }
 
@@ -349,10 +237,11 @@ async function validateWithGroq(idea: TradeIdea, marketContext: string): Promise
         provider: 'groq',
         approved: parsed.approved ?? true,
         confidence: parsed.confidence ?? idea.confidenceScore,
-        reasoning: parsed.reasoning ?? 'Validated via Groq (free)',
+        reasoning: parsed.reasoning ?? 'Validated via Groq (FREE)',
         warnings: parsed.warnings ?? [],
         suggestedAdjustments: parsed.suggestedAdjustments,
-        responseTime: Date.now() - startTime
+        responseTime: Date.now() - startTime,
+        isFree: true
       };
     }
     
@@ -362,7 +251,8 @@ async function validateWithGroq(idea: TradeIdea, marketContext: string): Promise
       confidence: idea.confidenceScore,
       reasoning: 'Could not parse Groq response',
       warnings: [],
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      isFree: true
     };
   } catch (error) {
     logger.error('[MULTI-LLM] Groq validation error:', error);
@@ -372,7 +262,75 @@ async function validateWithGroq(idea: TradeIdea, marketContext: string): Promise
       confidence: idea.confidenceScore,
       reasoning: 'Groq validation failed - defaulting to approve',
       warnings: ['Groq validation error'],
-      responseTime: Date.now() - startTime
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  }
+}
+
+// OpenRouter validation (FREE - 200 requests/day with free models)
+async function validateWithOpenRouter(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
+  const startTime = Date.now();
+  const client = getOpenRouterClient();
+  
+  if (!client) {
+    return {
+      provider: 'openrouter',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'OpenRouter unavailable - add OPENROUTER_API_KEY for free LLM validation',
+      warnings: ['OpenRouter API not configured - get free key at openrouter.ai'],
+      responseTime: 0,
+      isFree: true
+    };
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: createValidationPrompt(idea, marketContext)
+      }]
+    });
+
+    const text = response.choices[0]?.message?.content || '';
+    
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        provider: 'openrouter',
+        approved: parsed.approved ?? true,
+        confidence: parsed.confidence ?? idea.confidenceScore,
+        reasoning: parsed.reasoning ?? 'Validated via OpenRouter (FREE)',
+        warnings: parsed.warnings ?? [],
+        suggestedAdjustments: parsed.suggestedAdjustments,
+        responseTime: Date.now() - startTime,
+        isFree: true
+      };
+    }
+    
+    return {
+      provider: 'openrouter',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Could not parse OpenRouter response',
+      warnings: [],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  } catch (error) {
+    logger.error('[MULTI-LLM] OpenRouter validation error:', error);
+    return {
+      provider: 'openrouter',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'OpenRouter validation failed - defaulting to approve',
+      warnings: ['OpenRouter validation error'],
+      responseTime: Date.now() - startTime,
+      isFree: true
     };
   }
 }
@@ -413,15 +371,16 @@ export async function validateTradeWithConsensus(
     confidence: 0,
     reasoning: 'Provider timed out',
     warnings: ['Provider timeout - validation incomplete'],
-    responseTime: 0
+    responseTime: 0,
+    isFree: true
   });
 
-  // Run all validations with individual timeouts
+  // Run all FREE validations with individual timeouts
+  // FREE PROVIDERS ONLY: Gemini, Groq, OpenRouter
   const validationPromises = [
-    wrapWithTimeout(validateWithClaude(idea, marketContext), timeout, timeoutFallback('claude')),
-    wrapWithTimeout(validateWithGPT(idea, marketContext), timeout, timeoutFallback('gpt')),
     wrapWithTimeout(validateWithGemini(idea, marketContext), timeout, timeoutFallback('gemini')),
-    wrapWithTimeout(validateWithGroq(idea, marketContext), timeout, timeoutFallback('groq'))
+    wrapWithTimeout(validateWithGroq(idea, marketContext), timeout, timeoutFallback('groq')),
+    wrapWithTimeout(validateWithOpenRouter(idea, marketContext), timeout, timeoutFallback('openrouter'))
   ];
 
   // Use Promise.allSettled to get all results (partial or complete)
@@ -476,7 +435,8 @@ export async function validateTradeWithConsensus(
     combinedReasoning,
     warnings: uniqueWarnings,
     adjustedConfidence: Math.round(avgConfidence),
-    validationTimestamp: new Date().toISOString()
+    validationTimestamp: new Date().toISOString(),
+    costSavings: `$0.00 (100% FREE - ${totalProviders} providers used)`
   };
 
   logger.info(`[MULTI-LLM] Consensus: ${approved ? 'APPROVED' : 'REJECTED'} (${approvedCount}/${totalProviders} providers, score: ${consensusScore}%)`);
@@ -485,18 +445,23 @@ export async function validateTradeWithConsensus(
 }
 
 /**
- * Quick validation using single fastest provider (Groq or Gemini)
- * Use this for high-volume, lower-stakes validations
+ * Quick validation using single fastest FREE provider (Groq or Gemini)
+ * Use this for high-volume, lower-stakes validations - 100% FREE
  */
 export async function quickValidation(idea: TradeIdea, marketContext: string = ''): Promise<ValidationResult> {
-  // Try Groq first (free + fastest)
+  // Try Groq first (free + fastest - 14,400 req/day)
   if (process.env.GROQ_API_KEY) {
     return validateWithGroq(idea, marketContext);
   }
   
-  // Fall back to Gemini (usually fast)
+  // Fall back to Gemini (free - 1M tokens/min)
   if (process.env.GEMINI_API_KEY) {
     return validateWithGemini(idea, marketContext);
+  }
+
+  // Try OpenRouter (free - 200 req/day)
+  if (process.env.OPENROUTER_API_KEY) {
+    return validateWithOpenRouter(idea, marketContext);
   }
   
   // Default approve if no providers available
@@ -504,37 +469,43 @@ export async function quickValidation(idea: TradeIdea, marketContext: string = '
     provider: 'none',
     approved: true,
     confidence: idea.confidenceScore,
-    reasoning: 'No validation providers configured',
-    warnings: ['Add GROQ_API_KEY or GEMINI_API_KEY for trade validation'],
-    responseTime: 0
+    reasoning: 'No FREE validation providers configured',
+    warnings: ['Add GROQ_API_KEY (14,400/day), GEMINI_API_KEY (1M tokens/min), or OPENROUTER_API_KEY (200/day) for free validation'],
+    responseTime: 0,
+    isFree: true
   };
 }
 
 /**
- * Get validation service status
+ * Get validation service status (FREE PROVIDERS ONLY)
  */
 export function getValidationServiceStatus(): {
-  providers: { name: string; available: boolean }[];
+  providers: { name: string; available: boolean; freeLimit: string }[];
   totalAvailable: number;
   recommendedProviders: string[];
+  totalCost: string;
 } {
   const providers = [
-    { name: 'Claude (Anthropic)', available: !!process.env.ANTHROPIC_API_KEY },
-    { name: 'GPT (OpenAI)', available: !!process.env.OPENAI_API_KEY },
-    { name: 'Gemini (Google)', available: !!process.env.GEMINI_API_KEY },
-    { name: 'Groq (FREE)', available: !!process.env.GROQ_API_KEY }
+    { name: 'Gemini (Google)', available: !!process.env.GEMINI_API_KEY, freeLimit: '1M tokens/min' },
+    { name: 'Groq (Llama 3.3)', available: !!process.env.GROQ_API_KEY, freeLimit: '14,400 req/day' },
+    { name: 'OpenRouter (Multi-model)', available: !!process.env.OPENROUTER_API_KEY, freeLimit: '200 req/day' },
+    { name: 'SambaNova (Llama)', available: !!process.env.SAMBANOVA_API_KEY, freeLimit: 'Generous free tier' }
   ];
   
   const totalAvailable = providers.filter(p => p.available).length;
   
   const recommendedProviders: string[] = [];
   if (!process.env.GROQ_API_KEY) {
-    recommendedProviders.push('Add GROQ_API_KEY for 14,400 free validations/day');
+    recommendedProviders.push('Add GROQ_API_KEY for 14,400 free validations/day (groq.com)');
+  }
+  if (!process.env.OPENROUTER_API_KEY) {
+    recommendedProviders.push('Add OPENROUTER_API_KEY for 200 free validations/day with 30+ models (openrouter.ai)');
   }
   
   return {
     providers,
     totalAvailable,
-    recommendedProviders
+    recommendedProviders,
+    totalCost: '$0.00 - All providers are FREE'
   };
 }
