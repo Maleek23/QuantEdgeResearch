@@ -1320,43 +1320,80 @@ export class MemStorage implements IStorage {
     return recent.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
-  // AUTO-CLEANUP: Remove stale trades to free memory
+  // AUTO-CLEANUP: Remove stale trades to free memory AND update database
   async cleanupStaleTradeIdeas(): Promise<number> {
     const RETENTION_DAYS = 7; // Keep closed/won/lost trades for 7 days
-    const STALE_HOURS = 72; // Remove open trades older than 72 hours
-    const cutoffClosed = Date.now() - (RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    const cutoffStale = Date.now() - (STALE_HOURS * 60 * 60 * 1000);
+    const STALE_HOURS = 48; // Expire open trades older than 48 hours (was 72)
+    const cutoffClosed = new Date();
+    cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
+    const cutoffStale = new Date();
+    cutoffStale.setHours(cutoffStale.getHours() - STALE_HOURS);
+
+    let expiredCount = 0;
     let deletedCount = 0;
 
-    for (const [id, idea] of this.tradeIdeas.entries()) {
-      const createdAt = new Date(idea.timestamp).getTime();
-      const isClosed = idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'closed';
+    // CRITICAL FIX: Update database to mark stale open trades as expired
+    try {
+      const result = await db
+        .update(tradeIdeas)
+        .set({ outcomeStatus: 'expired' })
+        .where(sql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
 
-      // Delete old closed trades
-      if (isClosed && createdAt < cutoffClosed) {
-        this.tradeIdeas.delete(id);
-        deletedCount++;
-        continue;
-      }
+      expiredCount = result.length;
 
-      // Delete stale open trades (no activity for 72 hours)
-      if (!isClosed && createdAt < cutoffStale) {
-        this.tradeIdeas.delete(id);
-        deletedCount++;
-        continue;
-      }
-
-      // Delete expired options
-      if (idea.expiryDate) {
-        const expiryTime = new Date(idea.expiryDate).getTime();
-        if (expiryTime < Date.now() - (24 * 60 * 60 * 1000)) { // 1 day after expiry
-          this.tradeIdeas.delete(id);
-          deletedCount++;
+      // Update in-memory cache to match database
+      for (const { id } of result) {
+        const cached = this.tradeIdeas.get(id);
+        if (cached) {
+          cached.outcomeStatus = 'expired';
         }
       }
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to expire stale trades in database:', err);
     }
 
-    return deletedCount;
+    // Delete old closed/won/lost/expired trades from database
+    try {
+      const result = await db
+        .delete(tradeIdeas)
+        .where(sql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
+
+      deletedCount = result.length;
+
+      // Remove from in-memory cache
+      for (const { id } of result) {
+        this.tradeIdeas.delete(id);
+      }
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to delete old trades from database:', err);
+    }
+
+    // Also delete expired options from database
+    try {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+      const result = await db
+        .delete(tradeIdeas)
+        .where(sql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
+
+      for (const { id } of result) {
+        this.tradeIdeas.delete(id);
+      }
+      deletedCount += result.length;
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+    }
+
+    const totalAffected = expiredCount + deletedCount;
+    if (totalAffected > 0) {
+      logger.info(`[CLEANUP] Expired ${expiredCount} stale trades, deleted ${deletedCount} old trades from database`);
+    }
+
+    return totalAffected;
   }
 
   async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
