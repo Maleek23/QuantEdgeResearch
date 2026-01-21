@@ -64,6 +64,8 @@ interface ConsensusResult {
 let geminiClient: GoogleGenAI | null = null;
 let groqClient: OpenAI | null = null;
 let togetherClient: OpenAI | null = null;
+let mistralClient: OpenAI | null = null;
+let cerebrasClient: OpenAI | null = null;
 let openRouterClient: OpenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI | null {
@@ -91,6 +93,26 @@ function getTogetherClient(): OpenAI | null {
     });
   }
   return togetherClient;
+}
+
+function getMistralClient(): OpenAI | null {
+  if (!mistralClient && process.env.MISTRAL_API_KEY) {
+    mistralClient = new OpenAI({
+      apiKey: process.env.MISTRAL_API_KEY,
+      baseURL: 'https://api.mistral.ai/v1'
+    });
+  }
+  return mistralClient;
+}
+
+function getCerebrasClient(): OpenAI | null {
+  if (!cerebrasClient && process.env.CEREBRAS_API_KEY) {
+    cerebrasClient = new OpenAI({
+      apiKey: process.env.CEREBRAS_API_KEY,
+      baseURL: 'https://api.cerebras.ai/v1'
+    });
+  }
+  return cerebrasClient;
 }
 
 function getOpenRouterClient(): OpenAI | null {
@@ -340,6 +362,140 @@ async function validateWithTogether(idea: TradeIdea, marketContext: string): Pro
   }
 }
 
+// Mistral AI validation (FREE - 1 BILLION tokens/month!)
+async function validateWithMistral(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
+  const startTime = Date.now();
+  const client = getMistralClient();
+  
+  if (!client) {
+    return {
+      provider: 'mistral',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Mistral unavailable - add MISTRAL_API_KEY for 1B tokens/month FREE',
+      warnings: ['Mistral API not configured - get free key at console.mistral.ai'],
+      responseTime: 0,
+      isFree: true
+    };
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'mistral-small-latest',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: createValidationPrompt(idea, marketContext)
+      }]
+    });
+
+    const text = response.choices[0]?.message?.content || '';
+    
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        provider: 'mistral',
+        approved: parsed.approved ?? true,
+        confidence: parsed.confidence ?? idea.confidenceScore,
+        reasoning: parsed.reasoning ?? 'Validated via Mistral (FREE 1B tokens/mo)',
+        warnings: parsed.warnings ?? [],
+        suggestedAdjustments: parsed.suggestedAdjustments,
+        responseTime: Date.now() - startTime,
+        isFree: true
+      };
+    }
+    
+    return {
+      provider: 'mistral',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Could not parse Mistral response',
+      warnings: [],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  } catch (error) {
+    logger.error('[MULTI-LLM] Mistral validation error:', error);
+    return {
+      provider: 'mistral',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Mistral validation failed - defaulting to approve',
+      warnings: ['Mistral validation error'],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  }
+}
+
+// Cerebras validation (FREE - ultra-fast inference)
+async function validateWithCerebras(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
+  const startTime = Date.now();
+  const client = getCerebrasClient();
+  
+  if (!client) {
+    return {
+      provider: 'cerebras',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Cerebras unavailable - add CEREBRAS_API_KEY for free ultra-fast inference',
+      warnings: ['Cerebras API not configured - get free key at cerebras.ai'],
+      responseTime: 0,
+      isFree: true
+    };
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'llama3.1-8b',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: createValidationPrompt(idea, marketContext)
+      }]
+    });
+
+    const text = response.choices[0]?.message?.content || '';
+    
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        provider: 'cerebras',
+        approved: parsed.approved ?? true,
+        confidence: parsed.confidence ?? idea.confidenceScore,
+        reasoning: parsed.reasoning ?? 'Validated via Cerebras (FREE)',
+        warnings: parsed.warnings ?? [],
+        suggestedAdjustments: parsed.suggestedAdjustments,
+        responseTime: Date.now() - startTime,
+        isFree: true
+      };
+    }
+    
+    return {
+      provider: 'cerebras',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Could not parse Cerebras response',
+      warnings: [],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  } catch (error) {
+    logger.error('[MULTI-LLM] Cerebras validation error:', error);
+    return {
+      provider: 'cerebras',
+      approved: true,
+      confidence: idea.confidenceScore,
+      reasoning: 'Cerebras validation failed - defaulting to approve',
+      warnings: ['Cerebras validation error'],
+      responseTime: Date.now() - startTime,
+      isFree: true
+    };
+  }
+}
+
 // OpenRouter validation (FREE - 200 requests/day with free models)
 async function validateWithOpenRouter(idea: TradeIdea, marketContext: string): Promise<ValidationResult> {
   const startTime = Date.now();
@@ -448,12 +604,14 @@ export async function validateTradeWithConsensus(
   });
 
   // Run all FREE validations with individual timeouts
-  // FREE PROVIDERS ONLY: Gemini, Groq, Together AI, OpenRouter
+  // 6 FREE PROVIDERS: Groq, Gemini, Together, Mistral, Cerebras, OpenRouter
   // NO Claude/OpenAI to avoid billing - all providers are 100% free
   const validationPromises = [
-    wrapWithTimeout(validateWithGemini(idea, marketContext), timeout, timeoutFallback('gemini')),
     wrapWithTimeout(validateWithGroq(idea, marketContext), timeout, timeoutFallback('groq')),
+    wrapWithTimeout(validateWithGemini(idea, marketContext), timeout, timeoutFallback('gemini')),
     wrapWithTimeout(validateWithTogether(idea, marketContext), timeout, timeoutFallback('together')),
+    wrapWithTimeout(validateWithMistral(idea, marketContext), timeout, timeoutFallback('mistral')),
+    wrapWithTimeout(validateWithCerebras(idea, marketContext), timeout, timeoutFallback('cerebras')),
     wrapWithTimeout(validateWithOpenRouter(idea, marketContext), timeout, timeoutFallback('openrouter'))
   ];
 
@@ -519,14 +677,19 @@ export async function validateTradeWithConsensus(
 }
 
 /**
- * Quick validation using single fastest FREE provider (Groq or Gemini)
+ * Quick validation using single fastest FREE provider
  * Use this for high-volume, lower-stakes validations - 100% FREE
- * Priority: Groq (fastest) → Gemini → Together AI → OpenRouter
+ * Priority: Groq (fastest) → Cerebras → Gemini → Together → Mistral → OpenRouter
  */
 export async function quickValidation(idea: TradeIdea, marketContext: string = ''): Promise<ValidationResult> {
   // Try Groq first (free + fastest - 14,400 req/day)
   if (process.env.GROQ_API_KEY) {
     return validateWithGroq(idea, marketContext);
+  }
+  
+  // Try Cerebras (free + ultra-fast)
+  if (process.env.CEREBRAS_API_KEY) {
+    return validateWithCerebras(idea, marketContext);
   }
   
   // Fall back to Gemini (free - 1,500 req/day)
@@ -537,6 +700,11 @@ export async function quickValidation(idea: TradeIdea, marketContext: string = '
   // Try Together AI (free - $25 credits = ~50K requests)
   if (process.env.TOGETHER_API_KEY) {
     return validateWithTogether(idea, marketContext);
+  }
+
+  // Try Mistral (free - 1B tokens/month)
+  if (process.env.MISTRAL_API_KEY) {
+    return validateWithMistral(idea, marketContext);
   }
 
   // Try OpenRouter (free - 200 req/day)
@@ -550,14 +718,14 @@ export async function quickValidation(idea: TradeIdea, marketContext: string = '
     approved: true,
     confidence: idea.confidenceScore,
     reasoning: 'No FREE validation providers configured',
-    warnings: ['Add GROQ_API_KEY (14,400/day), GEMINI_API_KEY, TOGETHER_API_KEY, or OPENROUTER_API_KEY for free validation'],
+    warnings: ['Add GROQ_API_KEY, GEMINI_API_KEY, TOGETHER_API_KEY, MISTRAL_API_KEY, CEREBRAS_API_KEY, or OPENROUTER_API_KEY'],
     responseTime: 0,
     isFree: true
   };
 }
 
 /**
- * Get validation service status (FREE PROVIDERS ONLY - NO Claude/OpenAI billing)
+ * Get validation service status (6 FREE PROVIDERS - NO Claude/OpenAI billing)
  */
 export function getValidationServiceStatus(): {
   providers: { name: string; available: boolean; freeLimit: string }[];
@@ -569,7 +737,9 @@ export function getValidationServiceStatus(): {
     { name: 'Groq (Llama 3.3 70B)', available: !!process.env.GROQ_API_KEY, freeLimit: '14,400 req/day ⚡FASTEST' },
     { name: 'Gemini (Google)', available: !!process.env.GEMINI_API_KEY, freeLimit: '1,500 req/day' },
     { name: 'Together AI (Llama 3.3)', available: !!process.env.TOGETHER_API_KEY, freeLimit: '$25 credits (~50K req)' },
-    { name: 'OpenRouter (Multi-model)', available: !!process.env.OPENROUTER_API_KEY, freeLimit: '200 req/day' }
+    { name: 'Mistral AI', available: !!process.env.MISTRAL_API_KEY, freeLimit: '1B tokens/month 🔥' },
+    { name: 'Cerebras (Ultra-fast)', available: !!process.env.CEREBRAS_API_KEY, freeLimit: 'Free tier ⚡' },
+    { name: 'OpenRouter (30+ models)', available: !!process.env.OPENROUTER_API_KEY, freeLimit: '200 req/day' }
   ];
   
   const totalAvailable = providers.filter(p => p.available).length;
@@ -578,17 +748,23 @@ export function getValidationServiceStatus(): {
   if (!process.env.GROQ_API_KEY) {
     recommendedProviders.push('Add GROQ_API_KEY for 14,400 free validations/day - FASTEST (groq.com)');
   }
+  if (!process.env.MISTRAL_API_KEY) {
+    recommendedProviders.push('Add MISTRAL_API_KEY for 1 BILLION free tokens/month (console.mistral.ai)');
+  }
   if (!process.env.TOGETHER_API_KEY) {
     recommendedProviders.push('Add TOGETHER_API_KEY for $25 free credits = ~50,000 validations (together.ai)');
   }
+  if (!process.env.CEREBRAS_API_KEY) {
+    recommendedProviders.push('Add CEREBRAS_API_KEY for ultra-fast free inference (cerebras.ai)');
+  }
   if (!process.env.OPENROUTER_API_KEY) {
-    recommendedProviders.push('Add OPENROUTER_API_KEY for 200 free validations/day (openrouter.ai)');
+    recommendedProviders.push('Add OPENROUTER_API_KEY for 30+ free models (openrouter.ai)');
   }
   
   return {
     providers,
     totalAvailable,
     recommendedProviders,
-    totalCost: '$0.00 - All providers are 100% FREE (NO Claude/OpenAI billing)'
+    totalCost: '$0.00 - All 6 providers are 100% FREE (NO Claude/OpenAI billing)'
   };
 }
