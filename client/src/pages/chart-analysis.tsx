@@ -3558,6 +3558,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
               ) : mathPatterns ? (
                 <div className="space-y-4">
                   {/* Hurst Exponent */}
+                  {mathPatterns.hurst && (
                   <div className={cn(
                     "p-3 rounded-lg border",
                     mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/10 border-cyan-500/30" :
@@ -3585,9 +3586,10 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                       <span className="text-xs font-mono text-slate-400">{Math.round(mathPatterns.hurst.confidence)}%</span>
                     </div>
                   </div>
+                  )}
 
                   {/* Harmonic Patterns */}
-                  {mathPatterns.harmonicPatterns.length > 0 && (
+                  {mathPatterns.harmonicPatterns && mathPatterns.harmonicPatterns.length > 0 && (
                     <div className="p-3 rounded-lg border bg-purple-500/10 border-purple-500/30">
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-mono text-sm">Harmonic Patterns</span>
