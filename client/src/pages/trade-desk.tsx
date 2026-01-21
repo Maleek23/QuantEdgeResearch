@@ -598,6 +598,158 @@ function MarketMoversCard() {
   );
 }
 
+interface SurgeCandidate {
+  symbol: string;
+  price: number;
+  score: number;
+  reason: string;
+  change?: number;
+  volume?: number;
+  tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
+}
+
+function SurgeAlertsCard() {
+  const [tab, setTab] = useState<'surge' | 'momentum' | 'setup'>('surge');
+  
+  const { data, isLoading, isError, refetch } = useQuery<{ candidates: SurgeCandidate[], count: number }>({
+    queryKey: ['/api/discovery/breakouts'],
+    refetchInterval: 180000,
+    staleTime: 120000,
+  });
+
+  const displayData = (data?.candidates || []).filter(c => {
+    if (tab === 'surge') return c.tier === 'SURGE';
+    if (tab === 'momentum') return c.tier === 'MOMENTUM';
+    return c.tier === 'SETUP' || c.tier === 'WATCH';
+  });
+
+  const surgeCount = (data?.candidates || []).filter(c => c.tier === 'SURGE').length;
+  const momentumCount = (data?.candidates || []).filter(c => c.tier === 'MOMENTUM').length;
+  const setupCount = (data?.candidates || []).filter(c => c.tier === 'SETUP' || c.tier === 'WATCH').length;
+
+  return (
+    <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent" data-testid="card-surge-alerts">
+      <CardHeader className="py-3 px-4 border-b border-rose-500/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-rose-400">
+            <Zap className="h-4 w-4" />
+            Surge Detector
+            {surgeCount > 0 && (
+              <Badge variant="destructive" className="animate-pulse text-xs px-1.5">
+                {surgeCount} LIVE
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('surge')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'surge' ? "bg-rose-500/20 text-rose-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-surge"
+            >
+              🚀 Surge ({surgeCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('momentum')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'momentum' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-momentum"
+            >
+              📈 Build ({momentumCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('setup')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'setup' ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-setup"
+            >
+              ⬆️ Early ({setupCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              className="h-7 w-7"
+              data-testid="button-surge-refresh"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Real-time surge detection • No price limit • All sectors
+        </p>
+      </CardHeader>
+      <CardContent className="p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-6 text-muted-foreground" data-testid="surge-error-state">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-400" />
+            <p className="text-sm">Failed to load surge data</p>
+          </div>
+        ) : displayData.length > 0 ? (
+          <div className="space-y-2" data-testid={`surge-list-${tab}`}>
+            {displayData.slice(0, 6).map((stock, idx) => (
+              <div 
+                key={stock.symbol} 
+                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
+                data-testid={`surge-row-${stock.symbol}-${idx}`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className={cn(
+                    "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
+                    stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" : 
+                    stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" : 
+                    "bg-blue-500/20 text-blue-400"
+                  )}>{idx + 1}</span>
+                  <div className="min-w-0">
+                    <span className="font-mono font-bold text-base" data-testid={`text-surge-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                    <p className="text-xs text-muted-foreground truncate max-w-[180px]" title={stock.reason}>
+                      {stock.reason.split(' | ').slice(0, 2).join(' • ')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="font-mono text-base font-medium">${stock.price < 1000 ? stock.price.toFixed(2) : stock.price.toFixed(0)}</span>
+                  {stock.change !== undefined && (
+                    <p className={cn(
+                      "text-sm font-mono font-bold",
+                      stock.change > 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      {stock.change > 0 ? '+' : ''}{stock.change.toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <InlineEmptyState 
+            message={`No ${tab} signals detected. Market may be quiet.`} 
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
   const searchString = useSearch();
@@ -1749,6 +1901,9 @@ export default function TradeDeskPage() {
 
       {/* Best Setups - Top conviction plays */}
       <BestSetupsCard />
+
+      {/* Surge Detector - Real-time momentum detection (no price limit) */}
+      <SurgeAlertsCard />
 
       {/* Smart Money Flow Tracker - Unusual options activity */}
       <SmartMoneyFlowTracker />
