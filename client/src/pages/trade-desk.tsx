@@ -606,26 +606,103 @@ interface SurgeCandidate {
   change?: number;
   volume?: number;
   tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
+  source?: 'discovery' | 'detection';
+  severity?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+interface DetectionAlert {
+  symbol: string;
+  trigger: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  message: string;
+  price: number;
+  change: number;
+  detectedAt: string;
 }
 
 function SurgeAlertsCard() {
   const [tab, setTab] = useState<'surge' | 'momentum' | 'setup'>('surge');
   
-  const { data, isLoading, isError, refetch } = useQuery<{ candidates: SurgeCandidate[], count: number }>({
+  // Fetch breakout discovery
+  const { data: breakoutData, isLoading: breakoutLoading, isError: breakoutError, refetch: refetchBreakouts } = useQuery<{ candidates: SurgeCandidate[], count: number }>({
     queryKey: ['/api/discovery/breakouts'],
     refetchInterval: 180000,
     staleTime: 120000,
   });
 
-  const displayData = (data?.candidates || []).filter(c => {
+  // Fetch detection engine alerts (bot notifications)
+  const { data: detectionData, isLoading: detectionLoading, isError: detectionError, refetch: refetchDetection } = useQuery<{ alerts: DetectionAlert[], activeCount: number, highPriority: number }>({
+    queryKey: ['/api/detection/alerts'],
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  // Merge both data sources - preserve all detection metadata
+  const mergedCandidates = useMemo(() => {
+    const candidates: SurgeCandidate[] = [...(breakoutData?.candidates || []).map(c => ({ ...c, source: 'discovery' as const }))];
+    const symbolMap = new Map(candidates.map(c => [c.symbol, c]));
+    
+    // Process detection engine alerts
+    for (const alert of (detectionData?.alerts || [])) {
+      // Skip alerts with missing critical data
+      if (typeof alert.price !== 'number' || typeof alert.change !== 'number') continue;
+      
+      const tier = alert.severity === 'HIGH' ? 'SURGE' as const : 
+                   alert.severity === 'MEDIUM' ? 'MOMENTUM' as const : 'SETUP' as const;
+      
+      const existing = symbolMap.get(alert.symbol);
+      if (!existing) {
+        // New symbol from detection
+        const newCandidate: SurgeCandidate = {
+          symbol: alert.symbol,
+          price: alert.price,
+          score: alert.severity === 'HIGH' ? 95 : alert.severity === 'MEDIUM' ? 80 : 65,
+          reason: alert.message,
+          change: alert.change,
+          tier,
+          source: 'detection',
+          severity: alert.severity
+        };
+        candidates.push(newCandidate);
+        symbolMap.set(alert.symbol, newCandidate);
+      } else {
+        // Merge with existing - upgrade tier if detection has higher priority, mark as bot-confirmed
+        const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
+        if ((tierOrder[tier] || 3) < (tierOrder[existing.tier || 'WATCH'] || 3)) {
+          existing.tier = tier;
+        }
+        existing.source = 'detection'; // Mark as bot-confirmed
+        existing.severity = alert.severity;
+        existing.reason = `${existing.reason} | ${alert.message}`;
+        // Use fresher detection data if available
+        if (alert.change !== undefined) existing.change = alert.change;
+        if (alert.price !== undefined) existing.price = alert.price;
+      }
+    }
+    
+    // Sort by tier priority then change %
+    return candidates.sort((a, b) => {
+      const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
+      const tierDiff = (tierOrder[a.tier || 'WATCH'] || 3) - (tierOrder[b.tier || 'WATCH'] || 3);
+      if (tierDiff !== 0) return tierDiff;
+      return Math.abs(b.change || 0) - Math.abs(a.change || 0);
+    });
+  }, [breakoutData, detectionData]);
+
+  const isLoading = breakoutLoading || detectionLoading;
+  const isError = breakoutError && detectionError;
+  const refetch = () => { refetchBreakouts(); refetchDetection(); };
+
+  const displayData = mergedCandidates.filter(c => {
     if (tab === 'surge') return c.tier === 'SURGE';
     if (tab === 'momentum') return c.tier === 'MOMENTUM';
     return c.tier === 'SETUP' || c.tier === 'WATCH';
   });
 
-  const surgeCount = (data?.candidates || []).filter(c => c.tier === 'SURGE').length;
-  const momentumCount = (data?.candidates || []).filter(c => c.tier === 'MOMENTUM').length;
-  const setupCount = (data?.candidates || []).filter(c => c.tier === 'SETUP' || c.tier === 'WATCH').length;
+  const surgeCount = mergedCandidates.filter(c => c.tier === 'SURGE').length;
+  const momentumCount = mergedCandidates.filter(c => c.tier === 'MOMENTUM').length;
+  const setupCount = mergedCandidates.filter(c => c.tier === 'SETUP' || c.tier === 'WATCH').length;
+  const detectionCount = detectionData?.activeCount || 0;
 
   return (
     <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent" data-testid="card-surge-alerts">
@@ -634,9 +711,14 @@ function SurgeAlertsCard() {
           <CardTitle className="text-sm font-bold flex items-center gap-2 text-rose-400">
             <Zap className="h-4 w-4" />
             Surge Detector
-            {surgeCount > 0 && (
+            {(surgeCount + momentumCount + setupCount) > 0 && (
               <Badge variant="destructive" className="animate-pulse text-xs px-1.5">
-                {surgeCount} LIVE
+                {surgeCount + momentumCount + setupCount} LIVE
+              </Badge>
+            )}
+            {detectionCount > 0 && (
+              <Badge variant="outline" className="text-xs px-1.5 border-amber-500/50 text-amber-400">
+                +{detectionCount} bot
               </Badge>
             )}
           </CardTitle>
@@ -689,7 +771,7 @@ function SurgeAlertsCard() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Real-time surge detection • No price limit • All sectors
+          Real-time surge + bot detection • No price limit • All sectors
         </p>
       </CardHeader>
       <CardContent className="p-3">
@@ -720,15 +802,22 @@ function SurgeAlertsCard() {
                     "bg-blue-500/20 text-blue-400"
                   )}>{idx + 1}</span>
                   <div className="min-w-0">
-                    <span className="font-mono font-bold text-base" data-testid={`text-surge-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-base" data-testid={`text-surge-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                      {stock.source === 'detection' && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400">BOT</span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate max-w-[180px]" title={stock.reason}>
                       {stock.reason.split(' | ').slice(0, 2).join(' • ')}
                     </p>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <span className="font-mono text-base font-medium">${stock.price < 1000 ? stock.price.toFixed(2) : stock.price.toFixed(0)}</span>
-                  {stock.change !== undefined && (
+                  <span className="font-mono text-base font-medium">
+                    {typeof stock.price === 'number' ? `$${stock.price < 1000 ? stock.price.toFixed(2) : stock.price.toFixed(0)}` : '--'}
+                  </span>
+                  {typeof stock.change === 'number' && (
                     <p className={cn(
                       "text-sm font-mono font-bold",
                       stock.change > 0 ? "text-green-400" : "text-red-400"
