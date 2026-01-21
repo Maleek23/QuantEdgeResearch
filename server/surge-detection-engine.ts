@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { ingestTradeIdea, IngestionInput } from './trade-idea-ingestion';
 
 interface DetectionAlert {
   symbol: string;
@@ -234,10 +235,71 @@ async function checkSectorMoves(): Promise<DetectionAlert[]> {
   return alerts;
 }
 
+async function ingestSurgeAlerts(alerts: DetectionAlert[]): Promise<void> {
+  const highPriorityAlerts = alerts.filter(a => a.severity === 'HIGH' || a.severity === 'MEDIUM');
+  const uniqueSymbols = new Set<string>();
+  
+  for (const alert of highPriorityAlerts) {
+    if (uniqueSymbols.has(alert.symbol)) continue;
+    uniqueSymbols.add(alert.symbol);
+    
+    try {
+      const signals = [];
+      
+      if (alert.trigger === 'PRICE_BREAKOUT') {
+        signals.push({ type: 'price_breakout', weight: 15, description: `+${alert.change.toFixed(1)}% breakout` });
+      }
+      if (alert.trigger === 'VOLUME_SPIKE') {
+        signals.push({ type: 'volume_spike', weight: 12, description: 'Unusual volume detected' });
+      }
+      if (alert.trigger === 'NEWS_CATALYST') {
+        signals.push({ type: 'news_catalyst', weight: 14, description: 'News catalyst detected' });
+      }
+      if (alert.trigger === 'TECHNICAL_SIGNAL') {
+        signals.push({ type: 'technical_breakout', weight: 13, description: alert.message });
+      }
+      if (alert.trigger === 'SECTOR_MOVE') {
+        signals.push({ type: 'sector_strength', weight: 10, description: 'Sector momentum' });
+      }
+      
+      if (alert.change > 5) signals.push({ type: 'strong_momentum', weight: 10, description: `Strong momentum +${alert.change.toFixed(1)}%` });
+      if (alert.severity === 'HIGH') signals.push({ type: 'high_conviction', weight: 12, description: 'High priority detection' });
+      
+      const input: IngestionInput = {
+        source: 'surge_detection',
+        symbol: alert.symbol,
+        assetType: 'stock',
+        direction: alert.change > 0 ? 'bullish' : 'bearish',
+        signals,
+        currentPrice: alert.price,
+        holdingPeriod: 'day',
+        catalyst: alert.message,
+        analysis: `Surge detected: ${alert.trigger} - ${alert.message}`,
+        sourceMetadata: {
+          trigger: alert.trigger,
+          severity: alert.severity,
+          detectedAt: alert.detectedAt.toISOString()
+        }
+      };
+      
+      const result = await ingestTradeIdea(input);
+      if (result.success) {
+        logger.info(`[SURGE->TRADE-DESK] ✅ Ingested ${alert.symbol}: ${alert.trigger} (${alert.severity})`);
+      }
+    } catch (error) {
+      logger.error(`[SURGE->TRADE-DESK] Failed to ingest ${alert.symbol}:`, error);
+    }
+  }
+  
+  if (highPriorityAlerts.length > 0) {
+    logger.info(`[SURGE->TRADE-DESK] Processed ${uniqueSymbols.size} unique symbols from ${highPriorityAlerts.length} alerts`);
+  }
+}
+
 export async function runDetectionCycle(): Promise<DetectionAlert[]> {
   logger.info('[DETECTION-ENGINE] Running detection cycle...');
   
-  const oldAlerts = [...activeAlerts.entries()];
+  const oldAlerts = Array.from(activeAlerts.entries());
   for (const [key, alert] of oldAlerts) {
     if (Date.now() - alert.detectedAt.getTime() > 60 * 60 * 1000) {
       activeAlerts.delete(key);
@@ -259,6 +321,8 @@ export async function runDetectionCycle(): Promise<DetectionAlert[]> {
   
   if (allAlerts.length > 0) {
     logger.info(`[DETECTION-ENGINE] Found ${allAlerts.length} alerts: ${allAlerts.filter(a => a.severity === 'HIGH').length} HIGH, ${allAlerts.filter(a => a.severity === 'MEDIUM').length} MEDIUM`);
+    
+    await ingestSurgeAlerts(allAlerts);
   }
   
   return allAlerts;
@@ -270,7 +334,8 @@ export function getActiveAlerts(): DetectionAlert[] {
 }
 
 export function clearAlert(symbol: string): void {
-  for (const key of activeAlerts.keys()) {
+  const keys = Array.from(activeAlerts.keys());
+  for (const key of keys) {
     if (key.startsWith(symbol)) {
       activeAlerts.delete(key);
     }
