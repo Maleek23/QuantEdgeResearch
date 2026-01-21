@@ -20315,6 +20315,63 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
+  // DETECTION ENGINE - Event-driven surge detection (criteria-based, not scanning)
+  // ============================================
+  
+  app.get("/api/detection/alerts", async (_req, res) => {
+    try {
+      const { getActiveAlerts, getLastDetectionAlerts, runDetectionCycle } = await import("./surge-detection-engine");
+      let activeAlerts = getActiveAlerts();
+      let lastCycleAlerts = getLastDetectionAlerts();
+      
+      // Auto-run detection if no alerts exist (first access or stale)
+      if (activeAlerts.length === 0 && lastCycleAlerts.length === 0) {
+        logger.info("[DETECTION] No alerts found, running initial detection cycle...");
+        lastCycleAlerts = await runDetectionCycle();
+        activeAlerts = getActiveAlerts();
+      }
+      
+      res.json({ 
+        alerts: activeAlerts,
+        lastCycle: lastCycleAlerts,
+        activeCount: activeAlerts.length,
+        highPriority: activeAlerts.filter(a => a.severity === 'HIGH').length
+      });
+    } catch (error) {
+      logger.error("Error getting detection alerts", { error });
+      res.status(500).json({ error: "Failed to get detection alerts" });
+    }
+  });
+
+  app.post("/api/detection/run", async (_req, res) => {
+    try {
+      const { runDetectionCycle } = await import("./surge-detection-engine");
+      const alerts = await runDetectionCycle();
+      res.json({ 
+        alerts,
+        count: alerts.length,
+        high: alerts.filter(a => a.severity === 'HIGH').length,
+        medium: alerts.filter(a => a.severity === 'MEDIUM').length,
+        low: alerts.filter(a => a.severity === 'LOW').length
+      });
+    } catch (error) {
+      logger.error("Error running detection cycle", { error });
+      res.status(500).json({ error: "Failed to run detection cycle" });
+    }
+  });
+
+  app.delete("/api/detection/alert/:symbol", async (req, res) => {
+    try {
+      const { clearAlert } = await import("./surge-detection-engine");
+      clearAlert(req.params.symbol);
+      res.json({ success: true, symbol: req.params.symbol });
+    } catch (error) {
+      logger.error("Error clearing alert", { error });
+      res.status(500).json({ error: "Failed to clear alert" });
+    }
+  });
+
+  // ============================================
   // MORNING PREVIEW - 8:30 AM CT trading preview
   // ============================================
   

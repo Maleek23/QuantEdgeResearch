@@ -151,6 +151,11 @@ app.use((req, res, next) => {
     startMorningPreviewScheduler();
     log('☀️ Morning Preview Scheduler started - sends 8:30 AM CT trading preview to Discord');
     
+    // Start Surge Detection Engine (event-driven, criteria-based detection every 60s)
+    const { startDetectionEngine } = await import('./surge-detection-engine');
+    startDetectionEngine(60000); // Run detection cycle every 60 seconds
+    log('🎯 Surge Detection Engine started - criteria-based alerts every 60 seconds (price/volume/news/sector)');
+    
     // Start Pre-Market Surge Detector (4:00 AM - 9:30 AM ET, every 5 minutes)
     const { startPreMarketSurgeDetector } = await import('./pre-market-surge-detector');
     startPreMarketSurgeDetector();
