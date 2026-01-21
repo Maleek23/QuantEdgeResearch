@@ -146,6 +146,11 @@ app.use((req, res, next) => {
     startBullishTrendScanner();
     log('📈 Bullish Trend Scanner started - tracking momentum stocks every 15 minutes during market hours');
     
+    // Start Morning Preview Scheduler (8:30 AM CT weekdays - sends preview to Discord)
+    const { startMorningPreviewScheduler } = await import('./morning-preview-service');
+    startMorningPreviewScheduler();
+    log('☀️ Morning Preview Scheduler started - sends 8:30 AM CT trading preview to Discord');
+    
     // Start Pre-Market Surge Detector (4:00 AM - 9:30 AM ET, every 5 minutes)
     const { startPreMarketSurgeDetector } = await import('./pre-market-surge-detector');
     startPreMarketSurgeDetector();

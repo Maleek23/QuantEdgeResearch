@@ -20241,6 +20241,84 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
+  // PRICE PREDICTION ENGINE - AI/ML forecasts for LEAPS
+  // ============================================
+  
+  app.get("/api/prediction/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { predictPriceWithAI } = await import("./price-prediction-engine");
+      const prediction = await predictPriceWithAI(symbol.toUpperCase());
+      
+      if (prediction) {
+        res.json(prediction);
+      } else {
+        res.status(404).json({ error: `No prediction available for ${symbol}` });
+      }
+    } catch (error) {
+      logger.error("Error generating price prediction", { error });
+      res.status(500).json({ error: "Failed to generate price prediction" });
+    }
+  });
+
+  // ============================================
+  // BOT SENTIMENT WATCHLIST - Auto-generated from sentiment analysis
+  // ============================================
+  
+  app.get("/api/automations/bot-watchlist", async (_req, res) => {
+    try {
+      const { getBotSentimentWatchlist, refreshBotWatchlist } = await import("./bot-sentiment-watchlist");
+      const watchlist = await getBotSentimentWatchlist();
+      res.json({ watchlist, count: watchlist.length });
+    } catch (error) {
+      logger.error("Error getting bot watchlist", { error });
+      res.status(500).json({ error: "Failed to get bot watchlist" });
+    }
+  });
+
+  app.post("/api/automations/bot-watchlist/refresh", async (_req, res) => {
+    try {
+      const { refreshBotWatchlist, getBotSentimentWatchlist } = await import("./bot-sentiment-watchlist");
+      await refreshBotWatchlist();
+      const watchlist = await getBotSentimentWatchlist();
+      res.json({ success: true, watchlist, count: watchlist.length });
+    } catch (error) {
+      logger.error("Error refreshing bot watchlist", { error });
+      res.status(500).json({ error: "Failed to refresh bot watchlist" });
+    }
+  });
+
+  // ============================================
+  // BREAKOUT DISCOVERY - Find sub-$40 breakout candidates
+  // ============================================
+  
+  app.get("/api/discovery/breakouts", async (_req, res) => {
+    try {
+      const { discoverBreakoutCandidates } = await import("./breakout-discovery-service");
+      const candidates = await discoverBreakoutCandidates();
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      logger.error("Error discovering breakouts", { error });
+      res.status(500).json({ error: "Failed to discover breakout candidates" });
+    }
+  });
+
+  // ============================================
+  // MORNING PREVIEW - 8:30 AM CT trading preview
+  // ============================================
+  
+  app.get("/api/automations/morning-preview", async (_req, res) => {
+    try {
+      const { generateMorningPreview } = await import("./morning-preview-service");
+      const preview = await generateMorningPreview();
+      res.json(preview);
+    } catch (error) {
+      logger.error("Error generating morning preview", { error });
+      res.status(500).json({ error: "Failed to generate morning preview" });
+    }
+  });
+
+  // ============================================
   // UNIVERSAL IDEA GENERATOR - Generate trade ideas from ANY source
   // ============================================
 
