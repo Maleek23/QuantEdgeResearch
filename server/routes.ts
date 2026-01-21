@@ -15330,6 +15330,30 @@ CONSTRAINTS:
     }
   });
 
+  // Full 6-engine symbol analysis with trade idea generation
+  app.get("/api/analyze-symbol/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetType = (req.query.assetType as string) || 'stock';
+      
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+      
+      const { analyzeSymbolFull } = await import("./symbol-analyzer");
+      const analysis = await analyzeSymbolFull(symbol.toUpperCase(), assetType);
+      
+      if (!analysis) {
+        return res.status(404).json({ error: `Unable to analyze ${symbol} - insufficient data` });
+      }
+      
+      res.json(analysis);
+    } catch (error: any) {
+      logger.error(`[ANALYZE-SYMBOL] Error analyzing symbol:`, error);
+      res.status(500).json({ error: error?.message || "Analysis failed" });
+    }
+  });
+
   // Send chart analysis to Trade Desk as actionable trade idea
   app.post("/api/chart-analysis/send-to-trade-desk", async (req, res) => {
     try {
