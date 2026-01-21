@@ -355,6 +355,7 @@ export interface IStorage {
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined>;
   updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain'>>): Promise<TradeIdea | undefined>;
   getOpenTradeIdeas(): Promise<TradeIdea[]>;
+  getTradeIdeasByFilters(filters: { assetType?: string; outcomeStatus?: string; limit?: number }): Promise<TradeIdea[]>;
   getPerformanceStats(): Promise<PerformanceStats>;
 
   // Catalysts
@@ -1495,6 +1496,27 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getTradeIdeasByFilters(filters: { assetType?: string; outcomeStatus?: string; limit?: number }): Promise<TradeIdea[]> {
+    let results = Array.from(this.tradeIdeas.values());
+
+    if (filters.assetType) {
+      results = results.filter(idea => idea.assetType === filters.assetType);
+    }
+
+    if (filters.outcomeStatus) {
+      results = results.filter(idea => idea.outcomeStatus === filters.outcomeStatus);
+    }
+
+    // Sort by timestamp descending (newest first)
+    results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    if (filters.limit) {
+      results = results.slice(0, filters.limit);
+    }
+
+    return results;
+  }
+
   async getPerformanceStats(filters?: {
     startDate?: string;
     endDate?: string;
@@ -2457,6 +2479,30 @@ export class DatabaseStorage implements IStorage {
 
   async getOpenTradeIdeas(): Promise<TradeIdea[]> {
     return await db.select().from(tradeIdeas).where(eq(tradeIdeas.outcomeStatus, 'open'));
+  }
+
+  async getTradeIdeasByFilters(filters: { assetType?: string; outcomeStatus?: string; limit?: number }): Promise<TradeIdea[]> {
+    let query = db.select().from(tradeIdeas);
+
+    const conditions = [];
+    if (filters.assetType) {
+      conditions.push(eq(tradeIdeas.assetType, filters.assetType));
+    }
+    if (filters.outcomeStatus) {
+      conditions.push(eq(tradeIdeas.outcomeStatus, filters.outcomeStatus as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    query = query.orderBy(desc(tradeIdeas.timestamp)) as any;
+
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    return await query;
   }
 
   async getPerformanceStats(filters?: {

@@ -92,7 +92,7 @@ interface BotPreferences {
     optionsAllocation: 40,
     futuresAllocation: 30,
     cryptoAllocation: 30,
-    minConfidenceScore: 80, // A- grade minimum (was 60 allowing C-grade garbage)
+    minConfidenceScore: 65, // LOWERED for testing - allow B- grade trades (was 80)
     minRiskRewardRatio: 1.0, // At least 1:1 R:R
     tradePreMarket: true,
     tradeRegularHours: true,
@@ -138,7 +138,7 @@ export async function getBotPreferences(): Promise<BotPreferences> {
         optionsAllocation: 40,
         futuresAllocation: 30,
         cryptoAllocation: 30,
-        minConfidenceScore: 80, // A- grade minimum (no more C-grade trades)
+        minConfidenceScore: 65, // LOWERED for testing - allow B- grade trades
         minRiskRewardRatio: 1.0, // At least 1:1 R:R 
         tradePreMarket: true,
         tradeRegularHours: true,
@@ -2090,13 +2090,13 @@ export async function runCryptoBotScan(): Promise<void> {
       }
     }
     
-    // 2. CRITICAL: Also include open crypto ideas from Trade Desk (user-curated)
-    const allTradeIdeas = await storage.getAllTradeIdeas();
-    const openCryptoIdeas = allTradeIdeas.filter((idea: any) => 
-      idea.assetType === 'crypto' && 
-      idea.outcomeStatus === 'open' &&
-      !openPositions.some(p => p.tradeIdeaId === idea.id) // Not already traded
-    );
+    // 2. Also include open crypto ideas from Trade Desk (user-curated)
+    // OPTIMIZED: Use direct query instead of getAllTradeIdeas() to reduce memory
+    const openCryptoIdeas = await storage.getTradeIdeasByFilters({
+      assetType: 'crypto',
+      outcomeStatus: 'open',
+      limit: 50
+    }).catch(() => []);
     
     for (const idea of openCryptoIdeas) {
       // Get current price for this crypto
