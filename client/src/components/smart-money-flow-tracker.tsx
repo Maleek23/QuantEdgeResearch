@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { TrendingUp, TrendingDown, Zap, Target, DollarSign, Plus, RefreshCw, Eye, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Zap, Target, DollarSign, Plus, RefreshCw, Eye, AlertTriangle, LineChart, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -332,7 +333,13 @@ export function SmartMoneyFlowTracker() {
                     <div className="text-xl">{getFlowTypeIcon(flow.flowType, flow.isMegaWhale)}</div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">{flow.symbol}</span>
+                        <Link 
+                          href={`/chart-analysis?symbol=${flow.symbol}`}
+                          className="font-semibold hover:text-cyan-400 transition-colors"
+                          data-testid={`link-flow-chart-${flow.symbol}`}
+                        >
+                          {flow.symbol}
+                        </Link>
                         <Badge
                           variant="outline"
                           className={flow.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}

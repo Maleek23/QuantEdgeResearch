@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FuturesContent } from "@/pages/futures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -430,6 +430,20 @@ function BestSetupsCard() {
                           <span className="text-foreground">{setup.catalyst || setup.analysis || setup.thesis}</span>
                         </div>
                       )}
+                      <div className="flex gap-2 mt-3">
+                        <Link href={`/chart-analysis?symbol=${setup.symbol}`}>
+                          <Button size="sm" variant="outline" className="text-xs h-7" data-testid={`button-chart-${setup.symbol}`}>
+                            <LineChart className="h-3 w-3 mr-1" />
+                            View Chart
+                          </Button>
+                        </Link>
+                        <Link href={`/options-analyzer?symbol=${setup.symbol}`}>
+                          <Button size="sm" variant="ghost" className="text-xs h-7" data-testid={`button-options-${setup.symbol}`}>
+                            <Target className="h-3 w-3 mr-1" />
+                            Options
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -789,9 +803,10 @@ function SurgeAlertsCard() {
         ) : displayData.length > 0 ? (
           <div className="space-y-2" data-testid={`surge-list-${tab}`}>
             {displayData.slice(0, 6).map((stock, idx) => (
-              <div 
-                key={stock.symbol} 
-                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
+              <Link 
+                key={stock.symbol}
+                href={`/chart-analysis?symbol=${stock.symbol}`}
+                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer block"
                 data-testid={`surge-row-${stock.symbol}-${idx}`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -826,7 +841,7 @@ function SurgeAlertsCard() {
                     </p>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -842,6 +857,7 @@ function SurgeAlertsCard() {
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
   const searchString = useSearch();
+  const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(searchString);
   const initialTab = urlParams.get('tab') === 'futures' ? 'futures' : 'research';
   const [mainTab, setMainTab] = useState<'research' | 'futures'>(initialTab);
@@ -2441,6 +2457,7 @@ export default function TradeDeskPage() {
                                     catalysts={catalysts}
                                     isExpanded={expandedIdeaId === idea.id}
                                     onToggleExpand={() => handleToggleExpand(idea.id)}
+                                    onViewDetails={(symbol) => setLocation(`/chart-analysis?symbol=${symbol}`)}
                                     onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
                                     onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
                                     data-testid={`idea-card-${idea.id}`}
