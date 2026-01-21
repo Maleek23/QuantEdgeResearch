@@ -71,7 +71,19 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   const { entryPrice, targetPrice, stopLoss, direction, assetType } = idea;
   
   // Validate price relationships first
-  if (direction === 'long') {
+  // OPTIONS: Always "buy premium" model - target > entry > stop for ALL options (calls AND puts)
+  // STOCKS/CRYPTO: Traditional model - LONG: target > entry > stop, SHORT: stop > entry > target
+  if (assetType === 'option') {
+    // For options, we always BUY the option (call or put), so premium increasing = profit
+    // direction='long' means bullish (call), direction='short' means bearish (put)
+    // In BOTH cases, we want premium to increase: target > entry > stop
+    if (!(targetPrice > entryPrice && entryPrice > stopLoss)) {
+      return {
+        isValid: false,
+        reason: `Invalid OPTION price relationship: target=${targetPrice}, entry=${entryPrice}, stop=${stopLoss}. Must be: target > entry > stop (premium increase model)`
+      };
+    }
+  } else if (direction === 'long') {
     if (!(targetPrice > entryPrice && entryPrice > stopLoss)) {
       return {
         isValid: false,
@@ -88,11 +100,13 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   }
   
   // Calculate risk metrics
-  const maxLoss = direction === 'long' 
+  // OPTIONS: Always "buy premium" - risk is entry-stop, reward is target-entry
+  // STOCKS/CRYPTO: Traditional direction-based calculation
+  const maxLoss = (assetType === 'option' || direction === 'long')
     ? (entryPrice - stopLoss) 
     : (stopLoss - entryPrice);
   
-  const potentialGain = direction === 'long'
+  const potentialGain = (assetType === 'option' || direction === 'long')
     ? (targetPrice - entryPrice)
     : (entryPrice - targetPrice);
   

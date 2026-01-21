@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FuturesContent } from "@/pages/futures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -430,6 +430,20 @@ function BestSetupsCard() {
                           <span className="text-foreground">{setup.catalyst || setup.analysis || setup.thesis}</span>
                         </div>
                       )}
+                      <div className="flex gap-2 mt-3">
+                        <Link href={`/chart-analysis?symbol=${setup.symbol}`}>
+                          <Button size="sm" variant="outline" className="text-xs h-7" data-testid={`button-chart-${setup.symbol}`}>
+                            <LineChart className="h-3 w-3 mr-1" />
+                            View Chart
+                          </Button>
+                        </Link>
+                        <Link href={`/options-analyzer?symbol=${setup.symbol}`}>
+                          <Button size="sm" variant="ghost" className="text-xs h-7" data-testid={`button-options-${setup.symbol}`}>
+                            <Target className="h-3 w-3 mr-1" />
+                            Options
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -598,9 +612,252 @@ function MarketMoversCard() {
   );
 }
 
+interface SurgeCandidate {
+  symbol: string;
+  price: number;
+  score: number;
+  reason: string;
+  change?: number;
+  volume?: number;
+  tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
+  source?: 'discovery' | 'detection';
+  severity?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+interface DetectionAlert {
+  symbol: string;
+  trigger: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  message: string;
+  price: number;
+  change: number;
+  detectedAt: string;
+}
+
+function SurgeAlertsCard() {
+  const [tab, setTab] = useState<'surge' | 'momentum' | 'setup'>('surge');
+  
+  // Fetch breakout discovery
+  const { data: breakoutData, isLoading: breakoutLoading, isError: breakoutError, refetch: refetchBreakouts } = useQuery<{ candidates: SurgeCandidate[], count: number }>({
+    queryKey: ['/api/discovery/breakouts'],
+    refetchInterval: 180000,
+    staleTime: 120000,
+  });
+
+  // Fetch detection engine alerts (bot notifications)
+  const { data: detectionData, isLoading: detectionLoading, isError: detectionError, refetch: refetchDetection } = useQuery<{ alerts: DetectionAlert[], activeCount: number, highPriority: number }>({
+    queryKey: ['/api/detection/alerts'],
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  // Merge both data sources - preserve all detection metadata
+  const mergedCandidates = useMemo(() => {
+    const candidates: SurgeCandidate[] = [...(breakoutData?.candidates || []).map(c => ({ ...c, source: 'discovery' as const }))];
+    const symbolMap = new Map(candidates.map(c => [c.symbol, c]));
+    
+    // Process detection engine alerts
+    for (const alert of (detectionData?.alerts || [])) {
+      // Skip alerts with missing critical data
+      if (typeof alert.price !== 'number' || typeof alert.change !== 'number') continue;
+      
+      const tier = alert.severity === 'HIGH' ? 'SURGE' as const : 
+                   alert.severity === 'MEDIUM' ? 'MOMENTUM' as const : 'SETUP' as const;
+      
+      const existing = symbolMap.get(alert.symbol);
+      if (!existing) {
+        // New symbol from detection
+        const newCandidate: SurgeCandidate = {
+          symbol: alert.symbol,
+          price: alert.price,
+          score: alert.severity === 'HIGH' ? 95 : alert.severity === 'MEDIUM' ? 80 : 65,
+          reason: alert.message,
+          change: alert.change,
+          tier,
+          source: 'detection',
+          severity: alert.severity
+        };
+        candidates.push(newCandidate);
+        symbolMap.set(alert.symbol, newCandidate);
+      } else {
+        // Merge with existing - upgrade tier if detection has higher priority, mark as bot-confirmed
+        const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
+        if ((tierOrder[tier] || 3) < (tierOrder[existing.tier || 'WATCH'] || 3)) {
+          existing.tier = tier;
+        }
+        existing.source = 'detection'; // Mark as bot-confirmed
+        existing.severity = alert.severity;
+        existing.reason = `${existing.reason} | ${alert.message}`;
+        // Use fresher detection data if available
+        if (alert.change !== undefined) existing.change = alert.change;
+        if (alert.price !== undefined) existing.price = alert.price;
+      }
+    }
+    
+    // Sort by tier priority then change %
+    return candidates.sort((a, b) => {
+      const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
+      const tierDiff = (tierOrder[a.tier || 'WATCH'] || 3) - (tierOrder[b.tier || 'WATCH'] || 3);
+      if (tierDiff !== 0) return tierDiff;
+      return Math.abs(b.change || 0) - Math.abs(a.change || 0);
+    });
+  }, [breakoutData, detectionData]);
+
+  const isLoading = breakoutLoading || detectionLoading;
+  const isError = breakoutError && detectionError;
+  const refetch = () => { refetchBreakouts(); refetchDetection(); };
+
+  const displayData = mergedCandidates.filter(c => {
+    if (tab === 'surge') return c.tier === 'SURGE';
+    if (tab === 'momentum') return c.tier === 'MOMENTUM';
+    return c.tier === 'SETUP' || c.tier === 'WATCH';
+  });
+
+  const surgeCount = mergedCandidates.filter(c => c.tier === 'SURGE').length;
+  const momentumCount = mergedCandidates.filter(c => c.tier === 'MOMENTUM').length;
+  const setupCount = mergedCandidates.filter(c => c.tier === 'SETUP' || c.tier === 'WATCH').length;
+  const detectionCount = detectionData?.activeCount || 0;
+
+  return (
+    <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent" data-testid="card-surge-alerts">
+      <CardHeader className="py-3 px-4 border-b border-rose-500/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-rose-400">
+            <Zap className="h-4 w-4" />
+            Surge Detector
+            {(surgeCount + momentumCount + setupCount) > 0 && (
+              <Badge variant="destructive" className="animate-pulse text-xs px-1.5">
+                {surgeCount + momentumCount + setupCount} LIVE
+              </Badge>
+            )}
+            {detectionCount > 0 && (
+              <Badge variant="outline" className="text-xs px-1.5 border-amber-500/50 text-amber-400">
+                +{detectionCount} bot
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('surge')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'surge' ? "bg-rose-500/20 text-rose-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-surge"
+            >
+              🚀 Surge ({surgeCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('momentum')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'momentum' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-momentum"
+            >
+              📈 Build ({momentumCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTab('setup')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                tab === 'setup' ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground"
+              )}
+              data-testid="button-surge-setup"
+            >
+              ⬆️ Early ({setupCount})
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              className="h-7 w-7"
+              data-testid="button-surge-refresh"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Real-time surge + bot detection • No price limit • All sectors
+        </p>
+      </CardHeader>
+      <CardContent className="p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-6 text-muted-foreground" data-testid="surge-error-state">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-400" />
+            <p className="text-sm">Failed to load surge data</p>
+          </div>
+        ) : displayData.length > 0 ? (
+          <div className="space-y-2" data-testid={`surge-list-${tab}`}>
+            {displayData.slice(0, 6).map((stock, idx) => (
+              <Link 
+                key={stock.symbol}
+                href={`/chart-analysis?symbol=${stock.symbol}`}
+                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer block"
+                data-testid={`surge-row-${stock.symbol}-${idx}`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className={cn(
+                    "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
+                    stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" : 
+                    stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" : 
+                    "bg-blue-500/20 text-blue-400"
+                  )}>{idx + 1}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-base" data-testid={`text-surge-symbol-${stock.symbol}`}>{stock.symbol}</span>
+                      {stock.source === 'detection' && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400">BOT</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate max-w-[180px]" title={stock.reason}>
+                      {stock.reason.split(' | ').slice(0, 2).join(' • ')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="font-mono text-base font-medium">
+                    {typeof stock.price === 'number' ? `$${stock.price < 1000 ? stock.price.toFixed(2) : stock.price.toFixed(0)}` : '--'}
+                  </span>
+                  {typeof stock.change === 'number' && (
+                    <p className={cn(
+                      "text-sm font-mono font-bold",
+                      stock.change > 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      {stock.change > 0 ? '+' : ''}{stock.change.toFixed(1)}%
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <InlineEmptyState 
+            message={`No ${tab} signals detected. Market may be quiet.`} 
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
   const searchString = useSearch();
+  const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(searchString);
   const initialTab = urlParams.get('tab') === 'futures' ? 'futures' : 'research';
   const [mainTab, setMainTab] = useState<'research' | 'futures'>(initialTab);
@@ -720,11 +977,14 @@ export default function TradeDeskPage() {
   // Memoize market status to avoid recalculating on every render
   const marketStatus = useMemo(() => getMarketStatus(), []);
 
-  const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
+  const { data: tradeIdeas = [], isLoading: ideasLoading, isError: ideasError, error: ideasErrorDetails } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
     refetchInterval: 5000, // FAST UPDATE: 5s for active trading
     staleTime: 2000,
   });
+  
+  // Check if error is authentication related
+  const isAuthError = ideasError && (ideasErrorDetails?.message?.includes('401') || ideasErrorDetails?.message?.includes('Authentication'));
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -1497,10 +1757,10 @@ export default function TradeDeskPage() {
           const bExp = new Date(b.expiryDate || b.exitBy || b.timestamp).getTime();
           return aExp - bExp;
         case 'confidence':
-          // Sort by signal count (signal strength) - more signals = higher strength
-          const aSignals = (a.qualitySignals?.length || 0);
-          const bSignals = (b.qualitySignals?.length || 0);
-          return bSignals - aSignals;
+          // Sort by confidenceScore (higher = stronger trade setup)
+          const aConfidence = a.confidenceScore || 0;
+          const bConfidence = b.confidenceScore || 0;
+          return bConfidence - aConfidence;
         case 'rr':
           return b.riskRewardRatio - a.riskRewardRatio;
         case 'price_asc':
@@ -1746,6 +2006,9 @@ export default function TradeDeskPage() {
 
       {/* Best Setups - Top conviction plays */}
       <BestSetupsCard />
+
+      {/* Surge Detector - Real-time momentum detection (no price limit) */}
+      <SurgeAlertsCard />
 
       {/* Smart Money Flow Tracker - Unusual options activity */}
       <SmartMoneyFlowTracker />
@@ -2012,12 +2275,28 @@ export default function TradeDeskPage() {
         {/* Loading State */}
         {ideasLoading ? (
           <TerminalLoading message="Fetching research briefs..." />
+        ) : isAuthError ? (
+          <div className="py-16 text-center">
+            <div className="mx-auto w-16 h-16 mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-4">
+              Please log in to view research briefs and trade ideas.
+            </p>
+            <Button
+              onClick={() => window.location.href = '/login'}
+              data-testid="button-login-prompt"
+            >
+              Log In
+            </Button>
+          </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
           <div className="py-16 text-center">
             <h3 className="text-lg font-semibold mb-2">No Research Briefs Found</h3>
             <p className="text-muted-foreground max-w-md mx-auto mb-4">
               {tradeIdeas.length === 0 
-                ? "Generate research briefs using the toolbar above."
+                ? "The research engine is scanning markets. New briefs will appear automatically."
                 : "No briefs match your current filters."}
             </p>
             {statusFilter !== 'all' && tradeIdeas.length > 0 && (
@@ -2178,6 +2457,7 @@ export default function TradeDeskPage() {
                                     catalysts={catalysts}
                                     isExpanded={expandedIdeaId === idea.id}
                                     onToggleExpand={() => handleToggleExpand(idea.id)}
+                                    onViewDetails={(symbol) => setLocation(`/chart-analysis?symbol=${symbol}`)}
                                     onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
                                     onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
                                     data-testid={`idea-card-${idea.id}`}

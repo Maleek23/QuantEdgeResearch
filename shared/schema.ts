@@ -548,6 +548,46 @@ export const insertPremiumHistorySchema = createInsertSchema(premiumHistory).omi
 export type InsertPremiumHistory = z.infer<typeof insertPremiumHistorySchema>;
 export type PremiumHistoryRecord = typeof premiumHistory.$inferSelect;
 
+// Options Flow History - Track unusual options activity on watchlist symbols
+// Strategy categories for flow classification
+export type FlowStrategyCategory = 'lotto' | 'swing' | 'monthly' | 'institutional' | 'scalp';
+export type FlowDteCategory = '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'leaps';
+
+export const optionsFlowHistory = pgTable("options_flow_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(),
+  
+  optionType: text("option_type").$type<'call' | 'put'>().notNull(),
+  strikePrice: real("strike_price").notNull(),
+  expirationDate: text("expiration_date").notNull(),
+  
+  volume: integer("volume").notNull(),
+  openInterest: integer("open_interest"),
+  volumeOIRatio: real("volume_oi_ratio"),
+  premium: real("premium").notNull(),
+  totalPremium: real("total_premium"),
+  impliedVolatility: real("implied_volatility"),
+  delta: real("delta"),
+  
+  underlyingPrice: real("underlying_price"),
+  sentiment: text("sentiment").$type<'bullish' | 'bearish' | 'neutral'>().notNull(),
+  flowType: text("flow_type").$type<'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal'>().notNull(),
+  unusualScore: real("unusual_score").notNull(),
+  
+  // Strategy classification for filtering whale plays
+  strategyCategory: text("strategy_category").$type<FlowStrategyCategory>().default('institutional'),
+  dteCategory: text("dte_category").$type<FlowDteCategory>().default('swing'),
+  isLotto: boolean("is_lotto").default(false), // Far OTM cheap premiums (lotto plays)
+  
+  isWatchlistSymbol: boolean("is_watchlist_symbol").default(false),
+  detectedAt: timestamp("detected_at").defaultNow(),
+  detectedDate: text("detected_date").notNull(),
+});
+
+export const insertOptionsFlowHistorySchema = createInsertSchema(optionsFlowHistory).omit({ id: true, detectedAt: true });
+export type InsertOptionsFlowHistory = z.infer<typeof insertOptionsFlowHistorySchema>;
+export type OptionsFlowHistoryRecord = typeof optionsFlowHistory.$inferSelect;
+
 // Watchlist History - Daily snapshots for year-long grade/price tracking
 export const watchlistHistory = pgTable("watchlist_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

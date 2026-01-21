@@ -71,6 +71,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     signalScore?: { score: number; direction: string; confidence: number; signals: string[] };
     indicators?: { rsi?: { value: number }; adx?: { value: number; regime: string }; macd?: { histogram: number } };
     patterns?: { name: string; type: string }[];
+    harmonicPatterns?: { name: string; type: string; completionPercent: number; potentialReversalZone?: { low: number; high: number } }[];
+    elliottWave?: { currentWave: number | null; wavePhase: string; completionPercent: number };
+    confidenceScore?: number;
     error?: string;
   }
   const { data: patternData, isLoading: patternLoading, error: patternError } = useQuery<PatternData>({
@@ -99,6 +102,23 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     queryKey: ['/api/bot/symbol-adjustment', idea.symbol],
     enabled: idea.outcomeStatus === 'open', // Only check for open ideas
     staleTime: 300000, // Cache for 5 minutes
+  });
+  
+  // Fetch macro context for VIX regime and risk appetite (market-wide, shared across all ideas)
+  interface MacroData {
+    vixRegime?: { 
+      level: number; 
+      regime: 'extreme_fear' | 'fear' | 'neutral' | 'complacency' | 'extreme_complacency';
+      tradingImplication: string;
+      percentile: number;
+    };
+    riskAppetite?: 'risk_on' | 'risk_off' | 'mixed';
+    tradingRecommendation?: string;
+  }
+  const { data: macroData } = useQuery<MacroData>({
+    queryKey: ['/api/macro/context'],
+    staleTime: 300000, // Cache for 5 minutes (market-wide data)
+    refetchInterval: 600000, // Refresh every 10 minutes
   });
   
   // Determine if we should show a loss warning
@@ -621,6 +641,61 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 />
               )}
 
+              {/* Macro Context Badges - VIX Regime & Risk Appetite */}
+              {macroData && idea.outcomeStatus === 'open' && (
+                <>
+                  {macroData.riskAppetite && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] h-5 font-medium cursor-help whitespace-nowrap",
+                            macroData.riskAppetite === 'risk_on' && "bg-green-500/10 text-green-400 border-green-500/30",
+                            macroData.riskAppetite === 'risk_off' && "bg-red-500/10 text-red-400 border-red-500/30",
+                            macroData.riskAppetite === 'mixed' && "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                          )}
+                          data-testid={`badge-risk-appetite-${idea.symbol}`}
+                        >
+                          {macroData.riskAppetite === 'risk_on' && <TrendingUp className="h-2.5 w-2.5 mr-1" />}
+                          {macroData.riskAppetite === 'risk_off' && <TrendingDown className="h-2.5 w-2.5 mr-1" />}
+                          {macroData.riskAppetite === 'mixed' && <Activity className="h-2.5 w-2.5 mr-1" />}
+                          {macroData.riskAppetite === 'risk_on' ? 'Risk On' : macroData.riskAppetite === 'risk_off' ? 'Risk Off' : 'Mixed'}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-medium">Market Risk Appetite</p>
+                        <p className="text-xs text-muted-foreground">{macroData.tradingRecommendation || 'Monitor market conditions'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {macroData.vixRegime && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] h-5 font-medium cursor-help whitespace-nowrap",
+                            macroData.vixRegime.regime === 'extreme_fear' && "bg-red-500/10 text-red-400 border-red-500/30",
+                            macroData.vixRegime.regime === 'fear' && "bg-orange-500/10 text-orange-400 border-orange-500/30",
+                            macroData.vixRegime.regime === 'neutral' && "bg-slate-500/10 text-slate-400 border-slate-500/30",
+                            macroData.vixRegime.regime === 'complacency' && "bg-blue-500/10 text-blue-400 border-blue-500/30",
+                            macroData.vixRegime.regime === 'extreme_complacency' && "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                          )}
+                          data-testid={`badge-vix-${idea.symbol}`}
+                        >
+                          VIX: {macroData.vixRegime.regime.replace('_', ' ')} ({macroData.vixRegime.level.toFixed(1)})
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-medium">VIX Regime: {macroData.vixRegime.level.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">{macroData.vixRegime.tradingImplication}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
+              )}
+
               {/* Real-Time Applicability - Shows if trade is still valid */}
               {idea.outcomeStatus === 'open' && (
                 <Tooltip>
@@ -1021,6 +1096,58 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           {p.name}
                         </Badge>
                       ))}
+                    </div>
+                  )}
+                  {/* Harmonic Pattern Completion */}
+                  {patternData.harmonicPatterns && patternData.harmonicPatterns.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <div className="text-[9px] text-muted-foreground mb-1 uppercase tracking-wider">Harmonic Patterns</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {patternData.harmonicPatterns.slice(0, 2).map((h, i) => (
+                          <Tooltip key={i}>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-[9px] cursor-help",
+                                  h.type === 'bullish' ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                                  "bg-red-500/10 text-red-400 border-red-500/30"
+                                )}
+                              >
+                                {h.name} {h.completionPercent.toFixed(0)}%
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="font-medium">{h.name} Pattern ({h.type})</p>
+                              <p className="text-xs text-muted-foreground">{h.completionPercent.toFixed(0)}% complete</p>
+                              {h.potentialReversalZone && (
+                                <p className="text-xs text-cyan-400">PRZ: ${h.potentialReversalZone.low.toFixed(2)} - ${h.potentialReversalZone.high.toFixed(2)}</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Elliott Wave Completion */}
+                  {patternData.elliottWave && patternData.elliottWave.currentWave && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <div className="text-[9px] text-muted-foreground mb-1 uppercase tracking-wider">Elliott Wave</div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[9px]",
+                            patternData.elliottWave.wavePhase === 'impulse' ? "bg-purple-500/10 text-purple-400 border-purple-500/30" :
+                            "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                          )}
+                        >
+                          Wave {patternData.elliottWave.currentWave} ({patternData.elliottWave.wavePhase})
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          {patternData.elliottWave.completionPercent.toFixed(0)}% complete
+                        </span>
+                      </div>
                     </div>
                   )}
                 </>

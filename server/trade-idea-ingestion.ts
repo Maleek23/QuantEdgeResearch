@@ -37,6 +37,7 @@ const SOURCE_THRESHOLDS: Record<IdeaSource, number> = {
   sector_rotation: 65,     // Sector momentum
   manual: 50,              // Manual entries allowed lower
   bot_screener: 80,        // Bot screener needs 80%+ (A- grade) for Trade Desk
+  surge_detection: 60,     // Surge detection - real-time momentum breakouts
 };
 
 export interface IngestionInput {

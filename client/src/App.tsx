@@ -89,6 +89,8 @@ const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
 const WhaleFlowPage = lazy(() => import("@/pages/whale-flow"));
+const WSBTrending = lazy(() => import("@/pages/wsb-trending"));
+const SocialTrends = lazy(() => import("@/pages/social-trends"));
 
 function PageLoader() {
   return (
@@ -170,6 +172,8 @@ function Router() {
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
       <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
       <Route path="/ct-tracker" component={withBetaProtection(CTTracker)} />
+      <Route path="/wsb-trending" component={withBetaProtection(WSBTrending)} />
+      <Route path="/social-trends" component={withBetaProtection(SocialTrends)} />
       <Route path="/watchlist-bot" component={withBetaProtection(WatchlistBot)} />
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />

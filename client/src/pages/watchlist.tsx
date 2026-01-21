@@ -733,6 +733,290 @@ function AlertDialog({ item }: { item: WatchlistItem }) {
   );
 }
 
+// Flow Intelligence Component - Shows last 7 days of options flow on watchlist stocks
+function FlowIntelligence() {
+  const [activeTab, setActiveTab] = useState<'all' | 'lotto' | 'institutional'>('all');
+  
+  const { data: flowData, isLoading, error, isError } = useQuery<{
+    flows: Array<{
+      id: string;
+      symbol: string;
+      optionType: 'call' | 'put';
+      strikePrice: number;
+      expirationDate: string;
+      volume: number;
+      totalPremium: number;
+      sentiment: 'bullish' | 'bearish' | 'neutral';
+      flowType: string;
+      unusualScore: number;
+      detectedDate: string;
+      strategyCategory?: 'lotto' | 'swing' | 'monthly' | 'institutional' | 'scalp';
+      dteCategory?: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'leaps';
+      isLotto?: boolean;
+    }>;
+    lottoFlows?: Array<{
+      id: string;
+      symbol: string;
+      optionType: 'call' | 'put';
+      strikePrice: number;
+      expirationDate: string;
+      totalPremium: number;
+      sentiment: 'bullish' | 'bearish' | 'neutral';
+      dteCategory?: string;
+    }>;
+    summary: {
+      totalFlows: number;
+      bullishFlows: number;
+      bearishFlows: number;
+      totalPremium: number;
+      lottoCount?: number;
+      strategyCounts?: Record<string, number>;
+      dteCounts?: Record<string, number>;
+      topSymbols: { symbol: string; flowCount: number; totalPremium: number }[];
+    };
+  }>({
+    queryKey: ['/api/watchlist/flow-history'],
+    refetchInterval: 300000, // Refresh every 5 minutes
+    retry: 2,
+  });
+
+  if (isError) {
+    return (
+      <Card className="border-red-500/20">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <CardTitle className="text-lg">Flow Intelligence</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Unable to load flow data. {error instanceof Error ? error.message : 'Please try again later.'}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="border-cyan-500/20">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-cyan-500" />
+            <CardTitle className="text-lg">Flow Intelligence</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-16 w-24" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const summary = flowData?.summary;
+  const flows = flowData?.flows || [];
+  const lottoFlows = flowData?.lottoFlows || [];
+  
+  if (!summary || summary.totalFlows === 0) {
+    return (
+      <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-cyan-500" />
+            <CardTitle className="text-lg">Flow Intelligence</CardTitle>
+            <Badge variant="outline" className="text-xs">Last 7 Days</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No unusual options flow detected on your watchlist symbols this week. 
+            Flow data will appear here when institutional activity is detected during market hours.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const formatPremium = (premium: number) => {
+    if (premium >= 1000000) return `$${(premium / 1000000).toFixed(1)}M`;
+    if (premium >= 1000) return `$${(premium / 1000).toFixed(0)}k`;
+    return `$${premium.toFixed(0)}`;
+  };
+
+  // Filter flows based on active tab
+  const displayFlows = activeTab === 'lotto' 
+    ? flows.filter(f => f.isLotto)
+    : activeTab === 'institutional'
+    ? flows.filter(f => f.strategyCategory === 'institutional' || f.flowType === 'block')
+    : flows;
+
+  return (
+    <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-cyan-500" />
+            <CardTitle className="text-lg">Flow Intelligence</CardTitle>
+            <Badge variant="outline" className="text-xs">Last 7 Days</Badge>
+          </div>
+          <Link href="/trade-desk?source=flow">
+            <Button variant="ghost" size="sm" className="text-xs" data-testid="button-view-all-flows">
+              View All <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          High-premium options activity detected on your watchlist stocks
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-cyan-500">{summary.totalFlows}</div>
+            <div className="text-xs text-muted-foreground">Total Flows</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-emerald-500">{summary.bullishFlows}</div>
+            <div className="text-xs text-muted-foreground">Bullish</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-red-500">{summary.bearishFlows}</div>
+            <div className="text-xs text-muted-foreground">Bearish</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-purple-500">{summary.lottoCount || 0}</div>
+            <div className="text-xs text-muted-foreground">Lotto Plays</div>
+          </div>
+          <div className="bg-background/50 rounded-lg p-3 border">
+            <div className="text-2xl font-bold text-amber-500">{formatPremium(summary.totalPremium)}</div>
+            <div className="text-xs text-muted-foreground">Premium</div>
+          </div>
+        </div>
+
+        {/* Tab Filter */}
+        <div className="flex gap-2">
+          <Button 
+            variant={activeTab === 'all' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('all')}
+            data-testid="button-tab-all-flows"
+          >
+            All Flows ({summary.totalFlows})
+          </Button>
+          <Button 
+            variant={activeTab === 'lotto' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('lotto')}
+            className={activeTab === 'lotto' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+            data-testid="button-tab-lotto-flows"
+          >
+            Lotto Plays ({summary.lottoCount || 0})
+          </Button>
+          <Button 
+            variant={activeTab === 'institutional' ? 'default' : 'outline'} 
+            size="sm" 
+            onClick={() => setActiveTab('institutional')}
+            data-testid="button-tab-institutional-flows"
+          >
+            Institutional ({summary.strategyCounts?.institutional || 0})
+          </Button>
+        </div>
+
+        {/* DTE Breakdown */}
+        {summary.dteCounts && Object.keys(summary.dteCounts).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {Object.entries(summary.dteCounts).map(([dte, count]) => (
+              <Badge key={dte} variant="outline" className="text-xs">
+                {dte}: {count}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {summary.topSymbols.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-2">TOP FLOW SYMBOLS</div>
+            <div className="flex flex-wrap gap-2">
+              {summary.topSymbols.slice(0, 6).map((sym) => (
+                <Link key={sym.symbol} href={`/chart-analysis?symbol=${sym.symbol}`}>
+                  <Badge 
+                    variant="secondary" 
+                    className="cursor-pointer hover-elevate"
+                    data-testid={`badge-flow-symbol-${sym.symbol}`}
+                  >
+                    <span className="font-mono font-bold">{sym.symbol}</span>
+                    <span className="ml-1 text-muted-foreground">{sym.flowCount}x</span>
+                    <span className="ml-1 text-cyan-500">{formatPremium(sym.totalPremium)}</span>
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {displayFlows.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-2">
+              {activeTab === 'lotto' ? 'WHALE LOTTO PLAYS (Far OTM)' : 
+               activeTab === 'institutional' ? 'INSTITUTIONAL BLOCK TRADES' : 
+               'RECENT FLOWS'}
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {displayFlows.slice(0, 8).map((flow) => (
+                <div 
+                  key={flow.id} 
+                  className={`flex items-center justify-between text-sm rounded-lg p-2 border ${
+                    flow.isLotto 
+                      ? 'bg-purple-500/10 border-purple-500/30' 
+                      : 'bg-background/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={flow.sentiment === 'bullish' 
+                        ? 'text-emerald-500 border-emerald-500/30' 
+                        : flow.sentiment === 'bearish'
+                        ? 'text-red-500 border-red-500/30'
+                        : 'text-muted-foreground'}
+                    >
+                      {flow.optionType.toUpperCase()}
+                    </Badge>
+                    <span className="font-mono font-bold">{flow.symbol}</span>
+                    <span className="text-muted-foreground text-xs">
+                      ${flow.strikePrice} {flow.expirationDate}
+                    </span>
+                    {flow.isLotto && (
+                      <Badge className="bg-purple-600 text-white text-xs">LOTTO</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {flow.dteCategory && (
+                      <Badge variant="outline" className="text-xs">
+                        {flow.dteCategory}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="text-xs">
+                      {flow.flowType}
+                    </Badge>
+                    <span className="font-mono text-cyan-500">{formatPremium(flow.totalPremium)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Watchlist Item Card
 function WatchlistItemCard({ item, quote }: { item: WatchlistItem; quote?: QuoteData }) {
   const tier = item.tier || 'C';
@@ -1430,6 +1714,9 @@ export default function WatchlistPage() {
 
       {/* Signal Command Bar */}
       <SignalCommandBar items={filteredItems} />
+
+      {/* Flow Intelligence - Last 7 days of options flow on watchlist */}
+      <FlowIntelligence />
 
       {/* Methodology Info */}
       <Card className="bg-muted/30 border-dashed">

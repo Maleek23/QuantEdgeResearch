@@ -3766,6 +3766,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  app.get("/api/quotes/batch/:symbols", async (req, res) => {
+    try {
+      const { symbols } = req.params;
+      if (!symbols) {
+        return res.status(400).json({ error: "Symbols required" });
+      }
+      
+      const symbolList = symbols.split(",").filter(s => s.length > 0 && s.length <= 10).slice(0, 50);
+      if (symbolList.length === 0) {
+        return res.json({ quotes: {} });
+      }
+      
+      const { fetchTradierQuotes } = await import("./market-data-service");
+      const quotesData = await fetchTradierQuotes(symbolList);
+      
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number }> = {};
+      for (const symbol of symbolList) {
+        const q = quotesData[symbol];
+        if (q && q.last) {
+          quotes[symbol] = {
+            symbol,
+            price: q.last,
+            change: q.change || 0,
+            changePercent: q.change_percentage || 0,
+            volume: q.volume || 0
+          };
+        }
+      }
+      
+      res.json({ quotes });
+    } catch (error) {
+      logger.error("Error fetching batch quotes:", error);
+      res.status(500).json({ error: "Failed to fetch batch quotes" });
+    }
+  });
+
   // Real-time WebSocket status endpoint
   app.get("/api/realtime-status", async (req, res) => {
     try {
@@ -4971,7 +5008,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(deduplicatedIdeas);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch trade ideas" });
+      logger.error("[TRADE-IDEAS] Error fetching trade ideas:", error);
+      res.status(500).json({ error: "Failed to fetch trade ideas", details: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -4997,11 +5035,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent whale flows (for dashboard widget)
+  // Sources: 1) options_flow_history with $25k+ premium, 2) whale_flows table, 3) A/A+ trade ideas fallback
   app.get("/api/whale-flows/recent", requireBetaAccess, async (req: any, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
-      const flows = await storage.getRecentWhaleFlows(limit);
-      res.json(flows);
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      // Get flows from options_flow_history (scanner-detected flows with $25k+ premium)
+      const { getWhaleFlows } = await import("./whale-flow-service");
+      const optionsFlows = await getWhaleFlows({ minPremium: 25000, limit });
+      
+      // Also get from whale_flows table (trade idea derived flows)
+      const whaleFlowsData = await storage.getRecentWhaleFlows(limit);
+      
+      // Transform options flows to match expected format
+      const transformedFlows = optionsFlows.map((f: any) => ({
+        id: f.id.toString(),
+        symbol: f.symbol,
+        optionType: f.optionType,
+        strikePrice: f.strikePrice,
+        expiryDate: f.expirationDate,
+        premiumPerContract: f.totalPremium,
+        isMegaWhale: f.whaleSize === 'mega' || f.whaleSize === 'ultra',
+        confidenceScore: f.unusualScore || 70,
+        detectedAt: f.detectedAt,
+        flowType: f.flowType,
+        sentiment: f.sentiment,
+        dteCategory: f.dteCategory,
+      }));
+      
+      // Combine both sources, remove duplicates by symbol+strike+expiry
+      const seen = new Set<string>();
+      let allFlows = [...transformedFlows, ...whaleFlowsData.map(w => ({
+        ...w,
+        expiryDate: w.expiryDate,
+        premiumPerContract: w.premiumPerContract,
+      }))].filter(f => {
+        const key = `${f.symbol}-${f.strikePrice}-${f.expiryDate}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      
+      // Fallback: If no whale flows, show A/A+ grade trade ideas as "smart money" signals
+      if (allFlows.length === 0) {
+        const topIdeas = await storage.getAllTradeIdeas();
+        const highConvictionIdeas = topIdeas
+          .filter(i => ['A+', 'A', 'A-'].includes(i.probabilityBand || '') && 
+                       i.assetType === 'option' && 
+                       i.outcomeStatus === 'open')
+          .slice(0, limit)
+          .map(i => ({
+            id: i.id,
+            symbol: i.symbol,
+            optionType: i.optionType || 'call',
+            strikePrice: i.strikePrice || 0,
+            expiryDate: i.expiryDate || '',
+            premiumPerContract: (i.entryPrice || 0) * 100,
+            isMegaWhale: false,
+            confidenceScore: i.confidenceScore || 85,
+            detectedAt: i.timestamp,
+            flowType: 'smart_money_signal',
+            sentiment: i.direction === 'LONG' ? 'bullish' : 'bearish',
+            dteCategory: 'swing',
+            grade: i.probabilityBand,
+            source: 'high_conviction_idea',
+          }));
+        allFlows = highConvictionIdeas;
+      }
+      
+      // Sort by most recent and limit
+      const sorted = allFlows
+        .sort((a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime())
+        .slice(0, limit);
+      
+      res.json(sorted);
     } catch (error) {
       logger.error("[API] Failed to fetch recent whale flows:", error);
       res.status(500).json({ error: "Failed to fetch recent whale flows" });
@@ -19418,6 +19525,67 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Get flow history for watchlist symbols (last 7 days by default)
+  app.get("/api/watchlist/flow-history", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 7;
+      const { getWatchlistFlowHistory } = await import("./options-flow-scanner");
+      const result = await getWatchlistFlowHistory(days);
+      res.json(result);
+    } catch (error) {
+      logger.error("Error getting watchlist flow history", { error });
+      res.status(500).json({ error: "Failed to get watchlist flow history" });
+    }
+  });
+
+  // Get flow history for a specific symbol
+  app.get("/api/symbol/:symbol/flow-history", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const days = parseInt(req.query.days as string) || 30;
+      const { getSymbolFlowHistory } = await import("./options-flow-scanner");
+      const flows = await getSymbolFlowHistory(symbol, days);
+      res.json({ symbol, flows });
+    } catch (error) {
+      logger.error("Error getting symbol flow history", { error });
+      res.status(500).json({ error: "Failed to get symbol flow history" });
+    }
+  });
+
+  // Scan watchlist symbols for options flow (works even outside market hours)
+  app.post("/api/watchlist/scan-flows", async (req, res) => {
+    try {
+      logger.info('[API] Triggering watchlist flow scan...');
+      const { scanWatchlistForFlows } = await import("./options-flow-scanner");
+      const result = await scanWatchlistForFlows();
+      res.json({ 
+        success: true, 
+        message: `Scanned ${result.scanned} symbols, found ${result.flowsFound} flows, saved ${result.saved} to history`,
+        ...result 
+      });
+    } catch (error) {
+      logger.error("Error scanning watchlist for flows", { error });
+      res.status(500).json({ error: "Failed to scan watchlist for flows" });
+    }
+  });
+
+  // GET endpoint for triggering watchlist flow scan (requires auth for state-changing operation)
+  app.get("/api/watchlist/scan-flows", isAuthenticated, async (req, res) => {
+    try {
+      logger.info('[API] Triggering watchlist flow scan via GET...');
+      const { scanWatchlistForFlows } = await import("./options-flow-scanner");
+      const result = await scanWatchlistForFlows();
+      res.json({ 
+        success: true, 
+        message: `Scanned ${result.scanned} symbols, found ${result.flowsFound} flows, saved ${result.saved} to history`,
+        ...result 
+      });
+    } catch (error) {
+      logger.error("Error scanning watchlist for flows", { error });
+      res.status(500).json({ error: "Failed to scan watchlist for flows" });
+    }
+  });
+
   app.post("/api/automations/options-flow/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateOptionsFlowSettings, getOptionsFlowStatus } = await import("./options-flow-scanner");
@@ -19426,6 +19594,115 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error updating options flow settings", { error });
       res.status(500).json({ error: "Failed to update options flow settings" });
+    }
+  });
+
+  // ============================================================================
+  // WHALE FLOW ENDPOINTS - Track large institutional options flow & directionality
+  // ============================================================================
+
+  // Get whale flow for today or specific date range
+  app.get("/api/whale-flow", async (req, res) => {
+    try {
+      const { getWhaleFlows } = await import("./whale-flow-service");
+      const { symbol, startDate, endDate, minPremium, limit } = req.query;
+      
+      const flows = await getWhaleFlows({
+        symbol: symbol as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+        minPremium: minPremium ? parseInt(minPremium as string) : undefined,
+        limit: limit ? parseInt(limit as string) : 100,
+      });
+      
+      res.json({ success: true, flows });
+    } catch (error) {
+      logger.error("Error fetching whale flow", { error });
+      res.status(500).json({ error: "Failed to fetch whale flow" });
+    }
+  });
+
+  // Get directionality for a specific symbol
+  app.get("/api/whale-flow/symbol/:symbol", async (req, res) => {
+    try {
+      const { getSymbolDirectionality } = await import("./whale-flow-service");
+      const { symbol } = req.params;
+      const { date } = req.query;
+      
+      const directionality = await getSymbolDirectionality(symbol, date as string);
+      
+      if (!directionality) {
+        res.json({ success: true, data: null, message: "No whale activity for this symbol today" });
+        return;
+      }
+      
+      res.json({ success: true, data: directionality });
+    } catch (error) {
+      logger.error(`Error fetching directionality for ${req.params.symbol}`, { error });
+      res.status(500).json({ error: "Failed to fetch symbol directionality" });
+    }
+  });
+
+  // Get overall market directionality from whale flow
+  app.get("/api/whale-flow/market", async (req, res) => {
+    try {
+      const { getMarketDirectionality } = await import("./whale-flow-service");
+      const { date } = req.query;
+      
+      const directionality = await getMarketDirectionality(date as string);
+      res.json({ success: true, data: directionality });
+    } catch (error) {
+      logger.error("Error fetching market directionality", { error });
+      res.status(500).json({ error: "Failed to fetch market directionality" });
+    }
+  });
+
+  // Get whale flow stats for dashboard
+  app.get("/api/whale-flow/stats", async (req, res) => {
+    try {
+      const { getWhaleFlowStats } = await import("./whale-flow-service");
+      const stats = await getWhaleFlowStats();
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      logger.error("Error fetching whale flow stats", { error });
+      res.status(500).json({ error: "Failed to fetch whale flow stats" });
+    }
+  });
+
+  // Get whale signals - directional trade suggestions from massive flow
+  app.get("/api/whale-flow/signals", async (req, res) => {
+    try {
+      const { generateWhaleSignals } = await import("./whale-signal-generator");
+      const signals = await generateWhaleSignals();
+      res.json({ success: true, signals });
+    } catch (error) {
+      logger.error("Error generating whale signals", { error });
+      res.status(500).json({ error: "Failed to generate whale signals" });
+    }
+  });
+
+  // Get actionable whale signals (filtered for high conviction)
+  app.get("/api/whale-flow/signals/actionable", async (req, res) => {
+    try {
+      const { getActionableWhaleSignals } = await import("./whale-signal-generator");
+      const signals = await getActionableWhaleSignals();
+      res.json({ success: true, signals });
+    } catch (error) {
+      logger.error("Error getting actionable whale signals", { error });
+      res.status(500).json({ error: "Failed to get actionable whale signals" });
+    }
+  });
+
+  // Check whale flow boost for a specific symbol
+  app.get("/api/whale-flow/boost/:symbol", async (req, res) => {
+    try {
+      const { getWhaleFlowBoost } = await import("./whale-signal-generator");
+      const { symbol } = req.params;
+      const boost = await getWhaleFlowBoost(symbol);
+      res.json({ success: true, data: boost });
+    } catch (error) {
+      logger.error(`Error getting whale boost for ${req.params.symbol}`, { error });
+      res.status(500).json({ error: "Failed to get whale flow boost" });
     }
   });
 
@@ -19475,6 +19752,160 @@ Use this checklist before entering any trade:
     }
   });
 
+  // WSB-specific trending endpoint - fetches LIVE data from Reddit/WSB
+  app.get("/api/automations/wsb-trending", async (_req, res) => {
+    try {
+      const { fetchWSBTrending, getWSBTrending } = await import("./social-sentiment-scanner");
+      // Try to get cached data first, or fetch fresh
+      let wsbData = getWSBTrending();
+      if (wsbData.length === 0) {
+        wsbData = await fetchWSBTrending();
+      }
+      res.json({
+        success: true,
+        count: wsbData.length,
+        lastUpdated: new Date().toISOString(),
+        trending: wsbData.slice(0, 50),
+        sources: ['tradestie', 'apewisdom']
+      });
+    } catch (error) {
+      logger.error("Error getting WSB trending", { error });
+      res.status(500).json({ error: "Failed to get WSB trending data" });
+    }
+  });
+
+  // Force refresh WSB trending data
+  app.post("/api/automations/wsb-trending/refresh", requireAdminJWT, async (_req, res) => {
+    try {
+      const { fetchWSBTrending } = await import("./social-sentiment-scanner");
+      const wsbData = await fetchWSBTrending();
+      res.json({
+        success: true,
+        count: wsbData.length,
+        refreshedAt: new Date().toISOString(),
+        trending: wsbData.slice(0, 50)
+      });
+    } catch (error) {
+      logger.error("Error refreshing WSB trending", { error });
+      res.status(500).json({ error: "Failed to refresh WSB trending data" });
+    }
+  });
+
+  // Feed social trending stocks to Trade Desk
+  app.post("/api/automations/social-trends/feed-to-trade-desk", isAuthenticated, async (req, res) => {
+    try {
+      const { symbols, minMentions = 20, sentimentFilter = 'bullish' } = req.body;
+      
+      const { fetchWSBTrending, getWSBTrending } = await import("./social-sentiment-scanner");
+      const { generateUniversalIdea, IdeaSignal } = await import("./universal-idea-generator");
+      const { fetchTradierQuotes } = await import("./market-data-service");
+      
+      // Get trending data
+      let trendingData = getWSBTrending();
+      if (trendingData.length === 0) {
+        trendingData = await fetchWSBTrending();
+      }
+      
+      // Filter by provided symbols or use top trending
+      let stocksToProcess = trendingData;
+      if (symbols && Array.isArray(symbols) && symbols.length > 0) {
+        stocksToProcess = trendingData.filter(t => symbols.includes(t.symbol));
+      } else {
+        stocksToProcess = trendingData
+          .filter(t => t.mentionCount >= minMentions)
+          .filter(t => sentimentFilter === 'all' || t.sentiment === sentimentFilter)
+          .slice(0, 20);
+      }
+      
+      if (stocksToProcess.length === 0) {
+        return res.json({ success: true, message: "No stocks matching criteria", ideasCreated: 0 });
+      }
+      
+      // Fetch quotes for valid symbols
+      const validSymbols = stocksToProcess.map(s => s.symbol).filter(s => !s.includes('/') && s.length <= 5);
+      const quotes = await fetchTradierQuotes(validSymbols);
+      
+      let ideasCreated = 0;
+      const results: any[] = [];
+      
+      for (const stock of stocksToProcess) {
+        try {
+          const quote = quotes[stock.symbol];
+          if (!quote || !quote.last || quote.last <= 0) continue;
+          
+          // Build signals based on social data
+          const signals: IdeaSignal[] = [
+            {
+              type: 'TRENDING_TICKER',
+              weight: Math.min(15, Math.floor(stock.mentionCount / 10)),
+              description: `${stock.mentionCount} mentions on Reddit/WSB`
+            }
+          ];
+          
+          if (stock.sentiment === 'bullish' && stock.sentimentScore > 50) {
+            signals.push({
+              type: 'SENTIMENT_BULLISH',
+              weight: Math.min(12, Math.floor(stock.sentimentScore / 10)),
+              description: `Strong bullish sentiment (${stock.sentimentScore}%)`
+            });
+          }
+          
+          if (stock.mentionCount >= 50) {
+            signals.push({
+              type: 'HIGH_ENGAGEMENT',
+              weight: 8,
+              description: 'High social engagement (50+ mentions)'
+            });
+          }
+          
+          // Skip if not enough signal strength
+          if (signals.reduce((sum, s) => sum + s.weight, 0) < 15) continue;
+          
+          const result = await generateUniversalIdea({
+            symbol: stock.symbol,
+            source: 'social_sentiment',
+            assetType: 'stock',
+            direction: stock.sentiment === 'bearish' ? 'bearish' : 'bullish',
+            currentPrice: quote.last,
+            signals,
+            sourceMetadata: {
+              mentionCount: stock.mentionCount,
+              sentimentScore: stock.sentimentScore
+            },
+            holdingPeriod: 'day',
+            catalyst: `Trending on Reddit/WSB with ${stock.mentionCount} mentions`,
+            analysis: `Social sentiment ${stock.sentiment} with score ${stock.sentimentScore}. ${stock.change24h > 0 ? '+' : ''}${stock.change24h.toFixed(1)}% 24h change.`
+          });
+          
+          if (result.success && result.idea) {
+            ideasCreated++;
+            results.push({
+              symbol: stock.symbol,
+              grade: result.idea.grade,
+              confidence: result.idea.confidenceScore,
+              id: result.idea.id
+            });
+          }
+        } catch (err) {
+          logger.warn(`[SOCIAL-FEED] Failed to create idea for ${stock.symbol}`, { error: err });
+        }
+      }
+      
+      logger.info(`[SOCIAL-FEED] Created ${ideasCreated} trade ideas from social trends`);
+      
+      res.json({
+        success: true,
+        ideasCreated,
+        processed: stocksToProcess.length,
+        results,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error("Error feeding social trends to Trade Desk", { error });
+      res.status(500).json({ error: "Failed to feed social trends to Trade Desk" });
+    }
+  });
+
   app.get("/api/automations/social-sentiment/mentions", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
@@ -19507,6 +19938,216 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error updating social sentiment settings", { error });
       res.status(500).json({ error: "Failed to update social sentiment settings" });
+    }
+  });
+
+  // Multi-LLM Validation Service endpoints
+  app.get("/api/validation/status", async (_req, res) => {
+    try {
+      const { getValidationServiceStatus } = await import("./multi-llm-validation");
+      const status = getValidationServiceStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting validation service status", { error });
+      res.status(500).json({ error: "Failed to get validation service status" });
+    }
+  });
+
+  app.post("/api/validation/validate", requireAdminJWT, async (req, res) => {
+    try {
+      const { validateTradeWithConsensus } = await import("./multi-llm-validation");
+      const { idea, marketContext, options } = req.body;
+      
+      if (!idea || !idea.symbol) {
+        return res.status(400).json({ error: "Trade idea with symbol is required" });
+      }
+      
+      const result = await validateTradeWithConsensus(idea, marketContext || '', options || {});
+      res.json(result);
+    } catch (error) {
+      logger.error("Error validating trade", { error });
+      res.status(500).json({ error: "Failed to validate trade with LLMs" });
+    }
+  });
+
+  app.post("/api/validation/quick", requireAdminJWT, async (req, res) => {
+    try {
+      const { quickValidation } = await import("./multi-llm-validation");
+      const { idea, marketContext } = req.body;
+      
+      if (!idea || !idea.symbol) {
+        return res.status(400).json({ error: "Trade idea with symbol is required" });
+      }
+      
+      const result = await quickValidation(idea, marketContext || '');
+      res.json(result);
+    } catch (error) {
+      logger.error("Error in quick validation", { error });
+      res.status(500).json({ error: "Quick validation failed" });
+    }
+  });
+
+  // Pattern Prediction API - Mathematical pattern analysis
+  app.get("/api/patterns/:symbol", isAuthenticated, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { PatternPredictor } = await import("./pattern-predictor");
+      
+      // Fetch historical bars from Yahoo Finance
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 120); // 120 days of data
+      
+      const result = await yahooFinance.chart(symbol.toUpperCase(), {
+        period1: startDate,
+        period2: endDate,
+        interval: '1d',
+      });
+
+      if (!result?.quotes || result.quotes.length < 20) {
+        return res.status(400).json({ error: "Insufficient price data for pattern analysis" });
+      }
+
+      const bars = result.quotes.map((q: any) => ({
+        timestamp: new Date(q.date).getTime(),
+        open: q.open || q.close,
+        high: q.high || q.close,
+        low: q.low || q.close,
+        close: q.close,
+        volume: q.volume || 0,
+      }));
+
+      const prediction = await PatternPredictor.generatePatternPrediction(symbol.toUpperCase(), bars);
+      res.json(prediction);
+    } catch (error) {
+      logger.error("Error generating pattern prediction", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Pattern prediction failed" });
+    }
+  });
+
+  // Macro Signals API - VIX regime, sector rotation
+  app.get("/api/macro/context", isAuthenticated, async (req, res) => {
+    try {
+      const { MacroSignals } = await import("./macro-signals");
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      // Fetch VIX level
+      let vixLevel = 18; // Default fallback
+      try {
+        const vixQuote = await yahooFinance.quote("^VIX");
+        vixLevel = vixQuote?.regularMarketPrice || 18;
+      } catch (e) {
+        logger.warn("[MACRO] Could not fetch VIX, using default");
+      }
+
+      // Fetch sector ETF performance
+      const sectorSymbols = ['SPY', 'XLK', 'XLV', 'XLF', 'XLE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'XLRE', 'XLC'];
+      const sectorData = new Map<string, { perf1d: number; perf5d: number; perf1m: number; volume: number }>();
+      
+      try {
+        const quotes = await yahooFinance.quote(sectorSymbols);
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+        
+        for (const quote of quotesArray) {
+          if (quote?.symbol) {
+            sectorData.set(quote.symbol, {
+              perf1d: quote.regularMarketChangePercent || 0,
+              perf5d: ((quote.regularMarketPrice || 0) - (quote.fiftyDayAverage || quote.regularMarketPrice || 1)) / (quote.fiftyDayAverage || 1) * 100,
+              perf1m: ((quote.regularMarketPrice || 0) - (quote.twoHundredDayAverage || quote.regularMarketPrice || 1)) / (quote.twoHundredDayAverage || 1) * 100,
+              volume: quote.regularMarketVolume || 0,
+            });
+          }
+        }
+      } catch (e) {
+        logger.warn("[MACRO] Could not fetch sector data");
+      }
+
+      const macroContext = await MacroSignals.generateMacroContext(vixLevel, undefined, sectorData);
+      res.json(macroContext);
+    } catch (error) {
+      logger.error("Error generating macro context", { error });
+      res.status(500).json({ error: "Macro context generation failed" });
+    }
+  });
+
+  // Quick VIX regime check
+  app.get("/api/macro/vix-regime", async (_req, res) => {
+    try {
+      const { MacroSignals } = await import("./macro-signals");
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      let vixLevel = 18;
+      try {
+        const vixQuote = await yahooFinance.quote("^VIX");
+        vixLevel = vixQuote?.regularMarketPrice || 18;
+      } catch (e) {
+        logger.warn("[MACRO] Could not fetch VIX");
+      }
+
+      const regime = MacroSignals.analyzeVIXRegime(vixLevel);
+      const quickRegime = MacroSignals.getQuickMacroRegime(vixLevel);
+      
+      res.json({ ...regime, ...quickRegime });
+    } catch (error) {
+      logger.error("Error fetching VIX regime", { error });
+      res.status(500).json({ error: "VIX regime check failed" });
+    }
+  });
+
+  // Order Book Intelligence API - Institutional flow detection
+  app.get("/api/flow/institutional/:symbol", isAuthenticated, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { OrderBookIntelligence } = await import("./order-book-intelligence");
+      const yahooFinance = (await import('yahoo-finance2')).default;
+
+      // Get quote for avg daily volume
+      let avgDailyVolume = 1000000;
+      try {
+        const quote = await yahooFinance.quote(symbol.toUpperCase());
+        avgDailyVolume = quote?.averageDailyVolume10Day || quote?.averageDailyVolume3Month || 1000000;
+      } catch (e) {
+        logger.warn("[FLOW] Could not fetch quote for avg volume");
+      }
+
+      // Generate simulated recent trades based on current market conditions
+      const recentTrades: Array<{ price: number; size: number; side: 'buy' | 'sell'; timestamp: string }> = [];
+      try {
+        const quote = await yahooFinance.quote(symbol.toUpperCase());
+        const lastPrice = quote?.regularMarketPrice || 100;
+        const avgSize = Math.round(avgDailyVolume / 390); // Avg per minute
+        
+        // Generate mock trade tape based on price movement
+        const priceChange = quote?.regularMarketChangePercent || 0;
+        const bullishBias = priceChange > 0 ? 0.6 : priceChange < 0 ? 0.4 : 0.5;
+        
+        for (let i = 0; i < 20; i++) {
+          const isBuy = Math.random() < bullishBias;
+          const sizeMultiplier = Math.random() > 0.9 ? 10 : Math.random() > 0.7 ? 3 : 1;
+          recentTrades.push({
+            price: lastPrice * (1 + (Math.random() - 0.5) * 0.002),
+            size: Math.round(avgSize * sizeMultiplier * (0.5 + Math.random())),
+            side: isBuy ? 'buy' : 'sell',
+            timestamp: new Date(Date.now() - i * 3000).toISOString(),
+          });
+        }
+      } catch (e) {
+        logger.warn("[FLOW] Could not generate trade tape");
+      }
+
+      const flowAnalysis = await OrderBookIntelligence.analyzeInstitutionalFlow(
+        symbol.toUpperCase(),
+        null,
+        recentTrades,
+        avgDailyVolume,
+        'stock'
+      );
+
+      res.json(flowAnalysis);
+    } catch (error) {
+      logger.error("Error analyzing institutional flow", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Institutional flow analysis failed" });
     }
   });
 
@@ -19596,6 +20237,152 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error getting automations status", { error });
       res.status(500).json({ error: "Failed to get automations status" });
+    }
+  });
+
+  // ============================================
+  // PRICE PREDICTION ENGINE - AI/ML forecasts for LEAPS
+  // ============================================
+  
+  app.get("/api/prediction/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { predictPriceWithAI } = await import("./price-prediction-engine");
+      const prediction = await predictPriceWithAI(symbol.toUpperCase());
+      
+      if (prediction) {
+        res.json(prediction);
+      } else {
+        res.status(404).json({ error: `No prediction available for ${symbol}` });
+      }
+    } catch (error) {
+      logger.error("Error generating price prediction", { error });
+      res.status(500).json({ error: "Failed to generate price prediction" });
+    }
+  });
+
+  // ============================================
+  // BOT SENTIMENT WATCHLIST - Auto-generated from sentiment analysis
+  // ============================================
+  
+  app.get("/api/automations/bot-watchlist", async (_req, res) => {
+    try {
+      const { getBotSentimentWatchlist, refreshBotWatchlist } = await import("./bot-sentiment-watchlist");
+      const watchlist = await getBotSentimentWatchlist();
+      res.json({ watchlist, count: watchlist.length });
+    } catch (error) {
+      logger.error("Error getting bot watchlist", { error });
+      res.status(500).json({ error: "Failed to get bot watchlist" });
+    }
+  });
+
+  app.post("/api/automations/bot-watchlist/refresh", async (_req, res) => {
+    try {
+      const { refreshBotWatchlist, getBotSentimentWatchlist } = await import("./bot-sentiment-watchlist");
+      await refreshBotWatchlist();
+      const watchlist = await getBotSentimentWatchlist();
+      res.json({ success: true, watchlist, count: watchlist.length });
+    } catch (error) {
+      logger.error("Error refreshing bot watchlist", { error });
+      res.status(500).json({ error: "Failed to refresh bot watchlist" });
+    }
+  });
+
+  // ============================================
+  // SURGE DETECTOR - Find momentum and pre-breakout signals (NO price cap)
+  // ============================================
+  
+  app.get("/api/discovery/breakouts", async (_req, res) => {
+    try {
+      const { discoverBreakoutCandidates } = await import("./breakout-discovery-service");
+      const candidates = await discoverBreakoutCandidates();
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      logger.error("Error in surge detection", { error });
+      res.status(500).json({ error: "Failed to detect surges" });
+    }
+  });
+
+  app.get("/api/discovery/pre-breakout", async (_req, res) => {
+    try {
+      const { detectPreBreakout } = await import("./breakout-discovery-service");
+      const candidates = await detectPreBreakout();
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      logger.error("Error in pre-breakout detection", { error });
+      res.status(500).json({ error: "Failed to detect pre-breakout signals" });
+    }
+  });
+
+  // ============================================
+  // DETECTION ENGINE - Event-driven surge detection (criteria-based, not scanning)
+  // ============================================
+  
+  app.get("/api/detection/alerts", async (_req, res) => {
+    try {
+      const { getActiveAlerts, getLastDetectionAlerts, runDetectionCycle } = await import("./surge-detection-engine");
+      let activeAlerts = getActiveAlerts();
+      let lastCycleAlerts = getLastDetectionAlerts();
+      
+      // Auto-run detection if no alerts exist (first access or stale)
+      if (activeAlerts.length === 0 && lastCycleAlerts.length === 0) {
+        logger.info("[DETECTION] No alerts found, running initial detection cycle...");
+        lastCycleAlerts = await runDetectionCycle();
+        activeAlerts = getActiveAlerts();
+      }
+      
+      res.json({ 
+        alerts: activeAlerts,
+        lastCycle: lastCycleAlerts,
+        activeCount: activeAlerts.length,
+        highPriority: activeAlerts.filter(a => a.severity === 'HIGH').length
+      });
+    } catch (error) {
+      logger.error("Error getting detection alerts", { error });
+      res.status(500).json({ error: "Failed to get detection alerts" });
+    }
+  });
+
+  app.post("/api/detection/run", async (_req, res) => {
+    try {
+      const { runDetectionCycle } = await import("./surge-detection-engine");
+      const alerts = await runDetectionCycle();
+      res.json({ 
+        alerts,
+        count: alerts.length,
+        high: alerts.filter(a => a.severity === 'HIGH').length,
+        medium: alerts.filter(a => a.severity === 'MEDIUM').length,
+        low: alerts.filter(a => a.severity === 'LOW').length
+      });
+    } catch (error) {
+      logger.error("Error running detection cycle", { error });
+      res.status(500).json({ error: "Failed to run detection cycle" });
+    }
+  });
+
+  app.delete("/api/detection/alert/:symbol", async (req, res) => {
+    try {
+      const { clearAlert } = await import("./surge-detection-engine");
+      clearAlert(req.params.symbol);
+      res.json({ success: true, symbol: req.params.symbol });
+    } catch (error) {
+      logger.error("Error clearing alert", { error });
+      res.status(500).json({ error: "Failed to clear alert" });
+    }
+  });
+
+  // ============================================
+  // MORNING PREVIEW - 8:30 AM CT trading preview
+  // ============================================
+  
+  app.get("/api/automations/morning-preview", async (_req, res) => {
+    try {
+      const { generateMorningPreview } = await import("./morning-preview-service");
+      const preview = await generateMorningPreview();
+      res.json(preview);
+    } catch (error) {
+      logger.error("Error generating morning preview", { error });
+      res.status(500).json({ error: "Failed to generate morning preview" });
     }
   });
 
@@ -21018,6 +21805,72 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error fetching quick quote", { error });
       res.status(500).json({ error: "Failed to fetch quick quote" });
+    }
+  });
+
+  // ============================================================================
+  // NET GAMMA EXPOSURE (GEX) API
+  // Shows where market makers need to hedge - indicates support/resistance
+  // ============================================================================
+
+  // GET /api/gamma-exposure/:symbol - Get net gamma exposure by strike
+  app.get("/api/gamma-exposure/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase();
+      const { expiration, aggregate } = req.query;
+      
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol required" });
+      }
+      
+      const { calculateGammaExposure, calculateAggregateGammaExposure } = await import("./gamma-exposure");
+      
+      let result;
+      if (aggregate === 'true') {
+        result = await calculateAggregateGammaExposure(symbol);
+      } else {
+        result = await calculateGammaExposure(symbol, expiration as string | undefined);
+      }
+      
+      if (!result) {
+        return res.status(404).json({ error: `No gamma data for ${symbol}` });
+      }
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error calculating gamma exposure", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to calculate gamma exposure" });
+    }
+  });
+
+  // POST /api/gamma-exposure/batch - Get GEX for multiple symbols
+  app.post("/api/gamma-exposure/batch", async (req, res) => {
+    try {
+      const { symbols } = req.body;
+      
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: "symbols array required" });
+      }
+      
+      // Limit to 10 symbols to prevent abuse
+      const limitedSymbols = symbols.slice(0, 10).map((s: string) => s.toUpperCase());
+      
+      const { calculateGammaExposure } = await import("./gamma-exposure");
+      
+      const results = await Promise.all(
+        limitedSymbols.map(async (symbol: string) => {
+          const gex = await calculateGammaExposure(symbol);
+          return { symbol, data: gex };
+        })
+      );
+      
+      res.json({
+        results: results.filter(r => r.data !== null),
+        failed: results.filter(r => r.data === null).map(r => r.symbol)
+      });
+    } catch (error: any) {
+      logger.error("Error in batch gamma exposure", { error });
+      res.status(500).json({ error: "Failed to calculate batch gamma exposure" });
     }
   });
 

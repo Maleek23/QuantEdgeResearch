@@ -285,7 +285,8 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
       return [];
     }
 
-    // Filter for ≤14 days (lotto plays are near-term) AND valid trading days
+    // Filter for valid trading days - include ALL DTE ranges (0DTE through LEAPS)
+    // Weekly (0-7), Monthly (8-30), Quarterly (31-90), LEAPS (90+)
     const today = new Date();
     const options = allOptions.filter(opt => {
       if (!opt.expiration_date) return false;
@@ -293,10 +294,11 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
       if (!isValidTradingDay(opt.expiration_date)) return false;
       const expiryDate = new Date(opt.expiration_date);
       const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return daysToExpiry <= 14;
+      // Allow ALL DTE ranges - from 0DTE to LEAPS (up to 540 days / 18 months)
+      return daysToExpiry >= 0 && daysToExpiry <= 540;
     });
 
-    logger.info(`🎰 [LOTTO] ${ticker}: Filtered to ${options.length} options with ≤14 days DTE (from ${allOptions.length} total)`);
+    logger.info(`🎰 [LOTTO] ${ticker}: Filtered to ${options.length} options with 0-540 days DTE (from ${allOptions.length} total)`);
 
     const thresholds = getLottoThresholds();
     const lottoCandidates: LottoCandidate[] = [];

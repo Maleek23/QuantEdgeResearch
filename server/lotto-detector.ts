@@ -5,9 +5,9 @@ import { logger } from './logger';
 
 // Lotto Mode thresholds - High-risk far-OTM options with 20x potential
 const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
-const LOTTO_ENTRY_MAX = 5.00; // $500 maximum (expanded to include swing trade premiums)
-const LOTTO_DELTA_MAX = 0.12; // Tightened further: Deep OTM (delta <0.12)
-const LOTTO_MAX_DTE = 45; // Extended for monthly swings
+const LOTTO_ENTRY_MAX = 8.00; // $800 maximum (expanded for LEAPS lottos - cheap far OTM LEAPS)
+const LOTTO_DELTA_MAX = 0.15; // Slightly expanded for LEAPS (delta <0.15 = still far OTM)
+const LOTTO_MAX_DTE = 540; // Allow LEAPS up to 18 months out
 
 interface LottoOption {
   lastPrice: number;           // Entry premium price
@@ -72,7 +72,7 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
   targetPrice: number;
   riskRewardRatio: number;
   targetMultiplier: number;
-  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly';
+  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'quarterly' | 'leaps';
 } {
   // Calculate DTE if expiry date provided
   let dte = 7; // Default to full weekly if unknown
@@ -84,14 +84,13 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
   
   // DTE-aware target multipliers - realistic for time remaining
   let targetMultiplier: number;
-  let dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly';
+  let dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly' | 'quarterly' | 'leaps';
   
   if (dte === 0) {
     // 0DTE: Intraday gamma play - only hours left
     // Realistic 3x-5x target (average 4x)
     targetMultiplier = 4;
     dteCategory = '0DTE';
-    // Debug level to reduce log verbosity - called per option contract
   } else if (dte <= 2) {
     // 1-2 DTE: Overnight/weekend plays
     // Medium 5x-10x target (average 7x)
@@ -107,21 +106,31 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
     // More conservative 2.5x-3x target
     targetMultiplier = 2.5;
     dteCategory = 'swing';
-  } else if (dte <= 21) {
-    // 15-21 DTE: Standard swing trade
-    // Conservative 2x target - time is on our side
-    targetMultiplier = 2;
-    dteCategory = 'swing';
   } else if (dte <= 30) {
-    // 22-30 DTE: Monthly swing
-    // Lower target but more time - 1.75x
-    targetMultiplier = 1.75;
+    // 15-30 DTE: Monthly swing
+    // Lower target but more time - 2x
+    targetMultiplier = 2;
     dteCategory = 'monthly';
+  } else if (dte <= 90) {
+    // 31-90 DTE: Quarterly position
+    // Conservative but time allows for larger moves - 3x
+    targetMultiplier = 3;
+    dteCategory = 'quarterly';
+  } else if (dte <= 180) {
+    // 91-180 DTE: Short LEAPS
+    // Cheap LEAPS lotto - time for multi-bagger - 5x
+    targetMultiplier = 5;
+    dteCategory = 'leaps';
+  } else if (dte <= 365) {
+    // 181-365 DTE: Standard LEAPS
+    // Real LEAPS lotto - 10x potential on cheap far OTM
+    targetMultiplier = 10;
+    dteCategory = 'leaps';
   } else {
-    // 31-45 DTE: Long monthly position
-    // Conservative 1.5x target - maximum time
-    targetMultiplier = 1.5;
-    dteCategory = 'monthly';
+    // 366+ DTE: Long LEAPS (18+ months)
+    // Max time, cheap entry, 15x-20x multi-bagger potential
+    targetMultiplier = 15;
+    dteCategory = 'leaps';
   }
   
   const targetPrice = entryPrice * targetMultiplier;

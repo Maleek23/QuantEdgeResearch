@@ -6,8 +6,23 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
 import { formatDateOnly } from "@/lib/timezone";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity, Clock, Zap } from "lucide-react";
 import { CompactAnalysisBadges, MultiDimensionalAnalysis } from "./multi-dimensional-analysis";
+
+function getDteCategory(expiryDate: string | null | undefined): { label: string; color: string } | null {
+  if (!expiryDate) return null;
+  
+  const now = new Date();
+  const expiry = new Date(expiryDate);
+  const diffMs = expiry.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 0) return { label: '0DTE', color: 'bg-red-500/20 text-red-300 border-red-500/40' };
+  if (diffDays <= 2) return { label: '1-2 DTE', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
+  if (diffDays <= 7) return { label: '3-7 DTE', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
+  if (diffDays <= 30) return { label: 'MONTHLY', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
+  return { label: 'LEAPS', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40' };
+}
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
@@ -136,6 +151,21 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 )} data-testid={`badge-strike-${idea.symbol}`}>
                   ${idea.strikePrice} {idea.optionType.toUpperCase()}
                   {idea.expiryDate && ` | ${formatDateOnly(idea.expiryDate)}`}
+                </Badge>
+              )}
+              {idea.assetType === 'option' && idea.expiryDate && (() => {
+                const dteInfo = getDteCategory(idea.expiryDate);
+                return dteInfo ? (
+                  <Badge variant="outline" className={cn("text-xs font-bold gap-1", dteInfo.color)} data-testid={`badge-dte-${idea.symbol}`}>
+                    <Clock className="h-3 w-3" />
+                    {dteInfo.label}
+                  </Badge>
+                ) : null;
+              })()}
+              {idea.isLottoPlay && (
+                <Badge variant="outline" className="text-xs font-bold gap-1 bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40 animate-pulse" data-testid={`badge-lotto-${idea.symbol}`}>
+                  <Zap className="h-3 w-3" />
+                  LOTTO
                 </Badge>
               )}
               {idea.assetType === 'future' && idea.futuresContractCode && (

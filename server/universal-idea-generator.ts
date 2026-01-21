@@ -100,7 +100,8 @@ export type IdeaSource =
   | 'news_catalyst'       // From news/catalyst detection
   | 'earnings_play'       // From earnings calendar
   | 'sector_rotation'     // From sector analysis
-  | 'bot_screener';       // From Auto-Lotto Bot screener (high-conviction ideas)
+  | 'bot_screener'        // From Auto-Lotto Bot screener (high-conviction ideas)
+  | 'surge_detection';    // From Surge Detection Engine (price/volume breakouts)
 
 // Signal types that contribute to confidence
 export interface IdeaSignal {
@@ -167,6 +168,8 @@ const SOURCE_BASE_CONFIDENCE: Record<IdeaSource, number> = {
   'earnings_play': 48,
   'sector_rotation': 50,
   'manual': 40,
+  'bot_screener': 65,       // Bot screener - high conviction
+  'surge_detection': 58,    // Surge detection - real-time momentum
 };
 
 // Signal type weights

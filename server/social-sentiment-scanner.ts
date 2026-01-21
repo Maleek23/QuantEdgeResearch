@@ -1,8 +1,12 @@
 /**
  * Social Sentiment Scanner
  * 
- * Monitors Twitter/X and Reddit for ticker mentions,
+ * Monitors Twitter/X, Reddit/WSB, and StockTwits for ticker mentions,
  * sentiment analysis, and trending stocks.
+ * 
+ * LIVE DATA SOURCES:
+ * - Tradestie API: https://api.tradestie.com/v1/apps/reddit (Top 50 WSB stocks)
+ * - ApeWisdom API: https://apewisdom.io/api/v1.0/filter/wallstreetbets (WSB trending)
  */
 
 import { logger } from './logger';
@@ -10,7 +14,7 @@ import { logger } from './logger';
 interface SocialMention {
   id: string;
   symbol: string;
-  platform: 'twitter' | 'reddit' | 'stocktwits';
+  platform: 'twitter' | 'reddit' | 'stocktwits' | 'wsb';
   content: string;
   author: string;
   sentiment: 'bullish' | 'bearish' | 'neutral';
@@ -31,31 +35,72 @@ interface TrendingTicker {
   sentiment: 'bullish' | 'bearish' | 'neutral';
   change24h: number;
   topMentions: SocialMention[];
+  source: 'tradestie' | 'apewisdom' | 'combined';
+  rank?: number;
 }
 
 interface ScannerStatus {
   isActive: boolean;
   lastScan: string | null;
+  lastSuccessfulFetch: string | null;
   mentionsFound: number;
   trendingTickers: TrendingTicker[];
   recentMentions: SocialMention[];
+  wsbTrending: TrendingTicker[];
+  apiStatus: {
+    tradestie: 'ok' | 'error' | 'unknown';
+    apewisdom: 'ok' | 'error' | 'unknown';
+  };
   settings: {
     watchlist: string[];
-    platforms: ('twitter' | 'reddit' | 'stocktwits')[];
+    platforms: ('twitter' | 'reddit' | 'stocktwits' | 'wsb')[];
     minEngagement: number;
     updateInterval: number; // minutes
   };
 }
 
+// Expanded watchlist with popular trading stocks
+const EXPANDED_WATCHLIST = [
+  // Mega caps
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'BRK.B',
+  // Popular trading stocks
+  'AMD', 'PLTR', 'SOFI', 'HOOD', 'COIN', 'MARA', 'RIOT', 'CLSK',
+  'SMCI', 'ARM', 'MSTR', 'IONQ', 'RGTI', 'QBTS', 'SOUN', 'RKLB',
+  // Meme stocks
+  'GME', 'AMC', 'BBBY', 'BB', 'NOK', 'WISH', 'CLOV', 'SPCE',
+  // EV/Tech
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'GOEV', 'NKLA',
+  // AI/Cloud
+  'SNOW', 'CRWD', 'NET', 'DDOG', 'ZS', 'PANW', 'PATH', 'AI',
+  // Biotech/Pharma
+  'MRNA', 'BNTX', 'PFE', 'NVAX', 'ARCT',
+  // Space/Defense
+  'ASTS', 'LUNR', 'RDW', 'VORB', 'RCAT',
+  // ETFs
+  'SPY', 'QQQ', 'IWM', 'SOXL', 'TQQQ', 'ARKK',
+  // Crypto proxies
+  'BTC', 'ETH', 'XRP', 'SOL', 'DOGE',
+  // Energy/Nuclear
+  'SMR', 'OKLO', 'NNE', 'CCJ', 'UEC', 'LEU',
+  // Options favorites
+  'NVDA', 'SPX', 'AAPL', 'TSLA', 'AMD', 'META'
+];
+
 let scannerStatus: ScannerStatus = {
-  isActive: true,  // Scanners run by default via cron schedules
+  isActive: true,
   lastScan: null,
+  lastSuccessfulFetch: null,
   mentionsFound: 0,
   trendingTickers: [],
   recentMentions: [],
+  wsbTrending: [],
+  apiStatus: {
+    tradestie: 'unknown',
+    apewisdom: 'unknown'
+  },
   settings: {
-    watchlist: ['META', 'GOOGL', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMZN', 'AMD', 'SPY', 'QQQ', 'BTC', 'ETH'],
-    platforms: ['twitter', 'reddit', 'stocktwits'],
+    watchlist: EXPANDED_WATCHLIST,
+    platforms: ['twitter', 'reddit', 'stocktwits', 'wsb'],
     minEngagement: 10,
     updateInterval: 15,
   },
@@ -123,35 +168,239 @@ function analyzeSentiment(text: string): { sentiment: 'bullish' | 'bearish' | 'n
 function extractTickers(text: string): string[] {
   // Match $TICKER or just TICKER patterns
   const tickerRegex = /\$([A-Z]{1,5})\b|\b([A-Z]{2,5})\b/g;
-  const matches = text.matchAll(tickerRegex);
-  
   const tickers: string[] = [];
-  for (const match of matches) {
+  
+  let match;
+  while ((match = tickerRegex.exec(text)) !== null) {
     const ticker = match[1] || match[2];
     if (ticker && scannerStatus.settings.watchlist.includes(ticker)) {
       tickers.push(ticker);
     }
   }
   
-  return [...new Set(tickers)];
+  return Array.from(new Set(tickers));
+}
+
+// Tradestie API response interface
+interface TradestieStock {
+  ticker: string;
+  no_of_comments: number;
+  sentiment: string;
+  sentiment_score: number;
+}
+
+// ApeWisdom API response interface
+interface ApeWisdomResponse {
+  count: number;
+  pages: number;
+  current_page: number;
+  results: {
+    rank: number;
+    ticker: string;
+    name: string;
+    mentions: string;
+    upvotes: string;
+    rank_24h_ago: string;
+    mentions_24h_ago: string;
+  }[];
 }
 
 /**
- * Mock function to simulate social media scanning
- * In production, you would integrate with actual APIs
+ * Fetch trending stocks from Tradestie WSB API
+ * https://api.tradestie.com/v1/apps/reddit
  */
-async function scanPlatform(platform: 'twitter' | 'reddit' | 'stocktwits'): Promise<SocialMention[]> {
-  // Simulated mentions - in production, use actual API integrations
-  const mockMentions: SocialMention[] = [];
+async function fetchTradestieWSB(): Promise<TrendingTicker[]> {
+  try {
+    const response = await fetch('https://api.tradestie.com/v1/apps/reddit', {
+      headers: {
+        'User-Agent': 'QuantEdge-Trading-Platform/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      logger.warn(`[SOCIAL-SENTIMENT] Tradestie API returned ${response.status}`);
+      scannerStatus.apiStatus.tradestie = 'error';
+      return [];
+    }
+    
+    const data: TradestieStock[] = await response.json();
+    scannerStatus.apiStatus.tradestie = 'ok';
+    
+    logger.info(`[SOCIAL-SENTIMENT] Tradestie: Found ${data.length} WSB trending stocks`);
+    
+    return data.map((stock, index) => {
+      const sentimentType = stock.sentiment?.toLowerCase() === 'bullish' 
+        ? 'bullish' 
+        : stock.sentiment?.toLowerCase() === 'bearish' 
+          ? 'bearish' 
+          : 'neutral';
+      
+      return {
+        symbol: stock.ticker,
+        mentionCount: stock.no_of_comments || 0,
+        sentimentScore: Math.round((stock.sentiment_score || 0) * 100),
+        sentiment: sentimentType,
+        change24h: 0,
+        topMentions: [],
+        source: 'tradestie' as const,
+        rank: index + 1
+      };
+    });
+  } catch (error) {
+    logger.error('[SOCIAL-SENTIMENT] Tradestie API error:', error);
+    scannerStatus.apiStatus.tradestie = 'error';
+    return [];
+  }
+}
+
+/**
+ * Fetch trending stocks from ApeWisdom API
+ * https://apewisdom.io/api/v1.0/filter/wallstreetbets
+ */
+async function fetchApeWisdomWSB(): Promise<TrendingTicker[]> {
+  try {
+    const response = await fetch('https://apewisdom.io/api/v1.0/filter/wallstreetbets', {
+      headers: {
+        'User-Agent': 'QuantEdge-Trading-Platform/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      logger.warn(`[SOCIAL-SENTIMENT] ApeWisdom API returned ${response.status}`);
+      scannerStatus.apiStatus.apewisdom = 'error';
+      return [];
+    }
+    
+    const data: ApeWisdomResponse = await response.json();
+    scannerStatus.apiStatus.apewisdom = 'ok';
+    
+    logger.info(`[SOCIAL-SENTIMENT] ApeWisdom: Found ${data.results?.length || 0} WSB trending stocks`);
+    
+    return (data.results || []).map((stock) => {
+      const mentions = parseInt(stock.mentions) || 0;
+      const mentions24hAgo = parseInt(stock.mentions_24h_ago) || 0;
+      const momentumChange = mentions24hAgo > 0 ? ((mentions - mentions24hAgo) / mentions24hAgo) * 100 : 0;
+      
+      // Higher mentions = more bullish sentiment assumption
+      let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+      if (momentumChange > 50) sentiment = 'bullish';
+      else if (momentumChange < -30) sentiment = 'bearish';
+      
+      return {
+        symbol: stock.ticker,
+        mentionCount: mentions,
+        sentimentScore: Math.round(momentumChange),
+        sentiment,
+        change24h: momentumChange,
+        topMentions: [],
+        source: 'apewisdom' as const,
+        rank: stock.rank
+      };
+    });
+  } catch (error) {
+    logger.error('[SOCIAL-SENTIMENT] ApeWisdom API error:', error);
+    scannerStatus.apiStatus.apewisdom = 'error';
+    return [];
+  }
+}
+
+/**
+ * Fetch all WSB trending stocks from multiple sources
+ */
+export async function fetchWSBTrending(): Promise<TrendingTicker[]> {
+  logger.info('[SOCIAL-SENTIMENT] Fetching WSB trending from Tradestie + ApeWisdom...');
   
-  // This is a placeholder - you would integrate with:
-  // - Twitter API v2 for tweets
-  // - Reddit API for posts/comments
-  // - StockTwits API for messages
+  const [tradestieData, apewisdomData] = await Promise.all([
+    fetchTradestieWSB(),
+    fetchApeWisdomWSB()
+  ]);
   
-  logger.info(`[SOCIAL-SENTIMENT] Scanning ${platform}... (mock mode)`);
+  // Merge and dedupe by symbol, preferring Tradestie data (has actual sentiment)
+  const symbolMap = new Map<string, TrendingTicker>();
   
-  return mockMentions;
+  // Add Tradestie first (better sentiment data)
+  for (const ticker of tradestieData) {
+    symbolMap.set(ticker.symbol, ticker);
+  }
+  
+  // Add ApeWisdom data if not already present
+  for (const ticker of apewisdomData) {
+    if (!symbolMap.has(ticker.symbol)) {
+      symbolMap.set(ticker.symbol, ticker);
+    } else {
+      // Merge mention counts
+      const existing = symbolMap.get(ticker.symbol)!;
+      existing.mentionCount = Math.max(existing.mentionCount, ticker.mentionCount);
+      existing.source = 'combined';
+    }
+  }
+  
+  // Sort by mention count
+  const combined = Array.from(symbolMap.values())
+    .sort((a, b) => b.mentionCount - a.mentionCount);
+  
+  // Update status
+  scannerStatus.wsbTrending = combined;
+  scannerStatus.lastSuccessfulFetch = new Date().toISOString();
+  
+  logger.info(`[SOCIAL-SENTIMENT] Combined WSB trending: ${combined.length} unique tickers`);
+  
+  // Add any new discovered tickers to watchlist
+  for (const ticker of combined.slice(0, 30)) {
+    if (!scannerStatus.settings.watchlist.includes(ticker.symbol)) {
+      scannerStatus.settings.watchlist.push(ticker.symbol);
+      logger.info(`[SOCIAL-SENTIMENT] Auto-added trending ticker: ${ticker.symbol}`);
+    }
+  }
+  
+  return combined;
+}
+
+/**
+ * Get current WSB trending tickers
+ */
+export function getWSBTrending(): TrendingTicker[] {
+  return [...scannerStatus.wsbTrending];
+}
+
+/**
+ * Platform scanner - now with real WSB data
+ */
+async function scanPlatform(platform: 'twitter' | 'reddit' | 'stocktwits' | 'wsb'): Promise<SocialMention[]> {
+  const mentions: SocialMention[] = [];
+  
+  if (platform === 'wsb' || platform === 'reddit') {
+    // Get real WSB data
+    const wsbTrending = await fetchWSBTrending();
+    
+    // Convert to mentions format
+    for (const ticker of wsbTrending.slice(0, 50)) {
+      mentions.push({
+        id: `wsb_${ticker.symbol}_${Date.now()}`,
+        symbol: ticker.symbol,
+        platform: 'wsb',
+        content: `${ticker.symbol} trending on WSB with ${ticker.mentionCount} mentions`,
+        author: 'r/wallstreetbets',
+        sentiment: ticker.sentiment,
+        sentimentScore: ticker.sentimentScore,
+        engagement: {
+          likes: ticker.mentionCount * 10,
+          comments: ticker.mentionCount,
+          shares: Math.floor(ticker.mentionCount / 5)
+        },
+        timestamp: new Date().toISOString(),
+        url: `https://reddit.com/r/wallstreetbets/search?q=${ticker.symbol}`
+      });
+    }
+    
+    logger.info(`[SOCIAL-SENTIMENT] WSB scan: ${mentions.length} trending tickers`);
+  } else {
+    logger.info(`[SOCIAL-SENTIMENT] Scanning ${platform}... (limited without API key)`);
+  }
+  
+  return mentions;
 }
 
 /**
@@ -196,7 +445,7 @@ export async function scanSocialSentiment(): Promise<{
   
   // Create trending tickers
   const trending: TrendingTicker[] = [];
-  for (const [symbol, data] of tickerMap) {
+  tickerMap.forEach((data, symbol) => {
     const avgScore = data.count > 0 ? data.totalScore / data.count : 0;
     
     let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
@@ -208,10 +457,11 @@ export async function scanSocialSentiment(): Promise<{
       mentionCount: data.count,
       sentimentScore: avgScore,
       sentiment,
-      change24h: 0, // Would be populated from price data
+      change24h: 0,
       topMentions: data.mentions.slice(0, 5),
+      source: 'combined' as const,
     });
-  }
+  });
   
   // Sort by mention count
   trending.sort((a, b) => b.mentionCount - a.mentionCount);

@@ -347,6 +347,7 @@ export interface IStorage {
 
   // Trade Ideas
   getAllTradeIdeas(): Promise<TradeIdea[]>;
+  getRecentTradeIdeas(hoursBack?: number, limit?: number): Promise<TradeIdea[]>;
   getTradeIdeaById(id: string): Promise<TradeIdea | undefined>;
   createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
@@ -2359,6 +2360,14 @@ export class DatabaseStorage implements IStorage {
   // Trade Ideas Methods
   async getAllTradeIdeas(): Promise<TradeIdea[]> {
     return await db.select().from(tradeIdeas).orderBy(desc(tradeIdeas.timestamp));
+  }
+
+  async getRecentTradeIdeas(hoursBack: number = 24, limit: number = 1000): Promise<TradeIdea[]> {
+    const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+    return await db.select().from(tradeIdeas)
+      .where(gte(tradeIdeas.timestamp, cutoffTime))
+      .orderBy(desc(tradeIdeas.timestamp))
+      .limit(limit);
   }
 
   async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
