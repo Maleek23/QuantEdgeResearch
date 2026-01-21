@@ -447,7 +447,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
           
           {catalyst?.hasCatalysts ? (
             <div className="space-y-2">
-              {catalyst.secFilings.slice(0, 3).map((filing, i) => (
+              {catalyst.secFilings?.slice(0, 3).map((filing, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
@@ -468,7 +468,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               ))}
               
-              {catalyst.governmentContracts.slice(0, 2).map((contract, i) => (
+              {catalyst.governmentContracts?.slice(0, 2).map((contract, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <Award className="w-3 h-3 text-amber-400" />
@@ -484,7 +484,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               ))}
 
-              {catalyst.catalystEvents.slice(0, 3).map((event, i) => (
+              {catalyst.catalystEvents?.slice(0, 3).map((event, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className={`truncate max-w-[180px] ${getPolarityColor(event.polarity)}`}>
                     {event.title}
@@ -526,7 +526,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               </div>
               
-              {historical.recentTrades.length > 0 && (
+              {historical.recentTrades && historical.recentTrades.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Recent Trades:</p>
                   {historical.recentTrades.slice(0, 3).map((trade, i) => (
@@ -580,7 +580,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
-        ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 ? (
+        ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 && outlookQuery.data.yearlyStats ? (
           <div className="space-y-2">
             {Object.entries(outlookQuery.data.yearlyStats)
               .filter(([year]) => {
