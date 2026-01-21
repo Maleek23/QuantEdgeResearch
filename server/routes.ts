@@ -20289,7 +20289,7 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
-  // BREAKOUT DISCOVERY - Find sub-$40 breakout candidates
+  // SURGE DETECTOR - Find momentum and pre-breakout signals (NO price cap)
   // ============================================
   
   app.get("/api/discovery/breakouts", async (_req, res) => {
@@ -20298,8 +20298,19 @@ Use this checklist before entering any trade:
       const candidates = await discoverBreakoutCandidates();
       res.json({ candidates, count: candidates.length });
     } catch (error) {
-      logger.error("Error discovering breakouts", { error });
-      res.status(500).json({ error: "Failed to discover breakout candidates" });
+      logger.error("Error in surge detection", { error });
+      res.status(500).json({ error: "Failed to detect surges" });
+    }
+  });
+
+  app.get("/api/discovery/pre-breakout", async (_req, res) => {
+    try {
+      const { detectPreBreakout } = await import("./breakout-discovery-service");
+      const candidates = await detectPreBreakout();
+      res.json({ candidates, count: candidates.length });
+    } catch (error) {
+      logger.error("Error in pre-breakout detection", { error });
+      res.status(500).json({ error: "Failed to detect pre-breakout signals" });
     }
   });
 
