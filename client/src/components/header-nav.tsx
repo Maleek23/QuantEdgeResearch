@@ -38,25 +38,34 @@ interface NavDropdownItem {
   icon: React.ElementType;
 }
 
-const aiStrategies: NavDropdownItem[] = [
+// Research - All analysis and signal generation tools
+const research: NavDropdownItem[] = [
   { title: "Trade Desk", description: "6-engine AI research briefs & trade ideas", href: "/trade-desk", icon: Brain },
-  { title: "Market Scanner", description: "Intraday & momentum signals", href: "/market-scanner", icon: Activity },
-  { title: "Chart Analysis", description: "Pattern recognition & TA", href: "/chart-analysis", icon: BarChart3 },
-  { title: "CT Tracker", description: "Crypto sentiment & signals", href: "/ct-tracker", icon: Wallet },
+  { title: "Chart Analysis", description: "Pattern recognition & technical analysis", href: "/chart-analysis", icon: BarChart3 },
+  { title: "Market Scanner", description: "Intraday momentum & breakout signals", href: "/market-scanner", icon: Activity },
+  { title: "CT Tracker", description: "Crypto sentiment & social signals", href: "/ct-tracker", icon: Wallet },
 ];
 
-const products: NavDropdownItem[] = [
-  { title: "Automations", description: "Trading bots & alerts", href: "/automations", icon: Zap },
-  { title: "Watchlist", description: "Track your favorite symbols", href: "/watchlist", icon: Eye },
+// Tools - Tracking, flow analysis, and automation
+const tools: NavDropdownItem[] = [
+  { title: "Watchlist", description: "Track & grade your symbols", href: "/watchlist", icon: Eye },
   { title: "Whale Flow", description: "Smart money & options flow", href: "/whale-flow", icon: TrendingUp },
-  { title: "Wallet Tracker", description: "Track whale wallets", href: "/wallet-tracker", icon: FileBarChart },
-  { title: "Backtest", description: "Strategy backtesting", href: "/backtest", icon: Crosshair },
+  { title: "Wallet Tracker", description: "Track whale crypto wallets", href: "/wallet-tracker", icon: FileBarChart },
+  { title: "Automations", description: "Trading bots & alerts", href: "/automations", icon: Zap },
+  { title: "Backtest", description: "Test strategies on historical data", href: "/backtest", icon: Crosshair },
 ];
 
-const markets: NavDropdownItem[] = [
-  { title: "Market Overview", description: "Real-time market data", href: "/market", icon: LineChart },
-  { title: "Paper Trading", description: "Practice with virtual money", href: "/paper-trading", icon: Activity },
+// Trading - Execution, practice, and performance tracking
+const trading: NavDropdownItem[] = [
+  { title: "Market Overview", description: "Real-time market data & indices", href: "/market", icon: LineChart },
+  { title: "Paper Trading", description: "Practice with virtual money", href: "/paper-trading", icon: Target },
   { title: "Performance", description: "Track your trading stats", href: "/performance", icon: TrendingUp },
+];
+
+// Learn - Education and news
+const learn: NavDropdownItem[] = [
+  { title: "Academy", description: "Trading education & tutorials", href: "/academy", icon: Brain },
+  { title: "News & Blog", description: "Market updates & analysis", href: "/blog", icon: FileBarChart },
 ];
 
 function DropdownItem({ item }: { item: NavDropdownItem }) {
@@ -117,16 +126,16 @@ export function HeaderNav() {
           <NavigationMenu className="hidden lg:flex">
             <NavigationMenuList className="gap-1">
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-ai-strategies">
-                  AI Strategies
+                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-research">
+                  Research
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <div className="w-[400px] p-4 bg-slate-900/95 border border-slate-800/50 backdrop-blur-xl rounded-lg shadow-2xl">
                     <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 px-3">
-                      Trading Strategy
+                      Analysis & Signals
                     </div>
                     <div className="space-y-1">
-                      {aiStrategies.map((item) => (
+                      {research.map((item) => (
                         <DropdownItem key={item.title} item={item} />
                       ))}
                     </div>
@@ -135,16 +144,16 @@ export function HeaderNav() {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-products">
-                  Products
+                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-tools">
+                  Tools
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <div className="w-[400px] p-4 bg-slate-900/95 border border-slate-800/50 backdrop-blur-xl rounded-lg shadow-2xl">
                     <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 px-3">
-                      Individual Tools
+                      Tracking & Automation
                     </div>
                     <div className="space-y-1">
-                      {products.map((item) => (
+                      {tools.map((item) => (
                         <DropdownItem key={item.title} item={item} />
                       ))}
                     </div>
@@ -153,13 +162,16 @@ export function HeaderNav() {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-markets">
-                  Markets
+                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-trading">
+                  Trading
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <div className="w-[380px] p-4 bg-slate-900/95 border border-slate-800/50 backdrop-blur-xl rounded-lg shadow-2xl">
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 px-3">
+                      Execute & Track
+                    </div>
                     <div className="space-y-1">
-                      {markets.map((item) => (
+                      {trading.map((item) => (
                         <DropdownItem key={item.title} item={item} />
                       ))}
                     </div>
@@ -168,19 +180,21 @@ export function HeaderNav() {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link href="/blog">
-                  <NavigationMenuLink className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer" data-testid="nav-news">
-                    News
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              
-              <NavigationMenuItem>
-                <Link href="/academy">
-                  <NavigationMenuLink className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors cursor-pointer" data-testid="nav-resources">
-                    Resources
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuTrigger className="px-3 py-2 text-sm text-slate-300 hover:text-white bg-transparent hover:bg-slate-800/50 data-[state=open]:bg-slate-800/50" data-testid="nav-learn">
+                  Learn
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="w-[380px] p-4 bg-slate-900/95 border border-slate-800/50 backdrop-blur-xl rounded-lg shadow-2xl">
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 px-3">
+                      Education & Updates
+                    </div>
+                    <div className="space-y-1">
+                      {learn.map((item) => (
+                        <DropdownItem key={item.title} item={item} />
+                      ))}
+                    </div>
+                  </div>
+                </NavigationMenuContent>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
