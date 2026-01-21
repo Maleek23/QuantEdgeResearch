@@ -121,6 +121,45 @@ interface PatternResponse {
   bbSeries: Array<{ time: number; upper: number; middle: number; lower: number }>;
 }
 
+// Mathematical Pattern Prediction (Hurst, Harmonics, Elliott Wave, Fibonacci)
+interface MathPatternPrediction {
+  symbol: string;
+  timestamp: string;
+  hurst: {
+    exponent: number;
+    interpretation: 'trending' | 'mean_reverting' | 'random_walk';
+    confidence: number;
+    tradingImplication: string;
+  };
+  harmonicPatterns: Array<{
+    name: string;
+    type: 'bullish' | 'bearish';
+    completionPercent: number;
+    priceTarget: number;
+    stopLoss: number;
+    potentialReversalZone: { low: number; high: number };
+    fibRatios: { XA: number; AB: number; BC: number; CD: number };
+    confidence: number;
+  }>;
+  elliottWave: {
+    currentWave: number;
+    waveType: 'impulse' | 'corrective';
+    nextWaveDirection: 'up' | 'down';
+    completionPercent: number;
+    priceProjections: { wave3?: number; wave5?: number; waveC?: number };
+    confidence: number;
+  } | null;
+  fibonacci: {
+    retracements: Array<{ level: number; price: number; strength: string }>;
+    extensions: Array<{ level: number; price: number; strength: string }>;
+    pivotHigh: number;
+    pivotLow: number;
+  };
+  overallSignal: 'strong_bullish' | 'bullish' | 'neutral' | 'bearish' | 'strong_bearish';
+  confidenceScore: number;
+  tradingRecommendation: string;
+}
+
 interface PatternLibraryItem {
   id: string;
   name: string;
@@ -2911,6 +2950,21 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
     enabled: !!analysisSymbol,
   });
 
+  // Fetch Mathematical Pattern Prediction (Hurst, Harmonics, Elliott Wave)
+  const mathPatternQueryFn = useCallback(async (symbol: string) => {
+    if (!symbol) return null;
+    const res = await apiRequest("GET", `/api/patterns/${symbol}`);
+    const data = await res.json();
+    return data as MathPatternPrediction;
+  }, []);
+
+  const { data: mathPatterns, isLoading: mathPatternsLoading } = useQuery<MathPatternPrediction | null>({
+    queryKey: ["/api/patterns", analysisSymbol, "math"] as const,
+    queryFn: () => mathPatternQueryFn(analysisSymbol),
+    enabled: !!analysisSymbol,
+    staleTime: 1000 * 60 * 5, // 5 min cache
+  });
+
   // Render interactive chart - with container width guard
   useEffect(() => {
     if (!chartContainerRef.current || !chartData?.candles?.length) return;
@@ -3431,6 +3485,209 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   <ImageIcon className="h-8 w-8 text-slate-600 mx-auto mb-2" />
                   <p className="text-sm text-slate-500">Upload a chart for AI analysis</p>
                   <p className="text-xs text-slate-600 mt-1">AI will analyze patterns, levels, and sentiment</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mathematical Pattern Predictor - Hurst, Harmonics, Elliott Wave */}
+          <Card className="bg-slate-900/50 border-slate-700/40">
+            <CardHeader className="pb-3 border-b border-slate-700/40">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-mono flex items-center gap-2">
+                  <Radar className="h-4 w-4 text-purple-400" />
+                  Mathematical Patterns
+                </CardTitle>
+                <Badge className={cn(
+                  "text-xs",
+                  mathPatterns?.overallSignal?.includes('bullish')
+                    ? "bg-green-500/20 text-green-400 border-green-500/30"
+                    : mathPatterns?.overallSignal?.includes('bearish')
+                    ? "bg-red-500/20 text-red-400 border-red-500/30"
+                    : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                )}>
+                  {mathPatterns ? mathPatterns.overallSignal?.replace(/_/g, ' ').toUpperCase() : 'AWAITING DATA'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {mathPatternsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                </div>
+              ) : mathPatterns ? (
+                <div className="space-y-4">
+                  {/* Hurst Exponent */}
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/10 border-cyan-500/30" :
+                    mathPatterns.hurst.interpretation === 'mean_reverting' ? "bg-amber-500/10 border-amber-500/30" :
+                    "bg-slate-500/10 border-slate-500/30"
+                  )}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-sm">Hurst Exponent</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-mono font-bold">{mathPatterns.hurst.exponent.toFixed(3)}</span>
+                        <Badge className={cn(
+                          "text-xs",
+                          mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/20 text-cyan-400" :
+                          mathPatterns.hurst.interpretation === 'mean_reverting' ? "bg-amber-500/20 text-amber-400" :
+                          "bg-slate-500/20 text-slate-400"
+                        )}>
+                          {mathPatterns.hurst.interpretation.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400">{mathPatterns.hurst.tradingImplication}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-slate-500">Confidence</span>
+                      <Progress value={mathPatterns.hurst.confidence} className="flex-1 h-1.5" />
+                      <span className="text-xs font-mono text-slate-400">{Math.round(mathPatterns.hurst.confidence)}%</span>
+                    </div>
+                  </div>
+
+                  {/* Harmonic Patterns */}
+                  {mathPatterns.harmonicPatterns.length > 0 && (
+                    <div className="p-3 rounded-lg border bg-purple-500/10 border-purple-500/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-mono text-sm">Harmonic Patterns</span>
+                        <Badge className="bg-purple-500/20 text-purple-400 text-xs">
+                          {mathPatterns.harmonicPatterns.length} DETECTED
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {mathPatterns.harmonicPatterns.slice(0, 2).map((pattern, idx) => (
+                          <div key={idx} className="p-2 rounded bg-slate-800/50 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-semibold">{pattern.name}</span>
+                              <Badge className={cn(
+                                "text-xs",
+                                pattern.type === 'bullish' ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                              )}>
+                                {pattern.type.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-2 text-slate-400">
+                              <div>
+                                <span className="text-slate-500">Completion</span>
+                                <span className="block text-slate-200 font-mono">{pattern.completionPercent.toFixed(0)}%</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Target</span>
+                                <span className="block text-green-400 font-mono">${pattern.priceTarget.toFixed(2)}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500">Stop</span>
+                                <span className="block text-red-400 font-mono">${pattern.stopLoss.toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div className="mt-2 text-slate-500">
+                              PRZ: ${pattern.potentialReversalZone.low.toFixed(2)} - ${pattern.potentialReversalZone.high.toFixed(2)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Elliott Wave */}
+                  {mathPatterns.elliottWave && (
+                    <div className="p-3 rounded-lg border bg-blue-500/10 border-blue-500/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-mono text-sm">Elliott Wave</span>
+                        <Badge className={cn(
+                          "text-xs",
+                          mathPatterns.elliottWave.nextWaveDirection === 'up' ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                        )}>
+                          WAVE {mathPatterns.elliottWave.currentWave}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-500">Type</span>
+                          <span className="block text-slate-200 font-mono capitalize">{mathPatterns.elliottWave.waveType}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Next Move</span>
+                          <span className={cn(
+                            "block font-mono uppercase",
+                            mathPatterns.elliottWave.nextWaveDirection === 'up' ? "text-green-400" : "text-red-400"
+                          )}>
+                            {mathPatterns.elliottWave.nextWaveDirection}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Complete</span>
+                          <span className="block text-slate-200 font-mono">{mathPatterns.elliottWave.completionPercent.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fibonacci Levels */}
+                  {mathPatterns.fibonacci.retracements.length > 0 && (
+                    <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/30">
+                      <span className="font-mono text-sm block mb-2">Fibonacci Levels</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-500">Retracements</span>
+                          <div className="mt-1 space-y-0.5">
+                            {mathPatterns.fibonacci.retracements.slice(0, 3).map((fib, idx) => (
+                              <div key={idx} className="flex justify-between">
+                                <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
+                                <span className={cn(
+                                  "font-mono",
+                                  fib.strength === 'strong' ? "text-amber-400" : "text-slate-300"
+                                )}>
+                                  ${fib.price.toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Extensions</span>
+                          <div className="mt-1 space-y-0.5">
+                            {mathPatterns.fibonacci.extensions.slice(0, 3).map((fib, idx) => (
+                              <div key={idx} className="flex justify-between">
+                                <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
+                                <span className={cn(
+                                  "font-mono",
+                                  fib.strength === 'strong' ? "text-amber-400" : "text-slate-300"
+                                )}>
+                                  ${fib.price.toFixed(2)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overall Recommendation */}
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    mathPatterns.overallSignal?.includes('bullish') ? "bg-green-500/10 border-green-500/30" :
+                    mathPatterns.overallSignal?.includes('bearish') ? "bg-red-500/10 border-red-500/30" :
+                    "bg-slate-500/10 border-slate-500/30"
+                  )}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-sm">Trading Recommendation</span>
+                      <span className="text-xs font-mono text-slate-400">
+                        Confidence: {mathPatterns.confidenceScore}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {mathPatterns.tradingRecommendation}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Radar className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Enter a symbol for pattern analysis</p>
+                  <p className="text-xs text-slate-600 mt-1">Hurst, harmonics, Elliott waves, Fibonacci</p>
                 </div>
               )}
             </CardContent>
