@@ -106,7 +106,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   
   // Fetch macro context for VIX regime and risk appetite (market-wide, shared across all ideas)
   interface MacroData {
-    vixRegime?: { level: string; tradingImplication: string };
+    vixRegime?: { 
+      level: number; 
+      regime: 'extreme_fear' | 'fear' | 'neutral' | 'complacency' | 'extreme_complacency';
+      tradingImplication: string;
+      percentile: number;
+    };
     riskAppetite?: 'risk_on' | 'risk_off' | 'mixed';
     tradingRecommendation?: string;
   }
@@ -671,19 +676,19 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           variant="outline" 
                           className={cn(
                             "text-[10px] h-5 font-medium cursor-help whitespace-nowrap",
-                            macroData.vixRegime.level === 'extreme_fear' && "bg-red-500/10 text-red-400 border-red-500/30",
-                            macroData.vixRegime.level === 'fear' && "bg-orange-500/10 text-orange-400 border-orange-500/30",
-                            macroData.vixRegime.level === 'neutral' && "bg-slate-500/10 text-slate-400 border-slate-500/30",
-                            macroData.vixRegime.level === 'complacency' && "bg-blue-500/10 text-blue-400 border-blue-500/30",
-                            macroData.vixRegime.level === 'extreme_complacency' && "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                            macroData.vixRegime.regime === 'extreme_fear' && "bg-red-500/10 text-red-400 border-red-500/30",
+                            macroData.vixRegime.regime === 'fear' && "bg-orange-500/10 text-orange-400 border-orange-500/30",
+                            macroData.vixRegime.regime === 'neutral' && "bg-slate-500/10 text-slate-400 border-slate-500/30",
+                            macroData.vixRegime.regime === 'complacency' && "bg-blue-500/10 text-blue-400 border-blue-500/30",
+                            macroData.vixRegime.regime === 'extreme_complacency' && "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                           )}
                           data-testid={`badge-vix-${idea.symbol}`}
                         >
-                          VIX: {macroData.vixRegime.level.replace('_', ' ')}
+                          VIX: {macroData.vixRegime.regime.replace('_', ' ')} ({macroData.vixRegime.level.toFixed(1)})
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="font-medium">VIX Regime</p>
+                        <p className="font-medium">VIX Regime: {macroData.vixRegime.level.toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground">{macroData.vixRegime.tradingImplication}</p>
                       </TooltipContent>
                     </Tooltip>
