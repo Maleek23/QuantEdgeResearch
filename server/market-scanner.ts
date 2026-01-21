@@ -408,7 +408,272 @@ export async function getSectorPerformance(): Promise<Record<string, { avg: numb
 export function clearScannerCache(): void {
   scannerCache.clear();
   moversCache.clear();
+  surgeCache.data = [];
+  surgeCache.timestamp = 0;
   logger.info('[SCANNER] Cache cleared');
+}
+
+// ===============================================
+// SURGE DETECTION SYSTEM - Find breakouts BEFORE they explode
+// ===============================================
+
+export interface SurgeSignal {
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  priceChange: number;
+  priceChangePercent: number;
+  volume: number;
+  avgVolume: number;
+  volumeRatio: number;
+  surgeType: 'PRE_SURGE' | 'BREAKOUT' | 'MOMENTUM' | 'VOLUME_SPIKE' | 'EARLY_MOVER';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  signals: string[];
+  score: number;
+  detectedAt: Date;
+  // Technical context
+  nearHigh52?: boolean;
+  breakingResistance?: boolean;
+  marketCap?: number;
+  sector?: string;
+}
+
+// Surge detection thresholds - tuned for catching moves EARLY
+const SURGE_THRESHOLDS = {
+  // Volume thresholds (x average)
+  volumeSpike: 2.0,       // 2x volume = something happening
+  volumeSurge: 3.0,       // 3x volume = significant interest
+  volumeExplosion: 5.0,   // 5x volume = massive activity
+  
+  // Price movement thresholds (%)
+  earlyMove: 2.0,         // 2% = early momentum  
+  breakout: 3.0,          // 3% = confirmed breakout (catches moves early!)
+  surge: 6.0,             // 6% = strong surge
+  explosion: 10.0,        // 10% = major move
+  
+  // Premarket/early detection (catches moves BEFORE they explode)
+  preSurgeVolume: 1.5,    // 1.5x volume with small price move = building
+  preSurgePrice: 1.0,     // 1% move with elevated volume = early signal
+};
+
+// Cache for surge data
+const surgeCache: { data: SurgeSignal[]; timestamp: number } = { data: [], timestamp: 0 };
+const SURGE_CACHE_TTL = 60 * 1000; // 1 minute - keep it fresh for real-time detection
+
+/**
+ * MAIN SURGE SCANNER - Scans entire universe for breakout candidates
+ * Catches stocks BEFORE they explode by detecting:
+ * 1. Volume building (pre-surge indicator)
+ * 2. Price breakouts from range
+ * 3. Momentum acceleration
+ * 4. Sector-wide moves
+ */
+export async function scanForSurges(forceRefresh: boolean = false): Promise<SurgeSignal[]> {
+  // Check cache
+  if (!forceRefresh && surgeCache.data.length > 0 && Date.now() - surgeCache.timestamp < SURGE_CACHE_TTL) {
+    logger.debug('[SURGE-SCANNER] Using cached surge data');
+    return surgeCache.data;
+  }
+
+  logger.info('[SURGE-SCANNER] Starting real-time surge detection...');
+  
+  const surges: SurgeSignal[] = [];
+  const universe = getExpandedUniverse(); // 800+ tickers including discovered movers
+  
+  // Batch scan in parallel for speed
+  const batchSize = 20;
+  for (let i = 0; i < universe.length; i += batchSize) {
+    const batch = universe.slice(i, i + batchSize);
+    
+    const batchResults = await Promise.allSettled(
+      batch.map(async (symbol) => {
+        try {
+          const quote = await fetchYahooQuote(symbol);
+          if (!quote || !quote.regularMarketPrice) return null;
+          
+          const price = quote.regularMarketPrice;
+          const change = quote.regularMarketChange || 0;
+          const changePercent = quote.regularMarketChangePercent || 0;
+          const volume = quote.regularMarketVolume || 0;
+          const avgVolume = quote.averageDailyVolume10Day || volume;
+          const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+          
+          // Detect surge patterns
+          const surge = detectSurgePattern(
+            symbol,
+            quote.longName || quote.shortName || symbol,
+            price,
+            change,
+            changePercent,
+            volume,
+            avgVolume,
+            volumeRatio,
+            quote.fiftyTwoWeekHigh,
+            quote.fiftyTwoWeekLow,
+            quote.marketCap
+          );
+          
+          return surge;
+        } catch (error) {
+          return null;
+        }
+      })
+    );
+    
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        surges.push(result.value);
+      }
+    }
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + batchSize < universe.length) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  // Sort by score (highest first)
+  const sortedSurges = surges.sort((a, b) => b.score - a.score);
+  
+  // Update cache
+  surgeCache.data = sortedSurges;
+  surgeCache.timestamp = Date.now();
+  
+  logger.info(`[SURGE-SCANNER] Detected ${sortedSurges.length} surge signals (${sortedSurges.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH').length} high priority)`);
+  
+  return sortedSurges;
+}
+
+/**
+ * Detect surge pattern for a single stock
+ */
+function detectSurgePattern(
+  symbol: string,
+  name: string,
+  price: number,
+  change: number,
+  changePercent: number,
+  volume: number,
+  avgVolume: number,
+  volumeRatio: number,
+  week52High?: number,
+  week52Low?: number,
+  marketCap?: number
+): SurgeSignal | null {
+  const signals: string[] = [];
+  let score = 0;
+  let surgeType: SurgeSignal['surgeType'] = 'MOMENTUM';
+  let severity: SurgeSignal['severity'] = 'LOW';
+  
+  const absChange = Math.abs(changePercent);
+  const nearHigh52 = week52High ? price >= week52High * 0.95 : false;
+  const breakingResistance = week52High ? price >= week52High * 0.98 : false;
+  
+  // ===== VOLUME DETECTION =====
+  if (volumeRatio >= SURGE_THRESHOLDS.volumeExplosion) {
+    signals.push(`VOLUME EXPLOSION: ${volumeRatio.toFixed(1)}x average`);
+    score += 40;
+    surgeType = 'VOLUME_SPIKE';
+  } else if (volumeRatio >= SURGE_THRESHOLDS.volumeSurge) {
+    signals.push(`High volume: ${volumeRatio.toFixed(1)}x average`);
+    score += 25;
+  } else if (volumeRatio >= SURGE_THRESHOLDS.volumeSpike) {
+    signals.push(`Elevated volume: ${volumeRatio.toFixed(1)}x average`);
+    score += 15;
+  }
+  
+  // ===== PRICE MOVEMENT DETECTION =====
+  if (absChange >= SURGE_THRESHOLDS.explosion) {
+    signals.push(`MAJOR MOVE: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`);
+    score += 50;
+    surgeType = 'BREAKOUT';
+  } else if (absChange >= SURGE_THRESHOLDS.surge) {
+    signals.push(`Strong surge: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`);
+    score += 35;
+    surgeType = 'BREAKOUT';
+  } else if (absChange >= SURGE_THRESHOLDS.breakout) {
+    signals.push(`Breakout move: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`);
+    score += 25;
+    surgeType = 'MOMENTUM';
+  } else if (absChange >= SURGE_THRESHOLDS.earlyMove) {
+    signals.push(`Early momentum: ${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%`);
+    score += 15;
+    surgeType = 'EARLY_MOVER';
+  }
+  
+  // ===== PRE-SURGE DETECTION (the key to catching moves early!) =====
+  if (volumeRatio >= SURGE_THRESHOLDS.preSurgeVolume && absChange >= SURGE_THRESHOLDS.preSurgePrice && absChange < SURGE_THRESHOLDS.breakout) {
+    signals.push('PRE-SURGE: Volume building with price pressure');
+    score += 20;
+    surgeType = 'PRE_SURGE';
+  }
+  
+  // ===== TECHNICAL CONTEXT =====
+  if (breakingResistance && changePercent > 0) {
+    signals.push('BREAKING 52-WEEK HIGH!');
+    score += 30;
+    surgeType = 'BREAKOUT';
+  } else if (nearHigh52 && changePercent > 0) {
+    signals.push('Near 52-week high - breakout imminent');
+    score += 15;
+  }
+  
+  // Check for oversold bounces (potential reversal plays)
+  if (week52Low && price <= week52Low * 1.1 && changePercent > 2) {
+    signals.push('Oversold bounce - reversal signal');
+    score += 15;
+  }
+  
+  // ===== FILTER OUT NOISE =====
+  // Minimum threshold: need some signal to qualify
+  if (score < 25) return null;
+  
+  // Need at least volume OR price movement
+  if (volumeRatio < 1.3 && absChange < 2) return null;
+  
+  // ===== DETERMINE SEVERITY =====
+  if (score >= 80) {
+    severity = 'CRITICAL';
+  } else if (score >= 55) {
+    severity = 'HIGH';
+  } else if (score >= 35) {
+    severity = 'MEDIUM';
+  } else {
+    severity = 'LOW';
+  }
+  
+  return {
+    symbol,
+    name,
+    currentPrice: price,
+    priceChange: change,
+    priceChangePercent: changePercent,
+    volume,
+    avgVolume,
+    volumeRatio,
+    surgeType,
+    severity,
+    signals,
+    score,
+    detectedAt: new Date(),
+    nearHigh52,
+    breakingResistance,
+    marketCap
+  };
+}
+
+/**
+ * Get latest surge alerts for API response
+ */
+export function getLatestSurges(): SurgeSignal[] {
+  return surgeCache.data;
+}
+
+/**
+ * Get high-priority surges only (CRITICAL + HIGH severity)
+ */
+export function getHighPrioritySurges(): SurgeSignal[] {
+  return surgeCache.data.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH');
 }
 
 // Smart Watchlist Pick with trade idea analysis
@@ -734,9 +999,13 @@ export async function generateSmartWatchlist(
     recordSymbolAttention(
       pick.symbol,
       'market_scanner',
-      pick.score,
-      pick.direction === 'long' ? 'bullish' : 'bearish',
-      { timeframe, changePercent: pick.changePercent, volumeRatio: pick.volumeRatio }
+      'scan',
+      { 
+        confidence: pick.score,
+        direction: pick.direction === 'long' ? 'bullish' : 'bearish',
+        changePercent: pick.changePercent,
+        message: `${timeframe} scan: ${pick.volumeRatio.toFixed(1)}x volume`
+      }
     );
   }
   

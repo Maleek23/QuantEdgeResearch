@@ -12571,6 +12571,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== SURGE SCANNER - Real-time breakout detection =====
+  app.get("/api/market-scanner/surges", requireBetaAccess, async (req, res) => {
+    try {
+      const { scanForSurges, getLatestSurges, getHighPrioritySurges } = await import('./market-scanner');
+      const forceRefresh = req.query.refresh === 'true';
+      const priority = req.query.priority === 'high';
+      
+      // Get surges (will use cache if fresh, scan if stale)
+      const allSurges = forceRefresh ? await scanForSurges(true) : getLatestSurges();
+      const surges = priority ? getHighPrioritySurges() : (allSurges.length > 0 ? allSurges : await scanForSurges(true));
+      
+      res.json({
+        success: true,
+        count: surges.length,
+        highPriority: surges.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH').length,
+        surges,
+        lastScan: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/surges' });
+      res.status(500).json({ error: "Failed to scan for surges" });
+    }
+  });
+
+  // Auto-feed surges to Trade Desk
+  app.post("/api/market-scanner/surges/feed", isAuthenticated, async (req: any, res) => {
+    try {
+      const { scanForSurges, getHighPrioritySurges } = await import('./market-scanner');
+      const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+      
+      // Scan for fresh surges
+      await scanForSurges(true);
+      const surges = getHighPrioritySurges();
+      
+      let ingested = 0;
+      let skipped = 0;
+      
+      for (const surge of surges) {
+        // Only ingest CRITICAL and HIGH severity surges
+        if (surge.severity !== 'CRITICAL' && surge.severity !== 'HIGH') {
+          skipped++;
+          continue;
+        }
+        
+        // Create distinct signal types based on signal descriptions
+        const signals = surge.signals.map((s, idx) => {
+          // Determine signal type from description
+          let signalType = surge.surgeType;
+          if (s.includes('VOLUME')) signalType = 'VOLUME_SURGE';
+          else if (s.includes('MAJOR MOVE') || s.includes('breakout')) signalType = 'PRICE_BREAKOUT';
+          else if (s.includes('momentum')) signalType = 'MOMENTUM';
+          else if (s.includes('52-WEEK')) signalType = 'TECHNICAL_BREAKOUT';
+          else if (s.includes('PRE-SURGE')) signalType = 'PRE_SURGE';
+          
+          return {
+            type: signalType,
+            weight: idx === 0 ? (surge.severity === 'CRITICAL' ? 18 : 14) : 10,
+            description: s
+          };
+        });
+        
+        // Add a primary signal for the surge type itself
+        if (signals.length === 0) {
+          signals.push({
+            type: surge.surgeType,
+            weight: surge.severity === 'CRITICAL' ? 18 : 14,
+            description: `${surge.surgeType}: ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% with ${surge.volumeRatio.toFixed(1)}x volume`
+          });
+        }
+        
+        const result = await ingestTradeIdea({
+          source: 'market_scanner',
+          symbol: surge.symbol,
+          assetType: 'stock',
+          direction: surge.priceChangePercent > 0 ? 'bullish' : 'bearish',
+          signals,
+          holdingPeriod: surge.surgeType === 'PRE_SURGE' ? 'swing' : 'day',
+          currentPrice: surge.currentPrice,
+          catalyst: surge.signals.slice(0, 2).join(' | '),
+          analysis: `${surge.surgeType} detected: ${surge.name} with ${surge.volumeRatio.toFixed(1)}x volume and ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% move. Score: ${surge.score}/100.`,
+        });
+        
+        if (result.success) {
+          ingested++;
+          logger.info(`[SURGE->TRADE-DESK] Fed ${surge.symbol} (${surge.severity}): ${surge.surgeType}`);
+        } else {
+          skipped++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Fed ${ingested} surge alerts to Trade Desk`,
+        ingested,
+        skipped,
+        totalSurges: surges.length
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/market-scanner/surges/feed' });
+      res.status(500).json({ error: "Failed to feed surges to Trade Desk" });
+    }
+  });
+
   // Smart Watchlist - Curated 10-20 picks with trade idea analysis
   app.get("/api/market-scanner/watchlist", requireBetaAccess, async (req, res) => {
     try {
