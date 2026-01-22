@@ -3650,9 +3650,24 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
-        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity [STRICT]
-        if (opp.openInterest < 50 || opp.volume < 10) {
-          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume})`);
+        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Relaxed but safe requirements
+        // Previous: OI < 50 OR Vol < 10 was too strict - skipping too many trades!
+        // New: Tiered approach:
+        // - Must have at least OI >= 10 (baseline market interest)
+        // - Volume >= 1 preferred but not required if OI is high (>= 50)
+        // Priority tickers get looser OI requirement
+        const isPriorityForLiquidity = BASE_PRIORITY_TICKERS.includes(ticker.toUpperCase());
+        const minOI = isPriorityForLiquidity ? 10 : 15;
+        
+        // Skip if OI too low (always need some open interest)
+        if (opp.openInterest < minOI) {
+          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low OI (OI=${opp.openInterest} < ${minOI})`);
+          continue;
+        }
+        
+        // If OI is borderline (< 50), also require at least 1 volume today
+        if (opp.openInterest < 50 && (opp.volume === undefined || opp.volume < 1)) {
+          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume || 0} - need Vol >= 1 when OI < 50)`);
           continue;
         }
         

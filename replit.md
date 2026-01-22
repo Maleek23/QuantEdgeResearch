@@ -123,3 +123,9 @@ Key features and architectural decisions include:
   - Uses shared queryFns with `apiRequest` for proper auth
   - Uses `queryClient.fetchQuery()` for cache hydration
   - Ref-based tracking prevents duplicate triggers on same symbol
+- **CRITICAL: Quant Bot Deduplication Fix (2026-01-22)**:
+  - Root cause: Bot checked `trade_ideas` table (3,453 open) instead of `paper_positions` (5 open)
+  - Effect: ALL symbols blocked with "already has open trade" - no trades for 2 weeks
+  - Fix: Changed deduplication in `quant-ideas-generator.ts`, `index.ts` (HYBRID-CRON, NEWS-CRON, FLOW-CRON)
+  - Now checks `paper_positions` (actual bot trades) not `trade_ideas` (research display)
+  - Bot immediately started generating 2+ fresh ideas on startup after fix

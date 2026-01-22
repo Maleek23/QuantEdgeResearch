@@ -272,13 +272,20 @@ app.use((req, res, next) => {
         
         logger.info(`🔀 [HYBRID-CRON] Starting automated hybrid generation at 9:45 AM CT`);
         
-        // 🚫 DEDUPLICATION: Get existing open symbols
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas (3,453+ open)
+        // CRITICAL FIX: Previously blocked all symbols that had any trade idea
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+          logger.info(`🚫 [HYBRID-CRON] Dedup: ${existingOpenSymbols.size} symbols have open paper positions`);
+        } catch (e) {
+          logger.info(`⚠️ [HYBRID-CRON] Could not fetch paper positions - allowing all symbols`);
+        }
         
         // Generate hybrid ideas
         const { generateHybridIdeas } = await import('./ai-service');
@@ -813,13 +820,17 @@ app.use((req, res, next) => {
         
         logger.info(`📰 [NEWS-CRON] Found ${breakingNews.length} breaking news articles`);
         
-        // Get existing open trade symbols to avoid duplicates
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas
+        // CRITICAL FIX: Previously blocked all symbols with any trade idea (3,453+)
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+        } catch (e) { /* Allow all if error */ }
         
         // Generate trade ideas from breaking news (limit to top 3 to avoid spam)
         let generatedCount = 0;
@@ -924,13 +935,17 @@ app.use((req, res, next) => {
         
         logger.info(`📊 [FLOW-CRON] Found ${flowIdeas.length} flow signals, validating...`);
         
-        // Get existing open trade symbols to avoid duplicates
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas
+        // CRITICAL FIX: Previously blocked all symbols with any trade idea (3,453+)
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+        } catch (e) { /* Allow all if error */ }
         
         // Validate and save flow trades
         let savedCount = 0;

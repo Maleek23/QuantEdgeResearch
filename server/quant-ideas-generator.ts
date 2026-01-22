@@ -711,16 +711,26 @@ export async function generateQuantIdeas(
     return ideas; // Return empty array for auto-generation outside window
   }
 
-  // 🚫 DEDUPLICATION: Get all open trades to avoid duplicate symbols
+  // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual bot trades) not trade_ideas (research)
+  // CRITICAL FIX: Previously checked 3,453+ open trade_ideas blocking all new entries
+  // Now checks only actual open paper positions (typically 5-10)
   const existingOpenSymbols = new Set<string>();
   if (storage) {
     try {
-      const allIdeas = await storage.getAllTradeIdeas();
-      const openIdeas = allIdeas.filter((idea: any) => idea.outcomeStatus === 'open');
-      openIdeas.forEach((idea: any) => existingOpenSymbols.add(idea.symbol.toUpperCase()));
-      logger.info(`🚫 Deduplication: ${existingOpenSymbols.size} symbols already have open trades`);
+      // Get the quant bot portfolio and check its actual open positions
+      const portfolios = await storage.getAllPaperPortfolios();
+      const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+      
+      if (quantPortfolio) {
+        const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+        const openPositions = positions.filter((pos: any) => pos.status === 'open');
+        openPositions.forEach((pos: any) => existingOpenSymbols.add(pos.symbol.toUpperCase()));
+        logger.info(`🚫 Deduplication: ${existingOpenSymbols.size} symbols have open PAPER POSITIONS (not trade ideas)`);
+      } else {
+        logger.info(`📋 Deduplication: No quant portfolio found - allowing all symbols`);
+      }
     } catch (error) {
-      logger.info('⚠️  Could not fetch existing trades for deduplication');
+      logger.info('⚠️  Could not fetch paper positions for deduplication - allowing all symbols');
     }
   }
 
