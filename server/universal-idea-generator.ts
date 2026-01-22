@@ -638,8 +638,33 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     const holdingPeriod = determineHoldingPeriod(input);
     
     // Calculate target and stop if not provided
-    const targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.08 : 1.15;
-    const stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
+    // OPTIONS need MUCH larger moves to be profitable (50-100%+) due to:
+    // - Theta decay (time value loss)
+    // - Bid/ask spread (5-15% loss on entry/exit)
+    // - Leverage means need bigger underlying moves
+    // STOCKS use smaller targets (3-8%)
+    // CRYPTO volatile so use moderate targets (5-15%)
+    
+    let targetMultiplier: number;
+    let stopMultiplier: number;
+    
+    if (input.assetType === 'option') {
+      // OPTIONS: Need 50-100%+ gains to overcome decay and spreads
+      // Day trade options: Target 50% gain (quick scalp)
+      // Swing options: Target 75% gain (multi-day hold)
+      // Position/LEAPS: Target 100%+ (longer hold, more theta to overcome)
+      targetMultiplier = holdingPeriod === 'day' ? 1.50 : holdingPeriod === 'swing' ? 1.75 : 2.00;
+      // Options stops are tighter due to leverage - 30-50% loss max
+      stopMultiplier = holdingPeriod === 'day' ? 0.70 : holdingPeriod === 'swing' ? 0.60 : 0.50;
+    } else if (input.assetType === 'crypto') {
+      // CRYPTO: More volatile, moderate targets
+      targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.25;
+      stopMultiplier = holdingPeriod === 'day' ? 0.95 : holdingPeriod === 'swing' ? 0.90 : 0.85;
+    } else {
+      // STOCKS/FUTURES: Standard targets
+      targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.08 : 1.15;
+      stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
+    }
     
     const targetPrice = input.targetPrice || (
       input.direction === 'bullish' 
