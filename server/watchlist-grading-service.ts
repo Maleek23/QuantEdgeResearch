@@ -861,11 +861,27 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
   const MAX_OPTION_PREMIUM = 1.50;    // Max option premium for small accounts
   
   const items = await getGradedWatchlist(userId);
-  const eliteItems = items.filter((item: WatchlistItem) => 
+  
+  // First try S/A tier, fall back to B tier if none found
+  let eliteItems = items.filter((item: WatchlistItem) => 
     item.tier === 'S' || item.tier === 'A'
   );
   
-  logger.info(`[ELITE] Found ${eliteItems.length} elite setups (S/A tier)`);
+  // If no S/A tier items, include B tier (65+ score)
+  if (eliteItems.length === 0) {
+    eliteItems = items.filter((item: WatchlistItem) => item.tier === 'B');
+    logger.info(`[ELITE] No S/A tier items, falling back to ${eliteItems.length} B tier setups`);
+  }
+  
+  // If still none, take top 10 items by grade score regardless of tier
+  if (eliteItems.length === 0 && items.length > 0) {
+    eliteItems = items
+      .sort((a: WatchlistItem, b: WatchlistItem) => (b.gradeScore || 0) - (a.gradeScore || 0))
+      .slice(0, 10);
+    logger.info(`[ELITE] No tiered items, using top ${eliteItems.length} by score`);
+  }
+  
+  logger.info(`[ELITE] Found ${eliteItems.length} elite setups (${eliteItems.length > 0 ? eliteItems[0].tier || 'ungraded' : 'none'} tier)`);
   
   const generatedIdeas: Partial<TradeIdea>[] = [];
   const skippedSymbols: string[] = [];

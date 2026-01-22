@@ -20551,17 +20551,32 @@ Use this checklist before entering any trade:
       const { runProactiveScan } = await import("./proactive-surge-detector");
       const { ingestTradeIdea } = await import("./universal-idea-generator");
       
-      // Get watchlist symbols or use defaults
-      const watchlistItems = await storage.getWatchlistItems();
-      const watchlistSymbols = watchlistItems.slice(0, 30).map(w => w.symbol);
-      const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR'];
-      const symbols = watchlistSymbols.length > 0 ? watchlistSymbols : defaultSymbols;
+      // Get watchlist symbols or use defaults - always include popular movers
+      const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR', 'SPY', 'QQQ', 'COIN', 'MARA', 'RIOT', 'SOFI', 'HOOD', 'ARM', 'SMCI', 'INTC'];
+      
+      let watchlistSymbols: string[] = [];
+      try {
+        const userId = req.user?.id || req.session?.userId;
+        if (userId) {
+          const watchlistItems = await storage.getWatchlistItems(userId);
+          watchlistSymbols = watchlistItems.slice(0, 30).map((w: { symbol: string }) => w.symbol);
+        }
+      } catch (e) {
+        // Ignore watchlist errors, use defaults
+      }
+      
+      // Combine watchlist + defaults, dedupe
+      const allSymbols = [...new Set([...watchlistSymbols, ...defaultSymbols])];
+      const symbols = allSymbols.slice(0, 40); // Scan max 40 symbols
       
       // Run proactive scan
       const setups = await runProactiveScan(symbols);
       
       let generated = 0;
-      for (const setup of setups.filter(s => s.confidence >= 70)) {
+      // Lower threshold to 30% for proactive detection - these are EARLY signals before confirmation
+      // We want to catch stocks BEFORE they move, not after. Higher confidence comes later.
+      const minConfidence = 30;
+      for (const setup of setups.filter(s => s.confidence >= minConfidence)) {
         try {
           // Convert proactive setup to trade idea
           const holdingPeriod = setup.setupType === 'MA_PULLBACK' ? 'swing' : 
@@ -20600,7 +20615,8 @@ Use this checklist before entering any trade:
         generated, 
         scanned: symbols.length,
         totalSetups: setups.length,
-        highConfidence: setups.filter(s => s.confidence >= 70).length
+        qualifyingSetups: setups.filter(s => s.confidence >= minConfidence).length,
+        topSetup: setups[0] ? { symbol: setups[0].symbol, type: setups[0].setupType, confidence: setups[0].confidence } : null
       });
     } catch (error) {
       logger.error("Error feeding proactive setups to Trade Desk", { error });
