@@ -3667,14 +3667,14 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   )}
 
                   {/* Fibonacci Levels */}
-                  {mathPatterns.fibonacci.retracements.length > 0 && (
+                  {mathPatterns.fibonacci?.retracements?.length > 0 && (
                     <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/30">
                       <span className="font-mono text-sm block mb-2">Fibonacci Levels</span>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-slate-500">Retracements</span>
                           <div className="mt-1 space-y-0.5">
-                            {mathPatterns.fibonacci.retracements.slice(0, 3).map((fib, idx) => (
+                            {mathPatterns.fibonacci?.retracements?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
                                 <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
                                 <span className={cn(
@@ -3690,7 +3690,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                         <div>
                           <span className="text-slate-500">Extensions</span>
                           <div className="mt-1 space-y-0.5">
-                            {mathPatterns.fibonacci.extensions.slice(0, 3).map((fib, idx) => (
+                            {mathPatterns.fibonacci?.extensions?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
                                 <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
                                 <span className={cn(
