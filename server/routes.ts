@@ -14013,20 +14013,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (optimalStrike && optimalStrike.lastPrice) {
               // Override AI prices with real option premium math
+              // MINIMUM 50-75% gain targets - options are risky, need real upside!
               const optionPremium = optimalStrike.lastPrice;
-              aiIdea.entryPrice = optionPremium;
-              aiIdea.targetPrice = optionPremium * 1.25; // +25% gain
-              aiIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              const expDate = aiIdea.expiryDate;
+              const daysToExpiry = expDate 
+                ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                : 7;
+              let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
               
-              logger.info(`✅ AI: ${aiIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${aiIdea.targetPrice.toFixed(2)}, Stop:$${aiIdea.stopLoss.toFixed(2)})`);
+              aiIdea.entryPrice = optionPremium;
+              aiIdea.targetPrice = optionPremium * targetMult; // 50-100% gain
+              aiIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+              
+              const gainPct = Math.round((targetMult - 1) * 100);
+              logger.info(`[AI] ${aiIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${aiIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${aiIdea.stopLoss.toFixed(2)})`);
             } else {
               // Fallback: estimate premium as ~5% of stock price
               const estimatedPremium = stockPrice * 0.05;
               aiIdea.entryPrice = estimatedPremium;
-              aiIdea.targetPrice = estimatedPremium * 1.25;
-              aiIdea.stopLoss = estimatedPremium * 0.96;
+              aiIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+              aiIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
               
-              logger.warn(`⚠️  AI: ${aiIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+              logger.warn(`[AI] ${aiIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
             }
           } catch (error) {
             logger.error(`❌ AI: ${aiIdea.symbol} option pricing failed:`, error);
@@ -14254,20 +14262,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (optimalStrike && optimalStrike.lastPrice) {
               // Override AI prices with real option premium math
+              // MINIMUM 50-75% gain targets - options are risky, need real upside!
               const optionPremium = optimalStrike.lastPrice;
-              hybridIdea.entryPrice = optionPremium;
-              hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
-              hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              const expDate = hybridIdea.expiryDate;
+              const daysToExpiry = expDate 
+                ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                : 7;
+              let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
               
-              logger.info(`✅ Hybrid: ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+              hybridIdea.entryPrice = optionPremium;
+              hybridIdea.targetPrice = optionPremium * targetMult; // 50-100% gain
+              hybridIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+              
+              const gainPct = Math.round((targetMult - 1) * 100);
+              logger.info(`[Hybrid] ${hybridIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
             } else {
               // Fallback: estimate premium as ~5% of stock price
               const estimatedPremium = stockPrice * 0.05;
               hybridIdea.entryPrice = estimatedPremium;
-              hybridIdea.targetPrice = estimatedPremium * 1.25;
-              hybridIdea.stopLoss = estimatedPremium * 0.96;
+              hybridIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+              hybridIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
               
-              logger.warn(`⚠️  Hybrid: ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+              logger.warn(`[Hybrid] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
             }
           } catch (error) {
             logger.error(`❌ Hybrid: ${hybridIdea.symbol} option pricing failed:`, error);
