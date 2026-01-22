@@ -20545,6 +20545,69 @@ Use this checklist before entering any trade:
     }
   });
 
+  // POST /api/discovery/proactive/feed - Convert proactive setups into trade ideas
+  app.post("/api/discovery/proactive/feed", isAuthenticated, async (req: any, res) => {
+    try {
+      const { runProactiveScan } = await import("./proactive-surge-detector");
+      const { ingestTradeIdea } = await import("./universal-idea-generator");
+      
+      // Get watchlist symbols or use defaults
+      const watchlistItems = await storage.getWatchlistItems();
+      const watchlistSymbols = watchlistItems.slice(0, 30).map(w => w.symbol);
+      const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR'];
+      const symbols = watchlistSymbols.length > 0 ? watchlistSymbols : defaultSymbols;
+      
+      // Run proactive scan
+      const setups = await runProactiveScan(symbols);
+      
+      let generated = 0;
+      for (const setup of setups.filter(s => s.confidence >= 70)) {
+        try {
+          // Convert proactive setup to trade idea
+          const holdingPeriod = setup.setupType === 'MA_PULLBACK' ? 'swing' : 
+                                setup.setupType === 'REVERSAL_PATTERN' ? 'day' : 'swing';
+          
+          const signals = [
+            { type: setup.setupType, weight: 15, description: setup.description },
+            { type: 'PROACTIVE_DETECTION', weight: 12, description: `Pre-breakout pattern: ${setup.pattern}` }
+          ];
+          
+          const ideaData = {
+            symbol: setup.symbol,
+            assetType: 'stock' as const,
+            direction: setup.direction === 'bullish' ? 'bullish' : 'bearish',
+            holdingPeriod,
+            entryPrice: setup.currentPrice,
+            confidenceScore: setup.confidence,
+            catalyst: setup.description,
+            analysis: `Proactive setup detected: ${setup.setupType}. Entry: $${setup.entry.toFixed(2)}, Target: $${setup.target.toFixed(2)}, Stop: $${setup.stop.toFixed(2)}. R:R ${setup.riskReward.toFixed(1)}:1. ${setup.pattern}`,
+            targetPrice: setup.target,
+            stopLoss: setup.stop,
+            riskRewardRatio: setup.riskReward,
+            source: 'market_scanner' as const,
+            signals
+          };
+          
+          await ingestTradeIdea(ideaData);
+          generated++;
+          logger.info(`[PROACTIVE->TRADE-DESK] Ingested ${setup.symbol}: ${setup.setupType} (${setup.confidence}%)`);
+        } catch (err) {
+          logger.warn(`[PROACTIVE] Failed to ingest ${setup.symbol}:`, err);
+        }
+      }
+      
+      res.json({ 
+        generated, 
+        scanned: symbols.length,
+        totalSetups: setups.length,
+        highConfidence: setups.filter(s => s.confidence >= 70).length
+      });
+    } catch (error) {
+      logger.error("Error feeding proactive setups to Trade Desk", { error });
+      res.status(500).json({ error: "Failed to generate proactive ideas" });
+    }
+  });
+
   // ============================================
   // SURGE DETECTOR - Find momentum and pre-breakout signals (NO price cap)
   // ============================================
