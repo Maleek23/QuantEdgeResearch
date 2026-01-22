@@ -91,6 +91,7 @@ const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
 const WhaleFlowPage = lazy(() => import("@/pages/whale-flow"));
 const WSBTrending = lazy(() => import("@/pages/wsb-trending"));
 const SocialTrends = lazy(() => import("@/pages/social-trends"));
+const SmartAdvisor = lazy(() => import("@/pages/smart-advisor"));
 
 function PageLoader() {
   return (
@@ -178,6 +179,7 @@ function Router() {
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
+      <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
       <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />

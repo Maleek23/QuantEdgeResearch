@@ -15354,6 +15354,67 @@ CONSTRAINTS:
     }
   });
 
+  // Smart Position Advisor - Get exit/rebuy signals for a position
+  app.post("/api/smart-advisor/analyze", async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1).max(10),
+        optionType: z.enum(["call", "put"]).optional(),
+        strikePrice: z.number().optional(),
+        expiryDate: z.string().optional(),
+        entryPrice: z.number().positive(),
+        quantity: z.number().positive(),
+        assetType: z.enum(["stock", "option", "crypto"]).default("stock")
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid position data", details: parseResult.error.errors });
+      }
+      
+      const { getSmartAdvisory } = await import("./smart-position-advisor");
+      const advisory = await getSmartAdvisory(parseResult.data);
+      
+      if (!advisory) {
+        return res.status(404).json({ error: `Unable to analyze position for ${parseResult.data.symbol}` });
+      }
+      
+      res.json(advisory);
+    } catch (error: any) {
+      logger.error(`[SMART-ADVISOR] Error analyzing position:`, error);
+      res.status(500).json({ error: error?.message || "Analysis failed" });
+    }
+  });
+
+  // Smart Position Advisor - Quick rebuy check
+  app.get("/api/smart-advisor/rebuy/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const previousEntry = parseFloat(req.query.previousEntry as string) || 0;
+      const assetType = (req.query.assetType as string) || 'stock';
+      
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+      
+      if (previousEntry <= 0) {
+        return res.status(400).json({ error: "previousEntry query param required (your old entry price)" });
+      }
+      
+      const { getQuickRebuyAdvice } = await import("./smart-position-advisor");
+      const advice = await getQuickRebuyAdvice(symbol.toUpperCase(), previousEntry, assetType as any);
+      
+      if (!advice) {
+        return res.status(404).json({ error: `Unable to get rebuy advice for ${symbol}` });
+      }
+      
+      res.json(advice);
+    } catch (error: any) {
+      logger.error(`[SMART-ADVISOR] Error getting rebuy advice:`, error);
+      res.status(500).json({ error: error?.message || "Rebuy check failed" });
+    }
+  });
+
   // Send chart analysis to Trade Desk as actionable trade idea
   app.post("/api/chart-analysis/send-to-trade-desk", async (req, res) => {
     try {
