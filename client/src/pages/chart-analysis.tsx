@@ -3118,10 +3118,19 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
           formData.append('timeframe', timeframe);
           formData.append('mode', analysisMode);
 
+          // Get CSRF token from cookie
+          const csrfMatch = document.cookie.match(/csrf_token=([^;]+)/);
+          const csrfToken = csrfMatch ? csrfMatch[1] : null;
+          const headers: Record<string, string> = {};
+          if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+          }
+
           const response = await fetch('/api/chart-analysis', {
             method: 'POST',
             body: formData,
             credentials: 'include',
+            headers,
           });
 
           if (response.ok) {
