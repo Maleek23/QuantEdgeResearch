@@ -12571,6 +12571,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GROWTH SCANNER - Small caps with 100%+ revenue growth near 50 SMA =====
+  app.get("/api/market-scanner/growth", requireBetaAccess, async (req, res) => {
+    try {
+      const { getGrowthCandidates } = await import('./growth-scanner');
+      const forceRefresh = req.query.refresh === 'true';
+      const candidates = await getGrowthCandidates(forceRefresh);
+      res.json({
+        success: true,
+        count: candidates.length,
+        criteria: '100%+ YoY revenue growth, near 50 SMA, small/mid cap',
+        candidates,
+        scannedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/growth' });
+      res.status(500).json({ error: "Failed to scan growth stocks" });
+    }
+  });
+
   // ===== SURGE SCANNER - Real-time breakout detection =====
   app.get("/api/market-scanner/surges", requireBetaAccess, async (req, res) => {
     try {
