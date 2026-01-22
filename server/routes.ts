@@ -15041,6 +15041,132 @@ CONSTRAINTS:
     }
   });
 
+  // AI-powered symbol analysis WITHOUT chart image
+  // Uses AI to generate text analysis based on technical data
+  app.get("/api/ai-symbol-analysis/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+      
+      logger.info(`🤖 [AI-SYMBOL] Starting AI analysis for ${upperSymbol} (no chart image)`);
+      
+      // Fetch technical data first
+      const { analyzeSymbol } = await import("./symbol-analyzer");
+      const sixEngineResult = await analyzeSymbol(upperSymbol, 'stock');
+      
+      if (!sixEngineResult) {
+        return res.status(404).json({ error: "Could not fetch data for symbol" });
+      }
+      
+      // Build context for AI
+      const technicalContext = `
+Symbol: ${upperSymbol}
+Current Price: $${sixEngineResult.currentPrice.toFixed(2)}
+Price Change: ${sixEngineResult.priceChangePercent > 0 ? '+' : ''}${sixEngineResult.priceChangePercent.toFixed(2)}%
+
+6-Engine Analysis Summary:
+- ML Intelligence: ${sixEngineResult.engines.ml.signal} (${sixEngineResult.engines.ml.confidence}%)
+- Technical: ${sixEngineResult.engines.technical.signal} (${sixEngineResult.engines.technical.confidence}%)
+- Quant: ${sixEngineResult.engines.quant.signal} (${sixEngineResult.engines.quant.confidence}%)
+- Flow: ${sixEngineResult.engines.flow.signal} (${sixEngineResult.engines.flow.confidence}%)
+- Sentiment: ${sixEngineResult.engines.sentiment.signal} (${sixEngineResult.engines.sentiment.confidence}%)
+- Pattern: ${sixEngineResult.engines.pattern.signal} (${sixEngineResult.engines.pattern.confidence}%)
+
+Overall Direction: ${sixEngineResult.overallDirection.toUpperCase()}
+Overall Confidence: ${sixEngineResult.overallConfidence}%
+Grade: ${sixEngineResult.overallGrade}
+
+Trade Idea:
+- Direction: ${sixEngineResult.tradeIdea.direction}
+- Entry: $${sixEngineResult.tradeIdea.entry.toFixed(2)}
+- Target: $${sixEngineResult.tradeIdea.target.toFixed(2)}
+- Stop Loss: $${sixEngineResult.tradeIdea.stopLoss.toFixed(2)}
+- R:R: ${sixEngineResult.tradeIdea.riskReward}
+
+Holding Period: ${sixEngineResult.holdingPeriod.period} - ${sixEngineResult.holdingPeriod.reasoning}
+`;
+
+      // Try to get AI-powered analysis text
+      let aiAnalysisText: string | null = null;
+      let aiProvider: string = 'none';
+      
+      try {
+        // Try Claude first (best for financial analysis)
+        const { generateAIAnalysis } = await import("./ai-service");
+        const aiResult = await generateAIAnalysis(
+          `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
+
+${technicalContext}
+
+Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
+          'claude'
+        );
+        
+        if (aiResult) {
+          aiAnalysisText = aiResult;
+          aiProvider = 'claude';
+        }
+      } catch (claudeError: any) {
+        logger.warn(`[AI-SYMBOL] Claude failed for ${upperSymbol}: ${claudeError?.message}`);
+        
+        // Fallback to Gemini (free tier)
+        try {
+          const { generateAIAnalysis } = await import("./ai-service");
+          const geminiResult = await generateAIAnalysis(
+            `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
+
+${technicalContext}
+
+Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
+            'gemini'
+          );
+          
+          if (geminiResult) {
+            aiAnalysisText = geminiResult;
+            aiProvider = 'gemini';
+          }
+        } catch (geminiError: any) {
+          logger.warn(`[AI-SYMBOL] Gemini also failed for ${upperSymbol}: ${geminiError?.message}`);
+        }
+      }
+      
+      // Format response
+      const sentiment = sixEngineResult.overallDirection;
+      const confidence = sixEngineResult.overallConfidence;
+      
+      // Build analysis text
+      const analysisText = aiAnalysisText || 
+        `**6-ENGINE CONSENSUS**: ${sentiment.toUpperCase()} (${confidence}%)\n\n` +
+        `${sixEngineResult.holdingPeriod.reasoning}\n\n` +
+        `**Trade Setup**: ${sixEngineResult.tradeIdea.direction} at $${sixEngineResult.tradeIdea.entry.toFixed(2)} → ` +
+        `Target $${sixEngineResult.tradeIdea.target.toFixed(2)} (${sixEngineResult.tradeIdea.riskReward})`;
+      
+      logger.info(`✅ [AI-SYMBOL] Analysis complete for ${upperSymbol} via ${aiProvider}`);
+      
+      res.json({
+        symbol: upperSymbol,
+        sentiment,
+        confidence,
+        analysis: analysisText,
+        patterns: Object.values(sixEngineResult.engines).flatMap(e => e.signals.slice(0, 2)),
+        supportLevels: [sixEngineResult.tradeIdea.stopLoss],
+        resistanceLevels: [sixEngineResult.tradeIdea.target],
+        entryPoint: sixEngineResult.tradeIdea.entry,
+        targetPrice: sixEngineResult.tradeIdea.target,
+        stopLoss: sixEngineResult.tradeIdea.stopLoss,
+        riskRewardRatio: parseFloat(sixEngineResult.tradeIdea.riskReward.replace(':1', '')) || 2.0,
+        timeframe: sixEngineResult.holdingPeriod.period === 'day' ? '1D' : sixEngineResult.holdingPeriod.period === 'swing' ? '1W' : '1M',
+        currentPrice: sixEngineResult.currentPrice,
+        aiProvider,
+        sixEngineData: sixEngineResult,
+        isAIPowered: !!aiAnalysisText,
+      });
+    } catch (error: any) {
+      logger.error(`[AI-SYMBOL] Error analyzing ${req.params.symbol}: ${error?.message}`);
+      res.status(500).json({ error: "Failed to analyze symbol" });
+    }
+  });
+
   // Convert chart analysis to draft trade idea
   app.post("/api/trade-ideas/from-chart", async (req, res) => {
     try {

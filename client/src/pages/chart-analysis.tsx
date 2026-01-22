@@ -3109,8 +3109,9 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
     setIsAnalyzing(true);
 
     try {
-      // Run AI analysis if chart uploaded
+      // Run AI analysis - either with chart image or symbol-only
       if (selectedFile) {
+        // Chart image uploaded - use vision AI
         try {
           const formData = new FormData();
           formData.append('chart', selectedFile);
@@ -3138,7 +3139,21 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
             setAiResult(result);
           }
         } catch (error) {
-          console.error('AI analysis failed:', error);
+          console.error('AI vision analysis failed:', error);
+        }
+      } else {
+        // No chart - use AI-powered symbol analysis (6-engine + AI text)
+        try {
+          const response = await fetch(`/api/ai-symbol-analysis/${targetSymbol}`, {
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            setAiResult(result);
+          }
+        } catch (error) {
+          console.error('AI symbol analysis failed:', error);
         }
       }
 
