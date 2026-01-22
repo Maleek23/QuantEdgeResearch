@@ -349,20 +349,29 @@ app.use((req, res, next) => {
               
               if (optimalStrike && optimalStrike.lastPrice) {
                 // Override AI prices with real option premium math
+                // MINIMUM 50-75% gain targets - options are risky, need real upside!
                 const optionPremium = optimalStrike.lastPrice;
-                hybridIdea.entryPrice = optionPremium;
-                hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
-                hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+                const expDate = hybridIdea.expiryDate;
+                const daysToExpiry = expDate 
+                  ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : 7; // default to weekly if unknown
+                let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
                 
-                logger.info(`✅ [HYBRID-CRON] ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+                hybridIdea.entryPrice = optionPremium;
+                hybridIdea.targetPrice = optionPremium * targetMult; // 50-100% gain based on DTE
+                hybridIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+                
+                const gainPct = Math.round((targetMult - 1) * 100);
+                logger.info(`[HYBRID-CRON] ${hybridIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
               } else {
                 // Fallback: estimate premium as ~5% of stock price
+                // Use 75% target for estimated premiums (moderate aggression)
                 const estimatedPremium = stockPrice * 0.05;
                 hybridIdea.entryPrice = estimatedPremium;
-                hybridIdea.targetPrice = estimatedPremium * 1.25;
-                hybridIdea.stopLoss = estimatedPremium * 0.96;
+                hybridIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+                hybridIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
                 
-                logger.warn(`⚠️  [HYBRID-CRON] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+                logger.warn(`[HYBRID-CRON] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
               }
             } catch (error) {
               logger.error(`❌ [HYBRID-CRON] ${hybridIdea.symbol} option pricing failed:`, error);

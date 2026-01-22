@@ -170,18 +170,35 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
       // - CALL (direction='long'): Buy call, stock up, call premium UP ✓
       // - PUT (direction='short'): Buy put, stock down, put premium UP ✓
       // Both cases: You profit when premium goes UP!
-      targetPremium = entryPremium * 1.25; // +25% gain on premium
-      stopPremium = entryPremium * 0.9375; // -6.25% loss on premium
+      // MINIMUM 50-75% gain targets - options are risky, need real upside!
+      // DTE-based: Shorter DTE = higher target (more gamma), Longer DTE = lower (slower theta)
+      const daysToExpiry = Math.max(1, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+      let targetMultiplier: number;
+      if (daysToExpiry <= 3) {
+        targetMultiplier = 2.0; // 100% gain for short DTE (high gamma)
+      } else if (daysToExpiry <= 7) {
+        targetMultiplier = 1.75; // 75% gain for weekly
+      } else if (daysToExpiry <= 14) {
+        targetMultiplier = 1.60; // 60% gain for 2-week
+      } else {
+        targetMultiplier = 1.50; // 50% minimum for swing/monthly
+      }
+      
+      targetPremium = entryPremium * targetMultiplier;
+      stopPremium = entryPremium * 0.50; // 50% max loss on premium (risk management)
       
       const risk = entryPremium - stopPremium;
       const reward = targetPremium - entryPremium;
       riskRewardRatio = reward / risk;
+      const gainPercent = Math.round((targetMultiplier - 1) * 100);
       
-      logger.info(`[OPTIONS-ENRICH] Standard play: Entry=$${entryPremium.toFixed(2)}, Target=$${targetPremium.toFixed(2)} (+25%), Stop=$${stopPremium.toFixed(2)} (-6.25%), R:R=${riskRewardRatio.toFixed(2)}:1`);
+      logger.info(`[OPTIONS-ENRICH] Standard play: Entry=$${entryPremium.toFixed(2)}, Target=$${targetPremium.toFixed(2)} (+${gainPercent}%), Stop=$${stopPremium.toFixed(2)} (-50%), R:R=${riskRewardRatio.toFixed(2)}:1, DTE=${daysToExpiry}`);
     }
 
     // 8. Build enriched analysis
-    const enrichedAnalysis = `${aiIdea.analysis} OPTIONS PLAY: ${optionType.toUpperCase()} $${strikePrice} (delta: ${Math.abs(delta).toFixed(2)}) expiring ${expiryDate}. Entry premium: $${entryPremium.toFixed(2)}${isLotto ? ' - LOTTO PLAY targeting 20x return' : ' targeting +25% gain'}.`;
+    const daysToExp = Math.max(1, Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+    const gainTarget = isLotto ? '20x' : daysToExp <= 3 ? '+100%' : daysToExp <= 7 ? '+75%' : daysToExp <= 14 ? '+60%' : '+50%';
+    const enrichedAnalysis = `${aiIdea.analysis} OPTIONS PLAY: ${optionType.toUpperCase()} $${strikePrice} (delta: ${Math.abs(delta).toFixed(2)}) expiring ${expiryDate}. Entry premium: $${entryPremium.toFixed(2)}${isLotto ? ' - LOTTO PLAY targeting 20x return' : ` targeting ${gainTarget} gain`}.`;
 
     return {
       symbol: aiIdea.symbol,
