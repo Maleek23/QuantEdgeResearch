@@ -20512,6 +20512,40 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
+  // PROACTIVE SURGE DETECTOR - Catch stocks BEFORE they move
+  // ============================================
+  
+  app.get("/api/discovery/proactive", async (req, res) => {
+    try {
+      const { scanForProactiveSetups, runProactiveScan } = await import("./proactive-surge-detector");
+      const symbolsParam = req.query.symbols as string;
+      
+      // If specific symbols provided, scan those
+      if (symbolsParam) {
+        const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+        const setups = await runProactiveScan(symbols);
+        res.json({ 
+          setups,
+          count: setups.length,
+          highConfidence: setups.filter(s => s.confidence >= 75).length
+        });
+      } else {
+        // Default: scan watchlist and trending stocks
+        const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR'];
+        const setups = await runProactiveScan(defaultSymbols);
+        res.json({
+          setups,
+          count: setups.length,
+          highConfidence: setups.filter(s => s.confidence >= 75).length
+        });
+      }
+    } catch (error) {
+      logger.error("Error in proactive surge detection", { error });
+      res.status(500).json({ error: "Failed to detect proactive setups" });
+    }
+  });
+
+  // ============================================
   // SURGE DETECTOR - Find momentum and pre-breakout signals (NO price cap)
   // ============================================
   
