@@ -577,31 +577,30 @@ app.use((req, res, next) => {
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 10, storage, true);
         
         const savedIdeas = [];
-        const allExistingIdeas = await storage.getAllTradeIdeas();
-        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         
-        // Create a map of recent trades by symbol+strike+optionType for better dedup
-        const recentTradeKeys = new Set<string>();
-        for (const i of allExistingIdeas) {
-          // Check if trade was created in last 4 hours (regardless of outcome status)
-          const createdAt = new Date(i.timestamp).getTime();
-          if (createdAt > fourHoursAgo && i.source === 'quant') {
-            // Key includes symbol, option type, and strike for precise dedup
-            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
-            recentTradeKeys.add(key);
+        // 🔧 FIX: Check OPEN paper_positions (actual trades), NOT trade_ideas (52k+ research entries)
+        const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+        const portfolio = await getOptionsPortfolio();
+        const openPositionKeys = new Set<string>();
+        
+        if (portfolio) {
+          const openPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+          for (const pos of openPositions) {
+            if (pos.status === 'open') {
+              const key = `${pos.symbol}:${pos.optionType || ''}:${pos.strikePrice || ''}`.toUpperCase();
+              openPositionKeys.add(key);
+            }
           }
+          logger.info(`🔍 [QUANT-CRON] Open positions to avoid duplicates: ${openPositionKeys.size}`);
         }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          // Skip only if we already have an OPEN POSITION for this exact option
           const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
-          if (recentTradeKeys.has(ideaKey)) {
-            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
+          if (openPositionKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - already have open position`);
             continue;
           }
-          
-          // Options now allowed - direction bug fixed (was marking puts as 'short' instead of 'long')
-          // All options are now LONG (bought) positions with correct P&L calculation
           
           const saved = await storage.createTradeIdea({
             ...idea,
@@ -614,6 +613,34 @@ app.use((req, res, next) => {
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!
+          const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+          const { executeTradeIdea } = await import('./paper-trading-service');
+          const portfolio = await getOptionsPortfolio();
+          
+          if (portfolio) {
+            let tradesExecuted = 0;
+            for (const idea of savedIdeas) {
+              // Execute options trades (the ones that have option details)
+              if (idea.assetType === 'option' && idea.strikePrice && idea.optionType) {
+                try {
+                  const result = await executeTradeIdea(portfolio.id, idea);
+                  if (result.success && result.position) {
+                    tradesExecuted++;
+                    logger.info(`🚀 [QUANT-CRON] AUTO-EXECUTED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice?.toFixed(2)} x${result.position.quantity}`);
+                  } else {
+                    logger.warn(`⚠️ [QUANT-CRON] Execution failed for ${idea.symbol}: ${result.error}`);
+                  }
+                } catch (execErr) {
+                  logger.error(`[QUANT-CRON] Trade execution error for ${idea.symbol}:`, execErr);
+                }
+              }
+            }
+            logger.info(`🎯 [QUANT-CRON] AUTO-EXECUTED ${tradesExecuted}/${savedIdeas.length} trades into paper portfolio`);
+          } else {
+            logger.warn(`⚠️ [QUANT-CRON] No portfolio available - trades saved but NOT executed`);
+          }
           
           // 🎯 Send premium A/A+ alerts for options
           for (const idea of savedIdeas) {
@@ -681,26 +708,29 @@ app.use((req, res, next) => {
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 15, quantStorage, true);
         
         const savedIdeas = [];
-        const allExistingIdeas = await quantStorage.getAllTradeIdeas();
-        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         
-        // Create a map of recent trades by symbol+strike+optionType for better dedup
-        const recentTradeKeys = new Set<string>();
-        for (const i of allExistingIdeas) {
-          // Check if trade was created in last 4 hours (regardless of outcome status)
-          const createdAt = new Date(i.timestamp).getTime();
-          if (createdAt > fourHoursAgo && i.source === 'quant') {
-            // Key includes symbol, option type, and strike for precise dedup
-            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
-            recentTradeKeys.add(key);
+        // 🔧 FIX: Check OPEN paper_positions (actual trades), NOT trade_ideas (52k+ research entries)
+        // This was causing ALL ideas to be skipped as "duplicates" even though no trades were entered
+        const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+        const portfolio = await getOptionsPortfolio();
+        const openPositionKeys = new Set<string>();
+        
+        if (portfolio) {
+          const openPositions = await quantStorage.getPaperPositionsByPortfolio(portfolio.id);
+          for (const pos of openPositions) {
+            if (pos.status === 'open') {
+              const key = `${pos.symbol}:${pos.optionType || ''}:${pos.strikePrice || ''}`.toUpperCase();
+              openPositionKeys.add(key);
+            }
           }
+          logger.info(`🔍 [QUANT-STARTUP] Open positions to avoid duplicates: ${openPositionKeys.size}`);
         }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          // Skip only if we already have an OPEN POSITION for this exact option
           const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
-          if (recentTradeKeys.has(ideaKey)) {
-            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
+          if (openPositionKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - already have open position`);
             continue;
           }
           
@@ -718,6 +748,34 @@ app.use((req, res, next) => {
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-STARTUP] Generated ${savedIdeas.length} fresh quant trade ideas on startup`);
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!
+          const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+          const { executeTradeIdea } = await import('./paper-trading-service');
+          const portfolio = await getOptionsPortfolio();
+          
+          if (portfolio) {
+            let tradesExecuted = 0;
+            for (const idea of savedIdeas) {
+              // Execute options trades (the ones that have option details)
+              if (idea.assetType === 'option' && idea.strikePrice && idea.optionType) {
+                try {
+                  const result = await executeTradeIdea(portfolio.id, idea);
+                  if (result.success && result.position) {
+                    tradesExecuted++;
+                    logger.info(`🚀 [QUANT-STARTUP] AUTO-EXECUTED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice?.toFixed(2)} x${result.position.quantity}`);
+                  } else {
+                    logger.warn(`⚠️ [QUANT-STARTUP] Execution failed for ${idea.symbol}: ${result.error}`);
+                  }
+                } catch (execErr) {
+                  logger.error(`[QUANT-STARTUP] Trade execution error for ${idea.symbol}:`, execErr);
+                }
+              }
+            }
+            logger.info(`🎯 [QUANT-STARTUP] AUTO-EXECUTED ${tradesExecuted}/${savedIdeas.length} trades into paper portfolio`);
+          } else {
+            logger.warn(`⚠️ [QUANT-STARTUP] No portfolio available - trades saved but NOT executed`);
+          }
           
           // 🎯 Send premium A/A+ alerts for options
           for (const idea of savedIdeas) {

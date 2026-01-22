@@ -58,10 +58,10 @@ export interface PortfolioValue {
 
 // 🎯 SMART POSITION SIZING LIMITS
 // These limits ensure trades never exceed available capital
-const MAX_PERCENT_PER_TRADE = 0.20; // 20% of CURRENT cash per trade (small account friendly)
-const MAX_PERCENT_PER_SYMBOL = 0.25; // 25% max exposure per symbol
-const MAX_DOLLAR_PER_TRADE = 60; // Hard cap $60 per trade for small accounts (matching Elite Setup $60 max)
-const MAX_CONTRACTS_PER_TRADE = 3; // Max 3 contracts per trade (small account friendly)
+const MAX_PERCENT_PER_TRADE = 0.25; // 25% of CURRENT cash per trade
+const MAX_PERCENT_PER_SYMBOL = 0.30; // 30% max exposure per symbol
+const MAX_DOLLAR_PER_TRADE = 250; // Hard cap $250 per trade (allows single contracts of mid-priced options)
+const MAX_CONTRACTS_PER_TRADE = 3; // Max 3 contracts per trade
 const ONE_POSITION_PER_SYMBOL = true; // Only allow ONE open position per underlying symbol
 
 // 📊 DTE-AWARE EXIT STRATEGY - Smarter stops for options with time value
