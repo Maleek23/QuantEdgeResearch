@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -20,6 +21,14 @@ import {
   ThematicInvestingTable,
 } from "@/components/dashboard";
 import {
+  TerminalWindow,
+  SystemStatus,
+  DataStream,
+  TypewriterText,
+  TerminalProgress,
+} from "@/components/terminal";
+import { FadeIn, StaggerContainer, StaggerItem } from "@/components/motion";
+import {
   Activity,
   BarChart2,
   Bot,
@@ -28,6 +37,8 @@ import {
   LineChart,
   Shield,
   Zap,
+  Terminal,
+  Cpu,
 } from "lucide-react";
 
 const mockIndexData = [
@@ -131,81 +142,149 @@ const mockIdeaLifecycle = [
   { id: "3", symbol: "AAPL", direction: "long" as const, stage: "resolved" as const, entryPrice: 185.20, currentPrice: 192.40, createdAt: "2d ago", pnlPercent: 3.89 },
 ];
 
+// Engine status for terminal display
+const engineSystems = [
+  { name: "ML Intelligence", status: "online" as const },
+  { name: "Quant Scanner", status: "online" as const },
+  { name: "Flow Detector", status: "online" as const },
+  { name: "Sentiment AI", status: "online" as const },
+  { name: "Technical Engine", status: "online" as const },
+  { name: "Pattern Recognition", status: "online" as const },
+];
+
 export default function CommandCenter() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [showBootSequence, setShowBootSequence] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowBootSequence(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 p-6">
       <div className="max-w-[1800px] mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
-              Command Center
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Institutional-grade research dashboard • 6-Engine Analysis
-            </p>
+        {/* Header with terminal styling */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-6"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+              <Terminal className="w-6 h-6 text-cyan-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-100 tracking-tight font-mono">
+                COMMAND_CENTER
+              </h1>
+              <p className="text-sm text-slate-500 mt-1 font-mono">
+                <span className="text-cyan-400">quant@edge</span>
+                <span className="text-slate-600"> $ </span>
+                <TypewriterText text="6-engine analysis • real-time scanning" speed={40} />
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700/50 rounded font-mono text-xs text-slate-400">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>6 ENGINES ACTIVE</span>
+            </div>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-xs text-green-400 font-medium">MARKET OPEN</span>
+              <motion.div 
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="w-2 h-2 rounded-full bg-green-400" 
+              />
+              <span className="text-xs text-green-400 font-medium font-mono">MARKET OPEN</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-900/60 border border-slate-700/30 p-1" data-testid="command-center-tabs">
-            <TabsTrigger value="overview" data-testid="tab-overview" className="gap-2 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
-              <Activity className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="signals" data-testid="tab-signals" className="gap-2 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
-              <Brain className="w-4 h-4" />
-              Signals
-            </TabsTrigger>
-            <TabsTrigger value="engines" data-testid="tab-engines" className="gap-2 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">
-              <BarChart2 className="w-4 h-4" />
-              Engines
-            </TabsTrigger>
-            <TabsTrigger value="performance" data-testid="tab-performance" className="gap-2 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
-              <LineChart className="w-4 h-4" />
-              Performance
-            </TabsTrigger>
-            <TabsTrigger value="automation" data-testid="tab-automation" className="gap-2 data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
-              <Bot className="w-4 h-4" />
-              Automation
-            </TabsTrigger>
-            <TabsTrigger value="thematic" data-testid="tab-thematic" className="gap-2 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-400">
-              <Layers className="w-4 h-4" />
-              Thematic
-            </TabsTrigger>
-          </TabsList>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <TabsList className="bg-slate-900/80 border border-cyan-500/20 p-1 font-mono" data-testid="command-center-tabs">
+              <TabsTrigger value="overview" data-testid="tab-overview" className="gap-2 data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+                <Activity className="w-4 h-4" />
+                OVERVIEW
+              </TabsTrigger>
+              <TabsTrigger value="signals" data-testid="tab-signals" className="gap-2 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
+                <Brain className="w-4 h-4" />
+                SIGNALS
+              </TabsTrigger>
+              <TabsTrigger value="engines" data-testid="tab-engines" className="gap-2 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">
+                <BarChart2 className="w-4 h-4" />
+                ENGINES
+              </TabsTrigger>
+              <TabsTrigger value="performance" data-testid="tab-performance" className="gap-2 data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+                <LineChart className="w-4 h-4" />
+                PERFORMANCE
+              </TabsTrigger>
+              <TabsTrigger value="automation" data-testid="tab-automation" className="gap-2 data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+                <Bot className="w-4 h-4" />
+                AUTOMATION
+              </TabsTrigger>
+              <TabsTrigger value="thematic" data-testid="tab-thematic" className="gap-2 data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-400">
+                <Layers className="w-4 h-4" />
+                THEMATIC
+              </TabsTrigger>
+            </TabsList>
+          </motion.div>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <MarketRegimeDetector
-                regime="risk-on"
-                confidence={78}
-                vixLevel={14.52}
-                breadthAdvancing={65}
-              />
-              <VolatilitySnapshot
-                vix={14.52}
-                vixChange={-3.2}
-                vvix={82.4}
-                realizedVol={12.8}
-                impliedVol={15.2}
-              />
-              <IndexHeatmap indices={mockIndexData} />
-              <EconomicCalendarWidget events={mockEconomicEvents} />
-            </div>
+            <StaggerContainer staggerDelay={0.08} className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <StaggerItem>
+                <MarketRegimeDetector
+                  regime="risk-on"
+                  confidence={78}
+                  vixLevel={14.52}
+                  breadthAdvancing={65}
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <VolatilitySnapshot
+                  vix={14.52}
+                  vixChange={-3.2}
+                  vvix={82.4}
+                  realizedVol={12.8}
+                  impliedVol={15.2}
+                />
+              </StaggerItem>
+              <StaggerItem>
+                <IndexHeatmap indices={mockIndexData} />
+              </StaggerItem>
+              <StaggerItem>
+                <EconomicCalendarWidget events={mockEconomicEvents} />
+              </StaggerItem>
+            </StaggerContainer>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <FuturesBiasPanel futures={mockFuturesData} />
-              <CorrelationMatrix assets={mockCorrelationAssets} correlations={mockCorrelations} />
-              <LiveResearchFeed briefs={mockResearchBriefs} />
-            </div>
+            <StaggerContainer staggerDelay={0.1} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <StaggerItem>
+                <FuturesBiasPanel futures={mockFuturesData} />
+              </StaggerItem>
+              <StaggerItem>
+                <CorrelationMatrix assets={mockCorrelationAssets} correlations={mockCorrelations} />
+              </StaggerItem>
+              <StaggerItem>
+                {/* Terminal-style live feed */}
+                <TerminalWindow title="live-market-feed" variant="default">
+                  <div className="flex items-center gap-2 mb-3 text-cyan-400 text-xs">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>REAL-TIME DATA STREAM</span>
+                    <motion.div
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto"
+                    />
+                  </div>
+                  <DataStream lines={6} speed={200} />
+                </TerminalWindow>
+              </StaggerItem>
+            </StaggerContainer>
           </TabsContent>
 
           <TabsContent value="signals" className="space-y-6">
@@ -273,15 +352,29 @@ export default function CommandCenter() {
           </TabsContent>
 
           <TabsContent value="automation" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <BotActivityMonitor bots={mockBots} />
-              <div className="space-y-4">
-                <RollingWinRate
-                  data={mockWinRateData}
-                  overallWinRate={61}
-                />
-              </div>
-            </div>
+            <StaggerContainer staggerDelay={0.1} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <StaggerItem className="lg:col-span-2">
+                <BotActivityMonitor bots={mockBots} />
+              </StaggerItem>
+              <StaggerItem>
+                <TerminalWindow title="engine-status" variant="success">
+                  <div className="flex items-center gap-2 mb-4 text-cyan-400 text-xs">
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>ENGINE STATUS</span>
+                  </div>
+                  <SystemStatus systems={engineSystems} />
+                  <div className="mt-4 pt-4 border-t border-slate-800">
+                    <TerminalProgress value={67} label="System Load" variant="green" />
+                  </div>
+                </TerminalWindow>
+              </StaggerItem>
+            </StaggerContainer>
+            <FadeIn delay={0.3}>
+              <RollingWinRate
+                data={mockWinRateData}
+                overallWinRate={61}
+              />
+            </FadeIn>
           </TabsContent>
 
           <TabsContent value="thematic" className="space-y-6">

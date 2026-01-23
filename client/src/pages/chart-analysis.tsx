@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, useLocation } from "wouter";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +18,9 @@ import {
   Zap, Clock, Calculator, Gauge, Send, LineChart, Lightbulb, Users,
   ChevronRight, Database, BookOpen, Trophy, Plus, Search, RefreshCw,
   Filter, Eye, History, ArrowRight, TrendingUpDown, Radar, Flag, Triangle, Circle,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, Terminal, Cpu
 } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { TypewriterText } from "@/components/terminal";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -4181,15 +4182,38 @@ export default function ChartAnalysis() {
   })() : [];
 
   return (
-    <div className="container mx-auto p-4 lg:p-6 space-y-6">
-      <PageHeader 
-        label="Technical Analysis"
-        title="Chart Analysis"
-        description="Visual pattern detection and technical indicators"
-        icon={LineChart}
-        iconColor="text-purple-400"
-        iconGradient="from-purple-500/20 to-pink-500/20"
-      />
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="container mx-auto p-4 lg:p-6 space-y-6"
+    >
+      {/* Terminal-styled Page Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 border border-purple-500/20 p-6"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="relative flex items-center gap-4">
+          <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <Terminal className="h-6 w-6 text-purple-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight font-mono">CHART_ANALYSIS</h1>
+            <p className="text-sm text-muted-foreground font-mono">
+              <span className="text-purple-400">quant@edge</span>
+              <span className="text-slate-600"> $ </span>
+              <TypewriterText text="pattern detection • technical indicators • 6-engine scan" speed={30} />
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700/50 rounded font-mono text-xs text-slate-400">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>6 ENGINES</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {sixEngineAnalysis && (
         <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5" data-testid="card-trade-idea">
@@ -5027,6 +5051,6 @@ export default function ChartAnalysis() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

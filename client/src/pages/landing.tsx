@@ -28,10 +28,14 @@ import {
   CandlestickChart,
   Sparkles,
   Zap,
-  BarChart3
+  BarChart3,
+  Terminal,
+  Cpu,
+  Database
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { TerminalWindow, TypewriterText, DataStream, SystemStatus } from "@/components/terminal";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
@@ -590,6 +594,105 @@ export default function Landing() {
               <HeroProductPanel className="w-full" />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Terminal Showcase Section - Developer Aesthetic */}
+      <section className="py-16 lg:py-24 relative overflow-hidden" id="terminal-preview" data-testid="section-terminal">
+        <GeminiGradient variant="subtle" />
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3 font-mono">
+              <Terminal className="inline-block w-4 h-4 mr-2" />
+              Professional Interface
+            </p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              Built for Developers. Designed for Traders.
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto">
+              Terminal-inspired command center with real-time data streams and institutional-grade analytics.
+            </p>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {/* Terminal Window Showcase */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <TerminalWindow title="engine-status.sh" variant="default">
+                <div className="space-y-3 text-sm font-mono">
+                  <div className="text-cyan-400">$ quant-edge --status --all</div>
+                  <div className="space-y-1.5 pl-2">
+                    <SystemStatus systems={[
+                      { name: "ML Intelligence", status: "online" },
+                      { name: "Quant Scanner", status: "online" },
+                      { name: "Flow Detector", status: "online" },
+                      { name: "Sentiment AI", status: "online" },
+                      { name: "Technical Engine", status: "online" },
+                      { name: "Pattern Recognition", status: "online" },
+                    ]} />
+                  </div>
+                  <div className="text-green-400 pt-2">6/6 engines operational</div>
+                </div>
+              </TerminalWindow>
+            </motion.div>
+
+            {/* Live Data Stream Showcase */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <TerminalWindow title="live-feed.log" variant="success">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
+                    <Database className="w-3.5 h-3.5" />
+                    <span>REAL-TIME MARKET FEED</span>
+                    <motion.div
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto"
+                    />
+                  </div>
+                  <DataStream lines={8} speed={180} />
+                </div>
+              </TerminalWindow>
+            </motion.div>
+          </div>
+
+          {/* Feature Pills */}
+          <motion.div 
+            className="flex flex-wrap justify-center gap-3 mt-10"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+          >
+            {[
+              { icon: <Terminal className="w-3.5 h-3.5" />, label: "Terminal Interface" },
+              { icon: <Cpu className="w-3.5 h-3.5" />, label: "6-Engine Analysis" },
+              { icon: <Activity className="w-3.5 h-3.5" />, label: "Real-Time Streaming" },
+              { icon: <Database className="w-3.5 h-3.5" />, label: "Institutional Data" },
+            ].map((feature) => (
+              <Badge 
+                key={feature.label} 
+                variant="outline" 
+                className="px-3 py-1.5 gap-2 border-cyan-500/30 text-cyan-400 bg-cyan-500/5 font-mono"
+              >
+                {feature.icon}
+                {feature.label}
+              </Badge>
+            ))}
+          </motion.div>
         </div>
       </section>
 

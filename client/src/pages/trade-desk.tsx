@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useSearch, Link } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FuturesContent } from "@/pages/futures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -24,6 +25,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
+import { TypewriterText } from "@/components/terminal";
+import { FadeIn, StaggerContainer, StaggerItem } from "@/components/motion";
 import { 
   TrendingUp, 
   Target, 
@@ -67,7 +70,8 @@ import {
   DollarSign,
   LineChart,
   Globe,
-  Send
+  Send,
+  Terminal
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import ResearchPulseWidget from "@/components/research-pulse-widget";
@@ -1962,8 +1966,13 @@ export default function TradeDeskPage() {
 
         {/* Research Tab Content */}
         <TabsContent value="research" className="space-y-6">
-      {/* Premium Research Hub Header */}
-      <header className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-slate-900/40 border border-slate-700/30 p-6" data-testid="research-hub-header">
+      {/* Premium Research Hub Header - Terminal Styled */}
+      <motion.header 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-slate-900/40 border border-cyan-500/20 p-6" 
+        data-testid="research-hub-header"
+      >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
         <div className="relative">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -1971,11 +1980,15 @@ export default function TradeDeskPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Brain className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <Terminal className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">Research Hub</h1>
-                  <p className="text-sm text-muted-foreground">Institutional-grade trade analysis</p>
+                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono" data-testid="text-page-title">RESEARCH_HUB</h1>
+                  <p className="text-sm text-muted-foreground font-mono">
+                    <span className="text-cyan-400">quant@edge</span>
+                    <span className="text-slate-600"> $ </span>
+                    <TypewriterText text="institutional-grade analysis" speed={35} />
+                  </p>
                 </div>
               </div>
               
@@ -2085,7 +2098,7 @@ export default function TradeDeskPage() {
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* AI Research Panel - Full Width */}
       <AIResearchPanel />
