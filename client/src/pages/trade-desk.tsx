@@ -1312,6 +1312,70 @@ export default function TradeDeskPage() {
     }
   });
 
+  // Generate ideas from elite (S/A tier) watchlist setups
+  const generateEliteIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/watchlist/generate-elite-ideas');
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/setup-ideas'] });
+      toast({
+        title: "Elite Setup Ideas Generated",
+        description: `Created ${data.generated || 0} trade ideas from S/A tier watchlist setups`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate elite ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate ideas from surge detection alerts
+  const generateSurgeIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/market-scanner/surges/feed');
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Surge Ideas Generated",
+        description: `Fed ${data.ingested || 0} surge alerts to Trade Desk`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Surge Feed Failed",
+        description: error.message || "Failed to feed surge alerts",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate ideas from proactive detection (MA pullback, consolidation, volume accumulation)
+  const generateProactiveIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/discovery/proactive/feed');
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Proactive Setups Generated",
+        description: `Created ${data.generated || 0} ideas from pre-breakout patterns`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Proactive Scan Failed",
+        description: error.message || "Failed to generate proactive ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Send trade idea to Discord manually
   const sendToDiscordMutation = useMutation({
     mutationFn: async (ideaId: string) => {
@@ -1990,6 +2054,31 @@ export default function TradeDeskPage() {
                   >
                     <Activity className="h-4 w-4 mr-2 text-cyan-400" />
                     Options Flow
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => generateEliteIdeas.mutate()}
+                    disabled={generateEliteIdeas.isPending}
+                    data-testid="menu-generate-elite"
+                  >
+                    <Star className="h-4 w-4 mr-2 text-amber-400" />
+                    Best Setups (S/A Tier)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => generateSurgeIdeas.mutate()}
+                    disabled={generateSurgeIdeas.isPending}
+                    data-testid="menu-generate-surge"
+                  >
+                    <Flame className="h-4 w-4 mr-2 text-red-400" />
+                    Surge Alerts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => generateProactiveIdeas.mutate()}
+                    disabled={generateProactiveIdeas.isPending}
+                    data-testid="menu-generate-proactive"
+                  >
+                    <Eye className="h-4 w-4 mr-2 text-emerald-400" />
+                    Proactive Detection
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

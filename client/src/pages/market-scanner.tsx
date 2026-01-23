@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useSearch } from "wouter";
+import { useSearch, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +97,33 @@ interface MoversResponse {
 
 interface SectorData {
   [sector: string]: { avg: number; count: number };
+}
+
+interface SurgeSignal {
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  priceChange: number;
+  priceChangePercent: number;
+  volume: number;
+  avgVolume: number;
+  volumeRatio: number;
+  surgeType: 'PRE_SURGE' | 'BREAKOUT' | 'MOMENTUM' | 'VOLUME_SPIKE' | 'EARLY_MOVER';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  signals: string[];
+  score: number;
+  detectedAt: string;
+  nearHigh52?: boolean;
+  breakingResistance?: boolean;
+  marketCap?: number;
+}
+
+interface SurgeResponse {
+  success: boolean;
+  count: number;
+  highPriority: number;
+  surges: SurgeSignal[];
+  lastScan: string;
 }
 
 interface CatalystData {
@@ -420,7 +447,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
           
           {catalyst?.hasCatalysts ? (
             <div className="space-y-2">
-              {catalyst.secFilings.slice(0, 3).map((filing, i) => (
+              {catalyst.secFilings?.slice(0, 3).map((filing, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
@@ -441,7 +468,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               ))}
               
-              {catalyst.governmentContracts.slice(0, 2).map((contract, i) => (
+              {catalyst.governmentContracts?.slice(0, 2).map((contract, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <Award className="w-3 h-3 text-amber-400" />
@@ -457,7 +484,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               ))}
 
-              {catalyst.catalystEvents.slice(0, 3).map((event, i) => (
+              {catalyst.catalystEvents?.slice(0, 3).map((event, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <span className={`truncate max-w-[180px] ${getPolarityColor(event.polarity)}`}>
                     {event.title}
@@ -499,7 +526,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                 </div>
               </div>
               
-              {historical.recentTrades.length > 0 && (
+              {historical.recentTrades && historical.recentTrades.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Recent Trades:</p>
                   {historical.recentTrades.slice(0, 3).map((trade, i) => (
@@ -553,7 +580,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
-        ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 ? (
+        ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 && outlookQuery.data.yearlyStats ? (
           <div className="space-y-2">
             {Object.entries(outlookQuery.data.yearlyStats)
               .filter(([year]) => {
@@ -780,6 +807,40 @@ export default function MarketScanner() {
     enabled: activeTab === 'daytrade',
   });
 
+  // Surge Scanner - Real-time breakout detection
+  const surgeQuery = useQuery<SurgeResponse>({
+    queryKey: ['/api/market-scanner/surges'],
+    queryFn: async () => {
+      const res = await fetch('/api/market-scanner/surges');
+      if (!res.ok) throw new Error('Failed to fetch surge signals');
+      return res.json();
+    },
+    refetchInterval: 60 * 1000, // Refresh every minute for real-time detection
+    staleTime: 30000,
+  });
+
+  // Feed surges to Trade Desk
+  const feedSurgesToTradeDeskMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/market-scanner/surges/feed', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to feed surges');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Surges Fed to Trade Desk",
+        description: `${data.ingested} surge alerts sent to Trade Desk`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to feed surges",
+        description: "Check server logs for details",
+        variant: "destructive",
+      });
+    },
+  });
+
   const sendSwingToDiscord = useMutation({
     mutationFn: async (opp: SwingOpportunity) => {
       const response = await fetch('/api/swing-scanner/send-discord', {
@@ -809,6 +870,7 @@ export default function MarketScanner() {
     moversQuery.refetch();
     sectorsQuery.refetch();
     watchlistQuery.refetch();
+    surgeQuery.refetch();
   };
 
   const timeframeLabels: Record<string, string> = {
@@ -870,6 +932,120 @@ export default function MarketScanner() {
             </Button>
           </div>
         </div>
+
+        {/* SURGE SCANNER - Real-time Breakout Detection */}
+        <Card className="border-red-500/50 bg-gradient-to-r from-red-500/10 to-orange-500/10">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500/20 rounded-lg">
+                  <Zap className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-red-400 flex items-center gap-2" data-testid="surge-scanner-title">
+                    Surge Scanner
+                    {surgeQuery.data && surgeQuery.data.highPriority > 0 && (
+                      <Badge className="bg-red-500 text-white animate-pulse" data-testid="badge-surge-hot-count">{surgeQuery.data.highPriority} HOT</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>Real-time breakout detection across 800+ symbols</CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => surgeQuery.refetch()}
+                  disabled={surgeQuery.isFetching}
+                  data-testid="refresh-surges-button"
+                >
+                  {surgeQuery.isFetching ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => feedSurgesToTradeDeskMutation.mutate()}
+                  disabled={feedSurgesToTradeDeskMutation.isPending || !surgeQuery.data?.highPriority}
+                  data-testid="feed-surges-button"
+                >
+                  {feedSurgesToTradeDeskMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Feed to Trade Desk
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {surgeQuery.isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-24 bg-muted/30 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : surgeQuery.data && surgeQuery.data.surges.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {surgeQuery.data.surges.slice(0, 12).map((surge) => (
+                  <Link
+                    key={surge.symbol}
+                    href={`/chart-analysis?symbol=${surge.symbol}`}
+                    className="block p-3 rounded-lg border border-border/50 hover-elevate cursor-pointer bg-card/50"
+                    data-testid={`surge-card-${surge.symbol}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-foreground" data-testid={`text-symbol-${surge.symbol}`}>{surge.symbol}</span>
+                        <Badge 
+                          data-testid={`badge-severity-${surge.symbol}`}
+                          className={
+                            surge.severity === 'CRITICAL' ? 'bg-red-500 text-white' :
+                            surge.severity === 'HIGH' ? 'bg-orange-500 text-white' :
+                            surge.severity === 'MEDIUM' ? 'bg-amber-500 text-black' :
+                            'bg-slate-500 text-white'
+                          }
+                        >
+                          {surge.severity}
+                        </Badge>
+                      </div>
+                      <div className={`font-mono font-bold ${surge.priceChangePercent > 0 ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-change-${surge.symbol}`}>
+                        {surge.priceChangePercent > 0 ? '+' : ''}{surge.priceChangePercent.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                      <span className="font-mono" data-testid={`text-price-${surge.symbol}`}>${surge.currentPrice.toFixed(2)}</span>
+                      <span className="text-cyan-400" data-testid={`text-volume-${surge.symbol}`}>{surge.volumeRatio.toFixed(1)}x vol</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="text-xs" data-testid={`badge-type-${surge.symbol}`}>
+                        {surge.surgeType.replace('_', ' ')}
+                      </Badge>
+                      {surge.breakingResistance && (
+                        <Badge className="bg-green-500/20 text-green-400 text-xs" data-testid={`badge-high52-${surge.symbol}`}>52W HIGH!</Badge>
+                      )}
+                    </div>
+                    {surge.signals.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2 truncate">
+                        {surge.signals[0]}
+                      </p>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground" data-testid="surge-empty-state">
+                <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p data-testid="text-surge-empty-message">No surge signals detected. Market may be quiet.</p>
+                <p className="text-xs mt-1">Scanner checks 800+ symbols every minute</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Main Tab Navigation: Movers vs Day Trade vs Swing */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

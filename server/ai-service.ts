@@ -580,6 +580,49 @@ Keep it concise and actionable.`;
   }
 }
 
+// Generate AI-powered text analysis for a symbol (no chart image needed)
+export async function generateAIAnalysis(prompt: string, preferredProvider: 'claude' | 'gemini' | 'gpt' = 'claude'): Promise<string | null> {
+  const systemPrompt = `You are a professional trading analyst. Provide concise, actionable analysis. 
+Be direct and specific. Focus on key levels and momentum. Keep responses under 100 words.
+Never provide financial advice - this is for educational research only.`;
+
+  try {
+    if (preferredProvider === 'claude') {
+      const response = await getAnthropic().messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 200,
+        system: systemPrompt,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const textBlock = response.content.find((block: { type: string }) => block.type === 'text');
+      if (textBlock && 'text' in textBlock) {
+        return textBlock.text;
+      }
+      return null;
+    } else if (preferredProvider === 'gemini') {
+      const response = await getGemini().models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `${systemPrompt}\n\n${prompt}`,
+      });
+      return response.text || null;
+    } else {
+      // GPT fallback
+      const response = await getOpenAI().chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 200,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt }
+        ],
+      });
+      return response.choices[0]?.message?.content || null;
+    }
+  } catch (error: any) {
+    logger.error(`[AI-ANALYSIS] ${preferredProvider} failed: ${error?.message}`);
+    throw error;
+  }
+}
+
 /**
  * 📰 Generate trade idea from breaking news article
  * Uses News Catalyst Mode (1.5:1 R:R minimum instead of 2:1)

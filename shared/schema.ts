@@ -207,6 +207,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
   
+  // Trade Type Classification - Clear differentiation for bot execution
+  tradeType: text("trade_type").$type<'lotto' | 'swing' | 'mover' | 'scalp'>().default('swing'), // 'lotto' = high risk far OTM, 'swing' = multi-day, 'mover' = momentum/breakout, 'scalp' = quick in-out
+  
   // 📊 OPTIONS GREEKS - Critical for options trading risk assessment
   optionDelta: real("option_delta"), // Price sensitivity to underlying (0.0-1.0)
   optionTheta: real("option_theta"), // Time decay per day (negative = losing value daily)

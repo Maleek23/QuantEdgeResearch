@@ -123,3 +123,14 @@ Key features and architectural decisions include:
   - Uses shared queryFns with `apiRequest` for proper auth
   - Uses `queryClient.fetchQuery()` for cache hydration
   - Ref-based tracking prevents duplicate triggers on same symbol
+- **CRITICAL: Quant Bot Auto-Execution Fix (2026-01-22)**:
+  - **Root cause 1**: Bot checked `trade_ideas` table (52k+ entries) instead of `paper_positions` for deduplication
+  - **Root cause 2**: Ideas were generated but never executed - missing `executeTradeIdea()` call
+  - **Root cause 3**: Position sizing too restrictive ($60 max vs $200+ option contracts)
+  - **Fixes applied**:
+    - Changed deduplication in `server/index.ts` (QUANT-CRON, QUANT-STARTUP) to check OPEN `paper_positions` only
+    - Added `executeTradeIdea()` call after ideas are saved to actually enter trades
+    - Increased `MAX_DOLLAR_PER_TRADE` from $60 to $250 in `paper-trading-service.ts`
+    - Increased `MAX_PERCENT_PER_TRADE` from 20% to 25%
+    - Increased portfolio capital to $1,000
+  - **Result**: Bot now auto-executes trades on startup (e.g., AMD PUT $250 @ $1.99)

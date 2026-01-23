@@ -1565,6 +1565,7 @@ function generatePotentialCatalysts(sector: string, industry: string): string[] 
  */
 export interface FundamentalData {
   symbol: string;
+  marketCap: number | null;       // Market capitalization
   // Valuation metrics
   peRatio: number | null;         // Price-to-Earnings
   forwardPE: number | null;       // Forward P/E
@@ -1747,6 +1748,7 @@ function parseFundamentalResult(symbol: string, result: any): FundamentalData {
     
   const fundamental: FundamentalData = {
     symbol: symbol,
+    marketCap: raw(summary.marketCap) || raw(keyStats.marketCap) || null,
       
       // Valuation
       peRatio: raw(keyStats.trailingPE) || raw(summary.trailingPE),

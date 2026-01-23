@@ -272,13 +272,20 @@ app.use((req, res, next) => {
         
         logger.info(`🔀 [HYBRID-CRON] Starting automated hybrid generation at 9:45 AM CT`);
         
-        // 🚫 DEDUPLICATION: Get existing open symbols
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas (3,453+ open)
+        // CRITICAL FIX: Previously blocked all symbols that had any trade idea
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+          logger.info(`🚫 [HYBRID-CRON] Dedup: ${existingOpenSymbols.size} symbols have open paper positions`);
+        } catch (e) {
+          logger.info(`⚠️ [HYBRID-CRON] Could not fetch paper positions - allowing all symbols`);
+        }
         
         // Generate hybrid ideas
         const { generateHybridIdeas } = await import('./ai-service');
@@ -342,20 +349,29 @@ app.use((req, res, next) => {
               
               if (optimalStrike && optimalStrike.lastPrice) {
                 // Override AI prices with real option premium math
+                // MINIMUM 50-75% gain targets - options are risky, need real upside!
                 const optionPremium = optimalStrike.lastPrice;
-                hybridIdea.entryPrice = optionPremium;
-                hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
-                hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+                const expDate = hybridIdea.expiryDate;
+                const daysToExpiry = expDate 
+                  ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                  : 7; // default to weekly if unknown
+                let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
                 
-                logger.info(`✅ [HYBRID-CRON] ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+                hybridIdea.entryPrice = optionPremium;
+                hybridIdea.targetPrice = optionPremium * targetMult; // 50-100% gain based on DTE
+                hybridIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+                
+                const gainPct = Math.round((targetMult - 1) * 100);
+                logger.info(`[HYBRID-CRON] ${hybridIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
               } else {
                 // Fallback: estimate premium as ~5% of stock price
+                // Use 75% target for estimated premiums (moderate aggression)
                 const estimatedPremium = stockPrice * 0.05;
                 hybridIdea.entryPrice = estimatedPremium;
-                hybridIdea.targetPrice = estimatedPremium * 1.25;
-                hybridIdea.stopLoss = estimatedPremium * 0.96;
+                hybridIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+                hybridIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
                 
-                logger.warn(`⚠️  [HYBRID-CRON] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+                logger.warn(`[HYBRID-CRON] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
               }
             } catch (error) {
               logger.error(`❌ [HYBRID-CRON] ${hybridIdea.symbol} option pricing failed:`, error);
@@ -561,31 +577,30 @@ app.use((req, res, next) => {
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 10, storage, true);
         
         const savedIdeas = [];
-        const allExistingIdeas = await storage.getAllTradeIdeas();
-        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         
-        // Create a map of recent trades by symbol+strike+optionType for better dedup
-        const recentTradeKeys = new Set<string>();
-        for (const i of allExistingIdeas) {
-          // Check if trade was created in last 4 hours (regardless of outcome status)
-          const createdAt = new Date(i.timestamp).getTime();
-          if (createdAt > fourHoursAgo && i.source === 'quant') {
-            // Key includes symbol, option type, and strike for precise dedup
-            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
-            recentTradeKeys.add(key);
+        // 🔧 FIX: Check OPEN paper_positions (actual trades), NOT trade_ideas (52k+ research entries)
+        const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+        const portfolio = await getOptionsPortfolio();
+        const openPositionKeys = new Set<string>();
+        
+        if (portfolio) {
+          const openPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+          for (const pos of openPositions) {
+            if (pos.status === 'open') {
+              const key = `${pos.symbol}:${pos.optionType || ''}:${pos.strikePrice || ''}`.toUpperCase();
+              openPositionKeys.add(key);
+            }
           }
+          logger.info(`🔍 [QUANT-CRON] Open positions to avoid duplicates: ${openPositionKeys.size}`);
         }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          // Skip only if we already have an OPEN POSITION for this exact option
           const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
-          if (recentTradeKeys.has(ideaKey)) {
-            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
+          if (openPositionKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - already have open position`);
             continue;
           }
-          
-          // Options now allowed - direction bug fixed (was marking puts as 'short' instead of 'long')
-          // All options are now LONG (bought) positions with correct P&L calculation
           
           const saved = await storage.createTradeIdea({
             ...idea,
@@ -598,6 +613,34 @@ app.use((req, res, next) => {
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!
+          const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+          const { executeTradeIdea } = await import('./paper-trading-service');
+          const portfolio = await getOptionsPortfolio();
+          
+          if (portfolio) {
+            let tradesExecuted = 0;
+            for (const idea of savedIdeas) {
+              // Execute options trades (the ones that have option details)
+              if (idea.assetType === 'option' && idea.strikePrice && idea.optionType) {
+                try {
+                  const result = await executeTradeIdea(portfolio.id, idea);
+                  if (result.success && result.position) {
+                    tradesExecuted++;
+                    logger.info(`🚀 [QUANT-CRON] AUTO-EXECUTED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice?.toFixed(2)} x${result.position.quantity}`);
+                  } else {
+                    logger.warn(`⚠️ [QUANT-CRON] Execution failed for ${idea.symbol}: ${result.error}`);
+                  }
+                } catch (execErr) {
+                  logger.error(`[QUANT-CRON] Trade execution error for ${idea.symbol}:`, execErr);
+                }
+              }
+            }
+            logger.info(`🎯 [QUANT-CRON] AUTO-EXECUTED ${tradesExecuted}/${savedIdeas.length} trades into paper portfolio`);
+          } else {
+            logger.warn(`⚠️ [QUANT-CRON] No portfolio available - trades saved but NOT executed`);
+          }
           
           // 🎯 Send premium A/A+ alerts for options
           for (const idea of savedIdeas) {
@@ -665,26 +708,29 @@ app.use((req, res, next) => {
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 15, quantStorage, true);
         
         const savedIdeas = [];
-        const allExistingIdeas = await quantStorage.getAllTradeIdeas();
-        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         
-        // Create a map of recent trades by symbol+strike+optionType for better dedup
-        const recentTradeKeys = new Set<string>();
-        for (const i of allExistingIdeas) {
-          // Check if trade was created in last 4 hours (regardless of outcome status)
-          const createdAt = new Date(i.timestamp).getTime();
-          if (createdAt > fourHoursAgo && i.source === 'quant') {
-            // Key includes symbol, option type, and strike for precise dedup
-            const key = `${i.symbol}:${i.optionType || ''}:${i.strikePrice || ''}`.toUpperCase();
-            recentTradeKeys.add(key);
+        // 🔧 FIX: Check OPEN paper_positions (actual trades), NOT trade_ideas (52k+ research entries)
+        // This was causing ALL ideas to be skipped as "duplicates" even though no trades were entered
+        const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+        const portfolio = await getOptionsPortfolio();
+        const openPositionKeys = new Set<string>();
+        
+        if (portfolio) {
+          const openPositions = await quantStorage.getPaperPositionsByPortfolio(portfolio.id);
+          for (const pos of openPositions) {
+            if (pos.status === 'open') {
+              const key = `${pos.symbol}:${pos.optionType || ''}:${pos.strikePrice || ''}`.toUpperCase();
+              openPositionKeys.add(key);
+            }
           }
+          logger.info(`🔍 [QUANT-STARTUP] Open positions to avoid duplicates: ${openPositionKeys.size}`);
         }
         
         for (const idea of quantIdeas) {
-          // Skip duplicates - check against ALL recent trades (not just 'open' ones)
+          // Skip only if we already have an OPEN POSITION for this exact option
           const ideaKey = `${idea.symbol}:${idea.optionType || ''}:${idea.strikePrice || ''}`.toUpperCase();
-          if (recentTradeKeys.has(ideaKey)) {
-            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - duplicate within 4 hours`);
+          if (openPositionKeys.has(ideaKey)) {
+            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} ${idea.optionType || ''} $${idea.strikePrice || ''} - already have open position`);
             continue;
           }
           
@@ -702,6 +748,34 @@ app.use((req, res, next) => {
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-STARTUP] Generated ${savedIdeas.length} fresh quant trade ideas on startup`);
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!
+          const { getOptionsPortfolio } = await import('./auto-lotto-trader');
+          const { executeTradeIdea } = await import('./paper-trading-service');
+          const portfolio = await getOptionsPortfolio();
+          
+          if (portfolio) {
+            let tradesExecuted = 0;
+            for (const idea of savedIdeas) {
+              // Execute options trades (the ones that have option details)
+              if (idea.assetType === 'option' && idea.strikePrice && idea.optionType) {
+                try {
+                  const result = await executeTradeIdea(portfolio.id, idea);
+                  if (result.success && result.position) {
+                    tradesExecuted++;
+                    logger.info(`🚀 [QUANT-STARTUP] AUTO-EXECUTED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice?.toFixed(2)} x${result.position.quantity}`);
+                  } else {
+                    logger.warn(`⚠️ [QUANT-STARTUP] Execution failed for ${idea.symbol}: ${result.error}`);
+                  }
+                } catch (execErr) {
+                  logger.error(`[QUANT-STARTUP] Trade execution error for ${idea.symbol}:`, execErr);
+                }
+              }
+            }
+            logger.info(`🎯 [QUANT-STARTUP] AUTO-EXECUTED ${tradesExecuted}/${savedIdeas.length} trades into paper portfolio`);
+          } else {
+            logger.warn(`⚠️ [QUANT-STARTUP] No portfolio available - trades saved but NOT executed`);
+          }
           
           // 🎯 Send premium A/A+ alerts for options
           for (const idea of savedIdeas) {
@@ -813,13 +887,17 @@ app.use((req, res, next) => {
         
         logger.info(`📰 [NEWS-CRON] Found ${breakingNews.length} breaking news articles`);
         
-        // Get existing open trade symbols to avoid duplicates
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas
+        // CRITICAL FIX: Previously blocked all symbols with any trade idea (3,453+)
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+        } catch (e) { /* Allow all if error */ }
         
         // Generate trade ideas from breaking news (limit to top 3 to avoid spam)
         let generatedCount = 0;
@@ -924,13 +1002,17 @@ app.use((req, res, next) => {
         
         logger.info(`📊 [FLOW-CRON] Found ${flowIdeas.length} flow signals, validating...`);
         
-        // Get existing open trade symbols to avoid duplicates
-        const allIdeas = await storage.getAllTradeIdeas();
-        const existingOpenSymbols = new Set(
-          allIdeas
-            .filter((idea: any) => idea.outcomeStatus === 'open')
-            .map((idea: any) => idea.symbol.toUpperCase())
-        );
+        // 🚫 DEDUPLICATION: Check PAPER_POSITIONS (actual trades) not trade_ideas
+        // CRITICAL FIX: Previously blocked all symbols with any trade idea (3,453+)
+        const existingOpenSymbols = new Set<string>();
+        try {
+          const portfolios = await storage.getAllPaperPortfolios();
+          const quantPortfolio = portfolios.find((p: any) => p.name === 'Quant Bot Auto-Trader');
+          if (quantPortfolio) {
+            const positions = await storage.getPaperPositionsByPortfolio(quantPortfolio.id);
+            positions.filter((p: any) => p.status === 'open').forEach((p: any) => existingOpenSymbols.add(p.symbol.toUpperCase()));
+          }
+        } catch (e) { /* Allow all if error */ }
         
         // Validate and save flow trades
         let savedCount = 0;

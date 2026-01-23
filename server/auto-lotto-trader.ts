@@ -3026,6 +3026,30 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     `- R:R: ${riskRewardRatio.toFixed(1)}:1`,
   ].join('\n');
 
+  // 🎯 TRADE TYPE CLASSIFICATION - Differentiate lottos vs swing vs big movers
+  const classifyTradeType = (): 'lotto' | 'swing' | 'mover' | 'scalp' => {
+    // LOTTO: Far OTM (delta < 0.20), cheap premium (<$0.75), short DTE (<5 days)
+    if (Math.abs(opportunity.delta) < 0.20 && opportunity.price < 0.75 && opportunity.daysToExpiry <= 5) {
+      return 'lotto';
+    }
+    // SCALP: Very short DTE (0-1 day), higher delta (ATM)
+    if (opportunity.daysToExpiry <= 1 && Math.abs(opportunity.delta) >= 0.35) {
+      return 'scalp';
+    }
+    // MOVER: High momentum signals, catalyst-driven
+    const hasMomentum = decision.signals.some(s => 
+      s.includes('MOMENTUM') || s.includes('SURGE') || s.includes('BREAKOUT') || 
+      s.includes('CATALYST') || s.includes('VOLUME_SPIKE')
+    );
+    if (hasMomentum && decision.confidence >= 75) {
+      return 'mover';
+    }
+    // SWING: Default for multi-day holds
+    return 'swing';
+  };
+  
+  const tradeType = classifyTradeType();
+  
   const ideaData = {
     symbol: opportunity.symbol,
     assetType: 'option' as const,
@@ -3047,19 +3071,20 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     expiryDate: opportunity.expiration,
     entryValidUntil: formatInTimeZone(entryValidUntil, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
     exitBy: formatInTimeZone(exitDate, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-    isLottoPlay: true,
+    isLottoPlay: tradeType === 'lotto',
+    tradeType, // NEW: Explicit trade type classification
     timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
     sectorFocus: 'momentum' as const,
-    riskProfile: 'speculative' as const,
+    riskProfile: tradeType === 'lotto' ? 'speculative' as const : tradeType === 'scalp' ? 'aggressive' as const : 'moderate' as const,
     researchHorizon: (opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'short_swing' : 'multi_week') as 'intraday' | 'short_swing' | 'multi_week',
     liquidityWarning: true,
-    engineVersion: 'bot_autonomous_v1.2', // v1.2: Intelligent strike selection algorithm
+    engineVersion: 'bot_autonomous_v1.3', // v1.3: Trade type classification (lotto/swing/mover/scalp)
     
     // 📊 OPTIONS GREEKS - Store for risk assessment and Discord display
     optionDelta: opportunity.delta,
   };
   
-  logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, delta=${opportunity.delta.toFixed(3)}, catalyst contains=${ideaData.catalyst.includes('PUT') ? 'PUT' : 'CALL'}`);
+  logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, delta=${opportunity.delta.toFixed(3)}, tradeType=${tradeType}`);
   
   return ideaData;
 }
@@ -3650,9 +3675,24 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
-        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity [STRICT]
-        if (opp.openInterest < 50 || opp.volume < 10) {
-          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume})`);
+        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Relaxed but safe requirements
+        // Previous: OI < 50 OR Vol < 10 was too strict - skipping too many trades!
+        // New: Tiered approach:
+        // - Must have at least OI >= 10 (baseline market interest)
+        // - Volume >= 1 preferred but not required if OI is high (>= 50)
+        // Priority tickers get looser OI requirement
+        const isPriorityForLiquidity = BASE_PRIORITY_TICKERS.includes(ticker.toUpperCase());
+        const minOI = isPriorityForLiquidity ? 10 : 15;
+        
+        // Skip if OI too low (always need some open interest)
+        if (opp.openInterest < minOI) {
+          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low OI (OI=${opp.openInterest} < ${minOI})`);
+          continue;
+        }
+        
+        // If OI is borderline (< 50), also require at least 1 volume today
+        if (opp.openInterest < 50 && (opp.volume === undefined || opp.volume < 1)) {
+          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume || 0} - need Vol >= 1 when OI < 50)`);
           continue;
         }
         

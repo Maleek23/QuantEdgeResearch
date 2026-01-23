@@ -173,6 +173,46 @@ interface PatternLibraryItem {
   exitRules: string[];
 }
 
+interface EngineResult {
+  engine: string;
+  signal: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+  signals: string[];
+  weight: number;
+}
+
+interface SixEngineAnalysis {
+  symbol: string;
+  currentPrice: number;
+  priceChange: number;
+  priceChangePercent: number;
+  engines: {
+    ml: EngineResult;
+    technical: EngineResult;
+    quant: EngineResult;
+    flow: EngineResult;
+    sentiment: EngineResult;
+    pattern: EngineResult;
+  };
+  overallDirection: 'bullish' | 'bearish' | 'neutral';
+  overallConfidence: number;
+  overallGrade: string;
+  holdingPeriod: {
+    period: 'day' | 'swing' | 'leaps';
+    reasoning: string;
+    optionDTE?: string;
+  };
+  tradeIdea: {
+    direction: 'CALL' | 'PUT' | 'LONG' | 'SHORT' | 'NEUTRAL';
+    entry: number;
+    target: number;
+    stopLoss: number;
+    riskReward: string;
+    conviction: string;
+  };
+  analysisTimestamp: string;
+}
+
 const PATTERN_LIBRARY: PatternLibraryItem[] = [
   {
     id: "cup-handle",
@@ -3069,8 +3109,9 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
     setIsAnalyzing(true);
 
     try {
-      // Run AI analysis if chart uploaded
+      // Run AI analysis - either with chart image or symbol-only
       if (selectedFile) {
+        // Chart image uploaded - use vision AI
         try {
           const formData = new FormData();
           formData.append('chart', selectedFile);
@@ -3078,9 +3119,32 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
           formData.append('timeframe', timeframe);
           formData.append('mode', analysisMode);
 
+          // Get CSRF token from cookie
+          const csrfMatch = document.cookie.match(/csrf_token=([^;]+)/);
+          const csrfToken = csrfMatch ? csrfMatch[1] : null;
+          const headers: Record<string, string> = {};
+          if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+          }
+
           const response = await fetch('/api/chart-analysis', {
             method: 'POST',
             body: formData,
+            credentials: 'include',
+            headers,
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            setAiResult(result);
+          }
+        } catch (error) {
+          console.error('AI vision analysis failed:', error);
+        }
+      } else {
+        // No chart - use AI-powered symbol analysis (6-engine + AI text)
+        try {
+          const response = await fetch(`/api/ai-symbol-analysis/${targetSymbol}`, {
             credentials: 'include',
           });
 
@@ -3089,7 +3153,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
             setAiResult(result);
           }
         } catch (error) {
-          console.error('AI analysis failed:', error);
+          console.error('AI symbol analysis failed:', error);
         }
       }
 
@@ -3518,6 +3582,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
               ) : mathPatterns ? (
                 <div className="space-y-4">
                   {/* Hurst Exponent */}
+                  {mathPatterns.hurst && (
                   <div className={cn(
                     "p-3 rounded-lg border",
                     mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/10 border-cyan-500/30" :
@@ -3545,9 +3610,10 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                       <span className="text-xs font-mono text-slate-400">{Math.round(mathPatterns.hurst.confidence)}%</span>
                     </div>
                   </div>
+                  )}
 
                   {/* Harmonic Patterns */}
-                  {mathPatterns.harmonicPatterns.length > 0 && (
+                  {mathPatterns.harmonicPatterns && mathPatterns.harmonicPatterns.length > 0 && (
                     <div className="p-3 rounded-lg border bg-purple-500/10 border-purple-500/30">
                       <div className="flex items-center justify-between mb-3">
                         <span className="font-mono text-sm">Harmonic Patterns</span>
@@ -3625,14 +3691,14 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   )}
 
                   {/* Fibonacci Levels */}
-                  {mathPatterns.fibonacci.retracements.length > 0 && (
+                  {mathPatterns.fibonacci?.retracements?.length > 0 && (
                     <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/30">
                       <span className="font-mono text-sm block mb-2">Fibonacci Levels</span>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-slate-500">Retracements</span>
                           <div className="mt-1 space-y-0.5">
-                            {mathPatterns.fibonacci.retracements.slice(0, 3).map((fib, idx) => (
+                            {mathPatterns.fibonacci?.retracements?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
                                 <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
                                 <span className={cn(
@@ -3648,7 +3714,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                         <div>
                           <span className="text-slate-500">Extensions</span>
                           <div className="mt-1 space-y-0.5">
-                            {mathPatterns.fibonacci.extensions.slice(0, 3).map((fib, idx) => (
+                            {mathPatterns.fibonacci?.extensions?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
                                 <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
                                 <span className={cn(
@@ -3790,6 +3856,19 @@ export default function ChartAnalysis() {
 
   const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
     queryKey: ['/api/performance/stats'],
+  });
+
+  const { data: sixEngineAnalysis, isLoading: isSixEngineLoading, refetch: refetchSixEngine } = useQuery<SixEngineAnalysis | null>({
+    queryKey: ['/api/analyze-symbol', symbol, assetType],
+    queryFn: async () => {
+      if (!symbol || symbol.length < 1) return null;
+      const res = await fetch(`/api/analyze-symbol/${symbol}?assetType=${assetType}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: symbol.length >= 1,
+    staleTime: 60000,
+    retry: false,
   });
 
   const quantSignals: QuantSignal[] | null = analysisResult && symbol ? (() => {
@@ -4111,6 +4190,134 @@ export default function ChartAnalysis() {
         iconColor="text-purple-400"
         iconGradient="from-purple-500/20 to-pink-500/20"
       />
+
+      {sixEngineAnalysis && (
+        <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5" data-testid="card-trade-idea">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  sixEngineAnalysis.overallDirection === 'bullish' ? 'bg-green-500/20' :
+                  sixEngineAnalysis.overallDirection === 'bearish' ? 'bg-red-500/20' : 'bg-slate-500/20'
+                }`}>
+                  {sixEngineAnalysis.overallDirection === 'bullish' ? (
+                    <TrendingUp className="h-6 w-6 text-green-400" />
+                  ) : sixEngineAnalysis.overallDirection === 'bearish' ? (
+                    <TrendingDown className="h-6 w-6 text-red-400" />
+                  ) : (
+                    <Activity className="h-6 w-6 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2" data-testid="text-trade-idea-symbol">
+                    {sixEngineAnalysis.symbol} Trade Idea
+                    <Badge className={`${
+                      sixEngineAnalysis.tradeIdea.conviction === 'HIGH' ? 'bg-green-500' :
+                      sixEngineAnalysis.tradeIdea.conviction === 'MEDIUM' ? 'bg-amber-500' : 'bg-slate-500'
+                    } text-white`} data-testid="badge-conviction">
+                      {sixEngineAnalysis.tradeIdea.conviction}
+                    </Badge>
+                    <Badge variant="outline" className="ml-1" data-testid="badge-grade">
+                      Grade: {sixEngineAnalysis.overallGrade}
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="flex items-center gap-2">
+                    6-Engine Consensus: {sixEngineAnalysis.overallDirection.toUpperCase()} ({sixEngineAnalysis.overallConfidence}%)
+                    <span className="text-xs text-muted-foreground">
+                      • {new Date(sixEngineAnalysis.analysisTimestamp).toLocaleTimeString()}
+                    </span>
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refetchSixEngine()}
+                  disabled={isSixEngineLoading}
+                  data-testid="button-refresh-analysis"
+                >
+                  {isSixEngineLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="p-3 rounded-lg bg-card/50 border border-border/50">
+                <div className="text-xs text-muted-foreground mb-1">Recommended Action</div>
+                <div className={`text-2xl font-bold ${
+                  sixEngineAnalysis.tradeIdea.direction === 'CALL' || sixEngineAnalysis.tradeIdea.direction === 'LONG' ? 'text-green-400' :
+                  sixEngineAnalysis.tradeIdea.direction === 'PUT' || sixEngineAnalysis.tradeIdea.direction === 'SHORT' ? 'text-red-400' : 'text-slate-400'
+                }`} data-testid="text-direction">
+                  {sixEngineAnalysis.tradeIdea.direction}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1" data-testid="text-holding-period">
+                  {sixEngineAnalysis.holdingPeriod.period.toUpperCase()} Trade
+                  {sixEngineAnalysis.holdingPeriod.optionDTE && ` (${sixEngineAnalysis.holdingPeriod.optionDTE})`}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-card/50 border border-border/50">
+                <div className="text-xs text-muted-foreground mb-1">Entry / Target / Stop</div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-mono" data-testid="text-entry">${sixEngineAnalysis.tradeIdea.entry.toFixed(2)}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-lg font-mono text-green-400" data-testid="text-target">${sixEngineAnalysis.tradeIdea.target.toFixed(2)}</span>
+                </div>
+                <div className="text-sm text-red-400 mt-1" data-testid="text-stoploss">
+                  Stop: ${sixEngineAnalysis.tradeIdea.stopLoss.toFixed(2)}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-card/50 border border-border/50">
+                <div className="text-xs text-muted-foreground mb-1">Risk/Reward</div>
+                <div className="text-2xl font-bold text-cyan-400" data-testid="text-risk-reward">
+                  {sixEngineAnalysis.tradeIdea.riskReward}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Price: ${sixEngineAnalysis.currentPrice.toFixed(2)} ({sixEngineAnalysis.priceChangePercent > 0 ? '+' : ''}{sixEngineAnalysis.priceChangePercent.toFixed(2)}%)
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+              {Object.entries(sixEngineAnalysis.engines).map(([key, engine]) => (
+                <div 
+                  key={key}
+                  className={`p-2 rounded-lg border text-center ${
+                    engine.signal === 'bullish' ? 'border-green-500/30 bg-green-500/10' :
+                    engine.signal === 'bearish' ? 'border-red-500/30 bg-red-500/10' : 'border-slate-500/30 bg-slate-500/10'
+                  }`}
+                  data-testid={`engine-${key}`}
+                >
+                  <div className="text-xs font-medium truncate">{engine.engine.split(' ')[0]}</div>
+                  <div className={`text-sm font-bold ${
+                    engine.signal === 'bullish' ? 'text-green-400' :
+                    engine.signal === 'bearish' ? 'text-red-400' : 'text-slate-400'
+                  }`}>
+                    {engine.signal.toUpperCase()}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{engine.confidence}%</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 rounded-lg bg-card/30 border border-border/30">
+              <div className="text-sm text-muted-foreground" data-testid="text-reasoning">
+                <strong>Holding Period Reasoning:</strong> {sixEngineAnalysis.holdingPeriod.reasoning}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isSixEngineLoading && symbol && (
+        <Card className="border border-cyan-500/30">
+          <CardContent className="p-6 flex items-center justify-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+            <span className="text-muted-foreground">Analyzing {symbol} with 6 engines...</span>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6" data-testid="tabs-main-navigation">

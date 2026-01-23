@@ -12571,6 +12571,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GROWTH SCANNER - Small caps with 100%+ revenue growth near 50 SMA =====
+  app.get("/api/market-scanner/growth", requireBetaAccess, async (req, res) => {
+    try {
+      const { getGrowthCandidates } = await import('./growth-scanner');
+      const forceRefresh = req.query.refresh === 'true';
+      const candidates = await getGrowthCandidates(forceRefresh);
+      res.json({
+        success: true,
+        count: candidates.length,
+        criteria: '100%+ YoY revenue growth, near 50 SMA, small/mid cap',
+        candidates,
+        scannedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/growth' });
+      res.status(500).json({ error: "Failed to scan growth stocks" });
+    }
+  });
+
+  // ===== SURGE SCANNER - Real-time breakout detection =====
+  app.get("/api/market-scanner/surges", requireBetaAccess, async (req, res) => {
+    try {
+      const { scanForSurges, getLatestSurges, getHighPrioritySurges } = await import('./market-scanner');
+      const forceRefresh = req.query.refresh === 'true';
+      const priority = req.query.priority === 'high';
+      
+      // Get surges (will use cache if fresh, scan if stale)
+      const allSurges = forceRefresh ? await scanForSurges(true) : getLatestSurges();
+      const surges = priority ? getHighPrioritySurges() : (allSurges.length > 0 ? allSurges : await scanForSurges(true));
+      
+      res.json({
+        success: true,
+        count: surges.length,
+        highPriority: surges.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH').length,
+        surges,
+        lastScan: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/surges' });
+      res.status(500).json({ error: "Failed to scan for surges" });
+    }
+  });
+
+  // Auto-feed surges to Trade Desk
+  app.post("/api/market-scanner/surges/feed", isAuthenticated, async (req: any, res) => {
+    try {
+      const { scanForSurges, getHighPrioritySurges } = await import('./market-scanner');
+      const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+      
+      // Scan for fresh surges
+      await scanForSurges(true);
+      const surges = getHighPrioritySurges();
+      
+      let ingested = 0;
+      let skipped = 0;
+      
+      for (const surge of surges) {
+        // Only ingest CRITICAL and HIGH severity surges
+        if (surge.severity !== 'CRITICAL' && surge.severity !== 'HIGH') {
+          skipped++;
+          continue;
+        }
+        
+        // Create distinct signal types based on signal descriptions
+        const signals = surge.signals.map((s, idx) => {
+          // Determine signal type from description
+          let signalType = surge.surgeType;
+          if (s.includes('VOLUME')) signalType = 'VOLUME_SURGE';
+          else if (s.includes('MAJOR MOVE') || s.includes('breakout')) signalType = 'PRICE_BREAKOUT';
+          else if (s.includes('momentum')) signalType = 'MOMENTUM';
+          else if (s.includes('52-WEEK')) signalType = 'TECHNICAL_BREAKOUT';
+          else if (s.includes('PRE-SURGE')) signalType = 'PRE_SURGE';
+          
+          return {
+            type: signalType,
+            weight: idx === 0 ? (surge.severity === 'CRITICAL' ? 18 : 14) : 10,
+            description: s
+          };
+        });
+        
+        // Add a primary signal for the surge type itself
+        if (signals.length === 0) {
+          signals.push({
+            type: surge.surgeType,
+            weight: surge.severity === 'CRITICAL' ? 18 : 14,
+            description: `${surge.surgeType}: ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% with ${surge.volumeRatio.toFixed(1)}x volume`
+          });
+        }
+        
+        const result = await ingestTradeIdea({
+          source: 'market_scanner',
+          symbol: surge.symbol,
+          assetType: 'stock',
+          direction: surge.priceChangePercent > 0 ? 'bullish' : 'bearish',
+          signals,
+          holdingPeriod: surge.surgeType === 'PRE_SURGE' ? 'swing' : 'day',
+          currentPrice: surge.currentPrice,
+          catalyst: surge.signals.slice(0, 2).join(' | '),
+          analysis: `${surge.surgeType} detected: ${surge.name} with ${surge.volumeRatio.toFixed(1)}x volume and ${surge.priceChangePercent > 0 ? '+' : ''}${surge.priceChangePercent.toFixed(1)}% move. Score: ${surge.score}/100.`,
+        });
+        
+        if (result.success) {
+          ingested++;
+          logger.info(`[SURGE->TRADE-DESK] Fed ${surge.symbol} (${surge.severity}): ${surge.surgeType}`);
+        } else {
+          skipped++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Fed ${ingested} surge alerts to Trade Desk`,
+        ingested,
+        skipped,
+        totalSurges: surges.length
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/market-scanner/surges/feed' });
+      res.status(500).json({ error: "Failed to feed surges to Trade Desk" });
+    }
+  });
+
   // Smart Watchlist - Curated 10-20 picks with trade idea analysis
   app.get("/api/market-scanner/watchlist", requireBetaAccess, async (req, res) => {
     try {
@@ -13891,20 +14013,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (optimalStrike && optimalStrike.lastPrice) {
               // Override AI prices with real option premium math
+              // MINIMUM 50-75% gain targets - options are risky, need real upside!
               const optionPremium = optimalStrike.lastPrice;
-              aiIdea.entryPrice = optionPremium;
-              aiIdea.targetPrice = optionPremium * 1.25; // +25% gain
-              aiIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              const expDate = aiIdea.expiryDate;
+              const daysToExpiry = expDate 
+                ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                : 7;
+              let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
               
-              logger.info(`✅ AI: ${aiIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${aiIdea.targetPrice.toFixed(2)}, Stop:$${aiIdea.stopLoss.toFixed(2)})`);
+              aiIdea.entryPrice = optionPremium;
+              aiIdea.targetPrice = optionPremium * targetMult; // 50-100% gain
+              aiIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+              
+              const gainPct = Math.round((targetMult - 1) * 100);
+              logger.info(`[AI] ${aiIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${aiIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${aiIdea.stopLoss.toFixed(2)})`);
             } else {
               // Fallback: estimate premium as ~5% of stock price
               const estimatedPremium = stockPrice * 0.05;
               aiIdea.entryPrice = estimatedPremium;
-              aiIdea.targetPrice = estimatedPremium * 1.25;
-              aiIdea.stopLoss = estimatedPremium * 0.96;
+              aiIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+              aiIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
               
-              logger.warn(`⚠️  AI: ${aiIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+              logger.warn(`[AI] ${aiIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
             }
           } catch (error) {
             logger.error(`❌ AI: ${aiIdea.symbol} option pricing failed:`, error);
@@ -14132,20 +14262,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (optimalStrike && optimalStrike.lastPrice) {
               // Override AI prices with real option premium math
+              // MINIMUM 50-75% gain targets - options are risky, need real upside!
               const optionPremium = optimalStrike.lastPrice;
-              hybridIdea.entryPrice = optionPremium;
-              hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
-              hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              const expDate = hybridIdea.expiryDate;
+              const daysToExpiry = expDate 
+                ? Math.max(1, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                : 7;
+              let targetMult = daysToExpiry <= 3 ? 2.0 : daysToExpiry <= 7 ? 1.75 : daysToExpiry <= 14 ? 1.60 : 1.50;
               
-              logger.info(`✅ Hybrid: ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+              hybridIdea.entryPrice = optionPremium;
+              hybridIdea.targetPrice = optionPremium * targetMult; // 50-100% gain
+              hybridIdea.stopLoss = optionPremium * 0.50; // 50% max loss on premium
+              
+              const gainPct = Math.round((targetMult - 1) * 100);
+              logger.info(`[Hybrid] ${hybridIdea.symbol} option pricing - Stock:$${stockPrice} -> Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)} +${gainPct}%, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
             } else {
               // Fallback: estimate premium as ~5% of stock price
               const estimatedPremium = stockPrice * 0.05;
               hybridIdea.entryPrice = estimatedPremium;
-              hybridIdea.targetPrice = estimatedPremium * 1.25;
-              hybridIdea.stopLoss = estimatedPremium * 0.96;
+              hybridIdea.targetPrice = estimatedPremium * 1.75; // +75% gain
+              hybridIdea.stopLoss = estimatedPremium * 0.50; // 50% max loss
               
-              logger.warn(`⚠️  Hybrid: ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+              logger.warn(`[Hybrid] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}, Target:+75%`);
             }
           } catch (error) {
             logger.error(`❌ Hybrid: ${hybridIdea.symbol} option pricing failed:`, error);
@@ -14903,6 +15041,132 @@ CONSTRAINTS:
     }
   });
 
+  // AI-powered symbol analysis WITHOUT chart image
+  // Uses AI to generate text analysis based on technical data
+  app.get("/api/ai-symbol-analysis/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+      
+      logger.info(`🤖 [AI-SYMBOL] Starting AI analysis for ${upperSymbol} (no chart image)`);
+      
+      // Fetch technical data first
+      const { analyzeSymbol } = await import("./symbol-analyzer");
+      const sixEngineResult = await analyzeSymbol(upperSymbol, 'stock');
+      
+      if (!sixEngineResult) {
+        return res.status(404).json({ error: "Could not fetch data for symbol" });
+      }
+      
+      // Build context for AI
+      const technicalContext = `
+Symbol: ${upperSymbol}
+Current Price: $${sixEngineResult.currentPrice.toFixed(2)}
+Price Change: ${sixEngineResult.priceChangePercent > 0 ? '+' : ''}${sixEngineResult.priceChangePercent.toFixed(2)}%
+
+6-Engine Analysis Summary:
+- ML Intelligence: ${sixEngineResult.engines.ml.signal} (${sixEngineResult.engines.ml.confidence}%)
+- Technical: ${sixEngineResult.engines.technical.signal} (${sixEngineResult.engines.technical.confidence}%)
+- Quant: ${sixEngineResult.engines.quant.signal} (${sixEngineResult.engines.quant.confidence}%)
+- Flow: ${sixEngineResult.engines.flow.signal} (${sixEngineResult.engines.flow.confidence}%)
+- Sentiment: ${sixEngineResult.engines.sentiment.signal} (${sixEngineResult.engines.sentiment.confidence}%)
+- Pattern: ${sixEngineResult.engines.pattern.signal} (${sixEngineResult.engines.pattern.confidence}%)
+
+Overall Direction: ${sixEngineResult.overallDirection.toUpperCase()}
+Overall Confidence: ${sixEngineResult.overallConfidence}%
+Grade: ${sixEngineResult.overallGrade}
+
+Trade Idea:
+- Direction: ${sixEngineResult.tradeIdea.direction}
+- Entry: $${sixEngineResult.tradeIdea.entry.toFixed(2)}
+- Target: $${sixEngineResult.tradeIdea.target.toFixed(2)}
+- Stop Loss: $${sixEngineResult.tradeIdea.stopLoss.toFixed(2)}
+- R:R: ${sixEngineResult.tradeIdea.riskReward}
+
+Holding Period: ${sixEngineResult.holdingPeriod.period} - ${sixEngineResult.holdingPeriod.reasoning}
+`;
+
+      // Try to get AI-powered analysis text
+      let aiAnalysisText: string | null = null;
+      let aiProvider: string = 'none';
+      
+      try {
+        // Try Claude first (best for financial analysis)
+        const { generateAIAnalysis } = await import("./ai-service");
+        const aiResult = await generateAIAnalysis(
+          `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
+
+${technicalContext}
+
+Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
+          'claude'
+        );
+        
+        if (aiResult) {
+          aiAnalysisText = aiResult;
+          aiProvider = 'claude';
+        }
+      } catch (claudeError: any) {
+        logger.warn(`[AI-SYMBOL] Claude failed for ${upperSymbol}: ${claudeError?.message}`);
+        
+        // Fallback to Gemini (free tier)
+        try {
+          const { generateAIAnalysis } = await import("./ai-service");
+          const geminiResult = await generateAIAnalysis(
+            `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
+
+${technicalContext}
+
+Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
+            'gemini'
+          );
+          
+          if (geminiResult) {
+            aiAnalysisText = geminiResult;
+            aiProvider = 'gemini';
+          }
+        } catch (geminiError: any) {
+          logger.warn(`[AI-SYMBOL] Gemini also failed for ${upperSymbol}: ${geminiError?.message}`);
+        }
+      }
+      
+      // Format response
+      const sentiment = sixEngineResult.overallDirection;
+      const confidence = sixEngineResult.overallConfidence;
+      
+      // Build analysis text
+      const analysisText = aiAnalysisText || 
+        `**6-ENGINE CONSENSUS**: ${sentiment.toUpperCase()} (${confidence}%)\n\n` +
+        `${sixEngineResult.holdingPeriod.reasoning}\n\n` +
+        `**Trade Setup**: ${sixEngineResult.tradeIdea.direction} at $${sixEngineResult.tradeIdea.entry.toFixed(2)} → ` +
+        `Target $${sixEngineResult.tradeIdea.target.toFixed(2)} (${sixEngineResult.tradeIdea.riskReward})`;
+      
+      logger.info(`✅ [AI-SYMBOL] Analysis complete for ${upperSymbol} via ${aiProvider}`);
+      
+      res.json({
+        symbol: upperSymbol,
+        sentiment,
+        confidence,
+        analysis: analysisText,
+        patterns: Object.values(sixEngineResult.engines).flatMap(e => e.signals.slice(0, 2)),
+        supportLevels: [sixEngineResult.tradeIdea.stopLoss],
+        resistanceLevels: [sixEngineResult.tradeIdea.target],
+        entryPoint: sixEngineResult.tradeIdea.entry,
+        targetPrice: sixEngineResult.tradeIdea.target,
+        stopLoss: sixEngineResult.tradeIdea.stopLoss,
+        riskRewardRatio: parseFloat(sixEngineResult.tradeIdea.riskReward.replace(':1', '')) || 2.0,
+        timeframe: sixEngineResult.holdingPeriod.period === 'day' ? '1D' : sixEngineResult.holdingPeriod.period === 'swing' ? '1W' : '1M',
+        currentPrice: sixEngineResult.currentPrice,
+        aiProvider,
+        sixEngineData: sixEngineResult,
+        isAIPowered: !!aiAnalysisText,
+      });
+    } catch (error: any) {
+      logger.error(`[AI-SYMBOL] Error analyzing ${req.params.symbol}: ${error?.message}`);
+      res.status(500).json({ error: "Failed to analyze symbol" });
+    }
+  });
+
   // Convert chart analysis to draft trade idea
   app.post("/api/trade-ideas/from-chart", async (req, res) => {
     try {
@@ -15224,6 +15488,91 @@ CONSTRAINTS:
     } catch (error: any) {
       logger.error("Failed to send test watchlist alerts:", error);
       res.status(500).json({ error: error?.message || "Failed to send test alerts" });
+    }
+  });
+
+  // Full 6-engine symbol analysis with trade idea generation
+  app.get("/api/analyze-symbol/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetType = (req.query.assetType as string) || 'stock';
+      
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+      
+      const { analyzeSymbolFull } = await import("./symbol-analyzer");
+      const analysis = await analyzeSymbolFull(symbol.toUpperCase(), assetType);
+      
+      if (!analysis) {
+        return res.status(404).json({ error: `Unable to analyze ${symbol} - insufficient data` });
+      }
+      
+      res.json(analysis);
+    } catch (error: any) {
+      logger.error(`[ANALYZE-SYMBOL] Error analyzing symbol:`, error);
+      res.status(500).json({ error: error?.message || "Analysis failed" });
+    }
+  });
+
+  // Smart Position Advisor - Get exit/rebuy signals for a position
+  app.post("/api/smart-advisor/analyze", async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1).max(10),
+        optionType: z.enum(["call", "put"]).optional(),
+        strikePrice: z.number().optional(),
+        expiryDate: z.string().optional(),
+        entryPrice: z.number().positive(),
+        quantity: z.number().positive(),
+        assetType: z.enum(["stock", "option", "crypto"]).default("stock")
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid position data", details: parseResult.error.errors });
+      }
+      
+      const { getSmartAdvisory } = await import("./smart-position-advisor");
+      const advisory = await getSmartAdvisory(parseResult.data);
+      
+      if (!advisory) {
+        return res.status(404).json({ error: `Unable to analyze position for ${parseResult.data.symbol}` });
+      }
+      
+      res.json(advisory);
+    } catch (error: any) {
+      logger.error(`[SMART-ADVISOR] Error analyzing position:`, error);
+      res.status(500).json({ error: error?.message || "Analysis failed" });
+    }
+  });
+
+  // Smart Position Advisor - Quick rebuy check
+  app.get("/api/smart-advisor/rebuy/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const previousEntry = parseFloat(req.query.previousEntry as string) || 0;
+      const assetType = (req.query.assetType as string) || 'stock';
+      
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+      
+      if (previousEntry <= 0) {
+        return res.status(400).json({ error: "previousEntry query param required (your old entry price)" });
+      }
+      
+      const { getQuickRebuyAdvice } = await import("./smart-position-advisor");
+      const advice = await getQuickRebuyAdvice(symbol.toUpperCase(), previousEntry, assetType as any);
+      
+      if (!advice) {
+        return res.status(404).json({ error: `Unable to get rebuy advice for ${symbol}` });
+      }
+      
+      res.json(advice);
+    } catch (error: any) {
+      logger.error(`[SMART-ADVISOR] Error getting rebuy advice:`, error);
+      res.status(500).json({ error: error?.message || "Rebuy check failed" });
     }
   });
 
@@ -20285,6 +20634,119 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error refreshing bot watchlist", { error });
       res.status(500).json({ error: "Failed to refresh bot watchlist" });
+    }
+  });
+
+  // ============================================
+  // PROACTIVE SURGE DETECTOR - Catch stocks BEFORE they move
+  // ============================================
+  
+  app.get("/api/discovery/proactive", async (req, res) => {
+    try {
+      const { scanForProactiveSetups, runProactiveScan } = await import("./proactive-surge-detector");
+      const symbolsParam = req.query.symbols as string;
+      
+      // If specific symbols provided, scan those
+      if (symbolsParam) {
+        const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+        const setups = await runProactiveScan(symbols);
+        res.json({ 
+          setups,
+          count: setups.length,
+          highConfidence: setups.filter(s => s.confidence >= 75).length
+        });
+      } else {
+        // Default: scan watchlist and trending stocks
+        const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR'];
+        const setups = await runProactiveScan(defaultSymbols);
+        res.json({
+          setups,
+          count: setups.length,
+          highConfidence: setups.filter(s => s.confidence >= 75).length
+        });
+      }
+    } catch (error) {
+      logger.error("Error in proactive surge detection", { error });
+      res.status(500).json({ error: "Failed to detect proactive setups" });
+    }
+  });
+
+  // POST /api/discovery/proactive/feed - Convert proactive setups into trade ideas
+  app.post("/api/discovery/proactive/feed", isAuthenticated, async (req: any, res) => {
+    try {
+      const { runProactiveScan } = await import("./proactive-surge-detector");
+      const { ingestTradeIdea } = await import("./universal-idea-generator");
+      
+      // Get watchlist symbols or use defaults - always include popular movers
+      const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR', 'SPY', 'QQQ', 'COIN', 'MARA', 'RIOT', 'SOFI', 'HOOD', 'ARM', 'SMCI', 'INTC'];
+      
+      let watchlistSymbols: string[] = [];
+      try {
+        const userId = req.user?.id || req.session?.userId;
+        if (userId) {
+          const watchlistItems = await storage.getWatchlistItems(userId);
+          watchlistSymbols = watchlistItems.slice(0, 30).map((w: { symbol: string }) => w.symbol);
+        }
+      } catch (e) {
+        // Ignore watchlist errors, use defaults
+      }
+      
+      // Combine watchlist + defaults, dedupe
+      const allSymbols = [...new Set([...watchlistSymbols, ...defaultSymbols])];
+      const symbols = allSymbols.slice(0, 40); // Scan max 40 symbols
+      
+      // Run proactive scan
+      const setups = await runProactiveScan(symbols);
+      
+      let generated = 0;
+      // Lower threshold to 30% for proactive detection - these are EARLY signals before confirmation
+      // We want to catch stocks BEFORE they move, not after. Higher confidence comes later.
+      const minConfidence = 30;
+      for (const setup of setups.filter(s => s.confidence >= minConfidence)) {
+        try {
+          // Convert proactive setup to trade idea
+          const holdingPeriod = setup.setupType === 'MA_PULLBACK' ? 'swing' : 
+                                setup.setupType === 'REVERSAL_PATTERN' ? 'day' : 'swing';
+          
+          const signals = [
+            { type: setup.setupType, weight: 15, description: setup.description },
+            { type: 'PROACTIVE_DETECTION', weight: 12, description: `Pre-breakout pattern: ${setup.pattern}` }
+          ];
+          
+          const ideaData = {
+            symbol: setup.symbol,
+            assetType: 'stock' as const,
+            direction: setup.direction === 'bullish' ? 'bullish' : 'bearish',
+            holdingPeriod,
+            entryPrice: setup.currentPrice,
+            confidenceScore: setup.confidence,
+            catalyst: setup.description,
+            analysis: `Proactive setup detected: ${setup.setupType}. Entry: $${setup.entry.toFixed(2)}, Target: $${setup.target.toFixed(2)}, Stop: $${setup.stop.toFixed(2)}. R:R ${setup.riskReward.toFixed(1)}:1. ${setup.pattern}`,
+            targetPrice: setup.target,
+            stopLoss: setup.stop,
+            riskRewardRatio: setup.riskReward,
+            source: 'market_scanner' as const,
+            signals
+          };
+          
+          await ingestTradeIdea(ideaData);
+          generated++;
+          logger.info(`[PROACTIVE->TRADE-DESK] Ingested ${setup.symbol}: ${setup.setupType} (${setup.confidence}%)`);
+        } catch (err) {
+          logger.warn(`[PROACTIVE] Failed to ingest ${setup.symbol}:`, err);
+        }
+      }
+      
+      res.json({ 
+        generated, 
+        scanned: symbols.length,
+        totalSetups: setups.length,
+        qualifyingSetups: setups.filter(s => s.confidence >= minConfidence).length,
+        topSetup: setups[0] ? { symbol: setups[0].symbol, type: setups[0].setupType, confidence: setups[0].confidence } : null
+      });
+    } catch (error) {
+      logger.error("Error feeding proactive setups to Trade Desk", { error });
+      res.status(500).json({ error: "Failed to generate proactive ideas" });
     }
   });
 

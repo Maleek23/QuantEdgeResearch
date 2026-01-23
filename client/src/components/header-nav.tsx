@@ -48,6 +48,8 @@ const research: NavDropdownItem[] = [
 
 // Tools - Tracking, flow analysis, and automation
 const tools: NavDropdownItem[] = [
+  { title: "Smart Advisor", description: "Exit signals & rebuy zones", href: "/smart-advisor", icon: Zap },
+  { title: "Options Analyzer", description: "Options flow & chain analysis", href: "/options-analyzer", icon: Layers },
   { title: "Watchlist", description: "Track & grade your symbols", href: "/watchlist", icon: Eye },
   { title: "Whale Flow", description: "Smart money & options flow", href: "/whale-flow", icon: TrendingUp },
   { title: "Wallet Tracker", description: "Track whale crypto wallets", href: "/wallet-tracker", icon: FileBarChart },
