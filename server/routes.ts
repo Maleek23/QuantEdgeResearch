@@ -15090,17 +15090,22 @@ Holding Period: ${sixEngineResult.holdingPeriod.period} - ${sixEngineResult.hold
       let aiAnalysisText: string | null = null;
       let aiProvider: string = 'none';
       
-      try {
-        // Try Claude first (best for financial analysis)
-        const { generateAIAnalysis } = await import("./ai-service");
-        const aiResult = await generateAIAnalysis(
-          `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
+      // Enhanced prompt covering OPTIONS + SHARES + SWING trades
+      const comprehensivePrompt = `Analyze ${upperSymbol} for BOTH options and shares. Be concise (100 words max).
 
 ${technicalContext}
 
-Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
-          'claude'
-        );
+Provide analysis covering:
+1. **LOTTO PLAY** (0-5 DTE options): Is this a good short-term momentum play? Call or Put?
+2. **SWING TRADE** (shares): Good entry for 1-2 week hold? Target price?
+3. **KEY LEVELS**: Critical support/resistance
+
+Be specific with strike prices and timeframes. Educational purposes only.`;
+      
+      try {
+        // Try Claude first (best for financial analysis)
+        const { generateAIAnalysis } = await import("./ai-service");
+        const aiResult = await generateAIAnalysis(comprehensivePrompt, 'claude');
         
         if (aiResult) {
           aiAnalysisText = aiResult;
@@ -15112,14 +15117,7 @@ Focus on: key levels, momentum, and whether now is a good entry point. Be specif
         // Fallback to Gemini (free tier)
         try {
           const { generateAIAnalysis } = await import("./ai-service");
-          const geminiResult = await generateAIAnalysis(
-            `Analyze this stock based on the following technical data and provide a concise trading analysis (2-3 sentences max):
-
-${technicalContext}
-
-Focus on: key levels, momentum, and whether now is a good entry point. Be specific about the trade setup.`,
-            'gemini'
-          );
+          const geminiResult = await generateAIAnalysis(comprehensivePrompt, 'gemini');
           
           if (geminiResult) {
             aiAnalysisText = geminiResult;

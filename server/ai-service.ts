@@ -582,15 +582,17 @@ Keep it concise and actionable.`;
 
 // Generate AI-powered text analysis for a symbol (no chart image needed)
 export async function generateAIAnalysis(prompt: string, preferredProvider: 'claude' | 'gemini' | 'gpt' = 'claude'): Promise<string | null> {
-  const systemPrompt = `You are a professional trading analyst. Provide concise, actionable analysis. 
-Be direct and specific. Focus on key levels and momentum. Keep responses under 100 words.
-Never provide financial advice - this is for educational research only.`;
+  const systemPrompt = `You are a professional trading analyst. Provide concise, actionable analysis.
+Be direct and specific. Cover both OPTIONS (lottos, LEAPS) and SHARES (swing trades).
+For options: suggest strike prices near the money with 0-5 DTE for lottos.
+For shares: suggest entry, target, and stop loss levels.
+Keep responses under 150 words. Never provide financial advice - educational research only.`;
 
   try {
     if (preferredProvider === 'claude') {
       const response = await getAnthropic().messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 200,
+        max_tokens: 300,
         system: systemPrompt,
         messages: [{ role: "user", content: prompt }],
       });
@@ -609,7 +611,7 @@ Never provide financial advice - this is for educational research only.`;
       // GPT fallback
       const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o-mini",
-        max_tokens: 200,
+        max_tokens: 300,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt }
