@@ -42,6 +42,7 @@ import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
+import { EngineConvergencePlayer } from "@/components/remotion/EngineConvergencePlayer";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
 import { AnimatedStat } from "@/components/animated-stat";
 import { SocialProofSection } from "@/components/social-proof-section";
@@ -255,69 +256,14 @@ export default function Landing() {
               </motion.div>
             </motion.div>
             
-            {/* Right: Visual orbs + floating metrics */}
+            {/* Right: Engine Convergence Visualization */}
             <motion.div 
               className="hidden lg:block relative h-[500px]"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
-              {/* Main orb cluster */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <GeminiOrb size="xl" color="cyan" className="absolute" />
-                <GeminiOrb size="lg" color="purple" className="absolute translate-x-20 -translate-y-16" />
-                <GeminiOrb size="md" color="pink" className="absolute -translate-x-24 translate-y-12" />
-                <GeminiOrb size="sm" color="blue" className="absolute translate-x-32 translate-y-20" />
-              </div>
-
-              {/* Floating metric cards */}
-              <motion.div 
-                className="absolute top-8 right-0 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400">Engines Live</p>
-                    <p className="text-xl font-bold text-green-400">6</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="absolute bottom-16 left-0 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
-                    <BarChart3 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400">Markets</p>
-                    <p className="text-xl font-bold text-cyan-400">4</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                className="absolute top-1/2 right-4 backdrop-blur-lg bg-slate-900/60 border border-slate-700/50 rounded-xl p-4 shadow-xl"
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400">AI Models</p>
-                    <p className="text-xl font-bold text-purple-400">3</p>
-                  </div>
-                </div>
-              </motion.div>
+              <EngineConvergencePlayer className="w-full h-full" />
             </motion.div>
           </div>
         </div>
