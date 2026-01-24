@@ -39,7 +39,9 @@ import {
   Zap,
   Terminal,
   Cpu,
+  Crown,
 } from "lucide-react";
+import { NextWeekPicks } from "@/components/next-week-picks";
 
 const mockIndexData = [
   { symbol: "SPY", name: "S&P 500", price: 592.45, change: 5.23, changePercent: 0.89 },
@@ -232,6 +234,10 @@ export default function CommandCenter() {
                 <Layers className="w-4 h-4" />
                 THEMATIC
               </TabsTrigger>
+              <TabsTrigger value="picks" data-testid="tab-picks" className="gap-2 data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+                <Crown className="w-4 h-4" />
+                PICKS
+              </TabsTrigger>
             </TabsList>
           </motion.div>
 
@@ -382,6 +388,12 @@ export default function CommandCenter() {
               stocks={mockThematicStocks}
               title="Thematic Investing - High Growth Sectors"
             />
+          </TabsContent>
+
+          <TabsContent value="picks" className="space-y-6">
+            <FadeIn>
+              <NextWeekPicks />
+            </FadeIn>
           </TabsContent>
         </Tabs>
       </div>
