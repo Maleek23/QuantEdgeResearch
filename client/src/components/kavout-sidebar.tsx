@@ -49,20 +49,20 @@ const navSections: NavSection[] = [
       { id: "watchlist", label: "Watchlist", href: "/watchlist", icon: Star },
       { id: "market-movers", label: "Market Movers", href: "/market-movers", icon: TrendingUp },
       { id: "ai-stock-picker", label: "AI Stock Picker", href: "/ai-stock-picker", icon: Sparkles },
-      { id: "smart-signals", label: "Smart Signals", href: "/smart-signals", icon: Activity },
+      { id: "market-scanner", label: "Market Scanner", href: "/market-scanner", icon: Activity },
       { id: "smart-money", label: "Smart Money", href: "/smart-money", icon: Wallet },
     ],
   },
   {
     items: [
-      { id: "portfolio", label: "Portfolio Toolbox", href: "/portfolio", icon: Briefcase },
+      { id: "paper-trading", label: "Paper Trading", href: "/paper-trading", icon: Briefcase },
     ],
   },
   {
     title: "History",
     items: [
-      { id: "chat-history", label: "Chat History", href: "/history/chat", icon: MessageSquare },
-      { id: "research-history", label: "Research History", href: "/history/research", icon: FileText },
+      { id: "journal", label: "Trade Journal", href: "/trade-audit", icon: Clock },
+      { id: "chart-analysis", label: "Chart Analysis", href: "/chart-analysis", icon: FileText },
     ],
   },
 ];
@@ -130,9 +130,9 @@ export function KavoutSidebar() {
             <div className="space-y-1">
               {section.items.map((item) => (
                 <Link key={item.id} href={item.href}>
-                  <button
+                  <div
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
                       isActive(item.href)
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -142,7 +142,7 @@ export function KavoutSidebar() {
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
                     {!collapsed && <span>{item.label}</span>}
-                  </button>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -157,9 +157,9 @@ export function KavoutSidebar() {
       <div className="mt-auto border-t border-border p-2">
         {/* Upgrade Button */}
         <Link href="/pricing">
-          <button
+          <div
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
               "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             data-testid="nav-upgrade"
@@ -171,14 +171,14 @@ export function KavoutSidebar() {
                 <ChevronRight className="h-4 w-4 ml-auto" />
               </>
             )}
-          </button>
+          </div>
         </Link>
 
         {/* Settings */}
         <Link href="/settings">
-          <button
+          <div
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
               isActive("/settings")
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -187,7 +187,7 @@ export function KavoutSidebar() {
           >
             <Settings className="h-5 w-5 flex-shrink-0" />
             {!collapsed && <span>Settings</span>}
-          </button>
+          </div>
         </Link>
 
         {/* User Email & Logout */}

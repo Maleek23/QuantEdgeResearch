@@ -231,27 +231,30 @@ export default function HomePage() {
                 { symbol: "AMD", name: "AMD Inc", change: 3.45, price: 178.90 },
                 { symbol: "TSLA", name: "Tesla Inc", change: -2.34, price: 245.67 },
               ].map((stock) => (
-                <Link key={stock.symbol} href={`/analysis/${stock.symbol}`}>
-                  <div 
-                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                    data-testid={`mover-${stock.symbol}`}
-                  >
-                    <div className="min-w-0">
-                      <span className="font-semibold text-primary">{stock.symbol}</span>
+                <div 
+                  key={stock.symbol}
+                  className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted transition-colors"
+                  data-testid={`mover-${stock.symbol}`}
+                >
+                  <Link href={`/analysis/${stock.symbol}`}>
+                    <div className="min-w-0 cursor-pointer">
+                      <span className="font-semibold text-primary hover:underline">{stock.symbol}</span>
                       <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">{stock.name}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium text-foreground">${stock.price}</span>
-                      <Badge className={`${stock.change >= 0 ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-red-500/15 text-red-500 border-red-500/30'}`}>
-                        {stock.change >= 0 ? '+' : ''}{stock.change}%
-                      </Badge>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-foreground">${stock.price}</span>
+                    <Badge className={`${stock.change >= 0 ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-red-500/15 text-red-500 border-red-500/30'}`}>
+                      {stock.change >= 0 ? '+' : ''}{stock.change}%
+                    </Badge>
+                    <Link href={`/analysis/${stock.symbol}`}>
                       <Button size="sm" variant="ghost" className="h-8 text-primary" data-testid={`research-${stock.symbol}`}>
                         <Play className="h-3 w-3 mr-1" />
                         Research
                       </Button>
-                    </div>
+                    </Link>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </CardContent>
