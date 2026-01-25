@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { useStockContext } from "@/contexts/stock-context";
 import { 
   Search, 
   TrendingUp, 
@@ -253,13 +255,27 @@ interface DeepAnalysis {
 
 export default function OptionsAnalyzer() {
   const { toast } = useToast();
-  const [symbol, setSymbol] = useState("");
-  const [searchedSymbol, setSearchedSymbol] = useState("");
+  const searchParams = useSearch();
+  const { currentStock, setCurrentStock } = useStockContext();
+
+  // Initialize from stock context or URL params
+  const initialSymbol = new URLSearchParams(searchParams).get('symbol') || currentStock?.symbol || "";
+
+  const [symbol, setSymbol] = useState(initialSymbol);
+  const [searchedSymbol, setSearchedSymbol] = useState(initialSymbol);
   const [selectedExpiration, setSelectedExpiration] = useState<string | null>(null);
   const [optionTypeFilter, setOptionTypeFilter] = useState<'all' | 'call' | 'put'>('all');
   const [selectedOption, setSelectedOption] = useState<OptionContract | null>(null);
   const [analysisResult, setAnalysisResult] = useState<DeepAnalysis | null>(null);
   const [activeTab, setActiveTab] = useState<'chain' | 'surface' | 'pricing' | 'strategy'>('chain');
+
+  // Update when stock context changes
+  useEffect(() => {
+    if (currentStock?.symbol && currentStock.symbol !== searchedSymbol) {
+      setSymbol(currentStock.symbol);
+      setSearchedSymbol(currentStock.symbol);
+    }
+  }, [currentStock]);
   
   const [pricingInputs, setPricingInputs] = useState({
     spotPrice: 100,
@@ -277,10 +293,14 @@ export default function OptionsAnalyzer() {
       toast({ title: "Enter a ticker symbol", variant: "destructive" });
       return;
     }
-    setSearchedSymbol(symbol.toUpperCase());
+    const upperSymbol = symbol.toUpperCase();
+    setSearchedSymbol(upperSymbol);
     setSelectedExpiration(null);
     setSelectedOption(null);
     setAnalysisResult(null);
+
+    // Update stock context
+    setCurrentStock({ symbol: upperSymbol });
   };
 
   const { data: expirationsData, isLoading: loadingExpirations, isError: expirationsError } = useQuery<{ symbol: string; expirations: Expiration[] }>({

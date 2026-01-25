@@ -15,6 +15,7 @@ import { SiGoogle } from "react-icons/si";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AuroraBackground } from "@/components/aurora-background";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -113,11 +114,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050b16] p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-400/5" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent" />
-      
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl bg-[#0a1525]/90 border border-white/10 backdrop-blur-xl p-6">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+      <AuroraBackground />
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10">
           <div className="space-y-2 mb-8">

@@ -25,7 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { TypewriterText } from "@/components/terminal";
+import { AuroraBackground } from "@/components/aurora-background";
 import { FadeIn, StaggerContainer, StaggerItem } from "@/components/motion";
 import { 
   TrendingUp, 
@@ -1950,7 +1950,12 @@ export default function TradeDeskPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
+      {/* Background */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+      <AuroraBackground />
+
+      <div className="relative z-10 max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Top-level Navigation Tabs - Research and Futures */}
       <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'research' | 'futures')} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2 mb-6" data-testid="tabs-trade-desk-main">
@@ -1966,11 +1971,11 @@ export default function TradeDeskPage() {
 
         {/* Research Tab Content */}
         <TabsContent value="research" className="space-y-6">
-      {/* Premium Research Hub Header - Terminal Styled */}
-      <motion.header 
+      {/* Premium Research Hub Header */}
+      <motion.header
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-slate-900/40 border border-cyan-500/20 p-6" 
+        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6"
         data-testid="research-hub-header"
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
@@ -1980,14 +1985,12 @@ export default function TradeDeskPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Terminal className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <Brain className="h-5 w-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight font-mono" data-testid="text-page-title">RESEARCH_HUB</h1>
-                  <p className="text-sm text-muted-foreground font-mono">
-                    <span className="text-cyan-400">quant@edge</span>
-                    <span className="text-slate-600"> $ </span>
-                    <TypewriterText text="institutional-grade analysis" speed={35} />
+                  <h1 className="text-3xl font-bold tracking-tight text-white" data-testid="text-page-title">Research Hub</h1>
+                  <p className="text-sm text-slate-400">
+                    Institutional-grade analysis powered by 6 engines
                   </p>
                 </div>
               </div>
@@ -2679,6 +2682,7 @@ export default function TradeDeskPage() {
         <FuturesContent />
       </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

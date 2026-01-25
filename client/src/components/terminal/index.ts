@@ -1,5 +1,5 @@
 // Terminal-style UI components for the trading platform
-export { 
+export {
   TerminalWindow,
   TypewriterText,
   CommandPrompt,
@@ -17,3 +17,6 @@ export {
   TradeSignalTerminal,
   TerminalBadge
 } from "./TradingTerminal";
+
+// Live trading feed
+export { LiveTradingFeed } from "./LiveTradingFeed";

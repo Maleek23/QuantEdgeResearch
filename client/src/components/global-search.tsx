@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { 
+import { useStockContext } from "@/contexts/stock-context";
+import {
   Search, TrendingUp, TrendingDown, Loader2,
   BarChart3, Bitcoin, DollarSign, Rocket,
   ArrowRight, Star, Clock
@@ -64,11 +65,11 @@ function getAssetIcon(type: string) {
   }
 }
 
-export function GlobalSearch({ 
+export function GlobalSearch({
   variant = 'default',
   placeholder = 'Search stocks, crypto, options...',
   onSearch
-}: { 
+}: {
   variant?: 'default' | 'large' | 'hero';
   placeholder?: string;
   onSearch?: (symbol: string) => void;
@@ -77,6 +78,7 @@ export function GlobalSearch({
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [, setLocation] = useLocation();
+  const { setCurrentStock } = useStockContext();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -106,15 +108,24 @@ export function GlobalSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (symbol: string) => {
+  const handleSelect = (symbol: string, result?: SearchResult) => {
     addRecentSearch(symbol);
     setRecentSearches(getRecentSearches()); // Update state after adding
+
+    // Set stock context
+    setCurrentStock({
+      symbol: symbol.toUpperCase(),
+      name: result?.name,
+      price: result?.price,
+      change: result?.change,
+    });
+
     setQuery('');
     setIsFocused(false);
     if (onSearch) {
       onSearch(symbol);
     } else {
-      setLocation(`/chart-analysis?s=${symbol}`);
+      setLocation(`/chart-analysis?symbol=${symbol}`);
     }
   };
 
@@ -226,7 +237,7 @@ export function GlobalSearch({
                 {results.map((result) => (
                   <button
                     key={result.symbol}
-                    onClick={() => handleSelect(result.symbol)}
+                    onClick={() => handleSelect(result.symbol, result)}
                     className="w-full flex items-center gap-3 p-3 rounded-lg hover-elevate transition-all text-left"
                     data-testid={`result-${result.symbol}`}
                   >

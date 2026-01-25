@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useStockContext } from "@/contexts/stock-context";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import {
   Filter, Eye, History, ArrowRight, TrendingUpDown, Radar, Flag, Triangle, Circle,
   ChevronUp, ChevronDown, Terminal, Cpu
 } from "lucide-react";
-import { TypewriterText } from "@/components/terminal";
+import { AuroraBackground } from "@/components/aurora-background";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1054,10 +1055,24 @@ function QuickStatCard({ label, value, icon: Icon }: { label: string; value: str
 }
 
 function PatternSearchTab() {
-  const [symbol, setSymbol] = useState("");
-  const [searchSymbol, setSearchSymbol] = useState("");
+  const searchParams = useSearch();
+  const { currentStock, setCurrentStock } = useStockContext();
+
+  // Initialize from stock context or URL params
+  const initialSymbol = new URLSearchParams(searchParams).get('symbol') || currentStock?.symbol || "";
+
+  const [symbol, setSymbol] = useState(initialSymbol);
+  const [searchSymbol, setSearchSymbol] = useState(initialSymbol);
   const [chartType, setChartType] = useState<'candlestick' | 'line'>('candlestick');
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  // Update when stock context changes
+  useEffect(() => {
+    if (currentStock?.symbol && currentStock.symbol !== searchSymbol) {
+      setSymbol(currentStock.symbol);
+      setSearchSymbol(currentStock.symbol);
+    }
+  }, [currentStock]);
   const rsiChartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const rsiChartRef = useRef<IChartApi | null>(null);
@@ -1069,7 +1084,10 @@ function PatternSearchTab() {
   
   const handleSearch = () => {
     if (symbol.trim()) {
-      setSearchSymbol(symbol.trim().toUpperCase());
+      const upperSymbol = symbol.trim().toUpperCase();
+      setSearchSymbol(upperSymbol);
+      // Update stock context
+      setCurrentStock({ symbol: upperSymbol });
     }
   };
   
@@ -4182,34 +4200,37 @@ export default function ChartAnalysis() {
   })() : [];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="container mx-auto p-4 lg:p-6 space-y-6"
-    >
-      {/* Terminal-styled Page Header */}
+    <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
+      {/* Background */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+      <AuroraBackground />
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative z-10 container mx-auto p-4 lg:p-6 space-y-6"
+      >
+      {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 border border-purple-500/20 p-6"
+        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex items-center gap-4">
-          <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-            <Terminal className="h-6 w-6 text-purple-400" />
+          <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+            <LineChart className="h-6 w-6 text-cyan-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight font-mono">CHART_ANALYSIS</h1>
-            <p className="text-sm text-muted-foreground font-mono">
-              <span className="text-purple-400">quant@edge</span>
-              <span className="text-slate-600"> $ </span>
-              <TypewriterText text="pattern detection • technical indicators • 6-engine scan" speed={30} />
+            <h1 className="text-3xl font-bold tracking-tight text-white">Chart Analysis</h1>
+            <p className="text-sm text-slate-400">
+              Pattern detection • Technical indicators • 6-engine scan
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700/50 rounded font-mono text-xs text-slate-400">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>6 ENGINES</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-xs text-slate-300">
+              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <span>6 Engines</span>
             </div>
           </div>
         </div>
@@ -5051,6 +5072,7 @@ export default function ChartAnalysis() {
           </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

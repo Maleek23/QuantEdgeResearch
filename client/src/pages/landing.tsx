@@ -1,91 +1,43 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { SEOHead } from "@/components/seo-head";
-import { 
-  TrendingUp, 
-  Brain, 
-  Calculator, 
-  Check,
-  ArrowRight,
-  Clock,
-  LineChart,
-  Twitter,
-  Linkedin,
-  Github,
-  Activity,
-  Target,
-  Coins,
-  CandlestickChart,
-  Sparkles,
-  Zap,
-  BarChart3,
-  Terminal,
-  Cpu,
-  Database
-} from "lucide-react";
+import { Check } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { TerminalWindow, TypewriterText, DataStream, SystemStatus } from "@/components/terminal";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
-import { HeroProductPanel } from "@/components/hero-product-panel";
-import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
-import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
-import { EngineConvergencePlayer } from "@/components/remotion/EngineConvergencePlayer";
-import { LiveActivityFeed } from "@/components/live-activity-feed";
-import { AnimatedStat } from "@/components/animated-stat";
-import { SocialProofSection } from "@/components/social-proof-section";
-import { ComparisonTable } from "@/components/comparison-table";
+// TODO: Re-enable boot sequence later
+// import { BootSequencePlayer } from "@/components/remotion/BootSequencePlayer";
+import { AuroraBackground } from "@/components/aurora-background";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
-
-interface AssetTypeStats {
-  assetType: string;
-  totalIdeas: number;
-  wonIdeas: number;
-  lostIdeas: number;
-  winRate: number;
-  avgPercentGain: number;
-}
-
-interface PerformanceStatsResponse {
-  overall: {
-    totalIdeas: number;
-    openIdeas: number;
-    winRate: number;
-    avgPercentGain: number;
-  };
-  byAssetType?: AssetTypeStats[];
-}
 
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  // TODO: Re-enable boot sequence later
+  // const [bootComplete, setBootComplete] = useState(false);
   const { isAuthenticated } = useAuth();
-
-  const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
-    queryKey: ['/api/performance/stats'],
-  });
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <SEOHead pageKey="landing" />
+    <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+
+      {/* Grid Background - Clean & Subtle */}
+      <AuroraBackground />
       
       {/* Sticky Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
@@ -161,484 +113,160 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Gemini Inspired with Orbs */}
-      <section className="relative min-h-[90vh] pt-24 flex items-center overflow-hidden" data-testid="hero-section">
-        <GeminiGradient variant="hero" />
-        <FloatingParticles count={30} />
-        
+      {/* Hero Section - Clean & Professional */}
+      <section className="relative min-h-[500px] md:min-h-[80vh] pt-20 pb-8 flex items-center overflow-hidden w-full" data-testid="hero-section">
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <motion.div 
-                className="inline-flex items-center gap-2 backdrop-blur-md bg-slate-900/40 border border-cyan-500/30 rounded-full px-4 py-2 mb-6"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <motion.span 
-                  className="w-2 h-2 rounded-full bg-cyan-400"
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-                <span className="text-sm font-mono text-cyan-400">LIVE BETA</span>
-              </motion.div>
-              
-              <motion.h1 
-                className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
+          <div className="grid lg:grid-cols-5 gap-12 items-center">
+            {/* Left: Hero Text - Takes 3 columns */}
+            <div className="lg:col-span-3">
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                data-testid="text-hero-headline"
+                transition={{ duration: 0.6 }}
               >
-                <span className="bg-gradient-to-r from-white via-white to-slate-400 bg-clip-text text-transparent">Six Engines</span>
-                <span className="text-cyan-400">.</span>
-                <br />
-                <span className="bg-gradient-to-r from-cyan-300 via-cyan-400 to-purple-400 bg-clip-text text-transparent">One Edge</span>
-                <span className="text-purple-400">.</span>
-              </motion.h1>
-              
-              <motion.p 
-                className="text-lg text-slate-300 max-w-xl mb-8 leading-relaxed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                data-testid="text-hero-subheadline"
-              >
-                ML, AI, Quant, Flow, Sentiment & Technical signals converge into{" "}
-                <span className="text-cyan-400 font-medium">higher-conviction setups</span>.
-                Every signal verified. Every outcome tracked.
-              </motion.p>
-              
-              <motion.div 
-                className="flex flex-wrap gap-4"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-              >
-                <Button 
-                  size="lg"
-                  className="bg-gradient-to-r from-cyan-500 to-cyan-400 text-slate-950 shadow-xl shadow-cyan-500/30 font-semibold"
-                  onClick={() => setWaitlistOpen(true)}
-                  data-testid="button-join-waitlist"
-                >
-                  <Zap className="mr-2 h-5 w-5" />
-                  Join Waitlist
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  className="border-slate-600 bg-slate-900/50 backdrop-blur-sm font-semibold gap-2"
-                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                >
-                  <SiDiscord className="h-5 w-5" />
-                  Join Discord
-                </Button>
-              </motion.div>
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+                  <span className="text-white">Six Engines</span>
+                  <span className="text-cyan-400">.</span>
+                  <br />
+                  <span className="text-cyan-300">One Edge</span>
+                  <span className="text-cyan-400">.</span>
+                </h1>
 
-              {/* Trust indicators */}
-              <motion.div 
-                className="mt-10 pt-8 border-t border-slate-800/50"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-              >
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Powered by</p>
-                <div className="flex flex-wrap gap-4 items-center">
-                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Claude Sonnet</Badge>
-                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">GPT-4</Badge>
-                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Gemini</Badge>
-                  <Badge variant="secondary" className="bg-slate-800/50 text-slate-300 border-slate-700">Tradier</Badge>
-                </div>
-              </motion.div>
-            </motion.div>
-            
-            {/* Right: Engine Convergence Visualization */}
-            <motion.div 
-              className="hidden lg:block relative h-[500px]"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
-              <EngineConvergencePlayer className="w-full h-full" />
-            </motion.div>
-          </div>
-        </div>
-        
-        {/* Scroll indicator */}
-        <motion.div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <div className="w-6 h-10 rounded-full border-2 border-slate-600 flex items-start justify-center p-2">
-            <motion.div 
-              className="w-1.5 h-1.5 rounded-full bg-cyan-400"
-              animate={{ y: [0, 12, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          </div>
-        </motion.div>
-      </section>
+                <p className="text-lg text-slate-300 max-w-xl mb-8 leading-relaxed">
+                  Research platform combining <span className="text-cyan-400 font-medium">ML, AI, Quant, Flow, Sentiment & Technical</span> signals.
+                  Backtest ideas, track performance, and learn—not financial advice.
+                </p>
 
-      {/* Stats Strip - Animated Metrics */}
-      <div className="relative py-12 overflow-hidden" data-testid="stats-strip">
-        <GeminiGradient variant="subtle" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/80 to-transparent" />
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ staggerChildren: 0.1 }}
-          >
-            <AnimatedMetricCard
-              label="Trade Ideas"
-              value={statsLoading ? "—" : (perfStats?.overall?.totalIdeas || "—")}
-              color="cyan"
-              icon={<LineChart className="w-4 h-4" />}
-            />
-            <AnimatedMetricCard
-              label="Active"
-              value={statsLoading ? "—" : (perfStats?.overall?.openIdeas || "—")}
-              color="green"
-              icon={<Activity className="w-4 h-4" />}
-            />
-            <AnimatedMetricCard
-              label="Engines"
-              value="6"
-              color="purple"
-              icon={<Brain className="w-4 h-4" />}
-            />
-            <AnimatedMetricCard
-              label="Markets"
-              value="4"
-              color="amber"
-              icon={<BarChart3 className="w-4 h-4" />}
-            />
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Platform Capabilities - Visual Cards */}
-      <section className="relative py-16 lg:py-24 overflow-hidden" id="features" data-testid="section-features">
-        <GeminiGradient variant="subtle" />
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <motion.p 
-              className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-            >
-              Platform Capabilities
-            </motion.p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              Six Engines. Complete Coverage.
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-lg">
-              Every angle analyzed. Every signal tracked. Every outcome measured.
-            </p>
-          </motion.div>
-          
-          {/* Research Engines - Animated Visual Grid */}
-          <div className="mb-16">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Research Engines</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* ML Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-xl shadow-pink-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
+                <div className="flex flex-wrap gap-4 mb-8">
+                  <Button
+                    size="lg"
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+                    onClick={() => setWaitlistOpen(true)}
                   >
-                    <Sparkles className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">ML Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
-                </div>
-              </motion.div>
-
-              {/* AI Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-purple-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
+                    Join Waitlist
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="border-slate-600 hover:border-cyan-500 transition-colors"
+                    onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
                   >
-                    <Brain className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">AI Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
+                    Join Discord
+                  </Button>
                 </div>
-              </motion.div>
 
-              {/* Quant Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-xl shadow-blue-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Calculator className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Quant Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
-                </div>
-              </motion.div>
-
-              {/* Flow Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-xl shadow-cyan-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Activity className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Flow Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
-                </div>
-              </motion.div>
-
-              {/* Sentiment Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-xl shadow-amber-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Target className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Sentiment Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Social buzz, fear/greed, put/call ratios.</p>
-                </div>
-              </motion.div>
-
-              {/* Technical Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-xl shadow-green-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <CandlestickChart className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Technical Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Asset Classes */}
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Asset Classes</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
-              {[
-                { name: 'Stocks', icon: <TrendingUp className="h-5 w-5" />, desc: 'US Equities' },
-                { name: 'Options', icon: <Activity className="h-5 w-5" />, desc: 'Calls & Puts' },
-                { name: 'Crypto', icon: <Coins className="h-5 w-5" />, desc: 'BTC, ETH, SOL' },
-                { name: 'Futures', icon: <BarChart3 className="h-5 w-5" />, desc: 'NQ, ES, GC' },
-              ].map((asset, i) => (
-                <motion.div 
-                  key={asset.name}
-                  className="text-center p-4 rounded-xl bg-slate-900/50 border border-slate-800"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="h-10 w-10 rounded-lg bg-slate-800 flex items-center justify-center mx-auto mb-2">
-                    {asset.icon}
+                {/* Clean stats display */}
+                <div className="grid grid-cols-3 gap-6 max-w-lg">
+                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
+                    <div className="text-3xl font-bold text-cyan-400 mb-1">6</div>
+                    <div className="text-xs text-slate-400 uppercase tracking-wider">Engines</div>
                   </div>
-                  <p className="font-medium">{asset.name}</p>
-                  <p className="text-xs text-muted-foreground">{asset.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Live Activity Feed Section */}
-      <section className="py-12 bg-slate-950/50" data-testid="section-activity">
-        <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-8 items-start">
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Real-Time Platform Activity</h2>
-              <p className="text-muted-foreground mb-6">
-                Watch as our engines analyze markets and generate trade ideas in real-time.
-              </p>
-              <LiveActivityFeed />
-            </div>
-            <div>
-              <HeroProductPanel className="w-full" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Terminal Showcase Section - Developer Aesthetic */}
-      <section className="py-16 lg:py-24 relative overflow-hidden" id="terminal-preview" data-testid="section-terminal">
-        <GeminiGradient variant="subtle" />
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3 font-mono">
-              <Terminal className="inline-block w-4 h-4 mr-2" />
-              Professional Interface
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              Built for Developers. Designed for Traders.
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto">
-              Terminal-inspired command center with real-time data streams and institutional-grade analytics.
-            </p>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
-            {/* Terminal Window Showcase */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <TerminalWindow title="engine-status.sh" variant="default">
-                <div className="space-y-3 text-sm font-mono">
-                  <div className="text-cyan-400">$ quant-edge --status --all</div>
-                  <div className="space-y-1.5 pl-2">
-                    <SystemStatus systems={[
-                      { name: "ML Intelligence", status: "online" },
-                      { name: "Quant Scanner", status: "online" },
-                      { name: "Flow Detector", status: "online" },
-                      { name: "Sentiment AI", status: "online" },
-                      { name: "Technical Engine", status: "online" },
-                      { name: "Pattern Recognition", status: "online" },
-                    ]} />
+                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
+                    <div className="text-3xl font-bold text-cyan-400 mb-1">24/7</div>
+                    <div className="text-xs text-slate-400 uppercase tracking-wider">Coverage</div>
                   </div>
-                  <div className="text-green-400 pt-2">6/6 engines operational</div>
+                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
+                    <div className="text-3xl font-bold text-cyan-400 mb-1">∞</div>
+                    <div className="text-xs text-slate-400 uppercase tracking-wider">Signals</div>
+                  </div>
                 </div>
-              </TerminalWindow>
-            </motion.div>
+              </motion.div>
+            </div>
 
-            {/* Live Data Stream Showcase */}
+            {/* Right: Engine Performance Cards */}
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              className="lg:col-span-2 hidden lg:block space-y-4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <TerminalWindow title="live-feed.log" variant="success">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
-                    <Database className="w-3.5 h-3.5" />
-                    <span>REAL-TIME MARKET FEED</span>
-                    <motion.div
-                      animate={{ opacity: [1, 0.3, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto"
-                    />
+              {/* Top performing signal card */}
+              <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 rounded-xl p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm font-semibold text-slate-300">Latest Signal</span>
                   </div>
-                  <DataStream lines={8} speed={180} />
+                  <span className="text-xs text-slate-500">2m ago</span>
                 </div>
-              </TerminalWindow>
+
+                <div className="flex items-baseline gap-3 mb-4">
+                  <span className="text-4xl font-bold text-white">NVDA</span>
+                  <span className="text-lg text-green-400">↑ Bullish</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Confidence</div>
+                    <div className="text-2xl font-bold text-cyan-400">87%</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Engines</div>
+                    <div className="text-2xl font-bold text-cyan-400">5/6</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-1.5 flex-wrap">
+                  {['ML', 'AI', 'QUANT', 'FLOW', 'SENT'].map((engine) => (
+                    <span
+                      key={engine}
+                      className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded text-xs font-mono text-cyan-400"
+                    >
+                      {engine}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mini performance metrics */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-2">Ideas Tracked</div>
+                  <div className="text-3xl font-bold text-cyan-400">1,200+</div>
+                  <div className="text-xs text-slate-500 mt-1">Since launch</div>
+                </div>
+                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-lg p-4">
+                  <div className="text-xs text-slate-400 mb-2">Data Sources</div>
+                  <div className="text-3xl font-bold text-cyan-400">6</div>
+                  <div className="text-xs text-slate-500 mt-1">Real-time feeds</div>
+                </div>
+              </div>
             </motion.div>
           </div>
+        </div>
+      </section>
 
-          {/* Feature Pills */}
-          <motion.div 
-            className="flex flex-wrap justify-center gap-3 mt-10"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-          >
-            {[
-              { icon: <Terminal className="w-3.5 h-3.5" />, label: "Terminal Interface" },
-              { icon: <Cpu className="w-3.5 h-3.5" />, label: "6-Engine Analysis" },
-              { icon: <Activity className="w-3.5 h-3.5" />, label: "Real-Time Streaming" },
-              { icon: <Database className="w-3.5 h-3.5" />, label: "Institutional Data" },
-            ].map((feature) => (
-              <Badge 
-                key={feature.label} 
-                variant="outline" 
-                className="px-3 py-1.5 gap-2 border-cyan-500/30 text-cyan-400 bg-cyan-500/5 font-mono"
-              >
-                {feature.icon}
-                {feature.label}
-              </Badge>
-            ))}
-          </motion.div>
+      {/* Features Section */}
+      <section className="relative py-16">
+        <div className="container mx-auto px-6">
+          <h2 className="text-3xl font-bold text-center mb-12">What You Get</h2>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Research Ideas</h3>
+              <p className="text-sm text-slate-300">Potential setups from 6 engines: ML, AI, Quant, Flow, Sentiment, Technical</p>
+            </div>
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Backtesting</h3>
+              <p className="text-sm text-slate-300">Test ideas on historical data. See what would've happened if you traded it</p>
+            </div>
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Performance Tracking</h3>
+              <p className="text-sm text-slate-300">Every idea tracked from entry to exit. Learn what works, what doesn't</p>
+            </div>
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Options Analysis</h3>
+              <p className="text-sm text-slate-300">Greeks, unusual activity, whale flow detection for options traders</p>
+            </div>
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Paper Trading</h3>
+              <p className="text-sm text-slate-300">Simulated trading with fake money. Practice without risking capital</p>
+            </div>
+            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-lg font-bold mb-2 text-cyan-400">Market Data</h3>
+              <p className="text-sm text-slate-300">Real-time quotes, news, earnings, social trends across stocks, options, crypto</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -878,86 +506,28 @@ export default function Landing() {
             <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-6">
               Research platform for self-directed traders. Paper trade first, risk second.
             </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <ShimmerButton 
-                shimmerColor="#22d3ee"
-                shimmerSize="0.1em"
-                background="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"
-                borderRadius="8px"
-                onClick={() => setWaitlistOpen(true)} 
-                data-testid="button-cta-signup"
-                className="font-medium"
-              >
-                Join Waitlist <ArrowRight className="h-4 w-4 ml-2" />
-              </ShimmerButton>
-              <Button 
-                variant="outline" 
-                className="border-slate-700"
-                onClick={() => setLocation('/chart-analysis')} 
-                data-testid="button-cta-demo"
-              >
-                Try Chart Analysis
-              </Button>
-            </div>
+            <Button
+              size="lg"
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+              onClick={() => setWaitlistOpen(true)}
+            >
+              Join Waitlist
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Footer - Compact */}
-      <footer className="py-6 border-t border-slate-800" data-testid="footer">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-6 w-6 object-contain" />
-              <span className="font-semibold text-sm">Quant Edge Labs</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">Research tools for self-directed traders</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-              <Link href="/trade-desk" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-dashboard">Dashboard</Link>
-              <Link href="/academy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-academy">Academy</Link>
-              <Link href="/blog" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-blog">Blog</Link>
-              <button onClick={() => scrollToSection('pricing')} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-pricing">Pricing</button>
-              <Link href="/terms-of-service" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-terms">Terms</Link>
-              <Link href="/privacy-policy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-privacy">Privacy</Link>
-            </div>
-          </div>
-
-          <div className="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-center mb-4">
-            <p className="text-xs text-red-400">
-              <strong>NOT FINANCIAL ADVICE</strong> — Educational research only. Trading involves substantial risk.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-            <p>© {new Date().getFullYear()} Quant Edge Labs</p>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6" 
-                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                data-testid="link-social-discord"
-              >
-                <SiDiscord className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-twitter">
-                <Twitter className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-linkedin">
-                <Linkedin className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-github">
-                <Github className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
+      {/* Footer */}
+      <footer className="py-6 border-t border-slate-800 text-center">
+        <div className="text-xs text-slate-400">
+          © {new Date().getFullYear()} Quant Edge Labs | <a href="#" className="text-cyan-400">Terms</a> | <a href="#" className="text-cyan-400">Privacy</a>
         </div>
       </footer>
 
-      <WaitlistPopup 
-        open={waitlistOpen} 
-        onOpenChange={setWaitlistOpen}
-      />
+      {/* Waitlist Popup */}
+      {waitlistOpen && (
+        <WaitlistPopup onClose={() => setWaitlistOpen(false)} />
+      )}
     </div>
   );
 }

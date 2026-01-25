@@ -28,6 +28,8 @@ import { PreferencesProvider, usePreferences } from "@/contexts/preferences-cont
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { StockContextProvider } from "@/contexts/stock-context";
+import { StockContextBar } from "@/components/stock-context-bar";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -119,9 +121,28 @@ function withBetaProtection<P extends object>(Component: ComponentType<P>) {
   };
 }
 function SmartLanding() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isError } = useAuth();
+  const [, setLocation] = useLocation();
+  const [showTimeout, setShowTimeout] = useState(false);
 
-  if (isLoading) {
+  // If auth check takes too long (2 seconds) OR errors out, show landing anyway
+  useEffect(() => {
+    if (isLoading) {
+      const timeout = setTimeout(() => setShowTimeout(true), 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading]);
+
+  // If auth errored, show landing after 1 second
+  useEffect(() => {
+    if (isError) {
+      const timeout = setTimeout(() => setShowTimeout(true), 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isError]);
+
+  // Don't block on auth loading if it's taking too long or errored
+  if ((isLoading || isError) && !showTimeout) {
     return <PageLoader />;
   }
 
@@ -130,7 +151,7 @@ function SmartLanding() {
     return <Redirect to="/research" />;
   }
 
-  // Otherwise show landing page
+  // Otherwise show landing page (either auth loaded or timed out or errored)
   return <Landing />;
 }
 
@@ -396,22 +417,24 @@ function App() {
           <RealtimePricesProvider>
             <PreferencesProvider>
               <ContentDensityProvider>
-                <AuroraBackground />
-                {enableAuroraLayout ? (
-                  <AuroraLayoutProvider>
-                    <div className="flex flex-col h-screen w-full">
-                      <HeaderNav />
-                      <div className="flex-1 overflow-auto bg-slate-950/50">
-                        <main className="min-h-full p-6 max-w-[1600px] mx-auto">
-                          <ErrorBoundary>
-                            <Suspense fallback={<PageLoader />}>
-                              <Router />
-                            </Suspense>
-                          </ErrorBoundary>
-                        </main>
+                <StockContextProvider>
+                  <AuroraBackground />
+                  {enableAuroraLayout ? (
+                    <AuroraLayoutProvider>
+                      <div className="flex flex-col h-screen w-full">
+                        <HeaderNav />
+                        <StockContextBar />
+                        <div className="flex-1 overflow-auto bg-slate-950/50">
+                          <main className="min-h-full p-6 max-w-[1600px] mx-auto">
+                            <ErrorBoundary>
+                              <Suspense fallback={<PageLoader />}>
+                                <Router />
+                              </Suspense>
+                            </ErrorBoundary>
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  </AuroraLayoutProvider>
+                    </AuroraLayoutProvider>
                 ) : (
                   <SidebarProvider style={style as React.CSSProperties}>
                     <div className="flex h-screen w-full">
@@ -420,9 +443,10 @@ function App() {
                     </div>
                   </SidebarProvider>
                 )}
-                <AIChatbotPopup />
-                <BotNotificationPopup />
-                <Toaster />
+                  <AIChatbotPopup />
+                  <BotNotificationPopup />
+                  <Toaster />
+                </StockContextProvider>
               </ContentDensityProvider>
             </PreferencesProvider>
           </RealtimePricesProvider>
