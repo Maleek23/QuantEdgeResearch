@@ -249,6 +249,7 @@ export default function Discover() {
             </div>
           </div>
         </div>
+        </div>
       </div>
     </>
   );

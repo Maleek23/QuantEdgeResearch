@@ -9,7 +9,7 @@
  * - Help Topics
  */
 
-import { db } from '../db';
+import { db } from './db';
 import { tradeIdeas } from '../shared/schema';
 import { ilike, or, sql, desc } from 'drizzle-orm';
 import { fetchAlphaVantageNews, type NewsArticle } from './news-service';
