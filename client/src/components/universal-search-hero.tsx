@@ -30,7 +30,7 @@ import {
   TrendingDown,
   Activity,
 } from 'lucide-react';
-import type { SearchResponse, AnySearchResult, SearchSuggestion, TrendingSearch } from '../../../shared/search-types';
+import type { SearchResponse, AnySearchResult, SearchSuggestion, TrendingSearch } from '@shared/search-types';
 
 const RECENT_SEARCHES_KEY = 'quant_edge_recent_searches_v2';
 
