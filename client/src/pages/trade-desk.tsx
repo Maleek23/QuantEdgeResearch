@@ -1988,9 +1988,9 @@ export default function TradeDeskPage() {
                   <Brain className="h-5 w-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white" data-testid="text-page-title">Research Hub</h1>
+                  <h1 className="text-3xl font-bold tracking-tight text-white" data-testid="text-page-title">Opportunities</h1>
                   <p className="text-sm text-slate-400">
-                    Institutional-grade analysis powered by 6 engines
+                    Your AI Research Team - Finding Trades 24/7
                   </p>
                 </div>
               </div>
