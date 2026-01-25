@@ -196,3 +196,28 @@ export async function refreshEarningsCache(): Promise<void> {
   await getEarningsData();
   logger.info('✅ Earnings cache refreshed');
 }
+
+/**
+ * Get upcoming earnings for the next 7 days
+ * Used for displaying earnings calendar on home page
+ */
+export async function getUpcomingEarnings(days: number = 7): Promise<EarningsEvent[]> {
+  const earningsData = await getEarningsData();
+  const now = new Date();
+  const futureDate = addDays(now, days);
+
+  const upcoming = earningsData.filter((event) => {
+    try {
+      const reportDate = parseISO(event.reportDate);
+      return isAfter(reportDate, now) && isBefore(reportDate, futureDate);
+    } catch {
+      return false;
+    }
+  });
+
+  upcoming.sort((a, b) => {
+    return parseISO(a.reportDate).getTime() - parseISO(b.reportDate).getTime();
+  });
+
+  return upcoming;
+}
