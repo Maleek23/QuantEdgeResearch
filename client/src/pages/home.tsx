@@ -1,17 +1,12 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, 
   TrendingDown, 
   Activity,
   Zap,
-  Target,
   ArrowRight,
-  Wallet,
-  BarChart3,
-  Brain,
   Bot,
   LineChart,
   Sparkles,
@@ -50,7 +45,7 @@ function MarketIndicesRow() {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {indices.map((index) => (
         <Link key={index.symbol} href={`/chart-analysis?symbol=${index.symbol}`}>
-          <Card className="cursor-pointer hover:border-primary/50 transition-all" data-testid={`index-${index.symbol}`}>
+          <Card className="cursor-pointer hover-elevate" data-testid={`index-${index.symbol}`}>
             <CardContent className="p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">{index.name}</span>
@@ -125,12 +120,7 @@ function LiveBotStatus() {
     refetchInterval: 60000,
   });
 
-  const bots = botStatus?.bots?.slice(0, 4) || [
-    { name: "Options Bot", status: "active" },
-    { name: "Crypto Bot", status: "active" },
-    { name: "Lotto Scanner", status: "active" },
-    { name: "Surge Detector", status: "active" },
-  ];
+  const bots = botStatus?.bots?.slice(0, 4) || [];
 
   return (
     <Card data-testid="bot-status">
@@ -140,31 +130,35 @@ function LiveBotStatus() {
           Active Bots
         </CardTitle>
         <Link href="/automations">
-          <span className="text-xs text-primary hover:underline cursor-pointer">Manage</span>
+          <span className="text-xs text-primary hover:underline cursor-pointer" data-testid="link-manage-bots">Manage</span>
         </Link>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {bots.map((bot) => (
-            <div 
-              key={bot.name}
-              className="flex items-center justify-between py-1.5"
-              data-testid={`bot-${bot.name.toLowerCase().replace(/\s+/g, '-')}`}
-            >
-              <span className="text-sm text-foreground">{bot.name}</span>
-              <Badge 
-                variant="outline" 
-                className={cn(
-                  "text-[10px]",
-                  bot.status === "active" 
-                    ? "text-green-500 bg-green-500/10 border-green-500/30" 
-                    : "text-muted-foreground"
-                )}
+          {bots.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-3">No active bots</p>
+          ) : (
+            bots.map((bot) => (
+              <div 
+                key={bot.name}
+                className="flex items-center justify-between py-1.5"
+                data-testid={`bot-${bot.name.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                {bot.status === "active" ? "Running" : "Idle"}
-              </Badge>
-            </div>
-          ))}
+                <span className="text-sm text-foreground">{bot.name}</span>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-[10px]",
+                    bot.status === "active" 
+                      ? "text-green-500 bg-green-500/10 border-green-500/30" 
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {bot.status === "active" ? "Running" : "Idle"}
+                </Badge>
+              </div>
+            ))
+          )}
         </div>
       </CardContent>
     </Card>

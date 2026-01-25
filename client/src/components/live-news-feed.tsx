@@ -16,12 +16,12 @@ interface NewsItem {
 }
 
 export function LiveNewsFeed() {
-  const { data: newsData, isLoading } = useQuery<{ articles: NewsItem[] }>({
+  const { data: newsData, isLoading } = useQuery<{ news: NewsItem[] }>({
     queryKey: ["/api/news"],
     refetchInterval: 300000,
   });
 
-  const articles = newsData?.articles?.slice(0, 5) || [];
+  const articles = newsData?.news?.slice(0, 5) || [];
 
   return (
     <Card className="h-full" data-testid="news-feed">
@@ -31,7 +31,7 @@ export function LiveNewsFeed() {
           Breaking News
         </CardTitle>
         <Link href="/discover">
-          <span className="text-xs text-primary hover:underline cursor-pointer">View All</span>
+          <span className="text-xs text-primary hover:underline cursor-pointer" data-testid="link-news-all">View All</span>
         </Link>
       </CardHeader>
       <CardContent className="space-y-3">
