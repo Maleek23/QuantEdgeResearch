@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
     id: "home", 
     title: "Home", 
     icon: Home, 
-    href: "/" 
+    href: "/research" 
   },
   { 
     id: "discover", 

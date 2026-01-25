@@ -96,6 +96,8 @@ const ResearchHubPage = lazy(() => import("@/pages/research-hub"));
 const DiscoverPage = lazy(() => import("@/pages/discover"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const AIStockPickerPage = lazy(() => import("@/pages/ai-stock-picker"));
+const WatchlistKavout = lazy(() => import("@/pages/watchlist-kavout"));
+const MarketMoversPage = lazy(() => import("@/pages/market-movers"));
 
 function PageLoader() {
   return (
@@ -122,9 +124,9 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, go to unified Command Center
+  // If logged in, go to Research Hub (main dashboard)
   if (user) {
-    return <Redirect to="/command-center-v2" />;
+    return <Redirect to="/research" />;
   }
 
   // Otherwise show landing page
@@ -160,9 +162,7 @@ function Router() {
       <Route path="/command-center">
         <Redirect to="/research" />
       </Route>
-      <Route path="/command-center-v2">
-        <Redirect to="/research" />
-      </Route>
+      <Route path="/command-center-v2" component={withBetaProtection(ResearchHubPage)} />
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
@@ -189,7 +189,8 @@ function Router() {
       <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
       <Route path="/research" component={withBetaProtection(ResearchHubPage)} />
       <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
-      <Route path="/market-movers" component={withBetaProtection(MarketScanner)} />
+      <Route path="/market-movers" component={withBetaProtection(MarketMoversPage)} />
+      <Route path="/watchlist" component={withBetaProtection(WatchlistKavout)} />
       <Route path="/ai-stock-picker" component={withBetaProtection(AIStockPickerPage)} />
       <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
       <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
