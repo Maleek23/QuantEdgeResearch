@@ -10492,6 +10492,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/earnings/upcoming - Fetch upcoming earnings for next 7 days
+  app.get("/api/earnings/upcoming", marketDataLimiter, async (req, res) => {
+    try {
+      const { getUpcomingEarnings } = await import("./earnings-service");
+      const days = parseInt(req.query.days as string) || 7;
+      const earnings = await getUpcomingEarnings(days);
+      
+      res.json({
+        earnings,
+        count: earnings.length,
+        days,
+      });
+    } catch (error) {
+      logger.error("Failed to fetch upcoming earnings:", error);
+      res.status(500).json({ error: "Failed to fetch earnings" });
+    }
+  });
+
   // Sync earnings calendar from Alpha Vantage
   app.post("/api/catalysts/sync-earnings", async (_req, res) => {
     try {

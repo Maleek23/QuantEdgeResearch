@@ -13,6 +13,8 @@ import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
 import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
 import { HeaderNav } from "@/components/header-nav";
+import { TabNavigation } from "@/components/tab-navigation";
+import { GlobalSearch } from "@/components/global-search";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -28,8 +30,6 @@ import { PreferencesProvider, usePreferences } from "@/contexts/preferences-cont
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { StockContextProvider } from "@/contexts/stock-context";
-import { StockContextBar } from "@/components/stock-context-bar";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -121,28 +121,9 @@ function withBetaProtection<P extends object>(Component: ComponentType<P>) {
   };
 }
 function SmartLanding() {
-  const { user, isLoading, isError } = useAuth();
-  const [, setLocation] = useLocation();
-  const [showTimeout, setShowTimeout] = useState(false);
+  const { user, isLoading } = useAuth();
 
-  // If auth check takes too long (2 seconds) OR errors out, show landing anyway
-  useEffect(() => {
-    if (isLoading) {
-      const timeout = setTimeout(() => setShowTimeout(true), 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isLoading]);
-
-  // If auth errored, show landing after 1 second
-  useEffect(() => {
-    if (isError) {
-      const timeout = setTimeout(() => setShowTimeout(true), 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isError]);
-
-  // Don't block on auth loading if it's taking too long or errored
-  if ((isLoading || isError) && !showTimeout) {
+  if (isLoading) {
     return <PageLoader />;
   }
 
@@ -151,7 +132,7 @@ function SmartLanding() {
     return <Redirect to="/research" />;
   }
 
-  // Otherwise show landing page (either auth loaded or timed out or errored)
+  // Otherwise show landing page
   return <Landing />;
 }
 
@@ -171,10 +152,8 @@ function Router() {
       {/* Whale Flow Monitor - Institutional Options Flow */}
       <Route path="/whale-flow" component={withBetaProtection(WhaleFlowPage)} />
 
-      {/* Redirect old dashboards to Research (new home) */}
-      <Route path="/home">
-        <Redirect to="/research" />
-      </Route>
+      {/* Home Dashboard - Main landing for logged in users */}
+      <Route path="/home" component={withBetaProtection(HomePage)} />
       <Route path="/dashboard">
         <Redirect to="/research" />
       </Route>
@@ -417,24 +396,22 @@ function App() {
           <RealtimePricesProvider>
             <PreferencesProvider>
               <ContentDensityProvider>
-                <StockContextProvider>
-                  <AuroraBackground />
-                  {enableAuroraLayout ? (
-                    <AuroraLayoutProvider>
-                      <div className="flex flex-col h-screen w-full">
-                        <HeaderNav />
-                        <StockContextBar />
-                        <div className="flex-1 overflow-auto bg-slate-950/50">
-                          <main className="min-h-full p-6 max-w-[1600px] mx-auto">
-                            <ErrorBoundary>
-                              <Suspense fallback={<PageLoader />}>
-                                <Router />
-                              </Suspense>
-                            </ErrorBoundary>
-                          </main>
-                        </div>
+                <AuroraBackground />
+                {enableAuroraLayout ? (
+                  <AuroraLayoutProvider>
+                    <div className="flex flex-col h-screen w-full">
+                      <TabNavigation />
+                      <div className="flex-1 overflow-auto bg-background">
+                        <main className="min-h-full p-6 max-w-7xl mx-auto">
+                          <ErrorBoundary>
+                            <Suspense fallback={<PageLoader />}>
+                              <Router />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </main>
                       </div>
-                    </AuroraLayoutProvider>
+                    </div>
+                  </AuroraLayoutProvider>
                 ) : (
                   <SidebarProvider style={style as React.CSSProperties}>
                     <div className="flex h-screen w-full">
@@ -443,10 +420,9 @@ function App() {
                     </div>
                   </SidebarProvider>
                 )}
-                  <AIChatbotPopup />
-                  <BotNotificationPopup />
-                  <Toaster />
-                </StockContextProvider>
+                <AIChatbotPopup />
+                <BotNotificationPopup />
+                <Toaster />
               </ContentDensityProvider>
             </PreferencesProvider>
           </RealtimePricesProvider>
