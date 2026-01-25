@@ -91,14 +91,20 @@ export default function Login() {
       const response = await apiRequest("POST", "/api/auth/login", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    onSuccess: async () => {
+      // Wait for queries to invalidate before navigation
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
       toast({
         title: "Welcome back!",
         description: "You have been logged in successfully.",
       });
-      setLocation("/trade-desk");
+
+      // Small delay to ensure state updates
+      setTimeout(() => {
+        setLocation("/trade-desk");
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
