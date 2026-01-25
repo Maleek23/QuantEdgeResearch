@@ -98,6 +98,7 @@ const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const AIStockPickerPage = lazy(() => import("@/pages/ai-stock-picker"));
 const WatchlistKavout = lazy(() => import("@/pages/watchlist-kavout"));
 const MarketMoversPage = lazy(() => import("@/pages/market-movers"));
+const HistoryPage = lazy(() => import("@/pages/history"));
 
 function PageLoader() {
   return (
@@ -143,9 +144,6 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
-      {/* New unified Command Center */}
-      <Route path="/command-center-v2" component={withBetaProtection(CommandCenterV2)} />
-
       {/* AI Learning Dashboard */}
       <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
@@ -162,7 +160,9 @@ function Router() {
       <Route path="/command-center">
         <Redirect to="/research" />
       </Route>
-      <Route path="/command-center-v2" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/command-center-v2">
+        <Redirect to="/research" />
+      </Route>
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
@@ -195,8 +195,9 @@ function Router() {
       <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
       <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
       <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
-      <Route path="/history/chat" component={withBetaProtection(PerformancePage)} />
-      <Route path="/history/research" component={withBetaProtection(PerformancePage)} />
+      <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
+      <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
+      <Route path="/history" component={withBetaProtection(HistoryPage)} />
       <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
