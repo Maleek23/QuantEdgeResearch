@@ -152,67 +152,67 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .08);
 
-  /* Aurora Grid Color System */
-  --accent-cyan: #22d3ee;
-  --accent-purple: #a78bfa;
+  /* Unified Color System - Clean Blue Accent (Kavout-inspired) */
+  --accent-blue: #3b82f6;
+  --accent-blue-light: #60a5fa;
   --bg-glass: rgba(15, 23, 42, 0.6);
   --border-glass: rgba(148, 163, 184, 0.1);
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-muted: #64748b;
-  --danger-red: #f87171;
-  --success-green: #4ade80;
-  --warning-amber: #fbbf24;
+  --danger-red: #ef4444;
+  --success-green: #22c55e;
+  --warning-amber: #f59e0b;
 
-  /* Glassmorphism Colors */
-  --glass-cyan: 188 94% 53%;
-  --glass-cyan-rgb: 34, 211, 238;
+  /* Glassmorphism Colors - Blue */
+  --glass-blue: 217 91% 60%;
+  --glass-blue-rgb: 59, 130, 246;
   --glass-purple: 263 70% 76%;
   --glass-purple-rgb: 167, 139, 250;
   --glass-border: rgba(148, 163, 184, 0.1);
-  --glass-border-hover: rgba(34, 211, 238, 0.3);
+  --glass-border-hover: rgba(59, 130, 246, 0.3);
 
-  /* Deep slate-950 background (#020617) */
-  --background: 222 47% 2%;
+  /* Deep slate background */
+  --background: 222 47% 4%;
 
   --foreground: 210 40% 98%;
 
-  --border: 217 19% 12%;
+  --border: 217 19% 14%;
 
-  /* Glass panel backgrounds */
-  --card: 222 47% 6%;
+  /* Card backgrounds */
+  --card: 222 47% 7%;
 
   --card-foreground: 210 40% 96%;
 
-  --card-border: 217 19% 15%;
+  --card-border: 217 19% 16%;
 
-  /* Slim nav rail */
-  --sidebar: 222 47% 5%;
+  /* Sidebar - slightly lighter than background */
+  --sidebar: 222 47% 6%;
 
   --sidebar-foreground: 215 20% 85%;
 
-  --sidebar-border: 217 19% 12%;
+  --sidebar-border: 217 19% 14%;
 
-  --sidebar-primary: 188 94% 53%;
+  --sidebar-primary: 217 91% 60%;
 
-  --sidebar-primary-foreground: 222 47% 5%;
+  --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 217 19% 12%;
+  --sidebar-accent: 217 91% 15%;
 
-  --sidebar-accent-foreground: 188 94% 53%;
+  --sidebar-accent-foreground: 217 91% 70%;
 
-  --sidebar-ring: 188 94% 53%;
+  --sidebar-ring: 217 91% 60%;
 
-  --popover: 222 47% 6%;
+  --popover: 222 47% 7%;
 
   --popover-foreground: 210 40% 96%;
 
   --popover-border: 217 19% 18%;
 
-  /* Cyan primary for trading actions */
-  --primary: 188 94% 53%;
+  /* Blue primary for actions */
+  --primary: 217 91% 60%;
 
-  --primary-foreground: 222 47% 5%;
+  --primary-foreground: 0 0% 100%;
 
   /* Subtle secondary */
   --secondary: 217 19% 14%;
@@ -234,8 +234,8 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 217 19% 14%;
-  --ring: 188 94% 53%;
-  --chart-1: 188 94% 53%;
+  --ring: 217 91% 60%;
+  --chart-1: 217 91% 60%;
   --chart-2: 142 71% 55%;
   --chart-3: 45 93% 58%;
   --chart-4: 0 84% 60%;

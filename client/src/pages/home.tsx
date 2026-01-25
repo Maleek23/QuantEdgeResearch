@@ -1,263 +1,322 @@
-import { Link } from "wouter";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GlobalMarketPulse } from "@/components/dashboard";
-import { LivePortfolioSummary } from "@/components/live-portfolio-summary";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Brain,
-  TrendingUp,
-  BarChart3,
-  Zap,
-  Wallet,
-  Target,
-  LineChart,
-  ArrowRight,
-  ChevronRight,
+import { Badge } from "@/components/ui/badge";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  BarChart3, 
+  LineChart, 
   Activity,
-  Calendar,
-  Loader2,
+  Zap,
+  Target,
+  Clock,
+  ArrowRight,
+  Play,
+  Star,
+  Newspaper,
+  Plus,
+  PieChart,
 } from "lucide-react";
 
-interface StrategyCard {
-  title: string;
-  description: string;
-  href: string;
-  icon: React.ElementType;
-  color: string;
-  bgGradient: string;
-}
-
-interface StrategyCardExtended extends StrategyCard {
-  metric?: string;
-  metricLabel?: string;
-}
-
-// Strategy cards - metrics removed to avoid showing fake performance data
-const strategies: StrategyCardExtended[] = [
-  {
-    title: "Trade Desk",
-    description: "AI-powered stock picks & earnings predictions",
-    href: "/trade-desk",
-    icon: Brain,
-    color: "text-purple-400",
-    bgGradient: "from-purple-900/50 via-purple-900/30 to-slate-900/50",
-  },
-  {
-    title: "Trading Engine",
-    description: "Quantitative momentum strategies",
-    href: "/trading-engine",
-    icon: Zap,
-    color: "text-cyan-400",
-    bgGradient: "from-cyan-900/50 via-cyan-900/30 to-slate-900/50",
-  },
-  {
-    title: "Market Scanner",
-    description: "Real-time intraday trading signals",
-    href: "/market-scanner",
-    icon: Activity,
-    color: "text-emerald-400",
-    bgGradient: "from-emerald-900/50 via-emerald-900/30 to-slate-900/50",
-  },
-  {
-    title: "Chart Analysis",
-    description: "AI pattern recognition & technical analysis",
-    href: "/chart-analysis",
-    icon: BarChart3,
-    color: "text-blue-400",
-    bgGradient: "from-blue-900/50 via-blue-900/30 to-slate-900/50",
-  },
-  {
-    title: "Bullish Trends",
-    description: "Momentum stocks with strong uptrends",
-    href: "/bullish-trends",
-    icon: TrendingUp,
-    color: "text-pink-400",
-    bgGradient: "from-pink-900/50 via-pink-900/30 to-slate-900/50",
-  },
-  {
-    title: "CT Tracker",
-    description: "Crypto trading signals & analysis",
-    href: "/ct-tracker",
-    icon: Wallet,
-    color: "text-amber-400",
-    bgGradient: "from-amber-900/50 via-amber-900/30 to-slate-900/50",
-  },
+const portfolioData = [
+  { symbol: "AAPL", name: "Apple Inc.", value: 22.7, color: "#3b82f6", price: 248.04, change: -8.76 },
+  { symbol: "AXP", name: "American Express", value: 18.8, color: "#f97316", price: 312.45, change: 2.34 },
+  { symbol: "BAC", name: "Bank of America", value: 11.0, color: "#22c55e", price: 42.18, change: 0.87 },
+  { symbol: "KO", name: "Coca-Cola", value: 9.9, color: "#ef4444", price: 62.34, change: -0.23 },
+  { symbol: "CVX", name: "Chevron", value: 7.1, color: "#8b5cf6", price: 156.78, change: 1.45 },
+  { symbol: "OXY", name: "Occidental", value: 4.7, color: "#ec4899", price: 52.34, change: 3.21 },
 ];
 
-// REMOVED: Fake fallback data - all data now comes from real API
+const newsItems = [
+  { id: 1, title: "Fed Signals Potential Rate Cut in March Meeting", time: "2 hours ago", source: "Reuters" },
+  { id: 2, title: "NVIDIA Hits New All-Time High Amid AI Chip Demand", time: "4 hours ago", source: "Bloomberg" },
+  { id: 3, title: "Oil Prices Rise on Middle East Tensions", time: "5 hours ago", source: "WSJ" },
+  { id: 4, title: "Apple Announces Record Q1 Earnings", time: "6 hours ago", source: "CNBC" },
+];
 
+const analysisButtons = [
+  { id: "technical", label: "Technical Analysis", icon: LineChart, href: "/analysis" },
+  { id: "fundamental", label: "Fundamental Analysis", icon: BarChart3, href: "/analysis" },
+  { id: "swing", label: "Swing Trade Setup", icon: TrendingUp, href: "/research" },
+  { id: "options", label: "Options Play", icon: Target, href: "/analysis" },
+  { id: "chart", label: "Chart Analysis", icon: Activity, href: "/chart-analysis" },
+  { id: "daytrade", label: "Day Trade Setup", icon: Zap, href: "/research" },
+];
 
-function StrategyCardComponent({ strategy }: { strategy: StrategyCardExtended }) {
-  const Icon = strategy.icon;
+function PortfolioPieChart() {
+  const total = portfolioData.reduce((sum, item) => sum + item.value, 0);
+  let currentAngle = 0;
+  
   return (
-    <Link href={strategy.href}>
-      <Card className={cn(
-        "group relative overflow-hidden border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 cursor-pointer h-full",
-        "bg-gradient-to-br backdrop-blur-sm",
-        strategy.bgGradient
-      )} data-testid={`card-strategy-${strategy.title.toLowerCase().replace(/\s+/g, '-')}`}>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full" />
-        <CardContent className="p-5 flex flex-col h-full relative z-10">
-          <div className="flex items-start justify-between mb-3">
-            <div className={cn("p-2.5 rounded-xl bg-slate-800/70 backdrop-blur-sm border border-slate-700/50", strategy.color)}>
-              <Icon className="w-5 h-5" />
-            </div>
-            {strategy.metric && (
-              <div className="text-right">
-                <span className={cn("text-lg font-bold font-mono", strategy.color)}>{strategy.metric}</span>
-                <span className="block text-[10px] text-slate-500 uppercase tracking-wider">{strategy.metricLabel}</span>
-              </div>
-            )}
-          </div>
-          <h3 className="font-semibold text-white mb-1 text-sm">{strategy.title}</h3>
-          <p className="text-xs text-slate-400 flex-1 line-clamp-2">{strategy.description}</p>
-          <div className="flex items-center gap-1 text-cyan-400 text-xs mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            Explore <ArrowRight className="w-3 h-3" />
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+    <div className="relative w-56 h-56 mx-auto">
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+        {portfolioData.map((item) => {
+          const angle = (item.value / total) * 360;
+          const startAngle = currentAngle;
+          currentAngle += angle;
+          
+          const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
+          const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
+          const x2 = 50 + 40 * Math.cos(((startAngle + angle) * Math.PI) / 180);
+          const y2 = 50 + 40 * Math.sin(((startAngle + angle) * Math.PI) / 180);
+          
+          const largeArc = angle > 180 ? 1 : 0;
+          
+          return (
+            <path
+              key={item.symbol}
+              d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+              fill={item.color}
+              className="transition-opacity hover:opacity-80 cursor-pointer"
+            />
+          );
+        })}
+        <circle cx="50" cy="50" r="22" className="fill-card" />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl font-bold text-foreground">$125.4K</p>
+          <p className="text-xs text-muted-foreground">Total Value</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function HomePage() {
-  const { data: bestSetups, isLoading: loadingSetups } = useQuery<any>({
-    queryKey: ['/api/trade-ideas/best-setups'],
-    staleTime: 60000,
-    select: (data) => {
-      if (Array.isArray(data)) return data;
-      if (data?.ideas && Array.isArray(data.ideas)) return data.ideas;
-      return [];
-    },
-  });
-
-  // Only show winners if we have real data from API
-  const displayWinners = bestSetups?.slice(0, 3).map((idea: any) => ({
-    symbol: idea.symbol,
-    name: idea.companyName || idea.symbol,
-    return: idea.targetPercentage || idea.confidenceScore / 2 || 0,
-    dateAdded: idea.createdAt ? new Date(idea.createdAt).toLocaleDateString() : 'Recent'
-  })) || [];
+  const [, setLocation] = useLocation();
 
   return (
-    <div className="space-y-12 pb-12">
-      <section className="text-center py-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          Top Stock & Crypto AI Trading Signals
-        </h1>
-        <div className="flex flex-wrap justify-center gap-3 mt-6">
-          <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
-            <TrendingUp className="w-4 h-4 mr-2 text-cyan-400" />
-            Technical Analysis
-          </Badge>
-          <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
-            <LineChart className="w-4 h-4 mr-2 text-emerald-400" />
-            Price Direction
-          </Badge>
-          <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
-            <Target className="w-4 h-4 mr-2 text-purple-400" />
-            Entry Signals
-          </Badge>
-          <Badge variant="outline" className="px-4 py-2 text-sm border-slate-700 bg-slate-800/50">
-            <BarChart3 className="w-4 h-4 mr-2 text-amber-400" />
-            Options Flow
-          </Badge>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Welcome Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Welcome back</h1>
+          <p className="text-muted-foreground mt-1">Here's what's happening with your portfolio today.</p>
         </div>
-      </section>
+        <Link href="/watchlist">
+          <Button className="gap-2" data-testid="button-add-watchlist">
+            <Plus className="h-4 w-4" />
+            Add to Watchlist
+          </Button>
+        </Link>
+      </div>
 
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-white">AI Trading Strategies</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {strategies.map((strategy) => (
-            <StrategyCardComponent key={strategy.title} strategy={strategy} />
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <GlobalMarketPulse />
-      </section>
-
-      <section>
-        <LivePortfolioSummary />
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Brain className="w-5 h-5 text-purple-400" />
-            High-Conviction Setups
-          </h2>
-          <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
-            6-Engine Analysis
-          </Badge>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {loadingSetups ? (
-            <div className="col-span-3 flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="ml-2 text-slate-400">Scanning for opportunities...</span>
-            </div>
-          ) : (
-            displayWinners.map((winner: any, idx: number) => (
-              <Link key={winner.symbol} href={`/chart-analysis?s=${winner.symbol}`}>
-                <Card className="group bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-slate-700/50 hover:border-cyan-500/30 transition-all duration-300 cursor-pointer" data-testid={`card-winner-${winner.symbol}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Portfolio Overview */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2 flex-row items-center justify-between gap-4">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <PieChart className="h-5 w-5 text-primary" />
+              Portfolio Overview
+            </CardTitle>
+            <Link href="/portfolio">
+              <Button variant="ghost" size="sm" className="text-primary gap-1" data-testid="link-portfolio">
+                View All <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <PortfolioPieChart />
+              <div className="flex-1 space-y-1.5 w-full">
+                {portfolioData.map((item) => (
+                  <Link key={item.symbol} href={`/analysis/${item.symbol}`}>
+                    <div 
+                      className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                      data-testid={`portfolio-${item.symbol}`}
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center border border-slate-700/50">
-                          <span className="text-sm font-bold text-white">{winner.symbol}</span>
-                        </div>
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: item.color }}
+                        />
                         <div>
-                          <span className="block text-sm font-medium text-white group-hover:text-cyan-400 transition-colors">{winner.name}</span>
-                          <div className="flex items-center gap-1 mt-1">
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-purple-500/30 text-purple-400">ML</Badge>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-cyan-500/30 text-cyan-400">TA</Badge>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-emerald-500/30 text-emerald-400">Quant</Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                      <div>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Conviction</span>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <div key={i} className={cn(
-                              "w-2 h-2 rounded-full",
-                              i < Math.ceil(winner.return / 20) ? "bg-cyan-400" : "bg-slate-700"
-                            )} />
-                          ))}
+                          <span className="font-medium text-foreground">{item.symbol}</span>
+                          <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">{item.value}%</span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-slate-500 uppercase">Target</span>
-                        <span className="block text-lg font-bold font-mono text-emerald-400">+{typeof winner.return === 'number' ? winner.return.toFixed(1) : winner.return}%</span>
+                        <p className="font-medium text-foreground">${item.price}</p>
+                        <p className={`text-sm ${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {item.change >= 0 ? '+' : ''}{item.change}%
+                        </p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions - Analysis Buttons */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-medium">Quick Analysis</CardTitle>
+            <p className="text-sm text-muted-foreground">Search a stock and run analysis</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {analysisButtons.map((btn) => (
+              <Link key={btn.id} href={btn.href}>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-3 h-10"
+                  data-testid={`analysis-${btn.id}`}
+                >
+                  <btn.icon className="h-4 w-4 text-primary" />
+                  <span className="flex-1 text-left">{btn.label}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
               </Link>
-            ))
-          )}
-        </div>
-        <div className="text-center mt-4">
-          <Link href="/trading-engine">
-            <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300" data-testid="link-see-all-winners">
-              View All Trade Ideas <ChevronRight className="w-4 h-4 ml-1" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* News & Market Movers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Breaking News */}
+        <Card>
+          <CardHeader className="pb-2 flex-row items-center justify-between gap-4">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <Newspaper className="h-5 w-5 text-primary" />
+              Breaking News
+            </CardTitle>
+            <Link href="/discover">
+              <Button variant="ghost" size="sm" className="text-primary gap-1" data-testid="link-discover">
+                View All <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {newsItems.map((news) => (
+              <div 
+                key={news.id}
+                className="p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer border border-border"
+                data-testid={`news-${news.id}`}
+              >
+                <p className="font-medium text-foreground text-sm leading-snug">{news.title}</p>
+                <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {news.time}
+                  <span>•</span>
+                  {news.source}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Top Movers */}
+        <Card>
+          <CardHeader className="pb-2 flex-row items-center justify-between gap-4">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              Top Movers
+            </CardTitle>
+            <Link href="/market-movers">
+              <Button variant="ghost" size="sm" className="text-primary gap-1" data-testid="link-movers">
+                View All <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {[
+                { symbol: "NVDA", name: "NVIDIA Corp", change: 5.67, price: 892.34 },
+                { symbol: "SMCI", name: "Super Micro", change: 4.23, price: 1024.56 },
+                { symbol: "AMD", name: "AMD Inc", change: 3.45, price: 178.90 },
+                { symbol: "TSLA", name: "Tesla Inc", change: -2.34, price: 245.67 },
+              ].map((stock) => (
+                <Link key={stock.symbol} href={`/analysis/${stock.symbol}`}>
+                  <div 
+                    className="flex items-center justify-between p-2.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                    data-testid={`mover-${stock.symbol}`}
+                  >
+                    <div className="min-w-0">
+                      <span className="font-semibold text-primary">{stock.symbol}</span>
+                      <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">{stock.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-foreground">${stock.price}</span>
+                      <Badge className={`${stock.change >= 0 ? 'bg-green-500/15 text-green-500 border-green-500/30' : 'bg-red-500/15 text-red-500 border-red-500/30'}`}>
+                        {stock.change >= 0 ? '+' : ''}{stock.change}%
+                      </Badge>
+                      <Button size="sm" variant="ghost" className="h-8 text-primary" data-testid={`research-${stock.symbol}`}>
+                        <Play className="h-3 w-3 mr-1" />
+                        Research
+                      </Button>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Watchlist Preview */}
+      <Card>
+        <CardHeader className="pb-2 flex-row items-center justify-between gap-4">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            <Star className="h-5 w-5 text-amber-500" />
+            Your Watchlist
+          </CardTitle>
+          <Link href="/watchlist">
+            <Button variant="ghost" size="sm" className="text-primary gap-1" data-testid="link-watchlist">
+              Manage <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-        </div>
-      </section>
-
-      {/* REMOVED: Fake earnings prediction section - will add back when real earnings data is available */}
-
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2.5 text-sm font-medium text-muted-foreground">Symbol</th>
+                  <th className="text-right py-2.5 text-sm font-medium text-muted-foreground">Price</th>
+                  <th className="text-right py-2.5 text-sm font-medium text-muted-foreground">Change</th>
+                  <th className="text-right py-2.5 text-sm font-medium text-muted-foreground hidden sm:table-cell">Market Cap</th>
+                  <th className="text-right py-2.5 text-sm font-medium text-muted-foreground">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { symbol: "SPY", name: "S&P 500 ETF", price: 689.13, change: 1.07, cap: "711.44B" },
+                  { symbol: "MSFT", name: "Microsoft Corp", price: 465.95, change: -3.65, cap: "3.46T" },
+                  { symbol: "AAPL", name: "Apple Inc", price: 248.04, change: -8.76, cap: "3.67T" },
+                  { symbol: "QQQ", name: "Invesco QQQ", price: 622.72, change: 1.37, cap: "408.46B" },
+                ].map((stock) => (
+                  <tr key={stock.symbol} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+                    <td className="py-3">
+                      <Link href={`/analysis/${stock.symbol}`}>
+                        <span className="font-semibold text-primary hover:underline cursor-pointer">{stock.symbol}</span>
+                      </Link>
+                      <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">{stock.name}</span>
+                    </td>
+                    <td className="text-right py-3 font-medium text-foreground">${stock.price}</td>
+                    <td className={`text-right py-3 ${stock.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stock.change >= 0 ? '+' : ''}{stock.change}%
+                    </td>
+                    <td className="text-right py-3 text-muted-foreground hidden sm:table-cell">{stock.cap}</td>
+                    <td className="text-right py-3">
+                      <Link href={`/analysis/${stock.symbol}`}>
+                        <Button size="sm" variant="ghost" className="text-primary h-8" data-testid={`run-research-${stock.symbol}`}>
+                          <Play className="h-3 w-3 mr-1" />
+                          Run Research
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -13,6 +13,8 @@ import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
 import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
 import { HeaderNav } from "@/components/header-nav";
+import { KavoutSidebar } from "@/components/kavout-sidebar";
+import { GlobalSearch } from "@/components/global-search";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -150,10 +152,8 @@ function Router() {
       {/* Whale Flow Monitor - Institutional Options Flow */}
       <Route path="/whale-flow" component={withBetaProtection(WhaleFlowPage)} />
 
-      {/* Redirect old dashboards to Research (new home) */}
-      <Route path="/home">
-        <Redirect to="/research" />
-      </Route>
+      {/* Home Dashboard - Main landing for logged in users */}
+      <Route path="/home" component={withBetaProtection(HomePage)} />
       <Route path="/dashboard">
         <Redirect to="/research" />
       </Route>
@@ -399,16 +399,28 @@ function App() {
                 <AuroraBackground />
                 {enableAuroraLayout ? (
                   <AuroraLayoutProvider>
-                    <div className="flex flex-col h-screen w-full">
-                      <HeaderNav />
-                      <div className="flex-1 overflow-auto bg-slate-950/50">
-                        <main className="min-h-full p-6 max-w-[1600px] mx-auto">
-                          <ErrorBoundary>
-                            <Suspense fallback={<PageLoader />}>
-                              <Router />
-                            </Suspense>
-                          </ErrorBoundary>
-                        </main>
+                    <div className="flex h-screen w-full">
+                      <KavoutSidebar />
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Top bar with search */}
+                        <header className="h-14 border-b border-border bg-background/95 backdrop-blur-sm flex items-center px-4 gap-4">
+                          <div className="flex-1 max-w-xl">
+                            <GlobalSearch 
+                              variant="default" 
+                              placeholder="Search for companies, tickers, or crypto"
+                            />
+                          </div>
+                          <ThemeToggle />
+                        </header>
+                        <div className="flex-1 overflow-auto bg-background">
+                          <main className="min-h-full p-6">
+                            <ErrorBoundary>
+                              <Suspense fallback={<PageLoader />}>
+                                <Router />
+                              </Suspense>
+                            </ErrorBoundary>
+                          </main>
+                        </div>
                       </div>
                     </div>
                   </AuroraLayoutProvider>

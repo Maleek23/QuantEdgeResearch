@@ -87,12 +87,12 @@ export function KavoutSidebar() {
   return (
     <aside 
       className={cn(
-        "flex flex-col h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 transition-all duration-300",
+        "flex flex-col h-screen border-r border-border bg-sidebar transition-all duration-300",
         collapsed ? "w-16" : "w-56"
       )}
     >
       {/* Logo & Collapse Toggle */}
-      <div className="flex items-center justify-between h-14 px-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex items-center justify-between h-14 px-3 border-b border-border">
         <Link href="/home">
           <div className="flex items-center gap-2 cursor-pointer" data-testid="nav-logo">
             <img 
@@ -101,7 +101,7 @@ export function KavoutSidebar() {
               className="h-8 w-8 object-contain" 
             />
             {!collapsed && (
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+              <span className="font-semibold text-foreground">
                 Quant Edge
               </span>
             )}
@@ -111,7 +111,7 @@ export function KavoutSidebar() {
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
           data-testid="button-collapse-sidebar"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -123,7 +123,7 @@ export function KavoutSidebar() {
         {navSections.map((section, sectionIndex) => (
           <div key={sectionIndex} className="mb-4">
             {section.title && !collapsed && (
-              <div className="px-3 mb-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="px-3 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 {section.title}
               </div>
             )}
@@ -134,8 +134,8 @@ export function KavoutSidebar() {
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                       isActive(item.href)
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                     data-testid={`nav-${item.id}`}
                     title={collapsed ? item.label : undefined}
@@ -147,20 +147,20 @@ export function KavoutSidebar() {
               ))}
             </div>
             {sectionIndex < navSections.length - 1 && (
-              <div className="mt-4 mx-3 border-t border-slate-200 dark:border-slate-800" />
+              <div className="mt-4 mx-3 border-t border-border" />
             )}
           </div>
         ))}
       </nav>
 
       {/* Bottom Section */}
-      <div className="mt-auto border-t border-slate-200 dark:border-slate-800 p-2">
+      <div className="mt-auto border-t border-border p-2">
         {/* Upgrade Button */}
         <Link href="/pricing">
           <button
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-              "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+              "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             data-testid="nav-upgrade"
           >
@@ -180,8 +180,8 @@ export function KavoutSidebar() {
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
               isActive("/settings")
-                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             data-testid="nav-settings"
           >
@@ -198,7 +198,7 @@ export function KavoutSidebar() {
           )}>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {userData.email || userData.firstName || 'User'}
                 </p>
               </div>
@@ -207,7 +207,7 @@ export function KavoutSidebar() {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="h-8 w-8 flex-shrink-0 text-slate-500 hover:text-red-500"
+              className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
               data-testid="button-logout"
               title="Sign out"
             >
