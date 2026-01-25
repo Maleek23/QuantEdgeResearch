@@ -1,9 +1,9 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  TrendingUp,
+  TrendingDown,
   Activity,
   Zap,
   ArrowRight,
@@ -21,6 +21,9 @@ import { LiveNewsFeed } from "@/components/live-news-feed";
 import { TopMoversPanel } from "@/components/top-movers-panel";
 import { EarningsCalendarPanel } from "@/components/earnings-calendar-panel";
 import { WatchlistQuickView } from "@/components/watchlist-quick-view";
+import { UniversalSearchHero } from "@/components/universal-search-hero";
+import { QuickActionCards } from "@/components/quick-action-cards";
+import { BotActivityPanel } from "@/components/bot-activity-panel";
 
 interface MarketQuote {
   regularMarketPrice: number;
@@ -167,36 +170,59 @@ function LiveBotStatus() {
 
 export default function HomePage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Live Market Ticker */}
       <MarketTickerBar />
-      
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Market Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Live market data, news, and trading intelligence</p>
+
+      {/* Hero Section - Universal Search */}
+      <div className="space-y-8 py-8">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-purple-500 to-cyan-500 bg-clip-text text-transparent">
+            Your AI-Powered Trading Intelligence
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Search stocks, discover trade ideas, analyze fundamentals, and track market movements—all in one place.
+          </p>
+        </div>
+
+        {/* Universal Search Bar */}
+        <UniversalSearchHero variant="hero" />
+
+        {/* Quick Action Cards */}
+        <QuickActionCards className="mt-8" />
+      </div>
+
+      {/* Market Pulse Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Market Pulse</h2>
+          <Badge variant="outline" className="text-xs">
+            Live Updates
+          </Badge>
         </div>
 
         <AssetHeroCards />
-
         <MarketIndicesRow />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TopMoversPanel />
-              <LiveNewsFeed />
-            </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Market Activity */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <TopMoversPanel />
+            <LiveNewsFeed />
           </div>
 
-          <div className="space-y-6">
-            <VixFearGauge />
-            <EarningsCalendarPanel />
-            <QuickAccessTools />
-          </div>
+          {/* Watchlist */}
+          <WatchlistQuickView />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WatchlistQuickView />
+        {/* Right Column - Intelligence & Tools */}
+        <div className="space-y-6">
+          <VixFearGauge />
+          <BotActivityPanel />
+          <EarningsCalendarPanel />
           <LiveBotStatus />
         </div>
       </div>

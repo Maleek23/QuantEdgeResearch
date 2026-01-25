@@ -22883,6 +22883,58 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ===== UNIVERSAL SEARCH ROUTES =====
+
+  // GET /api/search?q={query}&category={category}
+  app.get("/api/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      const category = req.query.category as string | undefined;
+
+      if (!query) {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+
+      const { universalSearch } = await import('./search-service');
+      const categories = category ? [category as any] : undefined;
+      const results = await universalSearch(query, categories);
+      res.json(results);
+    } catch (error: any) {
+      logger.error(`Search error:`, error);
+      res.status(500).json({ error: "Search failed" });
+    }
+  });
+
+  // GET /api/search/suggestions?q={query}
+  app.get("/api/search/suggestions", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+
+      if (!query) {
+        return res.json([]);
+      }
+
+      const { getSearchSuggestions } = await import('./search-service');
+      const suggestions = await getSearchSuggestions(query);
+      res.json(suggestions);
+    } catch (error: any) {
+      logger.error(`Search suggestions error:`, error);
+      res.status(500).json({ error: "Failed to get suggestions" });
+    }
+  });
+
+  // GET /api/search/trending
+  app.get("/api/search/trending", async (req, res) => {
+    try {
+      const { getTrendingSearches } = await import('./search-service');
+      const trending = await getTrendingSearches();
+      res.json(trending);
+    } catch (error: any) {
+      logger.error(`Trending searches error:`, error);
+      res.status(500).json({ error: "Failed to get trending searches" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
