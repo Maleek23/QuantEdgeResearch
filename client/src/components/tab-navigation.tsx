@@ -49,11 +49,14 @@ const navCategories: NavCategory[] = [
     label: "Analysis",
     icon: BarChart3,
     items: [
-      { label: "Trade Desk", href: "/trade-desk", icon: Brain, description: "AI-powered stock analysis" },
+      { label: "Trade Desk", href: "/trade-desk", icon: Brain, description: "All trade ideas & analysis" },
+      { label: "Stocks", href: "/trade-desk?asset=stock", icon: TrendingUp, description: "Stock trade ideas" },
+      { label: "Options", href: "/trade-desk?asset=option", icon: Target, description: "Options flow & setups" },
+      { label: "Futures", href: "/trade-desk?tab=futures", icon: Activity, description: "Futures market analysis" },
+      { label: "Crypto", href: "/trade-desk?asset=crypto", icon: Wallet, description: "Crypto trade signals" },
       { label: "Chart Analysis", href: "/chart-analysis", icon: LineChart, description: "Technical chart patterns" },
       { label: "Options Analyzer", href: "/options-analyzer", icon: Target, description: "Options risk lab" },
       { label: "Smart Advisor", href: "/smart-advisor", icon: Sparkles, description: "AI trading advisor" },
-      { label: "Historical Intel", href: "/historical-intelligence", icon: History, description: "Past trade patterns" },
     ],
   },
   {

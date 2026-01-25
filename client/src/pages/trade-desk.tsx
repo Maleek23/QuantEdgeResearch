@@ -864,6 +864,7 @@ export default function TradeDeskPage() {
   const [, setLocation] = useLocation();
   const urlParams = new URLSearchParams(searchString);
   const initialTab = urlParams.get('tab') === 'futures' ? 'futures' : 'research';
+  const urlAsset = urlParams.get('asset');
   const [mainTab, setMainTab] = useState<'research' | 'futures'>(initialTab);
   
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
@@ -923,6 +924,10 @@ export default function TradeDeskPage() {
   // Filter state for new filter toolbar - persisted to localStorage
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>(() => {
+    // URL param takes priority, then localStorage
+    if (urlAsset && ['stock', 'option', 'crypto', 'future', 'penny_stock'].includes(urlAsset)) {
+      return urlAsset;
+    }
     const saved = localStorage.getItem('tradeDesk_assetTypeFilter');
     return saved || 'all';
   });
