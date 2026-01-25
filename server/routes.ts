@@ -17940,6 +17940,25 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // POST /api/research/analyze - Run AI research analysis on a stock
+  app.post("/api/research/analyze", researchAssistantLimiter, async (req: Request, res: Response) => {
+    try {
+      const { symbol, analysisType } = req.body;
+      
+      if (!symbol || !analysisType) {
+        return res.status(400).json({ error: "Symbol and analysisType are required" });
+      }
+      
+      const { runResearchAnalysis } = await import("./research-service");
+      const result = await runResearchAnalysis({ symbol, analysisType });
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Research analysis error", { error });
+      res.status(500).json({ error: "Analysis failed" });
+    }
+  });
+
   // POST /api/auto-lotto-bot/reset - Reset bot portfolios to fresh $300 each (admin only)
   // Supports ?type=all|options|futures|crypto query param
   app.post("/api/auto-lotto-bot/reset", isAuthenticated, async (req: any, res: Response) => {

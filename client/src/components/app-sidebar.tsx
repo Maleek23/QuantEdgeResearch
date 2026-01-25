@@ -59,6 +59,7 @@ const defaultNavItems: NavigationItemType[] = [
   { id: "home", title: "Home", icon: "Home", href: "/" },
   { id: "strategy-playbooks", title: "Strategy Playbooks", icon: "Zap", href: "/strategy-playbooks", badge: "NEW" },
   { id: "command-center", title: "Command Center", icon: "Activity", href: "/command-center", badge: "NEW" },
+  { id: "research", title: "Research Hub", icon: "Brain", href: "/research", badge: "NEW" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
   { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
   { id: "whale-flow", title: "Whale Flow", icon: "Target", href: "/whale-flow", badge: "NEW" },
@@ -82,7 +83,7 @@ const defaultLayout: NavigationLayoutType = {
     {
       id: "trading",
       title: "Trading",
-      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "trade-desk", "watchlist", "whale-flow", "wsb-trending", "social-trends"].includes(i.id)),
+      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "research", "trade-desk", "watchlist", "whale-flow", "wsb-trending", "social-trends"].includes(i.id)),
     },
     {
       id: "analytics",
