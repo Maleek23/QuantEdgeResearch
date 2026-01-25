@@ -22848,6 +22848,41 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ===== FUNDAMENTAL ANALYSIS ROUTES =====
+
+  // GET /api/stocks/:symbol/fundamentals
+  app.get("/api/stocks/:symbol/fundamentals", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { fundamentalDataProvider } = await import('./fundamental-data-provider');
+      const fundamentals = await fundamentalDataProvider.getFundamentals(symbol.toUpperCase());
+      if (!fundamentals) return res.status(404).json({ error: "Data unavailable" });
+      res.json(fundamentals);
+    } catch (error: any) {
+      logger.error(`Fundamentals error ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch fundamental data" });
+    }
+  });
+
+  // GET /api/stocks/:symbol/grade
+  app.get("/api/stocks/:symbol/grade", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { fundamentalAnalysisService } = await import('./fundamental-analysis-service');
+      const grade = await fundamentalAnalysisService.getStockGrade(
+        symbol.toUpperCase(),
+        req.query.technicalScore ? parseFloat(req.query.technicalScore as string) : undefined,
+        req.query.signalCount ? parseInt(req.query.signalCount as string) : undefined,
+        req.query.sentimentScore ? parseFloat(req.query.sentimentScore as string) : undefined,
+        req.query.aiScore ? parseFloat(req.query.aiScore as string) : undefined
+      );
+      res.json(grade);
+    } catch (error: any) {
+      logger.error(`Grade error ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to grade stock" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -77,6 +77,9 @@ import { formatCurrency, formatPercent } from "@/lib/utils";
 import ResearchPulseWidget from "@/components/research-pulse-widget";
 import PersonalEdgeAnalytics from "@/components/personal-edge-analytics";
 import BestSetupsExplainer from "@/components/best-setups-explainer";
+import { AnimatedStat } from "@/components/ui/animated-stat";
+import { ConfidenceMeter } from "@/components/ui/confidence-meter";
+import { BotActivityPanel } from "@/components/bot-activity-panel";
 
 // Compact expiry badge for quick time-left display
 function ExpiryBadge({ minutes }: { minutes: number }) {
@@ -2002,17 +2005,35 @@ export default function TradeDeskPage() {
               
               {/* Quick Stats Row */}
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30"
+                >
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-sm font-mono text-green-600 dark:text-green-400">{activeIdeas.length}</span>
+                  <AnimatedStat
+                    value={activeIdeas.length}
+                    className="text-sm font-mono text-green-600 dark:text-green-400"
+                    duration={800}
+                  />
                   <span className="text-xs text-muted-foreground">Active</span>
-                </div>
+                </motion.div>
                 {newIdeasCount > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20"
+                  >
                     <Zap className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                    <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400">{newIdeasCount}</span>
+                    <AnimatedStat
+                      value={newIdeasCount}
+                      className="text-sm font-mono text-cyan-600 dark:text-cyan-400"
+                      duration={800}
+                    />
                     <span className="text-xs text-muted-foreground">New Today</span>
-                  </div>
+                  </motion.div>
                 )}
                 <UsageBadge className="hidden sm:flex" data-testid="badge-usage-remaining" />
               </div>
@@ -2113,6 +2134,16 @@ export default function TradeDeskPage() {
 
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
+
+      {/* Bot Activity Panel - Show AI bots working */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="max-w-md"
+      >
+        <BotActivityPanel />
+      </motion.div>
 
       {/* Best Setups - Top conviction plays */}
       <BestSetupsCard />
