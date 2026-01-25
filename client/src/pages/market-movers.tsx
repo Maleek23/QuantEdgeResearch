@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuroraBackground } from "@/components/aurora-background";
 import {
   Select,
   SelectContent,
@@ -67,8 +68,10 @@ export default function MarketMovers() {
   const [filter, setFilter] = useState("all");
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <AuroraBackground />
+      <div className="min-h-screen relative z-10 pb-20">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -244,5 +247,6 @@ export default function MarketMovers() {
         </motion.div>
       </div>
     </div>
+    </>
   );
 }

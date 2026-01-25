@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
+import { AuroraBackground } from "@/components/aurora-background";
 import {
   Users,
   TrendingUp,
@@ -42,8 +43,10 @@ const insiderHotStocks = [
 
 export default function SmartMoney() {
   return (
-    <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto">
+    <>
+      <AuroraBackground />
+      <div className="min-h-screen relative z-10 pb-20">
+        <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -220,5 +223,6 @@ export default function SmartMoney() {
         </motion.div>
       </div>
     </div>
+    </>
   );
 }

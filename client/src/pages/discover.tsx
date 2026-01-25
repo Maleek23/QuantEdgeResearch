@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
+import { AuroraBackground } from "@/components/aurora-background";
 import {
   TrendingUp,
   Star,
@@ -20,6 +21,8 @@ import {
   ArrowRight,
   Search,
   Sparkles,
+  Clock,
+  Eye,
 } from "lucide-react";
 
 const categories = [
@@ -64,8 +67,10 @@ export default function Discover() {
   const [activeTab, setActiveTab] = useState("market-lens");
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <AuroraBackground />
+      <div className="min-h-screen relative z-10 pb-20">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-semibold text-slate-100">Discover</h1>
@@ -104,7 +109,13 @@ export default function Discover() {
         <div className="grid grid-cols-12 gap-8">
           {/* Left Sidebar - Categories */}
           <div className="col-span-2">
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
+            <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20">
+              <div className="mb-4 pb-3 border-b border-cyan-500/20">
+                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  Categories
+                </h3>
+              </div>
               <nav className="space-y-1">
                 {categories.map((cat) => (
                   <button
@@ -113,8 +124,8 @@ export default function Discover() {
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-left",
                       activeCategory === cat.id
-                        ? "bg-cyan-500/10 text-cyan-400"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-cyan-500/10 border border-transparent"
                     )}
                     data-testid={`category-${cat.id}`}
                   >
@@ -137,27 +148,40 @@ export default function Discover() {
 
             {/* Featured Article Card */}
             {featuredArticles.map((article) => (
-              <Card 
+              <Card
                 key={article.id}
-                className="overflow-hidden bg-slate-900/60 border-slate-800 hover:border-slate-700 transition-all cursor-pointer group"
+                className="overflow-hidden bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group shadow-xl"
                 data-testid={`article-${article.id}`}
               >
-                <div className="aspect-[16/9] bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center relative">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-slate-600 mb-2">STOCK MARKET</div>
-                    <div className="text-lg text-slate-500">BULL VS BEAR</div>
+                <div className="aspect-[16/9] bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex items-center justify-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_50%)]" />
+                  <div className="text-center relative z-10">
+                    <div className="text-4xl font-bold text-slate-600 mb-2 group-hover:text-slate-500 transition-colors">STOCK MARKET</div>
+                    <div className="text-lg text-slate-500 group-hover:text-cyan-500/50 transition-colors">BULL VS BEAR</div>
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+                  <Badge className="absolute top-4 right-4 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                    <Star className="w-3 h-3 mr-1" />
+                    Featured
+                  </Badge>
                 </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-cyan-400 transition-colors">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-slate-100 mb-3 group-hover:text-cyan-400 transition-colors leading-tight">
                     {article.title}
                   </h3>
-                  <div className="flex items-center gap-3 text-sm text-slate-400">
-                    <span>{article.date}</span>
-                    <Badge variant="outline" className="text-xs border-slate-700">
-                      {article.category}
-                    </Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-sm text-slate-400">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {article.date}
+                      </div>
+                      <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400 bg-cyan-500/10">
+                        {article.category}
+                      </Badge>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Read <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -170,17 +194,22 @@ export default function Discover() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {breakingNews.map((news, i) => (
-                  <Card 
+                  <Card
                     key={i}
-                    className="p-4 bg-slate-900/60 border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
+                    className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group"
                     data-testid={`news-${i}`}
                   >
                     <div className="flex items-center gap-2 mb-2 text-xs text-slate-500">
+                      <Newspaper className="w-3 h-3 text-cyan-500/70" />
                       <span>{news.source}</span>
                       <span>•</span>
                       <span>{news.time}</span>
                     </div>
-                    <p className="text-sm text-slate-200 line-clamp-2">{news.title}</p>
+                    <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-cyan-400 transition-colors">{news.title}</p>
+                    <div className="mt-2 flex items-center text-xs text-cyan-500/70 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Eye className="w-3 h-3 mr-1" />
+                      Read more
+                    </div>
                   </Card>
                 ))}
               </div>
@@ -195,26 +224,32 @@ export default function Discover() {
                 View More <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sidebarArticles.map((article, i) => (
-                <div 
+                <Card
                   key={i}
-                  className="flex gap-3 cursor-pointer group"
+                  className="flex gap-3 cursor-pointer group p-3 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all"
                   data-testid={`sidebar-article-${i}`}
                 >
-                  <div className="w-20 h-14 rounded-lg bg-gradient-to-br from-slate-800 to-slate-700 flex-shrink-0" />
+                  <div className="w-20 h-14 rounded-lg bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.15),transparent)]" />
+                    <Newspaper className="w-6 h-6 text-slate-600 relative z-10" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-cyan-400 transition-colors">
+                    <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-cyan-400 transition-colors mb-1">
                       {article.title}
                     </p>
-                    <span className="text-xs text-slate-500 mt-1">{article.date}</span>
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Clock className="w-3 h-3" />
+                      {article.date}
+                    </div>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

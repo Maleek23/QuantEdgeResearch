@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { AuroraBackground } from "@/components/aurora-background";
 import {
   Sparkles,
   Star,
@@ -64,8 +65,10 @@ export default function AIStockPicker() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>("Value Investing");
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <AuroraBackground />
+      <div className="min-h-screen relative z-10 pb-20">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -236,6 +239,7 @@ export default function AIStockPicker() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

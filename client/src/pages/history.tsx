@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
+import { AuroraBackground } from "@/components/aurora-background";
 import {
   MessageSquare,
   FileText,
@@ -49,8 +50,10 @@ export default function History() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-5xl mx-auto">
+    <>
+      <AuroraBackground />
+      <div className="min-h-screen relative z-10 pb-20">
+        <div className="max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -199,5 +202,6 @@ export default function History() {
         </motion.div>
       </div>
     </div>
+    </>
   );
 }

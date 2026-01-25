@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useStockContext } from "@/contexts/stock-context";
 import {
   Search,
   TrendingUp,
@@ -27,6 +28,7 @@ import {
   BookOpen,
   ArrowRight,
   RefreshCw,
+  X,
 } from "lucide-react";
 
 type AnalysisType = 
@@ -127,6 +129,8 @@ export function ResearchHub() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const { currentStock, setCurrentStock } = useStockContext();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (searchQuery.length >= 1) {
@@ -140,8 +144,8 @@ export function ResearchHub() {
         { symbol: "PLTR", name: "Palantir Technologies", price: 78.90, change: 4.1 },
         { symbol: "MSFT", name: "Microsoft Corporation", price: 432.15, change: 0.95 },
         { symbol: "GOOGL", name: "Alphabet Inc.", price: 192.34, change: 1.1 },
-      ].filter(s => 
-        s.symbol.includes(upperQuery) || 
+      ].filter(s =>
+        s.symbol.includes(upperQuery) ||
         s.name.toUpperCase().includes(upperQuery)
       );
       setSearchResults(suggestions.slice(0, 6));
@@ -151,6 +155,47 @@ export function ResearchHub() {
       setShowSearchResults(false);
     }
   }, [searchQuery]);
+
+  const handleSelectStock = (stock: any) => {
+    setCurrentStock({
+      symbol: stock.symbol,
+      name: stock.name,
+      price: stock.price,
+      change: stock.change,
+    });
+    setSearchQuery("");
+    setShowSearchResults(false);
+  };
+
+  const handleRunResearch = (agentId: string) => {
+    if (!currentStock) {
+      // If no stock selected, prompt user to select one
+      alert("Please select a stock first using the search above or from the quick actions.");
+      return;
+    }
+
+    // Navigate to appropriate page based on agent type
+    switch (agentId) {
+      case "swing_trade":
+      case "technical":
+        setLocation(`/chart-analysis?symbol=${currentStock.symbol}`);
+        break;
+      case "buy_sell":
+        setLocation(`/ai-stock-picker?symbol=${currentStock.symbol}`);
+        break;
+      case "fundamental":
+        setLocation(`/options-analyzer?symbol=${currentStock.symbol}`);
+        break;
+      case "news_sentiment":
+        setLocation(`/smart-money?symbol=${currentStock.symbol}`);
+        break;
+      case "market_outlook":
+        setLocation(`/market-movers`);
+        break;
+      default:
+        setLocation(`/chart-analysis?symbol=${currentStock.symbol}`);
+    }
+  };
 
   const tradeAgents = analysisAgents.filter(a => a.category === "I want to trade");
   const investAgents = analysisAgents.filter(a => a.category === "I want to invest");
@@ -170,6 +215,66 @@ export function ResearchHub() {
             Specialized agents providing institutional-grade deep research across stocks, crypto, forex, and ETFs.
             Make confident trading and investing decisions 24/7.
           </p>
+
+          {/* Stock Search */}
+          <div className="max-w-md mx-auto mt-6 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Input
+              placeholder="Search ticker to analyze (e.g. AAPL, NVDA)..."
+              className="pl-10 bg-slate-900/60 border-slate-700 text-slate-100"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {showSearchResults && searchResults.length > 0 && (
+              <Card className="absolute top-full mt-2 w-full bg-slate-900 border-slate-700 overflow-hidden z-50">
+                {searchResults.map((result, i) => (
+                  <div
+                    key={i}
+                    className="p-3 hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-800 last:border-0"
+                    onClick={() => handleSelectStock(result)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-cyan-400">{result.symbol}</span>
+                        <span className="text-sm text-slate-400 ml-2">{result.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-slate-200">${result.price}</div>
+                        <div className={cn(
+                          "text-xs",
+                          result.change >= 0 ? "text-green-400" : "text-red-400"
+                        )}>
+                          {result.change >= 0 ? "+" : ""}{result.change}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </div>
+
+          {/* Current Stock Indicator */}
+          {currentStock && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mt-4 inline-flex items-center gap-3 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm text-slate-300">
+                Ready to analyze <span className="font-semibold text-cyan-400">{currentStock.symbol}</span>
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-slate-400 hover:text-white"
+                onClick={() => setCurrentStock(null)}
+              >
+                Clear
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* What do you want to do? */}
@@ -199,15 +304,23 @@ export function ResearchHub() {
                   <Card
                     key={agent.id}
                     className={cn(
-                      "p-4 cursor-pointer transition-all border",
+                      "p-4 cursor-pointer transition-all border group",
                       selectedAgent === agent.id
                         ? "bg-cyan-500/10 border-cyan-500/40"
-                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                        : "bg-slate-900/60 border-slate-800 hover:border-cyan-500/30"
                     )}
-                    onClick={() => setSelectedAgent(agent.id)}
+                    onClick={() => {
+                      setSelectedAgent(agent.id);
+                      handleRunResearch(agent.id);
+                    }}
                     data-testid={`agent-${agent.id}`}
                   >
-                    <div className="font-medium text-slate-200 mb-1">{agent.name}</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">
+                        {agent.name}
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                    </div>
                     <div className="text-xs text-slate-400 mb-2">{agent.description}</div>
                     <div className="flex gap-1 flex-wrap">
                       {agent.assets.map((asset) => (
@@ -235,15 +348,23 @@ export function ResearchHub() {
                   <Card
                     key={agent.id}
                     className={cn(
-                      "p-4 cursor-pointer transition-all border",
+                      "p-4 cursor-pointer transition-all border group",
                       selectedAgent === agent.id
                         ? "bg-cyan-500/10 border-cyan-500/40"
-                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                        : "bg-slate-900/60 border-slate-800 hover:border-cyan-500/30"
                     )}
-                    onClick={() => setSelectedAgent(agent.id)}
+                    onClick={() => {
+                      setSelectedAgent(agent.id);
+                      handleRunResearch(agent.id);
+                    }}
                     data-testid={`agent-${agent.id}`}
                   >
-                    <div className="font-medium text-slate-200 mb-1">{agent.name}</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">
+                        {agent.name}
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                    </div>
                     <div className="text-xs text-slate-400 mb-2">{agent.description}</div>
                     <div className="flex gap-1 flex-wrap">
                       {agent.assets.map((asset) => (
@@ -269,15 +390,23 @@ export function ResearchHub() {
                     <Card
                       key={agent.id}
                       className={cn(
-                        "p-4 cursor-pointer transition-all border",
+                        "p-4 cursor-pointer transition-all border group",
                         selectedAgent === agent.id
                           ? "bg-cyan-500/10 border-cyan-500/40"
-                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                          : "bg-slate-900/60 border-slate-800 hover:border-cyan-500/30"
                       )}
-                      onClick={() => setSelectedAgent(agent.id)}
+                      onClick={() => {
+                        setSelectedAgent(agent.id);
+                        handleRunResearch(agent.id);
+                      }}
                       data-testid={`agent-${agent.id}`}
                     >
-                      <div className="font-medium text-slate-200 mb-1">{agent.name}</div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">
+                          {agent.name}
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                      </div>
                       <div className="text-xs text-slate-400 mb-2">{agent.description}</div>
                       <div className="flex gap-1 flex-wrap">
                         {agent.assets.map((asset) => (
