@@ -93,6 +93,9 @@ const WSBTrending = lazy(() => import("@/pages/wsb-trending"));
 const SocialTrends = lazy(() => import("@/pages/social-trends"));
 const SmartAdvisor = lazy(() => import("@/pages/smart-advisor"));
 const ResearchHubPage = lazy(() => import("@/pages/research-hub"));
+const DiscoverPage = lazy(() => import("@/pages/discover"));
+const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
+const AIStockPickerPage = lazy(() => import("@/pages/ai-stock-picker"));
 
 function PageLoader() {
   return (
@@ -185,11 +188,11 @@ function Router() {
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
       <Route path="/research" component={withBetaProtection(ResearchHubPage)} />
-      <Route path="/discover" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
       <Route path="/market-movers" component={withBetaProtection(MarketScanner)} />
-      <Route path="/ai-stock-picker" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/ai-stock-picker" component={withBetaProtection(AIStockPickerPage)} />
       <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
-      <Route path="/smart-money" component={withBetaProtection(WhaleFlowPage)} />
+      <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
       <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
       <Route path="/history/chat" component={withBetaProtection(PerformancePage)} />
       <Route path="/history/research" component={withBetaProtection(PerformancePage)} />
