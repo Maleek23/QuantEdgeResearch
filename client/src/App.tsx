@@ -147,15 +147,18 @@ function Router() {
       {/* Whale Flow Monitor - Institutional Options Flow */}
       <Route path="/whale-flow" component={withBetaProtection(WhaleFlowPage)} />
 
-      {/* Redirect old dashboards to new unified Command Center */}
+      {/* Redirect old dashboards to Research (new home) */}
       <Route path="/home">
-        <Redirect to="/command-center-v2" />
+        <Redirect to="/research" />
       </Route>
       <Route path="/dashboard">
-        <Redirect to="/command-center-v2" />
+        <Redirect to="/research" />
       </Route>
       <Route path="/command-center">
-        <Redirect to="/command-center-v2" />
+        <Redirect to="/research" />
+      </Route>
+      <Route path="/command-center-v2">
+        <Redirect to="/research" />
       </Route>
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
@@ -182,6 +185,14 @@ function Router() {
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
       <Route path="/research" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/discover" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/market-movers" component={withBetaProtection(MarketScanner)} />
+      <Route path="/ai-stock-picker" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
+      <Route path="/smart-money" component={withBetaProtection(WhaleFlowPage)} />
+      <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
+      <Route path="/history/chat" component={withBetaProtection(PerformancePage)} />
+      <Route path="/history/research" component={withBetaProtection(PerformancePage)} />
       <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />

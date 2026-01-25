@@ -1,355 +1,245 @@
-import { useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft,
-  Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye, Brain, Activity, Sparkles
-} from "lucide-react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  useSidebar,
-  SidebarSeparator,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/components/theme-provider";
-import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
-import type { NavigationLayoutType, NavigationGroupType, NavigationItemType } from "@shared/schema";
+import {
+  Home,
+  Compass,
+  Search,
+  Eye,
+  TrendingUp,
+  Sparkles,
+  Zap,
+  Briefcase,
+  PieChart,
+  Clock,
+  MessageSquare,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  ArrowUpRight,
+  Mail,
+  HelpCircle,
+  Bell,
+} from "lucide-react";
+import { useState } from "react";
 
 interface NavItem {
+  id: string;
   title: string;
-  url: string;
   icon: any;
+  href: string;
   badge?: string;
-  adminOnly?: boolean;
+  children?: { title: string; href: string }[];
 }
 
-const iconMap: Record<string, any> = {
-  Activity,
-  TrendingUp,
-  Eye,
-  Target,
-  Upload,
-  BarChart2,
-  Brain,
-  BookOpen,
-  Settings,
-  Shield,
-  Home,
-  Database,
-  LineChart,
-  User,
-  FileBarChart,
-  LayoutDashboard,
-  Zap,
-  Sparkles,
-};
-
-const defaultNavItems: NavigationItemType[] = [
-  { id: "home", title: "Home", icon: "Home", href: "/" },
-  { id: "strategy-playbooks", title: "Strategy Playbooks", icon: "Zap", href: "/strategy-playbooks", badge: "NEW" },
-  { id: "command-center", title: "Command Center", icon: "Activity", href: "/command-center", badge: "NEW" },
-  { id: "research", title: "Research Hub", icon: "Brain", href: "/research", badge: "NEW" },
-  { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
-  { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
-  { id: "whale-flow", title: "Whale Flow", icon: "Target", href: "/whale-flow", badge: "NEW" },
-  { id: "wsb-trending", title: "WSB Trending", icon: "TrendingUp", href: "/wsb-trending", badge: "HOT" },
-  { id: "social-trends", title: "Social Trends", icon: "TrendingUp", href: "/social-trends", badge: "NEW" },
-  { id: "performance", title: "Performance", icon: "Target", href: "/performance" },
-  { id: "ai-learning", title: "AI Learning", icon: "Sparkles", href: "/learning", badge: "NEW" },
-  { id: "chart-analysis", title: "Chart Analysis", icon: "Upload", href: "/chart-analysis" },
-  { id: "options", title: "Options", icon: "BarChart2", href: "/options-analyzer" },
-  { id: "trends", title: "Trends", icon: "TrendingUp", href: "/bullish-trends" },
-  { id: "historical", title: "Historical", icon: "Brain", href: "/historical-intelligence" },
-  { id: "academy", title: "Academy", icon: "BookOpen", href: "/academy" },
-  { id: "blog", title: "Blog", icon: "BookOpen", href: "/blog" },
-  { id: "settings", title: "Settings", icon: "Settings", href: "/settings" },
-  { id: "admin", title: "Admin", icon: "Shield", href: "/admin", adminOnly: true },
+const navItems: NavItem[] = [
+  { 
+    id: "home", 
+    title: "Home", 
+    icon: Home, 
+    href: "/" 
+  },
+  { 
+    id: "discover", 
+    title: "Discover", 
+    icon: Compass, 
+    href: "/discover",
+    badge: "NEW"
+  },
+  { 
+    id: "research", 
+    title: "Research", 
+    icon: Search, 
+    href: "/research" 
+  },
+  { 
+    id: "watchlist", 
+    title: "Watchlist", 
+    icon: Eye, 
+    href: "/watchlist" 
+  },
+  { 
+    id: "market-movers", 
+    title: "Market Movers", 
+    icon: TrendingUp, 
+    href: "/market-movers" 
+  },
+  { 
+    id: "ai-stock-picker", 
+    title: "AI Stock Picker", 
+    icon: Sparkles, 
+    href: "/ai-stock-picker",
+    badge: "NEW"
+  },
+  { 
+    id: "smart-signals", 
+    title: "Smart Signals", 
+    icon: Zap, 
+    href: "/smart-signals" 
+  },
+  { 
+    id: "smart-money", 
+    title: "Smart Money", 
+    icon: Briefcase, 
+    href: "/smart-money" 
+  },
+  { 
+    id: "portfolio", 
+    title: "Portfolio Toolbox", 
+    icon: PieChart, 
+    href: "/portfolio" 
+  },
 ];
 
-const defaultLayout: NavigationLayoutType = {
-  version: 1,
-  groups: [
-    {
-      id: "trading",
-      title: "Trading",
-      items: defaultNavItems.filter(i => ["home", "strategy-playbooks", "command-center", "research", "trade-desk", "watchlist", "whale-flow", "wsb-trending", "social-trends"].includes(i.id)),
-    },
-    {
-      id: "analytics",
-      title: "Analytics",
-      items: defaultNavItems.filter(i => ["performance", "ai-learning", "chart-analysis", "options", "trends", "historical"].includes(i.id)),
-    },
-    {
-      id: "learn",
-      title: "Learn",
-      items: defaultNavItems.filter(i => ["academy", "blog"].includes(i.id)),
-    },
-    {
-      id: "account",
-      title: "Account",
-      items: defaultNavItems.filter(i => ["settings"].includes(i.id)),
-    },
-  ],
-};
-
-
-function SidebarHeaderContent() {
-  const [, setLocation] = useLocation();
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  return (
-    <div className="py-4 px-2">
-      <button 
-        onClick={() => setLocation("/trade-desk")} 
-        data-testid="nav-logo" 
-        className="flex items-center gap-3 cursor-pointer w-full"
-      >
-        <img 
-          src={quantEdgeLabsLogoUrl} 
-          alt="Quant Edge Labs" 
-          className="h-8 w-8 object-contain flex-shrink-0" 
-        />
-        {!isCollapsed && (
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground tracking-tight">Quant Edge</span>
-            <span className="text-[10px] text-muted-foreground">Labs</span>
-          </div>
-        )}
-      </button>
-    </div>
-  );
-}
-
-function SidebarToggleButton() {
-  const { toggleSidebar, state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggleSidebar}
-      className="h-8 w-8"
-      data-testid="button-toggle-sidebar"
-    >
-      {isCollapsed ? (
-        <PanelLeft className="h-4 w-4" />
-      ) : (
-        <PanelLeftClose className="h-4 w-4" />
-      )}
-    </Button>
-  );
-}
-
-function ThemeToggleButton() {
-  const { theme, setTheme } = useTheme();
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-      data-testid="button-theme-toggle-sidebar"
-      className="h-8 w-8"
-    >
-      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
-  );
-}
-
-function NavSection({ 
-  label, 
-  items, 
-  location, 
-  onNavigate,
-  showLabel = true,
-}: { 
-  label: string; 
-  items: NavigationItemType[]; 
-  location: string; 
-  onNavigate: (url: string) => void;
-  showLabel?: boolean;
-}) {
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  if (items.length === 0) return null;
-
-  return (
-    <SidebarGroup className="py-1.5 px-2">
-      {!isCollapsed && showLabel && (
-        <SidebarGroupLabel className="mb-1 px-2 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">
-          {label}
-        </SidebarGroupLabel>
-      )}
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-0.5">
-          {items.map((item) => {
-            const isActive = location === item.href;
-            const IconComponent = iconMap[item.icon] || Activity;
-            return (
-              <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton 
-                  isActive={isActive}
-                  onClick={() => onNavigate(item.href)}
-                  data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-').replace(/&/g, '')}`}
-                  tooltip={item.title}
-                  className={`
-                    h-9 px-2 rounded-md transition-colors
-                    ${isActive 
-                      ? 'bg-cyan-500/10 text-cyan-500 dark:text-cyan-400' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }
-                  `}
-                >
-                  <IconComponent className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-500 dark:text-cyan-400' : ''}`} />
-                  {!isCollapsed && (
-                    <span className="flex-1 truncate text-sm">{item.title}</span>
-                  )}
-                  {!isCollapsed && item.badge && (
-                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400">
-                      {item.badge}
-                    </span>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-}
+const historyItems = [
+  { title: "Chat History", href: "/history/chat", icon: MessageSquare },
+  { title: "Research History", href: "/history/research", icon: FileText },
+];
 
 export function AppSidebar() {
-  const [location, setLocation] = useLocation();
-  const { user } = useAuth();
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
-  const { data: savedLayout } = useQuery<NavigationLayoutType>({
-    queryKey: ['/api/navigation-layout'],
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const handleNavigation = useCallback((url: string) => {
-    setLocation(url);
-  }, [setLocation]);
-
-  const isAdmin = !!(user as any)?.isAdmin;
-
-  const navigationGroups = useMemo(() => {
-    const layout = savedLayout || defaultLayout;
-    
-    const hydrateItem = (item: NavigationItemType): NavigationItemType => {
-      const defaultItem = defaultNavItems.find(d => d.id === item.id);
-      if (defaultItem) {
-        return { ...defaultItem, ...item, icon: defaultItem.icon };
-      }
-      return item;
-    };
-    
-    const allSavedItemIds = new Set<string>();
-    const allSavedGroupIds = new Set<string>();
-    layout.groups.forEach(group => {
-      allSavedGroupIds.add(group.id);
-      group.items.forEach(item => allSavedItemIds.add(item.id));
-    });
-    
-    const groups = layout.groups.map(group => ({
-      ...group,
-      items: group.items
-        .map(hydrateItem)
-        .filter(item => !item.adminOnly || isAdmin),
-    })).filter(group => group.items.length > 0);
-    
-    defaultLayout.groups.forEach(defaultGroup => {
-      if (!allSavedGroupIds.has(defaultGroup.id)) {
-        const groupItems = defaultGroup.items
-          .filter(item => !allSavedItemIds.has(item.id))
-          .filter(item => !item.adminOnly || isAdmin);
-        if (groupItems.length > 0) {
-          groups.push({ ...defaultGroup, items: groupItems });
-          groupItems.forEach(item => allSavedItemIds.add(item.id));
-        }
-      }
-    });
-    
-    const missingDefaultItems = defaultNavItems.filter(
-      item => !allSavedItemIds.has(item.id) && (!item.adminOnly || isAdmin)
-    );
-    if (missingDefaultItems.length > 0 && groups.length > 0) {
-      groups[groups.length - 1].items.push(...missingDefaultItems);
-    }
-    
-    const hasAdminItems = groups.some(g => g.items.some(i => i.adminOnly));
-    if (isAdmin && !hasAdminItems) {
-      const adminItems = defaultNavItems.filter(i => i.adminOnly);
-      if (adminItems.length > 0) {
-        groups.push({
-          id: "admin-group",
-          title: "Admin",
-          items: adminItems,
-        });
-      }
-    }
-    
-    return groups;
-  }, [savedLayout, isAdmin]);
+  const [location] = useLocation();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/40">
-      <SidebarHeader className="border-b border-border/40">
-        <SidebarHeaderContent />
-      </SidebarHeader>
-      
-      <SidebarContent className="gap-0 py-2">
-        {navigationGroups.map((group, index) => (
-          <div key={group.id}>
-            {index > 0 && <SidebarSeparator className="my-1 mx-4 opacity-30" />}
-            <NavSection 
-              label={group.title} 
-              items={group.items} 
-              location={location} 
-              onNavigate={handleNavigation}
-            />
+    <Sidebar className="border-r border-slate-800/50 bg-slate-950">
+      <SidebarHeader className="p-4 border-b border-slate-800/50">
+        <Link href="/">
+          <div className="flex items-center gap-3 cursor-pointer group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">Q</span>
+            </div>
+            <span className="font-semibold text-slate-100 group-hover:text-white transition-colors">
+              Quant Edge
+            </span>
           </div>
-        ))}
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent className="px-2 py-4">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const isActive = location === item.href || 
+                  (item.href !== "/" && location.startsWith(item.href));
+                
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      className={cn(
+                        "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all",
+                        isActive 
+                          ? "bg-cyan-500/10 text-cyan-400" 
+                          : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                      )}
+                      data-testid={`nav-${item.id}`}
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="w-[18px] h-[18px]" />
+                        <span className="flex-1 text-sm font-medium">{item.title}</span>
+                        {item.badge && (
+                          <Badge 
+                            variant="outline" 
+                            className="text-[10px] px-1.5 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                          >
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+
+              {/* History with submenu */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setHistoryOpen(!historyOpen)}
+                  className={cn(
+                    "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer",
+                    historyOpen || location.startsWith("/history")
+                      ? "bg-slate-800/50 text-slate-100" 
+                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                  )}
+                  data-testid="nav-history"
+                >
+                  <Clock className="w-[18px] h-[18px]" />
+                  <span className="flex-1 text-sm font-medium">History</span>
+                  {historyOpen ? (
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  )}
+                </SidebarMenuButton>
+                
+                {historyOpen && (
+                  <SidebarMenuSub className="mt-1 ml-6 border-l border-slate-800 pl-3">
+                    {historyItems.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.href}>
+                        <SidebarMenuSubButton
+                          asChild
+                          className={cn(
+                            "px-3 py-2 rounded-md text-sm transition-all",
+                            location === subItem.href
+                              ? "text-cyan-400"
+                              : "text-slate-500 hover:text-slate-300"
+                          )}
+                        >
+                          <Link href={subItem.href}>
+                            <subItem.icon className="w-4 h-4 mr-2" />
+                            {subItem.title}
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                )}
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/40 p-2 mt-auto">
-        <div className={`flex items-center ${isCollapsed ? 'flex-col gap-1' : 'justify-between'}`}>
-          <SidebarToggleButton />
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleNavigation("/landing")}
-              className="h-8 w-8"
-              data-testid="button-landing-page"
-              title="View Landing Page"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <ThemeToggleButton />
+      <SidebarFooter className="p-4 border-t border-slate-800/50">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+          asChild
+        >
+          <Link href="/upgrade">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Upgrade</span>
+            <ArrowUpRight className="w-3 h-3 ml-auto" />
+          </Link>
+        </Button>
+        
+        <div className="mt-3 flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/50">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
+            <Mail className="w-3 h-3 text-white" />
           </div>
+          <span className="text-xs text-slate-400 truncate flex-1">
+            user@email.com
+          </span>
         </div>
       </SidebarFooter>
     </Sidebar>
   );
 }
+
+export default AppSidebar;
