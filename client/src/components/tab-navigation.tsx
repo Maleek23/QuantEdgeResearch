@@ -43,60 +43,17 @@ interface NavCategory {
   items: NavItem[];
 }
 
-const navCategories: NavCategory[] = [
-  {
-    id: "analysis",
-    label: "Analysis",
-    icon: BarChart3,
-    items: [
-      { label: "Trade Desk", href: "/trade-desk", icon: Brain, description: "All trade ideas & analysis" },
-      { label: "Stocks", href: "/trade-desk?asset=stock", icon: TrendingUp, description: "Stock trade ideas" },
-      { label: "Options", href: "/trade-desk?asset=option", icon: Target, description: "Options flow & setups" },
-      { label: "Futures", href: "/trade-desk?tab=futures", icon: Activity, description: "Futures market analysis" },
-      { label: "Crypto", href: "/trade-desk?asset=crypto", icon: Wallet, description: "Crypto trade signals" },
-      { label: "Chart Analysis", href: "/chart-analysis", icon: LineChart, description: "Technical chart patterns" },
-      { label: "Options Analyzer", href: "/options-analyzer", icon: Target, description: "Options risk lab" },
-      { label: "Smart Advisor", href: "/smart-advisor", icon: Sparkles, description: "AI trading advisor" },
-    ],
-  },
-  {
-    id: "scanners",
-    label: "Scanners",
-    icon: Activity,
-    items: [
-      { label: "Market Scanner", href: "/market-scanner", icon: Activity, description: "Real-time opportunities" },
-      { label: "Bullish Trends", href: "/bullish-trends", icon: TrendingUp, description: "Momentum stocks" },
-      { label: "Market Movers", href: "/market-movers", icon: Zap, description: "Top gainers & losers" },
-      { label: "AI Stock Picker", href: "/ai-stock-picker", icon: Sparkles, description: "ML-powered picks" },
-      { label: "WSB Trending", href: "/wsb-trending", icon: TrendingUp, description: "Reddit sentiment" },
-      { label: "Social Trends", href: "/social-trends", icon: Eye, description: "Social media buzz" },
-    ],
-  },
-  {
-    id: "bots",
-    label: "Bots",
-    icon: Bot,
-    items: [
-      { label: "Paper Trading", href: "/paper-trading", icon: Briefcase, description: "Practice trading" },
-      { label: "Automations", href: "/automations", icon: Zap, description: "Bot management" },
-      { label: "Watchlist Bot", href: "/watchlist-bot", icon: Eye, description: "Auto watchlist alerts" },
-      { label: "CT Tracker", href: "/ct-tracker", icon: Wallet, description: "Crypto signals" },
-      { label: "Wallet Tracker", href: "/wallet-tracker", icon: Wallet, description: "Crypto wallets" },
-    ],
-  },
-  {
-    id: "research",
-    label: "Research",
-    icon: Search,
-    items: [
-      { label: "Research Hub", href: "/research", icon: Search, description: "Central research" },
-      { label: "Discover", href: "/discover", icon: Eye, description: "News & catalysts" },
-      { label: "Watchlist", href: "/watchlist", icon: Eye, description: "Your tracked stocks" },
-      { label: "Backtest", href: "/backtest", icon: Clock, description: "Strategy testing" },
-      { label: "Performance", href: "/performance", icon: FileText, description: "Trade history" },
-    ],
-  },
+// Simplified navigation - Core 5 pages for Phase 2
+const mainPages: NavItem[] = [
+  { label: "Home", href: "/home", icon: Home },
+  { label: "Research", href: "/research", icon: Search },
+  { label: "Trade Desk", href: "/trade-desk", icon: Brain },
+  { label: "Chart", href: "/chart-analysis", icon: LineChart },
+  { label: "Discover", href: "/discover", icon: Sparkles },
 ];
+
+// Keep old structure for later phases (currently unused)
+const navCategories: NavCategory[] = [];
 
 function CategoryDropdown({ category, isActive }: { category: NavCategory; isActive: boolean }) {
   const [open, setOpen] = useState(false);
@@ -174,10 +131,6 @@ export function TabNavigation() {
     setLocation("/");
   };
 
-  const isInCategory = (category: NavCategory) => {
-    return category.items.some(item => location === item.href || location.startsWith(item.href + "/"));
-  };
-
   const userData = user as { email?: string; firstName?: string } | null;
 
   return (
@@ -197,31 +150,30 @@ export function TabNavigation() {
           </div>
         </Link>
 
-        {/* Home Link */}
-        <Link href="/home">
-          <div
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
-              location === "/home" || location === "/"
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-            data-testid="nav-home"
-          >
-            <Home className="h-4 w-4" />
-            <span className="hidden md:inline">Home</span>
-          </div>
-        </Link>
+        {/* Main Navigation - Simple Tabs */}
+        <nav className="flex items-center gap-2">
+          {mainPages.map((page) => {
+            const Icon = page.icon;
+            const isActive = location === page.href ||
+              (page.href === "/home" && location === "/");
 
-        {/* Category Tabs */}
-        <nav className="flex items-center gap-1">
-          {navCategories.map((category) => (
-            <CategoryDropdown
-              key={category.id}
-              category={category}
-              isActive={isInCategory(category)}
-            />
-          ))}
+            return (
+              <Link key={page.href} href={page.href}>
+                <div
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all",
+                    isActive
+                      ? "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20"
+                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                  )}
+                  data-testid={`nav-${page.label.toLowerCase()}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{page.label}</span>
+                </div>
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Spacer */}

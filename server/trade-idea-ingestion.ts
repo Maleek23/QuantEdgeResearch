@@ -139,10 +139,24 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
   }
   
   // Gate 3: Calculate expected confidence and check threshold
+  // Using calibrated formula that matches universal-idea-generator
   const minConfidence = SOURCE_THRESHOLDS[source] || 60;
   const signalWeight = input.signals.reduce((sum, s) => sum + (s.weight || 10), 0);
-  const estimatedConfidence = Math.min(100, 40 + signalWeight); // Base 40 + signal weights
-  
+  const signalCount = input.signals.length;
+  const saturationFactor = signalCount <= 2 ? 0.9 :
+                           signalCount === 3 ? 0.85 :
+                           signalCount === 4 ? 0.75 :
+                           signalCount >= 5 ? 0.65 : 0.8;
+  let estimatedConfidence = 38 + (signalWeight * saturationFactor); // Lower base (38)
+
+  // Apply soft ceiling at 92%
+  if (estimatedConfidence > 70) {
+    const excessConfidence = estimatedConfidence - 70;
+    const dampenedExcess = excessConfidence * (1 - excessConfidence / 100);
+    estimatedConfidence = 70 + dampenedExcess;
+  }
+  estimatedConfidence = Math.min(94, Math.max(0, Math.round(estimatedConfidence)));
+
   if (estimatedConfidence < minConfidence && input.signals.length < 3) {
     return {
       success: false,

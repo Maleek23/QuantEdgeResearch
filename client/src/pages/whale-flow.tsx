@@ -11,13 +11,38 @@ import { Target, RefreshCw, Settings, Bell, TrendingUp, TrendingDown, Activity }
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import WhaleFlowMonitor from '@/components/dashboard/whale-flow-monitor';
 import { cn } from '@/lib/utils';
+
+interface SectorFlow {
+  name: string;
+  flow: number;
+  change: number;
+}
 
 export default function WhaleFlowPage() {
   const { toast } = useToast();
   const [isScanning, setIsScanning] = useState(false);
+
+  // Fetch sector performance for flow estimation
+  const { data: sectorData, isLoading: sectorLoading } = useQuery<{
+    quotes: Record<string, { regularMarketChangePercent: number; regularMarketVolume: number }>
+  }>({
+    queryKey: ["/api/market-data/batch/XLK,XLF,XLV,XLY,XLE"],
+    refetchInterval: 60000,
+  });
+
+  // Fetch options flow data
+  const { data: flowData, isLoading: flowLoading, refetch: refetchFlow } = useQuery<{
+    flows: Array<{ sentiment: string; premium: number }>;
+    summary?: { bullishPercent: number; bearishPercent: number };
+  }>({
+    queryKey: ["/api/options/unusual-flow?limit=50"],
+    refetchInterval: 30000,
+  });
 
   const triggerScan = async () => {
     setIsScanning(true);
@@ -30,6 +55,7 @@ export default function WhaleFlowPage() {
           title: 'Scan Complete',
           description: 'Options flow scan completed successfully',
         });
+        refetchFlow();
       }
     } catch (error) {
       toast({
@@ -41,6 +67,34 @@ export default function WhaleFlowPage() {
       setIsScanning(false);
     }
   };
+
+  // Calculate sentiment from flow data
+  const flows = flowData?.flows || [];
+  const bullishFlows = flows.filter(f => f.sentiment === 'bullish' || f.sentiment === 'Bullish');
+  const bearishFlows = flows.filter(f => f.sentiment === 'bearish' || f.sentiment === 'Bearish');
+  const totalFlows = flows.length || 1;
+  const bullishPercent = flowData?.summary?.bullishPercent || Math.round((bullishFlows.length / totalFlows) * 100);
+  const bearishPercent = flowData?.summary?.bearishPercent || (100 - bullishPercent);
+  const overallSentiment = bullishPercent > 55 ? 'Bullish' : bullishPercent < 45 ? 'Bearish' : 'Neutral';
+
+  // Build sector data from real market data
+  const sectorMapping: Record<string, string> = {
+    XLK: 'Technology',
+    XLF: 'Financials',
+    XLV: 'Healthcare',
+    XLY: 'Consumer',
+    XLE: 'Energy',
+  };
+
+  const sectors: SectorFlow[] = sectorData?.quotes
+    ? Object.entries(sectorData.quotes)
+        .map(([symbol, data]) => ({
+          name: sectorMapping[symbol] || symbol,
+          flow: Math.abs(data.regularMarketVolume || 0) / 1000000, // Convert to millions
+          change: data.regularMarketChangePercent || 0,
+        }))
+        .sort((a, b) => b.flow - a.flow)
+    : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
@@ -140,69 +194,92 @@ export default function WhaleFlowPage() {
               <CardTitle className="text-sm font-medium text-gray-400">Market Sentiment</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Overall Flow</span>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    Bullish
-                  </Badge>
+              {flowLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 bg-gray-800" />
+                  <Skeleton className="h-12 bg-gray-800" />
+                  <Skeleton className="h-12 bg-gray-800" />
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">Overall Flow</span>
+                    <Badge className={cn(
+                      overallSentiment === 'Bullish' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                      overallSentiment === 'Bearish' && "bg-red-500/20 text-red-400 border-red-500/30",
+                      overallSentiment === 'Neutral' && "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                    )}>
+                      {overallSentiment === 'Bullish' && <TrendingUp className="w-3 h-3 mr-1" />}
+                      {overallSentiment === 'Bearish' && <TrendingDown className="w-3 h-3 mr-1" />}
+                      {overallSentiment}
+                    </Badge>
+                  </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-emerald-400">Bullish Flow</span>
-                    <span className="text-gray-400">68%</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-emerald-400">Bullish Flow</span>
+                      <span className="text-gray-400">{bullishPercent}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
+                        style={{ width: `${bullishPercent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[68%] bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" />
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-red-400">Bearish Flow</span>
-                    <span className="text-gray-400">32%</span>
-                  </div>
-                  <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[32%] bg-gradient-to-r from-red-500 to-red-400 rounded-full" />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-red-400">Bearish Flow</span>
+                      <span className="text-gray-400">{bearishPercent}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all"
+                        style={{ width: `${bearishPercent}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Top sectors */}
           <Card className="bg-gray-950/50 border-gray-800">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-400">Top Sectors by Flow</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-400">Top Sectors by Volume</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {[
-                  { name: 'Technology', flow: '$45.2M', change: '+12%', bullish: true },
-                  { name: 'Financials', flow: '$28.1M', change: '+8%', bullish: true },
-                  { name: 'Healthcare', flow: '$15.7M', change: '-3%', bullish: false },
-                  { name: 'Consumer', flow: '$12.3M', change: '+5%', bullish: true },
-                  { name: 'Energy', flow: '$8.9M', change: '-7%', bullish: false },
-                ].map((sector, i) => (
-                  <div key={sector.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 w-4">{i + 1}</span>
-                      <span className="text-sm text-white">{sector.name}</span>
+              {sectorLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-6 bg-gray-800" />
+                  ))}
+                </div>
+              ) : sectors.length > 0 ? (
+                <div className="space-y-3">
+                  {sectors.map((sector, i) => (
+                    <div key={sector.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-4">{i + 1}</span>
+                        <span className="text-sm text-white">{sector.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-cyan-400">{sector.flow.toFixed(1)}M</span>
+                        <span className={cn(
+                          "text-xs",
+                          sector.change >= 0 ? "text-emerald-400" : "text-red-400"
+                        )}>
+                          {sector.change >= 0 ? '+' : ''}{sector.change.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-cyan-400">{sector.flow}</span>
-                      <span className={cn(
-                        "text-xs",
-                        sector.bullish ? "text-emerald-400" : "text-red-400"
-                      )}>
-                        {sector.change}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No sector data available</p>
+              )}
             </CardContent>
           </Card>
 

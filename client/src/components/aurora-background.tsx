@@ -29,22 +29,24 @@ export function AuroraBackground() {
     resize();
     window.addEventListener("resize", resize);
 
-    const particleCount = 80;
+    // Fewer particles for subtlety
+    const particleCount = 50;
     particlesRef.current = Array.from({ length: particleCount }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      size: Math.random() * 3 + 1.5,
-      opacity: Math.random() * 0.4 + 0.2,
+      vx: (Math.random() - 0.5) * 0.25, // Slower movement
+      vy: (Math.random() - 0.5) * 0.25,
+      size: Math.random() * 1.5 + 0.5, // Smaller particles
+      opacity: Math.random() * 0.15 + 0.05, // Much lower opacity
     }));
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.strokeStyle = "rgba(34, 211, 238, 0.08)";
+      // Very faint grid - almost invisible
+      ctx.strokeStyle = "rgba(34, 211, 238, 0.02)";
       ctx.lineWidth = 1;
-      const gridSize = 40;
+      const gridSize = 60;
       for (let x = 0; x < canvas.width; x += gridSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -58,6 +60,7 @@ export function AuroraBackground() {
         ctx.stroke();
       }
 
+      // Draw particles
       particlesRef.current.forEach((particle) => {
         particle.x += particle.vx;
         particle.y += particle.vy;
@@ -71,14 +74,14 @@ export function AuroraBackground() {
         ctx.fill();
       });
 
-      // Draw connecting lines between nearby particles
+      // Draw connecting lines between nearby particles - very faint
       particlesRef.current.forEach((p1, i) => {
         particlesRef.current.slice(i + 1).forEach((p2) => {
           const dx = p1.x - p2.x;
           const dy = p1.y - p2.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance < 150) {
-            const opacity = (1 - distance / 150) * 0.25;
+          if (distance < 120) {
+            const opacity = (1 - distance / 120) * 0.08; // Much lower opacity
             ctx.beginPath();
             ctx.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
             ctx.lineWidth = 0.5;
@@ -88,32 +91,6 @@ export function AuroraBackground() {
           }
         });
       });
-
-      const gradient = ctx.createRadialGradient(
-        canvas.width * 0.2,
-        canvas.height * 0.3,
-        0,
-        canvas.width * 0.2,
-        canvas.height * 0.3,
-        canvas.width * 0.5
-      );
-      gradient.addColorStop(0, "rgba(34, 211, 238, 0.06)");
-      gradient.addColorStop(1, "transparent");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const gradient2 = ctx.createRadialGradient(
-        canvas.width * 0.8,
-        canvas.height * 0.7,
-        0,
-        canvas.width * 0.8,
-        canvas.height * 0.7,
-        canvas.width * 0.4
-      );
-      gradient2.addColorStop(0, "rgba(167, 139, 250, 0.04)");
-      gradient2.addColorStop(1, "transparent");
-      ctx.fillStyle = gradient2;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -132,7 +109,7 @@ export function AuroraBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none"
-      style={{ opacity: 0.6, zIndex: 0 }}
+      style={{ opacity: 0.4, zIndex: 0 }}
       data-testid="aurora-background"
     />
   );

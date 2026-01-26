@@ -4,225 +4,454 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { AuroraBackground } from "@/components/aurora-background";
 import {
   Users,
   TrendingUp,
+  TrendingDown,
   Building2,
   ChevronRight,
   ArrowRight,
-  Search,
   BarChart3,
   Briefcase,
   Eye,
+  RefreshCw,
+  DollarSign,
+  Activity,
 } from "lucide-react";
+import { getStockLogoUrl } from "@/lib/stock-logos";
 
-const insiderTrades = [
-  { symbol: "NVDA", name: "Jensen Huang", type: "CEO", action: "Buy", shares: "100,000", value: "$18.7M", date: "Jan 20, 2026" },
-  { symbol: "AAPL", name: "Tim Cook", type: "CEO", action: "Sell", shares: "50,000", value: "$12.4M", date: "Jan 19, 2026" },
-  { symbol: "TSLA", name: "Elon Musk", type: "CEO", action: "Buy", shares: "200,000", value: "$89.8M", date: "Jan 18, 2026" },
-  { symbol: "META", name: "Mark Zuckerberg", type: "CEO", action: "Sell", shares: "75,000", value: "$45.9M", date: "Jan 17, 2026" },
-  { symbol: "MSFT", name: "Satya Nadella", type: "CEO", action: "Buy", shares: "25,000", value: "$10.8M", date: "Jan 16, 2026" },
-];
+interface InsiderTrade {
+  symbol: string;
+  name?: string;
+  title?: string;
+  transactionType: string;
+  shares: number;
+  value: number;
+  date: string;
+}
 
-const analystRatings = [
-  { symbol: "PLTR", firm: "Goldman Sachs", rating: "Buy", target: "$95", change: "+15%", date: "Jan 20, 2026" },
-  { symbol: "NVDA", firm: "Morgan Stanley", rating: "Overweight", target: "$220", change: "+18%", date: "Jan 19, 2026" },
-  { symbol: "AMZN", firm: "JPMorgan", rating: "Buy", target: "$260", change: "+12%", date: "Jan 18, 2026" },
-  { symbol: "GOOGL", firm: "Barclays", rating: "Hold", target: "$200", change: "+5%", date: "Jan 17, 2026" },
-];
+interface AnalystRating {
+  symbol: string;
+  firm: string;
+  rating: string;
+  targetPrice: number;
+  previousPrice?: number;
+  date: string;
+}
 
-const insiderHotStocks = [
-  { symbol: "IONQ", insiderBuys: 12, value: "$4.2M", sector: "Quantum Computing" },
-  { symbol: "RKLB", insiderBuys: 8, value: "$2.8M", sector: "Space" },
-  { symbol: "SOUN", insiderBuys: 6, value: "$1.9M", sector: "AI/ML" },
-  { symbol: "SMR", insiderBuys: 5, value: "$3.1M", sector: "Nuclear" },
-];
+function formatValue(value: number): string {
+  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
+  return `$${value.toFixed(0)}`;
+}
+
+function formatShares(shares: number): string {
+  if (shares >= 1_000_000) return `${(shares / 1_000_000).toFixed(1)}M`;
+  if (shares >= 1_000) return `${(shares / 1_000).toFixed(1)}K`;
+  return shares.toString();
+}
 
 export default function SmartMoney() {
+  // Fetch insider trades data
+  const { data: insiderData, isLoading: insiderLoading, refetch: refetchInsider } = useQuery<{
+    trades: InsiderTrade[];
+  }>({
+    queryKey: ["/api/market/insider-trades?limit=10"],
+    refetchInterval: 300000,
+  });
+
+  // Fetch analyst ratings
+  const { data: analystData, isLoading: analystLoading } = useQuery<{
+    ratings: AnalystRating[];
+  }>({
+    queryKey: ["/api/market/analyst-ratings?limit=8"],
+    refetchInterval: 300000,
+  });
+
+  // Fetch top movers for hot stocks
+  const { data: moversData, isLoading: moversLoading } = useQuery<{
+    gainers: Array<{ symbol: string; change: number; price: number; volume: number }>;
+  }>({
+    queryKey: ["/api/market/top-movers"],
+    refetchInterval: 60000,
+  });
+
+  // Fetch options flow for whale activity
+  const { data: flowData, isLoading: flowLoading } = useQuery<{
+    flows: Array<{
+      symbol: string;
+      type: string;
+      strike: number;
+      expiry: string;
+      premium: number;
+      sentiment: string;
+    }>;
+  }>({
+    queryKey: ["/api/options/unusual-flow?limit=6"],
+    refetchInterval: 120000,
+  });
+
+  const insiderTrades = insiderData?.trades || [];
+  const analystRatings = analystData?.ratings || [];
+  const hotStocks = moversData?.gainers?.slice(0, 4) || [];
+  const optionsFlow = flowData?.flows || [];
+
+  const totalInsiderValue = insiderTrades.reduce((sum, t) => sum + (t.value || 0), 0);
+  const buyCount = insiderTrades.filter((t) => t.transactionType === "Buy" || t.transactionType === "P-Purchase").length;
+
   return (
     <>
       <AuroraBackground />
       <div className="min-h-screen relative z-10 pb-20">
         <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10"
-        >
-          <h1 className="text-3xl font-semibold text-slate-100 mb-3">Smart Money</h1>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Ever wonder what the pros are buying before stocks take off? Stop guessing and start
-            following the money. See what insiders, Wall Street analysts, Congress members, and
-            billionaire investors are actually buying—all in real time.
-          </p>
-        </motion.div>
-
-        {/* Stats Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="p-8 bg-gradient-to-br from-cyan-500/5 to-purple-500/5 border-cyan-500/20 text-center mb-10">
-            <div className="text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-3">
-              10,000+
-            </div>
-            <p className="text-lg font-medium text-slate-200 mb-2">
-              Insiders, Analysts & Billionaire Investors Tracked
-            </p>
-            <p className="text-sm text-slate-400">
-              We watch them so you don't have to—see their moves in real time
-            </p>
-          </Card>
-        </motion.div>
-
-        {/* Action Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
-        >
-          <Card 
-            className="p-6 bg-slate-900/60 border-slate-800 hover:border-cyan-500/30 transition-all cursor-pointer group"
-            data-testid="card-analyst-ratings"
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-cyan-400" />
+            <h1 className="text-3xl font-semibold text-slate-100 mb-3">Smart Money</h1>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Track insider trades, institutional activity, and analyst ratings in real-time.
+              Follow where the smart money is flowing.
+            </p>
+          </motion.div>
+
+          {/* Stats Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10"
+          >
+            <Card className="p-5 bg-slate-900/60 border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                  <Users className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-100">Analyst Stock Ratings</h3>
-                  <p className="text-sm text-slate-400">Latest Wall Street calls</p>
+                  <p className="text-sm text-slate-400">Insider Trades</p>
+                  <p className="text-2xl font-bold text-white">{insiderTrades.length}</p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-            </div>
-          </Card>
+            </Card>
 
-          <Card 
-            className="p-6 bg-slate-900/60 border-slate-800 hover:border-purple-500/30 transition-all cursor-pointer group"
-            data-testid="card-insider-hot"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
-                  <Briefcase className="w-6 h-6 text-purple-400" />
+            <Card className="p-5 bg-slate-900/60 border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <DollarSign className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-100">Insider Hot Stocks</h3>
-                  <p className="text-sm text-slate-400">Where insiders are buying</p>
+                  <p className="text-sm text-slate-400">Total Value</p>
+                  <p className="text-2xl font-bold text-emerald-400">{formatValue(totalInsiderValue)}</p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
-            </div>
-          </Card>
-        </motion.div>
+            </Card>
 
-        {/* Recent Insider Trades Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
-            <div className="p-5 border-b border-slate-800">
-              <h3 className="text-lg font-semibold text-slate-100">Recent Insider Trades</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-800 text-sm text-slate-400">
-                    <th className="text-left p-4 font-medium">Symbol</th>
-                    <th className="text-left p-4 font-medium">Insider</th>
-                    <th className="text-left p-4 font-medium">Type</th>
-                    <th className="text-left p-4 font-medium">Action</th>
-                    <th className="text-right p-4 font-medium">Shares</th>
-                    <th className="text-right p-4 font-medium">Value</th>
-                    <th className="text-right p-4 font-medium">Date</th>
-                    <th className="text-center p-4 font-medium">Research</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {insiderTrades.map((trade, i) => (
-                    <tr 
-                      key={i} 
-                      className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
-                      data-testid={`insider-trade-${i}`}
-                    >
-                      <td className="p-4">
-                        <span className="font-semibold text-cyan-400">{trade.symbol}</span>
-                      </td>
-                      <td className="p-4 text-slate-200">{trade.name}</td>
-                      <td className="p-4 text-slate-400 text-sm">{trade.type}</td>
-                      <td className="p-4">
-                        <Badge 
-                          className={cn(
-                            "text-xs",
-                            trade.action === "Buy" 
-                              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
-                              : "bg-red-500/20 text-red-400 border-red-500/30"
-                          )}
-                        >
-                          {trade.action}
-                        </Badge>
-                      </td>
-                      <td className="p-4 text-right text-slate-200 font-mono">{trade.shares}</td>
-                      <td className="p-4 text-right text-slate-200 font-mono">{trade.value}</td>
-                      <td className="p-4 text-right text-slate-400 text-sm">{trade.date}</td>
-                      <td className="p-4 text-center">
-                        <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300">
-                          <Eye className="w-4 h-4 mr-1" />
-                          Run Research
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="p-4 text-center border-t border-slate-800">
-              <Button variant="ghost" className="text-cyan-400">
-                View More <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Insider Hot Stocks Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mt-8"
-        >
-          <h3 className="text-lg font-semibold text-slate-100 mb-4">Insider Hot Stocks This Week</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {insiderHotStocks.map((stock, i) => (
-              <Card 
-                key={i}
-                className="p-4 bg-slate-900/60 border-slate-800 hover:border-emerald-500/30 transition-all cursor-pointer"
-                data-testid={`hot-stock-${stock.symbol}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-bold text-cyan-400">{stock.symbol}</span>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                    {stock.insiderBuys} buys
-                  </Badge>
+            <Card className="p-5 bg-slate-900/60 border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                  <TrendingUp className="w-5 h-5 text-purple-400" />
                 </div>
-                <div className="text-lg font-semibold text-slate-100 mb-1">{stock.value}</div>
-                <div className="text-xs text-slate-400">{stock.sector}</div>
+                <div>
+                  <p className="text-sm text-slate-400">Buy Signals</p>
+                  <p className="text-2xl font-bold text-purple-400">{buyCount}</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-slate-900/60 border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <Activity className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400">Options Flow</p>
+                  <p className="text-2xl font-bold text-amber-400">{optionsFlow.length}</p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Action Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
+          >
+            <Link href="/whale-flow">
+              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-cyan-500/30 transition-all cursor-pointer group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                      <BarChart3 className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-100">Whale Flow Monitor</h3>
+                      <p className="text-sm text-slate-400">Large options activity</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                </div>
               </Card>
-            ))}
-          </div>
-        </motion.div>
+            </Link>
+
+            <Link href="/market-movers">
+              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-purple-500/30 transition-all cursor-pointer group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+                      <Briefcase className="w-6 h-6 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-100">Market Movers</h3>
+                      <p className="text-sm text-slate-400">Top gainers and losers</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                </div>
+              </Card>
+            </Link>
+          </motion.div>
+
+          {/* Recent Insider Trades Table */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
+              <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-100">Recent Insider Trades</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refetchInsider()}
+                  className="text-slate-400 hover:text-cyan-400"
+                >
+                  <RefreshCw className={cn("w-4 h-4", insiderLoading && "animate-spin")} />
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                {insiderLoading ? (
+                  <div className="p-4 space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Skeleton key={i} className="h-14 bg-slate-800" />
+                    ))}
+                  </div>
+                ) : insiderTrades.length > 0 ? (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-sm text-slate-400">
+                        <th className="text-left p-4 font-medium">Symbol</th>
+                        <th className="text-left p-4 font-medium">Insider</th>
+                        <th className="text-left p-4 font-medium">Type</th>
+                        <th className="text-right p-4 font-medium">Shares</th>
+                        <th className="text-right p-4 font-medium">Value</th>
+                        <th className="text-right p-4 font-medium">Date</th>
+                        <th className="text-center p-4 font-medium">Research</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insiderTrades.map((trade, i) => {
+                        const isBuy = trade.transactionType === "Buy" || trade.transactionType === "P-Purchase";
+                        return (
+                          <tr
+                            key={i}
+                            className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={getStockLogoUrl(trade.symbol)}
+                                  alt={trade.symbol}
+                                  className="w-8 h-8 rounded-full bg-slate-800"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = "none";
+                                  }}
+                                />
+                                <span className="font-semibold text-cyan-400">{trade.symbol}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div>
+                                <span className="text-slate-200">{trade.name || "Corporate Insider"}</span>
+                                {trade.title && (
+                                  <p className="text-xs text-slate-500">{trade.title}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge
+                                className={cn(
+                                  "text-xs",
+                                  isBuy
+                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                    : "bg-red-500/20 text-red-400 border-red-500/30"
+                                )}
+                              >
+                                {isBuy ? (
+                                  <TrendingUp className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <TrendingDown className="w-3 h-3 mr-1" />
+                                )}
+                                {isBuy ? "Buy" : "Sell"}
+                              </Badge>
+                            </td>
+                            <td className="p-4 text-right text-slate-200 font-mono">
+                              {formatShares(trade.shares)}
+                            </td>
+                            <td className="p-4 text-right text-slate-200 font-mono">
+                              {formatValue(trade.value)}
+                            </td>
+                            <td className="p-4 text-right text-slate-400 text-sm">
+                              {new Date(trade.date).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </td>
+                            <td className="p-4 text-center">
+                              <Link href={`/chart-analysis?symbol=${trade.symbol}`}>
+                                <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300">
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  Analyze
+                                </Button>
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-12 text-center text-slate-500">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No insider trades available</p>
+                    <p className="text-sm mt-1">Check back later for updates</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Options Flow + Hot Stocks Grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"
+          >
+            {/* Unusual Options Flow */}
+            <Card className="bg-slate-900/60 border-slate-800">
+              <div className="p-5 border-b border-slate-800">
+                <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-amber-400" />
+                  Unusual Options Flow
+                </h3>
+              </div>
+              <div className="p-4">
+                {flowLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 bg-slate-800" />
+                    ))}
+                  </div>
+                ) : optionsFlow.length > 0 ? (
+                  <div className="space-y-3">
+                    {optionsFlow.slice(0, 5).map((flow, i) => (
+                      <Link key={i} href={`/chart-analysis?symbol=${flow.symbol}`}>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-cyan-400">{flow.symbol}</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs",
+                                flow.type === "Call"
+                                  ? "border-emerald-500/30 text-emerald-400"
+                                  : "border-red-500/30 text-red-400"
+                              )}
+                            >
+                              {flow.type}
+                            </Badge>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-white font-mono">{formatValue(flow.premium)}</p>
+                            <p className="text-xs text-slate-500">${flow.strike} strike</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-slate-500">
+                    <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No unusual flow detected</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Hot Stocks */}
+            <Card className="bg-slate-900/60 border-slate-800">
+              <div className="p-5 border-b border-slate-800">
+                <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  Today's Hot Stocks
+                </h3>
+              </div>
+              <div className="p-4">
+                {moversLoading ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-24 bg-slate-800" />
+                    ))}
+                  </div>
+                ) : hotStocks.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {hotStocks.map((stock) => (
+                      <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
+                        <Card className="p-4 bg-slate-800/50 border-slate-700 hover:border-emerald-500/30 transition-all cursor-pointer">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={getStockLogoUrl(stock.symbol)}
+                                alt={stock.symbol}
+                                className="w-6 h-6 rounded-full bg-slate-700"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                              <span className="font-bold text-cyan-400">{stock.symbol}</span>
+                            </div>
+                            <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
+                              +{stock.change?.toFixed(1)}%
+                            </Badge>
+                          </div>
+                          <div className="text-lg font-semibold text-slate-100">
+                            ${stock.price?.toFixed(2)}
+                          </div>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-slate-500">
+                    <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No market data available</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        </div>
       </div>
-    </div>
     </>
   );
 }

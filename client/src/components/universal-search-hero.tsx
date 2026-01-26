@@ -31,6 +31,7 @@ import {
   Activity,
 } from 'lucide-react';
 import type { SearchResponse, AnySearchResult, SearchSuggestion, TrendingSearch } from '@shared/search-types';
+import { getStockLogoUrl, getSymbolInitials } from '@/lib/stock-logos';
 
 const RECENT_SEARCHES_KEY = 'quant_edge_recent_searches_v2';
 
@@ -309,30 +310,52 @@ export function UniversalSearchHero({
               {/* Suggestions (short query) */}
               {query.length > 0 && query.length < 3 && suggestions && suggestions.length > 0 && (
                 <div className="space-y-1">
-                  {suggestions.map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setQuery(suggestion.text)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
-                    >
-                      {suggestion.icon ? (
-                        <span className="text-lg">{suggestion.icon}</span>
-                      ) : (
-                        getCategoryIcon(suggestion.category)
-                      )}
-                      <div className="flex-1">
-                        <div className="font-medium">{suggestion.text}</div>
-                        {suggestion.metadata?.companyName && (
-                          <div className="text-xs text-muted-foreground">
-                            {suggestion.metadata.companyName}
+                  {suggestions.map((suggestion, idx) => {
+                    const isStock = suggestion.category === 'stocks';
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setQuery(suggestion.text)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
+                      >
+                        {isStock ? (
+                          <div className="w-9 h-9 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <img
+                              src={getStockLogoUrl(suggestion.text)}
+                              alt={suggestion.text}
+                              className="w-6 h-6 object-contain"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const fallback = document.createElement('span');
+                                  fallback.className = 'text-xs font-bold text-teal-400';
+                                  fallback.textContent = getSymbolInitials(suggestion.text);
+                                  parent.appendChild(fallback);
+                                }
+                              }}
+                            />
                           </div>
+                        ) : suggestion.icon ? (
+                          <span className="text-lg">{suggestion.icon}</span>
+                        ) : (
+                          getCategoryIcon(suggestion.category)
                         )}
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {getCategoryLabel(suggestion.category)}
-                      </Badge>
-                    </button>
-                  ))}
+                        <div className="flex-1">
+                          <div className="font-medium">{suggestion.text}</div>
+                          {suggestion.metadata?.companyName && (
+                            <div className="text-xs text-muted-foreground">
+                              {suggestion.metadata.companyName}
+                            </div>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {getCategoryLabel(suggestion.category)}
+                        </Badge>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -349,47 +372,100 @@ export function UniversalSearchHero({
                         </Badge>
                       </div>
                       <div className="space-y-1">
-                        {categoryGroup.results.slice(0, 5).map(result => (
-                          <button
-                            key={result.id}
-                            onClick={() => handleResultClick(result)}
-                            className="w-full flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left group"
-                          >
-                            <div className="mt-0.5">
-                              {result.icon ? (
-                                <span className="text-lg">{result.icon}</span>
+                        {categoryGroup.results.slice(0, 5).map(result => {
+                          const isStock = result.category === 'stocks';
+                          const stockResult = result as any;
+
+                          return (
+                            <button
+                              key={result.id}
+                              onClick={() => handleResultClick(result)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left group"
+                            >
+                              {/* Logo/Icon */}
+                              {isStock ? (
+                                <div className="relative w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                  <img
+                                    src={getStockLogoUrl(stockResult.symbol || result.title)}
+                                    alt={stockResult.symbol || result.title}
+                                    className="w-7 h-7 object-contain"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        const fallback = document.createElement('span');
+                                        fallback.className = 'text-sm font-bold text-teal-400';
+                                        fallback.textContent = getSymbolInitials(stockResult.symbol || result.title);
+                                        parent.appendChild(fallback);
+                                      }
+                                    }}
+                                  />
+                                </div>
                               ) : (
-                                getCategoryIcon(result.category)
+                                <div className="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center flex-shrink-0">
+                                  {result.icon ? (
+                                    <span className="text-lg">{result.icon}</span>
+                                  ) : (
+                                    getCategoryIcon(result.category)
+                                  )}
+                                </div>
                               )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium flex items-center gap-2">
-                                {result.title}
-                                {result.category === 'stocks' && (result as any).grade && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Grade: {(result as any).grade}
-                                  </Badge>
-                                )}
-                                {result.category === 'ideas' && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {(result as any).confidence}% confidence
-                                  </Badge>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  {isStock ? (
+                                    <>
+                                      <span className="font-bold text-teal-400">{stockResult.symbol || result.title}</span>
+                                      {stockResult.grade && (
+                                        <Badge variant="outline" className={cn(
+                                          "text-[10px] px-1.5 py-0",
+                                          stockResult.grade?.startsWith('A') ? "border-teal-500/50 text-teal-400" :
+                                          stockResult.grade?.startsWith('B') ? "border-cyan-500/50 text-cyan-400" :
+                                          "border-amber-500/50 text-amber-400"
+                                        )}>
+                                          {stockResult.grade}
+                                        </Badge>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="font-medium">{result.title}</span>
+                                  )}
+                                  {result.category === 'ideas' && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {(result as any).confidence}%
+                                    </Badge>
+                                  )}
+                                </div>
+                                {result.subtitle && (
+                                  <div className="text-sm text-muted-foreground truncate">
+                                    {result.subtitle}
+                                  </div>
                                 )}
                               </div>
-                              {result.subtitle && (
-                                <div className="text-sm text-muted-foreground">
-                                  {result.subtitle}
+
+                              {/* Price info for stocks */}
+                              {isStock && stockResult.price && (
+                                <div className="text-right flex-shrink-0">
+                                  <div className="text-sm font-mono font-medium">
+                                    ${stockResult.price?.toFixed(2)}
+                                  </div>
+                                  {stockResult.changePercent !== undefined && (
+                                    <div className={cn(
+                                      "text-xs font-mono",
+                                      stockResult.changePercent >= 0 ? "text-emerald-400" : "text-red-400"
+                                    )}>
+                                      {stockResult.changePercent >= 0 ? '+' : ''}{stockResult.changePercent?.toFixed(2)}%
+                                    </div>
+                                  )}
                                 </div>
                               )}
-                              {result.description && (
-                                <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {result.description}
-                                </div>
-                              )}
-                            </div>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
-                          </button>
-                        ))}
+
+                              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { AuroraBackground } from "@/components/aurora-background";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles,
   Star,
@@ -15,6 +17,7 @@ import {
   Eye,
   Plus,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 
 const dashboardItems = [
@@ -53,16 +56,29 @@ const strategies = [
   },
 ];
 
-const topPicks = [
-  { symbol: "", price: 169.03, sector: "Technology", entryDate: "2026-01-24", marketCap: "33.38B" },
-  { symbol: "", price: 108.10, sector: "Healthcare", entryDate: "2026-01-24", marketCap: "49.12B" },
-  { symbol: "", price: 102.23, sector: "Industrials", entryDate: "2026-01-24", marketCap: "12.6B" },
-  { symbol: "", price: 27.10, sector: "Energy", entryDate: "2026-01-24", marketCap: "10.08B" },
-  { symbol: "", price: 236.39, sector: "Financials", entryDate: "2026-01-24", marketCap: "81.03B" },
-];
+// Real data interface for trade ideas
+interface TradeIdeaPick {
+  id: number;
+  symbol: string;
+  entryPrice: number;
+  sector?: string;
+  createdAt: string;
+  confidenceScore: number;
+  direction: string;
+  source: string;
+  currentPrice?: number;
+}
 
 export default function AIStockPicker() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>("Value Investing");
+
+  // Fetch real AI trade ideas from the API
+  const { data: topPicksData, isLoading: isLoadingPicks } = useQuery<{ ideas: TradeIdeaPick[] }>({
+    queryKey: ["/api/trade-ideas/best-setups"],
+    refetchInterval: 60000,
+  });
+
+  const topPicks = topPicksData?.ideas?.slice(0, 10) || [];
 
   return (
     <>
@@ -183,49 +199,91 @@ export default function AIStockPicker() {
                   <thead>
                     <tr className="border-b border-slate-800 text-sm text-slate-400">
                       <th className="text-left p-4 font-medium">Symbol</th>
-                      <th className="text-right p-4 font-medium">Price($)</th>
-                      <th className="text-left p-4 font-medium">Sector</th>
+                      <th className="text-right p-4 font-medium">Price</th>
+                      <th className="text-left p-4 font-medium">Direction</th>
                       <th className="text-left p-4 font-medium">Entry Date</th>
                       <th className="text-right p-4 font-medium">
-                        Market Cap($)
+                        AI Confidence
                         <ChevronDown className="w-3 h-3 inline ml-1" />
                       </th>
-                      <th className="text-center p-4 font-medium">AI Research</th>
+                      <th className="text-center p-4 font-medium">View Chart</th>
                       <th className="text-center p-4 font-medium">Add To Watch</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {topPicks.map((pick, i) => (
-                      <tr 
-                        key={i} 
-                        className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
-                        data-testid={`top-pick-${i}`}
-                      >
-                        <td className="p-4">
-                          <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center">
-                            <Briefcase className="w-4 h-4 text-slate-500" />
-                          </div>
-                        </td>
-                        <td className="p-4 text-right text-slate-200 font-mono">{pick.price.toFixed(2)}</td>
-                        <td className="p-4">
-                          <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center">
-                            <Briefcase className="w-4 h-4 text-slate-500" />
-                          </div>
-                        </td>
-                        <td className="p-4 text-slate-400 text-sm">{pick.entryDate}</td>
-                        <td className="p-4 text-right text-slate-200">{pick.marketCap}</td>
-                        <td className="p-4 text-center">
-                          <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </td>
-                        <td className="p-4 text-center">
-                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-200">
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                    {isLoadingPicks ? (
+                      // Loading skeleton rows
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="border-b border-slate-800/50">
+                          <td className="p-4"><Skeleton className="h-8 w-16 bg-slate-800" /></td>
+                          <td className="p-4"><Skeleton className="h-4 w-20 bg-slate-800 ml-auto" /></td>
+                          <td className="p-4"><Skeleton className="h-6 w-24 bg-slate-800" /></td>
+                          <td className="p-4"><Skeleton className="h-4 w-24 bg-slate-800" /></td>
+                          <td className="p-4"><Skeleton className="h-4 w-16 bg-slate-800 ml-auto" /></td>
+                          <td className="p-4"><Skeleton className="h-8 w-8 bg-slate-800 mx-auto rounded" /></td>
+                          <td className="p-4"><Skeleton className="h-8 w-8 bg-slate-800 mx-auto rounded" /></td>
+                        </tr>
+                      ))
+                    ) : topPicks.length > 0 ? (
+                      topPicks.map((pick, i) => (
+                        <tr
+                          key={pick.id || i}
+                          className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                          data-testid={`top-pick-${i}`}
+                        >
+                          <td className="p-4">
+                            <Link href={`/chart-analysis?symbol=${pick.symbol}`}>
+                              <span className="font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer">
+                                {pick.symbol}
+                              </span>
+                            </Link>
+                          </td>
+                          <td className="p-4 text-right text-slate-200 font-mono">
+                            ${(pick.currentPrice || pick.entryPrice)?.toFixed(2) || 'N/A'}
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className={cn(
+                              "text-xs",
+                              pick.direction === 'long' || pick.direction === 'bullish'
+                                ? "border-emerald-500/50 text-emerald-400"
+                                : "border-red-500/50 text-red-400"
+                            )}>
+                              {pick.direction === 'long' || pick.direction === 'bullish' ? '↑ Bullish' : '↓ Bearish'}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-slate-400 text-sm">
+                            {new Date(pick.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="p-4 text-right">
+                            <span className={cn(
+                              "font-semibold",
+                              pick.confidenceScore >= 80 ? "text-emerald-400" :
+                              pick.confidenceScore >= 60 ? "text-amber-400" : "text-slate-400"
+                            )}>
+                              {pick.confidenceScore?.toFixed(0) || 0}%
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <Link href={`/chart-analysis?symbol=${pick.symbol}`}>
+                              <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                          </td>
+                          <td className="p-4 text-center">
+                            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-slate-200">
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-500">
+                          No AI stock picks available at the moment. Check back later.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

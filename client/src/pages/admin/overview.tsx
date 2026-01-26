@@ -19,6 +19,9 @@ import {
   Eye,
   MousePointer,
   BarChart3,
+  Bot,
+  Brain,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -260,14 +263,50 @@ function AdminOverviewContent() {
     }
   });
 
+  // Bot activity stats
+  const { data: tradeIdeasData, isLoading: ideasLoading } = useQuery<{ ideas: any[] }>({
+    queryKey: ['/api/trade-ideas?limit=100'],
+    refetchInterval: 60000,
+  });
+
   const totalUsers = users?.length || 0;
   const proUsers = users?.filter((u: any) => u.subscriptionTier === 'pro')?.length || 0;
   const waitlistCount = waitlistData?.waitlist?.length || waitlistData?.length || 0;
-  const pendingWaitlist = waitlistData?.waitlist?.filter((w: any) => w.status === 'pending')?.length || 
+  const pendingWaitlist = waitlistData?.waitlist?.filter((w: any) => w.status === 'pending')?.length ||
     waitlistData?.filter?.((w: any) => w.status === 'pending')?.length || 0;
   const totalInvites = invitesData?.invites?.length || invitesData?.length || 0;
   const redeemedInvites = invitesData?.invites?.filter((i: any) => i.status === 'redeemed')?.length ||
     invitesData?.filter?.((i: any) => i.status === 'redeemed')?.length || 0;
+
+  // Calculate bot activity stats
+  const ideas = tradeIdeasData?.ideas || [];
+  const botSourceMap: Record<string, { label: string; color: string; icon: any }> = {
+    quant_signal: { label: "Quant Bot", color: "text-purple-400", icon: BarChart3 },
+    bot_screener: { label: "Screener Bot", color: "text-cyan-400", icon: Target },
+    ai_analysis: { label: "AI Bot", color: "text-amber-400", icon: Brain },
+    options_flow: { label: "Flow Bot", color: "text-green-400", icon: TrendingUp },
+    whale_flow: { label: "Whale Bot", color: "text-emerald-400", icon: TrendingUp },
+    market_scanner: { label: "Scanner Bot", color: "text-blue-400", icon: Target },
+    sentiment: { label: "Sentiment Bot", color: "text-pink-400", icon: Eye },
+    bullish_trend: { label: "Trend Bot", color: "text-green-400", icon: TrendingUp },
+  };
+
+  const botStats = Object.entries(
+    ideas.reduce((acc: Record<string, number>, idea: any) => {
+      acc[idea.source] = (acc[idea.source] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([source, count]) => ({
+    source,
+    count: count as number,
+    ...botSourceMap[source] || { label: source, color: "text-slate-400", icon: Bot },
+  })).sort((a, b) => b.count - a.count);
+
+  const activeIdeas = ideas.filter((i: any) => i.status === 'active').length;
+  const expiredIdeas = ideas.filter((i: any) => i.status === 'expired').length;
+  const avgConfidence = ideas.length > 0
+    ? Math.round(ideas.reduce((sum: number, i: any) => sum + (i.confidenceScore || 0), 0) / ideas.length)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -493,6 +532,109 @@ function AdminOverviewContent() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bot Activity Section */}
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Bot className="h-5 w-5 text-purple-400" />
+            AI Bot Activity
+          </CardTitle>
+          <CardDescription className="text-slate-500">
+            Trade idea generation by source
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {ideasLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-20 bg-slate-800" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-cyan-400" />
+                    <span className="text-sm text-slate-400">Total Ideas</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white">{ideas.length}</p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    <span className="text-sm text-slate-400">Active</span>
+                  </div>
+                  <p className="text-2xl font-bold text-green-400">{activeIdeas}</p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <span className="text-sm text-slate-400">Expired</span>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-400">{expiredIdeas}</p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm text-slate-400">Avg Confidence</span>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-400">{avgConfidence}%</p>
+                </div>
+              </div>
+
+              {/* Bot Breakdown */}
+              {botStats.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-slate-400">Ideas by Bot</h4>
+                  <div className="space-y-2">
+                    {botStats.slice(0, 6).map((bot) => {
+                      const BotIcon = bot.icon;
+                      const percentage = ideas.length > 0 ? Math.round((bot.count / ideas.length) * 100) : 0;
+                      return (
+                        <div
+                          key={bot.source}
+                          className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-1.5 rounded", "bg-slate-700/50")}>
+                              <BotIcon className={cn("h-4 w-4", bot.color)} />
+                            </div>
+                            <span className="text-sm text-white">{bot.label}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400")}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <Badge variant="outline" className="text-cyan-400 border-cyan-500/20 min-w-[50px] justify-center">
+                              {bot.count}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {botStats.length === 0 && (
+                <div className="text-center py-8 text-slate-500">
+                  <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No bot activity recorded yet</p>
                 </div>
               )}
             </div>

@@ -1,14 +1,22 @@
 import rateLimit from 'express-rate-limit';
 import { logger } from './logger';
 
-// General API rate limiter - 100 requests per 15 minutes
+// Skip rate limiting for localhost in development
+const isLocalhost = (req: any): boolean => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' ||
+         process.env.NODE_ENV === 'development';
+};
+
+// General API rate limiter - 500 requests per 15 minutes (generous for dev)
 export const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500, // Increased from 100 to 500
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
   validate: false, // Disable validation warnings in Replit environment
+  skip: isLocalhost, // Skip rate limiting for localhost
   handler: (req, res) => {
     logger.warn('Rate limit exceeded', {
       ip: req.ip,

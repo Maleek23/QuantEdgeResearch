@@ -36,7 +36,7 @@ export default function Features() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#050b16]">
+    <div className="min-h-screen bg-black">
       <SEOHead 
         pageKey="features"
         title="Platform Features | Quant Edge Labs"
@@ -47,7 +47,7 @@ export default function Features() {
       <FloatingBubblesBackground />
       
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#050b16]/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex items-center gap-3" data-testid="link-logo">

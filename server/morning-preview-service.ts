@@ -72,8 +72,7 @@ export async function generateMorningPreview(): Promise<MorningPreview> {
   logger.info('[MORNING-PREVIEW] Generating 8:30 AM trading preview...');
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     const { getMarketContext } = await import('./market-context-service');
     const { getBotSentimentWatchlist } = await import('./bot-sentiment-watchlist');
     const { getUpcomingCatalysts } = await import('./catalyst-intelligence-service');

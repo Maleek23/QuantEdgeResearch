@@ -189,6 +189,11 @@ app.use((req, res, next) => {
     selfLearning.start();
     log('🧠 Self-Learning Service started - engines will adapt based on trade outcomes');
 
+    // Start Convergence Engine (multi-source signal correlation for pre-move detection)
+    const { startConvergenceEngine } = await import('./convergence-engine');
+    startConvergenceEngine();
+    log('🎯 Convergence Engine started - correlating signals across news, options flow, insiders, sectors for pre-move detection');
+
     // Start ML Retraining Service (self-improving models)
     // TODO: Implement ML retraining service
     // const { startMLRetrainingService } = await import('./ml-retraining-service');

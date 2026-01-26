@@ -1,24 +1,48 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  TrendingUp, 
-  BarChart3, 
-  Zap, 
-  Target, 
-  Coins, 
+import {
+  TrendingUp,
+  BarChart3,
+  Zap,
+  Target,
+  Coins,
   LineChart,
   ArrowLeft,
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StrategyGrid } from "@/components/ui/strategy-card";
 import { FeaturedScreeners } from "@/components/ui/screener-card";
 import { WinnersShowcase, type WinnerItem } from "@/components/ui/winners-showcase";
 import { CryptoMarketSection } from "@/components/ui/market-gauge";
 import { EarningsPredictionSection, type EarningsItem } from "@/components/ui/earnings-card";
-import { ChartWorkbench, generateMockChartData } from "@/components/ui/chart-workbench";
+import { ChartWorkbench } from "@/components/ui/chart-workbench";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+
+// Types for API responses
+interface TradeIdea {
+  id: number;
+  symbol: string;
+  direction: string;
+  entryPrice: number;
+  exitPrice?: number;
+  percentGain?: number;
+  createdAt: string;
+  exitDate?: string;
+  source: string;
+  outcomeStatus: string;
+}
+
+interface EarningsData {
+  symbol: string;
+  companyName: string;
+  date: string;
+  time: string;
+  estimateEps?: number;
+  actualEps?: number;
+}
 
 const strategies = [
   {
@@ -86,71 +110,48 @@ const featuredScreeners = [
   { id: "crypto-bullish-month", title: "Cryptos Bullish for a Month", symbolCount: 18, sentiment: "bullish" as const },
 ];
 
-const mockWinners: WinnerItem[] = [
-  {
-    symbol: "NVDA",
-    companyName: "NVIDIA Corporation",
-    dateAdded: "2025-12-15",
-    dateClosed: "2026-01-08",
-    totalReturn: 34.21,
-    strategySource: "AI Picker",
-  },
-  {
-    symbol: "PLTR",
-    companyName: "Palantir Technologies",
-    dateAdded: "2025-12-20",
-    dateClosed: "2026-01-10",
-    totalReturn: 28.56,
-    strategySource: "Swing",
-  },
-  {
-    symbol: "COIN",
-    companyName: "Coinbase Global Inc",
-    dateAdded: "2026-01-02",
-    dateClosed: "2026-01-12",
-    totalReturn: 22.14,
-    strategySource: "AI Picker",
-  },
-];
-
-const mockEarnings: EarningsItem[] = [
-  {
-    symbol: "JPM",
-    companyName: "JPMorgan Chase & Co",
-    reportDate: "2026-01-14",
-    reportTime: "Pre-Market",
-    prediction: "beat",
-    probability: 72,
-    revenuePrediction: "beat",
-    epsPrediction: "beat",
-  },
-  {
-    symbol: "BAC",
-    companyName: "Bank of America Corp",
-    reportDate: "2026-01-14",
-    reportTime: "Pre-Market",
-    prediction: "neutral",
-    probability: 45,
-    revenuePrediction: "beat",
-    epsPrediction: "neutral",
-  },
-  {
-    symbol: "WFC",
-    companyName: "Wells Fargo & Co",
-    reportDate: "2026-01-15",
-    reportTime: "Pre-Market",
-    prediction: "beat",
-    probability: 68,
-    revenuePrediction: "beat",
-    epsPrediction: "beat",
-  },
-];
+// Winners and earnings will be fetched from real APIs
 
 export default function StrategyPlaybooks() {
   const [, navigate] = useLocation();
   const [selectedSymbol, setSelectedSymbol] = useState("SPY");
-  
-  const chartData = generateMockChartData(60);
+
+  // Fetch successful trade ideas for winners showcase
+  const { data: winnersData, isLoading: winnersLoading } = useQuery<{ ideas: TradeIdea[] }>({
+    queryKey: ["/api/trade-ideas?status=closed&outcome=win&limit=10"],
+    refetchInterval: 60000,
+  });
+
+  // Fetch upcoming earnings
+  const { data: earningsData, isLoading: earningsLoading } = useQuery<{ earnings: EarningsData[] }>({
+    queryKey: ["/api/earnings/upcoming?limit=5"],
+    refetchInterval: 300000,
+  });
+
+  // Transform trade ideas to winners format
+  const winners: WinnerItem[] = winnersData?.ideas?.slice(0, 3).map(idea => ({
+    symbol: idea.symbol,
+    companyName: idea.symbol, // Will be enhanced when we have company data
+    dateAdded: idea.createdAt,
+    dateClosed: idea.exitDate || idea.createdAt,
+    totalReturn: idea.percentGain || 0,
+    strategySource: idea.source || "AI Picker",
+  })) || [];
+
+  // Transform earnings data to earnings format
+  const earnings: EarningsItem[] = earningsData?.earnings?.slice(0, 3).map(e => ({
+    symbol: e.symbol,
+    companyName: e.companyName,
+    reportDate: e.date,
+    reportTime: e.time || "TBD",
+    prediction: "neutral" as const,
+    probability: 50,
+    revenuePrediction: "neutral" as const,
+    epsPrediction: "neutral" as const,
+  })) || [];
+
+  // Chart data - use empty array or fetch real data
+  const chartData: any[] = [];
 
   const handleStrategyClick = (id: string) => {
     switch (id) {
@@ -231,11 +232,19 @@ export default function StrategyPlaybooks() {
         </section>
 
         <section>
-          <WinnersShowcase 
-            winners={mockWinners}
-            onWinnerClick={(symbol) => navigate(`/chart-analysis?symbol=${symbol}`)}
-            onSeeAllClick={() => navigate("/analytics")}
-          />
+          {winnersLoading ? (
+            <Skeleton className="h-48 w-full bg-slate-800/50 rounded-xl" />
+          ) : winners.length > 0 ? (
+            <WinnersShowcase
+              winners={winners}
+              onWinnerClick={(symbol) => navigate(`/chart-analysis?symbol=${symbol}`)}
+              onSeeAllClick={() => navigate("/analytics")}
+            />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No recent winning trades to display
+            </div>
+          )}
         </section>
 
         <section>
@@ -246,11 +255,19 @@ export default function StrategyPlaybooks() {
         </section>
 
         <section>
-          <EarningsPredictionSection
-            earnings={mockEarnings}
-            onEarningsClick={(symbol) => navigate(`/chart-analysis?symbol=${symbol}`)}
-            onSeeAllClick={() => navigate("/market-overview")}
-          />
+          {earningsLoading ? (
+            <Skeleton className="h-48 w-full bg-slate-800/50 rounded-xl" />
+          ) : earnings.length > 0 ? (
+            <EarningsPredictionSection
+              earnings={earnings}
+              onEarningsClick={(symbol) => navigate(`/chart-analysis?symbol=${symbol}`)}
+              onSeeAllClick={() => navigate("/market-overview")}
+            />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No upcoming earnings to display
+            </div>
+          )}
         </section>
       </main>
     </div>

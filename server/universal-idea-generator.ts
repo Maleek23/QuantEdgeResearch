@@ -153,23 +153,24 @@ export interface UniversalIdeaInput {
   technicalSignals?: string[];
 }
 
-// Base confidence by source (starting points)
+// Base confidence by source (starting points) - CALIBRATED for realistic distribution
+// Target: Most ideas should be in 50-80% range, with <5% hitting 90%+
 const SOURCE_BASE_CONFIDENCE: Record<IdeaSource, number> = {
-  'ai_analysis': 55,
-  'quant_signal': 60,
-  'options_flow': 55,
-  'market_scanner': 50,
-  'bullish_trend': 55,
-  'chart_analysis': 55,
-  'social_sentiment': 45,
-  'watchlist': 50,
-  'crypto_scanner': 50,
-  'news_catalyst': 52,
-  'earnings_play': 48,
-  'sector_rotation': 50,
-  'manual': 40,
-  'bot_screener': 65,       // Bot screener - high conviction
-  'surge_detection': 58,    // Surge detection - real-time momentum
+  'ai_analysis': 42,        // AI analysis - start moderate
+  'quant_signal': 45,       // Quant signals - decent base
+  'options_flow': 42,       // Options flow - moderate
+  'market_scanner': 38,     // Market movers - lower base
+  'bullish_trend': 40,      // Bullish trends - moderate
+  'chart_analysis': 42,     // Chart patterns - moderate
+  'social_sentiment': 32,   // Social - speculative, low base
+  'watchlist': 38,          // Watchlist - needs signals
+  'crypto_scanner': 35,     // Crypto - volatile, lower base
+  'news_catalyst': 40,      // News - moderate
+  'earnings_play': 38,      // Earnings - risky events
+  'sector_rotation': 40,    // Sector - moderate
+  'manual': 30,             // Manual - minimal base
+  'bot_screener': 48,       // Bot screener - higher base
+  'surge_detection': 42,    // Surge detection - moderate
 };
 
 // Signal type weights
@@ -325,18 +326,32 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
   }
   
   // Apply saturation curve: diminishing returns beyond 3 signals
+  // Using logarithmic scaling for more realistic distribution
   const signalCount = signals.filter(s => (s.weight || SIGNAL_WEIGHTS[s.type] || 0) > 0).length;
-  const saturationFactor = signalCount <= 3 ? 1.0 : 1 / (1 + 0.1 * (signalCount - 3));
-  
+  const saturationFactor = signalCount <= 2 ? 0.9 :
+                           signalCount === 3 ? 0.85 :
+                           signalCount === 4 ? 0.75 :
+                           signalCount >= 5 ? 0.65 : 0.8;
+
+  // Apply saturation to signal weight contribution
   confidence += totalSignalWeight * saturationFactor;
-  
-  // Confluence bonus only for 3-5 signals
-  if (signals.length >= 3 && signals.length <= 5) {
-    confidence += 5;
+
+  // Confluence bonus only for 3-4 signals (reduced from 5)
+  if (signals.length >= 3 && signals.length <= 4) {
+    confidence += 3;
   }
-  
-  // Cap at 0-100
-  return Math.max(0, Math.min(100, Math.round(confidence)));
+
+  // HARD CAP: Apply a soft ceiling at 92% - makes 100% nearly impossible
+  // This reflects realistic market uncertainty
+  if (confidence > 70) {
+    // Logarithmic dampening above 70%: each point above 70 is worth less
+    const excessConfidence = confidence - 70;
+    const dampenedExcess = excessConfidence * (1 - excessConfidence / 100);
+    confidence = 70 + dampenedExcess;
+  }
+
+  // Absolute cap at 94% - no trade idea should be 100% confident
+  return Math.max(0, Math.min(94, Math.round(confidence)));
 }
 
 /**
@@ -381,15 +396,25 @@ function calculateConfidence(source: IdeaSource, signals: IdeaSignal[]): number 
   }
   
   const signalCount = signals.filter(s => (s.weight || SIGNAL_WEIGHTS[s.type] || 0) > 0).length;
-  const saturationFactor = signalCount <= 3 ? 1.0 : 1 / (1 + 0.1 * (signalCount - 3));
-  
+  const saturationFactor = signalCount <= 2 ? 0.9 :
+                           signalCount === 3 ? 0.85 :
+                           signalCount === 4 ? 0.75 :
+                           signalCount >= 5 ? 0.65 : 0.8;
+
   confidence += totalSignalWeight * saturationFactor;
-  
-  if (signals.length >= 3 && signals.length <= 5) {
-    confidence += 5;
+
+  if (signals.length >= 3 && signals.length <= 4) {
+    confidence += 3;
   }
-  
-  return Math.max(0, Math.min(100, Math.round(confidence)));
+
+  // Soft ceiling at 92% with dampening above 70%
+  if (confidence > 70) {
+    const excessConfidence = confidence - 70;
+    const dampenedExcess = excessConfidence * (1 - excessConfidence / 100);
+    confidence = 70 + dampenedExcess;
+  }
+
+  return Math.max(0, Math.min(94, Math.round(confidence)));
 }
 
 /**
@@ -557,11 +582,11 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     
     // Calculate confidence from all signals with VIX filtering and loss adjustment
     let confidence = await calculateConfidenceWithVIX(input.source, input.signals, currentVIX);
-    confidence = Math.max(0, Math.min(100, confidence + lossAdjustment));
-    
+    confidence = Math.max(0, Math.min(94, confidence + lossAdjustment));
+
     // Apply ML Intelligence enhancement (±10 points)
     const mlEnhancement = await getMLConfidenceEnhancement(input.symbol, input.direction);
-    confidence = Math.max(0, Math.min(100, confidence + mlEnhancement.boost));
+    confidence = Math.max(0, Math.min(94, confidence + mlEnhancement.boost));
     
     // Fetch news context for stocks (not options/crypto/futures)
     let newsContext: NewsContext | null = null;
@@ -612,8 +637,8 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
             }
           }
           
-          // Apply the reconciled adjustment
-          confidence = Math.max(0, Math.min(100, confidence + newsAdjustment));
+          // Apply the reconciled adjustment (maintain 94% cap)
+          confidence = Math.max(0, Math.min(94, confidence + newsAdjustment));
           
           // Use real news catalysts and headlines
           if (newsContext.catalysts.length > 0) {
@@ -649,13 +674,14 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     let stopMultiplier: number;
     
     if (input.assetType === 'option') {
-      // OPTIONS: Need 50-100%+ gains to overcome decay and spreads
-      // Day trade options: Target 50% gain (quick scalp)
-      // Swing options: Target 75% gain (multi-day hold)
-      // Position/LEAPS: Target 100%+ (longer hold, more theta to overcome)
-      targetMultiplier = holdingPeriod === 'day' ? 1.50 : holdingPeriod === 'swing' ? 1.75 : 2.00;
-      // Options stops are tighter due to leverage - 30-50% loss max
-      stopMultiplier = holdingPeriod === 'day' ? 0.70 : holdingPeriod === 'swing' ? 0.60 : 0.50;
+      // OPTIONS: Targets are on the UNDERLYING STOCK price, not option premium
+      // Options provide leverage, so a 3% stock move = 15-30% option move
+      // Day trade: Target 2-3% stock move (options gain 15-25%)
+      // Swing: Target 5-8% stock move (options gain 30-50%)
+      // Position: Target 10-15% stock move (options gain 50-100%+)
+      targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.07 : 1.12;
+      // Stop losses should protect capital - allow 2-5% adverse move before exit
+      stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
     } else if (input.assetType === 'crypto') {
       // CRYPTO: More volatile, moderate targets
       targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.25;

@@ -3877,6 +3877,23 @@ export default function ChartAnalysis() {
     queryKey: ['/api/performance/stats'],
   });
 
+  // NEW: Universal Engine Technical Analysis (replaces old scoring)
+  const { data: universalTechnicalAnalysis, isLoading: isUniversalLoading } = useQuery({
+    queryKey: [`/api/analyze/${symbol}`, 'technical'],
+    queryFn: async () => {
+      if (!symbol || symbol.length < 1) return null;
+      const res = await fetch(`/api/analyze/${symbol}?focus=technical`);
+      if (!res.ok) {
+        console.error('Universal Engine fetch failed:', res.status);
+        return null;
+      }
+      return res.json();
+    },
+    enabled: !!symbol && symbol.length > 0,
+    staleTime: 60000, // Cache for 1 minute
+    retry: 1,
+  });
+
   const { data: sixEngineAnalysis, isLoading: isSixEngineLoading, refetch: refetchSixEngine } = useQuery<SixEngineAnalysis | null>({
     queryKey: ['/api/analyze-symbol', symbol, assetType],
     queryFn: async () => {
@@ -4235,6 +4252,84 @@ export default function ChartAnalysis() {
           </div>
         </div>
       </motion.div>
+
+      {/* Universal Engine Technical Score */}
+      {symbol && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30">
+                    <BarChart3 className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg text-slate-100">Universal Engine - Technical Analysis</CardTitle>
+                    <CardDescription className="text-xs text-slate-400">
+                      Consistent scoring across platform • 7-dimensional analysis
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {isUniversalLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+                  ) : universalTechnicalAnalysis ? (
+                    <div className="text-right">
+                      <div className={cn(
+                        "text-3xl font-bold",
+                        universalTechnicalAnalysis.components?.technical?.score >= 80 ? "text-emerald-400" :
+                        universalTechnicalAnalysis.components?.technical?.score >= 60 ? "text-cyan-400" :
+                        universalTechnicalAnalysis.components?.technical?.score >= 40 ? "text-yellow-400" : "text-red-400"
+                      )}>
+                        {universalTechnicalAnalysis.components?.technical?.grade || 'N/A'}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {universalTechnicalAnalysis.components?.technical?.score || 0}/100
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500">No data</div>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            {universalTechnicalAnalysis && universalTechnicalAnalysis.components?.technical && (
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {universalTechnicalAnalysis.components.technical.breakdown?.slice(0, 6).map((metric: any, idx: number) => (
+                    <div key={idx} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-400">{metric.category}</span>
+                        <span className="text-xs font-semibold text-cyan-400">{metric.value}</span>
+                      </div>
+                      <p className="text-xs text-slate-500">{metric.interpretation}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-xs text-blue-300">
+                    <strong>Recommendation:</strong> {universalTechnicalAnalysis.overall?.recommendation || 'N/A'}
+                    <span className="ml-2 text-slate-400">
+                      • Confidence: {universalTechnicalAnalysis.overall?.confidence || 'N/A'}
+                    </span>
+                  </p>
+                </div>
+              </CardContent>
+            )}
+            {!universalTechnicalAnalysis && !isUniversalLoading && (
+              <CardContent className="pt-0">
+                <p className="text-sm text-slate-500 text-center py-4">
+                  Enter a symbol above to see Universal Engine analysis
+                </p>
+              </CardContent>
+            )}
+          </Card>
+        </motion.div>
+      )}
 
       {sixEngineAnalysis && (
         <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5" data-testid="card-trade-idea">

@@ -1,43 +1,112 @@
-import { Link, useLocation } from "wouter";
+                                                                            
+                                                                            import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { Check } from "lucide-react";
+import { SEOHead } from "@/components/seo-head";
+import { 
+  TrendingUp, 
+  Brain, 
+  Calculator, 
+  Check,
+  ArrowRight,
+  Clock,
+  LineChart,
+  Twitter,
+  Linkedin,
+  Github,
+  Activity,
+  Target,
+  Coins,
+  CandlestickChart,
+  Sparkles,
+  Zap,
+  BarChart3,
+  Terminal,
+  Cpu,
+  Database
+} from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { TerminalWindow, TypewriterText, DataStream, SystemStatus, LiveTradingFeed } from "@/components/terminal";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import { HeroProductPanel } from "@/components/hero-product-panel";
+import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
-// TODO: Re-enable boot sequence later
-// import { BootSequencePlayer } from "@/components/remotion/BootSequencePlayer";
-import { AuroraBackground } from "@/components/aurora-background";
+import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
+import { EngineConvergencePlayer } from "@/components/remotion/EngineConvergencePlayer";
+import { BootSequencePlayer } from "@/components/remotion/BootSequencePlayer";
+import { TradingMatrix, PriceTicker } from "@/components/effects/TradingMatrix";
+import { LiveActivityFeed } from "@/components/live-activity-feed";
+import { AnimatedStat } from "@/components/animated-stat";
+import { SocialProofSection } from "@/components/social-proof-section";
+import { ComparisonTable } from "@/components/comparison-table";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
+
+interface AssetTypeStats {
+  assetType: string;
+  totalIdeas: number;
+  wonIdeas: number;
+  lostIdeas: number;
+  winRate: number;
+  avgPercentGain: number;
+}
+
+interface PerformanceStatsResponse {
+  overall: {
+    totalIdeas: number;
+    openIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  };
+  byAssetType?: AssetTypeStats[];
+}
 
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  // TODO: Re-enable boot sequence later
-  // const [bootComplete, setBootComplete] = useState(false);
+  const [bootComplete, setBootComplete] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
+    queryKey: ['/api/performance/stats'],
+  }); 
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+    <div className="min-h-screen bg-black relative">
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
 
-      {/* Grid Background - Clean & Subtle */}
-      <AuroraBackground />
+      {/* Boot Sequence Overlay - Plays once on first visit */}
+      {!bootComplete && (
+        <motion.div
+          className="fixed inset-0 z-[100] bg-black"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <BootSequencePlayer onComplete={() => setBootComplete(true)} />
+        </motion.div>
+      )}
+
+      {/* Trading Matrix Background - Always visible with low opacity */}
+      <div className="fixed inset-0 z-0 opacity-5">
+        <TradingMatrix density="low" speed="slow" />
+      </div>
       
       {/* Sticky Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
@@ -113,160 +182,434 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Clean & Professional */}
-      <section className="relative min-h-[500px] md:min-h-[80vh] pt-20 pb-8 flex items-center overflow-hidden w-full" data-testid="hero-section">
+      {/* Hero Section - Gemini Inspired with Orbs */}
+      <section className="relative min-h-[90vh] pt-24 flex items-center overflow-hidden" data-testid="hero-section">
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-5 gap-12 items-center">
-            {/* Left: Hero Text - Takes 3 columns */}
-            <div className="lg:col-span-3">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
+          <div className="max-w-2xl mx-auto text-center">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+              <span className="text-white">Six Engines</span>
+              <span className="text-cyan-400">.</span>
+              <br />
+              <span className="text-cyan-300">One Edge</span>
+              <span className="text-cyan-400">.</span>
+            </h1>
+            
+            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-8 leading-relaxed">
+              ML, AI, Quant, Flow, Sentiment & Technical signals converge into <span className="text-cyan-400 font-medium">higher-conviction setups</span>.
+              Every signal verified. Every outcome tracked.
+            </p>
+            
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button 
+                size="lg"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+                onClick={() => setWaitlistOpen(true)}
               >
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-                  <span className="text-white">Six Engines</span>
-                  <span className="text-cyan-400">.</span>
-                  <br />
-                  <span className="text-cyan-300">One Edge</span>
-                  <span className="text-cyan-400">.</span>
-                </h1>
-
-                <p className="text-lg text-slate-300 max-w-xl mb-8 leading-relaxed">
-                  Research platform combining <span className="text-cyan-400 font-medium">ML, AI, Quant, Flow, Sentiment & Technical</span> signals.
-                  Backtest ideas, track performance, and learn—not financial advice.
-                </p>
-
-                <div className="flex flex-wrap gap-4 mb-8">
-                  <Button
-                    size="lg"
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
-                    onClick={() => setWaitlistOpen(true)}
-                  >
-                    Join Waitlist
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="border-slate-600 hover:border-cyan-500 transition-colors"
-                    onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                  >
-                    Join Discord
-                  </Button>
-                </div>
-
-                {/* Clean stats display */}
-                <div className="grid grid-cols-3 gap-6 max-w-lg">
-                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
-                    <div className="text-3xl font-bold text-cyan-400 mb-1">6</div>
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">Engines</div>
-                  </div>
-                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
-                    <div className="text-3xl font-bold text-cyan-400 mb-1">24/7</div>
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">Coverage</div>
-                  </div>
-                  <div className="text-center border-l-2 border-cyan-500/50 pl-4">
-                    <div className="text-3xl font-bold text-cyan-400 mb-1">∞</div>
-                    <div className="text-xs text-slate-400 uppercase tracking-wider">Signals</div>
-                  </div>
-                </div>
-              </motion.div>
+                Join Waitlist
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="border-slate-600"
+                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+              >
+                Join Discord
+              </Button>
             </div>
-
-            {/* Right: Engine Performance Cards */}
-            <motion.div
-              className="lg:col-span-2 hidden lg:block space-y-4"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              {/* Top performing signal card */}
-              <div className="bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 rounded-xl p-6 shadow-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm font-semibold text-slate-300">Latest Signal</span>
-                  </div>
-                  <span className="text-xs text-slate-500">2m ago</span>
-                </div>
-
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-4xl font-bold text-white">NVDA</span>
-                  <span className="text-lg text-green-400">↑ Bullish</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <div className="text-xs text-slate-500 mb-1">Confidence</div>
-                    <div className="text-2xl font-bold text-cyan-400">87%</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500 mb-1">Engines</div>
-                    <div className="text-2xl font-bold text-cyan-400">5/6</div>
-                  </div>
-                </div>
-
-                <div className="flex gap-1.5 flex-wrap">
-                  {['ML', 'AI', 'QUANT', 'FLOW', 'SENT'].map((engine) => (
-                    <span
-                      key={engine}
-                      className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded text-xs font-mono text-cyan-400"
-                    >
-                      {engine}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mini performance metrics */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-lg p-4">
-                  <div className="text-xs text-slate-400 mb-2">Ideas Tracked</div>
-                  <div className="text-3xl font-bold text-cyan-400">1,200+</div>
-                  <div className="text-xs text-slate-500 mt-1">Since launch</div>
-                </div>
-                <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-lg p-4">
-                  <div className="text-xs text-slate-400 mb-2">Data Sources</div>
-                  <div className="text-3xl font-bold text-cyan-400">6</div>
-                  <div className="text-xs text-slate-500 mt-1">Real-time feeds</div>
-                </div>
-              </div>
-            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="relative py-16">
+      {/* Stats Section */}
+      <div className="relative py-12 bg-slate-950/50">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center mb-12">What You Get</h2>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Research Ideas</h3>
-              <p className="text-sm text-slate-300">Potential setups from 6 engines: ML, AI, Quant, Flow, Sentiment, Technical</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400 mb-2">6</div>
+              <p className="text-slate-400">Trading Engines</p>
             </div>
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Backtesting</h3>
-              <p className="text-sm text-slate-300">Test ideas on historical data. See what would've happened if you traded it</p>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400 mb-2">∞</div>
+              <p className="text-slate-400">Signals Tracked</p>
             </div>
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Performance Tracking</h3>
-              <p className="text-sm text-slate-300">Every idea tracked from entry to exit. Learn what works, what doesn't</p>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400 mb-2">24/7</div>
+              <p className="text-slate-400">Market Coverage</p>
             </div>
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Options Analysis</h3>
-              <p className="text-sm text-slate-300">Greeks, unusual activity, whale flow detection for options traders</p>
-            </div>
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Paper Trading</h3>
-              <p className="text-sm text-slate-300">Simulated trading with fake money. Practice without risking capital</p>
-            </div>
-            <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-lg font-bold mb-2 text-cyan-400">Market Data</h3>
-              <p className="text-sm text-slate-300">Real-time quotes, news, earnings, social trends across stocks, options, crypto</p>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-cyan-400 mb-2">Real-Time</div>
+              <p className="text-slate-400">Analysis</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <section className="relative py-24">
+        <div className="container mx-auto px-6">
+          <h2 className="text-4xl font-bold text-center mb-16">The Six Engines</h2>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">ML Engine</h3>
+              <p className="text-slate-300">Machine learning models trained on historical market data</p>
+            </div>
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">AI Engine</h3>
+              <p className="text-slate-300">Advanced AI analysis with multi-signal convergence</p>
+            </div>
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">Quant Engine</h3>
+              <p className="text-slate-300">Quantitative trading algorithms and statistical analysis</p>
+            </div>
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">Flow Engine</h3>
+              <p className="text-slate-300">Smart money and institutional flow detection</p>
+            </div>
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">Sentiment Engine</h3>
+              <p className="text-slate-300">Market sentiment and social signal analysis</p>
+            </div>
+            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
+              <h3 className="text-xl font-bold mb-2 text-cyan-400">Technical Engine</h3>
+              <p className="text-slate-300">Advanced technical analysis and pattern recognition</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="relative py-24 bg-gradient-to-b from-slate-950 to-slate-900">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-4xl font-bold mb-6">Ready to get an edge?</h2>
+          <p className="text-slate-300 mb-8 max-w-2xl mx-auto">
+            Join thousands of traders using Quant Edge Labs to level up their trading.
+          </p>
+          <Button 
+            size="lg"
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+            onClick={() => setWaitlistOpen(true)}
+          >
+            Get Started Now
+          </Button>
+        </div>
+      </section>
+
+      {/* Platform Capabilities - Visual Cards */}
+      <section className="relative py-16 lg:py-24 overflow-hidden" id="features" data-testid="section-features">
+        <GeminiGradient variant="subtle" />
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <motion.p 
+              className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              Platform Capabilities
+            </motion.p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              Six Engines. Complete Coverage.
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto text-lg">
+              Every angle analyzed. Every signal tracked. Every outcome measured.
+            </p>
+          </motion.div>
+          
+          {/* Research Engines - Animated Visual Grid */}
+          <div className="mb-16">
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Research Engines</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {/* ML Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-xl shadow-pink-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Sparkles className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">ML Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
+                </div>
+              </motion.div>
+
+              {/* AI Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-purple-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Brain className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">AI Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
+                </div>
+              </motion.div>
+
+              {/* Quant Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-xl shadow-blue-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Calculator className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Quant Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
+                </div>
+              </motion.div>
+
+              {/* Flow Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-xl shadow-cyan-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Activity className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Flow Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
+                </div>
+              </motion.div>
+
+              {/* Sentiment Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-xl shadow-amber-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Target className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Sentiment Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Social buzz, fear/greed, put/call ratios.</p>
+                </div>
+              </motion.div>
+
+              {/* Technical Engine */}
+              <motion.div
+                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-6 backdrop-blur-sm"
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                whileHover={{ scale: 1.02, y: -5 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
+                <div className="relative">
+                  <motion.div 
+                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-xl shadow-green-500/30"
+                    whileHover={{ rotate: [0, -5, 5, 0] }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <CandlestickChart className="h-7 w-7 text-white" />
+                  </motion.div>
+                  <h3 className="font-semibold text-lg mb-2">Technical Engine</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Asset Classes */}
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Asset Classes</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              {[
+                { name: 'Stocks', icon: <TrendingUp className="h-5 w-5" />, desc: 'US Equities' },
+                { name: 'Options', icon: <Activity className="h-5 w-5" />, desc: 'Calls & Puts' },
+                { name: 'Crypto', icon: <Coins className="h-5 w-5" />, desc: 'BTC, ETH, SOL' },
+                { name: 'Futures', icon: <BarChart3 className="h-5 w-5" />, desc: 'NQ, ES, GC' },
+              ].map((asset, i) => (
+                <motion.div 
+                  key={asset.name}
+                  className="text-center p-4 rounded-xl bg-slate-900/50 border border-slate-800"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-slate-800 flex items-center justify-center mx-auto mb-2">
+                    {asset.icon}
+                  </div>
+                  <p className="font-medium">{asset.name}</p>
+                  <p className="text-xs text-muted-foreground">{asset.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Activity Feed Section */}
+      <section className="py-12 bg-slate-950/50" data-testid="section-activity">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Real-Time Platform Activity</h2>
+              <p className="text-muted-foreground mb-6">
+                Watch as our engines analyze markets and generate trade ideas in real-time.
+              </p>
+              <LiveActivityFeed />
+            </div>
+            <div>
+              <HeroProductPanel className="w-full" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Terminal Showcase Section - Developer Aesthetic */}
+      <section className="py-16 lg:py-24 relative overflow-hidden" id="terminal-preview" data-testid="section-terminal">
+        <GeminiGradient variant="subtle" />
+        <div className="container mx-auto px-6 relative z-10">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3 font-mono">
+              <Terminal className="inline-block w-4 h-4 mr-2" />
+              Professional Interface
+            </p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              Built for Developers. Designed for Traders.
+            </h2>
+            <p className="text-slate-400 max-w-xl mx-auto">
+              Terminal-inspired command center with real-time data streams and institutional-grade analytics.
+            </p>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {/* Terminal Window Showcase */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <TerminalWindow title="engine-status.sh" variant="default">
+                <div className="space-y-3 text-sm font-mono">
+                  <div className="text-cyan-400">$ quant-edge --status --all</div>
+                  <div className="space-y-1.5 pl-2">
+                    <SystemStatus systems={[
+                      { name: "ML Intelligence", status: "online" },
+                      { name: "Quant Scanner", status: "online" },
+                      { name: "Flow Detector", status: "online" },
+                      { name: "Sentiment AI", status: "online" },
+                      { name: "Technical Engine", status: "online" },
+                      { name: "Pattern Recognition", status: "online" },
+                    ]} />
+                  </div>
+                  <div className="text-green-400 pt-2">6/6 engines operational</div>
+                </div>
+              </TerminalWindow>
+            </motion.div>
+
+            {/* Live Trading Feed Showcase */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <TerminalWindow title="live-trading-feed.log" variant="success">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
+                    <Database className="w-3.5 h-3.5" />
+                    <span>LIVE TRADE SIGNALS</span>
+                    <motion.div
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto"
+                    />
+                  </div>
+                  <LiveTradingFeed maxItems={8} updateInterval={4000} />
+                </div>
+              </TerminalWindow>
+            </motion.div>
+          </div>
+
+          {/* Feature Pills */}
+          <motion.div 
+            className="flex flex-wrap justify-center gap-3 mt-10"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+          >
+            {[
+              { icon: <Terminal className="w-3.5 h-3.5" />, label: "Terminal Interface" },
+              { icon: <Cpu className="w-3.5 h-3.5" />, label: "6-Engine Analysis" },
+              { icon: <Activity className="w-3.5 h-3.5" />, label: "Real-Time Streaming" },
+              { icon: <Database className="w-3.5 h-3.5" />, label: "Institutional Data" },
+            ].map((feature) => (
+              <Badge 
+                key={feature.label} 
+                variant="outline" 
+                className="px-3 py-1.5 gap-2 border-cyan-500/30 text-cyan-400 bg-cyan-500/5 font-mono"
+              >
+                {feature.icon}
+                {feature.label}
+              </Badge>
+            ))}
+          </motion.div>
         </div>
       </section>
 
@@ -511,7 +854,7 @@ export default function Landing() {
               className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
               onClick={() => setWaitlistOpen(true)}
             >
-              Join Waitlist
+              Get Started Now
             </Button>
           </div>
         </div>

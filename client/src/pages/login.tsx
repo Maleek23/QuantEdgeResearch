@@ -120,8 +120,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+    <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
       <AuroraBackground />
 
       <div className="relative z-10 w-full max-w-md overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6">

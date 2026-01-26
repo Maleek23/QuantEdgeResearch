@@ -12,9 +12,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
 import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
-import { HeaderNav } from "@/components/header-nav";
-import { TabNavigation } from "@/components/tab-navigation";
-import { GlobalSearch } from "@/components/global-search";
+import { GlassHeader } from "@/components/glass-header";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -30,12 +28,14 @@ import { PreferencesProvider, usePreferences } from "@/contexts/preferences-cont
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { StockContextProvider } from "@/contexts/stock-context";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
 const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
 const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
+const StockDetailPage = lazy(() => import("@/pages/stock-detail"));
 const MarketPage = lazy(() => import("@/pages/market"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
@@ -51,6 +51,7 @@ const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
 const AdminCredits = lazy(() => import("@/pages/admin-credits"));
 const AdminBetaInvites = lazy(() => import("@/pages/admin-beta-invites"));
 const AdminBlog = lazy(() => import("@/pages/admin/blog"));
+const AdminTradeIdeas = lazy(() => import("@/pages/admin/trade-ideas"));
 const About = lazy(() => import("@/pages/about"));
 const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
@@ -75,10 +76,8 @@ const MarketScanner = lazy(() => import("@/pages/market-scanner"));
 const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
-const WatchlistPage = lazy(() => import("@/pages/watchlist"));
+const UnifiedWatchlist = lazy(() => import("@/pages/unified-watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
-const CommandCenter = lazy(() => import("@/pages/command-center"));
-const CommandCenterV2 = lazy(() => import("@/pages/command-center-v2"));
 const HomePage = lazy(() => import("@/pages/home"));
 const StrategyPlaybooks = lazy(() => import("@/pages/strategy-playbooks"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
@@ -98,7 +97,6 @@ const ResearchHubPage = lazy(() => import("@/pages/research-hub"));
 const DiscoverPage = lazy(() => import("@/pages/discover"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const AIStockPickerPage = lazy(() => import("@/pages/ai-stock-picker"));
-const WatchlistKavout = lazy(() => import("@/pages/watchlist-kavout"));
 const MarketMoversPage = lazy(() => import("@/pages/market-movers"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 
@@ -188,9 +186,10 @@ function Router() {
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
       <Route path="/research" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/stock/:symbol" component={withBetaProtection(StockDetailPage)} />
       <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
       <Route path="/market-movers" component={withBetaProtection(MarketMoversPage)} />
-      <Route path="/watchlist" component={withBetaProtection(WatchlistKavout)} />
+      <Route path="/watchlist" component={withBetaProtection(UnifiedWatchlist)} />
       <Route path="/ai-stock-picker" component={withBetaProtection(AIStockPickerPage)} />
       <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
       <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
@@ -246,6 +245,7 @@ function Router() {
       <Route path="/admin/invites" component={AdminInvites} />
       <Route path="/admin/waitlist" component={AdminWaitlist} />
       <Route path="/admin/system" component={AdminSystem} />
+      <Route path="/admin/trade-ideas" component={AdminTradeIdeas} />
       <Route path="/admin/blog" component={AdminBlog} />
       <Route path="/admin/reports" component={AdminReports} />
       <Route path="/admin/security" component={AdminSecurity} />
@@ -273,8 +273,7 @@ function Router() {
       <Route path="/signals">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/watchlist" component={withBetaProtection(WatchlistPage)} />
-      
+
       {/* Redirects - Removed Pages */}
       <Route path="/trading-guide">
         <Redirect to="/blog/how-to-trade-like-a-pro" />
@@ -366,7 +365,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {
@@ -375,10 +374,12 @@ function App() {
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
           <TooltipProvider>
             <RealtimePricesProvider>
-              <AuroraBackground />
-              <ScrollParticles />
-              <Router />
-              <Toaster />
+              <StockContextProvider>
+                <AuroraBackground />
+                <ScrollParticles />
+                <Router />
+                <Toaster />
+              </StockContextProvider>
             </RealtimePricesProvider>
           </TooltipProvider>
         </ThemeProvider>
@@ -394,37 +395,39 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
           <RealtimePricesProvider>
-            <PreferencesProvider>
-              <ContentDensityProvider>
-                <AuroraBackground />
-                {enableAuroraLayout ? (
-                  <AuroraLayoutProvider>
-                    <div className="flex flex-col h-screen w-full">
-                      <TabNavigation />
-                      <div className="flex-1 overflow-auto bg-background">
-                        <main className="min-h-full p-6 max-w-7xl mx-auto">
-                          <ErrorBoundary>
-                            <Suspense fallback={<PageLoader />}>
-                              <Router />
-                            </Suspense>
-                          </ErrorBoundary>
-                        </main>
+            <StockContextProvider>
+              <PreferencesProvider>
+                <ContentDensityProvider>
+                  <AuroraBackground />
+                  {enableAuroraLayout ? (
+                    <AuroraLayoutProvider>
+                      <div className="flex flex-col h-screen w-full">
+                        <GlassHeader />
+                        <div className="flex-1 overflow-auto bg-background pt-16">
+                          <main className="min-h-full px-4 pb-6 max-w-[1800px] mx-auto">
+                            <ErrorBoundary>
+                              <Suspense fallback={<PageLoader />}>
+                                <Router />
+                              </Suspense>
+                            </ErrorBoundary>
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  </AuroraLayoutProvider>
-                ) : (
-                  <SidebarProvider style={style as React.CSSProperties}>
-                    <div className="flex h-screen w-full">
-                      <AppSidebar />
-                      <MainContentWrapper />
-                    </div>
-                  </SidebarProvider>
-                )}
-                <AIChatbotPopup />
-                <BotNotificationPopup />
-                <Toaster />
-              </ContentDensityProvider>
-            </PreferencesProvider>
+                    </AuroraLayoutProvider>
+                  ) : (
+                    <SidebarProvider style={style as React.CSSProperties}>
+                      <div className="flex h-screen w-full">
+                        <AppSidebar />
+                        <MainContentWrapper />
+                      </div>
+                    </SidebarProvider>
+                  )}
+                  <AIChatbotPopup />
+                  <BotNotificationPopup />
+                  <Toaster />
+                </ContentDensityProvider>
+              </PreferencesProvider>
+            </StockContextProvider>
           </RealtimePricesProvider>
         </TooltipProvider>
       </ThemeProvider>

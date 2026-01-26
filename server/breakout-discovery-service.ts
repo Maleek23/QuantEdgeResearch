@@ -50,7 +50,13 @@ const SURGE_WATCH_UNIVERSE = [
   'SMCI', 'DELL', 'HPE', 'PSTG', 'NTAP', 'WDC', 'STX', 'PANW', 'OKTA', 'FTNT',
   
   // Biotech/Health - Catalyst plays
-  'MRNA', 'BNTX', 'NVAX', 'ARKG', 'XBI', 'SGEN', 'VRTX', 'REGN', 'ILMN', 'EXAS'
+  'MRNA', 'BNTX', 'NVAX', 'ARKG', 'XBI', 'SGEN', 'VRTX', 'REGN', 'ILMN', 'EXAS',
+
+  // Precious Metals & Commodities - Silver, Gold, Copper plays
+  'SLV', 'PSLV', 'AGI', 'AG', 'PAAS', 'HL', 'EXK', 'MAG', 'FSM', 'WPM', // Silver
+  'GLD', 'IAU', 'GDX', 'GDXJ', 'GOLD', 'NEM', 'AEM', 'KGC', 'FNV', 'RGLD', // Gold
+  'COPX', 'CPER', 'FCX', 'SCCO', 'TECK', 'RIO', 'BHP', 'VALE', // Copper & Base metals
+  'USO', 'XLE', 'OXY', 'COP', 'DVN', 'PXD', 'EOG', 'FANG', 'HES', 'MRO' // Oil & Energy
 ];
 
 export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]> {
@@ -59,8 +65,7 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
   const candidates: BreakoutCandidate[] = [];
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     
     const shuffled = [...SURGE_WATCH_UNIVERSE].sort(() => Math.random() - 0.5);
     const toScan = shuffled.slice(0, 60);
@@ -167,6 +172,15 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
           } else if (symbol.match(/^(COIN|MARA|RIOT|MSTR|CLSK)/)) {
             reasons.push('₿ Crypto');
             score += 5;
+          } else if (symbol.match(/^(SLV|PSLV|AGI|AG|PAAS|HL|EXK|MAG|FSM|WPM)/)) {
+            reasons.push('🥈 Silver');
+            score += 6;
+          } else if (symbol.match(/^(GLD|IAU|GDX|GDXJ|GOLD|NEM|AEM|KGC|FNV|RGLD)/)) {
+            reasons.push('🥇 Gold');
+            score += 6;
+          } else if (symbol.match(/^(COPX|CPER|FCX|SCCO|TECK|RIO|BHP|VALE)/)) {
+            reasons.push('🔶 Copper/Base');
+            score += 6;
           }
           
           // PRICE TIER INFO (no filtering, just info)
@@ -197,9 +211,9 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
       
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value) {
-          // Include all SURGE/MOMENTUM, and SETUP/WATCH with score >= 55
+          // Include all SURGE/MOMENTUM, and any stock with score >= 45 (more inclusive)
           const c = result.value;
-          if (c.tier === 'SURGE' || c.tier === 'MOMENTUM' || c.score >= 55) {
+          if (c.tier === 'SURGE' || c.tier === 'MOMENTUM' || c.score >= 45) {
             candidates.push(c);
           }
         }
@@ -231,8 +245,7 @@ export async function detectPreBreakout(): Promise<BreakoutCandidate[]> {
   const candidates: BreakoutCandidate[] = [];
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     
     // Focus on high-quality names that could surge
     const priorityTickers = [

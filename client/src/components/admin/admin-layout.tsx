@@ -193,6 +193,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { title: "Overview", href: "/admin", icon: LayoutDashboard },
     { title: "Users", href: "/admin/users", icon: Users },
+    { title: "Trade Ideas", href: "/admin/trade-ideas", icon: Zap },
     { title: "Invites", href: "/admin/invites", icon: Mail },
     { title: "Waitlist", href: "/admin/waitlist", icon: UserPlus },
     { title: "System", href: "/admin/system", icon: Activity },

@@ -3692,7 +3692,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbols = req.params.symbols.split(',').map(s => s.trim().toUpperCase());
       const allMarketData = await storage.getAllMarketData();
       const filtered = allMarketData.filter(m => symbols.includes(m.symbol));
-      res.json(filtered);
+
+      // Transform to expected format: { quotes: { SYMBOL: { regularMarketPrice, ... } } }
+      const quotes: Record<string, any> = {};
+      for (const data of filtered) {
+        quotes[data.symbol] = {
+          regularMarketPrice: data.currentPrice,
+          regularMarketChange: data.currentPrice * (data.changePercent / 100), // Calculate absolute change
+          regularMarketChangePercent: data.changePercent,
+        };
+      }
+
+      // Fetch missing symbols from Yahoo Finance
+      const foundSymbols = new Set(Object.keys(quotes));
+      const missingSymbols = symbols.filter(s => !foundSymbols.has(s));
+
+      if (missingSymbols.length > 0) {
+        try {
+          const { default: yahooFinance } = await import('yahoo-finance2');
+          // yahooFinance is already instantiated
+          const yahooQuotes = await yahooFinance.quote(missingSymbols);
+          const quoteArray = Array.isArray(yahooQuotes) ? yahooQuotes : [yahooQuotes];
+
+          for (const quote of quoteArray) {
+            if (quote && quote.symbol) {
+              quotes[quote.symbol] = {
+                regularMarketPrice: quote.regularMarketPrice || 0,
+                regularMarketChange: quote.regularMarketChange || 0,
+                regularMarketChangePercent: quote.regularMarketChangePercent || 0,
+              };
+            }
+          }
+        } catch (error: any) {
+          logger.warn(`Failed to fetch symbols from Yahoo Finance (${missingSymbols.join(',')}):`, error.message || error);
+        }
+      }
+
+      res.json({ quotes });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch market data" });
     }
@@ -3763,6 +3799,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Error fetching batch quotes:", error);
       res.status(500).json({ error: "Failed to fetch batch quotes" });
+    }
+  });
+
+  // GET /api/historical-prices/:symbol - Get historical price data for charts
+  app.get("/api/historical-prices/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const range = (req.query.range as string) || '1M';
+      const assetType = (req.query.assetType as 'stock' | 'crypto') || 'stock';
+
+      // Convert range to days
+      const rangeToDays: Record<string, number> = {
+        '1D': 1,
+        '5D': 5,
+        '1M': 30,
+        '3M': 90,
+        '6M': 180,
+        '1Y': 365,
+        '5Y': 1825,
+      };
+      const days = rangeToDays[range] || 30;
+
+      const { fetchHistoricalPrices } = await import('./market-api');
+      const prices = await fetchHistoricalPrices(symbol, assetType, days);
+
+      if (!prices || prices.length === 0) {
+        return res.status(404).json({ error: "No historical data found" });
+      }
+
+      // Convert to chart format with timestamps
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const chartData = prices.map((price, i) => ({
+        time: Math.floor((now - (prices.length - i - 1) * oneDayMs) / 1000),
+        value: price,
+      }));
+
+      res.json({ symbol, range, data: chartData });
+    } catch (error) {
+      logger.error(`Error fetching historical prices for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch historical prices" });
+    }
+  });
+
+  // GET /api/stocks/:symbol/analysts - Get analyst ratings
+  app.get("/api/stocks/:symbol/analysts", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const yahooFinance = (await import('yahoo-finance2')).default;
+
+      try {
+        const result = await yahooFinance.quoteSummary(symbol, { modules: ['recommendationTrend', 'upgradeDowngradeHistory'] });
+
+        const ratings = result.upgradeDowngradeHistory?.history?.slice(0, 10).map((item: any) => ({
+          firm: item.firm,
+          rating: item.toGrade,
+          previousRating: item.fromGrade,
+          action: item.action,
+          date: item.epochGradeDate ? new Date(item.epochGradeDate * 1000).toISOString() : null,
+        })) || [];
+
+        const trend = result.recommendationTrend?.trend?.[0];
+        const consensus = trend ? {
+          strongBuy: trend.strongBuy || 0,
+          buy: trend.buy || 0,
+          hold: trend.hold || 0,
+          sell: trend.sell || 0,
+          strongSell: trend.strongSell || 0,
+        } : null;
+
+        res.json({ symbol, ratings, consensus });
+      } catch (yahooError) {
+        // Return empty data instead of error
+        res.json({ symbol, ratings: [], consensus: null });
+      }
+    } catch (error) {
+      logger.error(`Error fetching analyst data for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch analyst data" });
+    }
+  });
+
+  // GET /api/stocks/:symbol/insiders - Get insider transactions
+  app.get("/api/stocks/:symbol/insiders", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const yahooFinance = (await import('yahoo-finance2')).default;
+
+      try {
+        const result = await yahooFinance.quoteSummary(symbol, { modules: ['insiderTransactions', 'insiderHolders'] });
+
+        const transactions = result.insiderTransactions?.transactions?.slice(0, 15).map((tx: any) => ({
+          name: tx.filerName,
+          title: tx.filerRelation,
+          transactionType: tx.transactionText || (tx.shares > 0 ? 'Purchase' : 'Sale'),
+          sharesTraded: Math.abs(tx.shares || 0),
+          pricePerShare: tx.value && tx.shares ? Math.abs(tx.value / tx.shares) : null,
+          value: tx.value ? Math.abs(tx.value) : null,
+          transactionDate: tx.startDate ? new Date(tx.startDate).toISOString() : null,
+        })) || [];
+
+        const holders = result.insiderHolders?.holders?.slice(0, 10).map((h: any) => ({
+          name: h.name,
+          position: h.relation,
+          shares: h.positionDirect?.raw || 0,
+          latestTransaction: h.latestTransDate ? new Date(h.latestTransDate).toISOString() : null,
+        })) || [];
+
+        res.json({ symbol, transactions, holders });
+      } catch (yahooError) {
+        res.json({ symbol, transactions: [], holders: [] });
+      }
+    } catch (error) {
+      logger.error(`Error fetching insider data for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch insider data" });
+    }
+  });
+
+  // GET /api/stocks/:symbol/institutions - Get institutional holdings
+  app.get("/api/stocks/:symbol/institutions", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const yahooFinance = (await import('yahoo-finance2')).default;
+
+      try {
+        const result = await yahooFinance.quoteSummary(symbol, { modules: ['institutionOwnership', 'majorHoldersBreakdown'] });
+
+        const holders = result.institutionOwnership?.ownershipList?.slice(0, 15).map((inst: any) => ({
+          name: inst.organization,
+          shares: inst.position?.raw || 0,
+          value: inst.value?.raw || null,
+          percentOwnership: inst.pctHeld?.raw ? inst.pctHeld.raw * 100 : null,
+          changePercent: inst.pctChange?.raw ? inst.pctChange.raw * 100 : null,
+          reportDate: inst.reportDate ? new Date(inst.reportDate).toISOString() : null,
+        })) || [];
+
+        const breakdown = result.majorHoldersBreakdown ? {
+          insidersPercent: result.majorHoldersBreakdown.insidersPercentHeld?.raw * 100 || 0,
+          institutionsPercent: result.majorHoldersBreakdown.institutionsPercentHeld?.raw * 100 || 0,
+          floatPercent: result.majorHoldersBreakdown.institutionsFloatPercentHeld?.raw * 100 || 0,
+          institutionsCount: result.majorHoldersBreakdown.institutionsCount?.raw || 0,
+        } : null;
+
+        res.json({ symbol, holders, breakdown });
+      } catch (yahooError) {
+        res.json({ symbol, holders: [], breakdown: null });
+      }
+    } catch (error) {
+      logger.error(`Error fetching institution data for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch institution data" });
     }
   });
 
@@ -4783,7 +4968,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         logger.info(`[TRADE-IDEAS] Quality filter applied: ${beforeCount} -> ${ideas.length} ideas`);
       }
-      
+
+      // 🛡️ SANITIZE: Cap confidence at 94% for all returned ideas (fixes legacy data)
+      ideas = ideas.map(idea => ({
+        ...idea,
+        confidenceScore: idea.confidenceScore ? Math.min(94, idea.confidenceScore) : idea.confidenceScore
+      }));
+
       const hitTargetCount = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
       const openCount = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
       logger.info(`[TRADE-IDEAS] Fetched ${ideas.length} ideas (isAdmin=${isAdmin}, userId=${userId ? 'present' : 'null'}) - ${hitTargetCount} hit_target, ${openCount} open`);
@@ -5005,8 +5196,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })();
       
       logger.info(`[TRADE-IDEAS] Returning ${deduplicatedIdeas.length} ideas (after dedup from ${ideasWithPrices.length})`);
-      
-      res.json(deduplicatedIdeas);
+
+      // 🛡️ FINAL SANITIZATION: Cap confidence at 94% and fix any insane targets for all returned ideas
+      const sanitizedIdeas = deduplicatedIdeas.map(idea => {
+        let sanitized = { ...idea };
+
+        // Cap confidence at 94%
+        if (sanitized.confidenceScore && sanitized.confidenceScore > 94) {
+          sanitized.confidenceScore = 94;
+        }
+
+        // Fix insane targets (legacy bug: -50%/+30% on options)
+        // Valid targets should be within reasonable range of entry price
+        const entry = sanitized.entryPrice;
+        const target = sanitized.targetPrice;
+        const stop = sanitized.stopLoss;
+
+        if (entry && target && stop) {
+          const targetPct = Math.abs((target - entry) / entry) * 100;
+          const stopPct = Math.abs((stop - entry) / entry) * 100;
+
+          // If target or stop is more than 40% from entry, recalculate with sane defaults
+          if (targetPct > 40 || stopPct > 40) {
+            const isLong = sanitized.direction === 'LONG' || sanitized.optionType === 'call';
+            if (sanitized.assetType === 'option') {
+              // Options: 3% underlying target, 3% stop
+              sanitized.targetPrice = isLong ? entry * 1.03 : entry * 0.97;
+              sanitized.stopLoss = isLong ? entry * 0.97 : entry * 1.03;
+            } else {
+              // Stocks: 5% target, 3% stop
+              sanitized.targetPrice = isLong ? entry * 1.05 : entry * 0.95;
+              sanitized.stopLoss = isLong ? entry * 0.97 : entry * 1.03;
+            }
+          }
+        }
+
+        return sanitized;
+      });
+
+      res.json(sanitizedIdeas);
     } catch (error) {
       logger.error("[TRADE-IDEAS] Error fetching trade ideas:", error);
       res.status(500).json({ error: "Failed to fetch trade ideas", details: error instanceof Error ? error.message : 'Unknown error' });
@@ -5133,7 +5361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/trade-ideas/best-setups", async (req: any, res) => {
     try {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
-      const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+      const limit = Math.min(parseInt(req.query.limit as string) || 5, 100);
       
       // Get all active trade ideas
       const allIdeas = await storage.getAllTradeIdeas();
@@ -5853,6 +6081,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete trade idea" });
+    }
+  });
+
+  // 🛠️ DATA CLEANUP: Fix all trade ideas with insane confidence/targets
+  // This permanently updates the database to fix legacy bugs
+  app.post("/api/trade-ideas/cleanup", requireAdminJWT, async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      let fixedCount = 0;
+      let confidenceFixCount = 0;
+      let targetFixCount = 0;
+
+      for (const idea of allIdeas) {
+        let needsUpdate = false;
+        const updates: any = {};
+
+        // Fix confidence > 94%
+        if (idea.confidenceScore && idea.confidenceScore > 94) {
+          updates.confidenceScore = 94;
+          needsUpdate = true;
+          confidenceFixCount++;
+        }
+
+        // Fix insane targets (> 40% from entry)
+        const entry = idea.entryPrice;
+        const target = idea.targetPrice;
+        const stop = idea.stopLoss;
+
+        if (entry && target && stop) {
+          const targetPct = Math.abs((target - entry) / entry) * 100;
+          const stopPct = Math.abs((stop - entry) / entry) * 100;
+
+          if (targetPct > 40 || stopPct > 40) {
+            const isLong = idea.direction === 'LONG' || idea.optionType === 'call';
+            if (idea.assetType === 'option') {
+              updates.targetPrice = isLong ? entry * 1.03 : entry * 0.97;
+              updates.stopLoss = isLong ? entry * 0.97 : entry * 1.03;
+            } else {
+              updates.targetPrice = isLong ? entry * 1.05 : entry * 0.95;
+              updates.stopLoss = isLong ? entry * 0.97 : entry * 1.03;
+            }
+            needsUpdate = true;
+            targetFixCount++;
+          }
+        }
+
+        if (needsUpdate) {
+          await storage.updateTradeIdea(idea.id, updates);
+          fixedCount++;
+        }
+      }
+
+      logger.info(`[CLEANUP] Fixed ${fixedCount} trade ideas (${confidenceFixCount} confidence, ${targetFixCount} targets)`);
+
+      res.json({
+        success: true,
+        totalIdeas: allIdeas.length,
+        fixedCount,
+        confidenceFixCount,
+        targetFixCount
+      });
+    } catch (error) {
+      logger.error("[CLEANUP] Failed to cleanup trade ideas:", error);
+      res.status(500).json({ error: "Failed to cleanup trade ideas" });
     }
   });
 
@@ -20378,7 +20670,8 @@ Use this checklist before entering any trade:
       const { PatternPredictor } = await import("./pattern-predictor");
       
       // Fetch historical bars from Yahoo Finance
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const { default: yahooFinance } = await import('yahoo-finance2');
+      // yahooFinance is already instantiated
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - 120); // 120 days of data
@@ -20414,7 +20707,8 @@ Use this checklist before entering any trade:
   app.get("/api/macro/context", isAuthenticated, async (req, res) => {
     try {
       const { MacroSignals } = await import("./macro-signals");
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const { default: yahooFinance } = await import('yahoo-finance2');
+      // yahooFinance is already instantiated
       
       // Fetch VIX level
       let vixLevel = 18; // Default fallback
@@ -20459,7 +20753,8 @@ Use this checklist before entering any trade:
   app.get("/api/macro/vix-regime", async (_req, res) => {
     try {
       const { MacroSignals } = await import("./macro-signals");
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const { default: yahooFinance } = await import('yahoo-finance2');
+      // yahooFinance is already instantiated
       
       let vixLevel = 18;
       try {
@@ -20484,7 +20779,8 @@ Use this checklist before entering any trade:
     try {
       const { symbol } = req.params;
       const { OrderBookIntelligence } = await import("./order-book-intelligence");
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const { default: yahooFinance } = await import('yahoo-finance2');
+      // yahooFinance is already instantiated
 
       // Get quote for avg daily volume
       let avgDailyVolume = 1000000;
@@ -20787,55 +21083,197 @@ Use this checklist before entering any trade:
 
   // ============================================
   // SURGE DETECTOR - Find momentum and pre-breakout signals (NO price cap)
+  // With caching to prevent Yahoo Finance rate limiting
   // ============================================
-  
-  app.get("/api/discovery/breakouts", async (_req, res) => {
+
+  // In-memory cache for surge data (prevents rate limiting)
+  const surgeCache = {
+    breakouts: { data: null as any, timestamp: 0 },
+    preBreakout: { data: null as any, timestamp: 0 },
+    detection: { data: null as any, timestamp: 0 },
+  };
+  const SURGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+  app.get("/api/discovery/breakouts", async (req, res) => {
     try {
+      const now = Date.now();
+      const forceRefresh = req.query.refresh === 'true';
+
+      // Return cached data if still fresh (unless force refresh)
+      if (!forceRefresh && surgeCache.breakouts.data && surgeCache.breakouts.data.length > 0 && (now - surgeCache.breakouts.timestamp) < SURGE_CACHE_TTL) {
+        return res.json({
+          candidates: surgeCache.breakouts.data,
+          count: surgeCache.breakouts.data.length,
+          cached: true,
+          cacheAge: Math.round((now - surgeCache.breakouts.timestamp) / 1000)
+        });
+      }
+
       const { discoverBreakoutCandidates } = await import("./breakout-discovery-service");
       const candidates = await discoverBreakoutCandidates();
-      res.json({ candidates, count: candidates.length });
+
+      // Update cache
+      surgeCache.breakouts = { data: candidates, timestamp: now };
+
+      res.json({ candidates, count: candidates.length, cached: false });
     } catch (error) {
       logger.error("Error in surge detection", { error });
+      // Return cached data on error if available
+      if (surgeCache.breakouts.data) {
+        return res.json({
+          candidates: surgeCache.breakouts.data,
+          count: surgeCache.breakouts.data.length,
+          cached: true,
+          error: "Using cached data due to API error"
+        });
+      }
       res.status(500).json({ error: "Failed to detect surges" });
     }
   });
 
   app.get("/api/discovery/pre-breakout", async (_req, res) => {
     try {
+      const now = Date.now();
+
+      // Return cached data if still fresh
+      if (surgeCache.preBreakout.data && (now - surgeCache.preBreakout.timestamp) < SURGE_CACHE_TTL) {
+        return res.json({
+          candidates: surgeCache.preBreakout.data,
+          count: surgeCache.preBreakout.data.length,
+          cached: true,
+          cacheAge: Math.round((now - surgeCache.preBreakout.timestamp) / 1000)
+        });
+      }
+
       const { detectPreBreakout } = await import("./breakout-discovery-service");
       const candidates = await detectPreBreakout();
-      res.json({ candidates, count: candidates.length });
+
+      // Update cache
+      surgeCache.preBreakout = { data: candidates, timestamp: now };
+
+      res.json({ candidates, count: candidates.length, cached: false });
     } catch (error) {
       logger.error("Error in pre-breakout detection", { error });
+      // Return cached data on error if available
+      if (surgeCache.preBreakout.data) {
+        return res.json({
+          candidates: surgeCache.preBreakout.data,
+          count: surgeCache.preBreakout.data.length,
+          cached: true,
+          error: "Using cached data due to API error"
+        });
+      }
       res.status(500).json({ error: "Failed to detect pre-breakout signals" });
     }
   });
 
   // ============================================
-  // DETECTION ENGINE - Event-driven surge detection (criteria-based, not scanning)
+  // OVERNIGHT SURGE PREDICTOR - Predictive analysis for next-day moves
+  // Finds stocks that might surge 10-40% tomorrow
   // ============================================
-  
+
+  // Cache for overnight predictions (10 min TTL since it's predictive, not reactive)
+  const overnightCache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
+  const OVERNIGHT_CACHE_TTL = 10 * 60 * 1000;
+
+  app.get("/api/discovery/overnight-predictions", async (_req, res) => {
+    try {
+      const now = Date.now();
+
+      // Return cached data if still fresh
+      if (overnightCache.data && (now - overnightCache.timestamp) < OVERNIGHT_CACHE_TTL) {
+        return res.json({
+          predictions: overnightCache.data,
+          count: overnightCache.data.length,
+          cached: true,
+          cacheAge: Math.round((now - overnightCache.timestamp) / 1000)
+        });
+      }
+
+      const { scanOvernightSurgeCandidates, getHighConvictionPredictions, isNearMarketClose } =
+        await import("./overnight-surge-predictor");
+
+      const predictions = await scanOvernightSurgeCandidates();
+      const highConviction = getHighConvictionPredictions(predictions);
+
+      // Update cache
+      overnightCache.data = predictions;
+      overnightCache.timestamp = now;
+
+      res.json({
+        predictions,
+        count: predictions.length,
+        highConviction: highConviction.length,
+        strongSetups: predictions.filter(p => p.prediction.tier === 'STRONG_SETUP').length,
+        isOptimalTime: isNearMarketClose(),
+        cached: false
+      });
+    } catch (error) {
+      logger.error("Error in overnight prediction scan", { error });
+      // Return cached data on error if available
+      if (overnightCache.data) {
+        return res.json({
+          predictions: overnightCache.data,
+          count: overnightCache.data.length,
+          cached: true,
+          error: "Using cached data due to API error"
+        });
+      }
+      res.status(500).json({ error: "Failed to scan for overnight surge candidates" });
+    }
+  });
+
+  // ============================================
+  // DETECTION ENGINE - Event-driven surge detection (criteria-based, not scanning)
+  // With caching to prevent excessive API calls
+  // ============================================
+
   app.get("/api/detection/alerts", async (_req, res) => {
     try {
+      const now = Date.now();
+
+      // Return cached detection data if still fresh (3 min cache for detection)
+      const DETECTION_CACHE_TTL = 3 * 60 * 1000;
+      if (surgeCache.detection.data && (now - surgeCache.detection.timestamp) < DETECTION_CACHE_TTL) {
+        return res.json({
+          ...surgeCache.detection.data,
+          cached: true,
+          cacheAge: Math.round((now - surgeCache.detection.timestamp) / 1000)
+        });
+      }
+
       const { getActiveAlerts, getLastDetectionAlerts, runDetectionCycle } = await import("./surge-detection-engine");
       let activeAlerts = getActiveAlerts();
       let lastCycleAlerts = getLastDetectionAlerts();
-      
+
       // Auto-run detection if no alerts exist (first access or stale)
       if (activeAlerts.length === 0 && lastCycleAlerts.length === 0) {
         logger.info("[DETECTION] No alerts found, running initial detection cycle...");
         lastCycleAlerts = await runDetectionCycle();
         activeAlerts = getActiveAlerts();
       }
-      
-      res.json({ 
+
+      const responseData = {
         alerts: activeAlerts,
         lastCycle: lastCycleAlerts,
         activeCount: activeAlerts.length,
         highPriority: activeAlerts.filter(a => a.severity === 'HIGH').length
-      });
+      };
+
+      // Update cache
+      surgeCache.detection = { data: responseData, timestamp: now };
+
+      res.json({ ...responseData, cached: false });
     } catch (error) {
       logger.error("Error getting detection alerts", { error });
+      // Return cached data on error if available
+      if (surgeCache.detection.data) {
+        return res.json({
+          ...surgeCache.detection.data,
+          cached: true,
+          error: "Using cached data due to API error"
+        });
+      }
       res.status(500).json({ error: "Failed to get detection alerts" });
     }
   });
@@ -20869,9 +21307,153 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
+  // CONVERGENCE ENGINE - Multi-source signal correlation
+  // Finds ARM/BNAI/Coreweave-style moves BEFORE they happen
+  // ============================================
+
+  // Cache for convergence data
+  const convergenceCache = {
+    opportunities: { data: null as any, timestamp: 0 },
+    hotSymbols: { data: null as any, timestamp: 0 },
+  };
+  const CONVERGENCE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes cache
+
+  // GET /api/convergence/opportunities - Get current convergence opportunities
+  app.get("/api/convergence/opportunities", async (_req, res) => {
+    try {
+      const now = Date.now();
+
+      // Return cached data if fresh
+      if (convergenceCache.opportunities.data && (now - convergenceCache.opportunities.timestamp) < CONVERGENCE_CACHE_TTL) {
+        return res.json({
+          ...convergenceCache.opportunities.data,
+          cached: true,
+          cacheAge: Math.round((now - convergenceCache.opportunities.timestamp) / 1000)
+        });
+      }
+
+      const { getConvergenceOpportunities } = await import("./convergence-engine");
+      const opportunities = await getConvergenceOpportunities();
+
+      const responseData = {
+        opportunities,
+        count: opportunities.length,
+        critical: opportunities.filter(o => o.urgency === 'critical').length,
+        high: opportunities.filter(o => o.urgency === 'high').length,
+        generatedAt: new Date().toISOString(),
+      };
+
+      convergenceCache.opportunities = { data: responseData, timestamp: now };
+      res.json({ ...responseData, cached: false });
+    } catch (error) {
+      logger.error("Error getting convergence opportunities", { error });
+      if (convergenceCache.opportunities.data) {
+        return res.json({ ...convergenceCache.opportunities.data, cached: true, error: "Using cached data" });
+      }
+      res.status(500).json({ error: "Failed to get convergence opportunities" });
+    }
+  });
+
+  // GET /api/convergence/hot-symbols - Get symbols with highest heat scores
+  app.get("/api/convergence/hot-symbols", async (req, res) => {
+    try {
+      const now = Date.now();
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      // Return cached data if fresh
+      if (convergenceCache.hotSymbols.data && (now - convergenceCache.hotSymbols.timestamp) < CONVERGENCE_CACHE_TTL) {
+        return res.json({
+          ...convergenceCache.hotSymbols.data,
+          cached: true,
+          cacheAge: Math.round((now - convergenceCache.hotSymbols.timestamp) / 1000)
+        });
+      }
+
+      const { getHotSymbols } = await import("./attention-tracking-service");
+      const hotSymbols = await getHotSymbols(limit);
+
+      const responseData = {
+        symbols: hotSymbols,
+        count: hotSymbols.length,
+        convergingCount: hotSymbols.filter(s => s.isConverging).length,
+        generatedAt: new Date().toISOString(),
+      };
+
+      convergenceCache.hotSymbols = { data: responseData, timestamp: now };
+      res.json({ ...responseData, cached: false });
+    } catch (error) {
+      logger.error("Error getting hot symbols", { error });
+      if (convergenceCache.hotSymbols.data) {
+        return res.json({ ...convergenceCache.hotSymbols.data, cached: true, error: "Using cached data" });
+      }
+      res.status(500).json({ error: "Failed to get hot symbols" });
+    }
+  });
+
+  // GET /api/convergence/symbol/:symbol - Get convergence history for a symbol
+  app.get("/api/convergence/symbol/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const hours = parseInt(req.query.hours as string) || 24;
+
+      const { getSymbolAttentionHistory } = await import("./attention-tracking-service");
+      const { activeSignals } = await import("./convergence-engine");
+
+      const [history, currentSignals] = await Promise.all([
+        getSymbolAttentionHistory(symbol, hours),
+        Promise.resolve(activeSignals.get(symbol.toUpperCase()) || []),
+      ]);
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        history,
+        historyCount: history.length,
+        activeSignals: currentSignals,
+        activeSignalCount: currentSignals.length,
+        distinctSources: new Set(currentSignals.map(s => s.source)).size,
+      });
+    } catch (error) {
+      logger.error("Error getting symbol convergence data", { error });
+      res.status(500).json({ error: "Failed to get symbol convergence data" });
+    }
+  });
+
+  // POST /api/convergence/scan-overnight - Manually trigger overnight catalyst scan
+  app.post("/api/convergence/scan-overnight", requireAdminJWT, async (_req, res) => {
+    try {
+      const { scanOvernightCatalysts } = await import("./convergence-engine");
+      const signals = await scanOvernightCatalysts();
+      res.json({
+        success: true,
+        signalsFound: signals.length,
+        signals: signals.slice(0, 20), // Return first 20
+      });
+    } catch (error) {
+      logger.error("Error running overnight scan", { error });
+      res.status(500).json({ error: "Failed to run overnight scan" });
+    }
+  });
+
+  // POST /api/convergence/scan-sectors - Manually trigger sector momentum scan
+  app.post("/api/convergence/scan-sectors", requireAdminJWT, async (_req, res) => {
+    try {
+      const { detectSectorMomentum } = await import("./convergence-engine");
+      const signals = await detectSectorMomentum();
+      res.json({
+        success: true,
+        signalsFound: signals.length,
+        signals,
+      });
+    } catch (error) {
+      logger.error("Error running sector scan", { error });
+      res.status(500).json({ error: "Failed to run sector scan" });
+    }
+  });
+
+  // ============================================
   // MORNING PREVIEW - 8:30 AM CT trading preview
   // ============================================
-  
+
   app.get("/api/automations/morning-preview", async (_req, res) => {
     try {
       const { generateMorningPreview } = await import("./morning-preview-service");
@@ -22868,18 +23450,177 @@ Use this checklist before entering any trade:
   app.get("/api/stocks/:symbol/grade", async (req, res) => {
     try {
       const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+
+      // Get comprehensive grade
       const { fundamentalAnalysisService } = await import('./fundamental-analysis-service');
       const grade = await fundamentalAnalysisService.getStockGrade(
-        symbol.toUpperCase(),
+        upperSymbol,
         req.query.technicalScore ? parseFloat(req.query.technicalScore as string) : undefined,
         req.query.signalCount ? parseInt(req.query.signalCount as string) : undefined,
         req.query.sentimentScore ? parseFloat(req.query.sentimentScore as string) : undefined,
         req.query.aiScore ? parseFloat(req.query.aiScore as string) : undefined
       );
-      res.json(grade);
+
+      // Also fetch current quote for price data
+      const { default: yahooFinance } = await import('yahoo-finance2');
+      // yahooFinance is already instantiated
+      const quote = await yahooFinance.quote(upperSymbol);
+      const { fundamentalDataProvider } = await import('./fundamental-data-provider');
+      const fundamentals = await fundamentalDataProvider.getFundamentals(upperSymbol);
+
+      // Build enhanced response with price + company info
+      const response = {
+        ...grade,
+        name: quote.longName || quote.shortName || upperSymbol,
+        price: quote.regularMarketPrice || 0,
+        change: quote.regularMarketChange || 0,
+        changePercent: quote.regularMarketChangePercent || 0,
+        marketCap: fundamentals?.profile?.marketCap
+          ? `$${(fundamentals.profile.marketCap / 1e9).toFixed(1)}B`
+          : 'N/A',
+        sector: fundamentals?.profile?.sector || 'N/A',
+        industry: fundamentals?.profile?.industry || 'N/A',
+        grade: grade.overallGrade,
+        gradeTier: grade.overallGrade.charAt(0), // S, A, B, C, D, F
+        score: grade.overallScore,
+      };
+
+      res.json(response);
     } catch (error: any) {
       logger.error(`Grade error ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to grade stock" });
+    }
+  });
+
+  // ===== UNIVERSAL ANALYSIS ENGINE ROUTES =====
+
+  // GET /api/analyze/:symbol - Universal 7-dimensional analysis
+  app.get("/api/analyze/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+
+      // Parse params from query string
+      const params: any = {};
+
+      if (req.query.timeHorizon) {
+        params.timeHorizon = req.query.timeHorizon as string;
+      }
+      if (req.query.focus) {
+        const focus = req.query.focus as string;
+        params.focus = focus === 'ALL' ? 'ALL' : focus.split(',');
+      }
+      if (req.query.minScore) {
+        params.minScore = parseInt(req.query.minScore as string);
+      }
+      if (req.query.includeBreakdown) {
+        params.includeBreakdown = req.query.includeBreakdown === 'true';
+      }
+      if (req.query.includeHistorical) {
+        params.includeHistorical = req.query.includeHistorical === 'true';
+      }
+
+      // Run universal analysis
+      const { universalEngine } = await import('./universal-analysis-engine');
+      const analysis = await universalEngine.analyze(upperSymbol, params);
+
+      res.json(analysis);
+    } catch (error: any) {
+      logger.error(`Universal analysis error ${req.params.symbol}:`, error);
+      res.status(500).json({
+        error: "Failed to analyze stock",
+        details: error.message
+      });
+    }
+  });
+
+  // GET /api/analyze/batch - Batch universal analysis
+  app.post("/api/analyze/batch", async (req, res) => {
+    try {
+      const { symbols, params } = req.body;
+
+      if (!symbols || !Array.isArray(symbols)) {
+        return res.status(400).json({ error: "symbols array is required" });
+      }
+
+      const upperSymbols = symbols.map(s => s.toUpperCase());
+
+      const { universalEngine } = await import('./universal-analysis-engine');
+      const analyses = await universalEngine.batchAnalyze(upperSymbols, params || {});
+
+      res.json({ results: analyses });
+    } catch (error: any) {
+      logger.error(`Batch analysis error:`, error);
+      res.status(500).json({
+        error: "Failed to batch analyze stocks",
+        details: error.message
+      });
+    }
+  });
+
+  // GET /api/audit/:auditId - Get analysis audit by ID
+  app.get("/api/audit/:auditId", async (req, res) => {
+    try {
+      const { auditId } = req.params;
+
+      const { analysisLogger } = await import('./analysis-logger');
+      const audit = await analysisLogger.getAudit(auditId);
+
+      if (!audit) {
+        return res.status(404).json({ error: "Audit not found" });
+      }
+
+      res.json(audit);
+    } catch (error: any) {
+      logger.error(`Audit retrieval error ${req.params.auditId}:`, error);
+      res.status(500).json({ error: "Failed to retrieve audit" });
+    }
+  });
+
+  // GET /api/audit/history/:symbol - Get analysis history for a symbol
+  app.get("/api/audit/history/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+
+      const { analysisLogger } = await import('./analysis-logger');
+      const history = await analysisLogger.getSymbolHistory(symbol.toUpperCase(), limit);
+
+      res.json({ symbol: symbol.toUpperCase(), history });
+    } catch (error: any) {
+      logger.error(`Audit history error ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to retrieve history" });
+    }
+  });
+
+  // GET /api/audit/compare/:symbol - Compare analyses over time
+  app.get("/api/audit/compare/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const fromDate = req.query.from ? new Date(req.query.from as string) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const toDate = req.query.to ? new Date(req.query.to as string) : new Date();
+
+      const { analysisLogger } = await import('./analysis-logger');
+      const comparison = await analysisLogger.compareAnalyses(symbol.toUpperCase(), fromDate, toDate);
+
+      res.json(comparison);
+    } catch (error: any) {
+      logger.error(`Audit comparison error ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to compare analyses" });
+    }
+  });
+
+  // GET /api/audit/consistency-check - Verify logic consistency
+  app.get("/api/audit/consistency-check", async (req, res) => {
+    try {
+      const { analysisLogger } = await import('./analysis-logger');
+      const result = await analysisLogger.checkConsistency();
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`Consistency check error:`, error);
+      res.status(500).json({ error: "Failed to check consistency" });
     }
   });
 

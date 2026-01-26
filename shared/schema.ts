@@ -3282,4 +3282,44 @@ export const insertWhaleFlowSchema = createInsertSchema(whaleFlows).omit({
   detectedAt: true
 });
 export type InsertWhaleFlow = z.infer<typeof insertWhaleFlowSchema>;
+
+// ============================================
+// ANALYSIS AUDIT LOG - Universal Engine audit trail
+// Logs every analysis for reproducibility and verification
+// ============================================
+export const analysisAuditLog = pgTable("analysis_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Audit identification
+  auditId: varchar("audit_id", { length: 100 }).notNull().unique(),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+
+  // Engine metadata
+  engineVersion: varchar("engine_version").default('UniversalEngine_v1.0'),
+
+  // Input parameters
+  params: jsonb("params"), // AnalysisParams object
+
+  // Analysis result
+  result: jsonb("result"), // UnifiedAnalysisResponse object
+
+  // Performance tracking
+  duration: integer("duration"), // milliseconds
+
+  // Consumer tracking
+  consumedBy: varchar("consumed_by"), // Which page/component used this analysis
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_analysis_audit_symbol").on(table.symbol),
+  index("idx_analysis_audit_timestamp").on(table.timestamp),
+  index("idx_analysis_audit_consumer").on(table.consumedBy),
+]);
+
+export const insertAnalysisAuditSchema = createInsertSchema(analysisAuditLog).omit({
+  id: true,
+  createdAt: true
+});
+export type InsertAnalysisAudit = z.infer<typeof insertAnalysisAuditSchema>;
 export type WhaleFlow = typeof whaleFlows.$inferSelect;

@@ -37,8 +37,7 @@ interface TechnicalFactors {
 
 async function getTechnicalFactors(symbol: string): Promise<TechnicalFactors | null> {
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     
     // Fetch quote and historical data using period1 as a date 3 months ago
     const threeMonthsAgo = new Date();
@@ -168,8 +167,7 @@ export async function predictPrice(symbol: string, targetDates?: Date[]): Promis
   logger.info(`[PRICE-PREDICTION] Generating predictions for ${symbol}...`);
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     const quote = await yahooFinance.quote(symbol);
     
     if (!quote || !quote.regularMarketPrice) {

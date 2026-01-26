@@ -125,7 +125,8 @@ export function GlobalSearch({
     if (onSearch) {
       onSearch(symbol);
     } else {
-      setLocation(`/chart-analysis?symbol=${symbol}`);
+      // Route to Stock Detail page for comprehensive analysis
+      setLocation(`/stock/${symbol}`);
     }
   };
 

@@ -1404,10 +1404,15 @@ export class MemStorage implements IStorage {
 
   async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
     const id = randomUUID();
-    const tradeIdea: TradeIdea = { 
-      ...idea, 
+    // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
+    const cappedConfidence = idea.confidenceScore
+      ? Math.min(94, Math.max(0, idea.confidenceScore))
+      : idea.confidenceScore;
+    const tradeIdea: TradeIdea = {
+      ...idea,
       id,
-      outcomeStatus: 'open' 
+      confidenceScore: cappedConfidence,
+      outcomeStatus: 'open'
     } as TradeIdea;
     this.tradeIdeas.set(id, tradeIdea);
     return tradeIdea;
@@ -2398,7 +2403,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
-    const [created] = await db.insert(tradeIdeas).values(idea as any).returning();
+    // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
+    const cappedIdea = {
+      ...idea,
+      confidenceScore: idea.confidenceScore
+        ? Math.min(94, Math.max(0, idea.confidenceScore))
+        : idea.confidenceScore
+    };
+    const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
     return created;
   }
 

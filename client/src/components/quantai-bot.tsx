@@ -264,15 +264,56 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
       <ScrollArea className="flex-1 p-6" ref={scrollRef}>
         <div className="space-y-6">
           {chatHistory.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[400px] text-center">
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="p-4 rounded-full bg-primary/10 mb-4">
                 <Bot className="h-12 w-12 text-primary" />
               </div>
-              <h3 className="font-semibold text-xl mb-2">Welcome to QuantAI Bot</h3>
-              <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-                Ask me about market analysis, trading strategies, or technical indicators. 
-                I can help you understand trends, analyze symbols, and explore trade opportunities.
+              <h3 className="font-semibold text-xl mb-2">QuantAI Research Assistant</h3>
+              <p className="text-sm text-muted-foreground max-w-md leading-relaxed mb-6">
+                Get AI-powered market analysis, trading insights, and stock research. I can analyze symbols, identify patterns, and help you make informed decisions.
               </p>
+
+              {/* Quick Action Prompts */}
+              <div className="w-full max-w-md space-y-3">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Quick Actions</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Analyze NVDA", prompt: "Give me a detailed technical analysis of NVDA including key support/resistance levels and trading outlook" },
+                    { label: "Today's Market", prompt: "What's the current market sentiment and what sectors are showing strength today?" },
+                    { label: "Options Flow", prompt: "Analyze unusual options activity and smart money flow in the market" },
+                    { label: "Trade Ideas", prompt: "Suggest 3 swing trade ideas with entry, target, and stop loss levels" },
+                  ].map((action) => (
+                    <Button
+                      key={action.label}
+                      variant="outline"
+                      size="sm"
+                      className="justify-start text-left h-auto py-2 px-3 border-border/50 hover:bg-muted/50 hover:border-primary/30"
+                      onClick={() => {
+                        setMessage(action.prompt);
+                      }}
+                    >
+                      <Sparkles className="h-3 w-3 mr-2 text-primary shrink-0" />
+                      <span className="text-xs">{action.label}</span>
+                    </Button>
+                  ))}
+                </div>
+
+                <div className="pt-4 border-t border-border/30">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-2">Popular Symbols</p>
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {["AAPL", "TSLA", "MSFT", "GOOGL", "AMD", "META", "SPY", "QQQ"].map((symbol) => (
+                      <Badge
+                        key={symbol}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-primary/10 hover:border-primary/30 transition-colors text-xs"
+                        onClick={() => setMessage(`Analyze ${symbol} - give me the technical setup, key levels, and your trading recommendation`)}
+                      >
+                        {symbol}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             chatHistory.map((msg, index) => {

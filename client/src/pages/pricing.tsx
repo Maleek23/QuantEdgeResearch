@@ -157,7 +157,7 @@ export default function Pricing() {
   const currentTier = userTier?.tier || 'free';
 
   return (
-    <div className="min-h-screen bg-[#050b16] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-black py-12 px-4 sm:px-6 lg:px-8">
       <SEOHead pageKey="pricing" />
       <FloatingBubblesBackground />
       

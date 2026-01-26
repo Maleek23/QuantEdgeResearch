@@ -1,2723 +1,1552 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+/**
+ * AI Trade Desk - Redesigned with Sub-Pages
+ * Clean architecture with dedicated sections for different trading views
+ */
+
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, useSearch, Link } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FuturesContent } from "@/pages/futures";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { TradeIdeaBlock } from "@/components/trade-idea-block";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Link } from "wouter";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { InlineEmptyState } from "@/components/ui/empty-state";
-import { TerminalLoading } from "@/components/ui/terminal-loading";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { AuroraBackground } from "@/components/aurora-background";
-import { FadeIn, StaggerContainer, StaggerItem } from "@/components/motion";
-import { 
-  TrendingUp, 
-  Target, 
-  Shield, 
-  Clock, 
-  ChevronLeft,
-  ChevronRight, 
-  Filter, 
+import { SiDiscord } from "react-icons/si";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
   Search,
-  ArrowUpRight,
-  ArrowDownRight,
+  BarChart3,
+  DollarSign,
   Zap,
   Activity,
-  BarChart3,
-  Bot,
-  Brain,
+  Calendar,
   Star,
-  Loader2,
-  CalendarClock,
-  ChevronDown,
-  Info,
-  List,
-  LayoutGrid,
-  TrendingUp as TrendingUpIcon,
-  X,
-  XCircle,
-  CheckCircle,
-  FileText,
   AlertTriangle,
-  AlertCircle,
-  Newspaper,
-  Calendar as CalendarIcon,
-  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
+  Brain,
   Sparkles,
-  UserPlus,
-  Eye,
-  ArrowUpDown,
-  SlidersHorizontal,
-  Flame,
   Bitcoin,
-  DollarSign,
-  LineChart,
   Globe,
-  Send,
-  Terminal
+  Flame,
+  ChevronRight,
+  LineChart,
+  Eye,
+  Clock,
+  Filter,
+  RefreshCw,
+  ExternalLink,
+  Layers,
+  PieChart,
 } from "lucide-react";
-import { formatCurrency, formatPercent } from "@/lib/utils";
-import ResearchPulseWidget from "@/components/research-pulse-widget";
-import PersonalEdgeAnalytics from "@/components/personal-edge-analytics";
-import BestSetupsExplainer from "@/components/best-setups-explainer";
-import { AnimatedStat } from "@/components/ui/animated-stat";
-import { ConfidenceMeter } from "@/components/ui/confidence-meter";
-import { BotActivityPanel } from "@/components/bot-activity-panel";
+import type { TradeIdea } from "@shared/schema";
+import { getLetterGrade, getGradeStyle } from "@shared/grading";
 
-// Compact expiry badge for quick time-left display
-function ExpiryBadge({ minutes }: { minutes: number }) {
-  if (minutes <= 0) return <Badge variant="destructive">Expired</Badge>;
-  if (minutes < 60) return <Badge variant="outline" className="text-amber-400 border-amber-400/30">{minutes}m left</Badge>;
-  const hours = Math.floor(minutes / 60);
-  return <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">{hours}h left</Badge>;
-}
+// ============================================
+// MARKET PULSE HEADER
+// ============================================
+function MarketPulseHeader() {
+  const { data: realtimeData } = useQuery({
+    queryKey: ['/api/realtime-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/realtime-status');
+      if (!res.ok) return null;
+      return res.json();
+    },
+    refetchInterval: 10000,
+  });
 
-// Mini sparkline component for visual flair
-function MiniSparkline({ trend }: { trend: 'up' | 'down' | 'flat' }) {
-  const points = trend === 'up' 
-    ? "0,12 4,10 8,8 12,6 16,8 20,4 24,2" 
-    : trend === 'down'
-    ? "0,2 4,4 8,6 12,8 16,6 20,10 24,12"
-    : "0,7 4,6 8,8 12,7 16,7 20,6 24,7";
-  
+  const tickers = [
+    { symbol: 'NQ', label: 'Nasdaq', price: realtimeData?.prices?.futures?.NQ?.price },
+    { symbol: 'ES', label: 'S&P 500', price: realtimeData?.prices?.futures?.ES?.price },
+    { symbol: 'GC', label: 'Gold', price: realtimeData?.prices?.futures?.GC?.price, prefix: '$' },
+    { symbol: 'BTC', label: 'Bitcoin', price: realtimeData?.prices?.crypto?.BTC?.price, prefix: '$' },
+    { symbol: 'ETH', label: 'Ethereum', price: realtimeData?.prices?.crypto?.ETH?.price, prefix: '$' },
+  ];
+
   return (
-    <svg width="28" height="14" viewBox="0 0 28 14" className="opacity-60">
-      <polyline
-        fill="none"
-        stroke={trend === 'up' ? '#4ade80' : trend === 'down' ? '#f87171' : '#94a3b8'}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
+    <div className="flex items-center gap-6 px-4 py-2 bg-slate-900/50 border-b border-slate-800/60 overflow-x-auto">
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-xs font-medium text-emerald-400">LIVE</span>
+      </div>
+      {tickers.map((t) => (
+        <div key={t.symbol} className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-slate-500">{t.symbol}</span>
+          <span className="text-sm font-mono text-white">
+            {t.price ? `${t.prefix || ''}${t.price.toLocaleString()}` : '—'}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
-// Market stats ticker with live data - uses dedicated /api/realtime-status query
-function MarketStatsTicker() {
-  // Use a unique query key with explicit fetch to avoid cache collisions
-  const { data: realtimeData, isLoading } = useQuery({
-    queryKey: ['/api/realtime-status', 'market-ticker'],
+// ============================================
+// STATS OVERVIEW CARDS
+// ============================================
+function StatsOverview({ ideas }: { ideas: TradeIdea[] }) {
+  const stats = useMemo(() => {
+    const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIdeas = openIdeas.filter(i => {
+      const ts = i.timestamp ? new Date(i.timestamp) : null;
+      return ts && ts >= today;
+    });
+    const qualityIdeas = openIdeas.filter(i => {
+      const grade = i.probabilityBand || '';
+      return ['A+', 'A', 'A-', 'B+', 'B'].includes(grade);
+    });
+    const avgConf = openIdeas.length > 0
+      ? Math.round(openIdeas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / openIdeas.length)
+      : 0;
+
+    return {
+      total: openIdeas.length,
+      today: todayIdeas.length,
+      quality: qualityIdeas.length,
+      avgConf,
+    };
+  }, [ideas]);
+
+  return (
+    <div className="grid grid-cols-4 gap-4">
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="text-xs text-slate-500 mb-1">Total Ideas</div>
+        <div className="text-2xl font-bold text-white">{stats.total}</div>
+      </Card>
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="text-xs text-slate-500 mb-1">Today's Ideas</div>
+        <div className="text-2xl font-bold text-teal-400">{stats.today}</div>
+      </Card>
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="text-xs text-slate-500 mb-1">Quality (A/B)</div>
+        <div className="text-2xl font-bold text-cyan-400">{stats.quality}</div>
+      </Card>
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="text-xs text-slate-500 mb-1">Avg Confidence</div>
+        <div className="text-2xl font-bold text-white">{stats.avgConf}%</div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// BEST SETUPS CARD (Quick View)
+// ============================================
+function BestSetupsCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['/api/trade-ideas/best-setups', 'daily'],
     queryFn: async () => {
-      const res = await fetch('/api/realtime-status');
-      if (!res.ok) throw new Error('Failed to fetch realtime status');
-      return res.json() as Promise<{ 
-        prices: {
-          futures: Record<string, { price: number; ageSeconds: number }>,
-          crypto: Record<string, { price: number; ageSeconds: number }>
-        }
-      }>;
+      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=5');
+      if (!res.ok) return { setups: [] };
+      return res.json();
     },
-    refetchInterval: 15000,
-    staleTime: 10000,
+    staleTime: 2 * 60 * 1000, // Data fresh for 2 minutes
+    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    refetchInterval: 60000,   // Refresh every minute
   });
 
-  // Build stats from realtime-status prices
-  const stats = [
-    { 
-      label: 'NQ', 
-      value: realtimeData?.prices?.futures?.NQ?.price,
-      icon: TrendingUp,
-      color: 'text-cyan-400'
-    },
-    { 
-      label: 'ES', 
-      value: realtimeData?.prices?.futures?.ES?.price,
-      icon: BarChart3,
-      color: 'text-blue-400'
-    },
-    { 
-      label: 'Gold', 
-      value: realtimeData?.prices?.futures?.GC?.price,
-      icon: DollarSign,
-      color: 'text-amber-400'
-    },
-    { 
-      label: 'BTC', 
-      value: realtimeData?.prices?.crypto?.BTC?.price,
-      icon: Bitcoin,
-      color: 'text-orange-400'
-    },
-    { 
-      label: 'ETH', 
-      value: realtimeData?.prices?.crypto?.ETH?.price,
-      icon: Globe,
-      color: 'text-purple-400'
-    },
-  ];
+  const setups = data?.setups || [];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-6 py-3 px-4 rounded-xl bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border border-border/30">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded-lg" />
-            <div className="flex flex-col gap-1">
-              <Skeleton className="h-3 w-12" />
-              <Skeleton className="h-4 w-20" />
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Star className="w-4 h-4 text-amber-400" />
+          <span className="text-sm font-semibold text-white">Best Setups</span>
+        </div>
+        <Badge variant="outline" className="text-xs">{setups.length} Active</Badge>
+      </div>
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-10 bg-slate-800/40 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : setups.length === 0 ? (
+          <div className="text-center py-4 text-slate-500 text-sm">No setups available</div>
+        ) : (
+          setups.slice(0, 5).map((setup: any) => {
+            const grade = setup.probabilityBand || getLetterGrade(setup.confidenceScore || 50);
+            const style = getGradeStyle(grade);
+            return (
+              <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-white">{setup.symbol}</span>
+                    <Badge className={cn("text-xs", style.bgClass, style.textClass)}>{grade}</Badge>
+                  </div>
+                  <span className="text-sm font-mono text-slate-400">{setup.confidenceScore}%</span>
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================
+// MARKET MOVERS CARD
+// ============================================
+function MarketMoversCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['/api/market-movers'],
+    queryFn: async () => {
+      const res = await fetch('/api/market-movers');
+      if (!res.ok) return { topGainers: [], topLosers: [] };
+      return res.json();
+    },
+    staleTime: 30 * 1000,     // Fresh for 30 seconds
+    gcTime: 5 * 60 * 1000,    // Keep in cache for 5 minutes
+    refetchInterval: 60000,
+  });
+
+  const gainers = data?.topGainers?.slice(0, 5) || [];
+
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-400" />
+          <span className="text-sm font-semibold text-white">Market Movers</span>
+        </div>
+        <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-400/30">Live</Badge>
+      </div>
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-10 bg-slate-800/40 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : gainers.length === 0 ? (
+          <div className="text-center py-4 text-slate-500 text-sm">No movers</div>
+        ) : (
+          gainers.map((stock: any) => (
+            <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer">
+                <span className="font-mono font-bold text-white">{stock.symbol}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono text-emerald-400">+{stock.changePercent?.toFixed(1)}%</span>
+                  <span className="text-xs text-slate-500">${stock.price?.toFixed(2)}</span>
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================
+// SURGE DETECTION CARD
+// ============================================
+function SurgeDetectionCard() {
+  const [tab, setTab] = useState<'surge' | 'early' | 'tomorrow'>('surge');
+
+  // Fetch breakout candidates with longer stale time (uses cached data from server)
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const { data: breakoutData, isLoading: breakoutLoading, isError: breakoutError, refetch: refetchBreakouts } = useQuery({
+    queryKey: ['/api/discovery/breakouts', forceRefresh],
+    queryFn: async () => {
+      const url = forceRefresh ? '/api/discovery/breakouts?refresh=true' : '/api/discovery/breakouts';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch surge data');
+      setForceRefresh(false); // Reset after fetch
+      return res.json();
+    },
+    staleTime: 4 * 60 * 1000, // 4 minutes (server caches for 5)
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    retry: 2,
+  });
+
+  // Fetch pre-breakout candidates
+  const { data: preBreakoutData, isLoading: preLoading } = useQuery({
+    queryKey: ['/api/discovery/pre-breakout'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/pre-breakout');
+      if (!res.ok) throw new Error('Failed to fetch pre-breakout data');
+      return res.json();
+    },
+    staleTime: 4 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    retry: 2,
+  });
+
+  // Fetch overnight/next-day predictions (PREDICTIVE - finds stocks that might surge tomorrow)
+  const { data: overnightData, isLoading: overnightLoading } = useQuery({
+    queryKey: ['/api/discovery/overnight-predictions'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/overnight-predictions');
+      if (!res.ok) throw new Error('Failed to fetch overnight predictions');
+      return res.json();
+    },
+    staleTime: 8 * 60 * 1000, // 8 minutes (predictions change slowly)
+    refetchInterval: 10 * 60 * 1000, // Refresh every 10 minutes
+    retry: 2,
+  });
+
+  // Show SURGE/MOMENTUM first, fallback to SETUP, then ALL candidates
+  const allCandidates = breakoutData?.candidates || [];
+  const surgeMomentum = allCandidates.filter((c: any) => c.tier === 'SURGE' || c.tier === 'MOMENTUM');
+  const setupTier = allCandidates.filter((c: any) => c.tier === 'SETUP' || c.score >= 50);
+  // Progressive fallback: SURGE/MOMENTUM -> SETUP -> ALL candidates
+  const surges = surgeMomentum.length > 0
+    ? surgeMomentum
+    : setupTier.length > 0
+      ? setupTier
+      : allCandidates;
+  const earlySetups = preBreakoutData?.candidates || [];
+  const tomorrowPlays = overnightData?.predictions?.filter((p: any) =>
+    p.prediction?.tier === 'HIGH_CONVICTION' || p.prediction?.tier === 'STRONG_SETUP'
+  ) || [];
+  const hasSurgeMomentum = surgeMomentum.length > 0;
+
+  const isLoading = tab === 'surge' ? breakoutLoading : tab === 'early' ? preLoading : overnightLoading;
+
+  // Render different content based on tab
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-12 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      );
+    }
+
+    if (breakoutError && tab === 'surge') {
+      return (
+        <div className="text-center py-4 text-slate-500 text-sm">
+          <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-50" />
+          <p>Temporarily unavailable</p>
+        </div>
+      );
+    }
+
+    // TOMORROW TAB - Predictive overnight plays
+    if (tab === 'tomorrow') {
+      if (tomorrowPlays.length === 0) {
+        return (
+          <div className="text-center py-4 text-slate-500 text-sm">
+            <Clock className="w-6 h-6 mx-auto mb-2 opacity-50" />
+            <p>No high-conviction setups</p>
+            <p className="text-[10px] mt-1">Best scanned near market close (3-4 PM ET)</p>
+          </div>
+        );
+      }
+
+      return tomorrowPlays.slice(0, 5).map((pred: any, idx: number) => (
+        <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer border-l-2 border-violet-500/50">
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/30 text-violet-300" :
+                "bg-cyan-500/20 text-cyan-400"
+              )}>{idx + 1}</span>
+              <div>
+                <div className="flex items-center gap-1">
+                  <span className="font-mono font-bold text-white text-sm">{pred.symbol}</span>
+                  {pred.prediction?.tier === 'HIGH_CONVICTION' && (
+                    <Sparkles className="w-3 h-3 text-violet-400" />
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
+                  {pred.signals?.[0]?.name || 'Setup detected'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-mono text-white">
+                ${pred.currentPrice?.toFixed(2) || '—'}
+              </span>
+              <p className="text-[10px] text-violet-400 font-medium">
+                {pred.prediction?.probability?.toFixed(0)}% prob
+              </p>
             </div>
           </div>
+        </Link>
+      ));
+    }
+
+    // SURGE and EARLY tabs
+    const displayData = tab === 'surge' ? surges : earlySetups;
+
+    if (displayData.length === 0) {
+      return (
+        <div className="text-center py-4 text-slate-500 text-sm">
+          No {tab === 'surge' ? 'surges' : 'setups'} detected
+        </div>
+      );
+    }
+
+    return displayData.slice(0, 5).map((stock: any, idx: number) => (
+      <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
+        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
+              stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
+              stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+              "bg-blue-500/20 text-blue-400"
+            )}>{idx + 1}</span>
+            <div>
+              <span className="font-mono font-bold text-white text-sm">{stock.symbol}</span>
+              <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                {stock.reason?.split(' | ')[0] || stock.tier}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-mono text-white">
+              ${stock.price?.toFixed(2) || '—'}
+            </span>
+            {typeof stock.change === 'number' && (
+              <p className={cn(
+                "text-xs font-mono font-bold",
+                stock.change > 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {stock.change > 0 ? '+' : ''}{stock.change.toFixed(1)}%
+              </p>
+            )}
+          </div>
+        </div>
+      </Link>
+    ));
+  };
+
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-amber-400" />
+          <span className="text-sm font-semibold text-white">Surge Detection</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 w-5 p-0 text-slate-500 hover:text-white"
+            onClick={() => {
+              setForceRefresh(true);
+              refetchBreakouts();
+            }}
+            disabled={breakoutLoading}
+          >
+            <RefreshCw className={cn("w-3 h-3", breakoutLoading && "animate-spin")} />
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant={tab === 'surge' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => setTab('surge')}
+          >
+            <Flame className="w-3 h-3 mr-1" />
+            Now ({surges.length})
+          </Button>
+          <Button
+            variant={tab === 'early' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => setTab('early')}
+          >
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Early ({earlySetups.length})
+          </Button>
+          <Button
+            variant={tab === 'tomorrow' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => setTab('tomorrow')}
+          >
+            <Sparkles className="w-3 h-3 mr-1" />
+            Tomorrow ({tomorrowPlays.length})
+          </Button>
+        </div>
+      </div>
+      <p className="text-[10px] text-slate-500 mb-3">
+        {tab === 'tomorrow'
+          ? 'Predictive: Stocks that might surge 10-40% next day'
+          : tab === 'surge' && !hasSurgeMomentum && surges.length > 0
+            ? 'Watchlist movers - no major surges right now'
+            : tab === 'surge' && surges.length === 0
+              ? 'Scanning market for momentum signals...'
+              : 'Real-time momentum & pre-breakout signals'}
+      </p>
+
+      <div className="space-y-2">
+        {renderContent()}
+      </div>
+
+      {(breakoutData?.cached || overnightData?.cached) && (
+        <p className="text-[9px] text-slate-600 mt-2 text-center">
+          Cached {tab === 'tomorrow' ? overnightData?.cacheAge : breakoutData?.cacheAge}s ago
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ============================================
+// CONVERGENCE SIGNALS CARD - Multi-source pre-move detection
+// ============================================
+function ConvergenceSignalsCard() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['/api/convergence/opportunities'],
+    queryFn: async () => {
+      const res = await fetch('/api/convergence/opportunities');
+      if (!res.ok) throw new Error('Failed to fetch convergence data');
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 3 * 60 * 1000, // Refresh every 3 minutes
+    retry: 2,
+  });
+
+  const opportunities = data?.opportunities || [];
+  const criticalCount = data?.critical || 0;
+  const highCount = data?.high || 0;
+
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-purple-400" />
+          <span className="text-sm font-semibold text-white">Convergence</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {criticalCount > 0 && (
+            <Badge className="bg-red-500/20 text-red-400 text-[10px]">
+              {criticalCount} Critical
+            </Badge>
+          )}
+          {highCount > 0 && (
+            <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+              {highCount} High
+            </Badge>
+          )}
+        </div>
+      </div>
+      <p className="text-[10px] text-slate-500 mb-3">Multi-source signal correlation (pre-move detection)</p>
+
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-12 bg-slate-800/40 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-4 text-slate-500 text-sm">
+            <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-50" />
+            <p>Temporarily unavailable</p>
+          </div>
+        ) : opportunities.length === 0 ? (
+          <div className="text-center py-4 text-slate-500 text-sm">
+            <Activity className="w-6 h-6 mx-auto mb-2 opacity-50" />
+            <p>No convergence signals</p>
+            <p className="text-[10px] mt-1">Monitoring news, options, insiders, sectors...</p>
+          </div>
+        ) : (
+          opportunities.slice(0, 5).map((opp: any, idx: number) => (
+            <Link key={`${opp.symbol}-${idx}`} href={`/stock/${opp.symbol}`}>
+              <div className={cn(
+                "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
+                opp.urgency === 'critical' ? "bg-red-500/10 hover:bg-red-500/20 border border-red-500/30" :
+                opp.urgency === 'high' ? "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30" :
+                "bg-slate-800/40 hover:bg-slate-800/60"
+              )}>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
+                    opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
+                    opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
+                    "bg-purple-500/20 text-purple-400"
+                  )}>{opp.signals?.length || idx + 1}</span>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono font-bold text-white text-sm">{opp.symbol}</span>
+                      <span className={cn(
+                        "text-[10px] font-medium",
+                        opp.direction === 'bullish' ? "text-emerald-400" : "text-red-400"
+                      )}>{opp.direction === 'bullish' ? '↑' : '↓'}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                      {opp.signals?.map((s: any) => s.source).slice(0, 3).join(', ') || 'Multi-source'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={cn(
+                    "text-sm font-mono font-bold",
+                    opp.convergenceScore >= 80 ? "text-emerald-400" :
+                    opp.convergenceScore >= 65 ? "text-amber-400" : "text-white"
+                  )}>
+                    {opp.convergenceScore}%
+                  </span>
+                  <p className="text-[10px] text-slate-500">
+                    {opp.urgency.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+      {data?.cached && (
+        <p className="text-[9px] text-slate-600 mt-2 text-center">
+          Cached {data.cacheAge}s ago
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ============================================
+// HOT SYMBOLS CARD - Symbols with multi-source attention
+// ============================================
+function HotSymbolsCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['/api/convergence/hot-symbols'],
+    queryFn: async () => {
+      const res = await fetch('/api/convergence/hot-symbols?limit=10');
+      if (!res.ok) throw new Error('Failed to fetch hot symbols');
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
+    retry: 2,
+  });
+
+  const symbols = data?.symbols || [];
+
+  return (
+    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-400" />
+          <span className="text-sm font-semibold text-white">Hot Attention</span>
+        </div>
+        <Badge variant="outline" className="text-xs">
+          {data?.convergingCount || 0} Converging
+        </Badge>
+      </div>
+      <p className="text-[10px] text-slate-500 mb-3">Symbols flagged by multiple scanners</p>
+
+      <div className="space-y-2">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-10 bg-slate-800/40 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : symbols.length === 0 ? (
+          <div className="text-center py-4 text-slate-500 text-sm">No hot symbols</div>
+        ) : (
+          symbols.slice(0, 6).map((item: any, idx: number) => (
+            <Link key={item.symbol} href={`/stock/${item.symbol}`}>
+              <div className={cn(
+                "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
+                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-slate-800/40 hover:bg-slate-800/60"
+              )}>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
+                    item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-slate-700 text-slate-400"
+                  )}>{idx + 1}</span>
+                  <div>
+                    <span className="font-mono font-bold text-white text-sm">{item.symbol}</span>
+                    <p className="text-[10px] text-slate-500">
+                      {item.distinctSources} sources • {item.recentTouches1h} hits/hr
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={cn(
+                    "text-sm font-mono font-bold",
+                    item.heatScore >= 5 ? "text-red-400" :
+                    item.heatScore >= 3 ? "text-orange-400" : "text-slate-400"
+                  )}>
+                    {item.heatScore?.toFixed(1)}
+                  </span>
+                  <p className="text-[10px] text-slate-500">heat</p>
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================
+// TRADE IDEA CARD COMPONENT (Expandable Grid Card)
+// ============================================
+function TradeIdeaCard({ idea, expanded, onToggle }: {
+  idea: TradeIdea;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { toast } = useToast();
+  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+  const style = getGradeStyle(grade);
+  const isLong = idea.direction === 'LONG' || idea.direction === 'long';
+  const isOption = idea.assetType === 'option' || idea.optionType;
+  const isCall = idea.optionType === 'call';
+
+  // Discord share mutation
+  const shareToDiscord = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/trade-ideas/${idea.id}/share-discord`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to share to Discord');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sent to Discord",
+        description: `${idea.symbol} ${isOption ? idea.optionType?.toUpperCase() : ''} idea shared to AI Quant Options channel`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to send",
+        description: "Could not share to Discord. Try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Calculate potential gain/loss
+  const potentialGain = idea.targetPrice && idea.entryPrice
+    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1)
+    : null;
+  const potentialLoss = idea.stopLoss && idea.entryPrice
+    ? ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100).toFixed(1)
+    : null;
+
+  return (
+    <Card className={cn(
+      "bg-slate-900/60 border-slate-700/40 overflow-hidden transition-all duration-300",
+      expanded ? "ring-1 ring-teal-500/50" : "hover:border-slate-600/60"
+    )}>
+      {/* Card Header - Always Visible */}
+      <div
+        className="p-4 cursor-pointer"
+        onClick={onToggle}
+      >
+        {/* Top Row: Symbol, Grade, Direction */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm",
+              isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+            )}>
+              {isLong ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-white text-lg">{idea.symbol}</span>
+                <Badge className={cn("text-xs font-bold", style.bgClass, style.textClass)}>
+                  {grade}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className={isLong ? "text-emerald-400" : "text-red-400"}>
+                  {isLong ? 'LONG' : 'SHORT'}
+                </span>
+                {isOption && (
+                  <>
+                    <span>•</span>
+                    <span className={isCall ? "text-emerald-400" : "text-red-400"}>
+                      {idea.optionType?.toUpperCase()}
+                    </span>
+                  </>
+                )}
+                <span>•</span>
+                <span>{idea.holdingPeriod || 'swing'}</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-white">{idea.confidenceScore || 50}%</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Confidence</div>
+          </div>
+        </div>
+
+        {/* Options Details Row (if applicable) */}
+        {isOption && (idea.strikePrice || idea.expiryDate) && (
+          <div className="flex items-center gap-4 mb-3 p-2 bg-slate-800/40 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Target className="w-3 h-3 text-slate-500" />
+              <span className="text-xs text-slate-400">Strike:</span>
+              <span className="text-xs font-mono text-white">${idea.strikePrice?.toFixed(2) || '—'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-3 h-3 text-slate-500" />
+              <span className="text-xs text-slate-400">Exp:</span>
+              <span className="text-xs font-mono text-white">{idea.expiryDate || '—'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Price Levels */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-800/40 rounded-lg p-2 text-center">
+            <div className="text-[10px] text-slate-500 uppercase">Entry</div>
+            <div className="font-mono text-white text-sm">${idea.entryPrice?.toFixed(2) || '—'}</div>
+          </div>
+          <div className="bg-emerald-500/10 rounded-lg p-2 text-center border border-emerald-500/20">
+            <div className="text-[10px] text-emerald-400 uppercase">Target</div>
+            <div className="font-mono text-emerald-400 text-sm">${idea.targetPrice?.toFixed(2) || '—'}</div>
+            {potentialGain && <div className="text-[9px] text-emerald-400/70">+{potentialGain}%</div>}
+          </div>
+          <div className="bg-red-500/10 rounded-lg p-2 text-center border border-red-500/20">
+            <div className="text-[10px] text-red-400 uppercase">Stop</div>
+            <div className="font-mono text-red-400 text-sm">${idea.stopLoss?.toFixed(2) || '—'}</div>
+            {potentialLoss && <div className="text-[9px] text-red-400/70">-{potentialLoss}%</div>}
+          </div>
+        </div>
+
+        {/* Expand Indicator */}
+        <div className="flex items-center justify-center mt-3 pt-2 border-t border-slate-800/60">
+          <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            {expanded ? 'Click to collapse' : 'Click to expand analysis'}
+            <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded Content */}
+      {expanded && (
+        <div className="border-t border-slate-800/60 p-4 space-y-4 bg-slate-950/40">
+          {/* Analysis Section */}
+          <div>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+              <Brain className="w-3 h-3" /> Trade Analysis
+            </h4>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              {idea.analysis || 'No detailed analysis available for this trade idea.'}
+            </p>
+          </div>
+
+          {/* Catalyst */}
+          {idea.catalyst && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+                <Zap className="w-3 h-3" /> Catalyst
+              </h4>
+              <p className="text-sm text-amber-400/90">{idea.catalyst}</p>
+            </div>
+          )}
+
+          {/* Quality Signals */}
+          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Quality Signals
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {idea.qualitySignals.map((signal, idx) => (
+                  <Badge key={idx} variant="outline" className="text-[10px] bg-slate-800/40">
+                    {signal}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Research Report */}
+          <ResearchReportSection idea={idea} />
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+            <Link href={`/stock/${idea.symbol}`} className="flex-1">
+              <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-500">
+                <Eye className="w-3 h-3 mr-2" />
+                Full Analysis
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-indigo-600/20 border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                shareToDiscord.mutate();
+              }}
+              disabled={shareToDiscord.isPending}
+            >
+              <SiDiscord className="w-3 h-3 mr-2" />
+              {shareToDiscord.isPending ? 'Sending...' : 'Discord'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ============================================
+// RESEARCH REPORT SECTION (AI/Quant Generated)
+// ============================================
+function ResearchReportSection({ idea }: { idea: TradeIdea }) {
+  const isLong = idea.direction === 'LONG' || idea.direction === 'long';
+  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+
+  // Generate research insights based on idea data
+  const insights = useMemo(() => {
+    const reports = [];
+
+    // Technical Analysis Report
+    if (idea.qualitySignals && idea.qualitySignals.length > 0) {
+      const technicalSignals = idea.qualitySignals.filter(s =>
+        s.includes('RSI') || s.includes('MACD') || s.includes('volume') || s.includes('breakout')
+      );
+      if (technicalSignals.length > 0) {
+        reports.push({
+          title: 'Technical Analysis',
+          type: 'quant',
+          content: `Technical indicators suggest ${isLong ? 'bullish' : 'bearish'} momentum. ${technicalSignals.slice(0, 2).join('. ')}. Risk/Reward ratio: ${idea.riskRewardRatio?.toFixed(1) || '—'}:1.`
+        });
+      }
+    }
+
+    // Sentiment/Momentum Report
+    reports.push({
+      title: 'Momentum Assessment',
+      type: 'ai',
+      content: `${idea.symbol} exhibits ${grade.startsWith('A') ? 'strong' : grade.startsWith('B') ? 'moderate' : 'weak'} ${isLong ? 'bullish' : 'bearish'} characteristics with ${idea.confidenceScore || 50}% conviction. ${idea.holdingPeriod === 'day' ? 'Suitable for day trading timeframe.' : 'Consider swing trade positioning.'}`
+    });
+
+    // Risk Assessment
+    const potentialGain = idea.targetPrice && idea.entryPrice
+      ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100)
+      : 0;
+    const potentialLoss = idea.stopLoss && idea.entryPrice
+      ? ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100)
+      : 0;
+
+    reports.push({
+      title: 'Risk Profile',
+      type: 'quant',
+      content: `Maximum upside: +${potentialGain.toFixed(1)}% to target. Defined risk: -${potentialLoss.toFixed(1)}% to stop. ${potentialGain > potentialLoss * 2 ? 'Favorable risk/reward setup.' : 'Standard risk parameters.'}`
+    });
+
+    return reports;
+  }, [idea, isLong, grade]);
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+        <BarChart3 className="w-3 h-3" /> Research Reports
+      </h4>
+      <div className="space-y-2">
+        {insights.map((report, idx) => (
+          <div
+            key={idx}
+            className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/30"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className={cn(
+                  "w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold",
+                  report.type === 'ai' ? "bg-purple-500/20 text-purple-400" : "bg-cyan-500/20 text-cyan-400"
+                )}>
+                  {report.type === 'ai' ? 'AI' : 'Q'}
+                </div>
+                <span className="text-xs font-medium text-white">{report.title}</span>
+              </div>
+              <Badge variant="outline" className="text-[8px] px-1.5 py-0">
+                QuantEdge
+              </Badge>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">{report.content}</p>
+          </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Legacy row component for compact views
+function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
+  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+  const style = getGradeStyle(grade);
+  const isLong = idea.direction === 'LONG' || idea.direction === 'long';
+  const isOption = idea.assetType === 'option' || idea.optionType;
+
+  return (
+    <Link href={`/stock/${idea.symbol}`}>
+      <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 border border-slate-700/30 hover:border-slate-600/50 transition-all cursor-pointer group">
+        <div className="flex items-center gap-3 min-w-[140px]">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-white text-sm">{idea.symbol}</span>
+              {isOption && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0">
+                  {idea.optionType?.toUpperCase() || 'OPT'}
+                </Badge>
+              )}
+            </div>
+            <div className={cn("flex items-center gap-1 text-xs",
+              isLong ? "text-emerald-400" : "text-red-400"
+            )}>
+              {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              <span>{isLong ? 'LONG' : 'SHORT'}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <Badge className={cn("text-xs font-bold px-2 py-0.5", style.bgClass, style.textClass)}>
+            {grade}
+          </Badge>
+          <div className="text-right">
+            <div className="text-sm font-mono text-white">{idea.confidenceScore || 50}%</div>
+            <div className="text-[10px] text-slate-500">Confidence</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-6 text-xs">
+          <div className="text-right">
+            <div className="text-slate-400">Entry</div>
+            <div className="font-mono text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-emerald-400">Target</div>
+            <div className="font-mono text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-red-400">Stop</div>
+            <div className="font-mono text-red-400">${idea.stopLoss?.toFixed(2) || '—'}</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ============================================
+// TRADE IDEAS LIST (Full Page View with 2-Column Grid)
+// ============================================
+function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }) {
+  const [search, setSearch] = useState("");
+  const [directionFilter, setDirectionFilter] = useState<string>("all");
+  const [gradeFilter, setGradeFilter] = useState<string>("quality");
+  const [sortBy, setSortBy] = useState<string>("confidence");
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const filteredIdeas = useMemo(() => {
+    let filtered = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
+
+    // Search filter
+    if (search) {
+      filtered = filtered.filter(i =>
+        i.symbol.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    // Direction filter
+    if (directionFilter !== 'all') {
+      filtered = filtered.filter(i => {
+        const dir = (i.direction || 'long').toLowerCase();
+        if (directionFilter === 'long') return dir === 'long' || i.optionType === 'call';
+        if (directionFilter === 'short') return dir === 'short' || i.optionType === 'put';
+        return true;
+      });
+    }
+
+    // Grade filter
+    if (gradeFilter !== 'all') {
+      filtered = filtered.filter(i => {
+        const grade = i.probabilityBand || '';
+        if (gradeFilter === 'quality') return ['A+', 'A', 'A-', 'B+', 'B', 'B-'].includes(grade);
+        if (gradeFilter === 'elite') return ['A+', 'A', 'A-'].includes(grade);
+        if (gradeFilter === 'strong') return ['B+', 'B', 'B-'].includes(grade);
+        return true;
+      });
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      if (sortBy === 'confidence') return (b.confidenceScore || 0) - (a.confidenceScore || 0);
+      if (sortBy === 'symbol') return a.symbol.localeCompare(b.symbol);
+      if (sortBy === 'recent') {
+        const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return bTime - aTime;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [ideas, search, directionFilter, gradeFilter, sortBy]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
+
+  return (
+    <div className="space-y-4">
+      {title && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <div className="flex items-center gap-1 bg-slate-800/40 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              className="h-7 px-2"
+              onClick={() => setViewMode('grid')}
+            >
+              <Layers className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              className="h-7 px-2"
+              onClick={() => setViewMode('list')}
+            >
+              <BarChart3 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Filters Bar */}
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-900/40 rounded-xl border border-slate-800/60">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Input
+            placeholder="Search symbols..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-slate-800/50 border-slate-700/50"
+          />
+        </div>
+
+        <Select value={directionFilter} onValueChange={setDirectionFilter}>
+          <SelectTrigger className="w-[130px] bg-slate-800/50 border-slate-700/50">
+            <SelectValue placeholder="Direction" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Directions</SelectItem>
+            <SelectItem value="long">Long / Calls</SelectItem>
+            <SelectItem value="short">Short / Puts</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={gradeFilter} onValueChange={setGradeFilter}>
+          <SelectTrigger className="w-[130px] bg-slate-800/50 border-slate-700/50">
+            <SelectValue placeholder="Grade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Grades</SelectItem>
+            <SelectItem value="quality">Quality (A-B)</SelectItem>
+            <SelectItem value="elite">Elite (A only)</SelectItem>
+            <SelectItem value="strong">Strong (B only)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[140px] bg-slate-800/50 border-slate-700/50">
+            <SelectValue placeholder="Sort By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="confidence">Confidence</SelectItem>
+            <SelectItem value="recent">Most Recent</SelectItem>
+            <SelectItem value="symbol">Symbol A-Z</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="text-xs text-slate-500">
+          {filteredIdeas.length} ideas
+        </div>
+      </div>
+
+      {/* Ideas Display */}
+      {filteredIdeas.length === 0 ? (
+        <div className="text-center py-12 text-slate-500">
+          <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-50" />
+          <p>No trade ideas match your filters</p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* 2-Column Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[700px] overflow-y-auto pr-2">
+          {filteredIdeas.slice(0, 30).map((idea) => (
+            <TradeIdeaCard
+              key={idea.id || `${idea.symbol}-${idea.timestamp}`}
+              idea={idea}
+              expanded={expandedId === (idea.id || `${idea.symbol}-${idea.timestamp}`)}
+              onToggle={() => toggleExpand(idea.id || `${idea.symbol}-${idea.timestamp}`)}
+            />
+          ))}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+          {filteredIdeas.slice(0, 50).map((idea) => (
+            <TradeIdeaRow key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
+          ))}
+        </div>
+      )}
+
+      {filteredIdeas.length > (viewMode === 'grid' ? 30 : 50) && (
+        <div className="text-center py-4 text-slate-500 text-sm">
+          Showing {viewMode === 'grid' ? 30 : 50} of {filteredIdeas.length} ideas
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// MAIN TRADE DESK COMPONENT
+// ============================================
+export default function TradeDeskRedesigned() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
+
+  // AI Generation mutation - triggers the 6 engines
+  const generateIdeas = useMutation({
+    mutationFn: async (engine: 'ai' | 'quant' | 'hybrid' | 'flow' | 'all') => {
+      setGeneratingEngine(engine);
+      const endpoints: Record<string, string> = {
+        ai: '/api/ai/generate-ideas',
+        quant: '/api/quant/generate-ideas',
+        hybrid: '/api/hybrid/generate-ideas',
+        flow: '/api/flow/generate-ideas',
+        all: '/api/ideas/generate-now',
+      };
+      const res = await fetch(endpoints[engine], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ count: 5 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Generation failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data, engine) => {
+      setGeneratingEngine(null);
+      const count = data.ideas?.length || data.savedCount || data.ideasGenerated || 0;
+      toast({
+        title: `${engine.toUpperCase()} Engine Complete`,
+        description: `Generated ${count} new trade ideas`,
+      });
+      // Invalidate cache to show new ideas
+      setTimeout(() => window.location.reload(), 1500);
+    },
+    onError: (error: Error) => {
+      setGeneratingEngine(null);
+      toast({
+        title: "Generation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch all trade ideas with optimized caching
+  const { data: tradeIdeas = [], isLoading, error } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas/best-setups', 'all'],
+    queryFn: async () => {
+      try {
+        const authRes = await fetch('/api/trade-ideas');
+        if (authRes.ok) {
+          const ideas = await authRes.json();
+          if (Array.isArray(ideas) && ideas.length > 0) return ideas;
+        }
+      } catch (e) {
+        console.log('[Trade Desk] Using public endpoint');
+      }
+      const res = await fetch('/api/trade-ideas/best-setups?period=weekly&limit=100');
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.setups || [];
+    },
+    staleTime: 60 * 1000,     // Data fresh for 1 minute
+    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    refetchInterval: 60000,   // Refresh every minute
+  });
+
+  // Filter helpers for tabs
+  const stockIdeas = useMemo(() =>
+    tradeIdeas.filter(i =>
+      i.assetType === 'stock' || (!i.assetType && !i.optionType)
+    ), [tradeIdeas]);
+
+  const optionIdeas = useMemo(() =>
+    tradeIdeas.filter(i => i.assetType === 'option' || i.optionType), [tradeIdeas]);
+
+  const cryptoIdeas = useMemo(() =>
+    tradeIdeas.filter(i => i.assetType === 'crypto'), [tradeIdeas]);
+
+  const futuresIdeas = useMemo(() =>
+    tradeIdeas.filter(i => i.assetType === 'future'), [tradeIdeas]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
+          <p className="text-red-400">Failed to load trade ideas</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-4 py-3 px-4 rounded-xl bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border border-border/30 overflow-x-auto" data-testid="market-stats-ticker">
-      <div className="flex items-center gap-2 pr-4 border-r border-border/30">
-        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-        <span className="text-xs text-muted-foreground font-medium">LIVE</span>
-      </div>
-      {stats.map((stat, i) => {
-        const Icon = stat.icon;
-        const hasValue = stat.value !== undefined && stat.value !== null;
-        
-        return (
-          <div key={stat.label} className="flex items-center gap-3 shrink-0">
-            <div className="p-1.5 rounded-lg bg-muted/50">
-              <Icon className={cn("h-4 w-4", stat.color)} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-              <span className="font-mono font-semibold text-sm">
-                {hasValue ? (
-                  stat.label === 'BTC' || stat.label === 'ETH' || stat.label === 'Gold' 
-                    ? `$${stat.value?.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                    : stat.value?.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                ) : '--'}
-              </span>
-            </div>
-            {i < stats.length - 1 && <Separator orientation="vertical" className="h-6 ml-2" />}
-          </div>
-        );
-      })}
-      <MiniSparkline trend="up" />
-    </div>
-  );
-}
+    <div className="min-h-screen bg-black text-slate-100">
+      {/* Market Pulse Header */}
+      <MarketPulseHeader />
 
-import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
-import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
-import { RiskDisclosure } from "@/components/risk-disclosure";
-import { TimingDisplay } from "@/components/timing-display";
-import { Calendar } from "@/components/ui/calendar";
-import { getSignalGrade, getResolutionReasonLabel } from "@/lib/signal-grade";
-import { AIResearchPanel } from "@/components/ai-research-panel";
-import { UsageBadge } from "@/components/tier-gate";
-import { useTier } from "@/hooks/useTier";
-import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframeCounts } from "@/lib/timeframes";
-import { isRealLoss } from "@shared/constants";
-import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { SmartMoneyFlowTracker } from "@/components/smart-money-flow-tracker";
-import { TradeHeatmap } from "@/components/trade-heatmap";
-
-interface BestSetup extends TradeIdea {
-  convictionScore: number;
-  signalCount: number;
-  riskReward: number;
-  mlBoost?: number;
-  hourlyConfirmed?: boolean;
-  breakoutBonus?: number;
-  historicalWinRate?: number;
-  sampleSize?: number;
-  winRateBonus?: number;
-  confidence?: number;
-  thesis?: string;
-}
-
-interface BestSetupsResponse {
-  period: string;
-  count: number;
-  totalOpen: number;
-  setups: BestSetup[];
-  generatedAt: string;
-}
-
-function BestSetupsCard() {
-  const [period, setPeriod] = useState<'daily' | 'weekly'>('daily');
-  const [expandedSetup, setExpandedSetup] = useState<string | null>(null);
-  
-  const { data: bestSetups, isLoading } = useQuery<BestSetupsResponse>({
-    queryKey: ['/api/trade-ideas/best-setups', period],
-    queryFn: async () => {
-      const res = await fetch(`/api/trade-ideas/best-setups?period=${period}&limit=5`);
-      if (!res.ok) throw new Error('Failed to fetch best setups');
-      // NOTE: Direction filtering handled server-side based on real-time market bias
-      return res.json();
-    },
-    refetchInterval: 60000,
-    staleTime: 30000,
-  });
-
-  const getGradeBadge = (grade: string | null | undefined) => {
-    if (!grade) return null;
-    const colors: Record<string, string> = {
-      'A+': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      'A': 'bg-green-500/20 text-green-400 border-green-500/30',
-      'A-': 'bg-green-500/15 text-green-400/90 border-green-500/25',
-      'B+': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      'B': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    };
-    return (
-      <Badge variant="outline" className={cn("text-xs font-mono", colors[grade] || "")}>
-        {grade}
-      </Badge>
-    );
-  };
-
-  return (
-    <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent" data-testid="card-best-setups">
-      <CardHeader className="py-3 px-4 border-b border-amber-500/20">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-400">
-            <Star className="h-4 w-4 fill-amber-400" />
-            Best Setups
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPeriod('daily')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                period === 'daily' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
-              )}
-              data-testid="button-setups-daily"
-            >
-              Today
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPeriod('weekly')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                period === 'weekly' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
-              )}
-              data-testid="button-setups-weekly"
-            >
-              Week
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Top conviction plays - wait for the perfect pitch
-        </p>
-      </CardHeader>
-      <CardContent className="p-3">
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : bestSetups?.setups && bestSetups.setups.length > 0 ? (
-          <div className="space-y-2">
-            {bestSetups.setups.map((setup, idx) => {
-              const isExpanded = expandedSetup === setup.id;
-              return (
-                <div key={setup.id} className="rounded-lg bg-muted/30 overflow-hidden">
-                  <div 
-                    className="flex items-center gap-3 p-2 hover-elevate cursor-pointer"
-                    onClick={() => setExpandedSetup(isExpanded ? null : setup.id)}
-                    data-testid={`setup-row-${setup.symbol}`}
-                  >
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-sm">{setup.symbol}</span>
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          {setup.assetType?.toUpperCase() || 'STOCK'}
-                        </Badge>
-                        {getGradeBadge(setup.probabilityBand)}
-                        <Badge variant="outline" className={cn(
-                          "text-xs",
-                          setup.direction === 'long' ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"
-                        )}>
-                          {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                        </Badge>
-                      </div>
-                      {(setup.catalyst || setup.thesis) && (
-                        <p className="text-xs text-foreground/80 mt-1 line-clamp-1">{setup.catalyst || setup.thesis}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <span>{setup.signalCount} signals</span>
-                        <span className="text-muted-foreground/50">|</span>
-                        <span>{setup.riskReward}:1 R:R</span>
-                      </div>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <div>
-                        <div className="flex items-center gap-1 text-amber-400">
-                          <Flame className="h-3.5 w-3.5" />
-                          <span className="font-mono font-bold text-sm">{setup.convictionScore}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">conviction</span>
-                      </div>
-                      <ChevronDown className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        isExpanded && "rotate-180"
-                      )} />
-                    </div>
-                  </div>
-                  {isExpanded && (
-                    <div className="px-3 pb-3 pt-1 border-t border-border/30 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Conviction Breakdown:</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">Base Confidence</span>
-                          <span className="font-mono">{setup.confidence || 50}</span>
-                        </div>
-                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">Signals ({setup.signalCount}x5)</span>
-                          <span className="font-mono text-green-400">+{setup.signalCount * 5}</span>
-                        </div>
-                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">R:R Bonus</span>
-                          <span className="font-mono text-green-400">+{Math.min(setup.riskReward, 3) * 10}</span>
-                        </div>
-                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                          <span className="text-muted-foreground">Grade Bonus</span>
-                          <span className={cn("font-mono", 
-                            (setup.probabilityBand === 'A+' || setup.probabilityBand === 'A') ? "text-green-400" : "text-muted-foreground"
-                          )}>
-                            {(setup.probabilityBand === 'A+' || setup.probabilityBand === 'A') ? '+10' : 
-                             (setup.probabilityBand === 'A-' || setup.probabilityBand === 'B+') ? '+5' : '0'}
-                          </span>
-                        </div>
-                        {setup.mlBoost !== undefined && setup.mlBoost !== 0 && (
-                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                            <span className="text-muted-foreground">ML Intelligence</span>
-                            <span className={cn("font-mono", setup.mlBoost > 0 ? "text-cyan-400" : "text-red-400")}>
-                              {setup.mlBoost > 0 ? `+${setup.mlBoost}` : setup.mlBoost}
-                            </span>
-                          </div>
-                        )}
-                        {setup.breakoutBonus !== undefined && setup.breakoutBonus > 0 && (
-                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                            <span className="text-muted-foreground">Breakout {setup.hourlyConfirmed ? '(Confirmed)' : ''}</span>
-                            <span className="font-mono text-purple-400">+{setup.breakoutBonus}</span>
-                          </div>
-                        )}
-                        {setup.winRateBonus !== undefined && setup.winRateBonus !== 0 && (
-                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
-                            <span className="text-muted-foreground">
-                              Win Rate ({setup.historicalWinRate}% / {setup.sampleSize} trades)
-                            </span>
-                            <span className={cn("font-mono", setup.winRateBonus > 0 ? "text-green-400" : "text-red-400")}>
-                              {setup.winRateBonus > 0 ? `+${setup.winRateBonus}` : setup.winRateBonus}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {(setup.catalyst || setup.analysis || setup.thesis) && (
-                        <div className="mt-2 text-xs">
-                          <span className="text-muted-foreground">Thesis: </span>
-                          <span className="text-foreground">{setup.catalyst || setup.analysis || setup.thesis}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-2 mt-3">
-                        <Link href={`/chart-analysis?symbol=${setup.symbol}`}>
-                          <Button size="sm" variant="outline" className="text-xs h-7" data-testid={`button-chart-${setup.symbol}`}>
-                            <LineChart className="h-3 w-3 mr-1" />
-                            View Chart
-                          </Button>
-                        </Link>
-                        <Link href={`/options-analyzer?symbol=${setup.symbol}`}>
-                          <Button size="sm" variant="ghost" className="text-xs h-7" data-testid={`button-options-${setup.symbol}`}>
-                            <Target className="h-3 w-3 mr-1" />
-                            Options
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <BestSetupsExplainer />
-        )}
-        {bestSetups && bestSetups.totalOpen > 0 && (
-          <p className="text-xs text-muted-foreground text-center mt-3">
-            Showing top {bestSetups.count} of {bestSetups.totalOpen} active ideas
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Market Movers Card - Shows top surging/dropping stocks
-interface MarketMover {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  volume: number;
-  avgVolume: number;
-  volumeRatio: number;
-  marketCap: number;
-  alertReason?: string;
-}
-
-interface MarketMoversResponse {
-  timestamp: string;
-  session: string;
-  scannedCount: number;
-  topGainers: MarketMover[];
-  topLosers: MarketMover[];
-  volumeSpikes: MarketMover[];
-  highAlertMovers: MarketMover[];
-  catalystNews: any[];
-  alerts: any[];
-}
-
-function MarketMoversCard() {
-  const [tab, setTab] = useState<'gainers' | 'losers' | 'alerts'>('gainers');
-  
-  const { data: movers, isLoading, isError } = useQuery<MarketMoversResponse>({
-    queryKey: ['/api/market-movers'],
-    refetchInterval: 120000,
-    staleTime: 60000,
-  });
-
-  const displayData = tab === 'gainers' 
-    ? movers?.topGainers || [] 
-    : tab === 'losers' 
-    ? movers?.topLosers || []
-    : movers?.highAlertMovers || [];
-
-  return (
-    <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent" data-testid="card-market-movers">
-      <CardHeader className="py-3 px-4 border-b border-cyan-500/20">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-400">
-            <Flame className="h-4 w-4" />
-            Market Movers
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('gainers')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'gainers' ? "bg-green-500/20 text-green-400" : "text-muted-foreground"
-              )}
-              data-testid="button-movers-gainers"
-            >
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              Gainers
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('losers')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'losers' ? "bg-red-500/20 text-red-400" : "text-muted-foreground"
-              )}
-              data-testid="button-movers-losers"
-            >
-              <ArrowDownRight className="h-3 w-3 mr-1" />
-              Losers
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('alerts')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'alerts' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
-              )}
-              data-testid="button-movers-alerts"
-            >
-              <Zap className="h-3 w-3 mr-1" />
-              Hot
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          {movers?.scannedCount || 0} stocks scanned • {movers?.session || 'Market'} session
-        </p>
-      </CardHeader>
-      <CardContent className="p-3">
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="text-center py-6 text-muted-foreground" data-testid="movers-error-state">
-            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-400" />
-            <p className="text-sm">Failed to load market movers</p>
-            <p className="text-xs mt-1">Try refreshing the page</p>
-          </div>
-        ) : displayData.length > 0 ? (
-          <div className="space-y-2" data-testid={`movers-list-${tab}`}>
-            {displayData.slice(0, 6).map((stock, idx) => (
-              <div 
-                key={stock.symbol} 
-                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
-                data-testid={`mover-row-${stock.symbol}-${idx}`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <span className="w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold">{idx + 1}</span>
-                  <div className="min-w-0">
-                    <span className="font-mono font-bold text-base" data-testid={`text-symbol-${stock.symbol}`}>{stock.symbol}</span>
-                    {stock.volumeRatio > 1.5 && (
-                      <Badge variant="outline" className="ml-2 text-xs border-amber-500/30 text-amber-400">
-                        {stock.volumeRatio.toFixed(1)}x vol
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="font-mono text-base font-medium" data-testid={`text-price-${stock.symbol}`}>${stock.price.toFixed(2)}</span>
-                  <p className={cn(
-                    "text-sm font-mono font-bold",
-                    stock.changePercent > 0 ? "text-green-400" : "text-red-400"
-                  )} data-testid={`text-change-${stock.symbol}`}>
-                    {stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <InlineEmptyState 
-            message="No movers found. Check back during market hours." 
-          />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-interface SurgeCandidate {
-  symbol: string;
-  price: number;
-  score: number;
-  reason: string;
-  change?: number;
-  volume?: number;
-  tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
-  source?: 'discovery' | 'detection';
-  severity?: 'HIGH' | 'MEDIUM' | 'LOW';
-}
-
-interface DetectionAlert {
-  symbol: string;
-  trigger: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
-  message: string;
-  price: number;
-  change: number;
-  detectedAt: string;
-}
-
-function SurgeAlertsCard() {
-  const [tab, setTab] = useState<'surge' | 'momentum' | 'setup'>('surge');
-  
-  // Fetch breakout discovery
-  const { data: breakoutData, isLoading: breakoutLoading, isError: breakoutError, refetch: refetchBreakouts } = useQuery<{ candidates: SurgeCandidate[], count: number }>({
-    queryKey: ['/api/discovery/breakouts'],
-    refetchInterval: 180000,
-    staleTime: 120000,
-  });
-
-  // Fetch detection engine alerts (bot notifications)
-  const { data: detectionData, isLoading: detectionLoading, isError: detectionError, refetch: refetchDetection } = useQuery<{ alerts: DetectionAlert[], activeCount: number, highPriority: number }>({
-    queryKey: ['/api/detection/alerts'],
-    refetchInterval: 60000,
-    staleTime: 30000,
-  });
-
-  // Merge both data sources - preserve all detection metadata
-  const mergedCandidates = useMemo(() => {
-    const candidates: SurgeCandidate[] = [...(breakoutData?.candidates || []).map(c => ({ ...c, source: 'discovery' as const }))];
-    const symbolMap = new Map(candidates.map(c => [c.symbol, c]));
-    
-    // Process detection engine alerts
-    for (const alert of (detectionData?.alerts || [])) {
-      // Skip alerts with missing critical data
-      if (typeof alert.price !== 'number' || typeof alert.change !== 'number') continue;
-      
-      const tier = alert.severity === 'HIGH' ? 'SURGE' as const : 
-                   alert.severity === 'MEDIUM' ? 'MOMENTUM' as const : 'SETUP' as const;
-      
-      const existing = symbolMap.get(alert.symbol);
-      if (!existing) {
-        // New symbol from detection
-        const newCandidate: SurgeCandidate = {
-          symbol: alert.symbol,
-          price: alert.price,
-          score: alert.severity === 'HIGH' ? 95 : alert.severity === 'MEDIUM' ? 80 : 65,
-          reason: alert.message,
-          change: alert.change,
-          tier,
-          source: 'detection',
-          severity: alert.severity
-        };
-        candidates.push(newCandidate);
-        symbolMap.set(alert.symbol, newCandidate);
-      } else {
-        // Merge with existing - upgrade tier if detection has higher priority, mark as bot-confirmed
-        const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
-        if ((tierOrder[tier] || 3) < (tierOrder[existing.tier || 'WATCH'] || 3)) {
-          existing.tier = tier;
-        }
-        existing.source = 'detection'; // Mark as bot-confirmed
-        existing.severity = alert.severity;
-        existing.reason = `${existing.reason} | ${alert.message}`;
-        // Use fresher detection data if available
-        if (alert.change !== undefined) existing.change = alert.change;
-        if (alert.price !== undefined) existing.price = alert.price;
-      }
-    }
-    
-    // Sort by tier priority then change %
-    return candidates.sort((a, b) => {
-      const tierOrder = { SURGE: 0, MOMENTUM: 1, SETUP: 2, WATCH: 3 };
-      const tierDiff = (tierOrder[a.tier || 'WATCH'] || 3) - (tierOrder[b.tier || 'WATCH'] || 3);
-      if (tierDiff !== 0) return tierDiff;
-      return Math.abs(b.change || 0) - Math.abs(a.change || 0);
-    });
-  }, [breakoutData, detectionData]);
-
-  const isLoading = breakoutLoading || detectionLoading;
-  const isError = breakoutError && detectionError;
-  const refetch = () => { refetchBreakouts(); refetchDetection(); };
-
-  const displayData = mergedCandidates.filter(c => {
-    if (tab === 'surge') return c.tier === 'SURGE';
-    if (tab === 'momentum') return c.tier === 'MOMENTUM';
-    return c.tier === 'SETUP' || c.tier === 'WATCH';
-  });
-
-  const surgeCount = mergedCandidates.filter(c => c.tier === 'SURGE').length;
-  const momentumCount = mergedCandidates.filter(c => c.tier === 'MOMENTUM').length;
-  const setupCount = mergedCandidates.filter(c => c.tier === 'SETUP' || c.tier === 'WATCH').length;
-  const detectionCount = detectionData?.activeCount || 0;
-
-  return (
-    <Card className="border-rose-500/20 bg-gradient-to-br from-rose-500/5 to-transparent" data-testid="card-surge-alerts">
-      <CardHeader className="py-3 px-4 border-b border-rose-500/20">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-rose-400">
-            <Zap className="h-4 w-4" />
-            Surge Detector
-            {(surgeCount + momentumCount + setupCount) > 0 && (
-              <Badge variant="destructive" className="animate-pulse text-xs px-1.5">
-                {surgeCount + momentumCount + setupCount} LIVE
-              </Badge>
-            )}
-            {detectionCount > 0 && (
-              <Badge variant="outline" className="text-xs px-1.5 border-amber-500/50 text-amber-400">
-                +{detectionCount} bot
-              </Badge>
-            )}
-          </CardTitle>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('surge')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'surge' ? "bg-rose-500/20 text-rose-400" : "text-muted-foreground"
-              )}
-              data-testid="button-surge-surge"
-            >
-              🚀 Surge ({surgeCount})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('momentum')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'momentum' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
-              )}
-              data-testid="button-surge-momentum"
-            >
-              📈 Build ({momentumCount})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTab('setup')}
-              className={cn(
-                "h-7 px-2 text-xs",
-                tab === 'setup' ? "bg-blue-500/20 text-blue-400" : "text-muted-foreground"
-              )}
-              data-testid="button-surge-setup"
-            >
-              ⬆️ Early ({setupCount})
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => refetch()}
-              className="h-7 w-7"
-              data-testid="button-surge-refresh"
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Real-time surge + bot detection • No price limit • All sectors
-        </p>
-      </CardHeader>
-      <CardContent className="p-3">
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : isError ? (
-          <div className="text-center py-6 text-muted-foreground" data-testid="surge-error-state">
-            <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-400" />
-            <p className="text-sm">Failed to load surge data</p>
-          </div>
-        ) : displayData.length > 0 ? (
-          <div className="space-y-2" data-testid={`surge-list-${tab}`}>
-            {displayData.slice(0, 6).map((stock, idx) => (
-              <Link 
-                key={stock.symbol}
-                href={`/chart-analysis?symbol=${stock.symbol}`}
-                className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/30 hover-elevate cursor-pointer block"
-                data-testid={`surge-row-${stock.symbol}-${idx}`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <span className={cn(
-                    "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
-                    stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" : 
-                    stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" : 
-                    "bg-blue-500/20 text-blue-400"
-                  )}>{idx + 1}</span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono font-bold text-base" data-testid={`text-surge-symbol-${stock.symbol}`}>{stock.symbol}</span>
-                      {stock.source === 'detection' && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400">BOT</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate max-w-[180px]" title={stock.reason}>
-                      {stock.reason.split(' | ').slice(0, 2).join(' • ')}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="font-mono text-base font-medium">
-                    {typeof stock.price === 'number' ? `$${stock.price < 1000 ? stock.price.toFixed(2) : stock.price.toFixed(0)}` : '--'}
-                  </span>
-                  {typeof stock.change === 'number' && (
-                    <p className={cn(
-                      "text-sm font-mono font-bold",
-                      stock.change > 0 ? "text-green-400" : "text-red-400"
-                    )}>
-                      {stock.change > 0 ? '+' : ''}{stock.change.toFixed(1)}%
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <InlineEmptyState 
-            message={`No ${tab} signals detected. Market may be quiet.`} 
-          />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function TradeDeskPage() {
-  const { canGenerateTradeIdea } = useTier();
-  const searchString = useSearch();
-  const [, setLocation] = useLocation();
-  const urlParams = new URLSearchParams(searchString);
-  const initialTab = urlParams.get('tab') === 'futures' ? 'futures' : 'research';
-  const urlAsset = urlParams.get('asset');
-  const [mainTab, setMainTab] = useState<'research' | 'futures'>(initialTab);
-  
-  const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
-  const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
-  const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
-  const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
-  
-  // User-controlled asset type order (stored in localStorage)
-  const [assetTypeOrder, setAssetTypeOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('tradeDesk_assetTypeOrder');
-    // Default: Options first, then stocks, penny stocks, futures, crypto
-    return saved ? JSON.parse(saved) : ['option', 'stock', 'penny_stock', 'future', 'crypto'];
-  });
-  
-  // Save order to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('tradeDesk_assetTypeOrder', JSON.stringify(assetTypeOrder));
-  }, [assetTypeOrder]);
-  
-  // Move an asset type up or down in the order
-  const moveAssetType = (assetType: string, direction: 'up' | 'down') => {
-    setAssetTypeOrder(prev => {
-      const idx = prev.indexOf(assetType);
-      if (idx === -1) return prev;
-      const newOrder = [...prev];
-      if (direction === 'up' && idx > 0) {
-        [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
-      } else if (direction === 'down' && idx < prev.length - 1) {
-        [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-      }
-      return newOrder;
-    });
-  };
-  const [dateRange, setDateRange] = useState<string>('all');
-  const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'grid' | 'heatmap'>('list');
-  
-  // NEW: Source tabs and status view state
-  const [sourceTab, setSourceTab] = useState<IdeaSource | "all">("all");
-  const [statusView, setStatusView] = useState<'all' | 'published' | 'draft'>('published');
-  
-  // Timeframe tabs for temporal filtering
-  const [activeTimeframe, setActiveTimeframe] = useState<TimeframeBucket>('all');
-  
-  // Trade Type filter (Day vs Swing) - persisted to localStorage
-  const [tradeTypeFilter, setTradeTypeFilter] = useState<'all' | 'day' | 'swing'>(() => {
-    const saved = localStorage.getItem('tradeDesk_tradeTypeFilter');
-    return (saved as 'all' | 'day' | 'swing') || 'all';
-  });
-  
-  // Price tier filter - for finding low-priced stocks for shares or options - persisted
-  const [priceTierFilter, setPriceTierFilter] = useState<'all' | 'under5' | 'under10' | 'under15' | 'under25'>(() => {
-    const saved = localStorage.getItem('tradeDesk_priceTierFilter');
-    return (saved as 'all' | 'under5' | 'under10' | 'under15' | 'under25') || 'all';
-  });
-  
-  // Filter state for new filter toolbar - persisted to localStorage
-  const [expiryFilter, setExpiryFilter] = useState<string>('all');
-  const [assetTypeFilter, setAssetTypeFilter] = useState<string>(() => {
-    // URL param takes priority, then localStorage
-    if (urlAsset && ['stock', 'option', 'crypto', 'future', 'penny_stock'].includes(urlAsset)) {
-      return urlAsset;
-    }
-    const saved = localStorage.getItem('tradeDesk_assetTypeFilter');
-    return saved || 'all';
-  });
-  // Default to 'quality' which excludes D/F tier ideas (user requested no more D ratings) - persisted
-  const [gradeFilter, setGradeFilter] = useState<string>(() => {
-    const saved = localStorage.getItem('tradeDesk_gradeFilter');
-    return saved || 'quality';
-  });
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('priority');
-  const [symbolSearch, setSymbolSearch] = useState<string>('');
-  
-  // Date filter state (Posted date)
-  const [dateFilter, setDateFilter] = useState<string>('all');
-  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
-  
-  // Multi-Factor Analysis panel state
-  const [analysisSymbol, setAnalysisSymbol] = useState<string | null>(null);
-  
-  // Advanced filters collapsed by default for cleaner UI
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  
-  // Pagination state
-  const [visibleCount, setVisibleCount] = useState(50);
-  
-  // Per-group pagination for Active Research accordion
-  const [groupPage, setGroupPage] = useState<Record<string, number>>({});
-  const ITEMS_PER_PAGE = 20;
-  
-  
-  // Persist key filters to localStorage
-  useEffect(() => {
-    localStorage.setItem('tradeDesk_tradeTypeFilter', tradeTypeFilter);
-  }, [tradeTypeFilter]);
-  
-  useEffect(() => {
-    localStorage.setItem('tradeDesk_priceTierFilter', priceTierFilter);
-  }, [priceTierFilter]);
-  
-  useEffect(() => {
-    localStorage.setItem('tradeDesk_assetTypeFilter', assetTypeFilter);
-  }, [assetTypeFilter]);
-  
-  useEffect(() => {
-    localStorage.setItem('tradeDesk_gradeFilter', gradeFilter);
-  }, [gradeFilter]);
-  
-  // Reset pagination when filters change
-  useEffect(() => {
-    setVisibleCount(50);
-    setGroupPage({});
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, priceTierFilter, dateFilter, customDate]);
-  
-  const { toast } = useToast();
-  
-  // Memoize market status to avoid recalculating on every render
-  const marketStatus = useMemo(() => getMarketStatus(), []);
-
-  const { data: tradeIdeas = [], isLoading: ideasLoading, isError: ideasError, error: ideasErrorDetails } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas'],
-    refetchInterval: 5000, // FAST UPDATE: 5s for active trading
-    staleTime: 2000,
-  });
-  
-  // Check if error is authentication related
-  const isAuthError = ideasError && (ideasErrorDetails?.message?.includes('401') || ideasErrorDetails?.message?.includes('Authentication'));
-
-  const { data: marketData = [] } = useQuery<MarketData[]>({
-    queryKey: ['/api/market-data'],
-    refetchInterval: 60000, // 60s for market data
-    staleTime: 30000,
-  });
-
-  const { data: catalysts = [] } = useQuery<Catalyst[]>({
-    queryKey: ['/api/catalysts'],
-    refetchInterval: 3600000,
-    staleTime: 3600000, // 1 hour stale time for catalysts (slow-changing data)
-  });
-
-  const priceMap = tradeIdeas.reduce((acc, idea) => {
-    if (idea.currentPrice != null) {
-      acc[idea.symbol] = idea.currentPrice;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-  
-  marketData.forEach(data => {
-    if (!priceMap[data.symbol]) {
-      priceMap[data.symbol] = data.currentPrice;
-    }
-  });
-
-  // Helper to get date range bounds for Posted date filter
-  const getDateRangeBoundsForCounts = (filter: string, customDateVal?: Date) => {
-    const now = new Date();
-    switch (filter) {
-      case 'today': 
-        return { start: startOfDay(now), end: null };
-      case 'yesterday': {
-        const yesterdayStart = startOfDay(subDays(now, 1));
-        const yesterdayEnd = new Date(startOfDay(now).getTime() - 1);
-        return { start: yesterdayStart, end: yesterdayEnd };
-      }
-      case '3d': 
-        return { start: subDays(now, 3), end: null };
-      case '7d': 
-        return { start: subDays(now, 7), end: null };
-      case '30d': 
-        return { start: subDays(now, 30), end: null };
-      case 'custom':
-        if (!customDateVal) return { start: new Date(0), end: null };
-        const dayStart = startOfDay(customDateVal);
-        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-        return { start: dayStart, end: dayEnd };
-      case 'all':
-      default: 
-        return { start: new Date(0), end: null };
-    }
-  };
-
-  // Memoized count helpers for source tabs and status
-  // Counts should reflect ALL active filters except source filter itself
-  const sourceCounts = useMemo(() => {
-    const dateBounds = getDateRangeBoundsForCounts(dateFilter, customDate);
-    
-    // Apply all filters except source filter
-    const baseFiltered = tradeIdeas.filter(idea => {
-      // Status view filter
-      const ideaStatus = idea.status || 'published';
-      if (statusView !== 'all' && ideaStatus !== statusView) return false;
-      
-      // Posted date filter
-      const ideaDate = parseISO(idea.timestamp);
-      if (dateFilter !== 'all') {
-        if (isBefore(ideaDate, dateBounds.start)) return false;
-        if (dateBounds.end !== null && isAfter(ideaDate, dateBounds.end)) return false;
-      }
-      
-      // Trade type filter
-      if (tradeTypeFilter !== 'all') {
-        if (tradeTypeFilter === 'day' && idea.holdingPeriod !== 'day') return false;
-        if (tradeTypeFilter === 'swing' && !['swing', 'position', 'week-ending'].includes(idea.holdingPeriod)) return false;
-      }
-      
-      // Price tier filter - use currentPrice (live) or entryPrice as fallback
-      if (priceTierFilter !== 'all') {
-        const price = idea.currentPrice || idea.entryPrice || 0;
-        if (priceTierFilter === 'under5' && price >= 5) return false;
-        if (priceTierFilter === 'under10' && price >= 10) return false;
-        if (priceTierFilter === 'under15' && price >= 15) return false;
-        if (priceTierFilter === 'under25' && price >= 25) return false;
-      }
-      
-      // Status filter (active/won/lost)
-      const status = (idea.outcomeStatus || '').trim().toLowerCase();
-      if (statusFilter !== 'all') {
-        if (statusFilter === 'active' && status !== 'open' && status !== '') return false;
-        if (statusFilter === 'won' && status !== 'hit_target') return false;
-        if (statusFilter === 'lost' && status !== 'hit_stop') return false;
-      }
-      
-      // Timeframe filter
-      if (activeTimeframe !== 'all' && idea.expiryDate) {
-        const today = startOfDay(new Date());
-        const expiry = startOfDay(new Date(idea.expiryDate));
-        const daysToExp = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (activeTimeframe === 'today_tomorrow' && !(daysToExp >= 0 && daysToExp <= 1)) return false;
-        if (activeTimeframe === 'few_days' && !(daysToExp >= 2 && daysToExp <= 5)) return false;
-        if (activeTimeframe === 'next_week' && !(daysToExp >= 0 && daysToExp <= 7)) return false;
-      }
-      
-      return true;
-    });
-    
-    const counts: Record<string, number> = {
-      all: baseFiltered.length,
-      ai: 0,
-      quant: 0,
-      hybrid: 0,
-      chart_analysis: 0,
-      flow: 0,
-      news: 0,
-      manual: 0,
-    };
-    
-    baseFiltered.forEach(idea => {
-      const source = idea.source || 'quant';
-      if (counts[source] !== undefined) {
-        counts[source]++;
-      }
-    });
-    
-    return counts;
-  }, [tradeIdeas, statusView, dateFilter, customDate, tradeTypeFilter, statusFilter, activeTimeframe]);
-
-  const statusCounts = useMemo(() => {
-    const counts = {
-      all: tradeIdeas.length,
-      published: 0,
-      draft: 0,
-    };
-    
-    tradeIdeas.forEach(idea => {
-      // Treat missing status field as 'published' for backward compatibility
-      const status = idea.status || 'published';
-      if (status === 'published') {
-        counts.published++;
-      } else if (status === 'draft') {
-        counts.draft++;
-      }
-    });
-    
-    return counts;
-  }, [tradeIdeas]);
-
-  // Generate ideas for a specific timeframe/holding period
-  const generateTimeframeIdeas = useMutation({
-    mutationFn: async (targetTimeframe: TimeframeBucket) => {
-      // Map timeframe bucket to holding period
-      const holdingPeriodMap: Record<TimeframeBucket, string | undefined> = {
-        'all': undefined,
-        'today_tomorrow': 'day',
-        'few_days': 'swing',
-        'next_week': 'swing',
-        'next_month': 'position',
-      };
-      const holdingPeriod = holdingPeriodMap[targetTimeframe];
-      return await apiRequest('POST', '/api/quant/generate-ideas', { 
-        targetHoldingPeriod: holdingPeriod 
-      });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const label = TIMEFRAME_LABELS[activeTimeframe] || 'selected timeframe';
-      toast({
-        title: `${label} Research Generated`,
-        description: `Generated ${data.count || data.newIdeas || 0} research briefs for ${label.toLowerCase()}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const generateQuantIdeas = useMutation({
-    mutationFn: async (timeframe?: TimeframeBucket) => {
-      return await apiRequest('POST', '/api/quant/generate-ideas', { 
-        timeframe: timeframe || 'all',
-        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
-                       timeframe === 'few_days' ? 'swing' : 
-                       timeframe === 'next_week' ? 'week-ending' : 
-                       timeframe === 'next_month' ? 'position' : undefined
-      });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
-      toast({
-        title: "Quant Research Generated",
-        description: `Generated ${data.count || data.newIdeas || 0} new quantitative research briefs${label ? ` for ${label}` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate quant ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const generateAIIdeas = useMutation({
-    mutationFn: async (timeframe?: TimeframeBucket) => {
-      return await apiRequest('POST', '/api/ai/generate-ideas', {
-        marketContext: "Current market conditions with focus on stocks, options, and crypto",
-        timeframe: timeframe || 'all',
-        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
-                       timeframe === 'few_days' ? 'swing' : 
-                       timeframe === 'next_week' ? 'week-ending' : 
-                       timeframe === 'next_month' ? 'position' : undefined
-      });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
-      toast({
-        title: "AI Research Generated",
-        description: `Generated ${data.count || 0} new AI-powered research briefs${label ? ` for ${label}` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate AI ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const generateHybridIdeas = useMutation({
-    mutationFn: async (timeframe?: TimeframeBucket) => {
-      return await apiRequest('POST', '/api/hybrid/generate-ideas', { 
-        timeframe: timeframe || 'all',
-        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
-                       timeframe === 'few_days' ? 'swing' : 
-                       timeframe === 'next_week' ? 'week-ending' : 
-                       timeframe === 'next_month' ? 'position' : undefined
-      });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
-      toast({
-        title: "Hybrid Research Generated",
-        description: `Generated ${data.count || 0} new hybrid (AI+Quant) research briefs${label ? ` for ${label}` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate hybrid ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const generateNewsIdeas = useMutation({
-    mutationFn: async (timeframe?: TimeframeBucket) => {
-      return await apiRequest('POST', '/api/news/generate-ideas', { 
-        timeframe: timeframe || 'all',
-        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
-                       timeframe === 'few_days' ? 'swing' : 
-                       timeframe === 'next_week' ? 'week-ending' : 
-                       timeframe === 'next_month' ? 'position' : undefined
-      });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
-      toast({
-        title: "News Research Generated",
-        description: `Generated ${data.count || 0} news-driven research briefs${label ? ` for ${label}` : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate news ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const generateFlowIdeas = useMutation({
-    mutationFn: async (targetTimeframe?: TimeframeBucket) => {
-      // Map timeframe bucket to holding period for flow scanner
-      const holdingPeriodMap: Record<TimeframeBucket, string | undefined> = {
-        'all': undefined,
-        'today_tomorrow': 'day',
-        'few_days': 'swing',
-        'next_week': 'swing',
-        'next_month': 'position',
-      };
-      const holdingPeriod = holdingPeriodMap[targetTimeframe || 'all'];
-      return await apiRequest('POST', '/api/flow/generate-ideas', { holdingPeriod });
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      const timeframeLabel = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : 'All';
-      toast({
-        title: "Flow Scanner Complete",
-        description: data.message || `Scanned ${timeframeLabel} options, found ${data.count || 0} flow patterns`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Scan Failed",
-        description: error.message || "Failed to scan options flow",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Generate ideas from elite (S/A tier) watchlist setups
-  const generateEliteIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/watchlist/generate-elite-ideas');
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/setup-ideas'] });
-      toast({
-        title: "Elite Setup Ideas Generated",
-        description: `Created ${data.generated || 0} trade ideas from S/A tier watchlist setups`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate elite ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Generate ideas from surge detection alerts
-  const generateSurgeIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/market-scanner/surges/feed');
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      toast({
-        title: "Surge Ideas Generated",
-        description: `Fed ${data.ingested || 0} surge alerts to Trade Desk`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Surge Feed Failed",
-        description: error.message || "Failed to feed surge alerts",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Generate ideas from proactive detection (MA pullback, consolidation, volume accumulation)
-  const generateProactiveIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/discovery/proactive/feed');
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      toast({
-        title: "Proactive Setups Generated",
-        description: `Created ${data.generated || 0} ideas from pre-breakout patterns`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Proactive Scan Failed",
-        description: error.message || "Failed to generate proactive ideas",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Send trade idea to Discord manually
-  const sendToDiscordMutation = useMutation({
-    mutationFn: async (ideaId: string) => {
-      const response = await apiRequest("POST", `/api/trade-ideas/${ideaId}/share-discord`);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Sent to Discord",
-        description: data.message || "Trade idea shared to Discord channel",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Discord Send Failed",
-        description: error.message || "Could not send to Discord",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const handleToggleExpand = (ideaId: string) => {
-    setExpandedIdeaId(expandedIdeaId === ideaId ? null : ideaId);
-  };
-
-  const handleCollapseAll = () => {
-    setExpandedIdeaId(null);
-  };
-
-  const calculatePriorityScore = (idea: TradeIdea): number => {
-    const confidenceScore = idea.confidenceScore || 0;
-    const rrRatio = idea.riskRewardRatio || 0;
-    const hitProbability = idea.targetHitProbability || 0;
-    
-    return (confidenceScore * 0.4) + (rrRatio * 15) + (hitProbability * 0.3);
-  };
-
-  // Calculate date range bounds for Posted date filter
-  const getDateRangeBounds = () => {
-    const now = new Date();
-    switch (dateFilter) {
-      case 'today': 
-        return { start: startOfDay(now), end: null };
-      case 'yesterday': {
-        const yesterdayStart = startOfDay(subDays(now, 1));
-        const yesterdayEnd = new Date(startOfDay(now).getTime() - 1);
-        return { start: yesterdayStart, end: yesterdayEnd };
-      }
-      case '3d': 
-        return { start: subDays(now, 3), end: null };
-      case '7d': 
-        return { start: subDays(now, 7), end: null };
-      case '30d': 
-        return { start: subDays(now, 30), end: null };
-      case 'custom':
-        if (!customDate) return { start: new Date(0), end: null };
-        const dayStart = startOfDay(customDate);
-        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-        return { start: dayStart, end: dayEnd };
-      case 'all':
-      default: 
-        return { start: new Date(0), end: null };
-    }
-  };
-
-  // Force default to today if not set to see fresh bot activity
-  useEffect(() => {
-    if (!dateFilter || dateFilter === 'all') {
-      setDateFilter('today');
-    }
-  }, []);
-
-  const rangeStart = (() => {
-    const now = new Date();
-    switch (dateRange) {
-      case 'today':
-        return startOfDay(now);
-      case '7d':
-        return subDays(now, 7);
-      case '30d':
-        return subDays(now, 30);
-      case '3m':
-        return subMonths(now, 3);
-      case '1y':
-        return subYears(now, 1);
-      case 'all':
-      default:
-        return new Date(0);
-    }
-  })();
-
-  const filteredIdeas = tradeIdeas.filter(idea => {
-    // NOTE: SHORT filtering is now handled server-side based on real-time market bias
-    // When market is bullish (trending_up + risk_on), SHORTs are filtered out
-    // When market is bearish/volatile, SHORTs become relevant and are shown
-
-    const matchesSearch = !tradeIdeaSearch || 
-      idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
-      (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
-
-    const isDayTrade = idea.holdingPeriod === 'day';
-    const matchesDirection = activeDirection === "all" || 
-      (activeDirection === "day_trade" && isDayTrade) ||
-      (activeDirection !== "day_trade" && idea.direction === activeDirection);
-    
-    const matchesSource = activeSource === "all" || idea.source === activeSource;
-    const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
-    // Legacy activeGrade is always "all" - real filtering happens via gradeFilter with signal counts
-    const matchesGrade = true;
-    
-    const ideaDate = parseISO(idea.timestamp);
-    const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
-    
-    // Posted date filter
-    const dateBounds = getDateRangeBounds();
-    const matchesDateFilter = dateFilter === 'all' || (
-      !isBefore(ideaDate, dateBounds.start) && 
-      (dateBounds.end === null || !isAfter(ideaDate, dateBounds.end))
-    );
-    
-    // NEW: Filter by source tab
-    const matchesSourceTab = sourceTab === "all" || idea.source === sourceTab;
-    
-    // NEW: Filter by status view (treat missing status as 'published' for backward compatibility)
-    const ideaStatus = idea.status || 'published';
-    const matchesStatusView = statusView === 'all' || ideaStatus === statusView;
-    
-    // Trade Type filter: day trades vs swing trades (PDT-friendly)
-    // 'day' = holdingPeriod 'day', 'swing' = 'swing', 'position', or 'week-ending'
-    const matchesTradeType = tradeTypeFilter === 'all' || 
-      (tradeTypeFilter === 'day' && idea.holdingPeriod === 'day') ||
-      (tradeTypeFilter === 'swing' && ['swing', 'position', 'week-ending'].includes(idea.holdingPeriod));
-    
-    // Price tier filter - use currentPrice (live) or entryPrice as fallback
-    const price = idea.currentPrice || idea.entryPrice || 0;
-    const matchesPriceTier = priceTierFilter === 'all' ||
-      (priceTierFilter === 'under5' && price < 5) ||
-      (priceTierFilter === 'under10' && price < 10) ||
-      (priceTierFilter === 'under15' && price < 15) ||
-      (priceTierFilter === 'under25' && price < 25);
-    
-    // Status filter: ACTIVE, WON, LOST
-    const status = (idea.outcomeStatus || '').trim().toLowerCase();
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'active' && (status === 'open' || status === '')) ||
-      (statusFilter === 'won' && status === 'hit_target') ||
-      (statusFilter === 'lost' && status === 'hit_stop');
-    
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDateFilter && matchesSourceTab && matchesStatusView && matchesTradeType && matchesPriceTier && matchesStatus;
-  });
-
-  const dayTrades = useMemo(() => filteredIdeas.filter(i => i.holdingPeriod === 'day'), [filteredIdeas]);
-  const swingTrades = useMemo(() => filteredIdeas.filter(i => ['swing', 'position', 'week-ending'].includes(i.holdingPeriod)), [filteredIdeas]);
-
-  const TradeTable = ({ ideas, title }: { ideas: TradeIdea[], title: string }) => (
-    <Card className="border-muted/50">
-      <CardHeader className="py-3 px-4 border-b border-muted/50 bg-muted/5">
+      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+        {/* Page Header */}
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
-            {title === "Day Trades" ? <Clock className="h-4 w-4 text-amber-400" /> : <CalendarClock className="h-4 w-4 text-cyan-400" />}
-            {title.toUpperCase()}
-            <Badge variant="secondary" className="ml-2 font-mono">{ideas.length}</Badge>
-          </CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead className="bg-muted/10 text-muted-foreground font-mono text-[10px] uppercase tracking-wider border-b border-muted/50">
-              <tr>
-                <th className="px-4 py-2 font-semibold">Symbol</th>
-                <th className="px-4 py-2 font-semibold">Signal</th>
-                <th className="px-4 py-2 font-semibold">Entry</th>
-                <th className="px-4 py-2 font-semibold">Target/Stop</th>
-                <th className="px-4 py-2 font-semibold">R:R</th>
-                <th className="px-4 py-2 font-semibold">Time Remaining</th>
-                <th className="px-4 py-2 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-muted/30">
-              {ideas.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6">
-                    <InlineEmptyState message={`No active ${title.toLowerCase()} found matching filters.`} />
-                  </td>
-                </tr>
-              ) : (
-                ideas.map((idea) => {
-                  const currentPrice = priceMap[idea.symbol];
-                  const isLong = idea.direction === 'long';
-                  const stopLossPercent = isLong
-                    ? ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100
-                    : ((idea.entryPrice - idea.stopLoss) / idea.entryPrice) * 100;
-                  const targetPercent = isLong
-                    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100
-                    : ((idea.entryPrice - idea.targetPrice) / idea.entryPrice) * 100;
-
-                  return (
-                    <tr key={idea.id} className="hover:bg-muted/5 transition-colors group">
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex flex-col">
-                          <span className="font-bold font-mono text-base">{idea.symbol}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase">{idea.assetType}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <Badge variant={isLong ? "default" : "destructive"} className="text-[10px] h-5 px-1.5 font-bold">
-                          {idea.direction.toUpperCase()}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <div className="font-mono font-bold">{formatCurrency(idea.entryPrice)}</div>
-                        {currentPrice && (
-                          <div className="text-[10px] text-muted-foreground">
-                            Now: {formatCurrency(currentPrice)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-bullish font-mono font-bold">{formatCurrency(idea.targetPrice)}</span>
-                            <span className="text-[10px] text-bullish font-semibold">({formatPercent(targetPercent)})</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-bearish font-mono font-bold">{formatCurrency(idea.stopLoss)}</span>
-                            <span className="text-[10px] text-bearish font-semibold">({formatPercent(stopLossPercent)})</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <Badge variant={(idea.riskRewardRatio ?? 0) >= 2 ? "default" : "secondary"} className="text-[10px] h-5 font-bold bg-muted/50">
-                          {idea.riskRewardRatio?.toFixed(1)}:1
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        {idea.exitBy ? (
-                          <TimingDisplay 
-                            timestamp={idea.exitBy} 
-                            label="Exit By" 
-                            showCountdown 
-                            className="border-none bg-transparent p-0 h-auto" 
-                          />
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => handleToggleExpand(idea.id.toString())} className="h-8 px-2 text-xs">
-                            Details
-                          </Button>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400"
-                            onClick={() => sendToDiscordMutation.mutate(idea.id.toString())}
-                            disabled={sendToDiscordMutation.isPending}
-                            title="Send to Discord"
-                            data-testid={`button-discord-${idea.id}`}
-                          >
-                            <Send className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-yellow-400">
-                            <Star className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  // Trade type counts - computed from ALL ideas (before trade type filter is applied)
-  // This allows the toggle to show accurate counts even when filtered
-  const tradeTypeCounts = useMemo(() => {
-    // Count from ideas BEFORE trade type filter
-    const baseFiltered = tradeIdeas.filter(idea => {
-      const matchesSearch = !tradeIdeaSearch || 
-        idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
-        (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
-      const matchesSourceTab = sourceTab === "all" || idea.source === sourceTab;
-      const ideaStatus = idea.status || 'published';
-      const matchesStatusView = statusView === 'all' || ideaStatus === statusView;
-      const status = (idea.outcomeStatus || '').trim().toLowerCase();
-      const isActive = status === 'open' || status === '';
-      return matchesSearch && matchesSourceTab && matchesStatusView && isActive;
-    });
-    
-    return {
-      all: baseFiltered.length,
-      day: baseFiltered.filter(i => i.holdingPeriod === 'day').length,
-      swing: baseFiltered.filter(i => ['swing', 'position', 'week-ending'].includes(i.holdingPeriod)).length,
-    };
-  }, [tradeIdeas, tradeIdeaSearch, sourceTab, statusView]);
-
-  // Timeframe counts - computed from ACTIVE ideas only (outcomeStatus === 'open')
-  // This ensures tabs show actionable plays, not old historical data
-  const timeframeCounts = useMemo(() => {
-    const activeOnly = filteredIdeas.filter(idea => {
-      const status = (idea.outcomeStatus || '').trim().toLowerCase();
-      return status === 'open' || status === '';
-    });
-    return getTimeframeCounts(activeOnly);
-  }, [filteredIdeas]);
-
-  // Helper to normalize outcomeStatus (trim whitespace + lowercase)
-  const normalizeStatus = (status: string | null | undefined): string => {
-    return (status || '').trim().toLowerCase();
-  };
-
-  const isTodayIdea = (idea: TradeIdea) => {
-    const ideaDate = parseISO(idea.timestamp);
-    const today = new Date();
-    return isSameDay(ideaDate, today) && normalizeStatus(idea.outcomeStatus) === 'open';
-  };
-  
-  const isVeryFreshIdea = (idea: TradeIdea) => {
-    const ideaDate = parseISO(idea.timestamp);
-    const cutoffTime = subHours(new Date(), 2);
-    return ideaDate >= cutoffTime && normalizeStatus(idea.outcomeStatus) === 'open';
-  };
-
-  // Helper: Apply non-expiry filters (asset type, grade, symbol, status)
-  const applyNonExpiryFilters = (ideas: TradeIdea[]) => {
-    let filtered = [...ideas];
-
-    // 1. Asset type filter
-    if (assetTypeFilter !== 'all') {
-      filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
-    }
-
-    // 2. Grade filter - Use stored probabilityBand (backend-assigned grade)
-    // 'quality' = A+, A, B, C (excludes D/F) - default for cleaner trade desk
-    if (gradeFilter !== 'all') {
-      filtered = filtered.filter(idea => {
-        if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
-        
-        // Use the stored grade from backend (probabilityBand), NOT recalculated getSignalGrade
-        const storedGrade = idea.probabilityBand || 'C';
-        
-        // Quality filter: Show only A+, A, B, C - exclude D and F grades
-        if (gradeFilter === 'quality') {
-          const qualityGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
-          return qualityGrades.includes(storedGrade);
-        }
-        if (gradeFilter === 'A') return storedGrade === 'A+' || storedGrade === 'A' || storedGrade === 'A-';
-        if (gradeFilter === 'B') return storedGrade === 'B+' || storedGrade === 'B' || storedGrade === 'B-';
-        if (gradeFilter === 'C') return storedGrade === 'C+' || storedGrade === 'C' || storedGrade === 'C-';
-        if (gradeFilter === 'D') return storedGrade === 'D+' || storedGrade === 'D' || storedGrade === 'D-' || storedGrade === 'F';
-        return true;
-      });
-    }
-
-    // 3. Symbol search
-    if (symbolSearch) {
-      filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
-    }
-
-    // 4. TASK 1: Status filter (normalized: trim + lowercase)
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(idea => {
-        const status = normalizeStatus(idea.outcomeStatus);
-        switch (statusFilter) {
-          case 'active': return status === 'open';
-          case 'won': return status === 'hit_target';
-          case 'lost': return status === 'hit_stop';
-          case 'expired': return status === 'expired';
-          default: return true;
-        }
-      });
-    }
-
-    return filtered;
-  };
-
-  // Apply all filters and sorting to trade ideas
-  const filterAndSortIdeas = (ideas: TradeIdea[]) => {
-    // First apply non-expiry filters
-    let filtered = applyNonExpiryFilters(ideas);
-
-    // Then apply expiry filter
-    if (expiryFilter !== 'all') {
-      const today = startOfDay(new Date());
-      filtered = filtered.filter(idea => {
-        // Non-option trades (stocks/crypto) don't have expiry dates
-        // When filtering by specific expiry bucket, exclude them
-        if (!idea.expiryDate && !idea.exitBy) {
-          return false; // Hide stocks/crypto when filtering by expiry buckets
-        }
-        
-        const expiry = startOfDay(new Date(idea.expiryDate || idea.exitBy!));
-        const daysToExp = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // Apply specific expiry filter
-        switch (expiryFilter) {
-          case 'expired': return daysToExp < 0; // Expired (yesterday or earlier)
-          case '7d': return daysToExp >= 0 && daysToExp <= 7; // 0-7 days (includes today)
-          case '14d': return daysToExp > 7 && daysToExp <= 14; // 8-14 days (non-overlapping)
-          case '30d': return daysToExp > 14 && daysToExp <= 60; // 15-60 days (monthly range)
-          case '90d': return daysToExp > 60 && daysToExp <= 270; // 61-270 days (quarterly)
-          case 'leaps': return daysToExp > 270; // 270+ days (LEAPS)
-          default: return true;
-        }
-      });
-    }
-
-    // Finally sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'priority': {
-          // Priority-based sorting: Fresh → Active → Closed/Expired
-          const getPriorityRank = (idea: TradeIdea): number => {
-            // Normalize outcomeStatus (trim whitespace + lowercase)
-            const status = normalizeStatus(idea.outcomeStatus);
-            
-            if (isVeryFreshIdea(idea)) return 0; // Fresh trades (last 2h, open)
-            if (status === 'open') return 1; // Active trades (open)
-            return 2; // Closed/Expired trades
-          };
-          
-          const aRank = getPriorityRank(a);
-          const bRank = getPriorityRank(b);
-          
-          // Sort by rank first
-          if (aRank !== bRank) {
-            return aRank - bRank;
-          }
-          
-          // Within same rank, sort by timestamp (newest first)
-          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-        }
-        case 'timestamp':
-          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-        case 'expiry':
-          const aExp = new Date(a.expiryDate || a.exitBy || a.timestamp).getTime();
-          const bExp = new Date(b.expiryDate || b.exitBy || b.timestamp).getTime();
-          return aExp - bExp;
-        case 'confidence':
-          // Sort by confidenceScore (higher = stronger trade setup)
-          const aConfidence = a.confidenceScore || 0;
-          const bConfidence = b.confidenceScore || 0;
-          return bConfidence - aConfidence;
-        case 'rr':
-          return b.riskRewardRatio - a.riskRewardRatio;
-        case 'price_asc':
-          // Cheap to expensive (by entry price / premium)
-          return (a.entryPrice || 0) - (b.entryPrice || 0);
-        case 'price_desc':
-          // Expensive to cheap (by entry price / premium)
-          return (b.entryPrice || 0) - (a.entryPrice || 0);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  };
-
-  // Apply timeframe filtering - only to active trades when a specific timeframe is selected
-  const timeframeFilteredIdeas = useMemo(() => {
-    if (activeTimeframe === 'all') {
-      return filteredIdeas;
-    }
-    // When filtering by timeframe, only include active (open) trades
-    const activeOnly = filteredIdeas.filter(idea => {
-      const status = normalizeStatus(idea.outcomeStatus);
-      return status === 'open' || status === '';
-    });
-    return filterByTimeframe(activeOnly, activeTimeframe);
-  }, [filteredIdeas, activeTimeframe]);
-  
-  const filteredAndSortedIdeas = filterAndSortIdeas(timeframeFilteredIdeas);
-
-  // DUAL-SECTION: Split into active and closed trades
-  const activeIdeas = filteredAndSortedIdeas.filter(idea => normalizeStatus(idea.outcomeStatus) === 'open');
-  const closedIdeas = filteredAndSortedIdeas.filter(idea => {
-    const status = normalizeStatus(idea.outcomeStatus);
-    return status === 'hit_target' || status === 'hit_stop' || status === 'expired';
-  });
-
-  // Determine which ideas to show based on status filter
-  // When statusFilter is 'all' or 'active', show active trades. 
-  // If 'today' filter is active, we should also show expired trades from today if user wants to see everything system did today.
-  const displayIdeas = useMemo(() => {
-    if (statusFilter === 'won') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
-    if (statusFilter === 'lost') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
-    if (statusFilter === 'expired') return closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired');
-    
-    if (dateFilter === 'today') {
-      // For "Today" view, show everything (active + closed) to show bot activity
-      return [...activeIdeas, ...closedIdeas];
-    }
-    
-    return activeIdeas;
-  }, [statusFilter, activeIdeas, closedIdeas, dateFilter]);
-
-  // TASK 2: Paginate the display ideas
-  const paginatedActiveIdeas = displayIdeas.slice(0, 500);
-
-  // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
-  const calculateExpiryCounts = () => {
-    const today = startOfDay(new Date());
-    // Start with ideas after non-expiry filters (asset type, grade, symbol)
-    const baseIdeas = applyNonExpiryFilters(filteredIdeas);
-    const counts = { '7d': 0, '14d': 0, '30d': 0, '90d': 0, 'leaps': 0, 'expired': 0, 'all': baseIdeas.length };
-    
-    baseIdeas.forEach(idea => {
-      // Non-option trades (stocks/crypto) count towards 'all' but not expiry buckets
-      if (!idea.expiryDate && !idea.exitBy) {
-        return;
-      }
-      
-      const expiry = startOfDay(new Date(idea.expiryDate || idea.exitBy!));
-      // Use calendar days (start of day) to avoid time-of-day issues
-      // This keeps same-day expirations in 0-7d bucket until midnight
-      const daysToExp = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysToExp < 0) counts['expired']++; // Truly expired (yesterday or earlier)
-      else if (daysToExp >= 0 && daysToExp <= 7) counts['7d']++; // 0-7 days (includes today)
-      else if (daysToExp > 7 && daysToExp <= 14) counts['14d']++;
-      else if (daysToExp > 14 && daysToExp <= 60) counts['30d']++;
-      else if (daysToExp > 60 && daysToExp <= 270) counts['90d']++;
-      else if (daysToExp > 270) counts['leaps']++;
-    });
-    
-    return counts;
-  };
-
-  const expiryCounts = calculateExpiryCounts();
-
-  // Compute derived values from filtered and sorted ideas
-  const topPicks = filteredAndSortedIdeas
-    .filter(idea => isTodayIdea(idea))
-    .slice(0, 5);
-
-  // TASK 2: Use paginated active ideas for grouping (active trades only)
-  const groupedIdeas = paginatedActiveIdeas.reduce((acc, idea) => {
-    const assetType = idea.assetType;
-    if (!acc[assetType]) acc[assetType] = [];
-    acc[assetType].push(idea);
-    return acc;
-  }, {} as Record<string, TradeIdea[]>);
-
-  const newIdeasCount = filteredAndSortedIdeas.filter(isVeryFreshIdea).length;
-
-  // TASK 3: Calculate summary stats for each group (normalized status)
-  const calculateGroupStats = (ideas: TradeIdea[]) => {
-    const closedTrades = ideas.filter(i => {
-      const status = normalizeStatus(i.outcomeStatus);
-      return status === 'hit_target' || status === 'hit_stop';
-    });
-    const wins = ideas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length;
-    const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
-    
-    const netPL = ideas.reduce((sum, i) => sum + (i.realizedPnL || 0), 0);
-    
-    const rrValues = ideas.map(i => i.riskRewardRatio).filter(rr => rr != null && rr > 0);
-    const avgRR = rrValues.length > 0 ? rrValues.reduce((sum, rr) => sum + rr, 0) / rrValues.length : 0;
-    
-    return { winRate, netPL, avgRR, closedTrades: closedTrades.length };
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
-      {/* Background */}
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
-      <AuroraBackground />
-
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Top-level Navigation Tabs - Research and Futures */}
-      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'research' | 'futures')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6" data-testid="tabs-trade-desk-main">
-          <TabsTrigger value="research" className="gap-2" data-testid="tab-research">
-            <Brain className="h-4 w-4" />
-            Research Hub
-          </TabsTrigger>
-          <TabsTrigger value="futures" className="gap-2" data-testid="tab-futures">
-            <LineChart className="h-4 w-4" />
-            Futures
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Research Tab Content */}
-        <TabsContent value="research" className="space-y-6">
-      {/* Premium Research Hub Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6"
-        data-testid="research-hub-header"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="relative">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            {/* Title & Stats */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Brain className="h-5 w-5 text-cyan-400" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white" data-testid="text-page-title">Opportunities</h1>
-                  <p className="text-sm text-slate-400">
-                    Your AI Research Team - Finding Trades 24/7
-                  </p>
-                </div>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30">
+                <Brain className="w-5 h-5 text-teal-400" />
               </div>
-              
-              {/* Quick Stats Row */}
-              <div className="flex flex-wrap items-center gap-4">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30"
-                >
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <AnimatedStat
-                    value={activeIdeas.length}
-                    className="text-sm font-mono text-green-600 dark:text-green-400"
-                    duration={800}
-                  />
-                  <span className="text-xs text-muted-foreground">Active</span>
-                </motion.div>
-                {newIdeasCount > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20"
-                  >
-                    <Zap className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                    <AnimatedStat
-                      value={newIdeasCount}
-                      className="text-sm font-mono text-cyan-600 dark:text-cyan-400"
-                      duration={800}
-                    />
-                    <span className="text-xs text-muted-foreground">New Today</span>
-                  </motion.div>
-                )}
-                <UsageBadge className="hidden sm:flex" data-testid="badge-usage-remaining" />
-              </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-                title="Refresh"
-                className="border-slate-700/50"
-                data-testid="button-refresh-ideas"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    className="bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white gap-2"
-                    size="default"
-                    disabled={!canGenerateTradeIdea()}
-                    data-testid="button-generate-ideas"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Generate
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
-                    disabled={generateHybridIdeas.isPending}
-                    data-testid="menu-generate-hybrid"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2 text-amber-400" />
-                    Smart Picks
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
-                    disabled={generateQuantIdeas.isPending}
-                    data-testid="menu-generate-quant"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2 text-blue-400" />
-                    Quant Signals
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => generateAIIdeas.mutate(activeTimeframe)}
-                    disabled={generateAIIdeas.isPending}
-                    data-testid="menu-generate-ai"
-                  >
-                    <Bot className="h-4 w-4 mr-2 text-purple-400" />
-                    AI Analysis
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
-                    disabled={generateFlowIdeas.isPending}
-                    data-testid="menu-generate-flow"
-                  >
-                    <Activity className="h-4 w-4 mr-2 text-cyan-400" />
-                    Options Flow
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => generateEliteIdeas.mutate()}
-                    disabled={generateEliteIdeas.isPending}
-                    data-testid="menu-generate-elite"
-                  >
-                    <Star className="h-4 w-4 mr-2 text-amber-400" />
-                    Best Setups (S/A Tier)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => generateSurgeIdeas.mutate()}
-                    disabled={generateSurgeIdeas.isPending}
-                    data-testid="menu-generate-surge"
-                  >
-                    <Flame className="h-4 w-4 mr-2 text-red-400" />
-                    Surge Alerts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => generateProactiveIdeas.mutate()}
-                    disabled={generateProactiveIdeas.isPending}
-                    data-testid="menu-generate-proactive"
-                  >
-                    <Eye className="h-4 w-4 mr-2 text-emerald-400" />
-                    Proactive Detection
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* AI Research Panel - Full Width */}
-      <AIResearchPanel />
-
-      {/* Live Market Data Strip */}
-      <MarketStatsTicker />
-
-      {/* Bot Activity Panel - Show AI bots working */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="max-w-md"
-      >
-        <BotActivityPanel />
-      </motion.div>
-
-      {/* Best Setups - Top conviction plays */}
-      <BestSetupsCard />
-
-      {/* Surge Detector - Real-time momentum detection (no price limit) */}
-      <SurgeAlertsCard />
-
-      {/* Smart Money Flow Tracker - Unusual options activity */}
-      <SmartMoneyFlowTracker />
-
-      {/* Engine Filter Tabs - Premium Design */}
-      <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
-        {([
-          { value: 'all', label: 'All', icon: Globe, color: 'text-foreground' },
-          { value: 'ai', label: 'AI', icon: Bot, color: 'text-purple-400' },
-          { value: 'quant', label: 'Quant', icon: BarChart3, color: 'text-blue-400' },
-          { value: 'flow', label: 'Flow', icon: Activity, color: 'text-cyan-400' },
-          { value: 'hybrid', label: 'Smart', icon: Sparkles, color: 'text-amber-400' },
-        ] as const).map(({ value, label, icon: Icon, color }) => (
-          <button
-            key={value}
-            onClick={() => setSourceTab(value as IdeaSource | "all")}
-            className={cn(
-              "px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2",
-              sourceTab === value 
-                ? "bg-foreground text-background shadow-lg"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-            data-testid={`tab-source-${value}`}
-          >
-            <Icon className={cn("h-4 w-4", sourceTab === value ? "text-background" : color)} />
-            {label}
-            {sourceCounts[value] > 0 && (
-              <Badge variant="secondary" className={cn(
-                "ml-1 px-1.5 py-0 text-xs font-mono",
-                sourceTab === value ? "bg-background/20 text-background" : ""
-              )}>
-                {sourceCounts[value]}
-              </Badge>
-            )}
-          </button>
-        ))}
-        
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="text-xs gap-1.5"
-            data-testid="button-toggle-advanced-filters"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            {showAdvancedFilters ? 'Less' : 'More'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Advanced Filters - Collapsed by default */}
-      {showAdvancedFilters && (
-        <div className="flex flex-wrap items-center gap-6 py-3 px-4 rounded-lg bg-muted/20 border border-border/30">
-          {/* Asset Type Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Asset:</span>
-            <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
-              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="filter-asset-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="option">Options</SelectItem>
-                <SelectItem value="stock">Stocks</SelectItem>
-                <SelectItem value="penny_stock">Penny</SelectItem>
-                <SelectItem value="crypto">Crypto</SelectItem>
-                <SelectItem value="future">Futures</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Grade Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Grade:</span>
-            <Select value={gradeFilter} onValueChange={setGradeFilter}>
-              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="filter-grade">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="quality">Quality (A-C)</SelectItem>
-                <SelectItem value="A">A Tier</SelectItem>
-                <SelectItem value="B">B Tier</SelectItem>
-                <SelectItem value="C">C Tier</SelectItem>
-                <SelectItem value="D">D/F Tier</SelectItem>
-                <SelectItem value="LOTTO">Lotto Plays</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Trade Type */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Type:</span>
-            {(['all', 'swing', 'day'] as const).map((value) => (
-              <button
-                key={value}
-                onClick={() => setTradeTypeFilter(value)}
-                className={cn(
-                  "text-sm capitalize px-2 py-0.5 rounded",
-                  tradeTypeFilter === value 
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                data-testid={`tab-tradetype-${value}`}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
-
-          {/* Price Tier Filter - For finding low-priced stocks */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Price:</span>
-            <Select value={priceTierFilter} onValueChange={(val) => setPriceTierFilter(val as typeof priceTierFilter)}>
-              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="select-price-tier">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="under5">&lt; $5</SelectItem>
-                <SelectItem value="under10">&lt; $10</SelectItem>
-                <SelectItem value="under15">&lt; $15</SelectItem>
-                <SelectItem value="under25">&lt; $25</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Timeframe */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Horizon:</span>
-            <Select value={activeTimeframe} onValueChange={(val) => setActiveTimeframe(val as TimeframeBucket)}>
-              <SelectTrigger className="w-[100px] h-7 text-xs border-0 bg-transparent" data-testid="select-timeframe">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="today_tomorrow">1-2 Days</SelectItem>
-                <SelectItem value="few_days">3-5 Days</SelectItem>
-                <SelectItem value="next_week">This Week</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Posted Date Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Posted:</span>
-            <Select value={dateFilter} onValueChange={(val) => {
-              setDateFilter(val);
-              if (val !== 'custom') setCustomDate(undefined);
-            }}>
-              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="select-date-filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="3d">3 Days</SelectItem>
-                <SelectItem value="7d">7 Days</SelectItem>
-                <SelectItem value="30d">30 Days</SelectItem>
-                <SelectItem value="custom">Pick Date</SelectItem>
-              </SelectContent>
-            </Select>
-            {dateFilter === 'custom' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-1.5 font-mono h-7 text-xs" data-testid="button-custom-date">
-                    <CalendarIcon className="h-3 w-3" />
-                    {customDate ? format(customDate, 'MMM d') : 'Select'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customDate}
-                    onSelect={setCustomDate}
-                    disabled={(date) => date > new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
-
-          {/* Status Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Status:</span>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[80px] h-7 text-xs border-0 bg-transparent" data-testid="filter-status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="won">Won</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Symbol Search */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-              <Input
-                placeholder="Symbol"
-                value={symbolSearch}
-                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-                className="pl-7 h-7 w-24 text-xs bg-transparent border-0 focus-visible:ring-1"
-                data-testid="filter-symbol-search"
-              />
-            </div>
-          </div>
-
-          {/* Clear All */}
-          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all' || tradeTypeFilter !== 'all' || activeTimeframe !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'quality' || priceTierFilter !== 'all') && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSymbolSearch('');
-                setStatusFilter('all');
-                setDateFilter('all');
-                setTradeTypeFilter('all');
-                setActiveTimeframe('all');
-                setAssetTypeFilter('all');
-                setGradeFilter('quality');
-                setPriceTierFilter('all');
-                setCustomDate(undefined);
-              }}
-              className="h-7 px-2 text-xs"
-              data-testid="button-clear-filters"
-            >
-              Reset
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Market Status - Enhanced Visual */}
-      {isWeekend() && (
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 p-4" data-testid="weekend-preview-section">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" />
-          <div className="relative flex items-center gap-4">
-            <div className="p-2.5 rounded-lg bg-amber-500/20">
-              <Clock className="h-5 w-5 text-amber-500" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Markets Closed - Weekend</span>
-              <span className="text-xs text-muted-foreground">
-                Trading resumes {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT
+              <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                AI Trade Desk
               </span>
-            </div>
-            <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              Futures trading open Sunday 6PM ET
+            </h1>
+            <p className="text-sm text-slate-500 mt-1 ml-12">Multi-engine trading intelligence</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Generate Ideas Dropdown */}
+            <Select
+              onValueChange={(value) => generateIdeas.mutate(value as any)}
+              disabled={generateIdeas.isPending}
+            >
+              <SelectTrigger className="w-[180px] bg-gradient-to-r from-teal-600 to-cyan-600 border-teal-500/50 text-white hover:from-teal-500 hover:to-cyan-500">
+                {generatingEngine ? (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Generating...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span>Generate Ideas</span>
+                  </div>
+                )}
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                <SelectItem value="all" className="text-white hover:bg-teal-600/20">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <span>All 6 Engines</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="ai" className="text-white hover:bg-teal-600/20">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-purple-400" />
+                    <span>AI Engine</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="quant" className="text-white hover:bg-teal-600/20">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-cyan-400" />
+                    <span>Quant Engine</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="hybrid" className="text-white hover:bg-teal-600/20">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-teal-400" />
+                    <span>Hybrid AI+Quant</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="flow" className="text-white hover:bg-teal-600/20">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-400" />
+                    <span>Options Flow</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Status Badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs text-emerald-400 font-medium">Connected</span>
             </div>
           </div>
         </div>
-      )}
 
-      {/* All Research Briefs */}
-      <div className="space-y-8">
-        {/* Loading State */}
-        {ideasLoading ? (
-          <TerminalLoading message="Fetching research briefs..." />
-        ) : isAuthError ? (
-          <div className="py-16 text-center">
-            <div className="mx-auto w-16 h-16 mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
-              <AlertTriangle className="h-8 w-8 text-amber-500" />
+        {/* Navigation Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-slate-900/60 border border-slate-800/60 p-1">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <PieChart className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="ideas" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <Layers className="w-4 h-4 mr-2" />
+              All Ideas
+            </TabsTrigger>
+            <TabsTrigger value="stocks" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Stocks ({stockIdeas.length})
+            </TabsTrigger>
+            <TabsTrigger value="options" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <Target className="w-4 h-4 mr-2" />
+              Options ({optionIdeas.length})
+            </TabsTrigger>
+            <TabsTrigger value="crypto" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <Bitcoin className="w-4 h-4 mr-2" />
+              Crypto ({cryptoIdeas.length})
+            </TabsTrigger>
+            <TabsTrigger value="futures" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <Globe className="w-4 h-4 mr-2" />
+              Futures ({futuresIdeas.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Stats Cards */}
+            <StatsOverview ideas={tradeIdeas} />
+
+            {/* Quick View Cards - Row 1 */}
+            <div className="grid grid-cols-3 gap-4">
+              <BestSetupsCard />
+              <MarketMoversCard />
+              <SurgeDetectionCard />
             </div>
-            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
-            <p className="text-muted-foreground max-w-md mx-auto mb-4">
-              Please log in to view research briefs and trade ideas.
-            </p>
-            <Button
-              onClick={() => window.location.href = '/login'}
-              data-testid="button-login-prompt"
-            >
-              Log In
-            </Button>
-          </div>
-        ) : filteredAndSortedIdeas.length === 0 ? (
-          <div className="py-16 text-center">
-            <h3 className="text-lg font-semibold mb-2">No Research Briefs Found</h3>
-            <p className="text-muted-foreground max-w-md mx-auto mb-4">
-              {tradeIdeas.length === 0 
-                ? "The research engine is scanning markets. New briefs will appear automatically."
-                : "No briefs match your current filters."}
-            </p>
-            {statusFilter !== 'all' && tradeIdeas.length > 0 && (
+
+            {/* Quick View Cards - Row 2: Convergence & Pre-Move Detection */}
+            <div className="grid grid-cols-2 gap-4">
+              <ConvergenceSignalsCard />
+              <HotSymbolsCard />
+            </div>
+
+            {/* Quick Actions Row */}
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 variant="outline"
-                onClick={() => setStatusFilter('all')}
-                data-testid="button-show-all-statuses"
+                className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
+                onClick={() => setActiveTab('ideas')}
               >
-                Show All
+                <Layers className="w-4 h-4 mr-2" />
+                All Trade Ideas
               </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Active Research Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/10">
-                    <Flame className="h-5 w-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold">Active Research</h2>
-                    <p className="text-xs text-muted-foreground">{activeIdeas.length} live signals across {Object.keys(groupedIdeas).length} asset classes</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[120px] h-8 text-sm border-0 bg-transparent" data-testid="select-sort-by">
-                      <SelectValue placeholder="Sort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="priority">Priority</SelectItem>
-                      <SelectItem value="confidence">Strength</SelectItem>
-                      <SelectItem value="rr">R:R</SelectItem>
-                      <SelectItem value="expiry">Expiry</SelectItem>
-                      <SelectItem value="timestamp">Newest</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center rounded-md border">
-                    <Button
-                      variant={viewMode === "list" ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => setViewMode("list")}
-                      data-testid="button-view-list"
-                      className="h-8 w-8 rounded-none rounded-l-md"
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "grid" ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => setViewMode("grid")}
-                      data-testid="button-view-grid"
-                      className="h-8 w-8 rounded-none"
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === "heatmap" ? "secondary" : "ghost"}
-                      size="icon"
-                      onClick={() => setViewMode("heatmap")}
-                      data-testid="button-view-heatmap"
-                      className="h-8 w-8 rounded-none rounded-r-md"
-                    >
-                      <Flame className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {activeIdeas.length === 0 ? (
-                <div className="py-16 text-center">
-                  <p className="text-muted-foreground">No active research briefs match your filters</p>
-                </div>
-              ) : (
-                <Accordion type="single" collapsible className="space-y-2" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
-                  {Object.entries(groupedIdeas)
-                    .sort(([a], [b]) => {
-                      // Use user's custom order (stored in localStorage)
-                      const orderA = assetTypeOrder.indexOf(a);
-                      const orderB = assetTypeOrder.indexOf(b);
-                      // If not found in order array, put at end
-                      return (orderA === -1 ? 999 : orderA) - (orderB === -1 ? 999 : orderB);
-                    })
-                    .map(([assetType, ideas], sortedIndex, sortedArray) => {
-                      const assetTypeLabels = {
-                        'stock': 'Stocks',
-                        'penny_stock': 'Penny Stocks',
-                        'option': 'Options',
-                        'future': 'Futures',
-                        'crypto': 'Crypto'
-                      };
-                      const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
-                      
-                      const stats = calculateGroupStats(ideas);
-                      const currentPage = groupPage[assetType] || 1;
-                      const totalPages = Math.ceil(ideas.length / ITEMS_PER_PAGE);
-                      const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-                      const endIdx = startIdx + ITEMS_PER_PAGE;
-                      const pageIdeas = ideas.slice(startIdx, endIdx);
-                      
-                      const isFirst = sortedIndex === 0;
-                      const isLast = sortedIndex === sortedArray.length - 1;
-                      
-                      return (
-                        <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                            <div className="flex items-center gap-3 flex-1">
-                              {/* Move up/down buttons */}
-                              <div className="flex flex-col gap-0.5 mr-1" onClick={(e) => e.stopPropagation()}>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
-                                  onClick={(e) => { e.stopPropagation(); moveAssetType(assetType, 'up'); }}
-                                  disabled={isFirst}
-                                  data-testid={`button-move-up-${assetType}`}
-                                >
-                                  <ChevronDown className="h-3 w-3 rotate-180" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-4 w-4 p-0 opacity-50 hover:opacity-100"
-                                  onClick={(e) => { e.stopPropagation(); moveAssetType(assetType, 'down'); }}
-                                  disabled={isLast}
-                                  data-testid={`button-move-down-${assetType}`}
-                                >
-                                  <ChevronDown className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <span className="font-medium">{label}</span>
-                              <Badge variant="secondary" className="text-xs" data-testid={`badge-count-${assetType}`}>
-                                {ideas.length}
-                              </Badge>
-                              {stats.avgRR > 0 && (
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  {stats.avgRR.toFixed(1)}:1 avg
-                                </span>
-                              )}
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-4">
-                            {viewMode === 'heatmap' ? (
-                              <TradeHeatmap
-                                trades={ideas}
-                                priceMap={priceMap}
-                                onTradeClick={(tradeId) => handleToggleExpand(tradeId)}
-                              />
-                            ) : (
-                              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}>
-                                {pageIdeas.map(idea => (
-                                  <TradeIdeaBlock
-                                    key={idea.id}
-                                    idea={idea}
-                                    currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
-                                    catalysts={catalysts}
-                                    isExpanded={expandedIdeaId === idea.id}
-                                    onToggleExpand={() => handleToggleExpand(idea.id)}
-                                    onViewDetails={(symbol) => setLocation(`/chart-analysis?symbol=${symbol}`)}
-                                    onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
-                                    onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
-                                    data-testid={`idea-card-${idea.id}`}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                            {/* Numbered Pagination - Hidden in heatmap mode */}
-                            {viewMode !== 'heatmap' && totalPages > 1 && (
-                              <div className="pt-4 flex items-center justify-center gap-1">
-                                <span className="text-xs text-muted-foreground mr-2 font-mono">
-                                  {startIdx + 1}-{Math.min(endIdx, ideas.length)} of {ideas.length}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: Math.max(1, currentPage - 1) }))}
-                                  disabled={currentPage === 1}
-                                  className="h-8 w-8 p-0"
-                                  data-testid={`button-prev-${assetType}`}
-                                >
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                {(() => {
-                                  const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = [];
-                                  if (totalPages <= 7) {
-                                    for (let i = 1; i <= totalPages; i++) pages.push(i);
-                                  } else {
-                                    pages.push(1);
-                                    if (currentPage > 4) pages.push('ellipsis-start');
-                                    const start = Math.max(2, currentPage - 1);
-                                    const end = Math.min(totalPages - 1, currentPage + 1);
-                                    for (let i = start; i <= end; i++) pages.push(i);
-                                    if (currentPage < totalPages - 3) pages.push('ellipsis-end');
-                                    pages.push(totalPages);
-                                  }
-                                  return pages.map((p, idx) => {
-                                    if (p === 'ellipsis-start' || p === 'ellipsis-end') {
-                                      return <span key={p} className="text-muted-foreground px-1">...</span>;
-                                    }
-                                    return (
-                                      <Button
-                                        key={p}
-                                        variant={currentPage === p ? "default" : "ghost"}
-                                        size="sm"
-                                        onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: p }))}
-                                        className="h-8 w-8 p-0 font-mono text-sm"
-                                        data-testid={`button-page-${assetType}-${p}`}
-                                      >
-                                        {p}
-                                      </Button>
-                                    );
-                                  });
-                                })()}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setGroupPage(prev => ({ ...prev, [assetType]: Math.min(totalPages, currentPage + 1) }))}
-                                  disabled={currentPage === totalPages}
-                                  className="h-8 w-8 p-0"
-                                  data-testid={`button-next-${assetType}`}
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </AccordionContent>
-                        </AccordionItem>
-                      );
-                    })}
-                </Accordion>
-              )}
-
+              <Link href="/research">
+                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
+                  <Search className="w-4 h-4 mr-2" />
+                  Research Hub
+                </Button>
+              </Link>
+              <Link href="/portfolio">
+                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
+                  <PieChart className="w-4 h-4 mr-2" />
+                  Portfolio
+                </Button>
+              </Link>
+              <Link href="/chart-analysis">
+                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
+                  <LineChart className="w-4 h-4 mr-2" />
+                  Chart Analysis
+                </Button>
+              </Link>
             </div>
 
-            {/* Performance Summary */}
-            {closedIdeas.length > 0 && (
-              <div className="flex items-center justify-between py-4 border-t mt-4">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-muted-foreground">Recent:</span>
-                  <span className="text-green-500">
-                    {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
-                  </span>
-                  <span className="text-red-500">
-                    {closedIdeas.filter(i => isRealLoss(i)).length} losses
-                  </span>
-                </div>
-                <Button variant="ghost" size="sm" asChild data-testid="link-view-performance">
-                  <a href="/performance">View Performance</a>
+            {/* Recent Ideas Preview */}
+            <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Recent Trade Ideas</h3>
+                <Button variant="ghost" size="sm" onClick={() => setActiveTab('ideas')}>
+                  View All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-            )}
-          </>
-        )}
-      </div>
-      
-      {/* Multi-Factor Analysis Sheet */}
-      <Sheet open={!!analysisSymbol} onOpenChange={(open) => !open && setAnalysisSymbol(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-cyan-400" />
-              Deep Analysis: {analysisSymbol}
-            </SheetTitle>
-          </SheetHeader>
-          {analysisSymbol && (
-            <div className="mt-4">
-              <MultiFactorAnalysis symbol={analysisSymbol} onClose={() => setAnalysisSymbol(null)} />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-      </TabsContent>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="h-14 bg-slate-800/40 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : tradeIdeas.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p>No trade ideas available</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tradeIdeas.slice(0, 5).map((idea) => (
+                    <TradeIdeaRow key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
+                  ))}
+                </div>
+              )}
+            </Card>
+          </TabsContent>
 
-      {/* Futures Tab Content */}
-      <TabsContent value="futures" className="space-y-6">
-        <FuturesContent />
-      </TabsContent>
-      </Tabs>
+          {/* All Trade Ideas Tab */}
+          <TabsContent value="ideas" className="mt-6">
+            <TradeIdeasList ideas={tradeIdeas} title="All Trade Ideas" />
+          </TabsContent>
+
+          {/* Stocks Tab */}
+          <TabsContent value="stocks" className="mt-6">
+            <TradeIdeasList ideas={stockIdeas} title="Stock Trade Ideas" />
+          </TabsContent>
+
+          {/* Options Tab */}
+          <TabsContent value="options" className="mt-6">
+            <TradeIdeasList ideas={optionIdeas} title="Options Trade Ideas" />
+          </TabsContent>
+
+          {/* Crypto Tab */}
+          <TabsContent value="crypto" className="mt-6">
+            {cryptoIdeas.length === 0 ? (
+              <div className="text-center py-16 text-slate-500">
+                <Bitcoin className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p>No crypto trade ideas available</p>
+              </div>
+            ) : (
+              <TradeIdeasList ideas={cryptoIdeas} title="Crypto Trade Ideas" />
+            )}
+          </TabsContent>
+
+          {/* Futures Tab */}
+          <TabsContent value="futures" className="mt-6">
+            {futuresIdeas.length === 0 ? (
+              <div className="text-center py-16 text-slate-500">
+                <Globe className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p>No futures trade ideas available</p>
+              </div>
+            ) : (
+              <TradeIdeasList ideas={futuresIdeas} title="Futures Trade Ideas" />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -42,8 +42,7 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
   const alerts: DetectionAlert[] = [];
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     
     const batchSize = 15;
     for (let i = 0; i < PRIORITY_WATCHLIST.length; i += batchSize) {
@@ -192,8 +191,7 @@ async function checkSectorMoves(): Promise<DetectionAlert[]> {
   const alerts: DetectionAlert[] = [];
   
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default;
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = (await import('yahoo-finance2')).default;
     
     const sectorETFs = [
       { symbol: 'SMH', sector: 'Semiconductor', triggers: ['ARM', 'NVDA', 'AMD', 'AVGO', 'INTC', 'MU', 'QCOM'] },
