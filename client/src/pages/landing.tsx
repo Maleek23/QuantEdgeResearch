@@ -1,115 +1,57 @@
-                                                                            
-                                                                            import { Link, useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { SEOHead } from "@/components/seo-head";
-import { 
-  TrendingUp, 
-  Brain, 
-  Calculator, 
+import {
+  TrendingUp,
+  Brain,
+  Calculator,
   Check,
   ArrowRight,
-  Clock,
-  LineChart,
-  Twitter,
-  Linkedin,
-  Github,
   Activity,
   Target,
   Coins,
   CandlestickChart,
   Sparkles,
-  Zap,
   BarChart3,
-  Terminal,
-  Cpu,
-  Database
+  Zap,
+  Shield,
+  ChartLine,
+  Play
 } from "lucide-react";
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { TerminalWindow, TypewriterText, DataStream, SystemStatus, LiveTradingFeed } from "@/components/terminal";
+import { useState, lazy, Suspense } from "react";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
-import { HeroProductPanel } from "@/components/hero-product-panel";
-import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
-import { GeminiGradient, GeminiOrb, FloatingParticles, AnimatedMetricCard } from "@/components/gemini-gradient";
-import { EngineConvergencePlayer } from "@/components/remotion/EngineConvergencePlayer";
-import { BootSequencePlayer } from "@/components/remotion/BootSequencePlayer";
-import { TradingMatrix, PriceTicker } from "@/components/effects/TradingMatrix";
-import { LiveActivityFeed } from "@/components/live-activity-feed";
-import { AnimatedStat } from "@/components/animated-stat";
-import { SocialProofSection } from "@/components/social-proof-section";
-import { ComparisonTable } from "@/components/comparison-table";
+
+// Lazy load heavy components
+const LiveActivityFeed = lazy(() => import("@/components/live-activity-feed").then(m => ({ default: m.LiveActivityFeed })));
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
-
-interface AssetTypeStats {
-  assetType: string;
-  totalIdeas: number;
-  wonIdeas: number;
-  lostIdeas: number;
-  winRate: number;
-  avgPercentGain: number;
-}
-
-interface PerformanceStatsResponse {
-  overall: {
-    totalIdeas: number;
-    openIdeas: number;
-    winRate: number;
-    avgPercentGain: number;
-  };
-  byAssetType?: AssetTypeStats[];
-}
 
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const [bootComplete, setBootComplete] = useState(false);
   const { isAuthenticated } = useAuth();
-
-  const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
-    queryKey: ['/api/performance/stats'],
-  }); 
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-black relative">
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
+    <div className="min-h-screen bg-black">
+      {/* Gradient Background */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 via-slate-900 to-black" />
 
-      {/* Boot Sequence Overlay - Plays once on first visit */}
-      {!bootComplete && (
-        <motion.div
-          className="fixed inset-0 z-[100] bg-black"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <BootSequencePlayer onComplete={() => setBootComplete(true)} />
-        </motion.div>
-      )}
-
-      {/* Trading Matrix Background - Always visible with low opacity */}
-      <div className="fixed inset-0 z-0 opacity-5">
-        <TradingMatrix density="low" speed="slow" />
-      </div>
-      
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex-shrink-0" data-testid="link-logo">
@@ -182,462 +124,201 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Gemini Inspired with Orbs */}
-      <section className="relative min-h-[90vh] pt-24 flex items-center overflow-hidden" data-testid="hero-section">
+      {/* Hero Section - Clean & Modern */}
+      <section className="relative min-h-[85vh] pt-20 flex items-center" data-testid="hero-section">
         <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-2xl mx-auto text-center">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="text-white">Six Engines</span>
-              <span className="text-cyan-400">.</span>
+          <div className="max-w-3xl mx-auto text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm mb-6">
+              <Zap className="h-3.5 w-3.5" />
+              <span>AI-Powered Trading Research</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white">
+              Six Engines.
               <br />
-              <span className="text-cyan-300">One Edge</span>
-              <span className="text-cyan-400">.</span>
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">One Edge.</span>
             </h1>
-            
-            <p className="text-lg text-slate-300 max-w-xl mx-auto mb-8 leading-relaxed">
-              ML, AI, Quant, Flow, Sentiment & Technical signals converge into <span className="text-cyan-400 font-medium">higher-conviction setups</span>.
-              Every signal verified. Every outcome tracked.
+
+            <p className="text-lg text-slate-400 max-w-xl mx-auto mb-8">
+              ML, AI, Quant, Flow, Sentiment & Technical signals converge into higher-conviction setups.
             </p>
-            
-            <div className="flex flex-wrap gap-4 justify-center">
-              <Button 
+
+            <div className="flex flex-wrap gap-3 justify-center mb-12">
+              <Button
                 size="lg"
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 px-6"
                 onClick={() => setWaitlistOpen(true)}
               >
-                Join Waitlist
+                Get Started Free
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
-                className="border-slate-600"
-                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                className="border-slate-700 hover:bg-slate-800 h-12 px-6"
+                onClick={() => scrollToSection('features')}
               >
-                Join Discord
+                <Play className="mr-2 h-4 w-4" />
+                See How It Works
               </Button>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
+              <span className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-green-500" />
+                Bank-level security
+              </span>
+              <span className="flex items-center gap-2">
+                <ChartLine className="h-4 w-4 text-cyan-500" />
+                Real-time analysis
+              </span>
+              <span className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-cyan-500" />
+                No credit card required
+              </span>
             </div>
           </div>
         </div>
+
+        {/* Subtle gradient orb */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       </section>
 
-      {/* Stats Section */}
-      <div className="relative py-12 bg-slate-950/50">
+      {/* Stats Strip */}
+      <div className="relative py-8 border-y border-slate-800/50 bg-slate-900/30">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400 mb-2">6</div>
-              <p className="text-slate-400">Trading Engines</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400 mb-2">∞</div>
-              <p className="text-slate-400">Signals Tracked</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400 mb-2">24/7</div>
-              <p className="text-slate-400">Market Coverage</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-cyan-400 mb-2">Real-Time</div>
-              <p className="text-slate-400">Analysis</p>
-            </div>
+            {[
+              { value: '6', label: 'AI Engines' },
+              { value: '24/7', label: 'Market Analysis' },
+              { value: '50K+', label: 'Signals Tracked' },
+              { value: '<1s', label: 'Signal Speed' },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+                <p className="text-sm text-slate-500">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
-      <section className="relative py-24">
+      {/* Six Engines Section */}
+      <section className="relative py-20" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
-          <h2 className="text-4xl font-bold text-center mb-16">The Six Engines</h2>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">ML Engine</h3>
-              <p className="text-slate-300">Machine learning models trained on historical market data</p>
-            </div>
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">AI Engine</h3>
-              <p className="text-slate-300">Advanced AI analysis with multi-signal convergence</p>
-            </div>
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">Quant Engine</h3>
-              <p className="text-slate-300">Quantitative trading algorithms and statistical analysis</p>
-            </div>
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">Flow Engine</h3>
-              <p className="text-slate-300">Smart money and institutional flow detection</p>
-            </div>
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">Sentiment Engine</h3>
-              <p className="text-slate-300">Market sentiment and social signal analysis</p>
-            </div>
-            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-lg">
-              <h3 className="text-xl font-bold mb-2 text-cyan-400">Technical Engine</h3>
-              <p className="text-slate-300">Advanced technical analysis and pattern recognition</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="relative py-24 bg-gradient-to-b from-slate-950 to-slate-900">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to get an edge?</h2>
-          <p className="text-slate-300 mb-8 max-w-2xl mx-auto">
-            Join thousands of traders using Quant Edge Labs to level up their trading.
-          </p>
-          <Button 
-            size="lg"
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
-            onClick={() => setWaitlistOpen(true)}
-          >
-            Get Started Now
-          </Button>
-        </div>
-      </section>
-
-      {/* Platform Capabilities - Visual Cards */}
-      <section className="relative py-16 lg:py-24 overflow-hidden" id="features" data-testid="section-features">
-        <GeminiGradient variant="subtle" />
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <motion.p 
-              className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-            >
-              Platform Capabilities
-            </motion.p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              Six Engines. Complete Coverage.
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-lg">
+          <div className="text-center mb-12">
+            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3">The Technology</p>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4 text-white">Six Engines Working Together</h2>
+            <p className="text-slate-400 max-w-xl mx-auto">
               Every angle analyzed. Every signal tracked. Every outcome measured.
             </p>
-          </motion.div>
-          
-          {/* Research Engines - Animated Visual Grid */}
-          <div className="mb-16">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Research Engines</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* ML Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center mb-4 shadow-xl shadow-pink-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Sparkles className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">ML Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Machine learning predictions. Direction, regime, position sizing.</p>
-                </div>
-              </motion.div>
+          </div>
 
-              {/* AI Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-purple-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Brain className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">AI Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings analysis.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+            {[
+              { name: 'ML Engine', icon: Sparkles, color: 'pink', desc: 'Machine learning predictions & regime detection' },
+              { name: 'AI Engine', icon: Brain, color: 'purple', desc: 'Multi-LLM analysis of news & filings' },
+              { name: 'Quant Engine', icon: Calculator, color: 'blue', desc: 'RSI, VWAP, volume & statistical analysis' },
+              { name: 'Flow Engine', icon: Activity, color: 'cyan', desc: 'Institutional sweeps & dark pool prints' },
+              { name: 'Sentiment Engine', icon: Target, color: 'amber', desc: 'Social buzz & fear/greed indicators' },
+              { name: 'Technical Engine', icon: CandlestickChart, color: 'green', desc: 'Chart patterns & support/resistance' },
+            ].map((engine) => {
+              const Icon = engine.icon;
+              const colorMap: Record<string, string> = {
+                pink: 'border-pink-500/20 hover:border-pink-500/40',
+                purple: 'border-purple-500/20 hover:border-purple-500/40',
+                blue: 'border-blue-500/20 hover:border-blue-500/40',
+                cyan: 'border-cyan-500/20 hover:border-cyan-500/40',
+                amber: 'border-amber-500/20 hover:border-amber-500/40',
+                green: 'border-green-500/20 hover:border-green-500/40',
+              };
+              const iconColorMap: Record<string, string> = {
+                pink: 'text-pink-400',
+                purple: 'text-purple-400',
+                blue: 'text-blue-400',
+                cyan: 'text-cyan-400',
+                amber: 'text-amber-400',
+                green: 'text-green-400',
+              };
+              return (
+                <div
+                  key={engine.name}
+                  className={`p-5 rounded-xl bg-slate-900/50 border transition-colors ${colorMap[engine.color]}`}
+                >
+                  <Icon className={`h-6 w-6 mb-3 ${iconColorMap[engine.color]}`} />
+                  <h3 className="font-semibold text-white mb-1">{engine.name}</h3>
+                  <p className="text-sm text-slate-400">{engine.desc}</p>
                 </div>
-              </motion.div>
-
-              {/* Quant Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-xl shadow-blue-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Calculator className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Quant Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">RSI(2), VWAP, volume spike detection, ADX filtering.</p>
-                </div>
-              </motion.div>
-
-              {/* Flow Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-xl shadow-cyan-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Activity className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Flow Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
-                </div>
-              </motion.div>
-
-              {/* Sentiment Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-xl shadow-amber-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Target className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Sentiment Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Social buzz, fear/greed, put/call ratios.</p>
-                </div>
-              </motion.div>
-
-              {/* Technical Engine */}
-              <motion.div
-                className="group relative overflow-visible rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-6 backdrop-blur-sm"
-                initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                <div className="relative">
-                  <motion.div 
-                    className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-xl shadow-green-500/30"
-                    whileHover={{ rotate: [0, -5, 5, 0] }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <CandlestickChart className="h-7 w-7 text-white" />
-                  </motion.div>
-                  <h3 className="font-semibold text-lg mb-2">Technical Engine</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">Chart patterns, support/resistance, trend analysis.</p>
-                </div>
-              </motion.div>
-            </div>
+              );
+            })}
           </div>
 
           {/* Asset Classes */}
-          <div>
+          <div className="mt-12 pt-12 border-t border-slate-800">
             <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-6 text-center">Asset Classes</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-3xl mx-auto">
               {[
-                { name: 'Stocks', icon: <TrendingUp className="h-5 w-5" />, desc: 'US Equities' },
-                { name: 'Options', icon: <Activity className="h-5 w-5" />, desc: 'Calls & Puts' },
-                { name: 'Crypto', icon: <Coins className="h-5 w-5" />, desc: 'BTC, ETH, SOL' },
-                { name: 'Futures', icon: <BarChart3 className="h-5 w-5" />, desc: 'NQ, ES, GC' },
-              ].map((asset, i) => (
-                <motion.div 
-                  key={asset.name}
-                  className="text-center p-4 rounded-xl bg-slate-900/50 border border-slate-800"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="h-10 w-10 rounded-lg bg-slate-800 flex items-center justify-center mx-auto mb-2">
-                    {asset.icon}
+                { name: 'Stocks', icon: TrendingUp, desc: 'US Equities' },
+                { name: 'Options', icon: Activity, desc: 'Calls & Puts' },
+                { name: 'Crypto', icon: Coins, desc: 'BTC, ETH, SOL' },
+                { name: 'Futures', icon: BarChart3, desc: 'NQ, ES, GC' },
+              ].map((asset) => {
+                const Icon = asset.icon;
+                return (
+                  <div key={asset.name} className="text-center p-4 rounded-lg bg-slate-900/30 border border-slate-800">
+                    <Icon className="h-5 w-5 mx-auto mb-2 text-slate-400" />
+                    <p className="font-medium text-sm text-white">{asset.name}</p>
+                    <p className="text-xs text-slate-500">{asset.desc}</p>
                   </div>
-                  <p className="font-medium">{asset.name}</p>
-                  <p className="text-xs text-muted-foreground">{asset.desc}</p>
-                </motion.div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Live Activity Feed Section */}
-      <section className="py-12 bg-slate-950/50" data-testid="section-activity">
+      {/* How It Works */}
+      <section className="py-16 bg-slate-900/30 border-y border-slate-800/50">
         <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-8 items-start">
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Real-Time Platform Activity</h2>
-              <p className="text-muted-foreground mb-6">
-                Watch as our engines analyze markets and generate trade ideas in real-time.
-              </p>
-              <LiveActivityFeed />
-            </div>
-            <div>
-              <HeroProductPanel className="w-full" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Terminal Showcase Section - Developer Aesthetic */}
-      <section className="py-16 lg:py-24 relative overflow-hidden" id="terminal-preview" data-testid="section-terminal">
-        <GeminiGradient variant="subtle" />
-        <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3 font-mono">
-              <Terminal className="inline-block w-4 h-4 mr-2" />
-              Professional Interface
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              Built for Developers. Designed for Traders.
-            </h2>
-            <p className="text-slate-400 max-w-xl mx-auto">
-              Terminal-inspired command center with real-time data streams and institutional-grade analytics.
-            </p>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
-            {/* Terminal Window Showcase */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <TerminalWindow title="engine-status.sh" variant="default">
-                <div className="space-y-3 text-sm font-mono">
-                  <div className="text-cyan-400">$ quant-edge --status --all</div>
-                  <div className="space-y-1.5 pl-2">
-                    <SystemStatus systems={[
-                      { name: "ML Intelligence", status: "online" },
-                      { name: "Quant Scanner", status: "online" },
-                      { name: "Flow Detector", status: "online" },
-                      { name: "Sentiment AI", status: "online" },
-                      { name: "Technical Engine", status: "online" },
-                      { name: "Pattern Recognition", status: "online" },
-                    ]} />
-                  </div>
-                  <div className="text-green-400 pt-2">6/6 engines operational</div>
-                </div>
-              </TerminalWindow>
-            </motion.div>
-
-            {/* Live Trading Feed Showcase */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <TerminalWindow title="live-trading-feed.log" variant="success">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-cyan-400 font-mono">
-                    <Database className="w-3.5 h-3.5" />
-                    <span>LIVE TRADE SIGNALS</span>
-                    <motion.div
-                      animate={{ opacity: [1, 0.3, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="w-1.5 h-1.5 rounded-full bg-green-500 ml-auto"
-                    />
-                  </div>
-                  <LiveTradingFeed maxItems={8} updateInterval={4000} />
-                </div>
-              </TerminalWindow>
-            </motion.div>
+          <div className="text-center mb-12">
+            <h2 className="text-2xl font-bold text-white mb-3">How It Works</h2>
+            <p className="text-slate-400">From signal to action in three steps</p>
           </div>
 
-          {/* Feature Pills */}
-          <motion.div 
-            className="flex flex-wrap justify-center gap-3 mt-10"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-          >
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
-              { icon: <Terminal className="w-3.5 h-3.5" />, label: "Terminal Interface" },
-              { icon: <Cpu className="w-3.5 h-3.5" />, label: "6-Engine Analysis" },
-              { icon: <Activity className="w-3.5 h-3.5" />, label: "Real-Time Streaming" },
-              { icon: <Database className="w-3.5 h-3.5" />, label: "Institutional Data" },
-            ].map((feature) => (
-              <Badge 
-                key={feature.label} 
-                variant="outline" 
-                className="px-3 py-1.5 gap-2 border-cyan-500/30 text-cyan-400 bg-cyan-500/5 font-mono"
-              >
-                {feature.icon}
-                {feature.label}
-              </Badge>
+              { step: '01', title: 'Engines Analyze', desc: 'Six AI engines scan markets 24/7 for high-probability setups' },
+              { step: '02', title: 'Signals Converge', desc: 'Multiple engines agreeing = higher conviction opportunities' },
+              { step: '03', title: 'You Decide', desc: 'Research-grade analysis delivered. You make the final call.' },
+            ].map((item) => (
+              <div key={item.step} className="text-center">
+                <div className="text-4xl font-bold text-cyan-500/20 mb-2">{item.step}</div>
+                <h3 className="font-semibold text-white mb-2">{item.title}</h3>
+                <p className="text-sm text-slate-400">{item.desc}</p>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section className="py-16 lg:py-24" id="pricing" data-testid="section-pricing">
+      <section className="py-20" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
-          <motion.div 
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <div className="text-center mb-12">
             <p className="text-sm font-medium uppercase tracking-wider text-cyan-400 mb-3">Pricing</p>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Start with paper trading. Upgrade when you're ready.
-            </p>
-          </motion.div>
+            <h2 className="text-3xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-slate-400">Start with paper trading. Upgrade when ready.</p>
+          </div>
 
           {/* Billing Toggle */}
           <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center gap-2 p-1 bg-slate-900 rounded-lg border border-slate-800">
+            <div className="inline-flex items-center p-1 bg-slate-900 rounded-lg border border-slate-800">
               <button
                 onClick={() => setBillingPeriod('monthly')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  billingPeriod === 'monthly' 
-                    ? 'bg-cyan-500 text-slate-950' 
-                    : 'text-muted-foreground hover:text-foreground'
+                  billingPeriod === 'monthly' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 Monthly
@@ -645,232 +326,156 @@ export default function Landing() {
               <button
                 onClick={() => setBillingPeriod('yearly')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  billingPeriod === 'yearly' 
-                    ? 'bg-cyan-500 text-slate-950' 
-                    : 'text-muted-foreground hover:text-foreground'
+                  billingPeriod === 'yearly' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Yearly <span className="text-xs opacity-80">(-20%)</span>
+                Yearly <span className="text-xs opacity-70">(-20%)</span>
               </button>
             </div>
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Free Tier */}
-            <motion.div 
-              className="rounded-xl border border-slate-800 bg-slate-900/50 p-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <h3 className="font-semibold text-lg mb-2">Paper Trader</h3>
-              <p className="text-3xl font-bold mb-4">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            {/* Free */}
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <h3 className="font-semibold mb-2 text-white">Paper Trader</h3>
+              <p className="text-3xl font-bold text-white mb-4">$0<span className="text-sm font-normal text-slate-500">/mo</span></p>
               <ul className="space-y-2 mb-6">
                 {['Paper trading journal', 'Basic research briefs', 'Chart analysis', 'Community Discord'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="h-4 w-4 text-green-500" /> {f}
+                  <li key={f} className="flex items-center gap-2 text-sm text-slate-400">
+                    <Check className="h-4 w-4 text-green-500 flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
-              <Button variant="outline" className="w-full" onClick={() => setLocation('/auth')}>
+              <Button variant="outline" className="w-full border-slate-700" onClick={() => setLocation('/signup')}>
                 Get Started
               </Button>
-            </motion.div>
+            </div>
 
-            {/* Pro Tier */}
-            <motion.div 
-              className="rounded-xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 to-transparent p-6 relative"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-            >
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500">Most Popular</Badge>
-              <h3 className="font-semibold text-lg mb-2">Pro Trader</h3>
-              <p className="text-3xl font-bold mb-4">
+            {/* Pro */}
+            <div className="rounded-xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 to-transparent p-6 relative">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-cyan-500 text-slate-950">Most Popular</Badge>
+              <h3 className="font-semibold mb-2 text-white">Pro Trader</h3>
+              <p className="text-3xl font-bold text-white mb-4">
                 ${billingPeriod === 'monthly' ? '49' : '39'}
-                <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                <span className="text-sm font-normal text-slate-500">/mo</span>
               </p>
               <ul className="space-y-2 mb-6">
                 {['Everything in Free', 'All 6 research engines', 'Real-time alerts', 'Auto-Lotto bot', 'Priority support'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-cyan-500" /> {f}
+                  <li key={f} className="flex items-center gap-2 text-sm text-white">
+                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
               <Button className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950" onClick={() => setWaitlistOpen(true)}>
                 Join Waitlist
               </Button>
-            </motion.div>
+            </div>
 
             {/* Institutional */}
-            <motion.div 
-              className="rounded-xl border border-slate-800 bg-slate-900/50 p-6"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              <h3 className="font-semibold text-lg mb-2">Institutional</h3>
-              <p className="text-3xl font-bold mb-4">Custom</p>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+              <h3 className="font-semibold mb-2 text-white">Institutional</h3>
+              <p className="text-3xl font-bold text-white mb-4">Custom</p>
               <ul className="space-y-2 mb-6">
                 {['Everything in Pro', 'API access', 'Custom integrations', 'Dedicated support', 'White-label options'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="h-4 w-4 text-purple-500" /> {f}
+                  <li key={f} className="flex items-center gap-2 text-sm text-slate-400">
+                    <Check className="h-4 w-4 text-purple-400 flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
-              <Button variant="outline" className="w-full">
-                Contact Sales
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-12 lg:py-16 bg-slate-950/50" data-testid="section-faq">
-        <div className="container mx-auto px-6">
-          <h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
-          <div className="max-w-2xl mx-auto">
-            <Accordion type="single" collapsible className="space-y-2">
-              <AccordionItem value="what" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-what">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-what">
-                  What is Quant Edge Labs?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-what">
-                  Quant Edge Labs is an educational research platform for self-directed traders. 
-                  We use 6 engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets and surface potential setups. 
-                  This is a learning tool—not a signal service or financial advice.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="risk" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-risk">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-risk">
-                  How does the platform handle risk management?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-risk">
-                  Research briefs display calculated risk/reward ratios and suggested exit levels for educational context. 
-                  We provide paper trading tools so users can learn risk management concepts without capital at risk.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="paper" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-paper">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-paper">
-                  What is paper trading?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-paper">
-                  Paper trading is simulated trading with fake money. It lets you test strategies without real capital. 
-                  Quant Edge Labs includes a built-in paper trading journal to track your hypothetical trades.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="data" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-data">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-data">
-                  Where does the market data come from?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-data">
-                  Real-time quotes from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). 
-                  All data is refreshed every few seconds during market hours.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="advice" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-advice">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-advice">
-                  Is Quant Edge Labs financial advice?
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-advice">
-                  No. Quant Edge Labs is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. 
-                  You make all trading decisions yourself. Trading involves substantial risk of loss.
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-        </div>
-      </section>
-
-      {/* Discord Community Section */}
-      <section className="py-12 lg:py-16" data-testid="section-discord">
-        <div className="container mx-auto px-6">
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-indigo-600/20 border border-indigo-500/20 p-8 lg:p-12 max-w-4xl mx-auto">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
-            
-            <div className="relative flex flex-col lg:flex-row items-center gap-8">
-              <div className="flex-shrink-0">
-                <div className="h-20 w-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                  <SiDiscord className="h-10 w-10 text-white" />
-                </div>
-              </div>
-              
-              <div className="flex-1 text-center lg:text-left">
-                <h2 className="text-2xl font-bold mb-2">Join the Lab Community</h2>
-                <p className="text-muted-foreground mb-4 max-w-lg">
-                  Connect with traders, get real-time signal alerts, ask questions, and learn together. 
-                  Our Discord is where the action happens.
-                </p>
-                <div className="flex flex-wrap gap-4 justify-center lg:justify-start text-sm text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Live signal alerts
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Trading discussions
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-indigo-400" /> Educational content
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex-shrink-0">
-                <Button 
-                  size="lg"
-                  className="bg-indigo-600 font-semibold gap-2"
-                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                  data-testid="button-discord-section"
-                >
-                  <SiDiscord className="h-5 w-5" />
-                  Join Discord
-                </Button>
-              </div>
+              <Button variant="outline" className="w-full border-slate-700">Contact Sales</Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-10 lg:py-12" data-testid="section-cta">
+      {/* FAQ Section */}
+      <section className="py-16 bg-slate-900/30 border-y border-slate-800/50" data-testid="section-faq">
         <div className="container mx-auto px-6">
-          <div className="glass-card rounded-lg p-8 text-center max-w-3xl mx-auto">
-            <h2 className="text-lg font-semibold mb-3">
-              Ready to Trade with Precision?
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-6">
-              Research platform for self-directed traders. Paper trade first, risk second.
+          <h2 className="text-2xl font-bold text-center text-white mb-8">Frequently Asked Questions</h2>
+          <div className="max-w-2xl mx-auto">
+            <Accordion type="single" collapsible className="space-y-2">
+              {[
+                { id: 'what', q: 'What is Quant Edge Labs?', a: 'An educational research platform for self-directed traders. We use 6 engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets and surface potential setups. This is a learning tool—not a signal service or financial advice.' },
+                { id: 'risk', q: 'How does risk management work?', a: 'Research briefs display calculated risk/reward ratios and suggested exit levels for educational context. We provide paper trading tools so users can learn risk management concepts without capital at risk.' },
+                { id: 'paper', q: 'What is paper trading?', a: 'Simulated trading with fake money. It lets you test strategies without real capital. Quant Edge Labs includes a built-in paper trading journal to track your hypothetical trades.' },
+                { id: 'data', q: 'Where does the market data come from?', a: 'Real-time quotes from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). All data is refreshed every few seconds during market hours.' },
+                { id: 'advice', q: 'Is this financial advice?', a: 'No. Quant Edge Labs is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. You make all trading decisions yourself. Trading involves substantial risk of loss.' },
+              ].map((faq) => (
+                <AccordionItem key={faq.id} value={faq.id} className="border border-slate-800 rounded-lg px-4">
+                  <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm text-white">
+                    {faq.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-slate-400 pb-3 text-sm">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* Discord Section */}
+      <section className="py-16" data-testid="section-discord">
+        <div className="container mx-auto px-6">
+          <div className="rounded-xl bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 p-8 max-w-3xl mx-auto text-center">
+            <div className="h-14 w-14 rounded-xl bg-indigo-600 flex items-center justify-center mx-auto mb-4">
+              <SiDiscord className="h-7 w-7 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Join the Community</h2>
+            <p className="text-slate-400 mb-6 max-w-md mx-auto">
+              Connect with traders, get real-time alerts, and learn together.
             </p>
             <Button
               size="lg"
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
-              onClick={() => setWaitlistOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500"
+              onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
             >
-              Get Started Now
+              <SiDiscord className="mr-2 h-4 w-4" />
+              Join Discord
             </Button>
           </div>
         </div>
       </section>
 
+      {/* Final CTA */}
+      <section className="py-16" data-testid="section-cta">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-2xl font-bold text-white mb-3">Ready to Get an Edge?</h2>
+          <p className="text-slate-400 mb-6 max-w-md mx-auto">
+            Join thousands of traders using AI-powered research to level up their trading.
+          </p>
+          <Button
+            size="lg"
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
+            onClick={() => setWaitlistOpen(true)}
+          >
+            Get Started Free
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="py-6 border-t border-slate-800 text-center">
-        <div className="text-xs text-slate-400">
-          © {new Date().getFullYear()} Quant Edge Labs | <a href="#" className="text-cyan-400">Terms</a> | <a href="#" className="text-cyan-400">Privacy</a>
+      <footer className="py-8 border-t border-slate-800">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-6 w-6" />
+              <span className="text-sm text-slate-400">© {new Date().getFullYear()} Quant Edge Labs</span>
+            </div>
+            <div className="flex items-center gap-6 text-sm text-slate-500">
+              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/about" className="hover:text-white transition-colors">About</Link>
+            </div>
+          </div>
         </div>
       </footer>
 
       {/* Waitlist Popup */}
-      {waitlistOpen && (
-        <WaitlistPopup onClose={() => setWaitlistOpen(false)} />
-      )}
+      {waitlistOpen && <WaitlistPopup onClose={() => setWaitlistOpen(false)} />}
     </div>
   );
 }
