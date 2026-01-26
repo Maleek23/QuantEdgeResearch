@@ -421,7 +421,7 @@ export function FuturesContent() {
   
   const { data: quotes = [], isLoading: quotesLoading, refetch: refetchQuotes, isFetching: isFetchingQuotes } = useQuery<FuturesQuote[]>({
     queryKey: ['/api/futures'],
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering
   });
   
   const { data: symbols = [] } = useQuery<FuturesSymbolInfo[]>({

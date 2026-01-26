@@ -186,6 +186,106 @@ export default function Landing() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       </section>
 
+      {/* Hero Product Preview */}
+      <section className="relative py-12 -mt-8">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto">
+            {/* Mockup Trade Idea Card */}
+            <div className="relative">
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 blur-3xl opacity-50" />
+
+              {/* Card */}
+              <div className="relative bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold">
+                      N
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-white">NVDA</span>
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">BULLISH</Badge>
+                      </div>
+                      <span className="text-sm text-slate-400">NVIDIA Corporation</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-bold text-emerald-400">87%</div>
+                    <span className="text-xs text-slate-500">AI Confidence</span>
+                  </div>
+                </div>
+
+                {/* 6 Engine Scores */}
+                <div className="grid grid-cols-6 gap-2 mb-6">
+                  {[
+                    { name: 'ML', score: 92, color: 'pink' },
+                    { name: 'AI', score: 88, color: 'purple' },
+                    { name: 'Quant', score: 85, color: 'blue' },
+                    { name: 'Flow', score: 91, color: 'cyan' },
+                    { name: 'Sent', score: 78, color: 'amber' },
+                    { name: 'Tech', score: 89, color: 'green' },
+                  ].map((engine) => {
+                    const colors: Record<string, string> = {
+                      pink: 'from-pink-500/20 to-pink-500/5 border-pink-500/30 text-pink-400',
+                      purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/30 text-purple-400',
+                      blue: 'from-blue-500/20 to-blue-500/5 border-blue-500/30 text-blue-400',
+                      cyan: 'from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 text-cyan-400',
+                      amber: 'from-amber-500/20 to-amber-500/5 border-amber-500/30 text-amber-400',
+                      green: 'from-green-500/20 to-green-500/5 border-green-500/30 text-green-400',
+                    };
+                    return (
+                      <div key={engine.name} className={`p-2 rounded-lg bg-gradient-to-b border text-center ${colors[engine.color]}`}>
+                        <div className="text-[10px] text-slate-400 mb-0.5">{engine.name}</div>
+                        <div className="text-sm font-bold">{engine.score}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Signal Summary */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <span className="text-xs text-slate-500">Entry</span>
+                      <div className="text-sm font-semibold text-white">$142.50</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">Target</span>
+                      <div className="text-sm font-semibold text-emerald-400">$158.00</div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500">Stop</span>
+                      <div className="text-sm font-semibold text-red-400">$135.00</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500">Risk/Reward</span>
+                    <div className="text-sm font-semibold text-cyan-400">1:2.1</div>
+                  </div>
+                </div>
+
+                {/* Convergence indicator */}
+                <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
+                  <div className="flex -space-x-1">
+                    <div className="w-4 h-4 rounded-full bg-pink-500/50 border border-slate-800" />
+                    <div className="w-4 h-4 rounded-full bg-purple-500/50 border border-slate-800" />
+                    <div className="w-4 h-4 rounded-full bg-cyan-500/50 border border-slate-800" />
+                    <div className="w-4 h-4 rounded-full bg-emerald-500/50 border border-slate-800" />
+                  </div>
+                  <span>4/6 engines aligned</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-center text-sm text-slate-500 mt-4">
+              Real AI-generated trade idea from our platform
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Stats Strip */}
       <div className="relative py-8 border-y border-slate-800/50 bg-slate-900/30">
         <div className="container mx-auto px-6">

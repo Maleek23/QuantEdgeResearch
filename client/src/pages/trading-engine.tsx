@@ -222,7 +222,7 @@ function BotActivityMonitor() {
     marketStatus: string;
   }>({
     queryKey: ['/api/auto-lotto/bot-status'],
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering
   });
 
   const isMarketOpen = botStatus?.isRunning ?? false;

@@ -20,7 +20,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
   
   const { data: watchlistItems = [] } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
-    refetchInterval: 10000, // 10s for real-time updates
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering // 10s for real-time updates
     staleTime: 5000,
   });
 
@@ -43,7 +43,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 10000, // 10s for real-time price updates
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering // 10s for real-time price updates
     staleTime: 5000,
   });
 

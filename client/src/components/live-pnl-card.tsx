@@ -43,7 +43,7 @@ export function LivePnLCard() {
   
   const { data: positionData, isLoading, isError } = useQuery<RealtimePnLData>({
     queryKey: ['/api/auto-lotto-bot/realtime-pnl'],
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering
   });
 
   const livePnL = useMemo(() => {

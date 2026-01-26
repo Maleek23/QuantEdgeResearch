@@ -64,7 +64,8 @@ function MarketPulseHeader() {
       if (!res.ok) return null;
       return res.json();
     },
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Reduced from 10s to prevent price flickering
+    staleTime: 25000, // Keep data fresh for 25s
   });
 
   const tickers = [

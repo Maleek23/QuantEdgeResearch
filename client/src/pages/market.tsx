@@ -329,7 +329,7 @@ export default function MarketPage() {
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Fixed: was 10s, now 30s to prevent flickering
     staleTime: 5000,
   });
 
