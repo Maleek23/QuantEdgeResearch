@@ -926,14 +926,36 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
 
 /**
  * Generate and save a trade idea from any source
+ * Includes database-level deduplication to prevent duplicate ideas
  */
 export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Promise<boolean> {
+  const symbol = input.symbol.toUpperCase();
+
+  // DATABASE-LEVEL DEDUPLICATION: Check for recent idea with same symbol/direction
+  try {
+    const existingIdeas = await storage.getAllTradeIdeas();
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    const recentDuplicate = existingIdeas.find(idea =>
+      idea.symbol === symbol &&
+      idea.direction === input.direction &&
+      idea.timestamp && new Date(idea.timestamp) > twoHoursAgo
+    );
+
+    if (recentDuplicate) {
+      logger.debug(`[UNIVERSAL] Skipped duplicate: ${symbol} ${input.direction} already exists from ${Math.round((Date.now() - new Date(recentDuplicate.timestamp!).getTime()) / 60000)}min ago`);
+      return false;
+    }
+  } catch (err) {
+    // Continue if check fails
+  }
+
   const idea = await generateUniversalTradeIdea(input);
-  
+
   if (!idea) {
     return false;
   }
-  
+
   try {
     await storage.createTradeIdea(idea);
     logger.info(`[UNIVERSAL] Saved trade idea: ${idea.symbol} from ${input.source}`);
