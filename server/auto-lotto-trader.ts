@@ -52,6 +52,7 @@ import {
 import { analyzeVolatility } from "./volatility-analysis-service";
 import { getCatalystsForSymbol, getUpcomingCatalysts, calculateCatalystScore } from "./catalyst-intelligence-service";
 import { checkCorrelationCaps } from "./correlation-position-caps";
+import { selfLearning, LEARNED_THRESHOLDS } from "./self-learning-service";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -3355,6 +3356,17 @@ export async function runAutonomousBotScan(): Promise<void> {
     
     logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN STARTED ==========`);
     logger.debug(`🤖 [BOT] Prefs: ${prefs.riskTolerance} risk, max ${prefs.maxConcurrentTrades} positions, $${prefs.maxPositionSize} max size`);
+
+    // 🧠 SELF-LEARNING: Display engine performance metrics
+    const lottoMetrics = selfLearning.getEngineMetrics('lotto');
+    if (lottoMetrics) {
+      logger.info(
+        `🤖 [BOT] 🧠 Lotto Engine: WR ${lottoMetrics.winRate.toFixed(1)}% | ` +
+        `Exp ${lottoMetrics.expectancy >= 0 ? '+' : ''}${lottoMetrics.expectancy.toFixed(1)}% | ` +
+        `Sharpe ${lottoMetrics.sharpeRatio.toFixed(2)} | ` +
+        `PF ${lottoMetrics.profitFactor === Infinity ? '∞' : lottoMetrics.profitFactor.toFixed(2)}`
+      );
+    }
     
     // 🎯 SESSION GATING - Check if current session is favorable for lotto trading
     const sessionCheck = shouldAllowSessionEntry('lotto');
@@ -3365,7 +3377,21 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.info(`🤖 [BOT] ⛔ SESSION GATE: ${sessionCheck.reason}`);
       return;
     }
-    
+
+    // 🧠 SELF-LEARNING TIMING CHECK: Use learned optimal trading hours
+    const learnedThresholds = selfLearning.getLearnedThresholds();
+    const isAvoidHour = learnedThresholds.timing.avoidHours.includes(hour);
+    const isBestHour = hour === learnedThresholds.timing.bestHour;
+
+    if (isAvoidHour) {
+      logger.info(`🤖 [BOT] 🧠 LEARNED TIMING: Hour ${hour}:00 ET is in avoid list (low historical win rate)`);
+      // Don't return - just log the warning. Let other checks determine if we should trade.
+    }
+
+    if (isBestHour) {
+      logger.info(`🤖 [BOT] 🧠 LEARNED TIMING: Hour ${hour}:00 ET is OPTIMAL (highest historical win rate)`);
+    }
+
     // 📊 MARKET CONTEXT ANALYSIS - Check overall market conditions before trading
     const marketContext = await getMarketContext();
     logger.info(`🤖 [BOT] Market: ${marketContext.regime} | ${marketContext.riskSentiment} | Score: ${marketContext.score}`);
@@ -3809,7 +3835,27 @@ export async function runAutonomousBotScan(): Promise<void> {
         if (isPrioritySector && decision.confidence >= effectiveMinConfidence) {
           logger.debug(`🤖 [BOT] ☢️ Priority sector boost applied for ${ticker} (min ${effectiveMinConfidence}%)`);
         }
-        
+
+        // 🧠 SELF-LEARNING VALIDATION: Check if learned patterns support this trade
+        // Uses risk-adjusted metrics (Sharpe, profit factor) not just win rate
+        const learningCheck = selfLearning.shouldTakeTrade({
+          symbol: ticker,
+          confidenceScore: decision.confidence,
+          direction: opp.optionType === 'call' ? 'long' : 'short',
+          source: 'lotto', // Auto-lotto source
+          assetType: 'option',
+        });
+
+        if (!learningCheck.take) {
+          logger.debug(`🤖 [BOT] 🧠 ${ticker}: Self-learning BLOCKED - ${learningCheck.reason} (${(learningCheck.confidence * 100).toFixed(0)}% confidence)`);
+          continue;
+        }
+
+        // Log if learning check passed with moderate confidence
+        if (learningCheck.confidence < 0.7) {
+          logger.debug(`🤖 [BOT] 🧠 ${ticker}: Self-learning PASSED with caution - ${learningCheck.reason}`);
+        }
+
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
