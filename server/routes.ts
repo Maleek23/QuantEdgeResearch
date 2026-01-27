@@ -4106,42 +4106,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/stocks/:symbol/analysts - Get analyst ratings
+  // GET /api/stocks/:symbol/analysts - Get analyst ratings with price targets
   app.get("/api/stocks/:symbol/analysts", async (req, res) => {
     try {
       const { symbol } = req.params;
       const yahooFinance = (await import('yahoo-finance2')).default;
 
       try {
-        const result = await yahooFinance.quoteSummary(symbol, { modules: ['recommendationTrend', 'upgradeDowngradeHistory'] });
+        // Fetch multiple modules for comprehensive analyst data
+        const result = await yahooFinance.quoteSummary(symbol, {
+          modules: ['recommendationTrend', 'upgradeDowngradeHistory', 'financialData', 'price']
+        });
 
-        const ratings = result.upgradeDowngradeHistory?.history?.slice(0, 10).map((item: any) => ({
+        const ratings = result.upgradeDowngradeHistory?.history?.slice(0, 15).map((item: any) => ({
           firm: item.firm,
           rating: item.toGrade,
           previousRating: item.fromGrade,
           action: item.action,
           date: item.epochGradeDate ? new Date(item.epochGradeDate * 1000).toISOString() : null,
+          priceTarget: null, // Yahoo doesn't provide per-analyst targets
         })) || [];
 
         const trend = result.recommendationTrend?.trend?.[0];
+        const totalAnalysts = trend
+          ? (trend.strongBuy || 0) + (trend.buy || 0) + (trend.hold || 0) + (trend.sell || 0) + (trend.strongSell || 0)
+          : 0;
+
         const consensus = trend ? {
           strongBuy: trend.strongBuy || 0,
           buy: trend.buy || 0,
           hold: trend.hold || 0,
           sell: trend.sell || 0,
           strongSell: trend.strongSell || 0,
+          totalAnalysts,
+          recommendation: getConsensusLabel(trend),
         } : null;
 
-        res.json({ symbol, ratings, consensus });
+        // Price targets from financialData
+        const priceTarget = {
+          current: result.price?.regularMarketPrice || null,
+          average: result.financialData?.targetMeanPrice || null,
+          low: result.financialData?.targetLowPrice || null,
+          high: result.financialData?.targetHighPrice || null,
+          numberOfAnalysts: result.financialData?.numberOfAnalystOpinions || totalAnalysts,
+        };
+
+        res.json({ symbol, ratings, consensus, priceTarget });
       } catch (yahooError) {
-        // Return empty data instead of error
-        res.json({ symbol, ratings: [], consensus: null });
+        res.json({ symbol, ratings: [], consensus: null, priceTarget: null });
       }
     } catch (error) {
       logger.error(`Error fetching analyst data for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to fetch analyst data" });
     }
   });
+
+  // Helper to get consensus label
+  function getConsensusLabel(trend: any): string {
+    const total = (trend.strongBuy || 0) + (trend.buy || 0) + (trend.hold || 0) + (trend.sell || 0) + (trend.strongSell || 0);
+    if (total === 0) return 'N/A';
+    const score = ((trend.strongBuy || 0) * 5 + (trend.buy || 0) * 4 + (trend.hold || 0) * 3 + (trend.sell || 0) * 2 + (trend.strongSell || 0) * 1) / total;
+    if (score >= 4.5) return 'Strong Buy';
+    if (score >= 3.5) return 'Buy';
+    if (score >= 2.5) return 'Hold';
+    if (score >= 1.5) return 'Sell';
+    return 'Strong Sell';
+  }
 
   // GET /api/stocks/:symbol/insiders - Get insider transactions
   app.get("/api/stocks/:symbol/insiders", async (req, res) => {
