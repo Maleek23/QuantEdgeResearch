@@ -327,23 +327,41 @@ export async function scanPennyMoonshots(): Promise<PennyMoonshotCandidate[]> {
 
 export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[]): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  
+
   if (!webhookUrl) {
     logger.warn('🚀 [PENNY-SCAN] Discord webhook URL not configured - skipping');
     return;
   }
-  
+
   if (candidates.length === 0) {
     logger.info('🚀 [PENNY-SCAN] No moonshot candidates to send');
     return;
   }
-  
+
+  // DEDUPLICATION: Check if we can send notification (global + per-symbol cooldown)
+  const { canSendPennyScannerNotification, markPennyScannerNotificationSent } = await import('./discord-service');
+  const symbols = candidates.map(c => c.symbol);
+  const dedupCheck = canSendPennyScannerNotification('standard', symbols);
+
+  if (!dedupCheck.canSend) {
+    logger.info(`🚀 [PENNY-SCAN] Discord notification BLOCKED: ${dedupCheck.reason}`);
+    return;
+  }
+
+  // Filter candidates to only those that passed symbol dedup
+  const filteredCandidates = candidates.filter(c => dedupCheck.filteredSymbols.includes(c.symbol));
+  if (filteredCandidates.length === 0) {
+    logger.info('🚀 [PENNY-SCAN] All candidates were recently notified - skipping Discord');
+    return;
+  }
+
   try {
     const nowCT = formatInTimeZone(new Date(), 'America/Chicago', 'h:mm a');
     const dateStr = formatInTimeZone(new Date(), 'America/Chicago', 'MMM d');
-    
+
+    // Use filtered candidates that passed deduplication
     // Filter to $1-$8 range (the moonshot sweet spot) and sort by potential
-    let moonshotCandidates = candidates
+    let moonshotCandidates = filteredCandidates
       .filter(c => c.currentPrice >= 1 && c.currentPrice <= 8)
       .sort((a, b) => {
         const scoreA = (Math.abs(a.changePercent) * 2) + (a.volumeRatio * 10) + (a.moonshotPotential * 0.5);
@@ -351,19 +369,19 @@ export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[
         return scoreB - scoreA;
       })
       .slice(0, 5);
-    
+
     // Fallback to top momentum plays if no $1-$8 candidates
     if (moonshotCandidates.length === 0) {
       logger.info('🚀 [PENNY-SCAN] No $1-$8 candidates, falling back to top momentum');
-      const fallbackCandidates = candidates
+      const fallbackCandidates = filteredCandidates
         .sort((a, b) => (Math.abs(b.changePercent) + b.volumeRatio * 5) - (Math.abs(a.changePercent) + a.volumeRatio * 5))
         .slice(0, 3);
-      
+
       if (fallbackCandidates.length === 0) {
         logger.info('🚀 [PENNY-SCAN] No candidates found at all');
         return;
       }
-      
+
       // Use fallback candidates for the rest of the function
       moonshotCandidates.push(...fallbackCandidates);
     }
@@ -433,8 +451,10 @@ export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[
     if (!response.ok) {
       throw new Error(`Discord webhook failed: ${response.status}`);
     }
-    
-    logger.info(`🚀 [PENNY-SCAN] Discord alert sent for ${moonshotCandidates.length} moonshot candidates`);
+
+    // Mark notification as sent to prevent spam
+    markPennyScannerNotificationSent('standard', moonshotCandidates.map(c => c.symbol));
+    logger.info(`🚀 [PENNY-SCAN] Discord alert sent for ${moonshotCandidates.length} moonshot candidates (deduped)`);
   } catch (error) {
     logger.error('🚀 [PENNY-SCAN] Failed to send Discord alert:', error);
   }
@@ -545,21 +565,38 @@ export async function runPennyScan(): Promise<{ candidates: PennyMoonshotCandida
 
 async function sendSubPennyScanToDiscord(candidates: PennyMoonshotCandidate[]): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  
+
   if (!webhookUrl) {
     logger.warn('💎 [SUB-PENNY-SCAN] Discord webhook URL not configured');
     return;
   }
-  
+
   if (candidates.length === 0) return;
-  
+
+  // DEDUPLICATION: Check if we can send notification (global + per-symbol cooldown)
+  const { canSendPennyScannerNotification, markPennyScannerNotificationSent } = await import('./discord-service');
+  const symbols = candidates.map(c => c.symbol);
+  const dedupCheck = canSendPennyScannerNotification('subpenny', symbols);
+
+  if (!dedupCheck.canSend) {
+    logger.info(`💎 [SUB-PENNY-SCAN] Discord notification BLOCKED: ${dedupCheck.reason}`);
+    return;
+  }
+
+  // Filter candidates to only those that passed symbol dedup
+  const filteredCandidates = candidates.filter(c => dedupCheck.filteredSymbols.includes(c.symbol));
+  if (filteredCandidates.length === 0) {
+    logger.info('💎 [SUB-PENNY-SCAN] All candidates were recently notified - skipping Discord');
+    return;
+  }
+
   try {
     const nowCT = formatInTimeZone(new Date(), 'America/Chicago', 'h:mm a');
-    
+
     let message = '💎 **SUB-PENNY SCANNER** ($0.0001-$0.20)\n';
     message += '━━━━━━━━━━━━━━━━━━━━━━━\n\n';
-    
-    for (const candidate of candidates.slice(0, 5)) {
+
+    for (const candidate of filteredCandidates.slice(0, 5)) {
       const volumeDisplay = candidate.volume >= 1000000 
         ? `${(candidate.volume / 1000000).toFixed(1)}M` 
         : `${(candidate.volume / 1000).toFixed(0)}K`;
@@ -589,8 +626,10 @@ async function sendSubPennyScanToDiscord(candidates: PennyMoonshotCandidate[]): 
     if (!response.ok) {
       throw new Error(`Discord webhook failed: ${response.status}`);
     }
-    
-    logger.info(`💎 [SUB-PENNY-SCAN] Discord alert sent for ${candidates.length} sub-penny picks`);
+
+    // Mark notification as sent to prevent spam
+    markPennyScannerNotificationSent('subpenny', filteredCandidates.map(c => c.symbol));
+    logger.info(`💎 [SUB-PENNY-SCAN] Discord alert sent for ${filteredCandidates.length} sub-penny picks (deduped)`);
   } catch (error) {
     logger.error('💎 [SUB-PENNY-SCAN] Failed to send Discord alert:', error);
   }

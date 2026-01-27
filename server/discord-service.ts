@@ -813,6 +813,100 @@ export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {
 const recentQuantIdeas = new Map<string, number>();
 const QUANT_IDEA_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours cooldown per unique idea
 
+// ============ PENNY SCANNER NOTIFICATION DEDUPLICATION ============
+// Prevents spam from penny/sub-penny scanners sending duplicate Discord messages
+const pennyScannerLastNotification = new Map<string, number>(); // key: "standard" or "subpenny" -> timestamp
+const PENNY_SCANNER_GLOBAL_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between penny scanner notifications
+const pennyScannerSymbolCache = new Map<string, number>(); // key: symbol -> timestamp
+const PENNY_SYMBOL_COOLDOWN_MS = 8 * 60 * 60 * 1000; // 8 hours between same symbol notifications
+
+/**
+ * Check if penny scanner notification can be sent (global + per-symbol cooldown)
+ */
+export function canSendPennyScannerNotification(scannerType: 'standard' | 'subpenny', symbols: string[]): {
+  canSend: boolean;
+  reason: string;
+  filteredSymbols: string[];
+} {
+  const now = Date.now();
+
+  // Check global cooldown for this scanner type
+  const lastNotification = pennyScannerLastNotification.get(scannerType);
+  if (lastNotification && now - lastNotification < PENNY_SCANNER_GLOBAL_COOLDOWN_MS) {
+    const remainingMins = Math.round((PENNY_SCANNER_GLOBAL_COOLDOWN_MS - (now - lastNotification)) / 60000);
+    return {
+      canSend: false,
+      reason: `Global cooldown - ${remainingMins}min remaining for ${scannerType} scanner`,
+      filteredSymbols: []
+    };
+  }
+
+  // Filter out symbols that were recently notified
+  const filteredSymbols = symbols.filter(symbol => {
+    const lastSymbolNotify = pennyScannerSymbolCache.get(symbol);
+    if (lastSymbolNotify && now - lastSymbolNotify < PENNY_SYMBOL_COOLDOWN_MS) {
+      return false; // Skip - recently notified
+    }
+    return true;
+  });
+
+  // Clean up old cache entries
+  if (pennyScannerSymbolCache.size > 500) {
+    const entries = Array.from(pennyScannerSymbolCache.entries());
+    for (const [key, timestamp] of entries) {
+      if (now - timestamp > PENNY_SYMBOL_COOLDOWN_MS) {
+        pennyScannerSymbolCache.delete(key);
+      }
+    }
+  }
+
+  if (filteredSymbols.length === 0) {
+    return {
+      canSend: false,
+      reason: 'All symbols were recently notified',
+      filteredSymbols: []
+    };
+  }
+
+  return {
+    canSend: true,
+    reason: 'OK',
+    filteredSymbols
+  };
+}
+
+/**
+ * Mark penny scanner notification as sent
+ */
+export function markPennyScannerNotificationSent(scannerType: 'standard' | 'subpenny', symbols: string[]): void {
+  const now = Date.now();
+  pennyScannerLastNotification.set(scannerType, now);
+
+  for (const symbol of symbols) {
+    pennyScannerSymbolCache.set(symbol, now);
+  }
+
+  logger.info(`[DISCORD] Marked ${scannerType} penny scanner notification sent for ${symbols.length} symbols`);
+}
+
+/**
+ * Get penny scanner notification stats (for debugging)
+ */
+export function getPennyScannerNotificationStats(): {
+  standardLastSent: string | null;
+  subpennyLastSent: string | null;
+  symbolCacheSize: number;
+} {
+  const standardLast = pennyScannerLastNotification.get('standard');
+  const subpennyLast = pennyScannerLastNotification.get('subpenny');
+
+  return {
+    standardLastSent: standardLast ? new Date(standardLast).toISOString() : null,
+    subpennyLastSent: subpennyLast ? new Date(subpennyLast).toISOString() : null,
+    symbolCacheSize: pennyScannerSymbolCache.size
+  };
+}
+
 // Global QUANTFLOOR cooldown to prevent burst spam  
 let lastQuantFloorBatchTime = 0;
 const QUANTFLOOR_BATCH_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 HOURS between batch summaries

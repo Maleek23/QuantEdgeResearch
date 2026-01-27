@@ -138,16 +138,24 @@ export async function generateMorningPreview(): Promise<MorningPreview> {
   }
 }
 
+// Track last preview date to prevent duplicate morning previews
+let lastMorningPreviewDate = '';
+
 export function startMorningPreviewScheduler(): void {
   const checkAndRunPreview = async () => {
     const now = new Date();
     const ctTime = formatInTimeZone(now, 'America/Chicago', 'HH:mm');
+    const ctDate = formatInTimeZone(now, 'America/Chicago', 'yyyy-MM-dd');
     const dayOfWeek = now.getDay();
-    
+
     if (dayOfWeek === 0 || dayOfWeek === 6) return;
-    
+
+    // Only run once per day - prevent spam from multiple interval hits
+    if (lastMorningPreviewDate === ctDate) return;
+
     if (ctTime === '08:30') {
       try {
+        lastMorningPreviewDate = ctDate; // Mark as sent BEFORE running
         await generateMorningPreview();
       } catch (error) {
         logger.error('[MORNING-PREVIEW] Scheduled preview failed:', error);
