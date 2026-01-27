@@ -322,11 +322,17 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
   const setups = data?.setups || [];
 
   return (
-    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+    <Card
+      className="bg-slate-900/40 border-slate-800/60 p-4 cursor-pointer hover:border-amber-500/50 transition-all group"
+      onClick={(e) => {
+        if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Star className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-semibold text-white">Best Setups</span>
+          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors" />
         </div>
         <Badge variant="outline" className="text-xs">{setups.length} Active</Badge>
       </div>
@@ -390,11 +396,17 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
   const gainers = data?.topGainers?.slice(0, 5) || [];
 
   return (
-    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+    <Card
+      className="bg-slate-900/40 border-slate-800/60 p-4 cursor-pointer hover:border-emerald-500/50 transition-all group"
+      onClick={(e) => {
+        if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-orange-400" />
           <span className="text-sm font-semibold text-white">Market Movers</span>
+          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition-colors" />
         </div>
         <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-400/30">Live</Badge>
       </div>
@@ -1889,11 +1901,18 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
   };
 
   return (
-    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+    <Card
+      className="bg-slate-900/40 border-slate-800/60 p-4 cursor-pointer hover:border-orange-500/50 transition-all group"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('a') && !target.closest('button')) onViewTomorrow?.();
+      }}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-semibold text-white">Surge Detection</span>
+          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-orange-400 transition-colors" />
           <Button
             variant="ghost"
             size="sm"
@@ -1996,11 +2015,18 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
   const hotSymbols = data?.hotSymbols || [];
 
   return (
-    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+    <Card
+      className="bg-slate-900/40 border-slate-800/60 p-4 cursor-pointer hover:border-purple-500/50 transition-all group"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('a') && !target.closest('button')) onViewAll?.();
+      }}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-purple-400" />
           <span className="text-sm font-semibold text-white">Convergence</span>
+          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-purple-400 transition-colors" />
           {status === 'active' && (
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           )}
@@ -2146,11 +2172,18 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
   const symbols = data?.symbols || [];
 
   return (
-    <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+    <Card
+      className="bg-slate-900/40 border-slate-800/60 p-4 cursor-pointer hover:border-red-500/50 transition-all group"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('a') && !target.closest('button')) onViewAll?.();
+      }}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-orange-400" />
           <span className="text-sm font-semibold text-white">Hot Attention</span>
+          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-red-400 transition-colors" />
         </div>
         <Badge variant="outline" className="text-xs">
           {data?.convergingCount || 0} Converging
