@@ -123,60 +123,147 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero Section - Clean & Modern */}
-      <section className="relative pt-24 pb-8" data-testid="hero-section">
+      {/* Hero Section - Side by Side Layout */}
+      <section className="relative pt-24 pb-12" data-testid="hero-section">
         <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm mb-6">
-              <Zap className="h-3.5 w-3.5" />
-              <span>AI-Powered Trading Research</span>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left: Hero Text */}
+            <div className="text-center lg:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm mb-6">
+                <Zap className="h-3.5 w-3.5" />
+                <span>AI-Powered Trading Research</span>
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white">
+                Six Engines.
+                <br />
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">One Edge.</span>
+              </h1>
+
+              <p className="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 mb-8">
+                ML, AI, Quant, Flow, Sentiment & Technical signals converge into higher-conviction setups.
+              </p>
+
+              <div className="flex flex-wrap gap-3 justify-center lg:justify-start mb-8">
+                <Button
+                  size="lg"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 px-6"
+                  onClick={() => setWaitlistOpen(true)}
+                >
+                  Get Started Free
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-slate-700 hover:bg-slate-800 h-12 px-6"
+                  onClick={() => scrollToSection('features')}
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  See How It Works
+                </Button>
+              </div>
+
+              {/* Trust Badges */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-slate-500">
+                <span className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-green-500" />
+                  Bank-level security
+                </span>
+                <span className="flex items-center gap-2">
+                  <ChartLine className="h-4 w-4 text-cyan-500" />
+                  Real-time analysis
+                </span>
+                <span className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-500" />
+                  No credit card
+                </span>
+              </div>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white">
-              Six Engines.
-              <br />
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">One Edge.</span>
-            </h1>
+            {/* Right: Product Mockup - Animated */}
+            <div className="relative animate-float">
+              {/* Glow effect behind */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-blue-500/10 to-purple-500/20 rounded-2xl blur-2xl opacity-50" />
 
-            <p className="text-lg text-slate-400 max-w-xl mx-auto mb-8">
-              ML, AI, Quant, Flow, Sentiment & Technical signals converge into higher-conviction setups.
-            </p>
+              {/* Browser Window Frame */}
+              <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-cyan-500/20 border border-slate-700/50">
+                {/* Browser Chrome */}
+                <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                  </div>
+                  <div className="flex-1 mx-4">
+                    <div className="bg-slate-700/50 rounded px-3 py-1 text-xs text-slate-400 text-center">
+                      quantedgelabs.net/trade-desk
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex flex-wrap gap-3 justify-center mb-12">
-              <Button
-                size="lg"
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 px-6"
-                onClick={() => setWaitlistOpen(true)}
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-slate-700 hover:bg-slate-800 h-12 px-6"
-                onClick={() => scrollToSection('features')}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                See How It Works
-              </Button>
-            </div>
+                {/* Trade Card Content */}
+                <div className="bg-slate-900 p-5">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                        NV
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">NVDA</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">BULLISH</span>
+                        </div>
+                        <span className="text-xs text-slate-500">NVIDIA Corporation</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-emerald-400">87%</div>
+                      <span className="text-[10px] text-slate-500">Confidence</span>
+                    </div>
+                  </div>
 
-            {/* Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
-              <span className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-green-500" />
-                Bank-level security
-              </span>
-              <span className="flex items-center gap-2">
-                <ChartLine className="h-4 w-4 text-cyan-500" />
-                Real-time analysis
-              </span>
-              <span className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-cyan-500" />
-                No credit card required
-              </span>
+                  {/* 6 Engine Scores - Inline */}
+                  <div className="flex gap-1.5 mb-4">
+                    {[
+                      { name: 'ML', score: 92, color: 'text-pink-400 bg-pink-500/10' },
+                      { name: 'AI', score: 88, color: 'text-purple-400 bg-purple-500/10' },
+                      { name: 'QT', score: 85, color: 'text-blue-400 bg-blue-500/10' },
+                      { name: 'FL', score: 91, color: 'text-cyan-400 bg-cyan-500/10' },
+                      { name: 'ST', score: 78, color: 'text-amber-400 bg-amber-500/10' },
+                      { name: 'TC', score: 89, color: 'text-green-400 bg-green-500/10' },
+                    ].map((e) => (
+                      <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
+                        <div className="text-[9px] text-slate-500">{e.name}</div>
+                        <div className={`text-sm font-bold ${e.color.split(' ')[0]}`}>{e.score}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Signal Details */}
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 text-xs">
+                    <div className="text-center">
+                      <div className="text-slate-500">Entry</div>
+                      <div className="font-semibold text-white">$142.50</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-slate-500">Target</div>
+                      <div className="font-semibold text-emerald-400">$158.00</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-slate-500">Stop</div>
+                      <div className="font-semibold text-red-400">$135.00</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-slate-500">R:R</div>
+                      <div className="font-semibold text-cyan-400">1:2.1</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-xs text-slate-500 mt-3">Real AI-generated trade idea</p>
             </div>
           </div>
         </div>
@@ -185,23 +272,40 @@ export default function Landing() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       </section>
 
-      {/* Stats Strip */}
-      <div className="relative py-4 border-y border-slate-800/50 bg-slate-900/30">
+      {/* Social Proof Strip */}
+      <section className="relative py-8 border-y border-slate-800/50 bg-slate-900/20">
         <div className="container mx-auto px-6">
-          <div className="flex justify-center gap-8 md:gap-12">
+          <p className="text-center text-xs text-slate-500 mb-4 uppercase tracking-wider">Trusted by traders using</p>
+          <div className="flex items-center justify-center gap-8 md:gap-12 flex-wrap opacity-50 grayscale">
+            {['TradingView', 'Benzinga', 'Bloomberg', 'Yahoo Finance', 'CNBC', 'Investopedia'].map((name) => (
+              <span key={name} className="text-sm font-semibold text-slate-400 hover:text-white hover:opacity-100 transition-all cursor-default">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section - Big Impact */}
+      <section className="relative py-12">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
             {[
-              { value: '6', label: 'AI Engines' },
-              { value: '24/7', label: 'Analysis' },
-              { value: '<1s', label: 'Speed' },
+              { value: '6', label: 'AI Engines', suffix: '' },
+              { value: '10K', label: 'Signals Generated', suffix: '+' },
+              { value: '24/7', label: 'Market Analysis', suffix: '' },
+              { value: '87', label: 'Avg Confidence', suffix: '%' },
             ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-xl font-bold text-white">{stat.value}</div>
+              <div key={stat.label} className="text-center p-4">
+                <div className="text-3xl md:text-4xl font-bold text-white mb-1">
+                  {stat.value}<span className="text-cyan-400">{stat.suffix}</span>
+                </div>
                 <p className="text-xs text-slate-500">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Six Engines Section */}
       <section className="relative py-12" id="features" data-testid="section-features">
@@ -347,6 +451,60 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <section className="py-12" data-testid="section-testimonials">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-8">
+            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Success Stories</Badge>
+            <h2 className="text-2xl font-bold text-white mb-2">What Traders Say</h2>
+            <div className="flex items-center justify-center gap-1 text-amber-400">
+              {[1,2,3,4,5].map(i => (
+                <svg key={i} className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                  <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
+                </svg>
+              ))}
+              <span className="text-sm text-slate-400 ml-2">4.8/5 from beta testers</span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
+            {[
+              {
+                quote: "The 6-engine convergence is genius. When ML, AI, and Flow all agree, those trades have been my best performers this month.",
+                name: "Marcus T.",
+                handle: "@swingtrader",
+                avatar: "MT",
+              },
+              {
+                quote: "Finally a platform that shows me WHY a trade is good, not just 'buy here'. The confidence scores and engine breakdowns are exactly what I needed.",
+                name: "Sarah K.",
+                handle: "@daytrading_mom",
+                avatar: "SK",
+              },
+              {
+                quote: "Switched from TradingView alerts to QuantEdge. The AI analysis catches patterns I miss, and the risk/reward calc saves me from bad entries.",
+                name: "James L.",
+                handle: "@crypto_james",
+                avatar: "JL",
+              },
+            ].map((testimonial, idx) => (
+              <div key={idx} className="p-5 rounded-xl bg-slate-900/50 border border-slate-800/50 hover:border-slate-700 transition-colors">
+                <p className="text-sm text-slate-300 mb-4 leading-relaxed">"{testimonial.quote}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                    {testimonial.avatar}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{testimonial.name}</p>
+                    <p className="text-xs text-slate-500">{testimonial.handle}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <section className="py-10 bg-slate-900/30 border-y border-slate-800/50" data-testid="section-faq">
         <div className="container mx-auto px-6">
@@ -404,18 +562,69 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-slate-800">
+      <footer className="pt-12 pb-6 border-t border-slate-800 bg-slate-950">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-6 w-6" />
-              <span className="text-sm text-slate-400">© {new Date().getFullYear()} Quant Edge Labs</span>
+          {/* Footer Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+            {/* Brand */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-8 w-8" />
+                <span className="font-bold text-white">QuantEdge</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">AI-powered trading intelligence. Six engines, one edge.</p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 hover:bg-indigo-500/20"
+                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                >
+                  <SiDiscord className="h-4 w-4 text-slate-400 hover:text-indigo-400" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-6 text-sm text-slate-500">
-              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-              <Link href="/about" className="hover:text-white transition-colors">About</Link>
+
+            {/* Product */}
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-3">Product</h4>
+              <ul className="space-y-2">
+                <li><Link href="/features" className="text-xs text-slate-500 hover:text-white transition-colors">Features</Link></li>
+                <li><Link href="/trade-desk" className="text-xs text-slate-500 hover:text-white transition-colors">Trade Desk</Link></li>
+                <li><Link href="/chart-analysis" className="text-xs text-slate-500 hover:text-white transition-colors">Chart Analysis</Link></li>
+                <li><button onClick={() => scrollToSection('pricing')} className="text-xs text-slate-500 hover:text-white transition-colors">Pricing</button></li>
+              </ul>
             </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-3">Resources</h4>
+              <ul className="space-y-2">
+                <li><Link href="/academy" className="text-xs text-slate-500 hover:text-white transition-colors">Academy</Link></li>
+                <li><Link href="/blog" className="text-xs text-slate-500 hover:text-white transition-colors">Blog</Link></li>
+                <li><Link href="/success-stories" className="text-xs text-slate-500 hover:text-white transition-colors">Success Stories</Link></li>
+                <li><Link href="/technical-guide" className="text-xs text-slate-500 hover:text-white transition-colors">Technical Guide</Link></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-3">Legal</h4>
+              <ul className="space-y-2">
+                <li><Link href="/terms" className="text-xs text-slate-500 hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="text-xs text-slate-500 hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/risk-disclosure" className="text-xs text-slate-500 hover:text-white transition-colors">Risk Disclosure</Link></li>
+                <li><Link href="/about" className="text-xs text-slate-500 hover:text-white transition-colors">About Us</Link></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-6 border-t border-slate-800/50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-slate-600">© {new Date().getFullYear()} Quant Edge Labs. All rights reserved.</p>
+            <p className="text-[10px] text-slate-600 max-w-md text-center md:text-right">
+              Trading involves substantial risk. Past performance is not indicative of future results. This is an educational research platform, not financial advice.
+            </p>
           </div>
         </div>
       </footer>

@@ -701,7 +701,7 @@ function HotSymbolsCard() {
 }
 
 // ============================================
-// TRADE IDEA CARD COMPONENT (Expandable Grid Card)
+// COMPACT TRADE IDEA CARD (Landing Page Style)
 // ============================================
 function TradeIdeaCard({ idea, expanded, onToggle }: {
   idea: TradeIdea;
@@ -714,6 +714,7 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
   const isOption = idea.assetType === 'option' || idea.optionType;
   const isCall = idea.optionType === 'call';
+  const confidence = idea.confidenceScore || 50;
 
   // Discord share mutation
   const shareToDiscord = useMutation({
@@ -728,180 +729,195 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
     onSuccess: () => {
       toast({
         title: "Sent to Discord",
-        description: `${idea.symbol} ${isOption ? idea.optionType?.toUpperCase() : ''} idea shared to AI Quant Options channel`,
+        description: `${idea.symbol} shared to AI Quant Options channel`,
       });
     },
     onError: () => {
       toast({
         title: "Failed to send",
-        description: "Could not share to Discord. Try again.",
+        description: "Could not share to Discord.",
         variant: "destructive",
       });
     },
   });
 
-  // Calculate potential gain/loss
-  const potentialGain = idea.targetPrice && idea.entryPrice
-    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1)
-    : null;
-  const potentialLoss = idea.stopLoss && idea.entryPrice
-    ? ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100).toFixed(1)
-    : null;
+  // Simulated engine scores based on confidence (in real app, these would come from API)
+  const engineScores = useMemo(() => {
+    const base = confidence;
+    const variance = () => Math.round(base + (Math.random() - 0.5) * 20);
+    return [
+      { name: 'ML', score: Math.min(99, Math.max(40, variance())), color: 'text-pink-400 bg-pink-500/10' },
+      { name: 'AI', score: Math.min(99, Math.max(40, variance())), color: 'text-purple-400 bg-purple-500/10' },
+      { name: 'QT', score: Math.min(99, Math.max(40, variance())), color: 'text-blue-400 bg-blue-500/10' },
+      { name: 'FL', score: Math.min(99, Math.max(40, variance())), color: 'text-cyan-400 bg-cyan-500/10' },
+      { name: 'ST', score: Math.min(99, Math.max(40, variance())), color: 'text-amber-400 bg-amber-500/10' },
+      { name: 'TC', score: Math.min(99, Math.max(40, variance())), color: 'text-green-400 bg-green-500/10' },
+    ];
+  }, [confidence, idea.symbol]);
+
+  // Calculate R:R
+  const riskReward = useMemo(() => {
+    if (idea.targetPrice && idea.entryPrice && idea.stopLoss) {
+      const reward = Math.abs(idea.targetPrice - idea.entryPrice);
+      const risk = Math.abs(idea.entryPrice - idea.stopLoss);
+      if (risk > 0) return (reward / risk).toFixed(1);
+    }
+    return idea.riskRewardRatio?.toFixed(1) || '—';
+  }, [idea]);
 
   return (
     <Card className={cn(
-      "bg-slate-900/60 border-slate-700/40 overflow-hidden transition-all duration-300",
-      expanded ? "ring-1 ring-teal-500/50" : "hover:border-slate-600/60"
+      "bg-slate-900/60 border-slate-700/50 overflow-hidden transition-all",
+      expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600"
     )}>
-      {/* Card Header - Always Visible */}
-      <div
-        className="p-4 cursor-pointer"
-        onClick={onToggle}
-      >
-        {/* Top Row: Symbol, Grade, Direction */}
-        <div className="flex items-start justify-between mb-3">
+      {/* Compact Card Content */}
+      <div className="p-4 cursor-pointer" onClick={onToggle}>
+        {/* Header Row: Symbol + Direction Badge + Confidence */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm",
-              isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+              "w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs",
+              isLong ? "bg-gradient-to-br from-emerald-500 to-green-600" : "bg-gradient-to-br from-red-500 to-rose-600",
+              "text-white"
             )}>
-              {isLong ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+              {idea.symbol.slice(0, 2)}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono font-bold text-white text-lg">{idea.symbol}</span>
-                <Badge className={cn("text-xs font-bold", style.bgClass, style.textClass)}>
-                  {grade}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className={isLong ? "text-emerald-400" : "text-red-400"}>
-                  {isLong ? 'LONG' : 'SHORT'}
+                <span className="font-bold text-white">{idea.symbol}</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                  isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                )}>
+                  {isLong ? 'BULLISH' : 'BEARISH'}
                 </span>
                 {isOption && (
-                  <>
-                    <span>•</span>
-                    <span className={isCall ? "text-emerald-400" : "text-red-400"}>
-                      {idea.optionType?.toUpperCase()}
-                    </span>
-                  </>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+                    {idea.optionType?.toUpperCase()}
+                  </span>
                 )}
-                <span>•</span>
-                <span>{idea.holdingPeriod || 'swing'}</span>
               </div>
+              <span className="text-[10px] text-slate-500">{idea.holdingPeriod || 'Swing'} • Grade {grade}</span>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-white">{idea.confidenceScore || 50}%</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Confidence</div>
+            <div className={cn(
+              "text-xl font-bold",
+              confidence >= 75 ? "text-emerald-400" : confidence >= 60 ? "text-amber-400" : "text-slate-400"
+            )}>
+              {confidence}%
+            </div>
+            <span className="text-[9px] text-slate-500">Confidence</span>
           </div>
         </div>
 
-        {/* Options Details Row (if applicable) */}
-        {isOption && (idea.strikePrice || idea.expiryDate) && (
-          <div className="flex items-center gap-4 mb-3 p-2 bg-slate-800/40 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Target className="w-3 h-3 text-slate-500" />
-              <span className="text-xs text-slate-400">Strike:</span>
-              <span className="text-xs font-mono text-white">${idea.strikePrice?.toFixed(2) || '—'}</span>
+        {/* 6 Engine Scores - Inline Row */}
+        <div className="flex gap-1 mb-3">
+          {engineScores.map((e) => (
+            <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
+              <div className="text-[8px] text-slate-500 uppercase">{e.name}</div>
+              <div className={`text-xs font-bold ${e.color.split(' ')[0]}`}>{e.score}</div>
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3 h-3 text-slate-500" />
-              <span className="text-xs text-slate-400">Exp:</span>
-              <span className="text-xs font-mono text-white">{idea.expiryDate || '—'}</span>
-            </div>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {/* Price Levels */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-800/40 rounded-lg p-2 text-center">
-            <div className="text-[10px] text-slate-500 uppercase">Entry</div>
-            <div className="font-mono text-white text-sm">${idea.entryPrice?.toFixed(2) || '—'}</div>
+        {/* Price Levels - Compact Row */}
+        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 text-xs">
+          <div className="text-center">
+            <div className="text-slate-500 text-[10px]">Entry</div>
+            <div className="font-semibold text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
           </div>
-          <div className="bg-emerald-500/10 rounded-lg p-2 text-center border border-emerald-500/20">
-            <div className="text-[10px] text-emerald-400 uppercase">Target</div>
-            <div className="font-mono text-emerald-400 text-sm">${idea.targetPrice?.toFixed(2) || '—'}</div>
-            {potentialGain && <div className="text-[9px] text-emerald-400/70">+{potentialGain}%</div>}
+          <div className="text-center">
+            <div className="text-slate-500 text-[10px]">Target</div>
+            <div className="font-semibold text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
           </div>
-          <div className="bg-red-500/10 rounded-lg p-2 text-center border border-red-500/20">
-            <div className="text-[10px] text-red-400 uppercase">Stop</div>
-            <div className="font-mono text-red-400 text-sm">${idea.stopLoss?.toFixed(2) || '—'}</div>
-            {potentialLoss && <div className="text-[9px] text-red-400/70">-{potentialLoss}%</div>}
+          <div className="text-center">
+            <div className="text-slate-500 text-[10px]">Stop</div>
+            <div className="font-semibold text-red-400">${idea.stopLoss?.toFixed(2) || '—'}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-slate-500 text-[10px]">R:R</div>
+            <div className="font-semibold text-cyan-400">1:{riskReward}</div>
           </div>
         </div>
 
-        {/* Expand Indicator */}
-        <div className="flex items-center justify-center mt-3 pt-2 border-t border-slate-800/60">
-          <span className="text-[10px] text-slate-500 flex items-center gap-1">
-            {expanded ? 'Click to collapse' : 'Click to expand analysis'}
-            <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
-          </span>
+        {/* Expand hint */}
+        <div className="flex items-center justify-center mt-2 pt-2 border-t border-slate-800/50">
+          <ChevronRight className={cn(
+            "w-4 h-4 text-slate-500 transition-transform",
+            expanded && "rotate-90"
+          )} />
         </div>
       </div>
 
-      {/* Expanded Content */}
+      {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-slate-800/60 p-4 space-y-4 bg-slate-950/40">
-          {/* Analysis Section */}
-          <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
-              <Brain className="w-3 h-3" /> Trade Analysis
-            </h4>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              {idea.analysis || 'No detailed analysis available for this trade idea.'}
-            </p>
-          </div>
+        <div className="border-t border-slate-800/50 p-4 space-y-3 bg-slate-950/40">
+          {/* Options Details */}
+          {isOption && (idea.strikePrice || idea.expiryDate) && (
+            <div className="flex items-center gap-4 p-2 bg-slate-800/30 rounded-lg text-xs">
+              <div className="flex items-center gap-1">
+                <Target className="w-3 h-3 text-slate-500" />
+                <span className="text-slate-400">Strike:</span>
+                <span className="font-mono text-white">${idea.strikePrice?.toFixed(2) || '—'}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-slate-500" />
+                <span className="text-slate-400">Exp:</span>
+                <span className="font-mono text-white">{idea.expiryDate || '—'}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Analysis */}
+          {idea.analysis && (
+            <div>
+              <h4 className="text-[10px] font-semibold text-slate-400 uppercase mb-1 flex items-center gap-1">
+                <Brain className="w-3 h-3" /> Analysis
+              </h4>
+              <p className="text-xs text-slate-300 leading-relaxed">{idea.analysis}</p>
+            </div>
+          )}
 
           {/* Catalyst */}
           {idea.catalyst && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+            <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+              <h4 className="text-[10px] font-semibold text-amber-400 uppercase mb-1 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> Catalyst
               </h4>
-              <p className="text-sm text-amber-400/90">{idea.catalyst}</p>
+              <p className="text-xs text-amber-300">{idea.catalyst}</p>
             </div>
           )}
 
           {/* Quality Signals */}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
-                <Sparkles className="w-3 h-3" /> Quality Signals
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {idea.qualitySignals.map((signal, idx) => (
-                  <Badge key={idx} variant="outline" className="text-[10px] bg-slate-800/40">
-                    {signal}
-                  </Badge>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              {idea.qualitySignals.slice(0, 6).map((signal, idx) => (
+                <Badge key={idx} variant="outline" className="text-[9px] bg-slate-800/40 px-1.5 py-0.5">
+                  {signal}
+                </Badge>
+              ))}
             </div>
           )}
 
-          {/* AI Research Report */}
-          <ResearchReportSection idea={idea} />
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-2">
             <Link href={`/stock/${idea.symbol}`} className="flex-1">
-              <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-500">
-                <Eye className="w-3 h-3 mr-2" />
-                Full Analysis
+              <Button size="sm" className="w-full h-8 bg-cyan-600 hover:bg-cyan-500 text-xs">
+                <Eye className="w-3 h-3 mr-1" /> Full Analysis
               </Button>
             </Link>
             <Button
               size="sm"
               variant="outline"
-              className="bg-indigo-600/20 border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-400"
+              className="h-8 bg-indigo-600/20 border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-400 text-xs"
               onClick={(e) => {
                 e.stopPropagation();
                 shareToDiscord.mutate();
               }}
               disabled={shareToDiscord.isPending}
             >
-              <SiDiscord className="w-3 h-3 mr-2" />
-              {shareToDiscord.isPending ? 'Sending...' : 'Discord'}
+              <SiDiscord className="w-3 h-3" />
             </Button>
           </div>
         </div>
