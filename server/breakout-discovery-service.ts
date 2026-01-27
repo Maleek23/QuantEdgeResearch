@@ -13,16 +13,23 @@ interface BreakoutCandidate {
   isRealMover?: boolean; // From actual market movers
 }
 
-// Fetch actual market movers from Yahoo Finance
+// Fetch actual market movers from Yahoo Finance (with timeout)
 async function fetchRealMarketMovers(): Promise<string[]> {
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
 
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 5000)
+    );
+
     // Get day gainers - these are ACTUAL surging stocks
-    const gainers = await yahooFinance.screener({
+    const gainersPromise = yahooFinance.screener({
       scrIds: 'day_gainers',
-      count: 25,
+      count: 20, // Reduced for speed
     }).catch(() => null);
+
+    const gainers = await Promise.race([gainersPromise, timeoutPromise]);
 
     const symbols: string[] = [];
 
@@ -34,7 +41,9 @@ async function fetchRealMarketMovers(): Promise<string[]> {
       }
     }
 
-    logger.info(`[SURGE-DETECTOR] Fetched ${symbols.length} real market movers: ${symbols.slice(0, 10).join(', ')}...`);
+    if (symbols.length > 0) {
+      logger.info(`[SURGE-DETECTOR] Fetched ${symbols.length} real market movers: ${symbols.slice(0, 8).join(', ')}...`);
+    }
     return symbols;
   } catch (e) {
     logger.error('[SURGE-DETECTOR] Failed to fetch market movers:', e);
@@ -100,9 +109,9 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
     // STEP 1: Fetch REAL market movers (actual surging stocks like LAZR +92%)
     const realMovers = await fetchRealMarketMovers();
 
-    // STEP 2: Add subset of our watchlist
+    // STEP 2: Add subset of our watchlist (smaller for speed)
     const shuffled = [...SURGE_WATCH_UNIVERSE].sort(() => Math.random() - 0.5);
-    const watchlistSubset = shuffled.slice(0, 30); // Reduced from 60 to 30
+    const watchlistSubset = shuffled.slice(0, 20); // Reduced for faster loading
 
     // STEP 3: Combine - real movers first (they're already surging!)
     const realMoverSet = new Set(realMovers);
@@ -269,8 +278,8 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
         }
       }
 
-      // Reduced delay for faster loading
-      await new Promise(r => setTimeout(r, 200));
+      // Minimal delay to avoid rate limiting
+      await new Promise(r => setTimeout(r, 100));
     }
     
     // Sort by tier priority, then by score
