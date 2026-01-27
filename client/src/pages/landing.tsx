@@ -399,7 +399,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section - Prominent */}
-      <section className="py-16 bg-gradient-to-b from-slate-900/50 to-slate-950" id="pricing" data-testid="section-pricing">
+      <section className="py-16 bg-gradient-to-b from-slate-900/50 to-slate-950 relative z-10" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
           {/* Header */}
           <div className="text-center mb-10">
@@ -539,7 +539,7 @@ export default function Landing() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-8" data-testid="section-testimonials">
+      <section className="py-8 relative z-10" data-testid="section-testimonials">
         <div className="container mx-auto px-6">
           <div className="text-center mb-8">
             <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Success Stories</Badge>
@@ -593,7 +593,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-6 bg-slate-900/30 border-y border-slate-800/50" data-testid="section-faq">
+      <section className="py-6 bg-slate-900/30 border-y border-slate-800/50 relative z-10" data-testid="section-faq">
         <div className="container mx-auto px-6">
           <h2 className="text-xl font-bold text-center text-white mb-6">FAQ</h2>
           <div className="max-w-2xl mx-auto">
@@ -620,7 +620,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="pt-8 pb-6 border-t border-slate-800 bg-slate-950">
+      <footer className="pt-8 pb-6 border-t border-slate-800 bg-slate-950 relative z-10">
         <div className="container mx-auto px-6">
           {/* Footer Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
