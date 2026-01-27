@@ -194,6 +194,11 @@ app.use((req, res, next) => {
     startConvergenceEngine();
     log('🎯 Convergence Engine started - correlating signals across news, options flow, insiders, sectors for pre-move detection');
 
+    // Start News→Options Pipeline (early surge detection from breaking news)
+    const { startNewsOptionsPipeline } = await import('./news-options-pipeline');
+    startNewsOptionsPipeline();
+    log('📰 News→Options Pipeline started - generating options plays from breaking news catalysts (RDW, USAR, BNAI-style surges)');
+
     // Start ML Retraining Service (self-improving models)
     // TODO: Implement ML retraining service
     // const { startMLRetrainingService } = await import('./ml-retraining-service');

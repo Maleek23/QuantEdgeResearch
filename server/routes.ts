@@ -21772,6 +21772,218 @@ Use this checklist before entering any trade:
   });
 
   // ============================================
+  // NEWS→OPTIONS PIPELINE - Breaking news to options plays
+  // Catches early surge signals like RDW, USAR, BNAI
+  // ============================================
+
+  // GET /api/news-options/status - Get pipeline status
+  app.get("/api/news-options/status", async (_req, res) => {
+    try {
+      const { getNewsOptionsPipelineStatus } = await import("./news-options-pipeline");
+      const status = getNewsOptionsPipelineStatus();
+      res.json({
+        success: true,
+        ...status,
+      });
+    } catch (error) {
+      logger.error("Error getting news-options pipeline status", { error });
+      res.status(500).json({ error: "Failed to get pipeline status" });
+    }
+  });
+
+  // POST /api/news-options/run - Manually trigger the pipeline
+  app.post("/api/news-options/run", requireAdminJWT, async (_req, res) => {
+    try {
+      const { runNewsOptionsPipeline } = await import("./news-options-pipeline");
+      const results = await runNewsOptionsPipeline();
+      res.json({
+        success: true,
+        message: `Pipeline complete: ${results.ideasGenerated} ideas generated, ${results.ideasIngested} ingested`,
+        ...results,
+      });
+    } catch (error) {
+      logger.error("Error running news-options pipeline", { error });
+      res.status(500).json({ error: "Failed to run pipeline" });
+    }
+  });
+
+  // POST /api/news-options/start - Start continuous monitoring
+  app.post("/api/news-options/start", requireAdminJWT, async (req, res) => {
+    try {
+      const { startNewsOptionsPipeline } = await import("./news-options-pipeline");
+      const intervalMs = req.body.intervalMs || 5 * 60 * 1000; // Default 5 minutes
+      startNewsOptionsPipeline(intervalMs);
+      res.json({
+        success: true,
+        message: `Pipeline started with ${intervalMs / 1000}s interval`,
+      });
+    } catch (error) {
+      logger.error("Error starting news-options pipeline", { error });
+      res.status(500).json({ error: "Failed to start pipeline" });
+    }
+  });
+
+  // POST /api/news-options/stop - Stop continuous monitoring
+  app.post("/api/news-options/stop", requireAdminJWT, async (_req, res) => {
+    try {
+      const { stopNewsOptionsPipeline } = await import("./news-options-pipeline");
+      stopNewsOptionsPipeline();
+      res.json({
+        success: true,
+        message: "Pipeline stopped",
+      });
+    } catch (error) {
+      logger.error("Error stopping news-options pipeline", { error });
+      res.status(500).json({ error: "Failed to stop pipeline" });
+    }
+  });
+
+  // ============================================
+  // MULTI-BROKER INTEGRATION - Webull, Robinhood, Tradier, etc.
+  // Supports both API (Tradier) and CSV import (Webull, Robinhood)
+  // ============================================
+
+  // GET /api/broker/supported - Get list of supported brokers
+  app.get("/api/broker/supported", async (_req, res) => {
+    try {
+      const { SUPPORTED_BROKERS, getCSVTemplate } = await import("./broker-integration");
+      res.json({
+        brokers: SUPPORTED_BROKERS,
+        csvTemplate: getCSVTemplate(),
+      });
+    } catch (error) {
+      logger.error("Error getting supported brokers", { error });
+      res.status(500).json({ error: "Failed to get broker list" });
+    }
+  });
+
+  // POST /api/broker/import - Import positions from CSV (Webull, Robinhood, etc.)
+  app.post("/api/broker/import", isAuthenticated, async (req: any, res) => {
+    try {
+      const { importPositionsFromCSV } = await import("./broker-integration");
+      const { csvContent, brokerType } = req.body;
+
+      if (!csvContent) {
+        return res.status(400).json({ error: "CSV content required" });
+      }
+
+      // Use session ID or user ID for storage
+      const sessionId = req.session?.id || req.user?.id || 'default';
+      const result = importPositionsFromCSV(csvContent, brokerType || 'manual', sessionId);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          positionCount: result.positions.length,
+          positions: result.positions,
+        });
+      } else {
+        res.status(400).json({ error: result.error });
+      }
+    } catch (error) {
+      logger.error("Error importing broker positions", { error });
+      res.status(500).json({ error: "Failed to import positions" });
+    }
+  });
+
+  // GET /api/broker/portfolio/:brokerType - Get unified portfolio with analysis
+  app.get("/api/broker/portfolio/:brokerType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getUnifiedPortfolio, analyzeUnifiedPortfolio } = await import("./broker-integration");
+      const { brokerType } = req.params;
+      const { accountId } = req.query;
+
+      // Use session ID for CSV-based brokers, accountId for API brokers
+      const sessionId = req.session?.id || req.user?.id || 'default';
+      const idToUse = brokerType === 'tradier' ? (accountId as string) : sessionId;
+
+      const portfolio = await getUnifiedPortfolio(brokerType, idToUse);
+
+      if (!portfolio) {
+        return res.status(404).json({
+          error: brokerType === 'tradier'
+            ? "No Tradier positions found. Check account ID."
+            : "No imported positions found. Upload CSV first.",
+        });
+      }
+
+      // Analyze portfolio for insights
+      const analysis = await analyzeUnifiedPortfolio(portfolio);
+
+      res.json(analysis);
+    } catch (error) {
+      logger.error("Error getting broker portfolio", { error });
+      res.status(500).json({ error: "Failed to get portfolio" });
+    }
+  });
+
+  // GET /api/broker/status/:brokerType - Get broker connection status
+  app.get("/api/broker/status/:brokerType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getBrokerConnectionStatus } = await import("./broker-integration");
+      const { brokerType } = req.params;
+
+      const sessionId = req.session?.id || req.user?.id || 'default';
+      const status = await getBrokerConnectionStatus(brokerType, sessionId);
+
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting broker status", { error });
+      res.status(500).json({ error: "Failed to get broker status" });
+    }
+  });
+
+  // DELETE /api/broker/positions - Clear imported positions
+  app.delete("/api/broker/positions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { clearImportedPositions } = await import("./broker-integration");
+      const sessionId = req.session?.id || req.user?.id || 'default';
+
+      clearImportedPositions(sessionId);
+
+      res.json({ success: true, message: "Positions cleared" });
+    } catch (error) {
+      logger.error("Error clearing broker positions", { error });
+      res.status(500).json({ error: "Failed to clear positions" });
+    }
+  });
+
+  // GET /api/broker/tradier/accounts - Get Tradier accounts (API broker only)
+  app.get("/api/broker/tradier/accounts", isAuthenticated, async (_req, res) => {
+    try {
+      const { getTradierUserProfile } = await import("./tradier-api");
+      const profile = await getTradierUserProfile();
+
+      if (!profile) {
+        return res.status(404).json({ error: "Tradier account not connected" });
+      }
+
+      res.json({
+        userId: profile.userId,
+        accounts: profile.accounts,
+      });
+    } catch (error) {
+      logger.error("Error getting Tradier accounts", { error });
+      res.status(500).json({ error: "Failed to get Tradier accounts" });
+    }
+  });
+
+  // GET /api/broker/tradier/analyze/:accountId - Analyze Tradier portfolio
+  app.get("/api/broker/tradier/analyze/:accountId", isAuthenticated, async (req, res) => {
+    try {
+      const { analyzePortfolioPositions } = await import("./tradier-api");
+      const { accountId } = req.params;
+
+      const analysis = await analyzePortfolioPositions(accountId);
+
+      res.json(analysis);
+    } catch (error) {
+      logger.error("Error analyzing Tradier portfolio", { error });
+      res.status(500).json({ error: "Failed to analyze portfolio" });
+    }
+  });
+
+  // ============================================
   // MORNING PREVIEW - 8:30 AM CT trading preview
   // ============================================
 

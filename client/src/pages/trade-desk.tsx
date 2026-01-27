@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 import { getLetterGrade, getGradeStyle } from "@shared/grading";
+import BrokerImport from "@/components/broker-import";
 
 // ============================================
 // MARKET PULSE HEADER
@@ -90,6 +91,164 @@ function MarketPulseHeader() {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ============================================
+// TOP CONVICTION SECTION - A/A+ Plays Only
+// ============================================
+function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
+  // Filter for only A+/A/A- grade plays (elite setups)
+  const topConvictionPlays = useMemo(() => {
+    const elite = ideas.filter(i => {
+      const grade = i.probabilityBand || '';
+      return ['A+', 'A', 'A-'].includes(grade) &&
+             (i.outcomeStatus === 'open' || !i.outcomeStatus);
+    });
+
+    // Sort by confidence descending, take top 4
+    return elite
+      .sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))
+      .slice(0, 4);
+  }, [ideas]);
+
+  if (topConvictionPlays.length === 0) {
+    return null; // Don't show section if no elite plays
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
+          <Star className="w-5 h-5 text-amber-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            Top Conviction
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+              A/A+ ONLY
+            </Badge>
+          </h2>
+          <p className="text-xs text-slate-500">Highest grade plays - don't miss these</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {topConvictionPlays.map((idea) => {
+          const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+          const style = getGradeStyle(grade);
+          const isLong = idea.direction === 'LONG' || idea.direction === 'long';
+          const isOption = idea.assetType === 'option' || idea.optionType;
+          const confidence = idea.confidenceScore || 50;
+
+          // Calculate potential profit
+          const potentialProfit = idea.targetPrice && idea.entryPrice
+            ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100)
+            : 0;
+
+          return (
+            <Link key={idea.id || `${idea.symbol}-${idea.timestamp}`} href={`/stock/${idea.symbol}`}>
+              <Card className={cn(
+                "relative overflow-hidden cursor-pointer transition-all duration-300",
+                "bg-gradient-to-br from-amber-500/5 via-slate-900/80 to-slate-900/90",
+                "border-amber-500/30 hover:border-amber-400/60",
+                "hover:shadow-lg hover:shadow-amber-500/10",
+                "hover:-translate-y-1"
+              )}>
+                {/* Glow effect for elite plays */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-50" />
+
+                <div className="relative p-4">
+                  {/* Header: Symbol + Grade */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                        isLong
+                          ? "bg-gradient-to-br from-emerald-500 to-green-600 text-white"
+                          : "bg-gradient-to-br from-red-500 to-rose-600 text-white"
+                      )}>
+                        {idea.symbol.slice(0, 2)}
+                      </div>
+                      <div>
+                        <span className="font-bold text-white text-lg">{idea.symbol}</span>
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                            isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          )}>
+                            {isLong ? 'LONG' : 'SHORT'}
+                          </span>
+                          {isOption && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+                              {idea.optionType?.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge className={cn(
+                      "text-base font-bold px-3 py-1 border-2",
+                      style.bgClass, style.textClass,
+                      "shadow-lg"
+                    )}>
+                      {grade}
+                    </Badge>
+                  </div>
+
+                  {/* Confidence + Target */}
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="text-center p-2 rounded-lg bg-slate-800/60">
+                      <div className="text-[10px] text-slate-500 uppercase">Confidence</div>
+                      <div className={cn(
+                        "text-xl font-bold",
+                        confidence >= 80 ? "text-emerald-400" : "text-amber-400"
+                      )}>
+                        {confidence}%
+                      </div>
+                    </div>
+                    <div className="text-center p-2 rounded-lg bg-slate-800/60">
+                      <div className="text-[10px] text-slate-500 uppercase">Target</div>
+                      <div className="text-xl font-bold text-emerald-400">
+                        +{potentialProfit.toFixed(0)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Levels */}
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="text-center">
+                      <div className="text-slate-500">Entry</div>
+                      <div className="font-mono text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
+                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                    <div className="text-center">
+                      <div className="text-emerald-400">Target</div>
+                      <div className="font-mono text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
+                    </div>
+                  </div>
+
+                  {/* Catalyst hint if available */}
+                  {idea.catalyst && (
+                    <div className="mt-3 pt-2 border-t border-slate-700/50">
+                      <p className="text-[10px] text-amber-400/80 truncate flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        {idea.catalyst.slice(0, 50)}...
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* View Analysis indicator */}
+                <div className="absolute bottom-0 right-0 p-2">
+                  <ChevronRight className="w-4 h-4 text-amber-400/50" />
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -731,6 +890,78 @@ function HotSymbolsCard() {
 }
 
 // ============================================
+// IDEA DRIVER HELPER - Explains what's propelling the trade
+// ============================================
+interface IdeaDriver {
+  type: string;
+  label: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+}
+
+function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
+  const drivers: IdeaDriver[] = [];
+  const source = (idea.source || '').toLowerCase();
+  const catalyst = (idea.catalyst || '').toLowerCase();
+  const signals = idea.qualitySignals || [];
+
+  // Primary driver based on source
+  const sourceDriverMap: Record<string, IdeaDriver> = {
+    'ai_analysis': { type: 'ai', label: 'AI', icon: '🤖', color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'ai': { type: 'ai', label: 'AI', icon: '🤖', color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'quant_signal': { type: 'quant', label: 'Quant', icon: '📊', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'quant': { type: 'quant', label: 'Quant', icon: '📊', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'chart_analysis': { type: 'technical', label: 'Chart', icon: '📈', color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    'surge_detection': { type: 'momentum', label: 'Surge', icon: '🔥', color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
+    'market_scanner': { type: 'momentum', label: 'Mover', icon: '📡', color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
+    'flow': { type: 'flow', label: 'Flow', icon: '💰', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'options_flow': { type: 'flow', label: 'Options', icon: '💰', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'social_sentiment': { type: 'sentiment', label: 'Social', icon: '💬', color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
+    'convergence': { type: 'multi', label: 'Multi-Signal', icon: '🎯', color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+    'bot_screener': { type: 'screener', label: 'Screener', icon: '🔍', color: 'text-teal-400', bgColor: 'bg-teal-500/20' },
+    'watchlist': { type: 'watchlist', label: 'Watchlist', icon: '⭐', color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    'earnings_play': { type: 'catalyst', label: 'Earnings', icon: '📅', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
+  };
+
+  // Add primary source driver
+  const primaryDriver = sourceDriverMap[source];
+  if (primaryDriver) {
+    drivers.push(primaryDriver);
+  }
+
+  // Check for news catalyst
+  if (idea.isNewsCatalyst || catalyst.includes('news') || catalyst.includes('announcement') || catalyst.includes('breaking')) {
+    drivers.push({ type: 'news', label: 'News', icon: '📰', color: 'text-rose-400', bgColor: 'bg-rose-500/20' });
+  }
+
+  // Check for earnings catalyst
+  if (idea.earningsBeat !== null || catalyst.includes('earning') || catalyst.includes('eps') || catalyst.includes('revenue')) {
+    const beatMiss = idea.earningsBeat ? 'Beat' : idea.earningsBeat === false ? 'Miss' : 'Earnings';
+    drivers.push({ type: 'earnings', label: beatMiss, icon: '📊', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' });
+  }
+
+  // Check signals for technical patterns
+  const technicalPatterns = ['rsi', 'macd', 'breakout', 'support', 'resistance', 'volume', 'momentum', 'trend'];
+  const hasTechnical = signals.some(s => technicalPatterns.some(p => s.toLowerCase().includes(p)));
+  if (hasTechnical && !drivers.find(d => d.type === 'technical')) {
+    drivers.push({ type: 'technical', label: 'Technical', icon: '📈', color: 'text-blue-400', bgColor: 'bg-blue-500/20' });
+  }
+
+  // Check for insider/pre-market indicators
+  if (catalyst.includes('insider') || catalyst.includes('pre-market') || catalyst.includes('premarket')) {
+    drivers.push({ type: 'insider', label: 'Insider', icon: '🔐', color: 'text-amber-400', bgColor: 'bg-amber-500/20' });
+  }
+
+  // Default if no drivers found
+  if (drivers.length === 0) {
+    drivers.push({ type: 'analysis', label: 'Analysis', icon: '🔬', color: 'text-slate-400', bgColor: 'bg-slate-500/20' });
+  }
+
+  return drivers.slice(0, 3); // Max 3 driver tags
+}
+
+// ============================================
 // COMPACT TRADE IDEA CARD (Landing Page Style)
 // ============================================
 function TradeIdeaCard({ idea, expanded, onToggle }: {
@@ -745,6 +976,9 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   const isOption = idea.assetType === 'option' || idea.optionType;
   const isCall = idea.optionType === 'call';
   const confidence = idea.confidenceScore || 50;
+
+  // Get actual drivers from idea data
+  const ideaDrivers = useMemo(() => getIdeaDrivers(idea), [idea]);
 
   // Discord share mutation
   const shareToDiscord = useMutation({
@@ -771,19 +1005,10 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
     },
   });
 
-  // Simulated engine scores based on confidence (in real app, these would come from API)
-  const engineScores = useMemo(() => {
-    const base = confidence;
-    const variance = () => Math.round(base + (Math.random() - 0.5) * 20);
-    return [
-      { name: 'ML', score: Math.min(99, Math.max(40, variance())), color: 'text-pink-400 bg-pink-500/10' },
-      { name: 'AI', score: Math.min(99, Math.max(40, variance())), color: 'text-purple-400 bg-purple-500/10' },
-      { name: 'QT', score: Math.min(99, Math.max(40, variance())), color: 'text-blue-400 bg-blue-500/10' },
-      { name: 'FL', score: Math.min(99, Math.max(40, variance())), color: 'text-cyan-400 bg-cyan-500/10' },
-      { name: 'ST', score: Math.min(99, Math.max(40, variance())), color: 'text-amber-400 bg-amber-500/10' },
-      { name: 'TC', score: Math.min(99, Math.max(40, variance())), color: 'text-green-400 bg-green-500/10' },
-    ];
-  }, [confidence, idea.symbol]);
+  // Get top quality signals for display
+  const topSignals = useMemo(() => {
+    return (idea.qualitySignals || []).slice(0, 4);
+  }, [idea.qualitySignals]);
 
   // Calculate R:R
   const riskReward = useMemo(() => {
@@ -841,14 +1066,22 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
           </div>
         </div>
 
-        {/* 6 Engine Scores - Inline Row */}
-        <div className="flex gap-1 mb-3">
-          {engineScores.map((e) => (
-            <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
-              <div className="text-[8px] text-slate-500 uppercase">{e.name}</div>
-              <div className={`text-xs font-bold ${e.color.split(' ')[0]}`}>{e.score}</div>
-            </div>
+        {/* Driver Tags - What's propelling this idea */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {ideaDrivers.map((driver) => (
+            <span key={driver.type} className={cn(
+              "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium",
+              driver.bgColor, driver.color
+            )}>
+              <span>{driver.icon}</span>
+              <span>{driver.label}</span>
+            </span>
           ))}
+          {topSignals.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-300">
+              +{topSignals.length} signals
+            </span>
+          )}
         </div>
 
         {/* Price Levels - Compact Row */}
@@ -916,6 +1149,17 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
                 <Zap className="w-3 h-3" /> Catalyst
               </h4>
               <p className="text-xs text-amber-300">{idea.catalyst}</p>
+            </div>
+          )}
+
+          {/* Source Engine */}
+          {idea.source && (
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>Generated by:</span>
+              <span className="font-medium text-slate-300">{idea.source.replace(/_/g, ' ').toUpperCase()}</span>
+              {idea.timestamp && (
+                <span className="text-slate-600">• {new Date(idea.timestamp).toLocaleDateString()}</span>
+              )}
             </div>
           )}
 
@@ -1343,20 +1587,90 @@ export default function TradeDeskRedesigned() {
     refetchInterval: 60000,   // Refresh every minute
   });
 
-  // Filter helpers for tabs
-  const stockIdeas = useMemo(() =>
-    tradeIdeas.filter(i =>
+  // ============================================
+  // DEDUPLICATION & EXPIRY FILTER LOGIC
+  // Max 2 ideas per symbol/direction/type, filter expired
+  // ============================================
+  const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 2): TradeIdea[] => {
+    const now = new Date();
+
+    // First, filter out expired options
+    const nonExpired = ideas.filter(idea => {
+      // If it has an expiry date and it's in the past, filter it out
+      if (idea.expiryDate) {
+        const expiryDate = new Date(idea.expiryDate);
+        if (expiryDate < now) return false;
+      }
+      // Also filter out ideas older than 48 hours for day trades
+      if (idea.holdingPeriod === 'day' && idea.timestamp) {
+        const ideaTime = new Date(idea.timestamp);
+        const hoursSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
+        if (hoursSince > 48) return false;
+      }
+      // Filter out ideas older than 7 days for swing trades
+      if ((idea.holdingPeriod === 'swing' || !idea.holdingPeriod) && idea.timestamp) {
+        const ideaTime = new Date(idea.timestamp);
+        const daysSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince > 7) return false;
+      }
+      return true;
+    });
+
+    // Group by symbol + direction + optionType (for options)
+    const groups = new Map<string, TradeIdea[]>();
+    for (const idea of nonExpired) {
+      const direction = (idea.direction || 'long').toLowerCase();
+      const optType = idea.optionType || 'stock';
+      const key = `${idea.symbol}-${direction}-${optType}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(idea);
+    }
+
+    // For each group, sort by confidence and take top N
+    const result: TradeIdea[] = [];
+    for (const [_key, groupIdeas] of groups) {
+      // Sort by confidence descending
+      groupIdeas.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+      // Take only top maxPerGroup
+      result.push(...groupIdeas.slice(0, maxPerGroup));
+    }
+
+    // Re-sort final result by confidence
+    result.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+
+    return result;
+  };
+
+  // Filter helpers for tabs - with deduplication
+  const stockIdeas = useMemo(() => {
+    const filtered = tradeIdeas.filter(i =>
       i.assetType === 'stock' || (!i.assetType && !i.optionType)
-    ), [tradeIdeas]);
+    );
+    return deduplicateAndLimit(filtered, 2);
+  }, [tradeIdeas]);
 
-  const optionIdeas = useMemo(() =>
-    tradeIdeas.filter(i => i.assetType === 'option' || i.optionType), [tradeIdeas]);
+  const optionIdeas = useMemo(() => {
+    const filtered = tradeIdeas.filter(i => i.assetType === 'option' || i.optionType);
+    return deduplicateAndLimit(filtered, 2);
+  }, [tradeIdeas]);
 
-  const cryptoIdeas = useMemo(() =>
-    tradeIdeas.filter(i => i.assetType === 'crypto'), [tradeIdeas]);
+  const cryptoIdeas = useMemo(() => {
+    const filtered = tradeIdeas.filter(i => i.assetType === 'crypto');
+    return deduplicateAndLimit(filtered, 2);
+  }, [tradeIdeas]);
 
-  const futuresIdeas = useMemo(() =>
-    tradeIdeas.filter(i => i.assetType === 'future'), [tradeIdeas]);
+  const futuresIdeas = useMemo(() => {
+    const filtered = tradeIdeas.filter(i => i.assetType === 'future');
+    return deduplicateAndLimit(filtered, 2);
+  }, [tradeIdeas]);
+
+  // All ideas - deduplicated (for "All Ideas" tab)
+  const allIdeasDeduplicated = useMemo(() => {
+    return deduplicateAndLimit(tradeIdeas, 2);
+  }, [tradeIdeas]);
 
   if (error) {
     return (
@@ -1476,10 +1790,17 @@ export default function TradeDeskRedesigned() {
               <Globe className="w-4 h-4 mr-2" />
               Futures ({futuresIdeas.length})
             </TabsTrigger>
+            <TabsTrigger value="portfolio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+              <PieChart className="w-4 h-4 mr-2" />
+              Portfolio
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* TOP CONVICTION - A/A+ Plays Only */}
+            <TopConvictionSection ideas={allIdeasDeduplicated} />
+
             {/* Stats Cards */}
             <StatsOverview ideas={tradeIdeas} />
 
@@ -1547,7 +1868,7 @@ export default function TradeDeskRedesigned() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {tradeIdeas.slice(0, 5).map((idea) => (
+                  {allIdeasDeduplicated.slice(0, 5).map((idea) => (
                     <TradeIdeaRow key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
                   ))}
                 </div>
@@ -1557,7 +1878,7 @@ export default function TradeDeskRedesigned() {
 
           {/* All Trade Ideas Tab */}
           <TabsContent value="ideas" className="mt-6">
-            <TradeIdeasList ideas={tradeIdeas} title="All Trade Ideas" />
+            <TradeIdeasList ideas={allIdeasDeduplicated} title="All Trade Ideas" />
           </TabsContent>
 
           {/* Stocks Tab */}
@@ -1592,6 +1913,11 @@ export default function TradeDeskRedesigned() {
             ) : (
               <TradeIdeasList ideas={futuresIdeas} title="Futures Trade Ideas" />
             )}
+          </TabsContent>
+
+          {/* Portfolio Tab - Broker Import */}
+          <TabsContent value="portfolio" className="mt-6">
+            <BrokerImport />
           </TabsContent>
         </Tabs>
       </div>

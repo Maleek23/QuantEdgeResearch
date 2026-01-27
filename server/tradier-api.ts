@@ -731,15 +731,15 @@ export async function searchSymbolLookup(query: string, apiKey?: string): Promis
 
     const data = await response.json();
     const securities = data.securities?.security;
-    
+
     if (!securities) {
       return [];
     }
 
     const results = Array.isArray(securities) ? securities : [securities];
-    
+
     logAPISuccess('Tradier', '/markets/lookup', Date.now() - startTime);
-    
+
     return results
       .filter((s: any) => s.type === 'stock' || s.type === 'etf')
       .slice(0, 10)
@@ -753,4 +753,460 @@ export async function searchSymbolLookup(query: string, apiKey?: string): Promis
     logger.error('Tradier lookup error:', error);
     return [];
   }
+}
+
+// ============================================
+// BROKER ACCOUNT & PORTFOLIO INTEGRATION
+// Real positions and balances from Tradier brokerage
+// ============================================
+
+export interface TradierAccountInfo {
+  accountNumber: string;
+  type: 'cash' | 'margin' | 'ira' | 'roth_ira' | 'rollover_ira' | 'traditional_ira';
+  classification: 'individual' | 'joint' | 'trust' | 'corporate';
+  dayTrader: boolean;
+  status: 'active' | 'inactive' | 'restricted';
+}
+
+export interface TradierPosition {
+  symbol: string;
+  quantity: number;
+  costBasis: number;
+  dateAcquired?: string;
+  id?: number;
+}
+
+export interface TradierBalance {
+  accountNumber: string;
+  accountType: string;
+  totalCash: number;
+  totalEquity: number;
+  marketValue: number;
+  openPL: number;
+  closePL: number;
+  buyingPower: number;
+  pendingCash: number;
+  unclearedFunds: number;
+}
+
+export interface PositionAnalysis {
+  symbol: string;
+  quantity: number;
+  costBasis: number;
+  currentPrice: number;
+  currentValue: number;
+  unrealizedPL: number;
+  unrealizedPLPercent: number;
+  dayChange: number;
+  dayChangePercent: number;
+  isOption: boolean;
+  optionDetails?: {
+    underlying: string;
+    optionType: 'call' | 'put';
+    strike: number;
+    expiry: string;
+    daysToExpiry: number;
+  };
+  // Analysis signals
+  signals: {
+    trend: 'bullish' | 'bearish' | 'neutral';
+    momentum: 'strong' | 'weak' | 'neutral';
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    suggestion: string;
+  };
+}
+
+// Get user profile and accounts
+export async function getTradierUserProfile(apiKey?: string): Promise<{ userId: string; accounts: TradierAccountInfo[] } | null> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return null;
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/user/profile`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      logger.error(`Tradier profile error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const profile = data.profile;
+
+    if (!profile) {
+      return null;
+    }
+
+    const accounts = profile.account || [];
+    const accountList = Array.isArray(accounts) ? accounts : [accounts];
+
+    return {
+      userId: profile.id,
+      accounts: accountList.map((acc: any) => ({
+        accountNumber: acc.account_number,
+        type: acc.type,
+        classification: acc.classification,
+        dayTrader: acc.day_trader === true,
+        status: acc.status
+      }))
+    };
+  } catch (error) {
+    logger.error('Tradier profile fetch error:', error);
+    return null;
+  }
+}
+
+// Get account balances
+export async function getTradierBalances(accountId: string, apiKey?: string): Promise<TradierBalance | null> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return null;
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/accounts/${accountId}/balances`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      logger.error(`Tradier balances error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const balances = data.balances;
+
+    if (!balances) {
+      return null;
+    }
+
+    // Handle both cash and margin accounts
+    const cash = balances.cash || balances.margin || {};
+
+    return {
+      accountNumber: accountId,
+      accountType: balances.account_type || 'cash',
+      totalCash: cash.cash_available || 0,
+      totalEquity: balances.total_equity || 0,
+      marketValue: balances.market_value || 0,
+      openPL: balances.open_pl || 0,
+      closePL: balances.close_pl || 0,
+      buyingPower: cash.buying_power || balances.buying_power || 0,
+      pendingCash: cash.pending_cash || 0,
+      unclearedFunds: cash.uncleared_funds || 0
+    };
+  } catch (error) {
+    logger.error('Tradier balances fetch error:', error);
+    return null;
+  }
+}
+
+// Get account positions
+export async function getTradierPositions(accountId: string, apiKey?: string): Promise<TradierPosition[]> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return [];
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/accounts/${accountId}/positions`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      logger.error(`Tradier positions error: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const positions = data.positions?.position;
+
+    if (!positions) {
+      return [];
+    }
+
+    const positionList = Array.isArray(positions) ? positions : [positions];
+
+    return positionList.map((pos: any) => ({
+      symbol: pos.symbol,
+      quantity: pos.quantity,
+      costBasis: pos.cost_basis,
+      dateAcquired: pos.date_acquired,
+      id: pos.id
+    }));
+  } catch (error) {
+    logger.error('Tradier positions fetch error:', error);
+    return [];
+  }
+}
+
+// Parse OCC option symbol to components
+export function parseOptionSymbol(occSymbol: string): { underlying: string; expiry: string; optionType: 'call' | 'put'; strike: number } | null {
+  // OCC format: SYMBOL + YYMMDD + C/P + 8-digit strike
+  // Example: AAPL240119C00175000
+  const match = occSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, underlying, dateStr, typeChar, strikeStr] = match;
+
+  // Parse date (YYMMDD)
+  const year = 2000 + parseInt(dateStr.slice(0, 2), 10);
+  const month = dateStr.slice(2, 4);
+  const day = dateStr.slice(4, 6);
+  const expiry = `${year}-${month}-${day}`;
+
+  // Parse strike (8 digits, divided by 1000)
+  const strike = parseInt(strikeStr, 10) / 1000;
+
+  return {
+    underlying,
+    expiry,
+    optionType: typeChar === 'C' ? 'call' : 'put',
+    strike
+  };
+}
+
+// Analyze positions with current market data
+export async function analyzePortfolioPositions(accountId: string, apiKey?: string): Promise<{
+  positions: PositionAnalysis[];
+  summary: {
+    totalValue: number;
+    totalCost: number;
+    totalUnrealizedPL: number;
+    totalUnrealizedPLPercent: number;
+    optionsCount: number;
+    stocksCount: number;
+    riskScore: number;
+    topRisks: string[];
+    suggestions: string[];
+  };
+}> {
+  const positions = await getTradierPositions(accountId, apiKey);
+
+  if (positions.length === 0) {
+    return {
+      positions: [],
+      summary: {
+        totalValue: 0,
+        totalCost: 0,
+        totalUnrealizedPL: 0,
+        totalUnrealizedPLPercent: 0,
+        optionsCount: 0,
+        stocksCount: 0,
+        riskScore: 0,
+        topRisks: [],
+        suggestions: ['No positions found - portfolio is empty']
+      }
+    };
+  }
+
+  const analyzedPositions: PositionAnalysis[] = [];
+  let totalValue = 0;
+  let totalCost = 0;
+  let optionsCount = 0;
+  let stocksCount = 0;
+  const risks: string[] = [];
+  const suggestions: string[] = [];
+
+  for (const pos of positions) {
+    const isOption = pos.symbol.length > 6 && /\d{6}[CP]\d{8}$/.test(pos.symbol);
+
+    let currentPrice = 0;
+    let dayChange = 0;
+    let dayChangePercent = 0;
+    let optionDetails: PositionAnalysis['optionDetails'] | undefined;
+
+    if (isOption) {
+      optionsCount++;
+      const parsed = parseOptionSymbol(pos.symbol);
+
+      if (parsed) {
+        optionDetails = {
+          underlying: parsed.underlying,
+          optionType: parsed.optionType,
+          strike: parsed.strike,
+          expiry: parsed.expiry,
+          daysToExpiry: Math.ceil((new Date(parsed.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        };
+
+        // Get option quote
+        const optQuote = await getOptionQuote({ occSymbol: pos.symbol }, apiKey);
+        if (optQuote) {
+          currentPrice = optQuote.last || optQuote.mid;
+        }
+
+        // Risk check: Expiring soon
+        if (optionDetails.daysToExpiry <= 1) {
+          risks.push(`${parsed.underlying} option expires TODAY/TOMORROW`);
+        } else if (optionDetails.daysToExpiry <= 3) {
+          risks.push(`${parsed.underlying} option expires in ${optionDetails.daysToExpiry} days`);
+        }
+      }
+    } else {
+      stocksCount++;
+      const quote = await getTradierQuote(pos.symbol, apiKey);
+      if (quote) {
+        currentPrice = quote.last;
+        dayChange = quote.change;
+        dayChangePercent = quote.change_percentage;
+      }
+    }
+
+    const currentValue = currentPrice * pos.quantity * (isOption ? 100 : 1);
+    const unrealizedPL = currentValue - pos.costBasis;
+    const unrealizedPLPercent = pos.costBasis > 0 ? (unrealizedPL / pos.costBasis) * 100 : 0;
+
+    totalValue += currentValue;
+    totalCost += pos.costBasis;
+
+    // Determine signals
+    let trend: PositionAnalysis['signals']['trend'] = 'neutral';
+    let momentum: PositionAnalysis['signals']['momentum'] = 'neutral';
+    let riskLevel: PositionAnalysis['signals']['riskLevel'] = 'medium';
+    let suggestion = 'Hold position';
+
+    if (unrealizedPLPercent > 50) {
+      trend = 'bullish';
+      momentum = 'strong';
+      suggestion = 'Consider taking partial profits';
+    } else if (unrealizedPLPercent > 20) {
+      trend = 'bullish';
+      momentum = 'weak';
+      suggestion = 'Trailing stop recommended';
+    } else if (unrealizedPLPercent < -30) {
+      trend = 'bearish';
+      momentum = 'strong';
+      riskLevel = 'high';
+      suggestion = 'Evaluate exit - significant loss';
+    } else if (unrealizedPLPercent < -15) {
+      trend = 'bearish';
+      momentum = 'weak';
+      riskLevel = 'medium';
+      suggestion = 'Review thesis - moderate loss';
+    }
+
+    // Options-specific risk
+    if (isOption && optionDetails) {
+      if (optionDetails.daysToExpiry <= 1) {
+        riskLevel = 'critical';
+        suggestion = 'EXIT TODAY - expires imminently';
+        risks.push(`CRITICAL: ${optionDetails.underlying} option expires very soon`);
+      } else if (optionDetails.daysToExpiry <= 3 && unrealizedPLPercent < 0) {
+        riskLevel = 'high';
+        suggestion = 'Close position - theta decay accelerating';
+      }
+    }
+
+    analyzedPositions.push({
+      symbol: pos.symbol,
+      quantity: pos.quantity,
+      costBasis: pos.costBasis,
+      currentPrice,
+      currentValue,
+      unrealizedPL,
+      unrealizedPLPercent,
+      dayChange,
+      dayChangePercent,
+      isOption,
+      optionDetails,
+      signals: {
+        trend,
+        momentum,
+        riskLevel,
+        suggestion
+      }
+    });
+  }
+
+  // Calculate overall risk score (0-100)
+  const criticalCount = analyzedPositions.filter(p => p.signals.riskLevel === 'critical').length;
+  const highCount = analyzedPositions.filter(p => p.signals.riskLevel === 'high').length;
+  const riskScore = Math.min(100, criticalCount * 40 + highCount * 20 + (optionsCount / positions.length) * 20);
+
+  // Portfolio-level suggestions
+  if (optionsCount > stocksCount * 2) {
+    suggestions.push('Portfolio is options-heavy - consider balancing with stocks');
+  }
+  if (criticalCount > 0) {
+    suggestions.push(`${criticalCount} position(s) need immediate attention`);
+  }
+  if (totalCost > 0 && (totalValue - totalCost) / totalCost < -0.2) {
+    suggestions.push('Portfolio down >20% - review all positions');
+  }
+
+  const totalUnrealizedPL = totalValue - totalCost;
+  const totalUnrealizedPLPercent = totalCost > 0 ? (totalUnrealizedPL / totalCost) * 100 : 0;
+
+  return {
+    positions: analyzedPositions,
+    summary: {
+      totalValue,
+      totalCost,
+      totalUnrealizedPL,
+      totalUnrealizedPLPercent,
+      optionsCount,
+      stocksCount,
+      riskScore,
+      topRisks: risks.slice(0, 5),
+      suggestions
+    }
+  };
+}
+
+// Get linked broker status
+export async function getBrokerStatus(apiKey?: string): Promise<{
+  connected: boolean;
+  accounts: number;
+  primaryAccount?: string;
+  totalEquity?: number;
+  positionCount?: number;
+} | null> {
+  const profile = await getTradierUserProfile(apiKey);
+
+  if (!profile || profile.accounts.length === 0) {
+    return {
+      connected: false,
+      accounts: 0
+    };
+  }
+
+  const primaryAccount = profile.accounts.find(a => a.status === 'active');
+  if (!primaryAccount) {
+    return {
+      connected: true,
+      accounts: profile.accounts.length
+    };
+  }
+
+  const balances = await getTradierBalances(primaryAccount.accountNumber, apiKey);
+  const positions = await getTradierPositions(primaryAccount.accountNumber, apiKey);
+
+  return {
+    connected: true,
+    accounts: profile.accounts.length,
+    primaryAccount: primaryAccount.accountNumber,
+    totalEquity: balances?.totalEquity,
+    positionCount: positions.length
+  };
 }

@@ -49,6 +49,9 @@ export interface IngestionInput {
   holdingPeriod?: 'day' | 'swing' | 'position';
   currentPrice?: number;
   targetPrice?: number;
+  suggestedEntry?: number; // For options, the entry price of the underlying
+  suggestedTarget?: number; // For options, the target price of the underlying
+  suggestedStop?: number; // For options, the stop loss of the underlying
   stopLoss?: number;
   catalyst?: string;
   analysis?: string;
@@ -57,6 +60,89 @@ export interface IngestionInput {
   strikePrice?: number;
   expiryDate?: string;
   sourceMetadata?: Record<string, any>;
+}
+
+// Options profit targets based on DTE (Days To Expiry)
+// Options are leveraged instruments - we need MEANINGFUL moves to profit
+const OPTIONS_MIN_TARGET_BY_DTE: Record<string, number> = {
+  '0dte': 50,      // Same-day expiry: need 50%+ target
+  '1dte': 50,      // 1-day expiry: need 50%+ target
+  'weekly': 35,    // 2-7 DTE: need 35%+ target
+  'biweekly': 30,  // 8-14 DTE: need 30%+ target
+  'monthly': 25,   // 15-30 DTE: need 25%+ target
+  'leaps': 20,     // 30+ DTE: need 20%+ target
+};
+
+/**
+ * Calculate DTE category from expiry date
+ */
+function getDTECategory(expiryDate?: string): string {
+  if (!expiryDate) return 'weekly'; // Default to weekly
+
+  const expiry = new Date(expiryDate);
+  const now = new Date();
+  const dte = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (dte <= 0) return '0dte';
+  if (dte === 1) return '1dte';
+  if (dte <= 7) return 'weekly';
+  if (dte <= 14) return 'biweekly';
+  if (dte <= 30) return 'monthly';
+  return 'leaps';
+}
+
+/**
+ * Calculate profit target percentage from entry and target
+ */
+function calculateProfitTarget(entry?: number, target?: number, direction?: string): number {
+  if (!entry || !target || entry === 0) return 0;
+
+  const isLong = !direction || direction === 'bullish';
+  if (isLong) {
+    return ((target - entry) / entry) * 100;
+  } else {
+    return ((entry - target) / entry) * 100;
+  }
+}
+
+/**
+ * Validate options profit targets meet minimum thresholds
+ * Returns adjusted target if too low, or null to reject
+ */
+function validateOptionsTarget(
+  input: IngestionInput
+): { valid: boolean; adjustedTarget?: number; reason?: string; minRequired: number } {
+  const dteCategory = getDTECategory(input.expiryDate);
+  const minTarget = OPTIONS_MIN_TARGET_BY_DTE[dteCategory] || 30;
+
+  // Calculate current profit target
+  const entry = input.suggestedEntry || input.currentPrice;
+  const target = input.suggestedTarget || input.targetPrice;
+  const currentTarget = calculateProfitTarget(entry, target, input.direction);
+
+  if (currentTarget >= minTarget) {
+    return { valid: true, minRequired: minTarget };
+  }
+
+  // Target too low - calculate what target price would meet minimum
+  if (entry && entry > 0) {
+    const isLong = !input.direction || input.direction === 'bullish';
+    const multiplier = isLong ? (1 + minTarget / 100) : (1 - minTarget / 100);
+    const adjustedTarget = entry * multiplier;
+
+    return {
+      valid: false,
+      adjustedTarget,
+      reason: `Options target ${currentTarget.toFixed(1)}% below ${minTarget}% minimum for ${dteCategory.toUpperCase()}`,
+      minRequired: minTarget,
+    };
+  }
+
+  return {
+    valid: false,
+    reason: `Cannot validate options target - missing entry price`,
+    minRequired: minTarget,
+  };
 }
 
 export interface IngestionResult {
@@ -176,7 +262,41 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       source
     };
   }
-  
+
+  // Gate 5: Options profit target validation
+  // Options MUST have meaningful profit targets based on DTE
+  if (input.assetType === 'option' || input.optionType) {
+    const targetValidation = validateOptionsTarget(input);
+
+    if (!targetValidation.valid) {
+      // If target is too low, we can either:
+      // 1. Reject the idea entirely
+      // 2. Adjust the target to meet minimum (we'll do this)
+
+      if (targetValidation.adjustedTarget) {
+        logger.info(`[INGESTION] 📈 Adjusting ${symbol} option target to meet ${targetValidation.minRequired}% minimum`);
+        // Upgrade the target to meet minimum requirements
+        if (input.direction === 'bullish') {
+          input.suggestedTarget = targetValidation.adjustedTarget;
+          input.targetPrice = targetValidation.adjustedTarget;
+        } else {
+          input.suggestedTarget = targetValidation.adjustedTarget;
+          input.targetPrice = targetValidation.adjustedTarget;
+        }
+      } else {
+        // Can't adjust - reject the idea
+        logger.warn(`[INGESTION] ⚠️ Rejecting ${symbol} option: ${targetValidation.reason}`);
+        return {
+          success: false,
+          reason: targetValidation.reason || 'Options target below minimum',
+          symbol,
+          source,
+          confidence: estimatedConfidence
+        };
+      }
+    }
+  }
+
   // All gates passed - create the idea
   try {
     const success = await createAndSaveUniversalIdea({
