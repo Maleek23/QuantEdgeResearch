@@ -526,6 +526,9 @@ function ConvergenceSignalsCard() {
   const opportunities = data?.opportunities || [];
   const criticalCount = data?.critical || 0;
   const highCount = data?.high || 0;
+  const status = data?.status || 'scanning';
+  const activeSignalCount = data?.activeSignalCount || 0;
+  const hotSymbols = data?.hotSymbols || [];
 
   return (
     <Card className="bg-slate-900/40 border-slate-800/60 p-4">
@@ -533,6 +536,12 @@ function ConvergenceSignalsCard() {
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-purple-400" />
           <span className="text-sm font-semibold text-white">Convergence</span>
+          {status === 'active' && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          )}
+          {status === 'monitoring' && (
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+          )}
         </div>
         <div className="flex items-center gap-1">
           {criticalCount > 0 && (
@@ -543,6 +552,11 @@ function ConvergenceSignalsCard() {
           {highCount > 0 && (
             <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
               {highCount} High
+            </Badge>
+          )}
+          {activeSignalCount > 0 && criticalCount === 0 && highCount === 0 && (
+            <Badge className="bg-slate-700 text-slate-400 text-[10px]">
+              {activeSignalCount} signals
             </Badge>
           )}
         </div>
@@ -564,8 +578,24 @@ function ConvergenceSignalsCard() {
         ) : opportunities.length === 0 ? (
           <div className="text-center py-4 text-slate-500 text-sm">
             <Activity className="w-6 h-6 mx-auto mb-2 opacity-50" />
-            <p>No convergence signals</p>
-            <p className="text-[10px] mt-1">Monitoring news, options, insiders, sectors...</p>
+            <p>{status === 'monitoring' ? 'Monitoring signals...' : 'No convergence signals'}</p>
+            <p className="text-[10px] mt-1">
+              {activeSignalCount > 0
+                ? `${activeSignalCount} signal${activeSignalCount > 1 ? 's' : ''} tracked (need 2+ sources to converge)`
+                : 'Watching news, options, insiders, sectors...'}
+            </p>
+            {hotSymbols.length > 0 && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="text-[10px] text-slate-600">Hot:</span>
+                {hotSymbols.map((s: any) => (
+                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                    <span className="text-[10px] font-mono text-cyan-400 hover:underline cursor-pointer">
+                      {s.symbol}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           opportunities.slice(0, 5).map((opp: any, idx: number) => (

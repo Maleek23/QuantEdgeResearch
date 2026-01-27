@@ -1777,6 +1777,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin ML Engine Metrics - Self-learning service performance data
+  app.get("/api/admin/ml/engine-metrics", requireAdminJWT, async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+      const allMetrics = selfLearning.getAllEngineMetrics();
+
+      // Convert Map to array for JSON response
+      const metricsArray = Array.from(allMetrics.entries()).map(([engine, metrics]) => ({
+        engine,
+        totalTrades: metrics.totalTrades,
+        wins: metrics.wins,
+        losses: metrics.losses,
+        neutral: metrics.neutral,
+        winRate: metrics.winRate,
+        avgWinPercent: metrics.avgWinPercent,
+        avgLossPercent: metrics.avgLossPercent,
+        expectancy: metrics.expectancy,
+        sharpeRatio: metrics.sharpeRatio,
+        profitFactor: metrics.profitFactor,
+        maxDrawdown: metrics.maxDrawdown,
+        bestTimeOfDay: metrics.bestTimeOfDay,
+        bestDayOfWeek: metrics.bestDayOfWeek,
+        bestAssetType: metrics.bestAssetType,
+        bestDirection: metrics.bestDirection,
+        recommendedConfluenceScore: metrics.recommendedConfluenceScore,
+      }));
+
+      res.json(metricsArray);
+    } catch (error) {
+      logger.error('Failed to fetch engine metrics:', error);
+      res.status(500).json({ error: "Failed to fetch engine metrics" });
+    }
+  });
+
+  // Admin ML Learned Thresholds
+  app.get("/api/admin/ml/thresholds", requireAdminJWT, async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+      const thresholds = selfLearning.getLearnedThresholds();
+      res.json(thresholds);
+    } catch (error) {
+      logger.error('Failed to fetch learned thresholds:', error);
+      res.status(500).json({ error: "Failed to fetch thresholds" });
+    }
+  });
+
+  // Admin ML Trigger Learning Cycle
+  app.post("/api/admin/ml/trigger-learning", requireAdminJWT, async (_req, res) => {
+    try {
+      const { selfLearning } = await import('./self-learning-service');
+      await selfLearning.runLearningCycle();
+      res.json({ success: true, message: "Learning cycle triggered" });
+    } catch (error) {
+      logger.error('Failed to trigger learning cycle:', error);
+      res.status(500).json({ error: "Failed to trigger learning cycle" });
+    }
+  });
+
+  // Research-Grade Evaluation - Institutional quality analysis
+  app.get("/api/admin/research-evaluation", requireAdminJWT, async (req, res) => {
+    try {
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+      const engine = req.query.engine as string | undefined;
+
+      const { runResearchGradeEvaluation } = await import('./research-grade-evaluator');
+      const report = await runResearchGradeEvaluation(lookbackDays, engine);
+
+      res.json(report);
+    } catch (error) {
+      logger.error('Research evaluation failed:', error);
+      res.status(500).json({ error: "Research evaluation failed" });
+    }
+  });
+
+  // Research-Grade Evaluation - Engine comparison
+  app.get("/api/admin/research-evaluation/compare", requireAdminJWT, async (req, res) => {
+    try {
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+      const { runResearchGradeEvaluation } = await import('./research-grade-evaluator');
+
+      // Evaluate each engine
+      const engines = ['flow', 'quant', 'ai', 'lotto'];
+      const reports = await Promise.all(
+        engines.map(async (engine) => {
+          const report = await runResearchGradeEvaluation(lookbackDays, engine);
+          return { engine, report };
+        })
+      );
+
+      // Also get overall
+      const overall = await runResearchGradeEvaluation(lookbackDays);
+
+      res.json({
+        overall,
+        byEngine: reports,
+        comparison: {
+          bestPerformer: reports.reduce((best, curr) =>
+            curr.report.expectancyR > (best?.report.expectancyR || -Infinity) ? curr : best
+          , reports[0])?.engine,
+          worstPerformer: reports.reduce((worst, curr) =>
+            curr.report.expectancyR < (worst?.report.expectancyR || Infinity) ? curr : worst
+          , reports[0])?.engine,
+        }
+      });
+    } catch (error) {
+      logger.error('Research comparison failed:', error);
+      res.status(500).json({ error: "Research comparison failed" });
+    }
+  });
+
+  // Quantitative Analysis - Log returns, regime classification, futures leak check
+  app.get("/api/admin/quant-analysis", requireAdminJWT, async (req, res) => {
+    try {
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+
+      const { runQuantitativeAnalysis } = await import('./quantitative-analysis-engine');
+      const report = await runQuantitativeAnalysis(lookbackDays);
+
+      res.json(report);
+    } catch (error) {
+      logger.error('Quantitative analysis failed:', error);
+      res.status(500).json({ error: "Quantitative analysis failed" });
+    }
+  });
+
+  // Market Regime - Current regime classification
+  app.get("/api/market-regime", async (_req, res) => {
+    try {
+      const { classifyMarketRegime } = await import('./quantitative-analysis-engine');
+      const regime = await classifyMarketRegime();
+      res.json(regime);
+    } catch (error) {
+      logger.error('Regime classification failed:', error);
+      res.status(500).json({ error: "Regime classification failed" });
+    }
+  });
+
+  // ============================================
+  // QUANTEDGE ANALYST SYSTEM
+  // Research-grade analysis across multiple domains
+  // ============================================
+  // QUANTEDGE INSIGHT API
+  // Contextual insights for different parts of the platform
+  // ============================================
+
+  // Trade Desk insights
+  app.get("/api/insights/trade-desk", async (_req, res) => {
+    try {
+      const { getTradeDeskInsights } = await import('./quantedge-insight');
+      const insights = await getTradeDeskInsights();
+      res.json({ insights });
+    } catch (error) {
+      logger.error('Trade desk insights failed:', error);
+      res.status(500).json({ error: "Failed to get insights" });
+    }
+  });
+
+  // Stock-specific insights
+  app.get("/api/insights/stock/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase();
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol required" });
+      }
+      const { getStockInsights } = await import('./quantedge-insight');
+      const insights = await getStockInsights(symbol);
+      res.json({ symbol, insights });
+    } catch (error) {
+      logger.error('Stock insights failed:', error);
+      res.status(500).json({ error: "Failed to get stock insights" });
+    }
+  });
+
+  // Movers insights
+  app.get("/api/insights/movers", async (_req, res) => {
+    try {
+      const { getMoversInsights } = await import('./quantedge-insight');
+      const insights = await getMoversInsights();
+      res.json({ insights });
+    } catch (error) {
+      logger.error('Movers insights failed:', error);
+      res.status(500).json({ error: "Failed to get movers insights" });
+    }
+  });
+
+  // Market context (regime, bias, risk)
+  app.get("/api/insights/market", async (_req, res) => {
+    try {
+      const { getMarketContext } = await import('./quantedge-insight');
+      const context = await getMarketContext();
+      res.json(context);
+    } catch (error) {
+      logger.error('Market context failed:', error);
+      res.status(500).json({ error: "Failed to get market context" });
+    }
+  });
+
+  // Quick summary for headers/status bars
+  app.get("/api/insights/summary", async (_req, res) => {
+    try {
+      const { getQuickSummary, getMarketContext, getPlatformContext } = await import('./quantedge-insight');
+      const [summary, market, platform] = await Promise.all([
+        getQuickSummary(),
+        getMarketContext(),
+        getPlatformContext(),
+      ]);
+      res.json({
+        ...summary,
+        topEngine: platform.topEngine,
+        topEngineWinRate: platform.topEngineWinRate,
+        performance: platform.recentPerformance,
+      });
+    } catch (error) {
+      logger.error('Summary failed:', error);
+      res.status(500).json({ error: "Failed to get summary" });
+    }
+  });
+
   app.post("/api/admin/trigger-morning-preview", requireAdminJWT, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
@@ -21154,13 +21372,48 @@ Use this checklist before entering any trade:
         });
       }
 
-      const { discoverBreakoutCandidates } = await import("./breakout-discovery-service");
-      const candidates = await discoverBreakoutCandidates();
+      // Fetch from both breakout discovery AND surge detection engine in parallel
+      const [
+        { discoverBreakoutCandidates },
+        { getActiveAlerts }
+      ] = await Promise.all([
+        import("./breakout-discovery-service"),
+        import("./surge-detection-engine")
+      ]);
+
+      const [discoveredCandidates, surgeAlerts] = await Promise.all([
+        discoverBreakoutCandidates(),
+        Promise.resolve(getActiveAlerts())
+      ]);
+
+      // Convert surge detection alerts to breakout candidate format
+      const alertCandidates = surgeAlerts.map(alert => ({
+        symbol: alert.symbol,
+        price: alert.price,
+        score: alert.severity === 'HIGH' ? 90 : alert.severity === 'MEDIUM' ? 70 : 50,
+        reason: alert.message,
+        change: alert.change,
+        tier: alert.severity === 'HIGH' ? 'SURGE' as const : 'MOMENTUM' as const,
+        alertType: alert.trigger,
+        detectedAt: alert.detectedAt.toISOString(),
+      }));
+
+      // Merge and deduplicate (alert candidates take priority)
+      const alertSymbols = new Set(alertCandidates.map(c => c.symbol));
+      const mergedCandidates = [
+        ...alertCandidates,
+        ...discoveredCandidates.filter(c => !alertSymbols.has(c.symbol))
+      ].sort((a, b) => b.score - a.score);
 
       // Update cache
-      surgeCache.breakouts = { data: candidates, timestamp: now };
+      surgeCache.breakouts = { data: mergedCandidates, timestamp: now };
 
-      res.json({ candidates, count: candidates.length, cached: false });
+      res.json({
+        candidates: mergedCandidates,
+        count: mergedCandidates.length,
+        alertCount: alertCandidates.length,
+        cached: false
+      });
     } catch (error) {
       logger.error("Error in surge detection", { error });
       // Return cached data on error if available
@@ -21377,15 +21630,38 @@ Use this checklist before entering any trade:
         });
       }
 
-      const { getConvergenceOpportunities } = await import("./convergence-engine");
+      const [
+        { getConvergenceOpportunities, activeSignals },
+        { getHotSymbols }
+      ] = await Promise.all([
+        import("./convergence-engine"),
+        import("./attention-tracking-service")
+      ]);
+
       const opportunities = await getConvergenceOpportunities();
+
+      // If no convergence opportunities, check if there are any active signals at all
+      let signalCount = 0;
+      for (const [, signals] of activeSignals) {
+        signalCount += signals.length;
+      }
+
+      // Also get hot symbols for context
+      const hotSymbols = await getHotSymbols(5);
 
       const responseData = {
         opportunities,
         count: opportunities.length,
         critical: opportunities.filter(o => o.urgency === 'critical').length,
         high: opportunities.filter(o => o.urgency === 'high').length,
+        activeSignalCount: signalCount,
+        hotSymbols: hotSymbols.slice(0, 3).map(s => ({
+          symbol: s.symbol,
+          heatScore: s.heatScore,
+          isConverging: s.isConverging
+        })),
         generatedAt: new Date().toISOString(),
+        status: opportunities.length > 0 ? 'active' : signalCount > 0 ? 'monitoring' : 'scanning',
       };
 
       convergenceCache.opportunities = { data: responseData, timestamp: now };
@@ -23935,6 +24211,79 @@ Use this checklist before entering any trade:
   });
 
   const httpServer = createServer(app);
+
+  // Pre-warm expensive caches after server starts (non-blocking)
+  setTimeout(async () => {
+    try {
+      logger.info('[CACHE] Pre-warming Trade Desk caches...');
+
+      // Pre-warm surge/breakout cache
+      const { discoverBreakoutCandidates } = await import("./breakout-discovery-service");
+      const { getActiveAlerts } = await import("./surge-detection-engine");
+
+      const [discoveredCandidates, surgeAlerts] = await Promise.all([
+        discoverBreakoutCandidates().catch(() => []),
+        Promise.resolve(getActiveAlerts())
+      ]);
+
+      // Convert surge alerts to candidate format
+      const alertCandidates = surgeAlerts.map(alert => ({
+        symbol: alert.symbol,
+        price: alert.price,
+        score: alert.severity === 'HIGH' ? 90 : alert.severity === 'MEDIUM' ? 70 : 50,
+        reason: alert.message,
+        change: alert.change,
+        tier: alert.severity === 'HIGH' ? 'SURGE' as const : 'MOMENTUM' as const,
+        alertType: alert.trigger,
+        detectedAt: alert.detectedAt.toISOString(),
+      }));
+
+      const alertSymbols = new Set(alertCandidates.map(c => c.symbol));
+      const mergedCandidates = [
+        ...alertCandidates,
+        ...discoveredCandidates.filter(c => !alertSymbols.has(c.symbol))
+      ].sort((a, b) => b.score - a.score);
+
+      surgeCache.breakouts = { data: mergedCandidates, timestamp: Date.now() };
+      logger.info(`[CACHE] Pre-warmed breakout cache with ${mergedCandidates.length} candidates`);
+
+      // Pre-warm convergence cache
+      const { getConvergenceOpportunities, activeSignals } = await import("./convergence-engine");
+      const { getHotSymbols } = await import("./attention-tracking-service");
+
+      const [opportunities, hotSymbols] = await Promise.all([
+        getConvergenceOpportunities().catch(() => []),
+        getHotSymbols(5).catch(() => [])
+      ]);
+
+      let signalCount = 0;
+      for (const [, signals] of activeSignals) {
+        signalCount += signals.length;
+      }
+
+      convergenceCache.opportunities = {
+        data: {
+          opportunities,
+          count: opportunities.length,
+          critical: opportunities.filter(o => o.urgency === 'critical').length,
+          high: opportunities.filter(o => o.urgency === 'high').length,
+          activeSignalCount: signalCount,
+          hotSymbols: hotSymbols.slice(0, 3).map(s => ({
+            symbol: s.symbol,
+            heatScore: s.heatScore,
+            isConverging: s.isConverging
+          })),
+          generatedAt: new Date().toISOString(),
+          status: opportunities.length > 0 ? 'active' : signalCount > 0 ? 'monitoring' : 'scanning',
+        },
+        timestamp: Date.now()
+      };
+      logger.info(`[CACHE] Pre-warmed convergence cache (${opportunities.length} opportunities, ${signalCount} signals)`);
+
+    } catch (e) {
+      logger.error('[CACHE] Pre-warm failed:', e);
+    }
+  }, 3000); // Start pre-warming 3 seconds after server boots
 
   return httpServer;
 }

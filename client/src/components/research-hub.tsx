@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { GlobalSearch } from "@/components/global-search";
@@ -13,7 +15,87 @@ import {
   Clock,
   Gauge,
   Zap,
+  Brain,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
+
+// Types for insights
+interface MarketContext {
+  regime: string;
+  regimeLabel: string;
+  riskLevel: string;
+  bias: string;
+  topEngine?: string;
+  topEngineWinRate?: number;
+  performance?: string;
+}
+
+// Contextual Insight Bar - appears at top of pages where data is shown
+export function InsightBar({ context }: { context?: 'research' | 'trade-desk' | 'movers' }) {
+  const { data, isLoading } = useQuery<MarketContext>({
+    queryKey: ["/api/insights/summary"],
+    staleTime: 300000, // 5 minutes
+    refetchInterval: 600000, // 10 minutes
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800/50 mb-6">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const biasColor = data.bias === 'Long' ? 'text-emerald-400' : data.bias === 'Short' ? 'text-red-400' : 'text-slate-400';
+  const riskColor =
+    data.riskLevel === 'Low' ? 'text-emerald-400' :
+    data.riskLevel === 'Moderate' ? 'text-amber-400' :
+    data.riskLevel === 'Elevated' ? 'text-orange-400' :
+    data.riskLevel === 'High' ? 'text-red-400' : 'text-slate-400';
+
+  return (
+    <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800/50 mb-6 overflow-x-auto">
+      <div className="flex items-center gap-2">
+        <Brain className="h-4 w-4 text-cyan-400 shrink-0" />
+        <span className="text-xs text-slate-500 uppercase">Insight</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        <Activity className="h-3 w-3 text-slate-500" />
+        <span className="text-xs text-slate-400">{data.regimeLabel || data.regime}</span>
+      </div>
+
+      <Badge variant="outline" className={cn("text-xs", biasColor, "border-current/30")}>
+        {data.bias === 'Long' ? '↑' : data.bias === 'Short' ? '↓' : '↔'} {data.bias}
+      </Badge>
+
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-slate-500">Risk:</span>
+        <span className={cn("text-xs font-medium", riskColor)}>{data.riskLevel}</span>
+      </div>
+
+      {data.topEngine && data.topEngineWinRate && data.topEngineWinRate >= 55 && (
+        <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="text-slate-500">Top:</span>
+          <span className="text-cyan-400">{data.topEngine}</span>
+          <span className="text-emerald-400">{data.topEngineWinRate}%</span>
+        </div>
+      )}
+
+      {data.riskLevel === 'High' || data.riskLevel === 'Extreme' ? (
+        <div className="flex items-center gap-1 text-amber-400 ml-auto">
+          <AlertTriangle className="h-3 w-3" />
+          <span className="text-xs">Elevated risk</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 // Market sentiment overview
 function MarketSentiment() {
@@ -302,10 +384,13 @@ export function ResearchHub() {
     <div className="min-h-screen pb-20">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-100 mb-2">Market Research</h1>
-          <p className="text-sm text-slate-500">Real-time market intelligence and analysis</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-100 mb-2">Research Hub</h1>
+          <p className="text-sm text-slate-500">Market intelligence and real-time analysis</p>
         </div>
+
+        {/* Contextual Insight Bar */}
+        <InsightBar context="research" />
 
         {/* Search */}
         <div className="mb-8 max-w-xl">
@@ -319,7 +404,7 @@ export function ResearchHub() {
             <MarketNews />
           </div>
 
-          {/* Right column - Data */}
+          {/* Right column - Market Data */}
           <div className="space-y-6">
             <MarketSentiment />
             <TrendingSymbols />
