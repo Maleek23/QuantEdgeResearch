@@ -3091,44 +3091,46 @@ export default function TradeDeskRedesigned() {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-slate-900/60 border border-slate-800/60 p-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <PieChart className="w-4 h-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="ideas" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <Layers className="w-4 h-4 mr-2" />
-              All Ideas
-            </TabsTrigger>
-            <TabsTrigger value="setups" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-              <Star className="w-4 h-4 mr-2" />
-              Best Setups
-            </TabsTrigger>
-            <TabsTrigger value="surges" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
-              <Zap className="w-4 h-4 mr-2" />
-              Surges
-            </TabsTrigger>
-            <TabsTrigger value="movers" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-              <Flame className="w-4 h-4 mr-2" />
-              Movers
-            </TabsTrigger>
-            <TabsTrigger value="convergence" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-              <Target className="w-4 h-4 mr-2" />
-              Convergence
-            </TabsTrigger>
-            <TabsTrigger value="hot" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
-              <Flame className="w-4 h-4 mr-2" />
-              Hot
-            </TabsTrigger>
-            <TabsTrigger value="tomorrow" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Tomorrow
-            </TabsTrigger>
-            <TabsTrigger value="portfolio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <PieChart className="w-4 h-4 mr-2" />
-              Portfolio
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-slate-700">
+            <TabsList className="bg-slate-900/60 border border-slate-800/60 p-1 inline-flex min-w-max">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+                <PieChart className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="ideas" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+                <Layers className="w-4 h-4 mr-2" />
+                All Ideas
+              </TabsTrigger>
+              <TabsTrigger value="setups" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+                <Star className="w-4 h-4 mr-2" />
+                Best Setups
+              </TabsTrigger>
+              <TabsTrigger value="surges" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
+                <Zap className="w-4 h-4 mr-2" />
+                Surges
+              </TabsTrigger>
+              <TabsTrigger value="movers" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                <Flame className="w-4 h-4 mr-2" />
+                Movers
+              </TabsTrigger>
+              <TabsTrigger value="convergence" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+                <Target className="w-4 h-4 mr-2" />
+                Convergence
+              </TabsTrigger>
+              <TabsTrigger value="hot" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
+                <Flame className="w-4 h-4 mr-2" />
+                Hot
+              </TabsTrigger>
+              <TabsTrigger value="tomorrow" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Tomorrow
+              </TabsTrigger>
+              <TabsTrigger value="portfolio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+                <PieChart className="w-4 h-4 mr-2" />
+                Portfolio
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6 mt-6">
