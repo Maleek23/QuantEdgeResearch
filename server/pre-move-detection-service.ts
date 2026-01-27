@@ -54,7 +54,16 @@ const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
 
 // Track alerted signals to prevent duplicates
 const alertedSignals = new Map<string, number>();
-const ALERT_COOLDOWN = 30 * 60 * 1000; // 30 minutes
+const ALERT_COOLDOWN = 60 * 60 * 1000; // 1 HOUR per signal type (was 30 min - too spammy)
+
+// Track alerts per symbol (stricter - prevents same stock from spamming)
+const alertedSymbols = new Map<string, number>();
+const SYMBOL_COOLDOWN = 2 * 60 * 60 * 1000; // 2 hours per symbol
+
+// Global alert rate limits
+let lastAlertTime = 0;
+const MIN_ALERT_INTERVAL = 60 * 1000; // 1 minute between ANY alerts
+const MAX_ALERTS_PER_SCAN = 3; // Maximum 3 alerts per scan cycle
 
 // Volume snapshot cache for incremental volume tracking
 // Key: symbol, Value: { volume at 3:30 PM, timestamp }
@@ -79,16 +88,34 @@ function getSignalKey(signal: PreMoveSignal): string {
 }
 
 function canAlert(signal: PreMoveSignal): boolean {
-  const key = getSignalKey(signal);
-  const lastAlert = alertedSignals.get(key);
-  if (lastAlert && Date.now() - lastAlert < ALERT_COOLDOWN) {
+  const now = Date.now();
+
+  // Check global rate limit (no more than 1 alert per minute)
+  if (now - lastAlertTime < MIN_ALERT_INTERVAL) {
     return false;
   }
+
+  // Check per-symbol cooldown (2 hours between any alerts for same stock)
+  const lastSymbolAlert = alertedSymbols.get(signal.symbol);
+  if (lastSymbolAlert && now - lastSymbolAlert < SYMBOL_COOLDOWN) {
+    return false;
+  }
+
+  // Check per-signal-type cooldown (1 hour for exact same signal)
+  const key = getSignalKey(signal);
+  const lastSignalAlert = alertedSignals.get(key);
+  if (lastSignalAlert && now - lastSignalAlert < ALERT_COOLDOWN) {
+    return false;
+  }
+
   return true;
 }
 
 function recordAlert(signal: PreMoveSignal): void {
-  alertedSignals.set(getSignalKey(signal), Date.now());
+  const now = Date.now();
+  alertedSignals.set(getSignalKey(signal), now);
+  alertedSymbols.set(signal.symbol, now);
+  lastAlertTime = now;
 }
 
 // Check if we're in the "power hour" (last hour before close)
@@ -425,14 +452,18 @@ export async function checkDefenseContracts(ticker: string): Promise<PreMoveSign
 }
 
 // Main scan function - runs all detection algorithms
-export async function scanForPreMoveSignals(tickers: string[] = HIGH_PROFILE_TICKERS): Promise<PreMoveSignal[]> {
+// Options: skipAlerts - when true, just returns signals without sending Discord alerts (for convergence engine)
+export async function scanForPreMoveSignals(
+  tickers: string[] = HIGH_PROFILE_TICKERS,
+  options: { skipAlerts?: boolean } = {}
+): Promise<PreMoveSignal[]> {
   const marketStatus = isUSMarketOpen();
   if (!marketStatus.isOpen) {
     logger.info('[PRE-MOVE] Market closed, skipping scan');
     return [];
   }
-  
-  logger.info(`[PRE-MOVE] Scanning ${tickers.length} tickers for pre-move signals...`);
+
+  logger.info(`[PRE-MOVE] Scanning ${tickers.length} tickers for pre-move signals... (alerts: ${!options.skipAlerts})`);
   const signals: PreMoveSignal[] = [];
   
   // Process in batches to avoid rate limits
@@ -478,21 +509,36 @@ export async function scanForPreMoveSignals(tickers: string[] = HIGH_PROFILE_TIC
   
   // Sort by confidence
   signals.sort((a, b) => b.confidence - a.confidence);
-  
-  // Send alerts for high-confidence signals
-  for (const signal of signals) {
-    if (signal.confidence >= 75 && canAlert(signal)) {
-      try {
-        await sendPreMoveAlertToDiscord(signal);
-        recordAlert(signal);
-        logger.info(`[PRE-MOVE] Alert sent: ${signal.symbol} - ${signal.signalType} (${signal.confidence}%)`);
-      } catch (e) {
-        logger.error(`[PRE-MOVE] Failed to send alert for ${signal.symbol}:`, e);
+
+  // Send alerts for high-confidence signals (MAX 3 per scan to prevent spam)
+  // Skip alerts if called from convergence engine (to prevent duplicate alerts)
+  if (!options.skipAlerts) {
+    let alertsSent = 0;
+    for (const signal of signals) {
+      // Enforce max alerts per scan
+      if (alertsSent >= MAX_ALERTS_PER_SCAN) {
+        logger.debug(`[PRE-MOVE] Max alerts per scan reached (${MAX_ALERTS_PER_SCAN}), skipping remaining signals`);
+        break;
+      }
+
+      // Only alert A+ confidence (90%+) to reduce noise
+      if (signal.confidence >= 90 && canAlert(signal)) {
+        try {
+          await sendPreMoveAlertToDiscord(signal);
+          recordAlert(signal);
+          alertsSent++;
+          logger.info(`[PRE-MOVE] Alert sent: ${signal.symbol} - ${signal.signalType} (${signal.confidence}%)`);
+
+          // Wait 2 seconds between alerts to prevent Discord rate limits
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (e) {
+          logger.error(`[PRE-MOVE] Failed to send alert for ${signal.symbol}:`, e);
+        }
       }
     }
   }
-  
-  logger.info(`[PRE-MOVE] Scan complete. Found ${signals.length} signals, ${signals.filter(s => s.confidence >= 75).length} high-confidence`);
+
+  logger.info(`[PRE-MOVE] Scan complete. Found ${signals.length} signals, ${signals.filter(s => s.confidence >= 90).length} A+ signals`);
   
   return signals;
 }

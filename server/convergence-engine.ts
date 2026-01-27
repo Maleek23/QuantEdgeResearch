@@ -544,9 +544,11 @@ export async function detectInsiderConviction(symbol: string, insiderData: any):
 
 /**
  * Convert pre-move signals to convergence signals
+ * Note: Alerts are skipped here - the pre-move scanner handles Discord alerts directly
  */
 export async function integratePreMoveSignals(): Promise<void> {
-  const preMovSignals = await scanForPreMoveSignals(HIGH_PROFILE_TICKERS);
+  // Skip alerts when called from convergence engine to prevent duplicate alerts
+  const preMovSignals = await scanForPreMoveSignals(HIGH_PROFILE_TICKERS, { skipAlerts: true });
 
   for (const pmSignal of preMovSignals) {
     const sourceMap: Record<string, ConvergenceSignalSource> = {
