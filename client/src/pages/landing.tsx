@@ -539,9 +539,9 @@ export default function Landing() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-8 relative z-10" data-testid="section-testimonials">
+      <section className="py-8 relative z-10 bg-slate-950" data-testid="section-testimonials">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Success Stories</Badge>
             <h2 className="text-2xl font-bold text-white mb-2">What Traders Say</h2>
             <div className="flex items-center justify-center gap-1 text-amber-400">
