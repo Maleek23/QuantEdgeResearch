@@ -539,7 +539,7 @@ export default function Landing() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-12" data-testid="section-testimonials">
+      <section className="py-8" data-testid="section-testimonials">
         <div className="container mx-auto px-6">
           <div className="text-center mb-8">
             <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Success Stories</Badge>
@@ -593,7 +593,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-10 bg-slate-900/30 border-y border-slate-800/50" data-testid="section-faq">
+      <section className="py-6 bg-slate-900/30 border-y border-slate-800/50" data-testid="section-faq">
         <div className="container mx-auto px-6">
           <h2 className="text-xl font-bold text-center text-white mb-6">FAQ</h2>
           <div className="max-w-2xl mx-auto">
@@ -619,40 +619,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Discord + CTA Combined */}
-      <section className="py-10" data-testid="section-cta">
-        <div className="container mx-auto px-6">
-          <div className="max-w-xl mx-auto text-center">
-            <h2 className="text-xl font-bold text-white mb-2">Ready to Get an Edge?</h2>
-            <p className="text-sm text-slate-400 mb-4">
-              Join traders using AI-powered research to level up.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Button
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold"
-                onClick={() => setLocation('/signup')}
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10"
-                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-              >
-                <SiDiscord className="mr-2 h-4 w-4" />
-                Join Discord
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="pt-12 pb-6 border-t border-slate-800 bg-slate-950">
+      <footer className="pt-8 pb-6 border-t border-slate-800 bg-slate-950">
         <div className="container mx-auto px-6">
           {/* Footer Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-3">
