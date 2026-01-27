@@ -5,6 +5,29 @@
  * Use these to validate and improve the trading signal system.
  */
 
+// Import functions needed for internal use in this module
+import {
+  runCalibrationStudy as _runCalibrationStudy,
+  getCalibrationStatus as _getCalibrationStatus,
+} from './confidence-calibrator';
+
+import {
+  analyzeFeatureImportance as _analyzeFeatureImportance,
+} from './feature-importance';
+
+import {
+  detectRegime as _detectRegime,
+} from './regime-detector';
+
+import {
+  calculatePortfolioMetrics as _calculatePortfolioMetrics,
+} from './portfolio-metrics';
+
+import {
+  trainEnsembleModel as _trainEnsembleModel,
+  getModelStatus as _getModelStatus,
+} from './ensemble-learner';
+
 // Confidence Calibration
 export {
   runCalibrationStudy,
@@ -81,11 +104,11 @@ export async function runMLDiagnostics(lookbackDays: number = 90): Promise<{
   ensemble: import('./ensemble-learner').EnsembleModel;
 }> {
   const [calibration, featureImportance, regime, portfolio, ensemble] = await Promise.all([
-    runCalibrationStudy(lookbackDays),
-    analyzeFeatureImportance(lookbackDays),
-    detectRegime(),
-    calculatePortfolioMetrics(lookbackDays),
-    trainEnsembleModel(lookbackDays),
+    _runCalibrationStudy(lookbackDays),
+    _analyzeFeatureImportance(lookbackDays),
+    _detectRegime(),
+    _calculatePortfolioMetrics(lookbackDays),
+    _trainEnsembleModel(lookbackDays),
   ]);
 
   return {
@@ -110,7 +133,7 @@ export async function getMLHealthCheck(): Promise<{
 
   try {
     // Check calibration status
-    const calibrationStatus = getCalibrationStatus();
+    const calibrationStatus = _getCalibrationStatus();
     if (!calibrationStatus.isCalibrated) {
       issues.push('Confidence scores not calibrated');
       recommendations.push('Run calibration study with 90 days of trade data');
@@ -120,14 +143,14 @@ export async function getMLHealthCheck(): Promise<{
     }
 
     // Check ensemble model
-    const modelStatus = getModelStatus();
+    const modelStatus = _getModelStatus();
     if (!modelStatus.isTraned) {
       issues.push('Ensemble model not trained');
       recommendations.push('Train ensemble model to optimize engine weights');
     }
 
     // Check regime detection
-    const regime = await detectRegime();
+    const regime = await _detectRegime();
     if (regime.regime === 'UNKNOWN') {
       issues.push('Market regime detection failed');
       recommendations.push('Check VIX and SPY data feeds');
