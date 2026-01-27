@@ -108,43 +108,40 @@ interface ScannerStatus {
 }
 
 // Expanded watchlist for options flow scanning (100+ high-volume optionable stocks)
+// PRIORITIZE: Momentum stocks with frequent surges (crypto miners, space, fintech)
 const DEFAULT_OPTIONS_WATCHLIST = [
+  // 🔥 HIGH PRIORITY - Crypto Miners (frequent surges - IREN, MARA, RIOT, CLSK)
+  'IREN', 'MARA', 'RIOT', 'CLSK', 'WULF', 'BITF', 'HUT', 'CIFR', 'COIN', 'MSTR',
+  // 🔥 HIGH PRIORITY - Space & Defense Momentum (RDW, ASTS, LUNR often surge)
+  'RKLB', 'RDW', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RCAT', 'LMT', 'RTX', 'NOC', 'GD',
+  // 🔥 HIGH PRIORITY - Fintech Momentum (ONDS, ZETA often surge)
+  'ONDS', 'ZETA', 'SOFI', 'HOOD', 'AFRM', 'UPST', 'BILL', 'TOST', 'FOUR', 'FLYW', 'PAYO', 'NU',
+  // 🔥 HIGH PRIORITY - AI & Quantum (volatile, frequent moves)
+  'IONQ', 'RGTI', 'QUBT', 'PLTR', 'AI', 'SOUN', 'ARQQ', 'QBTS', 'LAES', 'NBIS',
   // Major Indices & ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
   // Mega-Cap Tech
   'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
   // AI & Semiconductors
-  'ARM', 'SMCI', 'PLTR', 'SNOW', 'CRWD', 'AI', 'MRVL', 'QCOM', 'INTC', 'MU',
-  // High Volatility Favorites
-  'IONQ', 'RGTI', 'QUBT', 'MSTR', 'COIN', 'HOOD', 'SOFI', 'AFRM', 'SQ', 'PYPL',
+  'ARM', 'SMCI', 'SNOW', 'CRWD', 'MRVL', 'QCOM', 'INTC', 'MU',
   // Growth & Momentum
-  'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
+  'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY', 'SQ', 'PYPL',
   // EV & Energy / Nuclear / Clean Tech
-  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR', 'SMR', 'OKLO', 'CEG', 'VST',
-  // Financials
-  'JPM', 'GS', 'BAC', 'V', 'MA',
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR', 'SMR', 'OKLO', 'CEG', 'VST', 'NNE', 'LEU', 'CCJ',
   // Healthcare & Biotech
-  'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE', 'DNA', 'CRSP', 'EDIT', 'NTLA', 'BEAM',
-  // Other High Volume
-  'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST',
+  'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE', 'DNA', 'CRSP', 'EDIT', 'NTLA', 'BEAM', 'BNTX', 'NVAX',
   // High-Momentum Mid-Caps (frequently have big moves)
-  'CVNA', 'UPST', 'W', 'DASH', 'ABNB', 'UBER', 'LYFT', 'RBLX', 'U', 'SNAP',
-  // China ADRs (volume surge Jan 2026)
-  'BABA', 'BIDU', 'JD', 'PDD', 'LI', 'XPEV',
+  'CVNA', 'W', 'DASH', 'ABNB', 'UBER', 'LYFT', 'RBLX', 'U', 'SNAP',
+  // China ADRs (volume surge)
+  'BABA', 'BIDU', 'JD', 'PDD', 'LI',
   // Meme & Retail Favorites
-  'GME', 'AMC', 'BBBY', 'FUBO', 'OPEN', 'CLOV',
-  // Biotech High-Vol
-  'MRNA', 'BNTX', 'NVAX', 'SGEN', 'REGN',
-  // Space & Defense
-  'RKLB', 'RDW', 'ASTS', 'LUNR', 'LMT', 'RTX', 'NOC', 'GD',
-  // Fintech & Payments (User Requested)
-  'ONDS', 'ZETA', 'BILL', 'TOST', 'FOUR', 'FLYW', 'PAYO',
-  // Quantum & Emerging Tech
-  'ARQQ', 'QBTS', 'LAES',
+  'GME', 'AMC', 'FUBO', 'OPEN', 'CLOV',
+  // Speculative plays (often surge)
+  'USAR', 'BNAI', 'KULR', 'QS', 'SLDP',
   // Cannabis (High Vol Options)
   'TLRY', 'CGC', 'SNDL',
   // SPACs & Recent IPOs with Options
-  'DWAC', 'DKNG', 'LCID', 'RIVN', 'JOBY',
+  'DWAC', 'DKNG',
 ];
 
 let scannerStatus: ScannerStatus = {

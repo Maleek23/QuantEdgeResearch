@@ -5756,28 +5756,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Fast scoring without ML/breakout calls (skip expensive async operations)
-      // Conviction = Base + Signals + R:R + Grade + WinRate
+      // Conviction = Base + Signals + R:R + Grade + WinRate + SOURCE PRIORITY
       const scoredIdeas = candidateIdeas.map(idea => {
         const confidence = idea.confidenceScore || 50;
         const signalCount = idea.qualitySignals?.length || 0;
         const riskReward = idea.targetPrice && idea.entryPrice && idea.stopLoss
           ? (idea.targetPrice - idea.entryPrice) / Math.max(0.01, idea.entryPrice - idea.stopLoss)
           : 1;
-        
+
         // Base conviction score
         let convictionScore = confidence;
-        
+
+        // 🔥 SOURCE PRIORITY BONUS - Prioritize momentum/surge over generic options flow
+        // This ensures we show IREN/ONDS/RDW surges instead of random options flow on slow stocks
+        const source = idea.dataSourceUsed || '';
+        const sourcePriority: Record<string, number> = {
+          'surge_detection': 25,       // Highest priority - real-time momentum
+          'market_scanner': 20,        // Market movers (top gainers)
+          'bullish_trend': 18,         // Confirmed trends
+          'breakout_discovery': 18,    // Breakout patterns
+          'quant_signal': 15,          // Quantitative signals
+          'news_catalyst': 12,         // News-driven
+          'options_flow': 8,           // Options flow - lower priority (can be noise)
+          'social_sentiment': 5,       // Social - speculative
+        };
+        const sourceBonus = sourcePriority[source] || 10;
+        convictionScore += sourceBonus;
+
         // Signal confluence bonus (more signals = higher conviction)
         convictionScore += signalCount * 5;
-        
+
         // Risk/Reward bonus (capped at 3:1 for max bonus)
         convictionScore += Math.min(riskReward, 3) * 10;
-        
+
         // Grade bonus
         const grade = idea.probabilityBand || '';
         if (grade === 'A+' || grade === 'A') convictionScore += 10;
         else if (grade === 'A-' || grade === 'B+') convictionScore += 5;
-        
+
         // Historical win rate bonus (fast, no API calls)
         const { winRate, sampleSize } = calculateSymbolWinRate(idea.symbol);
         let winRateBonus = 0;
@@ -5801,6 +5817,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           historicalWinRate: winRate,
           historicalSampleSize: sampleSize,
           winRateBonus,
+          sourceBonus,  // Track source priority bonus for debugging
+          source,       // Include source for transparency
           confidence
         };
       });
