@@ -23,6 +23,10 @@ interface EngineMetrics {
   avgWinPercent: number;
   avgLossPercent: number;
   expectancy: number;
+  // Risk-adjusted metrics (properly calculated)
+  sharpeRatio: number;         // (Mean Return - RiskFree) / StdDev
+  profitFactor: number;        // Gross Profit / Gross Loss
+  maxDrawdown: number;         // Worst peak-to-trough
   // Pattern analysis
   bestTimeOfDay: string;
   bestDayOfWeek: string;
@@ -117,8 +121,15 @@ class SelfLearningService {
         const metrics = this.calculateEngineMetrics(engine, trades);
         enginePerformanceCache.set(engine, metrics);
 
-        // Log insights
-        logger.info(`🧠 ${engine}: ${metrics.winRate.toFixed(1)}% win rate (${trades.length} trades), expectancy: ${metrics.expectancy.toFixed(2)}%`);
+        // Log insights with comprehensive metrics
+        logger.info(
+          `🧠 ${engine}: WR ${metrics.winRate.toFixed(1)}% | ` +
+          `Expectancy ${metrics.expectancy >= 0 ? '+' : ''}${metrics.expectancy.toFixed(2)}% | ` +
+          `Sharpe ${metrics.sharpeRatio.toFixed(2)} | ` +
+          `PF ${metrics.profitFactor === Infinity ? '∞' : metrics.profitFactor.toFixed(2)} | ` +
+          `MDD ${metrics.maxDrawdown.toFixed(1)}% | ` +
+          `(${trades.length} trades, ${metrics.wins}W/${metrics.losses}L)`
+        );
 
         // Adjust thresholds based on performance
         this.adjustThresholds(metrics);
@@ -160,23 +171,61 @@ class SelfLearningService {
 
   /**
    * Calculate comprehensive metrics for an engine
+   *
+   * FIXED: Proper win/loss definitions
+   * - WIN: outcomeStatus === 'hit_target' (objective hit target price)
+   * - LOSS: outcomeStatus === 'hit_stop' OR any negative P&L exit
+   * - NEUTRAL: expired/manual_exit with ~0% gain
    */
   private calculateEngineMetrics(engine: string, trades: TradeIdea[]): EngineMetrics {
-    const wins = trades.filter(t => t.outcomeStatus === 'hit_target' || (t.percentGain && t.percentGain >= 3));
-    const losses = trades.filter(t => t.outcomeStatus === 'hit_stop' && t.percentGain && t.percentGain <= -3);
+    // CORRECT WIN DEFINITION: Only count hit_target as wins
+    const wins = trades.filter(t => t.outcomeStatus === 'hit_target');
+
+    // CORRECT LOSS DEFINITION: Count hit_stop OR any exit with negative P&L
+    const losses = trades.filter(t =>
+      t.outcomeStatus === 'hit_stop' ||
+      (t.outcomeStatus !== 'hit_target' && t.percentGain !== null && t.percentGain < 0)
+    );
+
+    // Neutral: exits that aren't clearly wins or losses
     const neutral = trades.filter(t => !wins.includes(t) && !losses.includes(t));
 
-    const winRate = trades.length > 0 ? (wins.length / (wins.length + losses.length)) * 100 : 0;
+    // Win rate based on decisive outcomes only (wins + losses)
+    const decisiveTrades = wins.length + losses.length;
+    const winRate = decisiveTrades > 0 ? (wins.length / decisiveTrades) * 100 : 0;
 
-    const avgWinPercent = wins.length > 0
-      ? wins.reduce((sum, t) => sum + (t.percentGain || 0), 0) / wins.length
+    // Calculate actual P&L for wins and losses
+    const winReturns = wins.map(t => t.percentGain || 0).filter(r => r > 0);
+    const lossReturns = losses.map(t => t.percentGain || 0).filter(r => r < 0);
+
+    const avgWinPercent = winReturns.length > 0
+      ? winReturns.reduce((sum, r) => sum + r, 0) / winReturns.length
       : 0;
 
-    const avgLossPercent = losses.length > 0
-      ? Math.abs(losses.reduce((sum, t) => sum + (t.percentGain || 0), 0) / losses.length)
+    const avgLossPercent = lossReturns.length > 0
+      ? Math.abs(lossReturns.reduce((sum, r) => sum + r, 0) / lossReturns.length)
       : 0;
 
+    // CORRECT EXPECTANCY: Using actual P&L values
     const expectancy = (winRate / 100) * avgWinPercent - ((100 - winRate) / 100) * avgLossPercent;
+
+    // Calculate all returns for risk metrics
+    const allReturns = trades
+      .filter(t => t.percentGain !== null && t.percentGain !== undefined)
+      .map(t => t.percentGain!);
+
+    // SHARPE RATIO: (Mean Return - Risk Free Rate) / StdDev
+    // Using 5% annual risk-free rate = ~0.02% per trade (assuming ~250 trades/year)
+    const riskFreePerTrade = 0.02;
+    const { sharpeRatio, stdDev } = this.calculateSharpeRatio(allReturns, riskFreePerTrade);
+
+    // PROFIT FACTOR: Gross Profit / Gross Loss (should be > 1.5 for good system)
+    const grossProfit = winReturns.reduce((sum, r) => sum + r, 0);
+    const grossLoss = Math.abs(lossReturns.reduce((sum, r) => sum + r, 0));
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+    // MAX DRAWDOWN: Worst peak-to-trough decline
+    const maxDrawdown = this.calculateMaxDrawdown(allReturns);
 
     // Analyze patterns
     const bestTimeOfDay = this.findBestTimeOfDay(wins);
@@ -203,6 +252,9 @@ class SelfLearningService {
       avgWinPercent,
       avgLossPercent,
       expectancy,
+      sharpeRatio,
+      profitFactor,
+      maxDrawdown,
       bestTimeOfDay,
       bestDayOfWeek,
       bestAssetType,
@@ -211,6 +263,62 @@ class SelfLearningService {
       recommendedMinRR: 1.5,
       recommendedMaxLoss: 5,
     };
+  }
+
+  /**
+   * Calculate Sharpe Ratio from returns array
+   * Sharpe = (Mean Return - Risk Free Rate) / Standard Deviation
+   */
+  private calculateSharpeRatio(returns: number[], riskFreeRate: number): { sharpeRatio: number; stdDev: number } {
+    if (returns.length < 2) {
+      return { sharpeRatio: 0, stdDev: 0 };
+    }
+
+    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+    const stdDev = Math.sqrt(variance);
+
+    if (stdDev === 0) {
+      return { sharpeRatio: 0, stdDev: 0 };
+    }
+
+    // Annualize: multiply by sqrt(252) assuming ~252 trading days
+    // But for per-trade Sharpe, we use the trade-level stdDev
+    const sharpeRatio = (mean - riskFreeRate) / stdDev;
+
+    return { sharpeRatio, stdDev };
+  }
+
+  /**
+   * Calculate Maximum Drawdown from cumulative returns
+   */
+  private calculateMaxDrawdown(returns: number[]): number {
+    if (returns.length === 0) return 0;
+
+    // Build equity curve starting at 100
+    let equity = 100;
+    const equityCurve: number[] = [equity];
+
+    for (const r of returns) {
+      equity = equity * (1 + r / 100);
+      equityCurve.push(equity);
+    }
+
+    // Find max drawdown
+    let peak = equityCurve[0];
+    let maxDrawdown = 0;
+
+    for (let i = 1; i < equityCurve.length; i++) {
+      if (equityCurve[i] > peak) {
+        peak = equityCurve[i];
+      }
+      const drawdown = ((peak - equityCurve[i]) / peak) * 100;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    }
+
+    return maxDrawdown;
   }
 
   private findBestTimeOfDay(wins: TradeIdea[]): string {
@@ -375,20 +483,27 @@ class SelfLearningService {
   }
 
   private calculateAssetTypePerformance(trades: TradeIdea[]): Record<string, number> {
-    const perf: Record<string, { wins: number; total: number }> = {};
+    const perf: Record<string, { wins: number; losses: number }> = {};
 
     for (const trade of trades) {
       const type = trade.assetType || 'stock';
-      if (!perf[type]) perf[type] = { wins: 0, total: 0 };
-      perf[type].total++;
-      if (trade.outcomeStatus === 'hit_target' || (trade.percentGain && trade.percentGain >= 3)) {
+      if (!perf[type]) perf[type] = { wins: 0, losses: 0 };
+
+      // FIXED: Correct win/loss counting
+      if (trade.outcomeStatus === 'hit_target') {
         perf[type].wins++;
+      } else if (
+        trade.outcomeStatus === 'hit_stop' ||
+        (trade.outcomeStatus !== 'hit_target' && trade.percentGain !== null && trade.percentGain < 0)
+      ) {
+        perf[type].losses++;
       }
     }
 
     const result: Record<string, number> = {};
     for (const [type, data] of Object.entries(perf)) {
-      result[type] = data.total > 0 ? (data.wins / data.total) * 100 : 0;
+      const total = data.wins + data.losses;
+      result[type] = total > 0 ? (data.wins / total) * 100 : 0;
     }
     return result;
   }
@@ -402,11 +517,15 @@ class SelfLearningService {
 
     if (windowTrades.length === 0) return 0;
 
-    const wins = windowTrades.filter(
-      t => t.outcomeStatus === 'hit_target' || (t.percentGain && t.percentGain >= 3)
+    // FIXED: Correct win/loss counting
+    const wins = windowTrades.filter(t => t.outcomeStatus === 'hit_target').length;
+    const losses = windowTrades.filter(t =>
+      t.outcomeStatus === 'hit_stop' ||
+      (t.outcomeStatus !== 'hit_target' && t.percentGain !== null && t.percentGain < 0)
     ).length;
 
-    return (wins / windowTrades.length) * 100;
+    const decisive = wins + losses;
+    return decisive > 0 ? (wins / decisive) * 100 : 0;
   }
 
   private calculateWinRateByConfluence(trades: TradeIdea[], minScore: number, maxScore: number): number {
@@ -417,11 +536,15 @@ class SelfLearningService {
 
     if (filtered.length === 0) return 0;
 
-    const wins = filtered.filter(
-      t => t.outcomeStatus === 'hit_target' || (t.percentGain && t.percentGain >= 3)
+    // FIXED: Correct win/loss counting
+    const wins = filtered.filter(t => t.outcomeStatus === 'hit_target').length;
+    const losses = filtered.filter(t =>
+      t.outcomeStatus === 'hit_stop' ||
+      (t.outcomeStatus !== 'hit_target' && t.percentGain !== null && t.percentGain < 0)
     ).length;
 
-    return (wins / filtered.length) * 100;
+    const decisive = wins + losses;
+    return decisive > 0 ? (wins / decisive) * 100 : 0;
   }
 
   private calculateAvgHoldTime(trades: TradeIdea[]): string {
@@ -494,14 +617,42 @@ class SelfLearningService {
       };
     }
 
-    // Check engine-specific metrics
+    // Check engine-specific metrics with PROPER risk-adjusted evaluation
     const engineMetrics = trade.source ? this.getEngineMetrics(trade.source) : undefined;
-    if (engineMetrics) {
-      if (engineMetrics.winRate < 40 && engineMetrics.totalTrades > 30) {
+    if (engineMetrics && engineMetrics.totalTrades >= 30) {
+      // Reject if negative expectancy (losing money overall)
+      if (engineMetrics.expectancy < 0) {
         return {
           take: false,
-          reason: `Engine ${trade.source} has poor win rate (${engineMetrics.winRate.toFixed(1)}%)`,
-          confidence: 0.7,
+          reason: `Engine ${trade.source} has negative expectancy (${engineMetrics.expectancy.toFixed(2)}%)`,
+          confidence: 0.85,
+        };
+      }
+
+      // Reject if profit factor < 1 (losing more than winning)
+      if (engineMetrics.profitFactor < 1 && engineMetrics.profitFactor !== 0) {
+        return {
+          take: false,
+          reason: `Engine ${trade.source} has poor profit factor (${engineMetrics.profitFactor.toFixed(2)})`,
+          confidence: 0.8,
+        };
+      }
+
+      // Reject if Sharpe ratio is significantly negative
+      if (engineMetrics.sharpeRatio < -0.5) {
+        return {
+          take: false,
+          reason: `Engine ${trade.source} has poor risk-adjusted returns (Sharpe: ${engineMetrics.sharpeRatio.toFixed(2)})`,
+          confidence: 0.75,
+        };
+      }
+
+      // Warn but allow if win rate is low but other metrics are okay
+      if (engineMetrics.winRate < 40) {
+        return {
+          take: true,
+          reason: `Engine ${trade.source} has low win rate but acceptable risk-adjusted metrics`,
+          confidence: 0.5,
         };
       }
     }
