@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
 import { AuroraBackground } from "@/components/aurora-background";
+import { ParticleBackground } from "@/components/particle-background";
 
 interface MarketQuote {
   regularMarketPrice: number;
@@ -406,11 +407,14 @@ function FreeBenefits() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950 relative">
       <AuroraBackground />
-      <div className="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 pointer-events-none" />
+      <div className="fixed inset-0 pointer-events-none z-[1]">
+        <ParticleBackground />
+      </div>
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 pointer-events-none z-[2]" />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="relative z-[10] max-w-6xl mx-auto px-4 sm:px-6">
         {/* Market ticker */}
         <div className="py-2.5 border-b border-slate-800/50">
           <MarketTicker />
@@ -449,14 +453,6 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-        </div>
-
-        {/* Who it's for */}
-        <div className="mb-8">
-          <div className="text-center mb-4">
-            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">For Every Trader</h2>
-          </div>
-          <TraderTypes />
         </div>
 
         {/* Research Tools */}
