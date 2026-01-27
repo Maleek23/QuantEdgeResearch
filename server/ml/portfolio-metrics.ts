@@ -104,8 +104,8 @@ export async function calculatePortfolioMetrics(
         and(
           gte(tradeIdeas.createdAt, cutoffDate),
           or(
-            eq(tradeIdeas.outcomeStatus, 'won'),
-            eq(tradeIdeas.outcomeStatus, 'lost')
+            eq(tradeIdeas.outcomeStatus, 'hit_target'),
+            eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       )
@@ -123,7 +123,7 @@ export async function calculatePortfolioMetrics(
           return ((t.exitPrice - t.entryPrice) / t.entryPrice) * 100;
         }
         // Fallback: use outcome status to estimate return
-        return t.outcome === 'won' ? 5 : -3; // Conservative estimates
+        return t.outcome === 'hit_target' ? 5 : -3; // Conservative estimates
       })
       .filter(r => !isNaN(r) && isFinite(r));
 

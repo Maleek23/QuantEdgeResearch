@@ -77,8 +77,8 @@ export async function trainEnsembleModel(
         and(
           gte(tradeIdeas.createdAt, cutoffDate),
           or(
-            eq(tradeIdeas.outcomeStatus, 'won'),
-            eq(tradeIdeas.outcomeStatus, 'lost')
+            eq(tradeIdeas.outcomeStatus, 'hit_target'),
+            eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       )
@@ -90,7 +90,7 @@ export async function trainEnsembleModel(
     }
 
     // Calculate baseline win rate (all trades)
-    const totalWins = completedTrades.filter(t => t.outcome === 'won').length;
+    const totalWins = completedTrades.filter(t => t.outcome === 'hit_target').length;
     const baselineWinRate = (totalWins / completedTrades.length) * 100;
 
     // Group trades by primary signal category
@@ -115,7 +115,7 @@ export async function trainEnsembleModel(
         continue;
       }
 
-      const wins = trades.filter(t => t.outcome === 'won').length;
+      const wins = trades.filter(t => t.outcome === 'hit_target').length;
       const winRate = (wins / trades.length) * 100;
 
       // Calculate statistical confidence using binomial proportion confidence interval

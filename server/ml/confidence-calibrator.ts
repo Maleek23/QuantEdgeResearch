@@ -73,8 +73,8 @@ export async function runCalibrationStudy(
         and(
           gte(tradeIdeas.createdAt, cutoffDate),
           or(
-            eq(tradeIdeas.outcomeStatus, 'won'),
-            eq(tradeIdeas.outcomeStatus, 'lost')
+            eq(tradeIdeas.outcomeStatus, 'hit_target'),
+            eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       )
@@ -111,7 +111,7 @@ export async function runCalibrationStudy(
         continue;
       }
 
-      const wins = tradesInBin.filter(t => t.outcomeStatus === 'won').length;
+      const wins = tradesInBin.filter(t => t.outcomeStatus === 'hit_target').length;
       const actualWinRate = (wins / tradesInBin.length) * 100;
       const avgConfidence = tradesInBin.reduce((sum, t) => sum + (t.confidence || 0), 0) / tradesInBin.length;
 
@@ -135,7 +135,7 @@ export async function runCalibrationStudy(
 
     // Calculate overall metrics
     const totalTrades = completedTrades.length;
-    const totalWins = completedTrades.filter(t => t.outcomeStatus === 'won').length;
+    const totalWins = completedTrades.filter(t => t.outcomeStatus === 'hit_target').length;
     const overallAccuracy = (totalWins / totalTrades) * 100;
 
     // Brier Score: Mean squared error of probability predictions
@@ -143,7 +143,7 @@ export async function runCalibrationStudy(
     let brierSum = 0;
     for (const trade of completedTrades) {
       const predicted = (trade.confidence || 50) / 100;
-      const actual = trade.outcomeStatus === 'won' ? 1 : 0;
+      const actual = trade.outcomeStatus === 'hit_target' ? 1 : 0;
       brierSum += Math.pow(predicted - actual, 2);
     }
     const brierScore = brierSum / totalTrades;
@@ -402,8 +402,8 @@ export async function getWinRateBySource(lookbackDays: number = 90): Promise<Map
         and(
           gte(tradeIdeas.createdAt, cutoffDate),
           or(
-            eq(tradeIdeas.outcomeStatus, 'won'),
-            eq(tradeIdeas.outcomeStatus, 'lost')
+            eq(tradeIdeas.outcomeStatus, 'hit_target'),
+            eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       );
@@ -420,7 +420,7 @@ export async function getWinRateBySource(lookbackDays: number = 90): Promise<Map
 
     // Calculate metrics per source
     for (const [source, trades] of sourceGroups) {
-      const wins = trades.filter(t => t.outcomeStatus === 'won').length;
+      const wins = trades.filter(t => t.outcomeStatus === 'hit_target').length;
       const winRate = (wins / trades.length) * 100;
       const avgConfidence = trades.reduce((sum, t) => sum + (t.confidence || 0), 0) / trades.length;
 

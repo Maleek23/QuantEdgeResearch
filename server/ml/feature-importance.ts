@@ -125,8 +125,8 @@ export async function analyzeFeatureImportance(
         and(
           gte(tradeIdeas.createdAt, cutoffDate),
           or(
-            eq(tradeIdeas.outcomeStatus, 'won'),
-            eq(tradeIdeas.outcomeStatus, 'lost')
+            eq(tradeIdeas.outcomeStatus, 'hit_target'),
+            eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       )
@@ -138,7 +138,7 @@ export async function analyzeFeatureImportance(
     }
 
     // Calculate baseline win rate (no signal filtering)
-    const totalWins = completedTrades.filter(t => t.outcome === 'won').length;
+    const totalWins = completedTrades.filter(t => t.outcome === 'hit_target').length;
     const baselineWinRate = (totalWins / completedTrades.length) * 100;
 
     // Extract all signals from trades
@@ -159,7 +159,7 @@ export async function analyzeFeatureImportance(
 
         const stats = signalCounts.get(signal)!;
         stats.total++;
-        if (trade.outcome === 'won') stats.wins++;
+        if (trade.outcome === 'hit_target') stats.wins++;
         stats.confidenceSum += trade.confidence || 0;
         // Calculate return from entry/exit prices
         const returnPct = trade.entryPrice && trade.actualReturn
