@@ -164,15 +164,15 @@ function ResearchTools() {
       title: "Options Flow",
       description: "Track unusual options activity",
       icon: Layers,
-      href: "/options-flow",
+      href: "/whale-flow",
       color: "text-pink-400",
       bg: "bg-pink-500/10",
     },
     {
-      title: "Earnings Calendar",
-      description: "Upcoming earnings & analyst estimates",
-      icon: Calculator,
-      href: "/earnings",
+      title: "Market Overview",
+      description: "Live market data & sector analysis",
+      icon: Globe,
+      href: "/market",
       color: "text-blue-400",
       bg: "bg-blue-500/10",
     },
@@ -246,17 +246,17 @@ function TraderTypes() {
 
 // Latest AI Ideas - Compact
 function LatestIdeas() {
-  const { data } = useQuery<{ ideas: Array<{
+  const { data } = useQuery<{ setups: Array<{
     symbol: string;
     direction: string;
     confidenceScore: number;
     source: string;
   }> }>({
-    queryKey: ["/api/trade-ideas?limit=5&status=active"],
+    queryKey: ["/api/trade-ideas/best-setups?limit=5"],
     refetchInterval: 60000,
   });
 
-  const ideas = data?.ideas?.slice(0, 4) || [];
+  const ideas = data?.setups?.slice(0, 4) || [];
 
   return (
     <div>
@@ -317,15 +317,15 @@ function LatestIdeas() {
 // Market Movers - Compact
 function TopMovers() {
   const { data } = useQuery<{
-    gainers: Array<{ symbol: string; change: number }>;
-    losers: Array<{ symbol: string; change: number }>;
+    topGainers: Array<{ symbol: string; percentChange: number }>;
+    topLosers: Array<{ symbol: string; percentChange: number }>;
   }>({
-    queryKey: ["/api/market/top-movers"],
+    queryKey: ["/api/market-movers"],
     refetchInterval: 60000,
   });
 
-  const gainers = data?.gainers?.slice(0, 3) || [];
-  const losers = data?.losers?.slice(0, 3) || [];
+  const gainers = data?.topGainers?.slice(0, 3) || [];
+  const losers = data?.topLosers?.slice(0, 3) || [];
 
   return (
     <div>
@@ -348,7 +348,7 @@ function TopMovers() {
             <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
               <div className="flex items-center justify-between p-2 rounded bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-all cursor-pointer">
                 <span className="text-xs font-semibold text-white">{stock.symbol}</span>
-                <span className="text-xs font-bold text-emerald-400">+{stock.change?.toFixed(1)}%</span>
+                <span className="text-xs font-bold text-emerald-400">+{stock.percentChange?.toFixed(1)}%</span>
               </div>
             </Link>
           )) : (
@@ -363,7 +363,7 @@ function TopMovers() {
             <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
               <div className="flex items-center justify-between p-2 rounded bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all cursor-pointer">
                 <span className="text-xs font-semibold text-white">{stock.symbol}</span>
-                <span className="text-xs font-bold text-red-400">{stock.change?.toFixed(1)}%</span>
+                <span className="text-xs font-bold text-red-400">{stock.percentChange?.toFixed(1)}%</span>
               </div>
             </Link>
           )) : (
