@@ -98,6 +98,7 @@ import { WinRateService } from './win-rate-service';
 import { CANONICAL_WIN_THRESHOLD } from '@shared/constants';
 import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
 import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
+import { cachePresets, getCacheStats, invalidateCache } from './cache-middleware';
 import { marketDataStatus } from './market-data-status';
 
 // Helper for case-insensitive admin email check
@@ -548,6 +549,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Render/uptime monitors (no auth required)
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // SEO: Sitemap.xml endpoint
+  app.get('/sitemap.xml', async (_req, res) => {
+    try {
+      const { generateSitemap } = await import('./sitemap-generator');
+      // Fetch blog slugs for dynamic sitemap
+      const blogPosts = await storage.getAllBlogPosts?.() || [];
+      const slugs = blogPosts.map((post: any) => post.slug).filter(Boolean);
+      const sitemap = generateSitemap(slugs);
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      res.send(sitemap);
+    } catch (error) {
+      logger.error('Error generating sitemap:', error);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
+  // SEO: Robots.txt endpoint
+  app.get('/robots.txt', async (_req, res) => {
+    const { generateRobotsTxt } = await import('./sitemap-generator');
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(generateRobotsTxt());
+  });
+
+  // Cache statistics endpoint (admin only)
+  app.get('/api/cache/stats', requireAdminJWT, (_req, res) => {
+    const stats = getCacheStats();
+    res.json({
+      ...stats,
+      hitRatePercent: (stats.hitRate * 100).toFixed(2) + '%',
+    });
+  });
+
+  // Cache invalidation endpoint (admin only)
+  app.post('/api/cache/invalidate', requireAdminJWT, (req, res) => {
+    const { pattern } = req.body;
+    if (!pattern) {
+      return res.status(400).json({ error: 'Pattern required' });
+    }
+    const count = invalidateCache(pattern);
+    res.json({ invalidated: count, pattern });
   });
 
   // Apply general rate limiting to all API routes
@@ -19039,8 +19084,8 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
-  // GET /api/blog - List published blog posts (public)
-  app.get("/api/blog", async (_req: Request, res: Response) => {
+  // GET /api/blog - List published blog posts (public, cached)
+  app.get("/api/blog", cachePresets.blog, async (_req: Request, res: Response) => {
     try {
       const posts = await storage.getBlogPosts('published');
       res.json(posts);
@@ -19050,8 +19095,8 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
-  // GET /api/blog/:slug - Get single blog post by slug (public)
-  app.get("/api/blog/:slug", async (req: Request, res: Response) => {
+  // GET /api/blog/:slug - Get single blog post by slug (public, cached)
+  app.get("/api/blog/:slug", cachePresets.blog, async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
       const post = await storage.getBlogPostBySlug(slug);
@@ -22306,6 +22351,219 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error scanning symbols", { error });
       res.status(500).json({ error: "Failed to scan symbols" });
+    }
+  });
+
+  // =====================================================
+  // ML DIAGNOSTICS & VALIDATION ROUTES
+  // =====================================================
+
+  // GET /api/ml/diagnostics - Run full ML diagnostic analysis
+  app.get("/api/ml/diagnostics", requireBetaAccess, async (req, res) => {
+    try {
+      const { runMLDiagnostics } = await import("./ml");
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+
+      const diagnostics = await runMLDiagnostics(lookbackDays);
+
+      res.json({
+        success: true,
+        lookbackDays,
+        timestamp: new Date().toISOString(),
+        diagnostics: {
+          calibration: {
+            overallAccuracy: diagnostics.calibration.overallAccuracy,
+            brierScore: diagnostics.calibration.brierScore,
+            reliability: diagnostics.calibration.reliability,
+            recommendations: diagnostics.calibration.recommendations,
+            bins: diagnostics.calibration.bins,
+          },
+          featureImportance: {
+            topFeatures: diagnostics.featureImportance.topFeatures,
+            weakFeatures: diagnostics.featureImportance.weakFeatures,
+            baselineWinRate: diagnostics.featureImportance.baselineWinRate,
+            features: diagnostics.featureImportance.features.slice(0, 10),
+          },
+          regime: {
+            current: diagnostics.regime.regime,
+            confidence: diagnostics.regime.confidence,
+            vix: diagnostics.regime.vix,
+            multipliers: diagnostics.regime.signalMultipliers,
+            recommendations: diagnostics.regime.recommendations,
+          },
+          portfolio: {
+            winRate: diagnostics.portfolio.winRate,
+            sharpeRatio: diagnostics.portfolio.sharpeRatio,
+            maxDrawdown: diagnostics.portfolio.maxDrawdown,
+            profitFactor: diagnostics.portfolio.profitFactor,
+            totalTrades: diagnostics.portfolio.numberOfTrades,
+          },
+          ensemble: {
+            baselineWinRate: diagnostics.ensemble.baselineWinRate,
+            ensembleWinRate: diagnostics.ensemble.ensembleWinRate,
+            improvement: diagnostics.ensemble.improvement,
+            engineStats: diagnostics.ensemble.engineStats,
+          },
+        },
+      });
+    } catch (error: any) {
+      logger.error("Error running ML diagnostics", { error });
+      res.status(500).json({ error: error.message || "Failed to run ML diagnostics" });
+    }
+  });
+
+  // GET /api/ml/calibration - Run confidence calibration study
+  app.get("/api/ml/calibration/study", requireBetaAccess, async (req, res) => {
+    try {
+      const { runCalibrationStudy, getCalibrationStatus } = await import("./ml");
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+
+      const study = await runCalibrationStudy(lookbackDays);
+      const status = getCalibrationStatus();
+
+      res.json({
+        success: true,
+        lookbackDays,
+        status,
+        study,
+      });
+    } catch (error: any) {
+      logger.error("Error running calibration study", { error });
+      res.status(500).json({ error: error.message || "Failed to run calibration study" });
+    }
+  });
+
+  // GET /api/ml/regime - Get current market regime with signal multipliers
+  app.get("/api/ml/regime/current", async (_req, res) => {
+    try {
+      const { detectRegime, getRegimeSummary } = await import("./ml");
+      const regime = await detectRegime();
+
+      res.json({
+        success: true,
+        regime: regime.regime,
+        confidence: regime.confidence,
+        vix: regime.vix,
+        spyTrend: regime.spyTrend,
+        spyMomentum: regime.spyMomentum,
+        multipliers: regime.signalMultipliers,
+        recommendations: regime.recommendations,
+        summary: getRegimeSummary(regime),
+        detectedAt: regime.detectedAt,
+      });
+    } catch (error: any) {
+      logger.error("Error detecting regime", { error });
+      res.status(500).json({ error: error.message || "Failed to detect regime" });
+    }
+  });
+
+  // GET /api/ml/portfolio - Get portfolio-level performance metrics
+  app.get("/api/ml/portfolio/metrics", requireBetaAccess, async (req, res) => {
+    try {
+      const { calculatePortfolioMetrics, getPortfolioSummary, compareToBenchmarks, interpretSharpe } = await import("./ml");
+      const lookbackDays = parseInt(req.query.days as string) || 90;
+
+      const metrics = await calculatePortfolioMetrics(lookbackDays);
+      const sharpeInterpret = interpretSharpe(metrics.sharpeRatio);
+      const benchmarks = compareToBenchmarks(metrics);
+
+      res.json({
+        success: true,
+        lookbackDays,
+        metrics,
+        interpretation: {
+          sharpe: sharpeInterpret,
+          benchmarks,
+        },
+        summary: getPortfolioSummary(metrics),
+      });
+    } catch (error: any) {
+      logger.error("Error calculating portfolio metrics", { error });
+      res.status(500).json({ error: error.message || "Failed to calculate portfolio metrics" });
+    }
+  });
+
+  // POST /api/ml/ensemble/train - Train ensemble meta-learner
+  app.post("/api/ml/ensemble/train", requireAdminJWT, async (req, res) => {
+    try {
+      const { trainEnsembleModel, getModelSummary } = await import("./ml");
+      const lookbackDays = parseInt(req.body.days as string) || 90;
+
+      const model = await trainEnsembleModel(lookbackDays);
+
+      res.json({
+        success: true,
+        lookbackDays,
+        model: {
+          version: model.modelVersion,
+          baselineWinRate: model.baselineWinRate,
+          ensembleWinRate: model.ensembleWinRate,
+          improvement: model.improvement,
+          engineStats: model.engineStats,
+        },
+        summary: getModelSummary(),
+      });
+    } catch (error: any) {
+      logger.error("Error training ensemble model", { error });
+      res.status(500).json({ error: error.message || "Failed to train ensemble model" });
+    }
+  });
+
+  // GET /api/ml/costs - Calculate transaction costs for a trade
+  app.get("/api/ml/costs", async (req, res) => {
+    try {
+      const { calculateTransactionCosts, adjustReturnForCosts, getCostSummary } = await import("./ml");
+
+      const tradeValue = parseFloat(req.query.value as string) || 1000;
+      const assetClass = (req.query.asset as string) || 'stock';
+      const broker = (req.query.broker as string) || 'robinhood';
+
+      const costs = calculateTransactionCosts({
+        broker: broker as any,
+        assetClass: assetClass as any,
+        tradeValue,
+        orderType: 'market',
+      });
+
+      const expectedReturn = parseFloat(req.query.expectedReturn as string) || 5;
+      const returnAdjustment = adjustReturnForCosts(expectedReturn, costs);
+
+      res.json({
+        success: true,
+        tradeValue,
+        assetClass,
+        broker,
+        costs,
+        returnAdjustment,
+        summary: getCostSummary(costs),
+      });
+    } catch (error: any) {
+      logger.error("Error calculating costs", { error });
+      res.status(500).json({ error: error.message || "Failed to calculate costs" });
+    }
+  });
+
+  // GET /api/ml/health - ML system health check
+  app.get("/api/ml/health", async (_req, res) => {
+    try {
+      const { getMLHealthCheck, getModelStatus, getCalibrationStatus } = await import("./ml");
+
+      const [healthCheck, modelStatus, calibrationStatus] = await Promise.all([
+        getMLHealthCheck(),
+        getModelStatus(),
+        getCalibrationStatus(),
+      ]);
+
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        health: healthCheck,
+        ensemble: modelStatus,
+        calibration: calibrationStatus,
+      });
+    } catch (error: any) {
+      logger.error("Error checking ML health", { error });
+      res.status(500).json({ error: error.message || "Failed to check ML health" });
     }
   });
 
