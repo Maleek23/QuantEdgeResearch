@@ -12770,6 +12770,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         marketCap: stock.marketCap || 0,
       }));
       
+      // CATALYST ENRICHMENT - Add WHY stocks are moving
+      const { enrichStockWithCatalysts } = await import('./catalyst-tracker-service');
+
+      // Enrich top gainers with catalyst data
+      const enrichedGainers = await Promise.all(
+        topGainers.map(async (stock) => {
+          try {
+            const enrichment = await enrichStockWithCatalysts(stock.symbol);
+            if (enrichment.hasBullishCatalyst && enrichment.topCatalyst) {
+              return {
+                ...stock,
+                hasCatalyst: true,
+                catalyst: {
+                  type: enrichment.topCatalyst.type,
+                  title: enrichment.topCatalyst.title,
+                  value: enrichment.topCatalyst.valueFormatted,
+                  icon: enrichment.topCatalyst.type === 'gov_contract' ? '🏛️' :
+                        enrichment.topCatalyst.type === 'insider_buy' ? '👤' :
+                        enrichment.topCatalyst.type === 'unusual_options' ? '📊' :
+                        enrichment.topCatalyst.type === 'merger' || enrichment.topCatalyst.type === 'acquisition' ? '🤝' :
+                        enrichment.topCatalyst.type === 'fda_approval' ? '💊' :
+                        enrichment.topCatalyst.type === 'analyst_upgrade' ? '📈' : '⚡',
+                  color: enrichment.topCatalyst.impact === 'high' ? 'text-purple-400' : 'text-blue-400',
+                },
+                catalystScore: enrichment.catalystScore,
+              };
+            }
+            return stock;
+          } catch {
+            return stock;
+          }
+        })
+      );
+
+      // Enrich top losers with catalyst data
+      const enrichedLosers = await Promise.all(
+        topLosers.map(async (stock) => {
+          try {
+            const enrichment = await enrichStockWithCatalysts(stock.symbol);
+            if (enrichment.topCatalyst) {
+              return {
+                ...stock,
+                hasCatalyst: true,
+                catalyst: {
+                  type: enrichment.topCatalyst.type,
+                  title: enrichment.topCatalyst.title,
+                  value: enrichment.topCatalyst.valueFormatted,
+                  icon: enrichment.topCatalyst.type === 'insider_sell' ? '👤' :
+                        enrichment.topCatalyst.type === 'analyst_downgrade' ? '📉' :
+                        enrichment.topCatalyst.type === 'fda_rejection' ? '❌' : '⚡',
+                  color: 'text-red-400',
+                },
+                catalystScore: enrichment.catalystScore,
+              };
+            }
+            return stock;
+          } catch {
+            return stock;
+          }
+        })
+      );
+
       // Volume spikes (sorted by volume ratio)
       const volumeSpikes = [...gainers, ...losers]
         .filter(s => s.avgVolume && s.volume / s.avgVolume > 1.5)
@@ -12874,17 +12936,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString(),
         session: session,
         scannedCount: gainers.length + losers.length,
-        topGainers,
-        topLosers,
+        topGainers: enrichedGainers,
+        topLosers: enrichedLosers,
         volumeSpikes,
         highAlertMovers,
         catalystNews,
         alerts: [
-          ...topGainers.filter(q => q.changePercent > 5).map(q => ({
+          ...enrichedGainers.filter(q => q.changePercent > 5).map(q => ({
             type: 'surge',
             symbol: q.symbol,
-            message: `${q.symbol} surging +${q.changePercent.toFixed(1)}%`,
+            message: `${q.symbol} surging +${q.changePercent.toFixed(1)}%${(q as any).hasCatalyst ? ' (Catalyst: ' + (q as any).catalyst?.title?.substring(0, 30) + ')' : ''}`,
             priority: 'high',
+            hasCatalyst: (q as any).hasCatalyst || false,
           })),
           ...highAlertMovers.map(q => ({
             type: 'major_move',
@@ -21740,6 +21803,84 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error clearing alert", { error });
       res.status(500).json({ error: "Failed to clear alert" });
+    }
+  });
+
+  // ============================================
+  // CATALYST INTELLIGENCE - Track WHY stocks move
+  // Insider buying, government contracts, M&A, unusual options
+  // ============================================
+
+  // Cache for catalyst data
+  const catalystCache = {
+    feed: { data: null as any, timestamp: 0 },
+  };
+  const CATALYST_CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache
+
+  // GET /api/catalysts - Get all active catalysts
+  app.get("/api/catalysts", async (_req, res) => {
+    try {
+      const now = Date.now();
+
+      // Return cached data if fresh
+      if (catalystCache.feed.data && (now - catalystCache.feed.timestamp) < CATALYST_CACHE_TTL) {
+        return res.json({
+          ...catalystCache.feed.data,
+          cached: true,
+          cacheAge: Math.round((now - catalystCache.feed.timestamp) / 1000)
+        });
+      }
+
+      const { fetchAllCatalysts } = await import("./catalyst-tracker-service");
+      const feed = await fetchAllCatalysts();
+
+      // Update cache
+      catalystCache.feed = { data: feed, timestamp: now };
+
+      res.json({
+        ...feed,
+        cached: false
+      });
+    } catch (error) {
+      logger.error("Error fetching catalysts", { error });
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  // GET /api/catalysts/:symbol - Get catalysts for specific symbol
+  app.get("/api/catalysts/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { getCatalystsForSymbol, enrichStockWithCatalysts } = await import("./catalyst-tracker-service");
+
+      const catalysts = await getCatalystsForSymbol(symbol);
+      const enrichment = await enrichStockWithCatalysts(symbol);
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        catalysts,
+        ...enrichment
+      });
+    } catch (error) {
+      logger.error("Error fetching catalysts for symbol", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  // GET /api/catalysts/high-impact - Get only high-impact catalysts
+  app.get("/api/catalysts/high-impact", async (_req, res) => {
+    try {
+      const { fetchAllCatalysts } = await import("./catalyst-tracker-service");
+      const feed = await fetchAllCatalysts();
+
+      res.json({
+        catalysts: feed.highImpact,
+        count: feed.highImpact.length,
+        lastUpdated: feed.lastUpdated
+      });
+    } catch (error) {
+      logger.error("Error fetching high-impact catalysts", { error });
+      res.status(500).json({ error: "Failed to fetch catalysts" });
     }
   });
 

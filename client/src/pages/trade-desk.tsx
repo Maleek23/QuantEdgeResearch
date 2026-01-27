@@ -1024,20 +1024,38 @@ function MarketMoversSubPage() {
     <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
-        isGainer ? "bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50" : "bg-red-500/10 border-red-500/30 hover:border-red-400/50"
+        isGainer ? "bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50" : "bg-red-500/10 border-red-500/30 hover:border-red-400/50",
+        // Highlight stocks with catalysts
+        stock.hasCatalyst && "ring-1 ring-purple-500/40"
       )}>
         <div className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
                 isGainer ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
               )}>
                 {stock.symbol.slice(0, 2)}
+                {/* Catalyst indicator dot */}
+                {stock.hasCatalyst && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
+                    {stock.catalyst?.icon || '⚡'}
+                  </span>
+                )}
               </div>
               <div>
-                <span className="font-bold text-white">{stock.symbol}</span>
-                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">{stock.name || 'Stock'}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white">{stock.symbol}</span>
+                  {/* Catalyst badge */}
+                  {stock.hasCatalyst && stock.catalyst && (
+                    <Badge className="text-[9px] bg-purple-500/20 text-purple-300 border-purple-500/30">
+                      {stock.catalyst.icon}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
+                  {stock.hasCatalyst && stock.catalyst?.title ? stock.catalyst.title : (stock.name || 'Stock')}
+                </p>
               </div>
             </div>
             <div className="text-right">
@@ -1188,29 +1206,51 @@ function SurgeDetectionSubPage() {
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         stock.tier === 'SURGE' ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-400/50" :
         stock.tier === 'MOMENTUM' ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-400/50" :
-        "bg-blue-500/10 border-blue-500/30 hover:border-blue-400/50"
+        "bg-blue-500/10 border-blue-500/30 hover:border-blue-400/50",
+        // Highlight stocks with catalysts
+        stock.hasCatalyst && "ring-1 ring-purple-500/40"
       )}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
                 stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
                 stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
                 "bg-blue-500/20 text-blue-400"
               )}>
                 {stock.symbol.slice(0, 2)}
+                {/* Catalyst indicator dot */}
+                {stock.hasCatalyst && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
+                    {stock.catalyst?.icon || '⚡'}
+                  </span>
+                )}
               </div>
               <div>
-                <span className="font-bold text-white">{stock.symbol}</span>
-                <Badge className={cn(
-                  "ml-2 text-[9px]",
-                  stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
-                  stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
-                  "bg-blue-500/20 text-blue-400"
-                )}>
-                  {stock.tier}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white">{stock.symbol}</span>
+                  <Badge className={cn(
+                    "text-[9px]",
+                    stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
+                    stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+                    "bg-blue-500/20 text-blue-400"
+                  )}>
+                    {stock.tier}
+                  </Badge>
+                  {/* Catalyst badge */}
+                  {stock.hasCatalyst && stock.catalyst && (
+                    <Badge className="text-[9px] bg-purple-500/20 text-purple-300 border-purple-500/30">
+                      {stock.catalyst.icon} Catalyst
+                    </Badge>
+                  )}
+                </div>
+                {/* Show catalyst title if available */}
+                {stock.hasCatalyst && stock.catalyst?.title && (
+                  <p className="text-[10px] text-purple-300/80 mt-0.5 truncate max-w-[180px]">
+                    {stock.catalyst.title}
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -1237,20 +1277,42 @@ function SurgeDetectionSubPage() {
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/10 border-violet-500/30 hover:border-violet-400/50" :
         pred.prediction?.tier === 'STRONG_SETUP' ? "bg-cyan-500/10 border-cyan-500/30 hover:border-cyan-400/50" :
-        "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50"
+        "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50",
+        // Highlight stocks with catalysts
+        pred.hasCatalyst && "ring-1 ring-purple-500/40"
       )}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
                 pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-cyan-500/20 text-cyan-400"
               )}>
                 {pred.symbol.slice(0, 2)}
+                {/* Catalyst indicator dot */}
+                {pred.hasCatalyst && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
+                    {pred.catalyst?.icon || '⚡'}
+                  </span>
+                )}
               </div>
               <div>
-                <span className="font-bold text-white">{pred.symbol}</span>
-                {pred.prediction?.tier === 'HIGH_CONVICTION' && <Sparkles className="w-3 h-3 text-violet-400 inline ml-1" />}
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white">{pred.symbol}</span>
+                  {pred.prediction?.tier === 'HIGH_CONVICTION' && <Sparkles className="w-3 h-3 text-violet-400" />}
+                  {/* Catalyst badge */}
+                  {pred.hasCatalyst && pred.catalyst && (
+                    <Badge className="text-[9px] bg-purple-500/20 text-purple-300 border-purple-500/30">
+                      {pred.catalyst.icon} Catalyst
+                    </Badge>
+                  )}
+                </div>
+                {/* Show catalyst title if available */}
+                {pred.hasCatalyst && pred.catalyst?.title && (
+                  <p className="text-[10px] text-purple-300/80 mt-0.5 truncate max-w-[180px]">
+                    {pred.catalyst.title}
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -1867,7 +1929,10 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
     return displayData.slice(0, 5).map((stock: any, idx: number) => (
       <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
-        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer">
+        <div className={cn(
+          "flex items-center justify-between p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors cursor-pointer",
+          stock.hasCatalyst && "ring-1 ring-purple-500/30 bg-purple-500/5"
+        )}>
           <div className="flex items-center gap-2">
             <span className={cn(
               "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
@@ -1876,9 +1941,16 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
               "bg-blue-500/20 text-blue-400"
             )}>{idx + 1}</span>
             <div>
-              <span className="font-mono font-bold text-white text-sm">{stock.symbol}</span>
-              <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
-                {stock.reason?.split(' | ')[0] || stock.tier}
+              <div className="flex items-center gap-1">
+                <span className="font-mono font-bold text-white text-sm">{stock.symbol}</span>
+                {stock.hasCatalyst && stock.catalyst && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">
+                    {stock.catalyst.icon}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-500 truncate max-w-[140px]">
+                {stock.catalyst?.title || stock.reason?.split(' | ')[0] || stock.tier}
               </p>
             </div>
           </div>

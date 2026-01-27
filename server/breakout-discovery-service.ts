@@ -1,4 +1,6 @@
 import { logger } from './logger';
+import { enrichStockWithCatalysts, formatCatalystBadge } from './catalyst-tracker-service';
+import type { AnyCatalyst } from '../shared/catalyst-types';
 
 interface BreakoutCandidate {
   symbol: string;
@@ -11,6 +13,16 @@ interface BreakoutCandidate {
   sector?: string;
   tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
   isRealMover?: boolean; // From actual market movers
+  // Catalyst enrichment
+  catalyst?: {
+    type: string;
+    title: string;
+    value?: string;
+    icon: string;
+    color: string;
+  };
+  catalystScore?: number;
+  hasCatalyst?: boolean;
 }
 
 interface RealMover {
@@ -390,7 +402,56 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
       logger.info(`[MARKET-WIDE-SCAN] 🔥 TOP SURGERS: ${topSurgers.map(c => `${c.symbol} +${c.change?.toFixed(1)}%`).join(' | ')}`);
     }
 
-    return candidates.slice(0, 50); // Return more candidates
+    // CATALYST ENRICHMENT - Add WHY stocks are moving
+    const topCandidates = candidates.slice(0, 50);
+    try {
+      const enrichmentPromises = topCandidates.map(async (candidate) => {
+        try {
+          const enrichment = await enrichStockWithCatalysts(candidate.symbol);
+          if (enrichment.hasBullishCatalyst && enrichment.topCatalyst) {
+            const badge = formatCatalystBadge(enrichment.topCatalyst);
+            candidate.catalyst = {
+              type: enrichment.topCatalyst.type,
+              title: enrichment.topCatalyst.title,
+              value: enrichment.topCatalyst.valueFormatted,
+              icon: badge.icon,
+              color: badge.color,
+            };
+            candidate.catalystScore = enrichment.catalystScore;
+            candidate.hasCatalyst = true;
+            // Boost score for stocks with catalysts
+            candidate.score = Math.min(99, candidate.score + 15);
+            candidate.reason = `${badge.icon} ${enrichment.topCatalyst.title} | ${candidate.reason}`;
+          }
+        } catch (e) {
+          // Catalyst lookup failed, continue without
+        }
+        return candidate;
+      });
+
+      await Promise.allSettled(enrichmentPromises);
+
+      // Re-sort with catalyst boost
+      topCandidates.sort((a, b) => {
+        // Catalysts get priority
+        if (a.hasCatalyst && !b.hasCatalyst) return -1;
+        if (!a.hasCatalyst && b.hasCatalyst) return 1;
+        // Then by tier
+        const tierOrder = { 'SURGE': 0, 'MOMENTUM': 1, 'SETUP': 2, 'WATCH': 3 };
+        const tierDiff = tierOrder[a.tier || 'WATCH'] - tierOrder[b.tier || 'WATCH'];
+        if (tierDiff !== 0) return tierDiff;
+        return b.score - a.score;
+      });
+
+      const withCatalysts = topCandidates.filter(c => c.hasCatalyst).length;
+      if (withCatalysts > 0) {
+        logger.info(`[CATALYST] 🎯 ${withCatalysts} movers have known catalysts`);
+      }
+    } catch (e) {
+      logger.debug('[CATALYST] Enrichment failed, continuing without:', e);
+    }
+
+    return topCandidates;
     
   } catch (error) {
     logger.error('[SURGE-DETECTOR] Scan failed:', error);
