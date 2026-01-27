@@ -487,17 +487,34 @@ export async function scanSocialSentiment(): Promise<{
 async function sendTrendingAlerts(trending: TrendingTicker[]): Promise<void> {
   const webhook = process.env.DISCORD_WEBHOOK_URL;
   if (!webhook || trending.length === 0) return;
-  
+
+  // DEDUPLICATION: Check if we can send notification (global + per-symbol cooldown)
+  const { canSendScannerNotification, markScannerNotificationSent } = await import('./discord-service');
+  const symbols = trending.map(t => t.symbol);
+  const dedupCheck = canSendScannerNotification('social_sentiment', symbols);
+
+  if (!dedupCheck.canSend) {
+    logger.info(`[SOCIAL-SENTIMENT] Discord notification BLOCKED: ${dedupCheck.reason}`);
+    return;
+  }
+
+  // Filter tickers to only those that passed symbol dedup
+  const filteredTrending = trending.filter(t => dedupCheck.filteredSymbols.includes(t.symbol));
+  if (filteredTrending.length === 0) {
+    logger.info('[SOCIAL-SENTIMENT] All tickers were recently notified - skipping Discord');
+    return;
+  }
+
   try {
     const content = [
       '# 🔥 Trending on Social Media',
       '',
-      ...trending.map(ticker => {
+      ...filteredTrending.map(ticker => {
         const emoji = ticker.sentiment === 'bullish' ? '🟢' : ticker.sentiment === 'bearish' ? '🔴' : '⚪';
         return `${emoji} **$${ticker.symbol}** - ${ticker.mentionCount} mentions | Sentiment: ${ticker.sentimentScore > 0 ? '+' : ''}${ticker.sentimentScore.toFixed(0)}`;
       }),
     ].join('\n');
-    
+
     await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -506,6 +523,10 @@ async function sendTrendingAlerts(trending: TrendingTicker[]): Promise<void> {
         username: 'Social Sentiment Scanner',
       }),
     });
+
+    // Mark notification as sent to prevent spam
+    markScannerNotificationSent('social_sentiment', filteredTrending.map(t => t.symbol));
+    logger.info(`[SOCIAL-SENTIMENT] Discord alert sent for ${filteredTrending.length} tickers (deduped)`);
   } catch (error) {
     logger.warn('[SOCIAL-SENTIMENT] Discord alert failed:', error);
   }

@@ -502,20 +502,37 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
  */
 async function sendFlowAlerts(flows: OptionsFlow[]): Promise<void> {
   const webhook = process.env.DISCORD_WEBHOOK_URL;
-  if (!webhook) return;
-  
+  if (!webhook || flows.length === 0) return;
+
+  // DEDUPLICATION: Check if we can send notification (global + per-symbol cooldown)
+  const { canSendScannerNotification, markScannerNotificationSent } = await import('./discord-service');
+  const symbols = flows.map(f => f.symbol);
+  const dedupCheck = canSendScannerNotification('options_flow', symbols);
+
+  if (!dedupCheck.canSend) {
+    logger.info(`[OPTIONS-FLOW] Discord notification BLOCKED: ${dedupCheck.reason}`);
+    return;
+  }
+
+  // Filter flows to only those that passed symbol dedup
+  const filteredFlows = flows.filter(f => dedupCheck.filteredSymbols.includes(f.symbol));
+  if (filteredFlows.length === 0) {
+    logger.info('[OPTIONS-FLOW] All flows were recently notified - skipping Discord');
+    return;
+  }
+
   try {
     const content = [
       '# 📊 Unusual Options Flow Detected',
       '',
-      ...flows.map(flow => {
+      ...filteredFlows.map(flow => {
         const emoji = flow.sentiment === 'bullish' ? '🟢' : flow.sentiment === 'bearish' ? '🔴' : '⚪';
         const typeEmoji = flow.flowType === 'block' ? '🐋' : flow.flowType === 'sweep' ? '🧹' : '📈';
         return `${emoji} **${flow.symbol}** ${flow.optionType.toUpperCase()} $${flow.strikePrice} ${flow.expiryDate}\n` +
           `${typeEmoji} ${flow.flowType.toUpperCase()} | Vol: ${flow.volume.toLocaleString()} | Premium: $${(flow.premium / 1000).toFixed(0)}k | Score: ${flow.unusualScore}`;
       }),
     ].join('\n');
-    
+
     await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -524,6 +541,10 @@ async function sendFlowAlerts(flows: OptionsFlow[]): Promise<void> {
         username: 'Options Flow Scanner',
       }),
     });
+
+    // Mark notification as sent to prevent spam
+    markScannerNotificationSent('options_flow', filteredFlows.map(f => f.symbol));
+    logger.info(`[OPTIONS-FLOW] Discord alert sent for ${filteredFlows.length} flows (deduped)`);
   } catch (error) {
     logger.warn('[OPTIONS-FLOW] Discord alert failed:', error);
   }

@@ -331,6 +331,20 @@ export async function getTopSwingOpportunities(limit: number = 10): Promise<Swin
  * Send swing opportunity to Discord
  */
 export async function sendSwingToDiscord(opp: SwingOpportunity): Promise<boolean> {
+  // DEDUPLICATION: Check if we can send notification (global + per-symbol cooldown)
+  const { canSendScannerNotification, markScannerNotificationSent } = await import('./discord-service');
+  const dedupCheck = canSendScannerNotification('swing_trade', [opp.symbol]);
+
+  if (!dedupCheck.canSend) {
+    logger.info(`[SWING] Discord notification BLOCKED for ${opp.symbol}: ${dedupCheck.reason}`);
+    return false;
+  }
+
+  if (!dedupCheck.filteredSymbols.includes(opp.symbol)) {
+    logger.info(`[SWING] ${opp.symbol} was recently notified - skipping Discord`);
+    return false;
+  }
+
   const embed = {
     title: `📈 SWING TRADE: ${opp.symbol}`,
     color: opp.grade === 'S' ? 0xFFD700 : opp.grade === 'A' ? 0x00FF00 : 0x00BFFF,
@@ -403,8 +417,10 @@ export async function sendSwingToDiscord(opp: SwingOpportunity): Promise<boolean
       logger.warn(`[SWING] Discord webhook failed: ${response.status}`);
       return false;
     }
-    
-    logger.info(`[SWING] 📱 Sent ${opp.symbol} to Discord`);
+
+    // Mark notification as sent to prevent spam
+    markScannerNotificationSent('swing_trade', [opp.symbol]);
+    logger.info(`[SWING] 📱 Sent ${opp.symbol} to Discord (deduped)`);
     return true;
   } catch (error) {
     logger.error(`[SWING] Discord send failed:`, error);

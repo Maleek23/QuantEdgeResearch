@@ -907,6 +907,103 @@ export function getPennyScannerNotificationStats(): {
   };
 }
 
+// ============ UNIVERSAL SCANNER NOTIFICATION DEDUPLICATION ============
+// Prevents spam from ALL scanner types sending duplicate Discord messages
+type ScannerType = 'options_flow' | 'social_sentiment' | 'swing_trade' | 'breakout';
+const scannerLastNotification = new Map<ScannerType, number>();
+const SCANNER_GLOBAL_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between scanner notifications
+const scannerSymbolCache = new Map<string, number>(); // key: "scannerType:symbol" -> timestamp
+const SCANNER_SYMBOL_COOLDOWN_MS = 8 * 60 * 60 * 1000; // 8 hours between same symbol notifications
+
+/**
+ * Check if a scanner notification can be sent (global + per-symbol cooldown)
+ */
+export function canSendScannerNotification(scannerType: ScannerType, symbols: string[]): {
+  canSend: boolean;
+  reason: string;
+  filteredSymbols: string[];
+} {
+  const now = Date.now();
+
+  // Check global cooldown for this scanner type
+  const lastNotification = scannerLastNotification.get(scannerType);
+  if (lastNotification && now - lastNotification < SCANNER_GLOBAL_COOLDOWN_MS) {
+    const remainingMins = Math.round((SCANNER_GLOBAL_COOLDOWN_MS - (now - lastNotification)) / 60000);
+    return {
+      canSend: false,
+      reason: `Global cooldown - ${remainingMins}min remaining for ${scannerType}`,
+      filteredSymbols: []
+    };
+  }
+
+  // Filter out symbols that were recently notified for this scanner type
+  const filteredSymbols = symbols.filter(symbol => {
+    const cacheKey = `${scannerType}:${symbol}`;
+    const lastSymbolNotify = scannerSymbolCache.get(cacheKey);
+    if (lastSymbolNotify && now - lastSymbolNotify < SCANNER_SYMBOL_COOLDOWN_MS) {
+      return false; // Skip - recently notified
+    }
+    return true;
+  });
+
+  // Clean up old cache entries
+  if (scannerSymbolCache.size > 1000) {
+    const entries = Array.from(scannerSymbolCache.entries());
+    for (const [key, timestamp] of entries) {
+      if (now - timestamp > SCANNER_SYMBOL_COOLDOWN_MS) {
+        scannerSymbolCache.delete(key);
+      }
+    }
+  }
+
+  if (filteredSymbols.length === 0) {
+    return {
+      canSend: false,
+      reason: 'All symbols were recently notified',
+      filteredSymbols: []
+    };
+  }
+
+  return {
+    canSend: true,
+    reason: 'OK',
+    filteredSymbols
+  };
+}
+
+/**
+ * Mark scanner notification as sent
+ */
+export function markScannerNotificationSent(scannerType: ScannerType, symbols: string[]): void {
+  const now = Date.now();
+  scannerLastNotification.set(scannerType, now);
+
+  for (const symbol of symbols) {
+    const cacheKey = `${scannerType}:${symbol}`;
+    scannerSymbolCache.set(cacheKey, now);
+  }
+
+  logger.info(`[DISCORD] Marked ${scannerType} notification sent for ${symbols.length} symbols`);
+}
+
+/**
+ * Get all scanner notification stats (for debugging)
+ */
+export function getAllScannerNotificationStats(): Record<string, any> {
+  const stats: Record<string, any> = {};
+
+  for (const scannerType of ['options_flow', 'social_sentiment', 'swing_trade', 'breakout'] as ScannerType[]) {
+    const lastSent = scannerLastNotification.get(scannerType);
+    stats[scannerType] = {
+      lastSent: lastSent ? new Date(lastSent).toISOString() : null,
+      cooldownRemaining: lastSent ? Math.max(0, SCANNER_GLOBAL_COOLDOWN_MS - (Date.now() - lastSent)) / 60000 : 0
+    };
+  }
+
+  stats.symbolCacheSize = scannerSymbolCache.size;
+  return stats;
+}
+
 // Global QUANTFLOOR cooldown to prevent burst spam  
 let lastQuantFloorBatchTime = 0;
 const QUANTFLOOR_BATCH_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 HOURS between batch summaries
