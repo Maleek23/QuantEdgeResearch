@@ -398,55 +398,142 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing Section - Beta */}
-      <section className="py-10" id="pricing" data-testid="section-pricing">
+      {/* Pricing Section - Prominent */}
+      <section className="py-16 bg-gradient-to-b from-slate-900/50 to-slate-950" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
-          <div className="max-w-2xl mx-auto">
-            {/* Beta Banner */}
-            <div className="text-center mb-6">
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-3">Beta Access</Badge>
-              <h2 className="text-2xl font-bold text-white mb-2">Free During Beta</h2>
-              <p className="text-sm text-slate-400">Full access to all features while we're in beta.</p>
-            </div>
+          {/* Header */}
+          <div className="text-center mb-10">
+            <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 mb-4 text-sm px-4 py-1">
+              <Sparkles className="w-3.5 h-3.5 mr-1.5 inline" />
+              Limited Beta Access
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+              Start Free. <span className="text-cyan-400">No Credit Card.</span>
+            </h2>
+            <p className="text-slate-400 max-w-lg mx-auto">
+              Get full access to all 6 AI engines and professional tools while we're in beta. Upgrade later when Pro launches.
+            </p>
+          </div>
 
-            {/* Two column: Current + Coming Soon */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Free Beta */}
-              <div className="rounded-xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 to-transparent p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-white">Beta Access</h3>
-                  <span className="text-2xl font-bold text-white">$0</span>
-                </div>
-                <ul className="space-y-2 mb-4">
-                  {['All 6 research engines', 'Real-time analysis', 'Chart tools', 'Paper trading', 'Discord community'].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-slate-300">
-                      <Check className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" /> {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950" onClick={() => setLocation('/signup')}>
-                  Get Started Free
-                </Button>
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* Free Beta - Featured */}
+            <div className="relative rounded-2xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 via-slate-900/50 to-slate-900/80 p-6 md:p-8">
+              {/* Most Popular Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-cyan-500 text-slate-950 font-semibold px-4 py-1 shadow-lg shadow-cyan-500/30">
+                  MOST POPULAR
+                </Badge>
               </div>
 
-              {/* Pro Coming Soon */}
-              <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-5 opacity-75">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-white">Pro</h3>
-                  <span className="text-lg text-slate-500">Coming Soon</span>
+              <div className="mt-4 mb-6">
+                <h3 className="text-lg font-semibold text-white mb-1">Beta Access</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold text-white">$0</span>
+                  <span className="text-slate-400">/forever during beta</span>
                 </div>
-                <ul className="space-y-2 mb-4">
-                  {['Priority alerts', 'Auto-Lotto bot', 'API access', 'Advanced screeners', 'Priority support'].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-slate-500">
-                      <Check className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" /> {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full border-slate-700 text-slate-400" onClick={() => setWaitlistOpen(true)}>
-                  Join Waitlist
-                </Button>
               </div>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  'All 6 AI research engines',
+                  'Real-time market analysis',
+                  'Advanced charting tools',
+                  'Stock screener & discovery',
+                  'Paper trading simulator',
+                  'Market news & sentiment',
+                  'Discord community access',
+                  'Unlimited stock research',
+                ].map(f => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-slate-200">
+                    <div className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-3 w-3 text-cyan-400" />
+                    </div>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                size="lg"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 text-base"
+                onClick={() => setLocation('/signup')}
+              >
+                Get Started Free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <p className="text-center text-xs text-slate-500 mt-3">
+                No credit card required • Cancel anytime
+              </p>
             </div>
+
+            {/* Pro Coming Soon */}
+            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/30 p-6 md:p-8 relative overflow-hidden">
+              {/* Coming Soon Overlay */}
+              <div className="absolute top-4 right-4">
+                <Badge variant="outline" className="border-purple-500/50 text-purple-400 bg-purple-500/10">
+                  Coming Q2 2025
+                </Badge>
+              </div>
+
+              <div className="mt-4 mb-6">
+                <h3 className="text-lg font-semibold text-white mb-1">Pro</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-slate-400">$29</span>
+                  <span className="text-slate-500">/month</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-400 mb-4">Everything in Beta, plus:</p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Priority real-time alerts',
+                  'Auto-Lotto options bot',
+                  'API access for automation',
+                  'Advanced screener filters',
+                  'Backtesting & analytics',
+                  'Priority support',
+                ].map(f => (
+                  <li key={f} className="flex items-center gap-3 text-sm text-slate-400">
+                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-3 w-3 text-slate-500" />
+                    </div>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 h-12"
+                onClick={() => setWaitlistOpen(true)}
+              >
+                Join Pro Waitlist
+              </Button>
+
+              <p className="text-center text-xs text-slate-600 mt-3">
+                Be first to know when Pro launches
+              </p>
+            </div>
+          </div>
+
+          {/* Trust indicators */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-slate-500">
+            <span className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-500" />
+              Secure & encrypted
+            </span>
+            <span className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-cyan-500" />
+              No credit card needed
+            </span>
+            <span className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-purple-500" />
+              2,500+ traders joined
+            </span>
           </div>
         </div>
       </section>
