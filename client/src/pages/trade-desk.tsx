@@ -357,14 +357,14 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
           })
         )}
       </div>
-      {onViewAll && setups.length > 0 && (
+      {onViewAll && (
         <Button
           variant="ghost"
           size="sm"
           className="w-full mt-3 h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
           onClick={onViewAll}
         >
-          View All Setups <ChevronRight className="w-3 h-3 ml-1" />
+          {setups.length > 0 ? 'View All Setups' : 'Open Setups'} <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
       )}
     </Card>
@@ -421,14 +421,14 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
           ))
         )}
       </div>
-      {onViewAll && gainers.length > 0 && (
+      {onViewAll && (
         <Button
           variant="ghost"
           size="sm"
           className="w-full mt-3 h-7 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
           onClick={onViewAll}
         >
-          View All Movers <ChevronRight className="w-3 h-3 ml-1" />
+          {gainers.length > 0 ? 'View All Movers' : 'Open Movers'} <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
       )}
     </Card>
@@ -1951,15 +1951,15 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
         {renderContent()}
       </div>
 
-      {/* View All button for Tomorrow tab */}
-      {tab === 'tomorrow' && tomorrowPlays.length > 0 && onViewTomorrow && (
+      {/* View All button - always show to navigate to full sub-page */}
+      {onViewTomorrow && (
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-3 h-7 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+          className="w-full mt-3 h-7 text-xs text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
           onClick={onViewTomorrow}
         >
-          View All Predictions <ChevronRight className="w-3 h-3 ml-1" />
+          View Full Surge Detection <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
       )}
 
@@ -2201,14 +2201,14 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
           ))
         )}
       </div>
-      {onViewAll && symbols.length > 0 && (
+      {onViewAll && (
         <Button
           variant="ghost"
           size="sm"
           className="w-full mt-3 h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
           onClick={onViewAll}
         >
-          View All Hot Symbols <ChevronRight className="w-3 h-3 ml-1" />
+          {symbols.length > 0 ? 'View All Hot Symbols' : 'Open Hot Symbols'} <ChevronRight className="w-3 h-3 ml-1" />
         </Button>
       )}
     </Card>
