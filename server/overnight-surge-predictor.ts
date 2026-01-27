@@ -61,8 +61,8 @@ const SURGE_CANDIDATE_UNIVERSE = [
   // Biotech - Binary events, FDA plays
   'MRNA', 'BNTX', 'NVAX', 'SAVA', 'PRTA', 'IMVT', 'QURE', 'BLUE', 'EDIT',
 
-  // Fintech/Growth - High beta to market
-  'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'PYPL', 'NU', 'COIN',
+  // Fintech/Growth - High beta to market (ONDS, ZETA frequent surgers)
+  'ONDS', 'ZETA', 'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'PYPL', 'NU', 'COIN', 'BILL', 'TOST',
 
   // Social/Tech - Meme potential
   'RDDT', 'SNAP', 'PINS', 'RBLX', 'U', 'PLTR', 'DKNG', 'PENN',
@@ -281,6 +281,9 @@ async function analyzeForOvernightSurge(
     } else if (['MRNA', 'BNTX', 'NVAX', 'SAVA'].includes(symbol)) {
       sectorBonus = '🧬 Biotech Catalyst';
       score += 8;
+    } else if (['ONDS', 'ZETA', 'SOFI', 'HOOD', 'UPST', 'AFRM'].includes(symbol)) {
+      sectorBonus = '💳 Fintech Momentum';
+      score += 10;
     }
 
     if (sectorBonus) {
