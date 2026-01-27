@@ -10,6 +10,36 @@ interface BreakoutCandidate {
   change?: number;
   sector?: string;
   tier?: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH';
+  isRealMover?: boolean; // From actual market movers
+}
+
+// Fetch actual market movers from Yahoo Finance
+async function fetchRealMarketMovers(): Promise<string[]> {
+  try {
+    const yahooFinance = (await import('yahoo-finance2')).default;
+
+    // Get day gainers - these are ACTUAL surging stocks
+    const gainers = await yahooFinance.screener({
+      scrIds: 'day_gainers',
+      count: 25,
+    }).catch(() => null);
+
+    const symbols: string[] = [];
+
+    if (gainers?.quotes) {
+      for (const quote of gainers.quotes) {
+        if (quote.symbol && !quote.symbol.includes('.') && quote.symbol.length <= 5) {
+          symbols.push(quote.symbol);
+        }
+      }
+    }
+
+    logger.info(`[SURGE-DETECTOR] Fetched ${symbols.length} real market movers: ${symbols.slice(0, 10).join(', ')}...`);
+    return symbols;
+  } catch (e) {
+    logger.error('[SURGE-DETECTOR] Failed to fetch market movers:', e);
+    return [];
+  }
 }
 
 const SURGE_WATCH_UNIVERSE = [
@@ -60,29 +90,48 @@ const SURGE_WATCH_UNIVERSE = [
 ];
 
 export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]> {
-  logger.info('[SURGE-DETECTOR] Scanning ALL tickers for momentum and pre-breakout signals...');
-  
+  logger.info('[SURGE-DETECTOR] Scanning for momentum and pre-breakout signals...');
+
   const candidates: BreakoutCandidate[] = [];
-  
+
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
-    
+
+    // STEP 1: Fetch REAL market movers (actual surging stocks like LAZR +92%)
+    const realMovers = await fetchRealMarketMovers();
+
+    // STEP 2: Add subset of our watchlist
     const shuffled = [...SURGE_WATCH_UNIVERSE].sort(() => Math.random() - 0.5);
-    const toScan = shuffled.slice(0, 60);
-    
-    const batchSize = 10;
+    const watchlistSubset = shuffled.slice(0, 30); // Reduced from 60 to 30
+
+    // STEP 3: Combine - real movers first (they're already surging!)
+    const realMoverSet = new Set(realMovers);
+    const toScan = [
+      ...realMovers,
+      ...watchlistSubset.filter(s => !realMoverSet.has(s))
+    ];
+
+    logger.info(`[SURGE-DETECTOR] Scanning ${realMovers.length} real movers + ${toScan.length - realMovers.length} watchlist = ${toScan.length} total`);
+
+    const batchSize = 15; // Increased batch size for speed
     for (let i = 0; i < toScan.length; i += batchSize) {
       const batch = toScan.slice(i, i + batchSize);
-      
+
       const results = await Promise.allSettled(
         batch.map(async (symbol) => {
           const quote = await yahooFinance.quote(symbol);
           if (!quote || !quote.regularMarketPrice) return null;
-          
+
           const price = quote.regularMarketPrice;
-          let score = 40;
+          const isRealMover = realMoverSet.has(symbol);
+          // Real movers get bonus - they're already proven surging
+          let score = isRealMover ? 60 : 40;
           const reasons: string[] = [];
           let tier: 'SURGE' | 'MOMENTUM' | 'SETUP' | 'WATCH' = 'WATCH';
+
+          if (isRealMover) {
+            reasons.push('🔥 TOP MOVER');
+          }
           
           const change = quote.regularMarketChangePercent || 0;
           const volume = quote.regularMarketVolume || 0;
@@ -204,22 +253,24 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
             upside: fromHigh,
             volume,
             change,
-            tier
+            tier,
+            isRealMover
           };
         })
       );
-      
+
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value) {
-          // Include all SURGE/MOMENTUM, and any stock with score >= 45 (more inclusive)
           const c = result.value;
-          if (c.tier === 'SURGE' || c.tier === 'MOMENTUM' || c.score >= 45) {
+          // Include: all SURGE/MOMENTUM, real movers, or good score
+          if (c.tier === 'SURGE' || c.tier === 'MOMENTUM' || c.isRealMover || c.score >= 50) {
             candidates.push(c);
           }
         }
       }
-      
-      await new Promise(r => setTimeout(r, 400));
+
+      // Reduced delay for faster loading
+      await new Promise(r => setTimeout(r, 200));
     }
     
     // Sort by tier priority, then by score
