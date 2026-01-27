@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Footer } from "@/components/footer";
 import {
   InputOTP,
@@ -44,10 +45,12 @@ import {
   TrendingDown,
   FileBarChart,
   ExternalLink,
+  Brain,
 } from "lucide-react";
 
 const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard").then(m => ({ default: m.LossPatternsDashboard })));
 const AdminAnalyticsPanel = lazy(() => import("@/components/admin-analytics-panel").then(m => ({ default: m.AdminAnalyticsPanel })));
+const AdminMLPerformance = lazy(() => import("@/components/admin/admin-ml-performance").then(m => ({ default: m.AdminMLPerformance })));
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -880,6 +883,10 @@ export default function AdminPanel() {
                 <TabsTrigger value="waitlist" data-testid="tab-waitlist">
                   <Mail className="h-4 w-4 mr-2" />
                   Waitlist
+                </TabsTrigger>
+                <TabsTrigger value="ml-performance" data-testid="tab-ml-performance">
+                  <Brain className="h-4 w-4 mr-2" />
+                  ML
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -2418,6 +2425,15 @@ export default function AdminPanel() {
                     </table>
                   </div>
                 </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* ML Performance Tab */}
+            <TabsContent value="ml-performance">
+              <CardContent className="p-6">
+                <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+                  <AdminMLPerformance />
+                </Suspense>
               </CardContent>
             </TabsContent>
           </Tabs>

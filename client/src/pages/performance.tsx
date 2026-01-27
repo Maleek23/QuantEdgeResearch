@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Target, Activity, Filter, Calendar, Brain, BarChart3, Bot, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays, subMonths, startOfDay } from 'date-fns';
@@ -19,6 +18,7 @@ import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { PageHeader } from "@/components/page-header";
+import { UserPerformanceSummary } from "@/components/user-performance-summary";
 
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
 const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
@@ -456,11 +456,12 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
 }
 
 // ============================================================
-// MAIN PAGE COMPONENT
+// MAIN PAGE COMPONENT - Simplified for users, detailed analytics tier-gated
 // ============================================================
 export default function PerformancePage() {
   const { toast } = useToast();
-  const [mainTab, setMainTab] = useState("overview");
+  const { user } = useAuth();
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [dateRange, setDateRange] = useState("all");
   const [isValidating, setIsValidating] = useState(false);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
@@ -486,16 +487,6 @@ export default function PerformancePage() {
     staleTime: 0, gcTime: 0, refetchOnMount: 'always',
   });
 
-  const { data: engineHealthData, isLoading: isEngineHealthLoading } = useQuery<EngineHealthData>({
-    queryKey: ["/api/engine-health"],
-    staleTime: 30000, refetchInterval: 60000,
-  });
-
-  const { data: autoLottoBotData, isLoading: isAutoLottoBotLoading } = useQuery<AutoLottoBotPerformance>({
-    queryKey: ["/api/performance/auto-lotto-bot"],
-    staleTime: 30000, refetchInterval: 60000,
-  });
-
   const handleExport = () => { window.location.href = '/api/performance/export'; };
 
   const handleValidate = async () => {
@@ -519,6 +510,7 @@ export default function PerformancePage() {
     return (
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-32 w-full" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24" />)}
         </div>
@@ -539,12 +531,12 @@ export default function PerformancePage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Header with filters */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <PageHeader 
+        <PageHeader
           label="Analytics"
           title="Performance"
-          description="Trading metrics and data integrity"
+          description="Track our AI engine reliability"
           icon={Target}
           iconColor="text-green-400"
           iconGradient="from-green-500/20 to-emerald-500/20"
@@ -563,160 +555,177 @@ export default function PerformancePage() {
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
-            <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
-            Validate
-          </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport} data-testid="button-export">
             <Download className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
 
-      {/* TIER 1: Hero Stats */}
-      <HeroStats stats={stats} botPnL={autoLottoBotData?.overall.totalPnL ?? 0} />
+      {/* User Performance Summary - Primary View */}
+      <UserPerformanceSummary />
 
-      {/* TIER 2: Engine Grid */}
-      <EngineGrid engineHealthData={engineHealthData} isLoading={isEngineHealthLoading} />
+      {/* Advanced Analytics Toggle */}
+      <div className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-dashed">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">Advanced Analytics</p>
+            <p className="text-xs text-muted-foreground">Detailed charts, calibration data, and audit tools</p>
+          </div>
+        </div>
+        <Button
+          variant={showAdvanced ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
+          {showAdvanced ? "Hide" : "Show"} Details
+        </Button>
+      </div>
 
-      {/* Bot Summary */}
-      <BotSummary data={autoLottoBotData} isLoading={isAutoLottoBotLoading} />
-
-      {/* TIER 3: Tabs for Details */}
-      <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-lg grid-cols-4">
-          <TabsTrigger value="overview" className="text-xs gap-1.5" data-testid="tab-overview">
-            <TrendingUp className="h-3.5 w-3.5" />Overview
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs gap-1.5" data-testid="tab-analytics">
-            <BarChart3 className="h-3.5 w-3.5" />Analytics
-          </TabsTrigger>
-          <TabsTrigger value="historical" className="text-xs gap-1.5" data-testid="tab-historical">
-            <History className="h-3.5 w-3.5" />Historical
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="text-xs gap-1.5" data-testid="tab-audit">
-            <Database className="h-3.5 w-3.5" />Audit
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-cyan-400" />
-                <CardTitle className="text-sm">Weekly Trends</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Suspense fallback={<ChartSkeleton />}>
-                <EngineTrendsChart />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
+      {/* Advanced Analytics - Collapsible */}
+      {showAdvanced && (
+        <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
           <TierGate feature="performance" blur>
-            <Accordion type="multiple" className="space-y-2">
-              <AccordionItem value="engine-perf" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Actual Engine Performance
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><EngineActualPerformance /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="rolling-winrate" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Rolling Win Rate Trends
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><RollingWinRateChart /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="drawdown" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Drawdown Analysis
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><DrawdownAnalysisChart /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="streaks" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Performance Streaks
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><StreakTracker /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="symbols" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Symbol Leaderboard
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><SymbolLeaderboard /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="time" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Time-of-Day Performance
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><TimeOfDayHeatmap /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="calibration" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Signal Calibration
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><ConfidenceCalibration /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="curve" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Calibration Curve
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><CalibrationCurve /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="losses" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Loss Patterns
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><LossPatternsDashboard /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="attribution" className="border rounded-lg">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                  Signal Attribution
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <Suspense fallback={<ChartSkeleton />}><SignalAttributionDashboard /></Suspense>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </TierGate>
-        </TabsContent>
+            <Tabs defaultValue="overview" className="space-y-4">
+              <TabsList className="grid w-full max-w-lg grid-cols-4">
+                <TabsTrigger value="overview" className="text-xs gap-1.5" data-testid="tab-overview">
+                  <TrendingUp className="h-3.5 w-3.5" />Trends
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="text-xs gap-1.5" data-testid="tab-analytics">
+                  <BarChart3 className="h-3.5 w-3.5" />Deep Dive
+                </TabsTrigger>
+                <TabsTrigger value="historical" className="text-xs gap-1.5" data-testid="tab-historical">
+                  <History className="h-3.5 w-3.5" />Historical
+                </TabsTrigger>
+                <TabsTrigger value="audit" className="text-xs gap-1.5" data-testid="tab-audit">
+                  <Database className="h-3.5 w-3.5" />Audit
+                </TabsTrigger>
+              </TabsList>
 
-        <TabsContent value="historical" className="space-y-4">
-          <TierGate feature="performance" blur>
-            <Suspense fallback={<ChartSkeleton />}>
-              <HistoricalIntelligenceTab />
-            </Suspense>
-          </TierGate>
-        </TabsContent>
+              <TabsContent value="overview" className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-cyan-400" />
+                      <CardTitle className="text-sm">Weekly Trends</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Suspense fallback={<ChartSkeleton />}>
+                      <EngineTrendsChart />
+                    </Suspense>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        <TabsContent value="audit" className="space-y-4">
-          <DataIntegrityPanel stats={stats} />
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="analytics" className="space-y-4">
+                <Accordion type="multiple" className="space-y-2">
+                  <AccordionItem value="engine-perf" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Actual Engine Performance
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><EngineActualPerformance /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="rolling-winrate" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Rolling Win Rate Trends
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><RollingWinRateChart /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="drawdown" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Drawdown Analysis
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><DrawdownAnalysisChart /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="streaks" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Performance Streaks
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><StreakTracker /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="symbols" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Symbol Leaderboard
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><SymbolLeaderboard /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="time" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Time-of-Day Performance
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><TimeOfDayHeatmap /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="calibration" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Signal Calibration
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><ConfidenceCalibration /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="curve" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Calibration Curve
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><CalibrationCurve /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="losses" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Loss Patterns
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><LossPatternsDashboard /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="attribution" className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                      Signal Attribution
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <Suspense fallback={<ChartSkeleton />}><SignalAttributionDashboard /></Suspense>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </TabsContent>
+
+              <TabsContent value="historical" className="space-y-4">
+                <Suspense fallback={<ChartSkeleton />}>
+                  <HistoricalIntelligenceTab />
+                </Suspense>
+              </TabsContent>
+
+              <TabsContent value="audit" className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium">Data Integrity Audit</h3>
+                  <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating} data-testid="button-validate">
+                    <Activity className={cn("w-3.5 h-3.5 mr-1.5", isValidating && 'animate-spin')} />
+                    Validate All
+                  </Button>
+                </div>
+                <DataIntegrityPanel stats={stats} />
+              </TabsContent>
+            </Tabs>
+          </TierGate>
+        </div>
+      )}
 
       <RiskDisclosure />
-      
+
       <ValidationResultsDialog
         open={showValidationDialog}
         onOpenChange={setShowValidationDialog}
