@@ -13,20 +13,26 @@ interface BreakoutCandidate {
   isRealMover?: boolean; // From actual market movers
 }
 
-// Fetch actual market movers from Yahoo Finance (with timeout)
+interface RealMover {
+  symbol: string;
+  change: number;
+  price: number;
+  volume: number;
+}
+
+// Fetch actual market movers from Yahoo Finance - AGGRESSIVE market-wide scan
 async function fetchRealMarketMovers(): Promise<string[]> {
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
 
-    // Add timeout to prevent hanging
     const timeoutPromise = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), 5000)
+      setTimeout(() => resolve(null), 8000)
     );
 
-    // Get day gainers - these are ACTUAL surging stocks
+    // Get day gainers - these are ACTUAL surging stocks across the ENTIRE market
     const gainersPromise = yahooFinance.screener({
       scrIds: 'day_gainers',
-      count: 20, // Reduced for speed
+      count: 100, // INCREASED - catch more surging stocks market-wide
     }).catch(() => null);
 
     const gainers = await Promise.race([gainersPromise, timeoutPromise]);
@@ -35,18 +41,94 @@ async function fetchRealMarketMovers(): Promise<string[]> {
 
     if (gainers?.quotes) {
       for (const quote of gainers.quotes) {
-        if (quote.symbol && !quote.symbol.includes('.') && quote.symbol.length <= 5) {
+        // Filter: valid US stocks only (no ADRs with dots, reasonable ticker length)
+        if (quote.symbol &&
+            !quote.symbol.includes('.') &&
+            quote.symbol.length <= 5 &&
+            quote.symbol.length >= 1) {
           symbols.push(quote.symbol);
         }
       }
     }
 
     if (symbols.length > 0) {
-      logger.info(`[SURGE-DETECTOR] Fetched ${symbols.length} real market movers: ${symbols.slice(0, 8).join(', ')}...`);
+      logger.info(`[MARKET-WIDE-SCAN] 🔍 Fetched ${symbols.length} REAL market movers: ${symbols.slice(0, 10).join(', ')}...`);
     }
     return symbols;
   } catch (e) {
-    logger.error('[SURGE-DETECTOR] Failed to fetch market movers:', e);
+    logger.error('[MARKET-WIDE-SCAN] Failed to fetch market movers:', e);
+    return [];
+  }
+}
+
+// NEW: Fetch detailed data for real market movers - this is where we catch ANY surging stock
+async function fetchDetailedMarketMovers(): Promise<RealMover[]> {
+  try {
+    const yahooFinance = (await import('yahoo-finance2')).default;
+
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 10000)
+    );
+
+    // Fetch top gainers AND most active stocks
+    const [gainersResult, activeResult] = await Promise.all([
+      Promise.race([
+        yahooFinance.screener({ scrIds: 'day_gainers', count: 50 }).catch(() => null),
+        timeoutPromise
+      ]),
+      Promise.race([
+        yahooFinance.screener({ scrIds: 'most_actives', count: 30 }).catch(() => null),
+        new Promise<null>((r) => setTimeout(() => r(null), 10000))
+      ])
+    ]);
+
+    const movers: RealMover[] = [];
+    const seen = new Set<string>();
+
+    // Process gainers - these are the BIG movers we want
+    if (gainersResult?.quotes) {
+      for (const quote of gainersResult.quotes as any[]) {
+        if (!quote.symbol || quote.symbol.includes('.') || quote.symbol.length > 5) continue;
+        if (seen.has(quote.symbol)) continue;
+        seen.add(quote.symbol);
+
+        movers.push({
+          symbol: quote.symbol,
+          change: quote.regularMarketChangePercent || 0,
+          price: quote.regularMarketPrice || 0,
+          volume: quote.regularMarketVolume || 0
+        });
+      }
+    }
+
+    // Also add most active (high volume = potential breakout)
+    if (activeResult?.quotes) {
+      for (const quote of activeResult.quotes as any[]) {
+        if (!quote.symbol || quote.symbol.includes('.') || quote.symbol.length > 5) continue;
+        if (seen.has(quote.symbol)) continue;
+        seen.add(quote.symbol);
+
+        // Only include if green
+        const change = quote.regularMarketChangePercent || 0;
+        if (change > 0) {
+          movers.push({
+            symbol: quote.symbol,
+            change,
+            price: quote.regularMarketPrice || 0,
+            volume: quote.regularMarketVolume || 0
+          });
+        }
+      }
+    }
+
+    // Sort by change descending - biggest movers first
+    movers.sort((a, b) => b.change - a.change);
+
+    logger.info(`[MARKET-WIDE-SCAN] 🎯 Detailed scan found ${movers.length} movers. Top 5: ${movers.slice(0, 5).map(m => `${m.symbol} +${m.change.toFixed(1)}%`).join(', ')}`);
+
+    return movers;
+  } catch (e) {
+    logger.error('[MARKET-WIDE-SCAN] Detailed fetch failed:', e);
     return [];
   }
 }
@@ -99,28 +181,34 @@ const SURGE_WATCH_UNIVERSE = [
 ];
 
 export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]> {
-  logger.info('[SURGE-DETECTOR] Scanning for momentum and pre-breakout signals...');
+  logger.info('[MARKET-WIDE-SCAN] 🔍 Scanning ENTIRE MARKET for surging stocks...');
 
   const candidates: BreakoutCandidate[] = [];
 
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
 
-    // STEP 1: Fetch REAL market movers (actual surging stocks like LAZR +92%)
+    // STEP 1: Fetch REAL market movers - THIS IS PRIMARY (catches APLD, LAZR, any surging stock)
+    const detailedMovers = await fetchDetailedMarketMovers();
     const realMovers = await fetchRealMarketMovers();
 
-    // STEP 2: Add subset of our watchlist (smaller for speed)
-    const shuffled = [...SURGE_WATCH_UNIVERSE].sort(() => Math.random() - 0.5);
-    const watchlistSubset = shuffled.slice(0, 20); // Reduced for faster loading
-
-    // STEP 3: Combine - real movers first (they're already surging!)
-    const realMoverSet = new Set(realMovers);
-    const toScan = [
+    // Create a set of all real movers for quick lookup
+    const realMoverSet = new Set([
       ...realMovers,
+      ...detailedMovers.map(m => m.symbol)
+    ]);
+
+    // STEP 2: Add a SMALL subset of watchlist (just for sector coverage)
+    const shuffled = [...SURGE_WATCH_UNIVERSE].sort(() => Math.random() - 0.5);
+    const watchlistSubset = shuffled.slice(0, 10); // Minimal - real movers are priority
+
+    // STEP 3: Combine - REAL market movers are the PRIMARY source now
+    const toScan = [
+      ...Array.from(realMoverSet), // ALL real movers first
       ...watchlistSubset.filter(s => !realMoverSet.has(s))
     ];
 
-    logger.info(`[SURGE-DETECTOR] Scanning ${realMovers.length} real movers + ${toScan.length - realMovers.length} watchlist = ${toScan.length} total`);
+    logger.info(`[MARKET-WIDE-SCAN] 🎯 Priority: ${realMoverSet.size} REAL movers + ${watchlistSubset.filter(s => !realMoverSet.has(s)).length} watchlist = ${toScan.length} total`);
 
     const batchSize = 15; // Increased batch size for speed
     for (let i = 0; i < toScan.length; i += batchSize) {
@@ -289,9 +377,20 @@ export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]>
       if (tierDiff !== 0) return tierDiff;
       return b.score - a.score;
     });
-    
-    logger.info(`[SURGE-DETECTOR] Found ${candidates.length} candidates (SURGE: ${candidates.filter(c => c.tier === 'SURGE').length}, MOMENTUM: ${candidates.filter(c => c.tier === 'MOMENTUM').length})`);
-    return candidates.slice(0, 30);
+
+    const surgeCount = candidates.filter(c => c.tier === 'SURGE').length;
+    const momentumCount = candidates.filter(c => c.tier === 'MOMENTUM').length;
+    const realMoverCount = candidates.filter(c => c.isRealMover).length;
+
+    logger.info(`[MARKET-WIDE-SCAN] ✅ Found ${candidates.length} total: ${surgeCount} SURGING, ${momentumCount} MOMENTUM, ${realMoverCount} from REAL market scan`);
+
+    // Log the top surgers so we never miss one
+    const topSurgers = candidates.filter(c => c.tier === 'SURGE').slice(0, 5);
+    if (topSurgers.length > 0) {
+      logger.info(`[MARKET-WIDE-SCAN] 🔥 TOP SURGERS: ${topSurgers.map(c => `${c.symbol} +${c.change?.toFixed(1)}%`).join(' | ')}`);
+    }
+
+    return candidates.slice(0, 50); // Return more candidates
     
   } catch (error) {
     logger.error('[SURGE-DETECTOR] Scan failed:', error);
@@ -361,4 +460,4 @@ export async function detectPreBreakout(): Promise<BreakoutCandidate[]> {
   }
 }
 
-export { SURGE_WATCH_UNIVERSE };
+export { SURGE_WATCH_UNIVERSE, fetchDetailedMarketMovers, fetchRealMarketMovers };

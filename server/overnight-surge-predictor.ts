@@ -348,17 +348,71 @@ async function analyzeForOvernightSurge(
  * Call this near market close (3-4 PM ET) for best results
  */
 export async function scanOvernightSurgeCandidates(): Promise<OvernightPrediction[]> {
-  logger.info('[OVERNIGHT-PREDICTOR] Scanning for next-day surge candidates...');
+  logger.info('[OVERNIGHT-PREDICTOR] 🌐 Scanning MARKET-WIDE for next-day surge candidates...');
 
   const predictions: OvernightPrediction[] = [];
+  const scannedSymbols = new Set<string>();
 
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
 
-    // Scan in batches to avoid rate limits
+    // STEP 1: MARKET-WIDE SCAN - Get today's top gainers (they might continue tomorrow)
+    // This catches ANY stock that's hot, not just our watchlist
+    let marketWideSymbols: string[] = [];
+    try {
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 8000)
+      );
+
+      const gainersPromise = yahooFinance.screener({
+        scrIds: 'day_gainers',
+        count: 50, // Get top 50 market-wide gainers
+      }).catch(() => null);
+
+      const gainers = await Promise.race([gainersPromise, timeoutPromise]);
+
+      if (gainers?.quotes) {
+        for (const quote of gainers.quotes as any[]) {
+          if (!quote.symbol || quote.symbol.includes('.') || quote.symbol.length > 5) continue;
+          // Only include stocks with 5%+ gain (momentum plays)
+          const change = quote.regularMarketChangePercent || 0;
+          if (change >= 5) {
+            marketWideSymbols.push(quote.symbol);
+          }
+        }
+      }
+
+      if (marketWideSymbols.length > 0) {
+        logger.info(`[OVERNIGHT-PREDICTOR] 🔥 Found ${marketWideSymbols.length} HOT stocks from market scan: ${marketWideSymbols.slice(0, 8).join(', ')}`);
+      }
+    } catch (e) {
+      logger.error('[OVERNIGHT-PREDICTOR] Market-wide scan failed:', e);
+    }
+
+    // STEP 2: Analyze market-wide gainers FIRST (these are today's movers)
+    for (let i = 0; i < marketWideSymbols.length; i += 5) {
+      const batch = marketWideSymbols.slice(i, i + 5);
+
+      const results = await Promise.allSettled(
+        batch.map(symbol => analyzeForOvernightSurge(yahooFinance, symbol))
+      );
+
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          predictions.push(result.value);
+          scannedSymbols.add(result.value.symbol);
+        }
+      }
+
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // STEP 3: Also scan our curated watchlist (for stocks that haven't moved yet)
+    const watchlistToScan = SURGE_CANDIDATE_UNIVERSE.filter(s => !scannedSymbols.has(s));
+
     const batchSize = 8;
-    for (let i = 0; i < SURGE_CANDIDATE_UNIVERSE.length; i += batchSize) {
-      const batch = SURGE_CANDIDATE_UNIVERSE.slice(i, i + batchSize);
+    for (let i = 0; i < watchlistToScan.length; i += batchSize) {
+      const batch = watchlistToScan.slice(i, i + batchSize);
 
       const results = await Promise.allSettled(
         batch.map(symbol => analyzeForOvernightSurge(yahooFinance, symbol))
@@ -370,8 +424,7 @@ export async function scanOvernightSurgeCandidates(): Promise<OvernightPredictio
         }
       }
 
-      // Rate limit between batches
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 400));
     }
 
     // Sort by score (highest conviction first)
@@ -379,10 +432,11 @@ export async function scanOvernightSurgeCandidates(): Promise<OvernightPredictio
 
     const highConviction = predictions.filter(p => p.prediction.tier === 'HIGH_CONVICTION').length;
     const strongSetups = predictions.filter(p => p.prediction.tier === 'STRONG_SETUP').length;
+    const fromMarketScan = marketWideSymbols.filter(s => predictions.some(p => p.symbol === s)).length;
 
-    logger.info(`[OVERNIGHT-PREDICTOR] Found ${predictions.length} candidates (${highConviction} high conviction, ${strongSetups} strong setups)`);
+    logger.info(`[OVERNIGHT-PREDICTOR] ✅ Found ${predictions.length} candidates: ${highConviction} HIGH_CONVICTION, ${strongSetups} STRONG_SETUP (${fromMarketScan} from market-wide scan)`);
 
-    return predictions.slice(0, 25);
+    return predictions.slice(0, 30); // Return more candidates
 
   } catch (error) {
     logger.error('[OVERNIGHT-PREDICTOR] Scan failed:', error);

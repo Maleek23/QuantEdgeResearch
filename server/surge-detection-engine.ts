@@ -1,6 +1,56 @@
 import { logger } from './logger';
 import { ingestTradeIdea, IngestionInput } from './trade-idea-ingestion';
 
+// Market-wide scan - fetch actual surging stocks from the ENTIRE market
+async function fetchMarketWideSurgers(): Promise<Array<{ symbol: string; change: number; price: number; volume: number }>> {
+  try {
+    const yahooFinance = (await import('yahoo-finance2')).default;
+
+    const timeoutPromise = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), 10000)
+    );
+
+    // Fetch TOP GAINERS from the ENTIRE market - not limited to any watchlist
+    const gainersPromise = yahooFinance.screener({
+      scrIds: 'day_gainers',
+      count: 100, // Get top 100 gainers market-wide
+    }).catch(() => null);
+
+    const gainers = await Promise.race([gainersPromise, timeoutPromise]);
+
+    const surgers: Array<{ symbol: string; change: number; price: number; volume: number }> = [];
+
+    if (gainers?.quotes) {
+      for (const quote of gainers.quotes as any[]) {
+        // Filter: valid US stocks only
+        if (!quote.symbol || quote.symbol.includes('.') || quote.symbol.length > 5) continue;
+
+        const change = quote.regularMarketChangePercent || 0;
+        // Only include stocks with meaningful movement (3%+ or high volume)
+        if (change >= 3 || quote.regularMarketVolume > 10000000) {
+          surgers.push({
+            symbol: quote.symbol,
+            change,
+            price: quote.regularMarketPrice || 0,
+            volume: quote.regularMarketVolume || 0
+          });
+        }
+      }
+    }
+
+    surgers.sort((a, b) => b.change - a.change);
+
+    if (surgers.length > 0) {
+      logger.info(`[DETECTION-ENGINE] 🌐 MARKET-WIDE SCAN found ${surgers.length} surgers: ${surgers.slice(0, 8).map(s => `${s.symbol}+${s.change.toFixed(0)}%`).join(', ')}`);
+    }
+
+    return surgers;
+  } catch (e) {
+    logger.error('[DETECTION-ENGINE] Market-wide scan failed:', e);
+    return [];
+  }
+}
+
 interface DetectionAlert {
   symbol: string;
   trigger: 'VOLUME_SPIKE' | 'PRICE_BREAKOUT' | 'NEWS_CATALYST' | 'SECTOR_MOVE' | 'TECHNICAL_SIGNAL';
@@ -56,29 +106,64 @@ const PRIORITY_WATCHLIST = [
 
 async function checkPriceThresholds(): Promise<DetectionAlert[]> {
   const alerts: DetectionAlert[] = [];
-  
+
   try {
     const yahooFinance = (await import('yahoo-finance2')).default;
-    
+
+    // STEP 1: MARKET-WIDE SCAN - This is the PRIMARY source now
+    // Catches ANY stock surging in the market (APLD, LAZR, whatever is moving)
+    const marketWideSurgers = await fetchMarketWideSurgers();
+    const marketWideSymbols = new Set(marketWideSurgers.map(s => s.symbol));
+
+    // Process market-wide surgers FIRST - these are the stocks actually moving
+    for (const surger of marketWideSurgers) {
+      const { symbol, change, price, volume } = surger;
+
+      // Auto-alert for ANY stock surging 5%+ (no watchlist required!)
+      if (change >= 5) {
+        const severity = change >= 15 ? 'HIGH' : change >= 8 ? 'HIGH' : 'MEDIUM';
+        const alert: DetectionAlert = {
+          symbol,
+          trigger: 'PRICE_BREAKOUT',
+          severity,
+          message: `🌐 ${symbol} MARKET-WIDE SURGE +${change.toFixed(1)}%`,
+          price,
+          change,
+          detectedAt: new Date(),
+          data: { volume, source: 'market_wide_scan' }
+        };
+        alerts.push(alert);
+        activeAlerts.set(`${symbol}-PRICE`, alert);
+
+        // Log significant surgers we're catching
+        if (change >= 10) {
+          logger.info(`[DETECTION-ENGINE] 🔥 CAUGHT SURGE: ${symbol} +${change.toFixed(1)}% (market-wide scan)`);
+        }
+      }
+    }
+
+    // STEP 2: Supplement with watchlist scan (smaller subset)
+    const watchlistSubset = PRIORITY_WATCHLIST.filter(s => !marketWideSymbols.has(s)).slice(0, 30);
+
     const batchSize = 15;
-    for (let i = 0; i < PRIORITY_WATCHLIST.length; i += batchSize) {
-      const batch = PRIORITY_WATCHLIST.slice(i, i + batchSize);
-      
+    for (let i = 0; i < watchlistSubset.length; i += batchSize) {
+      const batch = watchlistSubset.slice(i, i + batchSize);
+
       const results = await Promise.allSettled(
         batch.map(async (symbol) => {
           try {
             const quote = await yahooFinance.quote(symbol);
             if (!quote || !quote.regularMarketPrice) return null;
-            
+
             const price = quote.regularMarketPrice;
             const change = quote.regularMarketChangePercent || 0;
             const volume = quote.regularMarketVolume || 0;
             const avgVolume = quote.averageDailyVolume10Day || quote.averageVolume || volume;
             const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
-            
+
             const prev = watchedSymbols.get(symbol);
             watchedSymbols.set(symbol, { lastPrice: price, lastVolume: volume, avgVolume });
-            
+
             if (change >= DEFAULT_CRITERIA.priceChangeThreshold) {
               const alert: DetectionAlert = {
                 symbol,
@@ -93,11 +178,11 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
               alerts.push(alert);
               activeAlerts.set(`${symbol}-PRICE`, alert);
             }
-            
+
             if (volumeRatio >= DEFAULT_CRITERIA.volumeMultiplier) {
               const existingAlert = activeAlerts.get(`${symbol}-VOLUME`);
               const isNew = !existingAlert || (Date.now() - existingAlert.detectedAt.getTime()) > 30 * 60 * 1000;
-              
+
               if (isNew) {
                 const alert: DetectionAlert = {
                   symbol,
@@ -113,7 +198,7 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
                 activeAlerts.set(`${symbol}-VOLUME`, alert);
               }
             }
-            
+
             const fiftyTwoWeekHigh = quote.fiftyTwoWeekHigh || price * 1.5;
             const nearHigh = (price / fiftyTwoWeekHigh) > 0.95;
             if (nearHigh && change > 1) {
@@ -130,21 +215,27 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
               alerts.push(alert);
               activeAlerts.set(`${symbol}-TECHNICAL`, alert);
             }
-            
+
             return { symbol, price, change, volumeRatio };
           } catch (e) {
             return null;
           }
         })
       );
-      
-      await new Promise(r => setTimeout(r, 300));
+
+      await new Promise(r => setTimeout(r, 200));
     }
-    
+
+    // Log market-wide vs watchlist breakdown
+    const marketWideAlerts = alerts.filter(a => a.data?.source === 'market_wide_scan').length;
+    if (marketWideAlerts > 0) {
+      logger.info(`[DETECTION-ENGINE] 📊 Alerts: ${marketWideAlerts} from MARKET-WIDE scan, ${alerts.length - marketWideAlerts} from watchlist`);
+    }
+
   } catch (error) {
     logger.error('[DETECTION-ENGINE] Price threshold check failed:', error);
   }
-  
+
   return alerts;
 }
 
