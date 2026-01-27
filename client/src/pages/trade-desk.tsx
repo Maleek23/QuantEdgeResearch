@@ -3062,12 +3062,12 @@ export default function TradeDeskRedesigned() {
 
     // For each group, sort by confidence and take top N
     const result: TradeIdea[] = [];
-    for (const [_key, groupIdeas] of groups) {
+    Array.from(groups.values()).forEach((groupIdeas) => {
       // Sort by confidence descending
-      groupIdeas.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+      groupIdeas.sort((a: TradeIdea, b: TradeIdea) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
       // Take only top maxPerGroup
       result.push(...groupIdeas.slice(0, maxPerGroup));
-    }
+    });
 
     // Re-sort final result by confidence
     result.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
