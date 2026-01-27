@@ -6,6 +6,15 @@ import { getTradierQuote } from "./tradier-api";
 import { getLetterGrade } from "./grading";
 import { getNewsContext, NewsContext } from "./trading-engine";
 
+// ML Module Integration - Apply learned calibration and regime multipliers
+import {
+  calibrateConfidence,
+  detectRegime,
+  applyRegimeMultiplier,
+  getEngineWeight,
+  type RegimeAnalysis,
+} from "./ml";
+
 /**
  * UNIVERSAL TRADE IDEA GENERATOR
  * 
@@ -36,6 +45,120 @@ if (!VIX_FILTERING_ENABLED) {
 // Cache for VIX to avoid repeated API calls
 let cachedVIX: { value: number; expires: number } | null = null;
 const VIX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache for ML regime analysis
+let cachedRegime: { data: RegimeAnalysis; expires: number } | null = null;
+const REGIME_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// ML Calibration and Regime Integration
+const ML_CALIBRATION_ENABLED = process.env.ENABLE_ML_CALIBRATION !== 'false';
+const ML_REGIME_ENABLED = process.env.ENABLE_ML_REGIME !== 'false';
+
+if (ML_CALIBRATION_ENABLED) {
+  logger.info('[UNIVERSAL-IDEA] ✅ ML confidence calibration ENABLED');
+}
+if (ML_REGIME_ENABLED) {
+  logger.info('[UNIVERSAL-IDEA] ✅ ML regime-based signal multipliers ENABLED');
+}
+
+/**
+ * Get current market regime with caching
+ */
+async function getCurrentRegime(): Promise<RegimeAnalysis | null> {
+  if (!ML_REGIME_ENABLED) return null;
+
+  if (cachedRegime && cachedRegime.expires > Date.now()) {
+    return cachedRegime.data;
+  }
+
+  try {
+    const regime = await detectRegime();
+    cachedRegime = { data: regime, expires: Date.now() + REGIME_CACHE_TTL };
+    logger.debug(`[UNIVERSAL-IDEA] Regime detected: ${regime.regime} (${regime.confidence}% confidence)`);
+    return regime;
+  } catch (error) {
+    logger.warn('[UNIVERSAL-IDEA] Regime detection failed, using defaults');
+    return null;
+  }
+}
+
+/**
+ * Apply ML calibration to adjust confidence based on historical accuracy
+ */
+function applyMLCalibration(rawConfidence: number): number {
+  if (!ML_CALIBRATION_ENABLED) return rawConfidence;
+
+  try {
+    const calibration = calibrateConfidence(rawConfidence);
+    // Only apply adjustment if it's meaningful (not default 1.0)
+    if (calibration.adjustment !== 1.0) {
+      const adjusted = Math.round(rawConfidence * calibration.adjustment);
+      logger.debug(`[UNIVERSAL-IDEA] Calibration: ${rawConfidence}% -> ${adjusted}% (${calibration.recommendation})`);
+      return Math.max(40, Math.min(94, adjusted)); // Keep within bounds
+    }
+    return rawConfidence;
+  } catch (error) {
+    return rawConfidence;
+  }
+}
+
+/**
+ * Get regime-adjusted signal multiplier for a signal type
+ */
+function getRegimeSignalMultiplier(regime: RegimeAnalysis | null, signalType: string): number {
+  if (!regime || !ML_REGIME_ENABLED) return 1.0;
+
+  // Map signal types to regime multiplier categories
+  const signalCategoryMap: Record<string, keyof RegimeAnalysis['signalMultipliers']> = {
+    // Momentum signals
+    'MOMENTUM_STRONG': 'momentum',
+    'TREND_UP': 'momentum',
+    'TREND_DOWN': 'momentum',
+    'MA_CROSSOVER_BULLISH': 'momentum',
+    'MA_CROSSOVER_BEARISH': 'momentum',
+    'ADX_STRONG_TREND': 'momentum',
+
+    // Mean reversion signals
+    'RSI_OVERSOLD': 'meanReversion',
+    'RSI_OVERBOUGHT': 'meanReversion',
+    'STOCHASTIC_OVERSOLD': 'meanReversion',
+    'STOCHASTIC_OVERBOUGHT': 'meanReversion',
+    'SUPPORT_BOUNCE': 'meanReversion',
+    'RESISTANCE_REJECTION': 'meanReversion',
+
+    // Breakout signals
+    'BREAKOUT': 'breakout',
+    'BREAKDOWN': 'breakout',
+    'RANGE_BREAKOUT': 'breakout',
+    'CHANNEL_BREAK': 'breakout',
+
+    // Options flow signals
+    'UNUSUAL_OPTIONS_ACTIVITY': 'optionsFlow',
+    'SWEEP_DETECTED': 'optionsFlow',
+    'LARGE_PREMIUM': 'optionsFlow',
+    'CALL_FLOW_BULLISH': 'optionsFlow',
+    'PUT_FLOW_BEARISH': 'optionsFlow',
+
+    // Sentiment signals
+    'BULLISH_SENTIMENT': 'sentiment',
+    'BEARISH_SENTIMENT': 'sentiment',
+    'NEWS_CATALYST': 'sentiment',
+    'SOCIAL_BUZZ': 'sentiment',
+
+    // Volume signals
+    'VOLUME_SURGE': 'volume',
+    'UNUSUAL_VOLUME': 'volume',
+    'ACCUMULATION': 'volume',
+    'DISTRIBUTION': 'volume',
+  };
+
+  const category = signalCategoryMap[signalType];
+  if (category && regime.signalMultipliers[category]) {
+    return regime.signalMultipliers[category];
+  }
+
+  return 1.0; // Default multiplier
+}
 
 /**
  * Fetch current VIX level with caching
@@ -275,28 +398,41 @@ function getSignalGroupMap(): Map<string, number> {
 const SIGNAL_GROUP_MAP = getSignalGroupMap();
 
 /**
- * Calculate confidence score from signals with saturation curve, correlation penalties, and VIX filtering
+ * Calculate confidence score from signals with:
+ * - Saturation curve & correlation penalties
+ * - VIX filtering
+ * - ML regime-based signal multipliers (NEW)
+ * - ML calibration adjustment (NEW)
  */
 async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSignal[], vix: number = 20): Promise<number> {
   let confidence = SOURCE_BASE_CONFIDENCE[source] || 50;
-  
+
+  // Get current market regime for ML-based signal adjustments
+  const regime = await getCurrentRegime();
+
   // Track which correlation groups have been used and their highest weight
   const groupHighestWeight = new Map<number, number>();
   const signalWeights: { type: string; weight: number; groupIdx: number | undefined }[] = [];
-  
-  // First pass: collect all signals and their groups, apply VIX multiplier
+
+  // First pass: collect all signals and their groups, apply VIX + regime multipliers
   for (const signal of signals) {
     let weight = signal.weight || SIGNAL_WEIGHTS[signal.type] || 5;
-    
-    // Apply VIX-based signal strength multiplier
+
+    // Apply VIX-based signal strength multiplier (legacy)
     if (VIX_FILTERING_ENABLED && vix !== 20) {
       const vixMultiplier = getVIXSignalMultiplier(vix, signal.type);
       weight = Math.round(weight * vixMultiplier);
     }
-    
+
+    // Apply ML regime-based signal multiplier (NEW - uses learned regime patterns)
+    if (regime) {
+      const regimeMultiplier = getRegimeSignalMultiplier(regime, signal.type);
+      weight = Math.round(weight * regimeMultiplier);
+    }
+
     const groupIdx = SIGNAL_GROUP_MAP.get(signal.type);
     signalWeights.push({ type: signal.type, weight, groupIdx });
-    
+
     if (groupIdx !== undefined) {
       const currentMax = groupHighestWeight.get(groupIdx) || 0;
       if (weight > currentMax) {
@@ -304,14 +440,14 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
       }
     }
   }
-  
+
   // Second pass: apply correlation penalties (only highest in each group gets full weight)
   let totalSignalWeight = 0;
   const groupUsed = new Set<number>();
-  
+
   for (const { type, weight, groupIdx } of signalWeights) {
     let adjustedWeight = weight;
-    
+
     if (groupIdx !== undefined) {
       const highestInGroup = groupHighestWeight.get(groupIdx) || weight;
       if (groupUsed.has(groupIdx)) {
@@ -321,12 +457,11 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
       }
       groupUsed.add(groupIdx);
     }
-    
+
     totalSignalWeight += adjustedWeight;
   }
-  
+
   // Apply saturation curve: diminishing returns beyond 3 signals
-  // Using logarithmic scaling for more realistic distribution
   const signalCount = signals.filter(s => (s.weight || SIGNAL_WEIGHTS[s.type] || 0) > 0).length;
   const saturationFactor = signalCount <= 2 ? 0.9 :
                            signalCount === 3 ? 0.85 :
@@ -336,22 +471,33 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
   // Apply saturation to signal weight contribution
   confidence += totalSignalWeight * saturationFactor;
 
-  // Confluence bonus only for 3-4 signals (reduced from 5)
+  // Confluence bonus only for 3-4 signals
   if (signals.length >= 3 && signals.length <= 4) {
     confidence += 3;
   }
 
-  // HARD CAP: Apply a soft ceiling at 92% - makes 100% nearly impossible
-  // This reflects realistic market uncertainty
+  // Apply regime-based confidence adjustment (crisis mode reduces all confidence)
+  if (regime && regime.regime === 'CRISIS') {
+    confidence *= 0.8; // 20% reduction in crisis mode
+    logger.debug(`[UNIVERSAL-IDEA] Crisis regime: confidence reduced by 20%`);
+  } else if (regime && regime.regime === 'HIGH_VOLATILITY') {
+    confidence *= 0.9; // 10% reduction in high volatility
+  }
+
+  // HARD CAP: Apply a soft ceiling at 92%
   if (confidence > 70) {
-    // Logarithmic dampening above 70%: each point above 70 is worth less
     const excessConfidence = confidence - 70;
     const dampenedExcess = excessConfidence * (1 - excessConfidence / 100);
     confidence = 70 + dampenedExcess;
   }
 
-  // Absolute cap at 94% - no trade idea should be 100% confident
-  return Math.max(0, Math.min(94, Math.round(confidence)));
+  // Clamp to valid range
+  let rawConfidence = Math.max(0, Math.min(94, Math.round(confidence)));
+
+  // Apply ML calibration adjustment based on historical accuracy (NEW)
+  const calibratedConfidence = applyMLCalibration(rawConfidence);
+
+  return calibratedConfidence;
 }
 
 /**
