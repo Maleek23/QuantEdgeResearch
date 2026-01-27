@@ -37,8 +37,8 @@ const PRIORITY_WATCHLIST = [
   'RKLB', 'OKLO', 'NNE', 'SMR', 'CCJ', 'LEU', 'UUUU', 'UEC', 'DNN', 'URG',
   // Quantum & AI Software
   'IONQ', 'RGTI', 'QUBT', 'PLTR', 'AI', 'SOUN', 'PATH', 'SNOW', 'DDOG', 'ARQQ',
-  // Crypto & Fintech
-  'COIN', 'MARA', 'RIOT', 'MSTR', 'CLSK', 'BITF', 'WULF', 'IREN', 'CIFR',
+  // Crypto & Fintech (APLD = AI/crypto data centers, often surges with miners)
+  'COIN', 'MARA', 'RIOT', 'MSTR', 'CLSK', 'BITF', 'WULF', 'IREN', 'CIFR', 'APLD',
   'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'PYPL', 'NET', 'CRWD', 'ZS',
   // Space & Defense - KEY MOVERS (RDW, ASTS, LUNR often surge)
   'RDW', 'ASTS', 'LUNR', 'RCAT', 'JOBY', 'ACHR', 'SPCE', 'BKSY', 'LMT', 'NOC',

@@ -52,8 +52,8 @@ const SURGE_CANDIDATE_UNIVERSE = [
   // Semiconductors - High momentum names
   'ARM', 'NVDA', 'AMD', 'SMCI', 'AVGO', 'MRVL', 'MU', 'TSM', 'ASML',
 
-  // Crypto/Mining - BTC correlation, extreme vol
-  'MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK', 'WULF', 'BITF', 'CORZ', 'IREN', 'HUT',
+  // Crypto/Mining - BTC correlation, extreme vol (APLD = AI/crypto data centers)
+  'MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK', 'WULF', 'BITF', 'CORZ', 'IREN', 'HUT', 'APLD',
 
   // EV/Green - Sector moves together
   'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'QS', 'CHPT', 'BLNK',
@@ -275,9 +275,9 @@ async function analyzeForOvernightSurge(
     } else if (['RKLB', 'LUNR', 'JOBY', 'ACHR', 'ASTS'].includes(symbol)) {
       sectorBonus = '🚀 Space/Aviation';
       score += 10;
-    } else if (['MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK'].includes(symbol)) {
-      sectorBonus = '₿ Crypto Exposure';
-      score += 8;
+    } else if (['MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK', 'APLD', 'IREN', 'WULF', 'BITF'].includes(symbol)) {
+      sectorBonus = '₿ Crypto/Data Center';
+      score += 10;
     } else if (['MRNA', 'BNTX', 'NVAX', 'SAVA'].includes(symbol)) {
       sectorBonus = '🧬 Biotech Catalyst';
       score += 8;

@@ -110,8 +110,8 @@ interface ScannerStatus {
 // Expanded watchlist for options flow scanning (100+ high-volume optionable stocks)
 // PRIORITIZE: Momentum stocks with frequent surges (crypto miners, space, fintech)
 const DEFAULT_OPTIONS_WATCHLIST = [
-  // 🔥 HIGH PRIORITY - Crypto Miners (frequent surges - IREN, MARA, RIOT, CLSK)
-  'IREN', 'MARA', 'RIOT', 'CLSK', 'WULF', 'BITF', 'HUT', 'CIFR', 'COIN', 'MSTR',
+  // 🔥 HIGH PRIORITY - Crypto Miners & Data Centers (IREN, MARA, RIOT, CLSK, APLD surge together)
+  'IREN', 'MARA', 'RIOT', 'CLSK', 'WULF', 'BITF', 'HUT', 'CIFR', 'COIN', 'MSTR', 'APLD',
   // 🔥 HIGH PRIORITY - Space & Defense Momentum (RDW, ASTS, LUNR often surge)
   'RKLB', 'RDW', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RCAT', 'LMT', 'RTX', 'NOC', 'GD',
   // 🔥 HIGH PRIORITY - Fintech Momentum (ONDS, ZETA often surge)

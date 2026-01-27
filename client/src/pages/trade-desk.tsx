@@ -306,7 +306,7 @@ function StatsOverview({ ideas }: { ideas: TradeIdea[] }) {
 // ============================================
 // BEST SETUPS CARD (Quick View)
 // ============================================
-function BestSetupsCard() {
+function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['/api/trade-ideas/best-setups', 'daily'],
     queryFn: async () => {
@@ -357,6 +357,16 @@ function BestSetupsCard() {
           })
         )}
       </div>
+      {onViewAll && setups.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+          onClick={onViewAll}
+        >
+          View All Setups <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+      )}
     </Card>
   );
 }
@@ -364,7 +374,7 @@ function BestSetupsCard() {
 // ============================================
 // MARKET MOVERS CARD
 // ============================================
-function MarketMoversCard() {
+function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['/api/market-movers'],
     queryFn: async () => {
@@ -411,14 +421,1298 @@ function MarketMoversCard() {
           ))
         )}
       </div>
+      {onViewAll && gainers.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 h-7 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+          onClick={onViewAll}
+        >
+          View All Movers <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+      )}
     </Card>
+  );
+}
+
+// ============================================
+// TOMORROW'S SURGERS SUB-PAGE (Full Overnight Predictions View)
+// ============================================
+function TomorrowSurgersSubPage() {
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['/api/discovery/overnight-predictions', forceRefresh],
+    queryFn: async () => {
+      const url = forceRefresh ? '/api/discovery/overnight-predictions?refresh=true' : '/api/discovery/overnight-predictions';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch overnight predictions');
+      setForceRefresh(false);
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refresh every 10 minutes
+    retry: 2,
+  });
+
+  const predictions = data?.predictions || [];
+
+  // Group by tier
+  const highConviction = predictions.filter((p: any) => p.prediction?.tier === 'HIGH_CONVICTION');
+  const strongSetup = predictions.filter((p: any) => p.prediction?.tier === 'STRONG_SETUP');
+  const watchClosely = predictions.filter((p: any) => p.prediction?.tier === 'WATCH_CLOSELY');
+  const speculative = predictions.filter((p: any) => p.prediction?.tier === 'SPECULATIVE');
+
+  const getTierStyle = (tier: string) => {
+    switch (tier) {
+      case 'HIGH_CONVICTION':
+        return { bg: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/50', text: 'text-violet-400', badge: 'bg-violet-500/30 text-violet-300' };
+      case 'STRONG_SETUP':
+        return { bg: 'from-cyan-500/20 to-teal-500/20', border: 'border-cyan-500/50', text: 'text-cyan-400', badge: 'bg-cyan-500/30 text-cyan-300' };
+      case 'WATCH_CLOSELY':
+        return { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/50', text: 'text-amber-400', badge: 'bg-amber-500/30 text-amber-300' };
+      default:
+        return { bg: 'from-slate-500/20 to-gray-500/20', border: 'border-slate-500/50', text: 'text-slate-400', badge: 'bg-slate-500/30 text-slate-300' };
+    }
+  };
+
+  const renderPredictionCard = (pred: any, idx: number) => {
+    const style = getTierStyle(pred.prediction?.tier);
+    const signals = pred.signals || [];
+    const topSignals = signals.slice(0, 4);
+
+    return (
+      <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
+        <Card className={cn(
+          "relative overflow-hidden cursor-pointer transition-all duration-300",
+          `bg-gradient-to-br ${style.bg}`,
+          style.border,
+          "hover:shadow-lg hover:-translate-y-1"
+        )}>
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
+
+          <div className="relative p-4">
+            {/* Header: Symbol + Tier Badge */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                  "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
+                )}>
+                  {pred.symbol.slice(0, 2)}
+                </div>
+                <div>
+                  <span className="font-bold text-white text-lg">{pred.symbol}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-slate-500">${pred.currentPrice?.toFixed(2) || '—'}</span>
+                    {pred.change && (
+                      <span className={cn(
+                        "text-xs font-medium",
+                        pred.change > 0 ? "text-emerald-400" : "text-red-400"
+                      )}>
+                        {pred.change > 0 ? '+' : ''}{pred.change.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge className={cn("text-xs font-bold px-2 py-1", style.badge)}>
+                  {pred.prediction?.tier?.replace('_', ' ') || 'WATCH'}
+                </Badge>
+                <div className={cn("text-lg font-bold mt-1", style.text)}>
+                  {pred.prediction?.probability?.toFixed(0) || 0}%
+                </div>
+              </div>
+            </div>
+
+            {/* Target Range */}
+            {pred.prediction?.targetRange && (
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 text-xs mb-3">
+                <div className="text-center">
+                  <div className="text-slate-500 text-[10px]">Low Target</div>
+                  <div className="font-semibold text-amber-400">${pred.prediction.targetRange.low?.toFixed(2) || '—'}</div>
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                <div className="text-center">
+                  <div className="text-slate-500 text-[10px]">High Target</div>
+                  <div className="font-semibold text-emerald-400">${pred.prediction.targetRange.high?.toFixed(2) || '—'}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-slate-500 text-[10px]">Potential</div>
+                  <div className="font-semibold text-cyan-400">
+                    +{pred.prediction?.expectedMove?.toFixed(0) || '—'}%
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Signals */}
+            {topSignals.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {topSignals.map((signal: any, sIdx: number) => (
+                  <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-800/60 text-slate-300">
+                    {signal.icon || '📊'} {signal.name || signal}
+                  </span>
+                ))}
+                {signals.length > 4 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-400">
+                    +{signals.length - 4} more
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Reasoning */}
+            {pred.prediction?.reasoning && (
+              <p className="text-[10px] text-slate-400 truncate">
+                {pred.prediction.reasoning.slice(0, 80)}...
+              </p>
+            )}
+
+            {/* View indicator */}
+            <div className="absolute bottom-2 right-2">
+              <ChevronRight className={cn("w-4 h-4", style.text, "opacity-50")} />
+            </div>
+          </div>
+        </Card>
+      </Link>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/40">
+              <Sparkles className="w-5 h-5 text-violet-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">Tomorrow's Potential Surgers</h2>
+              <p className="text-xs text-slate-500">Loading predictions...</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-48 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-16">
+        <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-400 opacity-50" />
+        <p className="text-red-400">Failed to load overnight predictions</p>
+        <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/40">
+            <Sparkles className="w-5 h-5 text-violet-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Tomorrow's Potential Surgers
+              <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/40 text-[10px]">
+                PREDICTIVE AI
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Stocks showing overnight surge patterns • Best scanned near market close
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 bg-slate-800/40 border-slate-700/50"
+            onClick={() => {
+              setForceRefresh(true);
+              refetch();
+            }}
+            disabled={isLoading}
+          >
+            <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
+          <Badge variant="outline" className="text-xs">
+            {predictions.length} Predictions
+          </Badge>
+        </div>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="bg-violet-500/10 border-violet-500/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Star className="w-4 h-4 text-violet-400" />
+            <span className="text-xs text-violet-400">High Conviction</span>
+          </div>
+          <div className="text-2xl font-bold text-violet-300">{highConviction.length}</div>
+        </Card>
+        <Card className="bg-cyan-500/10 border-cyan-500/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp className="w-4 h-4 text-cyan-400" />
+            <span className="text-xs text-cyan-400">Strong Setup</span>
+          </div>
+          <div className="text-2xl font-bold text-cyan-300">{strongSetup.length}</div>
+        </Card>
+        <Card className="bg-amber-500/10 border-amber-500/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Eye className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-amber-400">Watch Closely</span>
+          </div>
+          <div className="text-2xl font-bold text-amber-300">{watchClosely.length}</div>
+        </Card>
+        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Activity className="w-4 h-4 text-slate-400" />
+            <span className="text-xs text-slate-400">Speculative</span>
+          </div>
+          <div className="text-2xl font-bold text-slate-300">{speculative.length}</div>
+        </Card>
+      </div>
+
+      {predictions.length === 0 ? (
+        <div className="text-center py-16">
+          <Clock className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+          <p className="text-slate-400">No overnight predictions available</p>
+          <p className="text-xs text-slate-500 mt-2">
+            Best results when scanned near market close (3-4 PM ET)
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* High Conviction Section */}
+          {highConviction.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Star className="w-4 h-4 text-violet-400" />
+                <h3 className="text-sm font-semibold text-white">High Conviction Plays</h3>
+                <Badge className="bg-violet-500/20 text-violet-400 text-[10px]">
+                  70%+ Probability
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {highConviction.map((pred: any, idx: number) => renderPredictionCard(pred, idx))}
+              </div>
+            </div>
+          )}
+
+          {/* Strong Setup Section */}
+          {strongSetup.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-semibold text-white">Strong Setups</h3>
+                <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px]">
+                  55-70% Probability
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {strongSetup.map((pred: any, idx: number) => renderPredictionCard(pred, idx))}
+              </div>
+            </div>
+          )}
+
+          {/* Watch Closely Section */}
+          {watchClosely.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Eye className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-semibold text-white">Watch Closely</h3>
+                <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+                  40-55% Probability
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {watchClosely.map((pred: any, idx: number) => renderPredictionCard(pred, idx))}
+              </div>
+            </div>
+          )}
+
+          {/* Speculative Section */}
+          {speculative.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="w-4 h-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-white">Speculative</h3>
+                <Badge className="bg-slate-500/20 text-slate-400 text-[10px]">
+                  &lt;40% Probability
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {speculative.map((pred: any, idx: number) => renderPredictionCard(pred, idx))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Info Footer */}
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-violet-500/10">
+            <Brain className="w-4 h-4 text-violet-400" />
+          </div>
+          <div className="text-xs text-slate-400">
+            <p className="font-medium text-slate-300 mb-1">How Overnight Surge Prediction Works</p>
+            <p>Our AI analyzes consolidation patterns, volume accumulation, after-hours activity, and sector momentum to identify stocks with high probability of significant moves the next trading day. Best used for weekly options plays on high-momentum stocks.</p>
+          </div>
+        </div>
+      </Card>
+
+      {data?.cached && (
+        <p className="text-[9px] text-slate-600 text-center">
+          Data cached {data.cacheAge}s ago • Next refresh in {Math.max(0, 600 - (data.cacheAge || 0))}s
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// BEST SETUPS SUB-PAGE (Full AI Stock Picker View)
+// ============================================
+function BestSetupsSubPage() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['/api/trade-ideas/best-setups', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=50');
+      if (!res.ok) return { setups: [] };
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 60000,
+  });
+
+  const setups = data?.setups || [];
+
+  // Group by grade
+  const eliteSetups = setups.filter((s: any) => ['A+', 'A', 'A-'].includes(s.probabilityBand || getLetterGrade(s.confidenceScore || 50)));
+  const strongSetups = setups.filter((s: any) => ['B+', 'B', 'B-'].includes(s.probabilityBand || getLetterGrade(s.confidenceScore || 50)));
+  const otherSetups = setups.filter((s: any) => {
+    const grade = s.probabilityBand || getLetterGrade(s.confidenceScore || 50);
+    return !['A+', 'A', 'A-', 'B+', 'B', 'B-'].includes(grade);
+  });
+
+  const renderSetupCard = (setup: any) => {
+    const grade = setup.probabilityBand || getLetterGrade(setup.confidenceScore || 50);
+    const style = getGradeStyle(grade);
+    const isLong = setup.direction === 'LONG' || setup.direction === 'long';
+    const isOption = setup.assetType === 'option' || setup.optionType;
+
+    return (
+      <Link key={setup.id || `${setup.symbol}-${setup.timestamp}`} href={`/stock/${setup.symbol}`}>
+        <Card className={cn(
+          "relative overflow-hidden cursor-pointer transition-all duration-300",
+          "bg-slate-900/60 border-slate-700/50",
+          "hover:border-cyan-500/50 hover:shadow-lg hover:-translate-y-1"
+        )}>
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                  isLong ? "bg-gradient-to-br from-emerald-500 to-green-600 text-white" : "bg-gradient-to-br from-red-500 to-rose-600 text-white"
+                )}>
+                  {setup.symbol.slice(0, 2)}
+                </div>
+                <div>
+                  <span className="font-bold text-white text-lg">{setup.symbol}</span>
+                  <div className="flex items-center gap-1">
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                      isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    )}>
+                      {isLong ? 'LONG' : 'SHORT'}
+                    </span>
+                    {isOption && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+                        {setup.optionType?.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge className={cn("text-base font-bold px-3 py-1 border", style.bgClass, style.textClass)}>
+                  {grade}
+                </Badge>
+                <div className="text-lg font-bold text-white mt-1">{setup.confidenceScore || 50}%</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 text-xs">
+              <div className="text-center">
+                <div className="text-slate-500 text-[10px]">Entry</div>
+                <div className="font-semibold text-white">${setup.entryPrice?.toFixed(2) || '—'}</div>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              <div className="text-center">
+                <div className="text-slate-500 text-[10px]">Target</div>
+                <div className="font-semibold text-emerald-400">${setup.targetPrice?.toFixed(2) || '—'}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-slate-500 text-[10px]">Stop</div>
+                <div className="font-semibold text-red-400">${setup.stopLoss?.toFixed(2) || '—'}</div>
+              </div>
+            </div>
+
+            {setup.catalyst && (
+              <p className="mt-2 text-[10px] text-amber-400/80 truncate flex items-center gap-1">
+                <Zap className="w-3 h-3" /> {setup.catalyst.slice(0, 60)}...
+              </p>
+            )}
+          </div>
+        </Card>
+      </Link>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
+            <Star className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Best Setups</h2>
+            <p className="text-xs text-slate-500">Loading AI-picked trades...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-40 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
+            <Star className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Best Setups
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+                AI STOCK PICKER
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">Top conviction trade ideas from 6 AI engines</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+          <Badge variant="outline">{setups.length} Setups</Badge>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-emerald-500/10 border-emerald-500/30 p-4">
+          <div className="text-xs text-emerald-400 mb-1">Elite (A Grade)</div>
+          <div className="text-2xl font-bold text-emerald-300">{eliteSetups.length}</div>
+        </Card>
+        <Card className="bg-blue-500/10 border-blue-500/30 p-4">
+          <div className="text-xs text-blue-400 mb-1">Strong (B Grade)</div>
+          <div className="text-2xl font-bold text-blue-300">{strongSetups.length}</div>
+        </Card>
+        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
+          <div className="text-xs text-slate-400 mb-1">Watchlist</div>
+          <div className="text-2xl font-bold text-slate-300">{otherSetups.length}</div>
+        </Card>
+      </div>
+
+      {setups.length === 0 ? (
+        <div className="text-center py-16">
+          <Star className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+          <p className="text-slate-400">No setups available</p>
+        </div>
+      ) : (
+        <>
+          {eliteSetups.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Star className="w-4 h-4 text-emerald-400" /> Elite Setups (A Grade)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {eliteSetups.map(renderSetupCard)}
+              </div>
+            </div>
+          )}
+
+          {strongSetups.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-400" /> Strong Setups (B Grade)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {strongSetups.map(renderSetupCard)}
+              </div>
+            </div>
+          )}
+
+          {otherSetups.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-slate-400" /> Watchlist
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {otherSetups.map(renderSetupCard)}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// MARKET MOVERS SUB-PAGE
+// ============================================
+function MarketMoversSubPage() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['/api/market-movers', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/market-movers');
+      if (!res.ok) return { topGainers: [], topLosers: [] };
+      return res.json();
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60000,
+  });
+
+  const gainers = data?.topGainers || [];
+  const losers = data?.topLosers || [];
+
+  const renderMoverCard = (stock: any, isGainer: boolean) => (
+    <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+      <Card className={cn(
+        "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+        isGainer ? "bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50" : "bg-red-500/10 border-red-500/30 hover:border-red-400/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                isGainer ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+              )}>
+                {stock.symbol.slice(0, 2)}
+              </div>
+              <div>
+                <span className="font-bold text-white">{stock.symbol}</span>
+                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">{stock.name || 'Stock'}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={cn("text-xl font-bold", isGainer ? "text-emerald-400" : "text-red-400")}>
+                {isGainer ? '+' : ''}{stock.changePercent?.toFixed(1)}%
+              </div>
+              <div className="text-sm font-mono text-slate-400">${stock.price?.toFixed(2)}</div>
+            </div>
+          </div>
+          {stock.volume && (
+            <div className="mt-2 pt-2 border-t border-slate-700/30">
+              <span className="text-[10px] text-slate-500">Vol: {(stock.volume / 1000000).toFixed(1)}M</span>
+            </div>
+          )}
+        </div>
+      </Card>
+    </Link>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40">
+            <Flame className="w-5 h-5 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Market Movers</h2>
+            <p className="text-xs text-slate-500">Loading...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-28 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40">
+            <Flame className="w-5 h-5 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Market Movers
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">
+                LIVE
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">Today's biggest gainers and losers</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+        </Button>
+      </div>
+
+      {/* Top Gainers */}
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-emerald-400" /> Top Gainers ({gainers.length})
+        </h3>
+        {gainers.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">No gainers data</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {gainers.slice(0, 12).map((stock: any) => renderMoverCard(stock, true))}
+          </div>
+        )}
+      </div>
+
+      {/* Top Losers */}
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-red-400" /> Top Losers ({losers.length})
+        </h3>
+        {losers.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">No losers data</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {losers.slice(0, 12).map((stock: any) => renderMoverCard(stock, false))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// SURGE DETECTION SUB-PAGE (Now, Early, Tomorrow combined)
+// ============================================
+function SurgeDetectionSubPage() {
+  const [activeSubTab, setActiveSubTab] = useState<'now' | 'early' | 'tomorrow'>('now');
+
+  // Fetch breakout candidates
+  const { data: breakoutData, isLoading: breakoutLoading, refetch: refetchBreakouts } = useQuery({
+    queryKey: ['/api/discovery/breakouts', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/breakouts');
+      if (!res.ok) throw new Error('Failed to fetch surge data');
+      return res.json();
+    },
+    staleTime: 4 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Fetch pre-breakout candidates
+  const { data: preBreakoutData, isLoading: preLoading } = useQuery({
+    queryKey: ['/api/discovery/pre-breakout', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/pre-breakout');
+      if (!res.ok) throw new Error('Failed to fetch pre-breakout data');
+      return res.json();
+    },
+    staleTime: 4 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Fetch overnight predictions
+  const { data: overnightData, isLoading: overnightLoading } = useQuery({
+    queryKey: ['/api/discovery/overnight-predictions', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/discovery/overnight-predictions');
+      if (!res.ok) throw new Error('Failed to fetch overnight predictions');
+      return res.json();
+    },
+    staleTime: 8 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+  });
+
+  const allCandidates = breakoutData?.candidates || [];
+  const surgeMomentum = allCandidates.filter((c: any) => c.tier === 'SURGE' || c.tier === 'MOMENTUM');
+  const setupTier = allCandidates.filter((c: any) => c.tier === 'SETUP' || c.score >= 50);
+  const surges = surgeMomentum.length > 0 ? surgeMomentum : setupTier.length > 0 ? setupTier : allCandidates;
+  const earlySetups = preBreakoutData?.candidates || [];
+  const tomorrowPlays = overnightData?.predictions || [];
+
+  const isLoading = activeSubTab === 'now' ? breakoutLoading : activeSubTab === 'early' ? preLoading : overnightLoading;
+
+  const renderSurgeCard = (stock: any, type: string) => (
+    <Link key={`${stock.symbol}-${type}`} href={`/stock/${stock.symbol}`}>
+      <Card className={cn(
+        "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+        stock.tier === 'SURGE' ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-400/50" :
+        stock.tier === 'MOMENTUM' ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-400/50" :
+        "bg-blue-500/10 border-blue-500/30 hover:border-blue-400/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
+                stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+                "bg-blue-500/20 text-blue-400"
+              )}>
+                {stock.symbol.slice(0, 2)}
+              </div>
+              <div>
+                <span className="font-bold text-white">{stock.symbol}</span>
+                <Badge className={cn(
+                  "ml-2 text-[9px]",
+                  stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
+                  stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+                  "bg-blue-500/20 text-blue-400"
+                )}>
+                  {stock.tier}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={cn("text-xl font-bold", stock.change > 0 ? "text-emerald-400" : "text-red-400")}>
+                {stock.change > 0 ? '+' : ''}{stock.change?.toFixed(1)}%
+              </div>
+              <div className="text-sm font-mono text-slate-400">${stock.price?.toFixed(2)}</div>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-500 truncate">{stock.reason}</p>
+          {stock.score && (
+            <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-500" style={{ width: `${stock.score}%` }} />
+            </div>
+          )}
+        </div>
+      </Card>
+    </Link>
+  );
+
+  const renderTomorrowCard = (pred: any) => (
+    <Link key={pred.symbol} href={`/stock/${pred.symbol}`}>
+      <Card className={cn(
+        "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+        pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/10 border-violet-500/30 hover:border-violet-400/50" :
+        pred.prediction?.tier === 'STRONG_SETUP' ? "bg-cyan-500/10 border-cyan-500/30 hover:border-cyan-400/50" :
+        "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-cyan-500/20 text-cyan-400"
+              )}>
+                {pred.symbol.slice(0, 2)}
+              </div>
+              <div>
+                <span className="font-bold text-white">{pred.symbol}</span>
+                {pred.prediction?.tier === 'HIGH_CONVICTION' && <Sparkles className="w-3 h-3 text-violet-400 inline ml-1" />}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={cn(
+                "text-xl font-bold",
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-cyan-400"
+              )}>
+                {pred.prediction?.probability?.toFixed(0)}%
+              </div>
+              <div className="text-sm font-mono text-slate-400">${pred.currentPrice?.toFixed(2)}</div>
+            </div>
+          </div>
+          {pred.prediction?.targetRange && (
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>Target: ${pred.prediction.targetRange.low?.toFixed(2)} - ${pred.prediction.targetRange.high?.toFixed(2)}</span>
+            </div>
+          )}
+          {pred.signals && pred.signals.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {pred.signals.slice(0, 3).map((signal: any, idx: number) => (
+                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-300">
+                  {signal.name || signal}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </Link>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40">
+            <Zap className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Surge Detection
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+                REAL-TIME
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">Momentum & pre-breakout detection system</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetchBreakouts()}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-2 p-1 bg-slate-800/40 rounded-lg w-fit">
+        <Button
+          variant={activeSubTab === 'now' ? 'default' : 'ghost'}
+          size="sm"
+          className={cn("h-8", activeSubTab === 'now' && "bg-amber-600")}
+          onClick={() => setActiveSubTab('now')}
+        >
+          <Flame className="w-4 h-4 mr-2" /> Surging Now ({surges.length})
+        </Button>
+        <Button
+          variant={activeSubTab === 'early' ? 'default' : 'ghost'}
+          size="sm"
+          className={cn("h-8", activeSubTab === 'early' && "bg-blue-600")}
+          onClick={() => setActiveSubTab('early')}
+        >
+          <TrendingUp className="w-4 h-4 mr-2" /> Early Signals ({earlySetups.length})
+        </Button>
+        <Button
+          variant={activeSubTab === 'tomorrow' ? 'default' : 'ghost'}
+          size="sm"
+          className={cn("h-8", activeSubTab === 'tomorrow' && "bg-violet-600")}
+          onClick={() => setActiveSubTab('tomorrow')}
+        >
+          <Sparkles className="w-4 h-4 mr-2" /> Tomorrow ({tomorrowPlays.length})
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-32 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      ) : activeSubTab === 'now' ? (
+        surges.length === 0 ? (
+          <div className="text-center py-16">
+            <Zap className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+            <p className="text-slate-400">No surges detected right now</p>
+            <p className="text-xs text-slate-500 mt-2">Scanning market for momentum signals...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {surges.map((stock: any) => renderSurgeCard(stock, 'now'))}
+          </div>
+        )
+      ) : activeSubTab === 'early' ? (
+        earlySetups.length === 0 ? (
+          <div className="text-center py-16">
+            <TrendingUp className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+            <p className="text-slate-400">No early signals detected</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {earlySetups.map((stock: any) => renderSurgeCard(stock, 'early'))}
+          </div>
+        )
+      ) : (
+        tomorrowPlays.length === 0 ? (
+          <div className="text-center py-16">
+            <Clock className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+            <p className="text-slate-400">No overnight predictions available</p>
+            <p className="text-xs text-slate-500 mt-2">Best scanned near market close (3-4 PM ET)</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tomorrowPlays.map((pred: any) => renderTomorrowCard(pred))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// CONVERGENCE SUB-PAGE
+// ============================================
+function ConvergenceSubPage() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['/api/convergence/opportunities', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/convergence/opportunities');
+      if (!res.ok) throw new Error('Failed to fetch convergence data');
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
+  });
+
+  const opportunities = data?.opportunities || [];
+  const criticalCount = data?.critical || 0;
+  const highCount = data?.high || 0;
+
+  const renderOpportunityCard = (opp: any) => (
+    <Link key={opp.symbol} href={`/stock/${opp.symbol}`}>
+      <Card className={cn(
+        "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+        opp.urgency === 'critical' ? "bg-red-500/10 border-red-500/30 hover:border-red-400/50" :
+        opp.urgency === 'high' ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-400/50" :
+        "bg-purple-500/10 border-purple-500/30 hover:border-purple-400/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
+                opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
+                "bg-purple-500/20 text-purple-400"
+              )}>
+                {opp.symbol.slice(0, 2)}
+              </div>
+              <div>
+                <span className="font-bold text-white">{opp.symbol}</span>
+                <Badge className={cn(
+                  "ml-2 text-[9px]",
+                  opp.direction === 'bullish' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                )}>
+                  {opp.direction?.toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={cn(
+                "text-xl font-bold",
+                opp.convergenceScore >= 80 ? "text-emerald-400" :
+                opp.convergenceScore >= 65 ? "text-amber-400" : "text-white"
+              )}>
+                {opp.convergenceScore}%
+              </div>
+              <Badge className={cn(
+                "text-[9px]",
+                opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
+                opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
+                "bg-slate-500/20 text-slate-400"
+              )}>
+                {opp.urgency?.toUpperCase()}
+              </Badge>
+            </div>
+          </div>
+          {opp.signals && opp.signals.length > 0 && (
+            <div className="space-y-1">
+              {opp.signals.slice(0, 4).map((signal: any, idx: number) => (
+                <div key={idx} className="flex items-center gap-2 text-xs text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-purple-400" />
+                  <span>{signal.source}: {signal.description?.slice(0, 40)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </Link>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/40">
+            <Target className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Convergence Signals</h2>
+            <p className="text-xs text-slate-500">Loading...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-40 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/40">
+            <Target className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Convergence Signals
+              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/40 text-[10px]">
+                MULTI-SOURCE
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">When multiple data sources agree, something big is brewing</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+          {criticalCount > 0 && <Badge className="bg-red-500/20 text-red-400">{criticalCount} Critical</Badge>}
+          {highCount > 0 && <Badge className="bg-amber-500/20 text-amber-400">{highCount} High</Badge>}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-red-500/10 border-red-500/30 p-4">
+          <div className="text-xs text-red-400 mb-1">Critical Urgency</div>
+          <div className="text-2xl font-bold text-red-300">{criticalCount}</div>
+        </Card>
+        <Card className="bg-amber-500/10 border-amber-500/30 p-4">
+          <div className="text-xs text-amber-400 mb-1">High Urgency</div>
+          <div className="text-2xl font-bold text-amber-300">{highCount}</div>
+        </Card>
+        <Card className="bg-purple-500/10 border-purple-500/30 p-4">
+          <div className="text-xs text-purple-400 mb-1">Total Opportunities</div>
+          <div className="text-2xl font-bold text-purple-300">{opportunities.length}</div>
+        </Card>
+      </div>
+
+      {opportunities.length === 0 ? (
+        <div className="text-center py-16">
+          <Activity className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+          <p className="text-slate-400">No convergence signals detected</p>
+          <p className="text-xs text-slate-500 mt-2">Monitoring news, options flow, insider activity, and sector momentum...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {opportunities.map(renderOpportunityCard)}
+        </div>
+      )}
+
+      <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-purple-500/10">
+            <Brain className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-xs text-slate-400">
+            <p className="font-medium text-slate-300 mb-1">How Convergence Detection Works</p>
+            <p>Our system monitors multiple data sources (news sentiment, options flow, insider trades, sector momentum) and alerts when 2+ sources align on the same symbol within a short timeframe. Higher urgency = more sources converging.</p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================
+// HOT ATTENTION SUB-PAGE
+// ============================================
+function HotAttentionSubPage() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['/api/convergence/hot-symbols', 'subpage'],
+    queryFn: async () => {
+      const res = await fetch('/api/convergence/hot-symbols?limit=30');
+      if (!res.ok) throw new Error('Failed to fetch hot symbols');
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
+  });
+
+  const symbols = data?.symbols || [];
+  const convergingSymbols = symbols.filter((s: any) => s.isConverging);
+  const watchingSymbols = symbols.filter((s: any) => !s.isConverging);
+
+  const renderHotCard = (item: any) => (
+    <Link key={item.symbol} href={`/stock/${item.symbol}`}>
+      <Card className={cn(
+        "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+        item.isConverging ? "bg-orange-500/10 border-orange-500/30 hover:border-orange-400/50" : "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
+                item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-slate-500/20 text-slate-400"
+              )}>
+                {item.symbol.slice(0, 2)}
+              </div>
+              <div>
+                <span className="font-bold text-white">{item.symbol}</span>
+                {item.isConverging && (
+                  <Badge className="ml-2 text-[9px] bg-orange-500/20 text-orange-400">CONVERGING</Badge>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={cn(
+                "text-xl font-bold",
+                item.heatScore >= 5 ? "text-red-400" :
+                item.heatScore >= 3 ? "text-orange-400" : "text-slate-400"
+              )}>
+                {item.heatScore?.toFixed(1)}
+              </div>
+              <span className="text-[10px] text-slate-500">heat score</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-slate-400">
+            <span>{item.distinctSources} sources</span>
+            <span>{item.recentTouches1h} hits/hr</span>
+            <span>{item.totalSignals} signals</span>
+          </div>
+          {/* Heat bar */}
+          <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full",
+                item.heatScore >= 5 ? "bg-gradient-to-r from-orange-500 to-red-500" :
+                item.heatScore >= 3 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
+                "bg-slate-500"
+              )}
+              style={{ width: `${Math.min(100, (item.heatScore || 0) * 10)}%` }}
+            />
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40">
+            <Flame className="w-5 h-5 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Hot Attention</h2>
+            <p className="text-xs text-slate-500">Loading...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-32 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/40">
+            <Flame className="w-5 h-5 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              Hot Attention
+              <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/40 text-[10px]">
+                HEAT MAP
+              </Badge>
+            </h2>
+            <p className="text-xs text-slate-500">Symbols flagged by multiple scanners - watch for moves</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+          <Badge variant="outline">{data?.convergingCount || 0} Converging</Badge>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="bg-orange-500/10 border-orange-500/30 p-4">
+          <div className="text-xs text-orange-400 mb-1">Converging</div>
+          <div className="text-2xl font-bold text-orange-300">{convergingSymbols.length}</div>
+        </Card>
+        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
+          <div className="text-xs text-slate-400 mb-1">Watching</div>
+          <div className="text-2xl font-bold text-slate-300">{watchingSymbols.length}</div>
+        </Card>
+        <Card className="bg-red-500/10 border-red-500/30 p-4">
+          <div className="text-xs text-red-400 mb-1">Highest Heat</div>
+          <div className="text-2xl font-bold text-red-300">{symbols[0]?.heatScore?.toFixed(1) || '0'}</div>
+        </Card>
+      </div>
+
+      {symbols.length === 0 ? (
+        <div className="text-center py-16">
+          <Flame className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
+          <p className="text-slate-400">No hot symbols detected</p>
+        </div>
+      ) : (
+        <>
+          {convergingSymbols.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Flame className="w-4 h-4 text-orange-400" /> Converging Signals ({convergingSymbols.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {convergingSymbols.map(renderHotCard)}
+              </div>
+            </div>
+          )}
+
+          {watchingSymbols.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-slate-400" /> On Radar ({watchingSymbols.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {watchingSymbols.map(renderHotCard)}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
 // ============================================
 // SURGE DETECTION CARD
 // ============================================
-function SurgeDetectionCard() {
+function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void }) {
   const [tab, setTab] = useState<'surge' | 'early' | 'tomorrow'>('surge');
 
   // Fetch breakout candidates with longer stale time (uses cached data from server)
@@ -657,6 +1951,18 @@ function SurgeDetectionCard() {
         {renderContent()}
       </div>
 
+      {/* View All button for Tomorrow tab */}
+      {tab === 'tomorrow' && tomorrowPlays.length > 0 && onViewTomorrow && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 h-7 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/10"
+          onClick={onViewTomorrow}
+        >
+          View All Predictions <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+      )}
+
       {(breakoutData?.cached || overnightData?.cached) && (
         <p className="text-[9px] text-slate-600 mt-2 text-center">
           Cached {tab === 'tomorrow' ? overnightData?.cacheAge : breakoutData?.cacheAge}s ago
@@ -669,7 +1975,7 @@ function SurgeDetectionCard() {
 // ============================================
 // CONVERGENCE SIGNALS CARD - Multi-source pre-move detection
 // ============================================
-function ConvergenceSignalsCard() {
+function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['/api/convergence/opportunities'],
     queryFn: async () => {
@@ -802,6 +2108,16 @@ function ConvergenceSignalsCard() {
           ))
         )}
       </div>
+      {onViewAll && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 h-7 text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+          onClick={onViewAll}
+        >
+          View All Convergence <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+      )}
       {data?.cached && (
         <p className="text-[9px] text-slate-600 mt-2 text-center">
           Cached {data.cacheAge}s ago
@@ -814,7 +2130,7 @@ function ConvergenceSignalsCard() {
 // ============================================
 // HOT SYMBOLS CARD - Symbols with multi-source attention
 // ============================================
-function HotSymbolsCard() {
+function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['/api/convergence/hot-symbols'],
     queryFn: async () => {
@@ -885,6 +2201,16 @@ function HotSymbolsCard() {
           ))
         )}
       </div>
+      {onViewAll && symbols.length > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          onClick={onViewAll}
+        >
+          View All Hot Symbols <ChevronRight className="w-3 h-3 ml-1" />
+        </Button>
+      )}
     </Card>
   );
 }
@@ -1774,21 +3100,29 @@ export default function TradeDeskRedesigned() {
               <Layers className="w-4 h-4 mr-2" />
               All Ideas
             </TabsTrigger>
-            <TabsTrigger value="stocks" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Stocks ({stockIdeas.length})
+            <TabsTrigger value="setups" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
+              <Star className="w-4 h-4 mr-2" />
+              Best Setups
             </TabsTrigger>
-            <TabsTrigger value="options" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+            <TabsTrigger value="surges" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
+              <Zap className="w-4 h-4 mr-2" />
+              Surges
+            </TabsTrigger>
+            <TabsTrigger value="movers" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+              <Flame className="w-4 h-4 mr-2" />
+              Movers
+            </TabsTrigger>
+            <TabsTrigger value="convergence" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <Target className="w-4 h-4 mr-2" />
-              Options ({optionIdeas.length})
+              Convergence
             </TabsTrigger>
-            <TabsTrigger value="crypto" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <Bitcoin className="w-4 h-4 mr-2" />
-              Crypto ({cryptoIdeas.length})
+            <TabsTrigger value="hot" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
+              <Flame className="w-4 h-4 mr-2" />
+              Hot
             </TabsTrigger>
-            <TabsTrigger value="futures" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-              <Globe className="w-4 h-4 mr-2" />
-              Futures ({futuresIdeas.length})
+            <TabsTrigger value="tomorrow" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Tomorrow
             </TabsTrigger>
             <TabsTrigger value="portfolio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
               <PieChart className="w-4 h-4 mr-2" />
@@ -1806,45 +3140,82 @@ export default function TradeDeskRedesigned() {
 
             {/* Quick View Cards - Row 1 */}
             <div className="grid grid-cols-3 gap-4">
-              <BestSetupsCard />
-              <MarketMoversCard />
-              <SurgeDetectionCard />
+              <BestSetupsCard onViewAll={() => setActiveTab('setups')} />
+              <MarketMoversCard onViewAll={() => setActiveTab('movers')} />
+              <SurgeDetectionCard onViewTomorrow={() => setActiveTab('surges')} />
             </div>
 
             {/* Quick View Cards - Row 2: Convergence & Pre-Move Detection */}
             <div className="grid grid-cols-2 gap-4">
-              <ConvergenceSignalsCard />
-              <HotSymbolsCard />
+              <ConvergenceSignalsCard onViewAll={() => setActiveTab('convergence')} />
+              <HotSymbolsCard onViewAll={() => setActiveTab('hot')} />
             </div>
 
             {/* Quick Actions Row */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
+                size="sm"
                 className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
                 onClick={() => setActiveTab('ideas')}
               >
-                <Layers className="w-4 h-4 mr-2" />
-                All Trade Ideas
+                <Layers className="w-4 h-4 mr-1.5" />
+                All Ideas
               </Button>
-              <Link href="/research">
-                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
-                  <Search className="w-4 h-4 mr-2" />
-                  Research Hub
-                </Button>
-              </Link>
-              <Link href="/portfolio">
-                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
-                  <PieChart className="w-4 h-4 mr-2" />
-                  Portfolio
-                </Button>
-              </Link>
-              <Link href="/chart-analysis">
-                <Button variant="outline" className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60">
-                  <LineChart className="w-4 h-4 mr-2" />
-                  Chart Analysis
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 text-amber-400"
+                onClick={() => setActiveTab('setups')}
+              >
+                <Star className="w-4 h-4 mr-1.5" />
+                Setups
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20 text-orange-400"
+                onClick={() => setActiveTab('surges')}
+              >
+                <Zap className="w-4 h-4 mr-1.5" />
+                Surges
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400"
+                onClick={() => setActiveTab('movers')}
+              >
+                <Flame className="w-4 h-4 mr-1.5" />
+                Movers
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 text-purple-400"
+                onClick={() => setActiveTab('convergence')}
+              >
+                <Target className="w-4 h-4 mr-1.5" />
+                Convergence
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-red-500/10 border-red-500/30 hover:bg-red-500/20 text-red-400"
+                onClick={() => setActiveTab('hot')}
+              >
+                <Flame className="w-4 h-4 mr-1.5" />
+                Hot
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20 text-violet-400"
+                onClick={() => setActiveTab('tomorrow')}
+              >
+                <Sparkles className="w-4 h-4 mr-1.5" />
+                Tomorrow
+              </Button>
             </div>
 
             {/* Recent Ideas Preview */}
@@ -1881,38 +3252,34 @@ export default function TradeDeskRedesigned() {
             <TradeIdeasList ideas={allIdeasDeduplicated} title="All Trade Ideas" />
           </TabsContent>
 
-          {/* Stocks Tab */}
-          <TabsContent value="stocks" className="mt-6">
-            <TradeIdeasList ideas={stockIdeas} title="Stock Trade Ideas" />
+          {/* Best Setups Tab - AI Stock Picker */}
+          <TabsContent value="setups" className="mt-6">
+            <BestSetupsSubPage />
           </TabsContent>
 
-          {/* Options Tab */}
-          <TabsContent value="options" className="mt-6">
-            <TradeIdeasList ideas={optionIdeas} title="Options Trade Ideas" />
+          {/* Surge Detection Tab - Now/Early/Tomorrow */}
+          <TabsContent value="surges" className="mt-6">
+            <SurgeDetectionSubPage />
           </TabsContent>
 
-          {/* Crypto Tab */}
-          <TabsContent value="crypto" className="mt-6">
-            {cryptoIdeas.length === 0 ? (
-              <div className="text-center py-16 text-slate-500">
-                <Bitcoin className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p>No crypto trade ideas available</p>
-              </div>
-            ) : (
-              <TradeIdeasList ideas={cryptoIdeas} title="Crypto Trade Ideas" />
-            )}
+          {/* Market Movers Tab */}
+          <TabsContent value="movers" className="mt-6">
+            <MarketMoversSubPage />
           </TabsContent>
 
-          {/* Futures Tab */}
-          <TabsContent value="futures" className="mt-6">
-            {futuresIdeas.length === 0 ? (
-              <div className="text-center py-16 text-slate-500">
-                <Globe className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p>No futures trade ideas available</p>
-              </div>
-            ) : (
-              <TradeIdeasList ideas={futuresIdeas} title="Futures Trade Ideas" />
-            )}
+          {/* Convergence Tab */}
+          <TabsContent value="convergence" className="mt-6">
+            <ConvergenceSubPage />
+          </TabsContent>
+
+          {/* Hot Attention Tab */}
+          <TabsContent value="hot" className="mt-6">
+            <HotAttentionSubPage />
+          </TabsContent>
+
+          {/* Tomorrow's Surgers Tab - Overnight Predictions */}
+          <TabsContent value="tomorrow" className="mt-6">
+            <TomorrowSurgersSubPage />
           </TabsContent>
 
           {/* Portfolio Tab - Broker Import */}
