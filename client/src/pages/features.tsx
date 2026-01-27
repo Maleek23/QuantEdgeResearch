@@ -29,22 +29,27 @@ import {
   Layers
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/q_1767502987714.png";
-import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ParticleBackground } from "@/components/particle-background";
 
 export default function Features() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-black">
-      <SEOHead 
+    <div className="min-h-screen bg-slate-950 relative">
+      <SEOHead
         pageKey="features"
         title="Platform Features | Quant Edge Labs"
-        description="Explore all Quant Edge Labs features: AI Engine, Quant Engine, Flow Scanner, Chart Analysis, Auto-Lotto Bot, Performance Analytics, and more."
+        description="Explore all Quant Edge Labs features: 6 AI Engines, ML Predictions, Technical Analysis, Options Flow, Sentiment Tracking, and more."
       />
-      
-      {/* Floating Bubbles Background */}
-      <FloatingBubblesBackground />
+
+      {/* Consistent Background with Homepage */}
+      <AuroraBackground />
+      <div className="fixed inset-0 pointer-events-none z-[1]">
+        <ParticleBackground />
+      </div>
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 pointer-events-none z-[2]" />
       
       {/* Sticky Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
@@ -136,96 +141,126 @@ export default function Features() {
         </div>
       </section>
 
-      {/* Five Engines Section */}
-      <section className="py-12 lg:py-16" id="engines" data-testid="section-engines">
+      {/* Six Engines Section */}
+      <section className="py-12 lg:py-16 relative z-10" id="engines" data-testid="section-engines">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Core Research Engines
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
+              Core Analysis Engines
             </p>
-            <h2 className="text-xl font-semibold">Five Engines, One Edge</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Each engine specializes in a different aspect of market analysis. 
-              When signals align, conviction increases.
+            <h2 className="text-2xl font-bold text-white">Six AI Engines Working Together</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              Each engine specializes in a different aspect of market analysis.
+              When multiple engines converge, you get higher-conviction trade ideas.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
-            {/* AI Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-ai-engine">
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* ML Engine */}
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-white">ML Engine</h3>
+                  <p className="text-xs text-slate-500">Predictive Analytics</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 mb-4">
+                Machine learning predictions using regime detection, confidence calibration, and historical pattern analysis.
+              </p>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Market regime detection
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Confidence calibration
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Signal weight optimization
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Win rate tracking
+                </li>
+              </ul>
+            </div>
+
+            {/* AI Engine */}
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground">Fundamental Analysis</p>
+                  <h3 className="font-semibold text-lg text-white">AI Engine</h3>
+                  <p className="text-xs text-slate-500">Multi-LLM Analysis</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Multi-LLM consensus using Claude, GPT-4, and Gemini for deep fundamental research.
+              <p className="text-sm text-slate-400 mb-4">
+                Multi-LLM consensus using Claude, GPT, and Gemini for SEC filings, earnings, and news catalyst analysis.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Earnings analysis
+                  <Check className="h-4 w-4 text-cyan-400" /> SEC filing analysis
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Earnings call insights
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> News catalyst detection
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Sector rotation insights
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Sentiment synthesis
+                  <Check className="h-4 w-4 text-cyan-400" /> Multi-model consensus
                 </li>
               </ul>
             </div>
-            
+
             {/* Quant Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50 hover-elevate" data-testid="card-quant-engine">
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Calculator className="h-6 w-6 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Quant Engine</h3>
-                  <p className="text-xs text-muted-foreground">Technical Signals</p>
+                  <h3 className="font-semibold text-lg text-white">Quant Engine</h3>
+                  <p className="text-xs text-slate-500">Statistical Signals</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Systematic signal generation using proven quantitative indicators.
+              <p className="text-sm text-slate-400 mb-4">
+                Systematic signal generation using RSI, VWAP, volume analysis, and statistical edge detection for day traders.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> RSI(2) mean reversion
+                  <Check className="h-4 w-4 text-cyan-400" /> RSI mean reversion
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> VWAP institutional flow
+                  <Check className="h-4 w-4 text-cyan-400" /> VWAP analysis
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Volume spike detection
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> ADX regime filtering
+                  <Check className="h-4 w-4 text-cyan-400" /> ADX trend filtering
                 </li>
               </ul>
             </div>
-            
-            {/* Flow Scanner */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-flow-scanner">
+
+            {/* Flow Engine */}
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                   <Activity className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Flow Scanner</h3>
-                  <p className="text-xs text-muted-foreground">Institutional Activity</p>
+                  <h3 className="font-semibold text-lg text-white">Flow Engine</h3>
+                  <p className="text-xs text-slate-500">Smart Money Tracking</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Real-time detection of unusual options activity and institutional positioning.
+              <p className="text-sm text-slate-400 mb-4">
+                Track institutional order flow, dark pool prints, and whale trades in real-time to follow smart money.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Unusual options volume
                 </li>
@@ -233,70 +268,70 @@ export default function Features() {
                   <Check className="h-4 w-4 text-cyan-400" /> Dark pool prints
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Block trade alerts
+                  <Check className="h-4 w-4 text-cyan-400" /> Sweep detection
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Smart money tracking
+                  <Check className="h-4 w-4 text-cyan-400" /> Block trade alerts
                 </li>
               </ul>
             </div>
-            
-            {/* Chart Analysis Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-chart-engine">
+
+            {/* Sentiment Engine */}
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <Target className="h-6 w-6 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Chart Engine</h3>
-                  <p className="text-xs text-muted-foreground">Pattern Recognition</p>
+                  <h3 className="font-semibold text-lg text-white">Sentiment Engine</h3>
+                  <p className="text-xs text-slate-500">Market Psychology</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                AI-powered technical pattern recognition from chart screenshots.
+              <p className="text-sm text-slate-400 mb-4">
+                Social media sentiment analysis with Fear & Greed tracking to gauge market psychology and retail positioning.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2 text-sm text-slate-400">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Pattern detection
+                  <Check className="h-4 w-4 text-cyan-400" /> Social sentiment analysis
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Fear & Greed index
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> WSB tracking
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> News sentiment
+                </li>
+              </ul>
+            </div>
+
+            {/* Technical Engine */}
+            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <CandlestickChart className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg text-white">Technical Engine</h3>
+                  <p className="text-xs text-slate-500">Pattern Recognition</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 mb-4">
+                AI-powered chart pattern recognition with automated support, resistance, and trend line detection.
+              </p>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Chart pattern AI
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Support/resistance
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Multi-timeframe
+                  <Check className="h-4 w-4 text-cyan-400" /> Multi-timeframe analysis
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Key level alerts
-                </li>
-              </ul>
-            </div>
-            
-            {/* Futures Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-green-500/50 hover-elevate" data-testid="card-futures-engine">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center">
-                  <CandlestickChart className="h-6 w-6 text-green-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Futures Engine</h3>
-                  <p className="text-xs text-muted-foreground">NQ & GC Specialist</p>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Specialized futures analysis with CME specifications and tick targets.
-              </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> NQ/GC analysis
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Tick-based targets
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Session timing
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> CME specs
+                  <Check className="h-4 w-4 text-cyan-400" /> Trend line detection
                 </li>
               </ul>
             </div>
@@ -305,14 +340,14 @@ export default function Features() {
       </section>
 
       {/* Research Tools Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="research-tools" data-testid="section-research-tools">
+      <section className="py-12 lg:py-16 relative z-10 border-y border-slate-800/50" id="research-tools" data-testid="section-research-tools">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Research Workbench
             </p>
-            <h2 className="text-xl font-semibold">Professional-Grade Tools</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-white">Professional-Grade Tools</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
               Everything you need for comprehensive market research in one platform.
             </p>
           </div>
