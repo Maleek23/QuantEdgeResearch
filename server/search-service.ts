@@ -38,9 +38,74 @@ const POPULAR_STOCKS = [
   { symbol: 'META', name: 'Meta Platforms Inc.', exchange: 'NASDAQ', sector: 'Technology' },
   { symbol: 'SPY', name: 'SPDR S&P 500 ETF', exchange: 'NYSE', sector: 'ETF' },
   { symbol: 'QQQ', name: 'Invesco QQQ Trust', exchange: 'NASDAQ', sector: 'ETF' },
-  { symbol: 'BTC', name: 'Bitcoin', exchange: 'CRYPTO', sector: 'Cryptocurrency' },
-  { symbol: 'ETH', name: 'Ethereum', exchange: 'CRYPTO', sector: 'Cryptocurrency' },
+  { symbol: 'APLD', name: 'Applied Digital Corporation', exchange: 'NASDAQ', sector: 'Technology' },
+  { symbol: 'AMD', name: 'Advanced Micro Devices', exchange: 'NASDAQ', sector: 'Technology' },
+  { symbol: 'INTC', name: 'Intel Corporation', exchange: 'NASDAQ', sector: 'Technology' },
+  { symbol: 'PLTR', name: 'Palantir Technologies', exchange: 'NYSE', sector: 'Technology' },
+  { symbol: 'COIN', name: 'Coinbase Global Inc.', exchange: 'NASDAQ', sector: 'Finance' },
+  { symbol: 'GME', name: 'GameStop Corp.', exchange: 'NYSE', sector: 'Retail' },
+  { symbol: 'AMC', name: 'AMC Entertainment', exchange: 'NYSE', sector: 'Entertainment' },
+  { symbol: 'SOFI', name: 'SoFi Technologies Inc.', exchange: 'NASDAQ', sector: 'Finance' },
+  { symbol: 'RIVN', name: 'Rivian Automotive', exchange: 'NASDAQ', sector: 'Automotive' },
+  { symbol: 'LCID', name: 'Lucid Group Inc.', exchange: 'NASDAQ', sector: 'Automotive' },
+  { symbol: 'NIO', name: 'NIO Inc.', exchange: 'NYSE', sector: 'Automotive' },
 ];
+
+// Comprehensive crypto mapping
+const CRYPTO_SYMBOLS: Record<string, { name: string; symbol: string }> = {
+  'BTC': { name: 'Bitcoin', symbol: 'BTC-USD' },
+  'ETH': { name: 'Ethereum', symbol: 'ETH-USD' },
+  'SOL': { name: 'Solana', symbol: 'SOL-USD' },
+  'XRP': { name: 'XRP', symbol: 'XRP-USD' },
+  'ADA': { name: 'Cardano', symbol: 'ADA-USD' },
+  'DOGE': { name: 'Dogecoin', symbol: 'DOGE-USD' },
+  'AVAX': { name: 'Avalanche', symbol: 'AVAX-USD' },
+  'DOT': { name: 'Polkadot', symbol: 'DOT-USD' },
+  'LINK': { name: 'Chainlink', symbol: 'LINK-USD' },
+  'MATIC': { name: 'Polygon', symbol: 'MATIC-USD' },
+  'UNI': { name: 'Uniswap', symbol: 'UNI-USD' },
+  'ATOM': { name: 'Cosmos', symbol: 'ATOM-USD' },
+  'LTC': { name: 'Litecoin', symbol: 'LTC-USD' },
+  'FIL': { name: 'Filecoin', symbol: 'FIL-USD' },
+  'NEAR': { name: 'NEAR Protocol', symbol: 'NEAR-USD' },
+  'APT': { name: 'Aptos', symbol: 'APT-USD' },
+  'ARB': { name: 'Arbitrum', symbol: 'ARB-USD' },
+  'OP': { name: 'Optimism', symbol: 'OP-USD' },
+  'PEPE': { name: 'Pepe', symbol: 'PEPE-USD' },
+  'SHIB': { name: 'Shiba Inu', symbol: 'SHIB-USD' },
+  'SUI': { name: 'Sui', symbol: 'SUI-USD' },
+  'SEI': { name: 'Sei', symbol: 'SEI-USD' },
+  'INJ': { name: 'Injective', symbol: 'INJ-USD' },
+  'MANA': { name: 'Decentraland', symbol: 'MANA-USD' },
+  'SAND': { name: 'The Sandbox', symbol: 'SAND-USD' },
+  'AAVE': { name: 'Aave', symbol: 'AAVE-USD' },
+  'MKR': { name: 'Maker', symbol: 'MKR-USD' },
+  'CRV': { name: 'Curve DAO', symbol: 'CRV-USD' },
+  'RENDER': { name: 'Render', symbol: 'RENDER-USD' },
+  'IMX': { name: 'Immutable X', symbol: 'IMX-USD' },
+};
+
+// Futures contracts
+const FUTURES_SYMBOLS: Record<string, { name: string; symbol: string }> = {
+  'ES': { name: 'E-mini S&P 500', symbol: 'ES=F' },
+  'NQ': { name: 'E-mini Nasdaq 100', symbol: 'NQ=F' },
+  'YM': { name: 'E-mini Dow Jones', symbol: 'YM=F' },
+  'RTY': { name: 'E-mini Russell 2000', symbol: 'RTY=F' },
+  'CL': { name: 'Crude Oil WTI', symbol: 'CL=F' },
+  'GC': { name: 'Gold', symbol: 'GC=F' },
+  'SI': { name: 'Silver', symbol: 'SI=F' },
+  'NG': { name: 'Natural Gas', symbol: 'NG=F' },
+  'ZB': { name: '30-Year T-Bond', symbol: 'ZB=F' },
+  'ZN': { name: '10-Year T-Note', symbol: 'ZN=F' },
+  '6E': { name: 'Euro FX', symbol: '6E=F' },
+  '6J': { name: 'Japanese Yen', symbol: '6J=F' },
+  'HG': { name: 'Copper', symbol: 'HG=F' },
+  'PL': { name: 'Platinum', symbol: 'PL=F' },
+  'PA': { name: 'Palladium', symbol: 'PA=F' },
+  'ZC': { name: 'Corn', symbol: 'ZC=F' },
+  'ZS': { name: 'Soybeans', symbol: 'ZS=F' },
+  'ZW': { name: 'Wheat', symbol: 'ZW=F' },
+};
 
 // Quick actions that users can search for
 const QUICK_ACTIONS: ActionSearchResult[] = [
@@ -134,13 +199,15 @@ const HELP_TOPICS: HelpSearchResult[] = [
 ];
 
 /**
- * Search stocks by symbol or company name
+ * Search stocks, crypto, and futures by symbol or name
+ * Supports ANY ticker - will look up via Yahoo Finance if not in predefined list
  */
 async function searchStocks(query: string): Promise<StockSearchResult[]> {
   const results: StockSearchResult[] = [];
-  const upperQuery = query.toUpperCase();
+  const upperQuery = query.toUpperCase().trim();
+  const lowerQuery = query.toLowerCase().trim();
 
-  // Search popular stocks
+  // 1. Search popular stocks
   for (const stock of POPULAR_STOCKS) {
     if (
       stock.symbol.includes(upperQuery) ||
@@ -163,7 +230,86 @@ async function searchStocks(query: string): Promise<StockSearchResult[]> {
     }
   }
 
-  // Also search symbols from our trade ideas
+  // 2. Search crypto
+  for (const [key, crypto] of Object.entries(CRYPTO_SYMBOLS)) {
+    if (key.includes(upperQuery) || crypto.name.toUpperCase().includes(upperQuery)) {
+      results.push({
+        id: `crypto-${key}`,
+        category: 'crypto' as any,
+        symbol: crypto.symbol,
+        companyName: crypto.name,
+        exchange: 'CRYPTO',
+        title: key,
+        subtitle: crypto.name,
+        description: 'Cryptocurrency',
+        icon: '₿',
+        url: `/stock/${crypto.symbol}`,
+        sector: 'Cryptocurrency',
+        relevanceScore: key === upperQuery ? 100 : 75,
+      });
+    }
+  }
+
+  // 3. Search futures
+  for (const [key, future] of Object.entries(FUTURES_SYMBOLS)) {
+    if (key.includes(upperQuery) || future.name.toUpperCase().includes(upperQuery)) {
+      results.push({
+        id: `future-${key}`,
+        category: 'stocks',
+        symbol: future.symbol,
+        companyName: future.name,
+        exchange: 'CME',
+        title: key,
+        subtitle: future.name,
+        description: 'Futures Contract',
+        icon: '📊',
+        url: `/stock/${future.symbol}`,
+        sector: 'Futures',
+        relevanceScore: key === upperQuery ? 100 : 70,
+      });
+    }
+  }
+
+  // 4. If exact symbol match not found, try Yahoo Finance lookup
+  if (upperQuery.length >= 1 && upperQuery.length <= 10 && !results.find(r => r.symbol === upperQuery)) {
+    try {
+      const yahooFinance = await import('yahoo-finance2').then(m => m.default);
+
+      // Try to search for the symbol
+      const searchResults = await yahooFinance.search(upperQuery, { quotesCount: 5 }).catch(() => null);
+
+      if (searchResults?.quotes) {
+        for (const quote of searchResults.quotes) {
+          if (quote.symbol && !results.find(r => r.symbol === quote.symbol)) {
+            const isEquity = quote.quoteType === 'EQUITY';
+            const isCrypto = quote.quoteType === 'CRYPTOCURRENCY';
+            const isFuture = quote.quoteType === 'FUTURE';
+            const isETF = quote.quoteType === 'ETF';
+            const isIndex = quote.quoteType === 'INDEX';
+
+            results.push({
+              id: `yahoo-${quote.symbol}`,
+              category: isCrypto ? 'crypto' as any : 'stocks',
+              symbol: quote.symbol,
+              companyName: quote.shortname || quote.longname || quote.symbol,
+              exchange: quote.exchange || 'UNKNOWN',
+              title: quote.symbol,
+              subtitle: quote.shortname || quote.longname || quote.symbol,
+              description: `${quote.exchange || ''} • ${quote.quoteType || 'Stock'}`,
+              icon: isCrypto ? '₿' : isFuture ? '📊' : isETF ? '📦' : isIndex ? '📉' : '📈',
+              url: `/stock/${quote.symbol}`,
+              sector: quote.industry || (isCrypto ? 'Cryptocurrency' : isFuture ? 'Futures' : isETF ? 'ETF' : 'Equity'),
+              relevanceScore: quote.symbol === upperQuery ? 95 : 65,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      logger.debug('Yahoo Finance search failed, continuing with local results');
+    }
+  }
+
+  // 5. Also search symbols from our trade ideas
   try {
     const ideas = await db
       .selectDistinct({ symbol: tradeIdeas.symbol })
@@ -192,7 +338,7 @@ async function searchStocks(query: string): Promise<StockSearchResult[]> {
     logger.error('Error searching trade ideas symbols:', error);
   }
 
-  return results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  return results.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0)).slice(0, 15);
 }
 
 /**
@@ -389,7 +535,7 @@ export async function universalSearch(
  */
 export async function getSearchSuggestions(query: string): Promise<SearchSuggestion[]> {
   const suggestions: SearchSuggestion[] = [];
-  const upperQuery = query.toUpperCase();
+  const upperQuery = query.toUpperCase().trim();
 
   // Suggest popular stocks
   for (const stock of POPULAR_STOCKS) {
@@ -399,6 +545,30 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
         category: 'stocks',
         icon: '📈',
         metadata: { companyName: stock.name },
+      });
+    }
+  }
+
+  // Suggest crypto
+  for (const [key, crypto] of Object.entries(CRYPTO_SYMBOLS)) {
+    if (key.startsWith(upperQuery) || crypto.name.toUpperCase().includes(upperQuery)) {
+      suggestions.push({
+        text: key,
+        category: 'crypto' as any,
+        icon: '₿',
+        metadata: { companyName: crypto.name, symbol: crypto.symbol },
+      });
+    }
+  }
+
+  // Suggest futures
+  for (const [key, future] of Object.entries(FUTURES_SYMBOLS)) {
+    if (key.startsWith(upperQuery) || future.name.toUpperCase().includes(upperQuery)) {
+      suggestions.push({
+        text: key,
+        category: 'stocks',
+        icon: '📊',
+        metadata: { companyName: future.name, symbol: future.symbol },
       });
     }
   }
@@ -415,7 +585,14 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
     }
   }
 
-  return suggestions.slice(0, 8); // Limit to 8 suggestions
+  // Sort by relevance (exact prefix match first)
+  return suggestions
+    .sort((a, b) => {
+      const aExact = a.text.toUpperCase().startsWith(upperQuery) ? 1 : 0;
+      const bExact = b.text.toUpperCase().startsWith(upperQuery) ? 1 : 0;
+      return bExact - aExact;
+    })
+    .slice(0, 10); // Limit to 10 suggestions
 }
 
 /**
@@ -425,9 +602,12 @@ export async function getTrendingSearches(): Promise<TrendingSearch[]> {
   return [
     { query: 'NVDA', category: 'stocks', count: 150, trendDirection: 'up' },
     { query: 'TSLA', category: 'stocks', count: 120, trendDirection: 'up' },
-    { query: 'AI stocks', category: 'stocks', count: 95, trendDirection: 'stable' },
-    { query: 'earnings', category: 'news', count: 80, trendDirection: 'up' },
-    { query: 'SPY', category: 'stocks', count: 75, trendDirection: 'stable' },
+    { query: 'BTC', category: 'crypto' as any, count: 110, trendDirection: 'up' },
+    { query: 'ETH', category: 'crypto' as any, count: 95, trendDirection: 'up' },
+    { query: 'SPY', category: 'stocks', count: 85, trendDirection: 'stable' },
+    { query: 'ES', category: 'stocks', count: 75, trendDirection: 'stable' },
+    { query: 'PLTR', category: 'stocks', count: 70, trendDirection: 'up' },
+    { query: 'SOL', category: 'crypto' as any, count: 65, trendDirection: 'up' },
   ];
 }
 
