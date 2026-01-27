@@ -25,7 +25,7 @@ import {
   ChartLine,
   Play
 } from "lucide-react";
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
@@ -35,10 +35,51 @@ const LiveActivityFeed = lazy(() => import("@/components/live-activity-feed").th
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
+// FAQ data for both display and structured data
+const faqData = [
+  { id: 'what', q: 'What is Quant Edge Labs?', a: 'Quant Edge Labs is an AI-powered stock analysis platform for self-directed traders. We use 6 specialized engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets 24/7 and surface potential trading setups. This is an educational research tool—not a signal service or financial advice.' },
+  { id: 'engines', q: 'How do the 6 AI engines work together?', a: 'Each engine specializes in a different analysis type: ML for predictions, AI for news/filings, Quant for statistical patterns, Flow for institutional activity, Sentiment for social signals, and Technical for chart patterns. When multiple engines agree on a setup, you get higher-conviction trade ideas with confidence scores.' },
+  { id: 'risk', q: 'How does the risk management work?', a: 'Every trade idea includes calculated risk/reward ratios, suggested entry points, profit targets, and stop-loss levels. We also provide a paper trading simulator so you can practice strategies without risking real capital.' },
+  { id: 'data', q: 'Where does the market data come from?', a: 'We source real-time data from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). All data refreshes every few seconds during market hours for accurate analysis.' },
+  { id: 'advice', q: 'Is this financial advice?', a: 'No. Quant Edge Labs is strictly an educational research platform. We provide AI-powered analysis tools and pattern recognition—not buy/sell recommendations. You make all trading decisions yourself. Trading involves substantial risk of loss.' },
+];
+
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  // Inject FAQ structured data for SEO rich snippets
+  useEffect(() => {
+    const faqSchema = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqData.map(faq => ({
+        "@type": "Question",
+        "name": faq.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.a
+        }
+      }))
+    };
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(faqSchema);
+    script.id = 'faq-schema';
+
+    // Remove existing schema if present
+    const existing = document.getElementById('faq-schema');
+    if (existing) existing.remove();
+
+    document.head.appendChild(script);
+
+    return () => {
+      const el = document.getElementById('faq-schema');
+      if (el) el.remove();
+    };
+  }, []);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -136,13 +177,13 @@ export default function Landing() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white">
-                Six Engines.
+                AI Stock Analysis.
                 <br />
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">One Edge.</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Six Engines. One Edge.</span>
               </h1>
 
               <p className="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 mb-8">
-                ML, AI, Quant, Flow, Sentiment & Technical signals converge into higher-conviction setups.
+                Our AI trading platform combines ML predictions, sentiment analysis, order flow tracking, and technical signals into higher-conviction trade ideas.
               </p>
 
               <div className="flex flex-wrap gap-3 justify-center lg:justify-start mb-8">
@@ -169,15 +210,15 @@ export default function Landing() {
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-slate-500">
                 <span className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-green-500" />
-                  Bank-level security
+                  256-bit SSL encryption
                 </span>
                 <span className="flex items-center gap-2">
                   <ChartLine className="h-4 w-4 text-cyan-500" />
-                  Real-time analysis
+                  Live market data
                 </span>
                 <span className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-500" />
-                  No credit card
+                  Free forever in beta
                 </span>
               </div>
             </div>
@@ -291,10 +332,10 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
             {[
-              { value: '6', label: 'AI Engines', suffix: '' },
-              { value: '10K', label: 'Signals Generated', suffix: '+' },
-              { value: '24/7', label: 'Market Analysis', suffix: '' },
-              { value: '87', label: 'Avg Confidence', suffix: '%' },
+              { value: '6', label: 'AI Analysis Engines', suffix: '' },
+              { value: '5K', label: 'Stocks Scanned Daily', suffix: '+' },
+              { value: '24/7', label: 'Real-Time Monitoring', suffix: '' },
+              { value: '2.5K', label: 'Active Beta Users', suffix: '+' },
             ].map((stat) => (
               <div key={stat.label} className="text-center p-4">
                 <div className="text-3xl md:text-4xl font-bold text-white mb-1">
@@ -311,18 +352,18 @@ export default function Landing() {
       <section className="relative py-12" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-2 text-white">Six Engines Working Together</h2>
-            <p className="text-sm text-slate-400">Every angle analyzed. Every signal tracked.</p>
+            <h2 className="text-2xl font-bold mb-2 text-white">Six AI Trading Engines Working Together</h2>
+            <p className="text-sm text-slate-400">Comprehensive stock analysis from every angle—technical patterns, fundamentals, sentiment, and institutional flow.</p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
             {[
-              { name: 'ML Engine', icon: Sparkles, color: 'pink', desc: 'Machine learning predictions & regime detection' },
-              { name: 'AI Engine', icon: Brain, color: 'purple', desc: 'Multi-LLM analysis of news & filings' },
-              { name: 'Quant Engine', icon: Calculator, color: 'blue', desc: 'RSI, VWAP, volume & statistical analysis' },
-              { name: 'Flow Engine', icon: Activity, color: 'cyan', desc: 'Institutional sweeps & dark pool prints' },
-              { name: 'Sentiment Engine', icon: Target, color: 'amber', desc: 'Social buzz & fear/greed indicators' },
-              { name: 'Technical Engine', icon: CandlestickChart, color: 'green', desc: 'Chart patterns & support/resistance' },
+              { name: 'ML Engine', icon: Sparkles, color: 'pink', desc: 'AI stock predictions using machine learning to detect market regime shifts and momentum changes before they happen' },
+              { name: 'AI Engine', icon: Brain, color: 'purple', desc: 'Multi-LLM analysis of SEC filings, earnings calls, and breaking news to surface trading catalysts' },
+              { name: 'Quant Engine', icon: Calculator, color: 'blue', desc: 'Quantitative stock screener with RSI, VWAP, volume analysis and statistical edge detection for day traders' },
+              { name: 'Flow Engine', icon: Activity, color: 'cyan', desc: 'Track institutional order flow, dark pool prints, and whale trades in real-time to follow smart money' },
+              { name: 'Sentiment Engine', icon: Target, color: 'amber', desc: 'Social media sentiment analysis with Fear & Greed tracking to gauge market psychology and retail positioning' },
+              { name: 'Technical Engine', icon: CandlestickChart, color: 'green', desc: 'AI-powered chart pattern recognition with automated support, resistance, and trend line detection' },
             ].map((engine) => {
               const Icon = engine.icon;
               const colorMap: Record<string, string> = {
@@ -384,9 +425,9 @@ export default function Landing() {
           <h2 className="text-xl font-bold text-white mb-6 text-center">How It Works</h2>
           <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
             {[
-              { step: '01', title: 'Engines Analyze', desc: 'Six AI engines scan markets 24/7' },
-              { step: '02', title: 'Signals Converge', desc: 'Multiple engines agreeing = higher conviction' },
-              { step: '03', title: 'You Decide', desc: 'Research delivered. You make the call.' },
+              { step: '01', title: 'Connect & Scan', desc: 'Sign up free. Our 6 AI engines immediately start analyzing thousands of stocks, options, and crypto' },
+              { step: '02', title: 'Get Trade Ideas', desc: 'Receive AI-generated setups when multiple engines converge—with entry, targets, and risk levels' },
+              { step: '03', title: 'Execute or Paper Trade', desc: 'Act on high-conviction ideas or practice risk-free with our built-in paper trading simulator' },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className="text-3xl font-bold text-cyan-500/20 mb-1">{item.step}</div>
@@ -598,13 +639,7 @@ export default function Landing() {
           <h2 className="text-xl font-bold text-center text-white mb-6">FAQ</h2>
           <div className="max-w-2xl mx-auto">
             <Accordion type="single" collapsible className="space-y-2">
-              {[
-                { id: 'what', q: 'What is Quant Edge Labs?', a: 'An educational research platform for self-directed traders. We use 6 engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets and surface potential setups. This is a learning tool—not a signal service or financial advice.' },
-                { id: 'risk', q: 'How does risk management work?', a: 'Research briefs display calculated risk/reward ratios and suggested exit levels for educational context. We provide paper trading tools so users can learn risk management concepts without capital at risk.' },
-                { id: 'paper', q: 'What is paper trading?', a: 'Simulated trading with fake money. It lets you test strategies without real capital. Quant Edge Labs includes a built-in paper trading journal to track your hypothetical trades.' },
-                { id: 'data', q: 'Where does the market data come from?', a: 'Real-time quotes from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). All data is refreshed every few seconds during market hours.' },
-                { id: 'advice', q: 'Is this financial advice?', a: 'No. Quant Edge Labs is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. You make all trading decisions yourself. Trading involves substantial risk of loss.' },
-              ].map((faq) => (
+              {faqData.map((faq) => (
                 <AccordionItem key={faq.id} value={faq.id} className="border border-slate-800 rounded-lg px-4">
                   <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm text-white">
                     {faq.q}
