@@ -700,7 +700,7 @@ export default function Landing() {
               <ul className="space-y-2">
                 <li><Link href="/terms" className="text-xs text-slate-500 hover:text-white transition-colors">Terms of Service</Link></li>
                 <li><Link href="/privacy" className="text-xs text-slate-500 hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/risk-disclosure" className="text-xs text-slate-500 hover:text-white transition-colors">Risk Disclosure</Link></li>
+                <li><Link href="/terms" className="text-xs text-slate-500 hover:text-white transition-colors">Risk Disclosure</Link></li>
                 <li><Link href="/about" className="text-xs text-slate-500 hover:text-white transition-colors">About Us</Link></li>
               </ul>
             </div>
