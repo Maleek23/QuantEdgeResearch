@@ -30,12 +30,28 @@ const activeAlerts: Map<string, DetectionAlert> = new Map();
 const watchedSymbols: Map<string, { lastPrice: number; lastVolume: number; avgVolume: number }> = new Map();
 
 const PRIORITY_WATCHLIST = [
+  // Semiconductors & AI
   'ARM', 'NVDA', 'AMD', 'SMCI', 'AVGO', 'TSM', 'ASML', 'MU', 'QCOM', 'MRVL',
   'WDC', 'STX', 'INTC', 'AMAT', 'LRCX', 'KLAC', 'ON', 'WOLF', 'MPWR',
-  'RKLB', 'OKLO', 'NNE', 'SMR', 'CCJ', 'LEU', 'UUUU', 'UEC',
-  'IONQ', 'RGTI', 'QUBT', 'PLTR', 'AI', 'SOUN', 'PATH', 'SNOW', 'DDOG',
-  'COIN', 'MARA', 'RIOT', 'MSTR', 'CLSK', 'BITF', 'WULF',
-  'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'PYPL', 'NET', 'CRWD', 'ZS'
+  // Nuclear & Energy
+  'RKLB', 'OKLO', 'NNE', 'SMR', 'CCJ', 'LEU', 'UUUU', 'UEC', 'DNN', 'URG',
+  // Quantum & AI Software
+  'IONQ', 'RGTI', 'QUBT', 'PLTR', 'AI', 'SOUN', 'PATH', 'SNOW', 'DDOG', 'ARQQ',
+  // Crypto & Fintech
+  'COIN', 'MARA', 'RIOT', 'MSTR', 'CLSK', 'BITF', 'WULF', 'IREN', 'CIFR',
+  'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'PYPL', 'NET', 'CRWD', 'ZS',
+  // Space & Defense - KEY MOVERS (RDW, ASTS, LUNR often surge)
+  'RDW', 'ASTS', 'LUNR', 'RCAT', 'JOBY', 'ACHR', 'SPCE', 'BKSY', 'LMT', 'NOC',
+  // Fintech & Payments - KEY MOVERS (ONDS, ZETA often surge)
+  'ONDS', 'ZETA', 'BILL', 'TOST', 'FOUR', 'FLYW', 'PAYO', 'NU',
+  // High Momentum / Meme - Often surge on news
+  'CVNA', 'UBER', 'DASH', 'RIVN', 'LCID', 'NIO', 'GME', 'AMC', 'FUBO',
+  // Biotech runners
+  'MRNA', 'BNTX', 'NVAX', 'DNA', 'CRSP', 'EDIT', 'NTLA', 'BEAM',
+  // China Tech ADRs - volatile
+  'BABA', 'JD', 'PDD', 'LI', 'XPEV', 'BIDU', 'NIO',
+  // Speculative plays - often surge
+  'USAR', 'BNAI', 'NBIS', 'LAES', 'KULR', 'QS', 'SLDP'
 ];
 
 async function checkPriceThresholds(): Promise<DetectionAlert[]> {
@@ -243,25 +259,26 @@ async function ingestSurgeAlerts(alerts: DetectionAlert[]): Promise<void> {
     
     try {
       const signals = [];
-      
+
+      // Higher signal weights to ensure tradeable grades (B- or better = 80%+ confidence)
       if (alert.trigger === 'PRICE_BREAKOUT') {
-        signals.push({ type: 'price_breakout', weight: 15, description: `+${alert.change.toFixed(1)}% breakout` });
+        signals.push({ type: 'price_breakout', weight: 20, description: `+${alert.change.toFixed(1)}% breakout` });
       }
       if (alert.trigger === 'VOLUME_SPIKE') {
-        signals.push({ type: 'volume_spike', weight: 12, description: 'Unusual volume detected' });
+        signals.push({ type: 'volume_spike', weight: 18, description: 'Unusual volume detected' });
       }
       if (alert.trigger === 'NEWS_CATALYST') {
-        signals.push({ type: 'news_catalyst', weight: 14, description: 'News catalyst detected' });
+        signals.push({ type: 'news_catalyst', weight: 20, description: 'News catalyst detected' });
       }
       if (alert.trigger === 'TECHNICAL_SIGNAL') {
-        signals.push({ type: 'technical_breakout', weight: 13, description: alert.message });
+        signals.push({ type: 'technical_breakout', weight: 18, description: alert.message });
       }
       if (alert.trigger === 'SECTOR_MOVE') {
-        signals.push({ type: 'sector_strength', weight: 10, description: 'Sector momentum' });
+        signals.push({ type: 'sector_strength', weight: 15, description: 'Sector momentum' });
       }
-      
-      if (alert.change > 5) signals.push({ type: 'strong_momentum', weight: 10, description: `Strong momentum +${alert.change.toFixed(1)}%` });
-      if (alert.severity === 'HIGH') signals.push({ type: 'high_conviction', weight: 12, description: 'High priority detection' });
+
+      if (alert.change > 5) signals.push({ type: 'strong_momentum', weight: 15, description: `Strong momentum +${alert.change.toFixed(1)}%` });
+      if (alert.severity === 'HIGH') signals.push({ type: 'high_conviction', weight: 18, description: 'High priority detection' });
       
       const input: IngestionInput = {
         source: 'surge_detection',

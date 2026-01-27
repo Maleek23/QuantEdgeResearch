@@ -5625,16 +5625,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
       const limit = Math.min(parseInt(req.query.limit as string) || 5, 100);
-      
+
       // Get all active trade ideas
       const allIdeas = await storage.getAllTradeIdeas();
       const now = new Date();
-      
+
+      // DEBUG: Log total ideas and field presence
+      logger.info(`[BEST-SETUPS] Total ideas in database: ${allIdeas.length}`);
+      const openStatusCount = allIdeas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
+      const hasEntryPrice = allIdeas.filter(i => i.entryPrice).length;
+      const hasTargetPrice = allIdeas.filter(i => i.targetPrice).length;
+      const hasStopLoss = allIdeas.filter(i => i.stopLoss).length;
+      const hasAllPrices = allIdeas.filter(i => i.entryPrice && i.targetPrice && i.stopLoss).length;
+      logger.info(`[BEST-SETUPS] Field stats: ${openStatusCount} open, ${hasEntryPrice} w/entry, ${hasTargetPrice} w/target, ${hasStopLoss} w/stop, ${hasAllPrices} w/all prices`);
+
       // Filter to open ideas only
-      let openIdeas = allIdeas.filter(i => 
+      let openIdeas = allIdeas.filter(i =>
         (i.outcomeStatus === 'open' || !i.outcomeStatus) &&
         i.entryPrice && i.targetPrice && i.stopLoss
       );
+      logger.info(`[BEST-SETUPS] After open+prices filter: ${openIdeas.length} ideas`);
       
       // 🎯 RELIABILITY FILTER: Remove conflicting directional signals for Best Setups
       // Only show the strongest directional conviction per symbol
@@ -5710,17 +5720,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // PERFORMANCE OPTIMIZATION: Pre-filter to only high-grade ideas (A+/A/A-/B+/B)
-      // This dramatically reduces the number of ideas we need to score (from 6000+ to ~100)
+      // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-grade ideas (A+/A/A-/B+/B/B-/C+/C)
+      // Expanded from B+ minimum to C minimum to capture more valid setups
       const highGradeIdeas = openIdeas.filter(i => {
         const grade = i.probabilityBand || '';
-        return ['A+', 'A', 'A-', 'B+', 'B'].includes(grade);
+        return ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'].includes(grade);
       });
-      
-      // Fallback: if no high-grade ideas, take top 50 by confidence score
-      const candidateIdeas = highGradeIdeas.length >= limit 
-        ? highGradeIdeas 
+      logger.info(`[BEST-SETUPS] High-grade filter: ${highGradeIdeas.length} ideas (grades A+ to C)`);
+
+      // Fallback: if fewer than limit high-grade ideas, include all open ideas
+      const candidateIdeas = highGradeIdeas.length >= limit
+        ? highGradeIdeas
         : openIdeas.slice(0, 100);
+
+      logger.info(`[BEST-SETUPS] Grade distribution: ${JSON.stringify(
+        openIdeas.reduce((acc, i) => {
+          const g = i.probabilityBand || 'none';
+          acc[g] = (acc[g] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      )}`);
       
       logger.info(`[BEST-SETUPS] Pre-filtered to ${candidateIdeas.length} candidates (from ${openIdeas.length} open ideas)`);
       
@@ -5820,6 +5839,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('[BEST-SETUPS] Error:', error);
       res.status(500).json({ error: "Failed to fetch best setups" });
+    }
+  });
+
+  // Debug endpoint to check raw trade ideas data
+  app.get("/api/trade-ideas/debug/raw", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const stats = {
+        total: allIdeas.length,
+        last24h: allIdeas.filter(i => i.timestamp && new Date(i.timestamp) > oneDayAgo).length,
+        openStatus: allIdeas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length,
+        hasEntryPrice: allIdeas.filter(i => i.entryPrice).length,
+        hasTargetPrice: allIdeas.filter(i => i.targetPrice).length,
+        hasStopLoss: allIdeas.filter(i => i.stopLoss).length,
+        hasAllPrices: allIdeas.filter(i => i.entryPrice && i.targetPrice && i.stopLoss).length,
+        gradeDistribution: allIdeas.reduce((acc, i) => {
+          const g = i.probabilityBand || 'none';
+          acc[g] = (acc[g] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        sourceDistribution: allIdeas.reduce((acc, i) => {
+          const s = i.dataSourceUsed || 'unknown';
+          acc[s] = (acc[s] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        recentIdeas: allIdeas
+          .filter(i => i.timestamp && new Date(i.timestamp) > oneDayAgo)
+          .slice(0, 10)
+          .map(i => ({
+            symbol: i.symbol,
+            direction: i.direction,
+            confidence: i.confidenceScore,
+            grade: i.probabilityBand,
+            entry: i.entryPrice,
+            target: i.targetPrice,
+            stop: i.stopLoss,
+            source: i.dataSourceUsed,
+            timestamp: i.timestamp
+          }))
+      };
+
+      logger.info(`[DEBUG] Trade ideas stats: ${JSON.stringify(stats)}`);
+      res.json(stats);
+    } catch (error) {
+      logger.error('[DEBUG] Error:', error);
+      res.status(500).json({ error: "Failed to fetch debug data" });
+    }
+  });
+
+  // Debug endpoint to manually trigger surge detection
+  app.post("/api/admin/trigger-surge-detection", requireAdminJWT, async (req, res) => {
+    try {
+      const { runDetectionCycle } = await import('./surge-detection-engine');
+      const alerts = await runDetectionCycle();
+      res.json({
+        success: true,
+        alertsDetected: alerts.length,
+        alerts: alerts.map(a => ({
+          symbol: a.symbol,
+          trigger: a.trigger,
+          severity: a.severity,
+          message: a.message,
+          price: a.price,
+          change: a.change
+        }))
+      });
+    } catch (error) {
+      logger.error('[ADMIN] Surge detection trigger failed:', error);
+      res.status(500).json({ error: "Failed to trigger surge detection" });
     }
   });
 

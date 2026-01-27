@@ -277,23 +277,23 @@ export interface UniversalIdeaInput {
 }
 
 // Base confidence by source (starting points) - CALIBRATED for realistic distribution
-// Target: Most ideas should be in 50-80% range, with <5% hitting 90%+
+// Target: Most ideas should be in 60-85% range, with tradeable grades (B- or higher)
 const SOURCE_BASE_CONFIDENCE: Record<IdeaSource, number> = {
-  'ai_analysis': 42,        // AI analysis - start moderate
-  'quant_signal': 45,       // Quant signals - decent base
-  'options_flow': 42,       // Options flow - moderate
-  'market_scanner': 38,     // Market movers - lower base
-  'bullish_trend': 40,      // Bullish trends - moderate
-  'chart_analysis': 42,     // Chart patterns - moderate
-  'social_sentiment': 32,   // Social - speculative, low base
-  'watchlist': 38,          // Watchlist - needs signals
-  'crypto_scanner': 35,     // Crypto - volatile, lower base
-  'news_catalyst': 40,      // News - moderate
-  'earnings_play': 38,      // Earnings - risky events
-  'sector_rotation': 40,    // Sector - moderate
-  'manual': 30,             // Manual - minimal base
-  'bot_screener': 48,       // Bot screener - higher base
-  'surge_detection': 42,    // Surge detection - moderate
+  'ai_analysis': 52,        // AI analysis - moderate-high
+  'quant_signal': 55,       // Quant signals - decent base
+  'options_flow': 50,       // Options flow - moderate
+  'market_scanner': 48,     // Market movers - moderate
+  'bullish_trend': 50,      // Bullish trends - moderate
+  'chart_analysis': 52,     // Chart patterns - moderate
+  'social_sentiment': 40,   // Social - speculative, low base
+  'watchlist': 48,          // Watchlist - needs signals
+  'crypto_scanner': 45,     // Crypto - volatile, lower base
+  'news_catalyst': 50,      // News - moderate
+  'earnings_play': 48,      // Earnings - risky events
+  'sector_rotation': 50,    // Sector - moderate
+  'manual': 35,             // Manual - minimal base
+  'bot_screener': 58,       // Bot screener - higher base
+  'surge_detection': 55,    // Surge detection - momentum-based, higher base
 };
 
 // Signal type weights
