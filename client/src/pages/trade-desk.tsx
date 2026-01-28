@@ -2953,10 +2953,10 @@ export default function TradeDeskRedesigned() {
 
   // Detect sub-page from path (e.g., /trade-desk/best-setups)
   const getInitialTab = () => {
-    if (location.includes("/best-setups")) return "best-setups";
-    if (location.includes("/movers")) return "movers";
-    if (location.includes("/breakouts")) return "breakouts";
-    return "overview";
+    if (location.includes("/best-setups")) return "discovery";
+    if (location.includes("/movers")) return "signals";
+    if (location.includes("/breakouts")) return "signals";
+    return "ideas"; // Default to ideas tab
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);

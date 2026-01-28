@@ -1036,6 +1036,73 @@
   .animate-delay-400 { animation-delay: 400ms; }
   .animate-delay-500 { animation-delay: 500ms; }
 
+  /* Chart/Trading Visualization Animations */
+  @keyframes draw-line {
+    from {
+      stroke-dasharray: 0 1000;
+    }
+    to {
+      stroke-dasharray: 1000 0;
+    }
+  }
+
+  .animate-draw-line {
+    animation: draw-line 2s ease-out forwards;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes float-particle {
+    0%, 100% {
+      transform: translateY(0) translateX(0);
+      opacity: 0.3;
+    }
+    25% {
+      transform: translateY(-15px) translateX(5px);
+      opacity: 0.6;
+    }
+    50% {
+      transform: translateY(-5px) translateX(-5px);
+      opacity: 0.4;
+    }
+    75% {
+      transform: translateY(-20px) translateX(3px);
+      opacity: 0.5;
+    }
+  }
+
+  .animate-float-particle {
+    animation: float-particle 4s ease-in-out infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+  }
+
   /* Premium Typography */
   .text-display {
     font-family: var(--font-sans);

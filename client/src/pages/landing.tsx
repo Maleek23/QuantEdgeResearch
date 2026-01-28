@@ -265,128 +265,207 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: Product Mockup - Animated */}
-            <div className="relative animate-float">
-              {/* Glow effect behind */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 via-blue-500/10 to-purple-500/20 rounded-2xl blur-2xl opacity-50" />
+            {/* Right: Animated Trading Visualization - Typewriter.ai inspired */}
+            <div className="relative h-[500px] lg:h-[550px]">
+              {/* Decorative arc/curve - like Typewriter.ai */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 500">
+                <defs>
+                  <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.1"/>
+                    <stop offset="50%" stopColor="#10b981" stopOpacity="0.2"/>
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.1"/>
+                  </linearGradient>
+                </defs>
+                {/* Large decorative arc */}
+                <path
+                  d="M 50 450 Q 200 100, 350 450"
+                  fill="none"
+                  stroke="url(#arcGradient)"
+                  strokeWidth="1"
+                  strokeDasharray="4,6"
+                  className="animate-draw-line"
+                />
+                {/* Connection dots on arc */}
+                <circle cx="100" cy="350" r="3" fill="#10b981" fillOpacity="0.4" />
+                <circle cx="200" cy="180" r="3" fill="#06b6d4" fillOpacity="0.4" />
+                <circle cx="300" cy="350" r="3" fill="#10b981" fillOpacity="0.4" />
+              </svg>
 
-              {/* Browser Window Frame */}
-              <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-cyan-500/20 border border-slate-700/50">
-                {/* Browser Chrome */}
-                <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                  </div>
-                  <div className="flex-1 mx-4">
-                    <div className="bg-slate-700/50 rounded px-3 py-1 text-xs text-slate-400 text-center">
-                      quantedgelabs.net/trade-desk
-                    </div>
-                  </div>
-                </div>
+              {/* Subtle ambient glow */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-500/10 rounded-full blur-[100px]" />
 
-                {/* Trade Card Content - REAL DATA */}
-                <div className="bg-slate-900 p-5">
-                  {heroLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                    </div>
-                  ) : heroIdea ? (
-                    <>
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm ${
-                            heroIdea.direction?.toLowerCase() === 'long' || heroIdea.direction?.toLowerCase() === 'bullish'
-                              ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                              : 'bg-gradient-to-br from-red-500 to-rose-600'
-                          }`}>
-                            {heroIdea.symbol?.slice(0, 2)}
+              {/* ========== Main Card - Center ========== */}
+              <div className="absolute inset-0 z-10 flex items-center justify-center">
+                <div className="relative w-[340px] animate-float">
+                  {/* Card Frame */}
+                  <div className="relative bg-slate-900/95 border border-slate-700/60 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-slate-800/60 border-b border-slate-700/40">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
+                          {(heroIdea?.symbol || 'NVDA').slice(0, 2)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-bold text-white">{heroIdea?.symbol || 'NVDA'}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">
+                              {heroIdea?.direction?.toUpperCase() || 'LONG'}
+                            </span>
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white">{heroIdea.symbol}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                                heroIdea.direction?.toLowerCase() === 'long' || heroIdea.direction?.toLowerCase() === 'bullish'
-                                  ? 'bg-emerald-500/20 text-emerald-400'
-                                  : 'bg-red-500/20 text-red-400'
-                              }`}>
-                                {heroIdea.direction?.toUpperCase() || 'SIGNAL'}
-                              </span>
+                          <span className="text-[11px] text-slate-500">AI Trade Signal</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] text-emerald-400 font-medium">LIVE</span>
+                      </div>
+                    </div>
+
+                    {/* Chart */}
+                    <div className="px-4 pt-3 pb-2">
+                      <div className="relative h-28 bg-slate-800/40 rounded-lg overflow-hidden">
+                        <svg className="w-full h-full" viewBox="0 0 280 100" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25"/>
+                              <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
+                          <path d="M0 80 Q 35 75, 55 70 T 110 55 T 165 40 T 220 30 T 280 18 L 280 100 L 0 100 Z" fill="url(#chartGrad)" />
+                          <path d="M0 80 Q 35 75, 55 70 T 110 55 T 165 40 T 220 30 T 280 18" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
+                          <circle cx="280" cy="18" r="4" fill="#10b981" />
+                        </svg>
+                        <div className="absolute top-2 right-2 text-right">
+                          <div className="text-xl font-bold text-white">${heroIdea?.entryPrice?.toFixed(2) || '892.45'}</div>
+                          <div className="text-xs text-emerald-400 font-medium">+5.23%</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI Confidence */}
+                    <div className="px-4 pb-2">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Brain className="w-3.5 h-3.5 text-cyan-400" />
+                          <span className="text-xs text-slate-400">AI Confidence</span>
+                        </div>
+                        <span className="text-sm font-bold text-cyan-400">{heroIdea?.confidenceScore?.toFixed(0) || '94'}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full" style={{ width: `${heroIdea?.confidenceScore || 94}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Price Targets */}
+                    <div className="px-4 pb-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="text-center p-2 rounded-lg bg-slate-800/50">
+                          <div className="text-[9px] text-slate-500 uppercase mb-0.5">Entry</div>
+                          <div className="text-xs font-bold text-white">${heroIdea?.entryPrice?.toFixed(2) || '885.00'}</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <div className="text-[9px] text-emerald-400 uppercase mb-0.5">Target</div>
+                          <div className="text-xs font-bold text-emerald-400">${heroIdea?.targetPrice?.toFixed(2) || '950.00'}</div>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                          <div className="text-[9px] text-red-400 uppercase mb-0.5">Stop</div>
+                          <div className="text-xs font-bold text-red-400">${heroIdea?.stopLoss?.toFixed(2) || '860.00'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 6 Engine Footer */}
+                    <div className="px-4 py-2.5 bg-slate-800/40 border-t border-slate-700/40">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          {['ML', 'AI', 'QT', 'FL', 'ST', 'TC'].map((engine) => (
+                            <div key={engine} className="w-7 h-5 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                              <span className="text-[8px] font-semibold text-emerald-400">{engine}</span>
                             </div>
-                            <span className="text-xs text-slate-500">AI-Generated Setup</span>
-                          </div>
+                          ))}
                         </div>
-                        <div className="text-right">
-                          <div className={`text-2xl font-bold ${
-                            (heroIdea.confidenceScore || 0) >= 80 ? 'text-emerald-400' :
-                            (heroIdea.confidenceScore || 0) >= 60 ? 'text-amber-400' : 'text-slate-400'
-                          }`}>
-                            {heroIdea.confidenceScore?.toFixed(0) || '--'}%
-                          </div>
-                          <span className="text-[10px] text-slate-500">Confidence</span>
-                        </div>
+                        <span className="text-[10px] font-medium text-emerald-400">6/6 Bullish</span>
                       </div>
-
-                      {/* 6 Engine Visual */}
-                      <div className="flex gap-1.5 mb-4">
-                        {[
-                          { name: 'ML', color: 'text-pink-400 bg-pink-500/10' },
-                          { name: 'AI', color: 'text-purple-400 bg-purple-500/10' },
-                          { name: 'QT', color: 'text-blue-400 bg-blue-500/10' },
-                          { name: 'FL', color: 'text-cyan-400 bg-cyan-500/10' },
-                          { name: 'ST', color: 'text-amber-400 bg-amber-500/10' },
-                          { name: 'TC', color: 'text-green-400 bg-green-500/10' },
-                        ].map((e) => (
-                          <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
-                            <div className="text-[9px] text-slate-500">{e.name}</div>
-                            <div className={`text-sm font-bold ${e.color.split(' ')[0]}`}>
-                              <Check className="w-3 h-3 mx-auto" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Signal Details */}
-                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 text-xs">
-                        <div className="text-center">
-                          <div className="text-slate-500">Entry</div>
-                          <div className="font-semibold text-white">
-                            {heroIdea.entryPrice ? `$${heroIdea.entryPrice.toFixed(2)}` : '--'}
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-slate-500">Target</div>
-                          <div className="font-semibold text-emerald-400">
-                            {heroIdea.targetPrice ? `$${heroIdea.targetPrice.toFixed(2)}` : '--'}
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-slate-500">Stop</div>
-                          <div className="font-semibold text-red-400">
-                            {heroIdea.stopLoss ? `$${heroIdea.stopLoss.toFixed(2)}` : '--'}
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-slate-500">R:R</div>
-                          <div className="font-semibold text-cyan-400">
-                            {heroIdea.riskRewardRatio ? `1:${heroIdea.riskRewardRatio.toFixed(1)}` : '--'}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-6 text-slate-500">
-                      <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">AI engines analyzing markets...</p>
                     </div>
-                  )}
+                  </div>
+                  {/* Shadow */}
+                  <div className="absolute -bottom-3 left-6 right-6 h-6 bg-black/30 blur-xl rounded-full" />
                 </div>
               </div>
-              <p className="text-center text-xs text-slate-500 mt-3">
-                {heroIdea ? 'Live AI-generated trade idea' : 'Real-time AI analysis'}
-              </p>
+
+              {/* ========== Floating Elements - Different depths like Typewriter.ai ========== */}
+
+              {/* Top-left: Input label style card */}
+              <div className="absolute top-8 left-0 hidden lg:block animate-float" style={{ animationDelay: '0s' }}>
+                <div className="bg-slate-800/90 border border-slate-700/50 rounded-lg px-3 py-2 shadow-lg">
+                  <div className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Signal</div>
+                  <div className="text-sm font-semibold text-emerald-400">"Buy on breakout"</div>
+                </div>
+                {/* Connection line */}
+                <svg className="absolute -right-8 top-1/2 w-8 h-px">
+                  <line x1="0" y1="0" x2="32" y2="0" stroke="#334155" strokeWidth="1" strokeDasharray="2,2" />
+                </svg>
+              </div>
+
+              {/* Top-right: Output/Result card */}
+              <div className="absolute top-4 right-0 hidden lg:block animate-float" style={{ animationDelay: '0.3s' }}>
+                <div className="bg-slate-800/90 border border-slate-700/50 rounded-xl p-3 shadow-lg max-w-[180px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                      <Brain className="w-3 h-3 text-cyan-400" />
+                    </div>
+                    <span className="text-[10px] text-slate-400">AI Analysis</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Strong momentum with institutional accumulation detected.
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom-left: Small floating stat */}
+              <div className="absolute bottom-24 left-4 hidden lg:block animate-float" style={{ animationDelay: '0.6s' }}>
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-1.5 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-xs text-purple-400 font-medium">Vol +180%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom-right: Small floating badge */}
+              <div className="absolute bottom-16 right-8 hidden lg:block animate-float" style={{ animationDelay: '0.9s' }}>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-1.5 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs text-amber-400 font-medium">Smart Money</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mid-left: Breakout indicator */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 hidden lg:block animate-float" style={{ animationDelay: '1.2s' }}>
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-xs text-emerald-400 font-medium">Breakout</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating mini cards at different scales (depth effect) */}
+              <div className="absolute top-32 right-4 hidden lg:block opacity-60 scale-90 animate-float" style={{ animationDelay: '1.5s' }}>
+                <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-2 w-24">
+                  <div className="text-[8px] text-slate-500">R:R Ratio</div>
+                  <div className="text-sm font-bold text-cyan-400">1:2.4</div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-40 left-8 hidden lg:block opacity-50 scale-75 animate-float" style={{ animationDelay: '1.8s' }}>
+                <div className="bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 w-20">
+                  <div className="text-[7px] text-slate-500">Win Rate</div>
+                  <div className="text-xs font-bold text-emerald-400">78%</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

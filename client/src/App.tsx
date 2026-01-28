@@ -31,11 +31,9 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 
 const Landing = lazy(() => import("@/pages/landing"));
-const LandingNew = lazy(() => import("@/pages/landing-new"));
 const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
 const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
-const TradeDeskV2 = lazy(() => import("@/pages/trade-desk-v2"));
 const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
 const StockDetailPage = lazy(() => import("@/pages/stock-detail"));
 const MarketPage = lazy(() => import("@/pages/market"));
@@ -146,7 +144,6 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
-        <Route path="/landing-new" component={LandingNew} />
       {/* AI Learning Dashboard */}
       <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
@@ -178,7 +175,6 @@ function Router() {
       <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
-      <Route path="/trade-desk-v2" component={withBetaProtection(TradeDeskV2)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
       <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />

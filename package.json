@@ -51,6 +51,7 @@
     "@react-three/fiber": "^8.15.0",
     "@remotion/cli": "^4.0.409",
     "@remotion/player": "^4.0.409",
+    "@splinetool/react-spline": "^4.1.0",
     "@tanstack/react-query": "^5.60.5",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
