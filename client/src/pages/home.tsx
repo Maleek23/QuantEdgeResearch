@@ -526,17 +526,20 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bottom stats */}
-        <div className="grid grid-cols-4 gap-2 pb-8">
+        {/* Bottom stats - Platform Highlights */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pb-8">
           {[
-            { value: "6", label: "AI Engines", color: "text-cyan-400" },
-            { value: "24/7", label: "Analysis", color: "text-emerald-400" },
-            { value: "100%", label: "Free Tools", color: "text-purple-400" },
-            { value: "∞", label: "Research", color: "text-amber-400" },
+            { value: "6", label: "AI Engines", sublabel: "Analyzing 24/7", color: "from-cyan-400 to-teal-400", icon: Brain },
+            { value: "5+", label: "FREE LLMs", sublabel: "Cross-validating", color: "from-purple-400 to-violet-400", icon: Sparkles },
+            { value: "100%", label: "Free Tools", sublabel: "No credit card", color: "from-emerald-400 to-green-400", icon: Zap },
+            { value: "Live", label: "Real-time", sublabel: "Market data", color: "from-amber-400 to-orange-400", icon: Activity },
           ].map((stat) => (
-            <div key={stat.label} className="text-center p-3 rounded-lg bg-slate-800/20 border border-slate-700/20">
-              <div className={cn("text-lg font-bold", stat.color)}>{stat.value}</div>
-              <div className="text-[9px] text-slate-500">{stat.label}</div>
+            <div key={stat.label} className="relative overflow-hidden text-center p-4 rounded-xl bg-slate-900/40 border border-slate-700/30 hover:border-slate-600 transition-all group">
+              <div className={cn("absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r", stat.color)} />
+              <stat.icon className={cn("w-5 h-5 mx-auto mb-2 bg-gradient-to-r bg-clip-text", stat.color.replace('from-', 'text-').split(' ')[0])} />
+              <div className={cn("text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent", stat.color)}>{stat.value}</div>
+              <div className="text-xs font-medium text-white mt-1">{stat.label}</div>
+              <div className="text-[10px] text-slate-500">{stat.sublabel}</div>
             </div>
           ))}
         </div>
