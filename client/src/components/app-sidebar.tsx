@@ -48,61 +48,60 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { 
-    id: "home", 
-    title: "Home", 
-    icon: Home, 
-    href: "/research" 
+  {
+    id: "home",
+    title: "Home",
+    icon: Home,
+    href: "/home"
   },
-  { 
-    id: "discover", 
-    title: "Discover", 
-    icon: Compass, 
-    href: "/discover",
-    badge: "NEW"
+  {
+    id: "trade-desk",
+    title: "Trade Desk",
+    icon: Sparkles,
+    href: "/trade-desk",
+    badge: "AI"
   },
-  { 
-    id: "research", 
-    title: "Research", 
-    icon: Search, 
-    href: "/research" 
+  {
+    id: "market",
+    title: "Markets",
+    icon: TrendingUp,
+    href: "/market"
   },
-  { 
-    id: "watchlist", 
-    title: "Watchlist", 
-    icon: Eye, 
-    href: "/watchlist" 
+  {
+    id: "charts",
+    title: "Charts",
+    icon: FileText,
+    href: "/chart-analysis"
   },
-  { 
-    id: "market-movers", 
-    title: "Market Movers", 
-    icon: TrendingUp, 
-    href: "/market-movers" 
+  {
+    id: "smart-money",
+    title: "Smart Money",
+    icon: Briefcase,
+    href: "/smart-money"
   },
-  { 
-    id: "ai-stock-picker", 
-    title: "AI Stock Picker", 
-    icon: Sparkles, 
-    href: "/ai-stock-picker",
-    badge: "NEW"
+  {
+    id: "watchlist",
+    title: "Watchlist",
+    icon: Eye,
+    href: "/watchlist"
   },
-  { 
-    id: "smart-signals", 
-    title: "Smart Signals", 
-    icon: Zap, 
-    href: "/smart-signals" 
+  {
+    id: "discover",
+    title: "Discover",
+    icon: Compass,
+    href: "/discover"
   },
-  { 
-    id: "smart-money", 
-    title: "Smart Money", 
-    icon: Briefcase, 
-    href: "/smart-money" 
+  {
+    id: "academy",
+    title: "Academy",
+    icon: Search,
+    href: "/academy"
   },
-  { 
-    id: "portfolio", 
-    title: "Portfolio Toolbox", 
-    icon: PieChart, 
-    href: "/portfolio" 
+  {
+    id: "performance",
+    title: "Performance",
+    icon: PieChart,
+    href: "/performance"
   },
 ];
 

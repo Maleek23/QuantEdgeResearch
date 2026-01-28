@@ -48,6 +48,7 @@ export default function History() {
   const [location] = useLocation();
   const defaultTab = location.includes("/research") ? "research" : "chat";
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch chat history from real API
   const { data: chatData, isLoading: chatLoading } = useQuery<{ history: ChatHistoryItem[] }>({
@@ -61,6 +62,17 @@ export default function History() {
 
   const chatHistory = chatData?.history || [];
   const researchHistory = researchData?.history || [];
+
+  // Filter based on search query
+  const filteredChatHistory = chatHistory.filter(chat =>
+    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredResearchHistory = researchHistory.filter(research =>
+    research.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (research.companyName?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    research.analysisType.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getSignalColor = (signal: string | undefined) => {
     switch (signal?.toUpperCase()) {
@@ -92,6 +104,8 @@ export default function History() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
               placeholder="Search history..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 w-64 bg-slate-800/50 border-slate-700"
               data-testid="input-search-history"
             />
@@ -136,9 +150,9 @@ export default function History() {
                       <Skeleton key={i} className="h-16 bg-slate-800" />
                     ))}
                   </div>
-                ) : chatHistory.length > 0 ? (
+                ) : filteredChatHistory.length > 0 ? (
                   <div className="divide-y divide-slate-800/50">
-                    {chatHistory.map((chat) => (
+                    {filteredChatHistory.map((chat) => (
                       <div
                         key={chat.id}
                         className="p-4 hover:bg-slate-800/30 transition-colors flex items-center justify-between cursor-pointer"
@@ -192,9 +206,9 @@ export default function History() {
                       <Skeleton key={i} className="h-16 bg-slate-800" />
                     ))}
                   </div>
-                ) : researchHistory.length > 0 ? (
+                ) : filteredResearchHistory.length > 0 ? (
                   <div className="divide-y divide-slate-800/50">
-                    {researchHistory.map((research) => (
+                    {filteredResearchHistory.map((research) => (
                       <div
                         key={research.id}
                         className="p-4 hover:bg-slate-800/30 transition-colors flex items-center justify-between"

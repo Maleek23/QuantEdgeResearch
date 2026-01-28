@@ -77,6 +77,13 @@ export default function LearningDashboard() {
     refetchInterval: 60000, // Refresh every minute
   });
 
+  // Update insights when API data arrives
+  useEffect(() => {
+    if (learningData?.insights && Array.isArray(learningData.insights) && learningData.insights.length > 0) {
+      setInsights(learningData.insights);
+    }
+  }, [learningData]);
+
   const triggerAnalysis = async () => {
     setIsAnalyzing(true);
     try {

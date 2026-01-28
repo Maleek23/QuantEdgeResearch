@@ -38,22 +38,21 @@ interface NavTab {
   icon: any;
 }
 
-// Main navigation tabs - browser-style
+// Main navigation tabs - browser-style (core trading workflow)
 const mainTabs: NavTab[] = [
   { label: "Trade Desk", href: "/trade-desk", icon: Brain },
-  { label: "Markets", href: "/market-scanner", icon: BarChart3 },
-  { label: "Chart", href: "/chart-analysis", icon: LineChart },
+  { label: "Markets", href: "/market", icon: BarChart3 },
+  { label: "Charts", href: "/chart-analysis", icon: LineChart },
+  { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
-  { label: "Research", href: "/research", icon: Search },
-  { label: "Flow", href: "/whale-flow", icon: Activity },
 ];
 
-// Discover dropdown items
+// Discover dropdown items (research & learning)
 const discoverItems: NavTab[] = [
-  { label: "News & Trends", href: "/discover", icon: Newspaper },
-  { label: "Bullish Trends", href: "/bullish-trends", icon: TrendingUp },
-  { label: "AI Stock Picker", href: "/ai-stock-picker", icon: Sparkles },
   { label: "Academy", href: "/academy", icon: GraduationCap },
+  { label: "News & Social", href: "/discover", icon: Newspaper },
+  { label: "Bullish Trends", href: "/bullish-trends", icon: TrendingUp },
+  { label: "Market Scanner", href: "/market-scanner", icon: Search },
 ];
 
 export function GlassHeader() {

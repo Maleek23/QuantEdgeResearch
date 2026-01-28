@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -319,7 +320,12 @@ export default function MarketPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [nextRefresh, setNextRefresh] = useState<number>(10);
-  const [mainTab, setMainTab] = useState<string>("overview");
+  // Read tab from URL query param (e.g., /market?tab=scanner)
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const initialTab = urlParams.get("tab") || "overview";
+
+  const [mainTab, setMainTab] = useState<string>(initialTab);
   const [scannerTimeframe, setScannerTimeframe] = useState<string>("day");
   const [scannerCategory, setScannerCategory] = useState<string>("all");
   const { toast } = useToast();

@@ -29,19 +29,19 @@ import {
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 
 const navItems = [
-  { id: "home", label: "Home", href: "/research", icon: Home },
-  { id: "discover", label: "Discover", href: "/discover", icon: Compass },
-  { id: "research", label: "Research", href: "/research", icon: Search },
+  { id: "home", label: "Home", href: "/home", icon: Home },
+  { id: "trade-desk", label: "Trade Desk", href: "/trade-desk", icon: Sparkles },
+  { id: "market", label: "Markets", href: "/market", icon: TrendingUp },
+  { id: "charts", label: "Charts", href: "/chart-analysis", icon: Activity },
+  { id: "smart-money", label: "Smart Money", href: "/smart-money", icon: Wallet },
   { id: "watchlist", label: "Watchlist", href: "/watchlist", icon: Star },
-  { id: "movers", label: "Movers", href: "/market-movers", icon: TrendingUp },
-  { id: "ai-picks", label: "AI Picks", href: "/ai-stock-picker", icon: Sparkles },
-  { id: "signals", label: "Signals", href: "/smart-signals", icon: Activity },
 ];
 
 const moreItems = [
-  { id: "smart-money", label: "Smart Money", href: "/smart-money", icon: Wallet },
+  { id: "discover", label: "Discover", href: "/discover", icon: Compass },
+  { id: "academy", label: "Academy", href: "/academy", icon: Search },
+  { id: "performance", label: "Performance", href: "/performance", icon: TrendingUp },
   { id: "history", label: "History", href: "/history", icon: Clock },
-  { id: "portfolio", label: "Portfolio", href: "/portfolio", icon: TrendingUp },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -55,7 +55,7 @@ export function HeaderNav() {
   };
   
   const isActive = (href: string) => {
-    if (href === "/research" && (location === "/" || location === "/research")) return true;
+    if (href === "/home" && (location === "/" || location === "/home")) return true;
     return location === href || location.startsWith(href + "/");
   };
 
@@ -65,7 +65,7 @@ export function HeaderNav() {
       <div className="flex items-center justify-between h-14 px-4 max-w-[1800px] mx-auto">
         {/* Left: Logo */}
         <div className="flex items-center gap-6">
-          <Link href="/research">
+          <Link href="/home">
             <div className="flex items-center gap-2 cursor-pointer" data-testid="nav-logo">
               <img 
                 src={quantEdgeLabsLogoUrl} 

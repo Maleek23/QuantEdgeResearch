@@ -1,13 +1,18 @@
-import { ResearchHub } from "@/components/research-hub";
-import { AuroraBackground } from "@/components/aurora-background";
+/**
+ * Research Hub - Redirects to Academy
+ *
+ * This page was just a wrapper. Academy provides the full
+ * educational experience with articles, guides, and resources.
+ */
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 export default function ResearchHubPage() {
-  return (
-    <>
-      <AuroraBackground />
-      <div className="relative z-10">
-        <ResearchHub />
-      </div>
-    </>
-  );
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    setLocation("/academy");
+  }, [setLocation]);
+
+  return null;
 }

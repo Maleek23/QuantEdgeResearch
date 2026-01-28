@@ -1,9 +1,11 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { 
-  Activity, BarChart3, History, LineChart, 
+import {
+  Activity, BarChart3, History, LineChart,
   Settings, Zap, Search, ChevronLeft, ChevronRight,
-  Crosshair, TrendingUp, Bot, Wallet, BookOpen
+  Crosshair, TrendingUp, Bot, Wallet, BookOpen,
+  Sparkles, Eye, DollarSign, MessageSquare, GraduationCap,
+  PieChart, Flame
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuroraLayout } from "@/contexts/aurora-layout-context";
@@ -17,24 +19,41 @@ interface NavItem {
   glow?: string;
 }
 
-const primaryNav: NavItem[] = [
-  { icon: Crosshair, label: "Command Center", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
+// TRADING - Core trading tools
+const tradingNav: NavItem[] = [
+  { icon: Crosshair, label: "Trading Engine", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
+  { icon: Sparkles, label: "Trade Desk", href: "/trade-desk", color: "text-emerald-400", glow: "rgba(52,211,153,0.3)" },
+  { icon: TrendingUp, label: "Markets", href: "/market", color: "text-blue-400", glow: "rgba(96,165,250,0.3)" },
+  { icon: Bot, label: "Automations", href: "/automations", color: "text-pink-400", glow: "rgba(244,114,182,0.3)" },
+];
+
+// ANALYSIS - Market analysis tools
+const analysisNav: NavItem[] = [
   { icon: Search, label: "Market Scanner", href: "/market-scanner", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
   { icon: BarChart3, label: "Chart Analysis", href: "/chart-analysis", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+  { icon: DollarSign, label: "Smart Money", href: "/smart-money", color: "text-amber-400", glow: "rgba(251,191,36,0.3)" },
+  { icon: Eye, label: "Watchlist", href: "/watchlist", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
 ];
 
-const secondaryNav: NavItem[] = [
-  { icon: TrendingUp, label: "Trade Desk", href: "/trade-desk", color: "text-emerald-400", glow: "rgba(52,211,153,0.3)" },
-  { icon: History, label: "Historical", href: "/historical-intelligence", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+// RESEARCH - Research & insights
+const researchNav: NavItem[] = [
+  { icon: TrendingUp, label: "Discover", href: "/discover", color: "text-purple-400", glow: "rgba(192,132,252,0.3)" },
+  { icon: Flame, label: "Social Trends", href: "/social-trends", color: "text-orange-400", glow: "rgba(251,146,60,0.3)" },
+  { icon: History, label: "Historical AI", href: "/historical-intelligence", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
   { icon: LineChart, label: "Backtest", href: "/backtest", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: Bot, label: "Automations", href: "/watchlist-bot", color: "text-pink-400", glow: "rgba(244,114,182,0.3)" },
 ];
 
-const utilityNav: NavItem[] = [
-  { icon: Wallet, label: "Account", href: "/account" },
-  { icon: BookOpen, label: "Academy", href: "/academy" },
-  { icon: Settings, label: "Settings", href: "/settings" },
+// ACCOUNT - User account & settings
+const accountNav: NavItem[] = [
+  { icon: PieChart, label: "Performance", href: "/performance", color: "text-cyan-400", glow: "rgba(34,211,238,0.3)" },
+  { icon: GraduationCap, label: "Academy", href: "/academy", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+  { icon: Settings, label: "Settings", href: "/settings", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
 ];
+
+// Keep old names for backwards compatibility
+const primaryNav = tradingNav;
+const secondaryNav = analysisNav;
+const utilityNav = accountNav;
 
 function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon;
@@ -196,13 +215,14 @@ export function CommandRail() {
         "flex-1 py-4 overflow-y-auto",
         collapsed ? "px-3" : "px-3"
       )}>
+        {/* TRADING SECTION */}
         {!collapsed && (
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
             Trading
           </div>
         )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
-          {primaryNav.map((item) => (
+          {tradingNav.map((item) => (
             collapsed ? (
               <NavIcon key={item.href} item={item} isActive={isItemActive(item.href)} />
             ) : (
@@ -215,13 +235,34 @@ export function CommandRail() {
           "my-3 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent"
         )} />
 
+        {/* ANALYSIS SECTION */}
+        {!collapsed && (
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+            Analysis
+          </div>
+        )}
+        <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
+          {analysisNav.map((item) => (
+            collapsed ? (
+              <NavIcon key={item.href} item={item} isActive={isItemActive(item.href)} />
+            ) : (
+              <NavIconExpanded key={item.href} item={item} isActive={isItemActive(item.href)} />
+            )
+          ))}
+        </div>
+
+        <div className={cn(
+          "my-3 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent"
+        )} />
+
+        {/* RESEARCH SECTION */}
         {!collapsed && (
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
             Research
           </div>
         )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
-          {secondaryNav.map((item) => (
+          {researchNav.map((item) => (
             collapsed ? (
               <NavIcon key={item.href} item={item} isActive={isItemActive(item.href)} />
             ) : (
@@ -234,13 +275,14 @@ export function CommandRail() {
           "my-3 mx-2 h-px bg-gradient-to-r from-transparent via-slate-700/40 to-transparent"
         )} />
 
+        {/* ACCOUNT SECTION */}
         {!collapsed && (
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-            Settings
+            Account
           </div>
         )}
         <div className={cn("space-y-1", collapsed && "flex flex-col items-center")}>
-          {utilityNav.map((item) => (
+          {accountNav.map((item) => (
             collapsed ? (
               <NavIcon key={item.href} item={item} isActive={isItemActive(item.href)} />
             ) : (

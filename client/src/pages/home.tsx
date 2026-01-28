@@ -165,7 +165,7 @@ function ResearchTools() {
       title: "Options Flow",
       description: "Track unusual options activity",
       icon: Layers,
-      href: "/whale-flow",
+      href: "/smart-money",
       color: "text-pink-400",
       bg: "bg-pink-500/10",
     },

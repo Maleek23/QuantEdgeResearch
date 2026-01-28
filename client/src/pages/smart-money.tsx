@@ -185,7 +185,7 @@ export default function SmartMoney() {
             transition={{ delay: 0.15 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
           >
-            <Link href="/whale-flow">
+            <Link href="/options-analyzer">
               <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-cyan-500/30 transition-all cursor-pointer group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -193,8 +193,8 @@ export default function SmartMoney() {
                       <BarChart3 className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-100">Whale Flow Monitor</h3>
-                      <p className="text-sm text-slate-400">Large options activity</p>
+                      <h3 className="text-lg font-semibold text-slate-100">Options Analyzer</h3>
+                      <p className="text-sm text-slate-400">Deep options analysis</p>
                     </div>
                   </div>
                   <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
@@ -202,7 +202,7 @@ export default function SmartMoney() {
               </Card>
             </Link>
 
-            <Link href="/market-movers">
+            <Link href="/market?tab=scanner">
               <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-purple-500/30 transition-all cursor-pointer group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">

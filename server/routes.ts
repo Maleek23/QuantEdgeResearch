@@ -24702,6 +24702,78 @@ Use this checklist before entering any trade:
     }
   });
 
+  // POST /api/search/ai - AI-powered universal search (answers any question)
+  app.post("/api/search/ai", async (req, res) => {
+    try {
+      const { query, includeWebSearch, maxTokens } = req.body;
+
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: "Query is required" });
+      }
+
+      const { universalSearch, parseQuery, quickIntentCheck } = await import('./universal-search-service');
+
+      // First, do a quick intent check
+      const intentCheck = quickIntentCheck(query);
+
+      // If it's clearly a stock lookup, suggest navigating to stock page
+      if (intentCheck.hasTickerIntent && intentCheck.suggestedRoute === 'stock') {
+        // Still run the AI analysis but also provide ticker info
+        const result = await universalSearch(query, {
+          includeWebSearch: includeWebSearch ?? true,
+          maxTokens: maxTokens ?? 2000,
+        });
+
+        return res.json({
+          ...result,
+          quickAction: {
+            type: 'navigate_stock',
+            tickers: intentCheck.tickers,
+            message: `View detailed analysis for ${intentCheck.tickers.join(', ')}`
+          }
+        });
+      }
+
+      // Run the full AI search
+      const result = await universalSearch(query, {
+        includeWebSearch: includeWebSearch ?? true,
+        maxTokens: maxTokens ?? 2000,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`AI Search error:`, error);
+      res.status(500).json({ error: "AI search failed", message: error.message });
+    }
+  });
+
+  // GET /api/search/intent - Quick intent classification (no LLM call)
+  app.get("/api/search/intent", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+
+      if (!query) {
+        return res.status(400).json({ error: "Query parameter 'q' is required" });
+      }
+
+      const { parseQuery, quickIntentCheck } = await import('./universal-search-service');
+      const parsed = parseQuery(query);
+      const quickCheck = quickIntentCheck(query);
+
+      res.json({
+        query,
+        intent: parsed.intent,
+        tickers: parsed.tickers,
+        keywords: parsed.keywords,
+        isQuestion: parsed.isQuestion,
+        suggestedRoute: quickCheck.suggestedRoute,
+      });
+    } catch (error: any) {
+      logger.error(`Intent check error:`, error);
+      res.status(500).json({ error: "Intent check failed" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // Pre-warm expensive caches after server starts (non-blocking)

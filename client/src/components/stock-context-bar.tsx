@@ -93,7 +93,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
               </Button>
             </Link>
 
-            <Link href={`/ai-stock-picker?symbol=${currentStock.symbol}`}>
+            <Link href={`/trade-desk/best-setups?symbol=${currentStock.symbol}`}>
               <Button
                 variant="ghost"
                 size="sm"

@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -2949,7 +2949,17 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
 // ============================================
 export default function TradeDeskRedesigned() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [location] = useLocation();
+
+  // Detect sub-page from path (e.g., /trade-desk/best-setups)
+  const getInitialTab = () => {
+    if (location.includes("/best-setups")) return "best-setups";
+    if (location.includes("/movers")) return "movers";
+    if (location.includes("/breakouts")) return "breakouts";
+    return "overview";
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
 
   // AI Generation mutation - triggers the 6 engines
@@ -3005,8 +3015,8 @@ export default function TradeDeskRedesigned() {
           const ideas = await authRes.json();
           if (Array.isArray(ideas) && ideas.length > 0) return ideas;
         }
-      } catch (e) {
-        console.log('[Trade Desk] Using public endpoint');
+      } catch {
+        // Auth endpoint failed, fall through to public endpoint
       }
       const res = await fetch('/api/trade-ideas/best-setups?period=weekly&limit=100');
       if (!res.ok) return [];

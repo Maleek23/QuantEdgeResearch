@@ -73,7 +73,7 @@ export function TopMoversPanel() {
           <Zap className="h-4 w-4 text-primary" />
           Top Movers
         </CardTitle>
-        <Link href="/market-movers">
+        <Link href="/market?tab=scanner">
           <span className="text-xs text-primary hover:underline cursor-pointer">View All</span>
         </Link>
       </CardHeader>

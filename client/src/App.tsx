@@ -175,6 +175,7 @@ function Router() {
       <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
       <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
       <Route path="/ct-tracker" component={withBetaProtection(CTTracker)} />

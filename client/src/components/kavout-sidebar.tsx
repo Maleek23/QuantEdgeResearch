@@ -38,31 +38,34 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
+    title: "Trading",
     items: [
       { id: "home", label: "Home", href: "/home", icon: Home },
-      { id: "discover", label: "Discover", href: "/discover", icon: Compass },
-      { id: "research", label: "Research", href: "/research", icon: Search },
+      { id: "trade-desk", label: "Trade Desk", href: "/trade-desk", icon: Sparkles },
+      { id: "market", label: "Markets", href: "/market", icon: TrendingUp },
     ],
   },
   {
+    title: "Analysis",
     items: [
-      { id: "watchlist", label: "Watchlist", href: "/watchlist", icon: Star },
-      { id: "market-movers", label: "Market Movers", href: "/market-movers", icon: TrendingUp },
-      { id: "ai-stock-picker", label: "AI Stock Picker", href: "/ai-stock-picker", icon: Sparkles },
-      { id: "market-scanner", label: "Market Scanner", href: "/market-scanner", icon: Activity },
+      { id: "chart-analysis", label: "Charts", href: "/chart-analysis", icon: FileText },
       { id: "smart-money", label: "Smart Money", href: "/smart-money", icon: Wallet },
+      { id: "market-scanner", label: "Scanner", href: "/market-scanner", icon: Activity },
+      { id: "watchlist", label: "Watchlist", href: "/watchlist", icon: Star },
     ],
   },
   {
+    title: "Research",
     items: [
-      { id: "paper-trading", label: "Paper Trading", href: "/paper-trading", icon: Briefcase },
+      { id: "academy", label: "Academy", href: "/academy", icon: Search },
+      { id: "discover", label: "Discover", href: "/discover", icon: Compass },
     ],
   },
   {
-    title: "History",
+    title: "Account",
     items: [
+      { id: "performance", label: "Performance", href: "/performance", icon: Briefcase },
       { id: "journal", label: "Trade Journal", href: "/trade-audit", icon: Clock },
-      { id: "chart-analysis", label: "Chart Analysis", href: "/chart-analysis", icon: FileText },
     ],
   },
 ];
