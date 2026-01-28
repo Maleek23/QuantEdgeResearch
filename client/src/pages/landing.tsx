@@ -234,7 +234,7 @@ export default function Landing() {
                   className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 px-6"
                   onClick={() => setWaitlistOpen(true)}
                 >
-                  Get Started Free
+                  Join Beta Waitlist
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button
@@ -580,9 +580,9 @@ export default function Landing() {
               <Button
                 size="lg"
                 className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 text-base"
-                onClick={() => setLocation('/signup')}
+                onClick={() => setWaitlistOpen(true)}
               >
-                Get Started Free
+                Join Beta Waitlist
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
 
@@ -791,7 +791,7 @@ export default function Landing() {
       </footer>
 
       {/* Waitlist Popup */}
-      {waitlistOpen && <WaitlistPopup onClose={() => setWaitlistOpen(false)} />}
+      <WaitlistPopup open={waitlistOpen} onOpenChange={setWaitlistOpen} />
     </div>
   );
 }

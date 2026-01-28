@@ -41,6 +41,7 @@ interface NavTab {
 // Main navigation tabs - browser-style (core trading workflow)
 const mainTabs: NavTab[] = [
   { label: "Trade Desk", href: "/trade-desk", icon: Brain },
+  { label: "AI Picks", href: "/trade-desk/best-setups", icon: Sparkles },
   { label: "Markets", href: "/market", icon: BarChart3 },
   { label: "Charts", href: "/chart-analysis", icon: LineChart },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
