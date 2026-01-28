@@ -23,12 +23,26 @@ import {
   Zap,
   Shield,
   ChartLine,
-  Play
+  Play,
+  Loader2
 } from "lucide-react";
 import { useState, lazy, Suspense, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+
+// Interface for real trade idea from API
+interface TradeIdea {
+  symbol: string;
+  direction?: string;
+  confidenceScore?: number;
+  entryPrice?: number;
+  targetPrice?: number;
+  stopLoss?: number;
+  riskRewardRatio?: number;
+  analysis?: string;
+}
 
 // Lazy load heavy components
 const LiveActivityFeed = lazy(() => import("@/components/live-activity-feed").then(m => ({ default: m.LiveActivityFeed })));
@@ -48,6 +62,34 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  // Fetch REAL trade idea for hero section
+  const { data: heroIdea, isLoading: heroLoading } = useQuery<TradeIdea>({
+    queryKey: ['/api/trade-ideas/featured'],
+    queryFn: async () => {
+      try {
+        // Try to get best setup first
+        const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=1');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.setups && data.setups.length > 0) {
+            return data.setups[0];
+          }
+        }
+        // Fallback to latest trade idea
+        const fallback = await fetch('/api/trade-ideas?limit=1');
+        if (fallback.ok) {
+          const ideas = await fallback.json();
+          if (ideas.length > 0) return ideas[0];
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
+  });
 
   // Inject FAQ structured data for SEO rich snippets
   useEffect(() => {
@@ -244,67 +286,107 @@ export default function Landing() {
                   </div>
                 </div>
 
-                {/* Trade Card Content */}
+                {/* Trade Card Content - REAL DATA */}
                 <div className="bg-slate-900 p-5">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                        NV
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">NVDA</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">BULLISH</span>
+                  {heroLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+                    </div>
+                  ) : heroIdea ? (
+                    <>
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm ${
+                            heroIdea.direction?.toLowerCase() === 'long' || heroIdea.direction?.toLowerCase() === 'bullish'
+                              ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                              : 'bg-gradient-to-br from-red-500 to-rose-600'
+                          }`}>
+                            {heroIdea.symbol?.slice(0, 2)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white">{heroIdea.symbol}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                                heroIdea.direction?.toLowerCase() === 'long' || heroIdea.direction?.toLowerCase() === 'bullish'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : 'bg-red-500/20 text-red-400'
+                              }`}>
+                                {heroIdea.direction?.toUpperCase() || 'SIGNAL'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-slate-500">AI-Generated Setup</span>
+                          </div>
                         </div>
-                        <span className="text-xs text-slate-500">NVIDIA Corporation</span>
+                        <div className="text-right">
+                          <div className={`text-2xl font-bold ${
+                            (heroIdea.confidenceScore || 0) >= 80 ? 'text-emerald-400' :
+                            (heroIdea.confidenceScore || 0) >= 60 ? 'text-amber-400' : 'text-slate-400'
+                          }`}>
+                            {heroIdea.confidenceScore?.toFixed(0) || '--'}%
+                          </div>
+                          <span className="text-[10px] text-slate-500">Confidence</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-emerald-400">87%</div>
-                      <span className="text-[10px] text-slate-500">Confidence</span>
-                    </div>
-                  </div>
 
-                  {/* 6 Engine Scores - Inline */}
-                  <div className="flex gap-1.5 mb-4">
-                    {[
-                      { name: 'ML', score: 92, color: 'text-pink-400 bg-pink-500/10' },
-                      { name: 'AI', score: 88, color: 'text-purple-400 bg-purple-500/10' },
-                      { name: 'QT', score: 85, color: 'text-blue-400 bg-blue-500/10' },
-                      { name: 'FL', score: 91, color: 'text-cyan-400 bg-cyan-500/10' },
-                      { name: 'ST', score: 78, color: 'text-amber-400 bg-amber-500/10' },
-                      { name: 'TC', score: 89, color: 'text-green-400 bg-green-500/10' },
-                    ].map((e) => (
-                      <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
-                        <div className="text-[9px] text-slate-500">{e.name}</div>
-                        <div className={`text-sm font-bold ${e.color.split(' ')[0]}`}>{e.score}</div>
+                      {/* 6 Engine Visual */}
+                      <div className="flex gap-1.5 mb-4">
+                        {[
+                          { name: 'ML', color: 'text-pink-400 bg-pink-500/10' },
+                          { name: 'AI', color: 'text-purple-400 bg-purple-500/10' },
+                          { name: 'QT', color: 'text-blue-400 bg-blue-500/10' },
+                          { name: 'FL', color: 'text-cyan-400 bg-cyan-500/10' },
+                          { name: 'ST', color: 'text-amber-400 bg-amber-500/10' },
+                          { name: 'TC', color: 'text-green-400 bg-green-500/10' },
+                        ].map((e) => (
+                          <div key={e.name} className={`flex-1 text-center py-1.5 rounded ${e.color}`}>
+                            <div className="text-[9px] text-slate-500">{e.name}</div>
+                            <div className={`text-sm font-bold ${e.color.split(' ')[0]}`}>
+                              <Check className="w-3 h-3 mx-auto" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
 
-                  {/* Signal Details */}
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 text-xs">
-                    <div className="text-center">
-                      <div className="text-slate-500">Entry</div>
-                      <div className="font-semibold text-white">$142.50</div>
+                      {/* Signal Details */}
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/50 text-xs">
+                        <div className="text-center">
+                          <div className="text-slate-500">Entry</div>
+                          <div className="font-semibold text-white">
+                            {heroIdea.entryPrice ? `$${heroIdea.entryPrice.toFixed(2)}` : '--'}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-slate-500">Target</div>
+                          <div className="font-semibold text-emerald-400">
+                            {heroIdea.targetPrice ? `$${heroIdea.targetPrice.toFixed(2)}` : '--'}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-slate-500">Stop</div>
+                          <div className="font-semibold text-red-400">
+                            {heroIdea.stopLoss ? `$${heroIdea.stopLoss.toFixed(2)}` : '--'}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-slate-500">R:R</div>
+                          <div className="font-semibold text-cyan-400">
+                            {heroIdea.riskRewardRatio ? `1:${heroIdea.riskRewardRatio.toFixed(1)}` : '--'}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-6 text-slate-500">
+                      <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">AI engines analyzing markets...</p>
                     </div>
-                    <div className="text-center">
-                      <div className="text-slate-500">Target</div>
-                      <div className="font-semibold text-emerald-400">$158.00</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-slate-500">Stop</div>
-                      <div className="font-semibold text-red-400">$135.00</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-slate-500">R:R</div>
-                      <div className="font-semibold text-cyan-400">1:2.1</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
-              <p className="text-center text-xs text-slate-500 mt-3">Real AI-generated trade idea</p>
+              <p className="text-center text-xs text-slate-500 mt-3">
+                {heroIdea ? 'Live AI-generated trade idea' : 'Real-time AI analysis'}
+              </p>
             </div>
           </div>
         </div>
@@ -313,13 +395,13 @@ export default function Landing() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
       </section>
 
-      {/* Social Proof Strip */}
+      {/* Data Sources Strip - REAL */}
       <section className="relative py-8 border-y border-slate-800/50 bg-slate-900/20">
         <div className="container mx-auto px-6">
-          <p className="text-center text-xs text-slate-500 mb-4 uppercase tracking-wider">Trusted by traders using</p>
-          <div className="flex items-center justify-center gap-8 md:gap-12 flex-wrap opacity-50 grayscale">
-            {['TradingView', 'Benzinga', 'Bloomberg', 'Yahoo Finance', 'CNBC', 'Investopedia'].map((name) => (
-              <span key={name} className="text-sm font-semibold text-slate-400 hover:text-white hover:opacity-100 transition-all cursor-default">
+          <p className="text-center text-xs text-slate-500 mb-4 uppercase tracking-wider">Powered by real-time data from</p>
+          <div className="flex items-center justify-center gap-8 md:gap-12 flex-wrap opacity-60">
+            {['Tradier API', 'Yahoo Finance', 'Alpha Vantage', 'CoinGecko', 'Polygon.io'].map((name) => (
+              <span key={name} className="text-sm font-medium text-slate-400">
                 {name}
               </span>
             ))}
@@ -327,7 +409,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Stats Section - Big Impact */}
+      {/* Stats Section - Real Capabilities */}
       <section className="relative py-12">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
@@ -335,7 +417,7 @@ export default function Landing() {
               { value: '6', label: 'AI Analysis Engines', suffix: '' },
               { value: '5K', label: 'Stocks Scanned Daily', suffix: '+' },
               { value: '24/7', label: 'Real-Time Monitoring', suffix: '' },
-              { value: '2.5K', label: 'Active Beta Users', suffix: '+' },
+              { value: '100', label: 'Data Sources Integrated', suffix: '+' },
             ].map((stat) => (
               <div key={stat.label} className="text-center p-4">
                 <div className="text-3xl md:text-4xl font-bold text-white mb-1">
@@ -579,56 +661,42 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-8 relative z-10 bg-slate-950" data-testid="section-testimonials">
+      {/* Platform Features Section */}
+      <section className="py-8 relative z-10 bg-slate-950" data-testid="section-features-highlight">
         <div className="container mx-auto px-6">
           <div className="text-center mb-6">
-            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Success Stories</Badge>
-            <h2 className="text-2xl font-bold text-white mb-2">What Traders Say</h2>
-            <div className="flex items-center justify-center gap-1 text-amber-400">
-              {[1,2,3,4,5].map(i => (
-                <svg key={i} className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                  <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-                </svg>
-              ))}
-              <span className="text-sm text-slate-400 ml-2">4.8/5 from beta testers</span>
-            </div>
+            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Platform Highlights</Badge>
+            <h2 className="text-2xl font-bold text-white mb-2">Built for Serious Traders</h2>
+            <p className="text-sm text-slate-400">Real data. Real analysis. No fluff.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
             {[
               {
-                quote: "The 6-engine convergence is genius. When ML, AI, and Flow all agree, those trades have been my best performers this month.",
-                name: "Marcus T.",
-                handle: "@swingtrader",
-                avatar: "MT",
+                title: "Multi-Engine Analysis",
+                description: "6 independent AI engines analyze every trade from different angles - technical, fundamental, flow, sentiment, and more.",
+                icon: Brain,
               },
               {
-                quote: "Finally a platform that shows me WHY a trade is good, not just 'buy here'. The confidence scores and engine breakdowns are exactly what I needed.",
-                name: "Sarah K.",
-                handle: "@daytrading_mom",
-                avatar: "SK",
+                title: "Real-Time Data",
+                description: "Live market data from Tradier, Yahoo Finance, and Polygon. Options flow, earnings calendars, and news - all in one place.",
+                icon: Zap,
               },
               {
-                quote: "Switched from TradingView alerts to QuantEdge. The AI analysis catches patterns I miss, and the risk/reward calc saves me from bad entries.",
-                name: "James L.",
-                handle: "@crypto_james",
-                avatar: "JL",
+                title: "Risk Management",
+                description: "Every trade idea includes entry, target, stop-loss, and risk/reward ratio. Paper trading to test strategies risk-free.",
+                icon: Shield,
               },
-            ].map((testimonial, idx) => (
-              <div key={idx} className="p-5 rounded-xl bg-slate-900/50 border border-slate-800/50 hover:border-slate-700 transition-colors">
-                <p className="text-sm text-slate-300 mb-4 leading-relaxed">"{testimonial.quote}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                    {testimonial.avatar}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{testimonial.name}</p>
-                    <p className="text-xs text-slate-500">{testimonial.handle}</p>
-                  </div>
+            ].map((feature, idx) => {
+              const Icon = feature.icon;
+              return (
+                <div key={idx} className="p-5 rounded-xl bg-slate-900/50 border border-slate-800/50 hover:border-cyan-500/30 transition-colors">
+                  <Icon className="w-8 h-8 text-cyan-400 mb-3" />
+                  <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">{feature.description}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
