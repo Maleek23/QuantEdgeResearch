@@ -31,6 +31,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 
 const Landing = lazy(() => import("@/pages/landing"));
+const LandingNew = lazy(() => import("@/pages/landing-new"));
 const Login = lazy(() => import("@/pages/login"));
 const Signup = lazy(() => import("@/pages/signup"));
 const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
@@ -144,6 +145,7 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
+        <Route path="/landing-new" component={LandingNew} />
       {/* AI Learning Dashboard */}
       <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
