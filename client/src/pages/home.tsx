@@ -420,34 +420,66 @@ export default function HomePage() {
           <MarketTicker />
         </div>
 
-        {/* Hero Section */}
-        <div className="py-8 md:py-12 text-center">
-          <Badge className="bg-slate-800/50 text-slate-300 border-slate-700/50 mb-4">
-            <Globe className="w-3 h-3 mr-1" />
-            Free Trading Research Platform
-          </Badge>
+        {/* Hero Section - Search-Centric */}
+        <div className="py-10 md:py-16 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 mb-6">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm text-cyan-400 font-medium">AI-Powered Trading Intelligence</span>
+          </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-3">
-            <span className="text-white">Research Any Stock.</span>
-            <br />
-            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Make Smarter Decisions.</span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
+            <span className="text-white">Research.</span>{" "}
+            <span className="bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">Analyze.</span>{" "}
+            <span className="text-white">Trade.</span>
           </h1>
 
-          <p className="text-base text-slate-400 mb-6 max-w-lg mx-auto">
-            AI-powered analysis, real-time data, and professional tools — all free for traders of any level.
+          <p className="text-lg text-slate-400 mb-8 max-w-2xl mx-auto">
+            6 AI engines analyze stocks, options & crypto 24/7. Get research briefs with confidence scores, technical patterns, and smart money signals.
           </p>
 
-          {/* Search */}
-          <div className="max-w-xl mx-auto mb-6">
+          {/* Search - Larger & More Prominent */}
+          <div className="max-w-2xl mx-auto mb-8">
             <GlobalSearch variant="large" placeholder="Search any stock, ETF, or crypto..." />
           </div>
 
-          {/* Quick links */}
+          {/* Quick Action Cards - NEW */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mb-6">
+            <Link href="/trade-desk">
+              <div className="group p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 hover:border-cyan-400/60 transition-all cursor-pointer hover:-translate-y-1">
+                <Brain className="w-6 h-6 text-cyan-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold text-white">AI Trade Ideas</span>
+                <p className="text-[10px] text-slate-500 mt-1">6 engines, live signals</p>
+              </div>
+            </Link>
+            <Link href="/chart-analysis">
+              <div className="group p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/30 hover:border-purple-400/60 transition-all cursor-pointer hover:-translate-y-1">
+                <LineChart className="w-6 h-6 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold text-white">Charts</span>
+                <p className="text-[10px] text-slate-500 mt-1">Advanced technicals</p>
+              </div>
+            </Link>
+            <Link href="/discover">
+              <div className="group p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 hover:border-emerald-400/60 transition-all cursor-pointer hover:-translate-y-1">
+                <Target className="w-6 h-6 text-emerald-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold text-white">Screener</span>
+                <p className="text-[10px] text-slate-500 mt-1">Filter & discover</p>
+              </div>
+            </Link>
+            <Link href="/smart-money">
+              <div className="group p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 hover:border-amber-400/60 transition-all cursor-pointer hover:-translate-y-1">
+                <Layers className="w-6 h-6 text-amber-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-semibold text-white">Options Flow</span>
+                <p className="text-[10px] text-slate-500 mt-1">Smart money tracking</p>
+              </div>
+            </Link>
+          </div>
+
+          {/* Popular Searches */}
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-            <span>Popular:</span>
-            {['AAPL', 'NVDA', 'TSLA', 'SPY', 'BTC'].map((symbol) => (
+            <span>Trending:</span>
+            {['NVDA', 'AAPL', 'TSLA', 'SPY', 'BTC', 'META'].map((symbol) => (
               <Link key={symbol} href={`/stock/${symbol}`}>
-                <Badge variant="outline" className="cursor-pointer hover:bg-slate-800 border-slate-700 text-slate-400">
+                <Badge variant="outline" className="cursor-pointer hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:text-cyan-400 border-slate-700 text-slate-400 transition-colors">
                   {symbol}
                 </Badge>
               </Link>
@@ -458,12 +490,14 @@ export default function HomePage() {
         {/* Research Tools */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Eye className="w-4 h-4 text-cyan-400" />
-              Research Tools
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-400" />
+              All Tools
             </h2>
             <Link href="/features">
-              <span className="text-xs text-slate-500 hover:text-slate-400 cursor-pointer">See all features →</span>
+              <span className="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1">
+                See all <ChevronRight className="w-3 h-3" />
+              </span>
             </Link>
           </div>
           <ResearchTools />

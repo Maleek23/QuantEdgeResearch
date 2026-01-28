@@ -4026,8 +4026,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/realtime-quote/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const assetType = (req.query.assetType as RTAssetType) || 'stock';
-      
+      let assetType = (req.query.assetType as RTAssetType) || 'stock';
+
+      // Auto-detect futures symbols (2-letter COMEX/NYMEX/CME codes)
+      const FUTURES_SYMBOLS = ['ES', 'NQ', 'YM', 'RTY', 'MES', 'MNQ', 'CL', 'NG', 'RB', 'HO', 'BZ',
+                               'GC', 'SI', 'HG', 'PL', 'PA', 'MGC', 'SIL', 'ZB', 'ZN', 'ZF', 'ZT',
+                               'ZC', 'ZS', 'ZW', 'ZL', 'KC', 'CT', 'SB', 'CC', 'EC', 'JY', 'BP', 'AD',
+                               '6E', '6J', '6B', 'VX'];
+      const upperSymbol = symbol.toUpperCase();
+      if (FUTURES_SYMBOLS.includes(upperSymbol) || upperSymbol.endsWith('=F')) {
+        assetType = 'futures';
+        // Use Yahoo Finance symbol format for futures
+        const yahooSymbol = upperSymbol.endsWith('=F') ? upperSymbol : `${upperSymbol}=F`;
+        const quote = await getRealtimeQuote(yahooSymbol, assetType);
+        if (quote) {
+          quote.symbol = upperSymbol; // Return original symbol without =F
+          return res.json(quote);
+        }
+      }
+
+      // Auto-detect crypto symbols
+      const CRYPTO_SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'LINK',
+                              'MATIC', 'UNI', 'ATOM', 'LTC', 'FIL', 'NEAR', 'APT', 'ARB', 'OP', 'PEPE', 'SHIB'];
+      if (CRYPTO_SYMBOLS.includes(upperSymbol)) {
+        assetType = 'crypto';
+      }
+
       const quote = await getRealtimeQuote(symbol, assetType);
       if (!quote) {
         return res.status(404).json({ error: "Quote not found" });
@@ -4841,35 +4865,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'ARB': 'Arbitrum', 'OP': 'Optimism', 'PEPE': 'Pepe', 'SHIB': 'Shiba Inu',
       };
       
+      // Match crypto by symbol or name words
       const cryptoResults = Object.entries(cryptoMap)
-        .filter(([symbol, name]) => 
-          symbol.includes(query) || name.toUpperCase().includes(query)
-        )
+        .filter(([symbol, name]) => {
+          const nameUpper = name.toUpperCase();
+          return symbol === query ||
+                 symbol.startsWith(query) ||
+                 nameUpper.includes(query) ||
+                 query.split(/\s+/).some(w => w.length >= 2 && (symbol.includes(w) || nameUpper.includes(w)));
+        })
         .map(([symbol, name]) => ({
           symbol,
           name,
           type: 'crypto' as const,
         }));
 
-      // Add futures matches
+      // Add futures matches - comprehensive COMEX/NYMEX/CME futures
       const futuresMap: Record<string, string> = {
+        // Index futures
         'ES': 'E-mini S&P 500', 'NQ': 'E-mini Nasdaq', 'YM': 'E-mini Dow',
-        'RTY': 'E-mini Russell', 'CL': 'Crude Oil', 'GC': 'Gold',
-        'SI': 'Silver', 'NG': 'Natural Gas', 'ZB': '30-Year T-Bond',
+        'RTY': 'E-mini Russell', 'MES': 'Micro E-mini S&P', 'MNQ': 'Micro E-mini Nasdaq',
+        // Energy futures (NYMEX)
+        'CL': 'Crude Oil WTI', 'NG': 'Natural Gas', 'RB': 'RBOB Gasoline',
+        'HO': 'Heating Oil', 'BZ': 'Brent Crude',
+        // Metals futures (COMEX)
+        'GC': 'Gold', 'SI': 'Silver', 'HG': 'Copper', 'PL': 'Platinum', 'PA': 'Palladium',
+        'MGC': 'Micro Gold', 'SIL': 'Micro Silver',
+        // Bonds/Rates
+        'ZB': '30-Year T-Bond', 'ZN': '10-Year T-Note', 'ZF': '5-Year T-Note',
+        'ZT': '2-Year T-Note',
+        // Agriculture
+        'ZC': 'Corn', 'ZS': 'Soybeans', 'ZW': 'Wheat', 'ZL': 'Soybean Oil',
+        'KC': 'Coffee', 'CT': 'Cotton', 'SB': 'Sugar', 'CC': 'Cocoa',
+        // Currency futures
+        'EC': 'Euro FX', 'JY': 'Japanese Yen', 'BP': 'British Pound', 'AD': 'Australian Dollar',
+        '6E': 'Euro FX', '6J': 'Japanese Yen', '6B': 'British Pound',
+        // VIX
+        'VX': 'VIX Futures',
       };
       
+      // Match futures by any word in query (e.g. "HG copper" matches Copper/HG)
+      const queryWords = query.split(/\s+/).filter(w => w.length >= 2);
       const futuresResults = Object.entries(futuresMap)
-        .filter(([symbol, name]) => 
-          symbol.includes(query) || name.toUpperCase().includes(query)
-        )
+        .filter(([symbol, name]) => {
+          const nameUpper = name.toUpperCase();
+          // Match if symbol matches query or any query word matches symbol or name
+          return symbol === query ||
+                 symbol.startsWith(query) ||
+                 queryWords.some(word => symbol.includes(word) || nameUpper.includes(word));
+        })
         .map(([symbol, name]) => ({
           symbol,
           name,
           type: 'future' as const,
         }));
 
-      // Combine and limit results
-      const allResults = [...stockResults.slice(0, 10), ...cryptoResults.slice(0, 5), ...futuresResults.slice(0, 3)];
+      // Combine and limit results - prioritize exact matches
+      const allResults = [...stockResults.slice(0, 10), ...cryptoResults.slice(0, 5), ...futuresResults.slice(0, 5)];
       res.json(allResults.slice(0, 15));
     } catch (error) {
       logger.error('Global symbol search error:', error);
@@ -24848,6 +24900,74 @@ Use this checklist before entering any trade:
       logger.error('[CACHE] Pre-warm failed:', e);
     }
   }, 3000); // Start pre-warming 3 seconds after server boots
+
+  // ===== LLM ANALYSIS VALIDATION ROUTES =====
+
+  // GET /api/analyze-llm/:symbol - Full analysis with multi-LLM validation
+  app.get("/api/analyze-llm/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetType = (req.query.assetType as string) || 'stock';
+
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const upperSymbol = symbol.toUpperCase();
+
+      // Step 1: Run technical analysis engine
+      const { analyzeSymbolFull } = await import("./symbol-analyzer");
+      const analysis = await analyzeSymbolFull(upperSymbol, assetType);
+
+      if (!analysis) {
+        return res.status(404).json({ error: `Unable to analyze ${upperSymbol} - insufficient data` });
+      }
+
+      // Step 2: Validate with multi-LLM consensus
+      const { validateAnalysisWithLLMs, getValidatorStatus } = await import("./llm-analysis-validator");
+      const validation = await validateAnalysisWithLLMs(analysis);
+
+      // Step 3: Return enhanced analysis
+      res.json({
+        // Original analysis
+        ...analysis,
+
+        // LLM-enhanced fields
+        llmValidation: {
+          consensusDirection: validation.consensusDirection,
+          consensusConfidence: validation.consensusConfidence,
+          providersAgreed: validation.providersAgreed,
+          totalProviders: validation.totalProviders,
+          adjustedConfidence: validation.adjustedConfidence,
+          confidenceBoost: validation.confidenceBoost,
+          riskWarnings: validation.riskWarnings,
+          processingTime: validation.processingTime,
+        },
+
+        // AI-generated summary (replaces template)
+        aiSummary: validation.aiSummary,
+        keyInsights: validation.keyInsights,
+
+        // Meta
+        validatedAt: validation.validationTimestamp,
+      });
+    } catch (error: any) {
+      logger.error(`[ANALYZE-LLM] Error:`, error);
+      res.status(500).json({ error: error?.message || "LLM analysis failed" });
+    }
+  });
+
+  // GET /api/llm-validator/status - Check LLM validator status
+  app.get("/api/llm-validator/status", async (req, res) => {
+    try {
+      const { getValidatorStatus } = await import("./llm-analysis-validator");
+      const status = getValidatorStatus();
+      res.json(status);
+    } catch (error: any) {
+      logger.error(`[LLM-VALIDATOR] Status error:`, error);
+      res.status(500).json({ error: "Failed to get validator status" });
+    }
+  });
 
   return httpServer;
 }

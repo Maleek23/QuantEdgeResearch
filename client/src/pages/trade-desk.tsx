@@ -2961,6 +2961,7 @@ export default function TradeDeskRedesigned() {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
+  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future'>('all');
 
   // AI Generation mutation - triggers the 6 engines
   const generateIdeas = useMutation({
@@ -3113,6 +3114,17 @@ export default function TradeDeskRedesigned() {
     return deduplicateAndLimit(tradeIdeas, 2);
   }, [tradeIdeas]);
 
+  // Filtered ideas based on asset type selector
+  const filteredIdeas = useMemo(() => {
+    switch (assetFilter) {
+      case 'stock': return stockIdeas;
+      case 'option': return optionIdeas;
+      case 'crypto': return cryptoIdeas;
+      case 'future': return futuresIdeas;
+      default: return allIdeasDeduplicated;
+    }
+  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, allIdeasDeduplicated]);
+
   if (error) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -3204,202 +3216,147 @@ export default function TradeDeskRedesigned() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-slate-700">
-            <TabsList className="bg-slate-900/60 border border-slate-800/60 p-1 inline-flex min-w-max">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-                <PieChart className="w-4 h-4 mr-2" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger value="ideas" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-                <Layers className="w-4 h-4 mr-2" />
-                All Ideas
-              </TabsTrigger>
-              <TabsTrigger value="setups" className="data-[state=active]:bg-amber-600 data-[state=active]:text-white">
-                <Star className="w-4 h-4 mr-2" />
-                Best Setups
-              </TabsTrigger>
-              <TabsTrigger value="surges" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
-                <Zap className="w-4 h-4 mr-2" />
-                Surges
-              </TabsTrigger>
-              <TabsTrigger value="movers" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                <Flame className="w-4 h-4 mr-2" />
-                Movers
-              </TabsTrigger>
-              <TabsTrigger value="convergence" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-                <Target className="w-4 h-4 mr-2" />
-                Convergence
-              </TabsTrigger>
-              <TabsTrigger value="hot" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
-                <Flame className="w-4 h-4 mr-2" />
-                Hot
-              </TabsTrigger>
-              <TabsTrigger value="tomorrow" className="data-[state=active]:bg-violet-600 data-[state=active]:text-white">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Tomorrow
-              </TabsTrigger>
-              <TabsTrigger value="portfolio" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-                <PieChart className="w-4 h-4 mr-2" />
-                Portfolio
-              </TabsTrigger>
-            </TabsList>
+        {/* Asset Type Filter - Segmented Control */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            {[
+              { value: 'all', label: 'All', icon: Layers },
+              { value: 'stock', label: 'Stocks', icon: TrendingUp },
+              { value: 'option', label: 'Options', icon: Target },
+              { value: 'crypto', label: 'Crypto', icon: Bitcoin },
+              { value: 'future', label: 'Futures', icon: BarChart3 },
+            ].map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setAssetFilter(value as typeof assetFilter)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  assetFilter === value
+                    ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+                {value !== 'all' && (
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full",
+                    assetFilter === value ? "bg-white/20" : "bg-slate-700/50"
+                  )}>
+                    {value === 'stock' ? stockIdeas.length :
+                     value === 'option' ? optionIdeas.length :
+                     value === 'crypto' ? cryptoIdeas.length :
+                     value === 'future' ? futuresIdeas.length : 0}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
+          <div className="text-xs text-slate-500">
+            Showing {filteredIdeas.length} ideas
+          </div>
+        </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6 mt-6">
+        {/* Navigation Tabs - Consolidated (4 tabs instead of 9) */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-slate-900/60 border border-slate-800/60 p-1 w-full grid grid-cols-4">
+            <TabsTrigger value="ideas" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white">
+              <Layers className="w-4 h-4 mr-2" />
+              Ideas
+            </TabsTrigger>
+            <TabsTrigger value="signals" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-amber-600 data-[state=active]:text-white">
+              <Zap className="w-4 h-4 mr-2" />
+              Signals
+            </TabsTrigger>
+            <TabsTrigger value="discovery" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Discovery
+            </TabsTrigger>
+            <TabsTrigger value="portfolio" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">
+              <PieChart className="w-4 h-4 mr-2" />
+              Portfolio
+            </TabsTrigger>
+          </TabsList>
+
+          {/* IDEAS TAB - Top Conviction + All Ideas (filtered by asset type) */}
+          <TabsContent value="ideas" className="space-y-6 mt-6">
             {/* TOP CONVICTION - A/A+ Plays Only */}
-            <TopConvictionSection ideas={allIdeasDeduplicated} />
+            <TopConvictionSection ideas={filteredIdeas} />
 
             {/* Stats Cards */}
-            <StatsOverview ideas={tradeIdeas} />
+            <StatsOverview ideas={filteredIdeas} />
 
-            {/* Quick View Cards - Row 1 */}
-            <div className="grid grid-cols-3 gap-4">
-              <BestSetupsCard onViewAll={() => setActiveTab('setups')} />
-              <MarketMoversCard onViewAll={() => setActiveTab('movers')} />
-              <SurgeDetectionCard onViewTomorrow={() => setActiveTab('surges')} />
+            {/* All Trade Ideas List */}
+            <TradeIdeasList ideas={filteredIdeas} title={`${assetFilter === 'all' ? 'All' : assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Trade Ideas`} />
+          </TabsContent>
+
+          {/* SIGNALS TAB - Movers, Surges, Convergence, Hot (combined view) */}
+          <TabsContent value="signals" className="space-y-6 mt-6">
+            {/* Quick Signal Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <MarketMoversCard />
+              <SurgeDetectionCard />
+              <ConvergenceSignalsCard />
+              <HotSymbolsCard />
             </div>
 
-            {/* Quick View Cards - Row 2: Convergence & Pre-Move Detection */}
-            <div className="grid grid-cols-2 gap-4">
-              <ConvergenceSignalsCard onViewAll={() => setActiveTab('convergence')} />
-              <HotSymbolsCard onViewAll={() => setActiveTab('hot')} />
+            {/* Detailed Signal Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Flame className="w-5 h-5 text-orange-400" />
+                  <h3 className="font-semibold text-white">Market Movers</h3>
+                </div>
+                <MarketMoversSubPage />
+              </Card>
+              <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-semibold text-white">Surge Detection</h3>
+                </div>
+                <SurgeDetectionSubPage />
+              </Card>
             </div>
 
-            {/* Quick Actions Row */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
-                onClick={() => setActiveTab('ideas')}
-              >
-                <Layers className="w-4 h-4 mr-1.5" />
-                All Ideas
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20 text-amber-400"
-                onClick={() => setActiveTab('setups')}
-              >
-                <Star className="w-4 h-4 mr-1.5" />
-                Setups
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20 text-orange-400"
-                onClick={() => setActiveTab('surges')}
-              >
-                <Zap className="w-4 h-4 mr-1.5" />
-                Surges
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400"
-                onClick={() => setActiveTab('movers')}
-              >
-                <Flame className="w-4 h-4 mr-1.5" />
-                Movers
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 text-purple-400"
-                onClick={() => setActiveTab('convergence')}
-              >
-                <Target className="w-4 h-4 mr-1.5" />
-                Convergence
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-red-500/10 border-red-500/30 hover:bg-red-500/20 text-red-400"
-                onClick={() => setActiveTab('hot')}
-              >
-                <Flame className="w-4 h-4 mr-1.5" />
-                Hot
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-violet-500/10 border-violet-500/30 hover:bg-violet-500/20 text-violet-400"
-                onClick={() => setActiveTab('tomorrow')}
-              >
-                <Sparkles className="w-4 h-4 mr-1.5" />
-                Tomorrow
-              </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Target className="w-5 h-5 text-purple-400" />
+                  <h3 className="font-semibold text-white">Convergence Signals</h3>
+                </div>
+                <ConvergenceSubPage />
+              </Card>
+              <Card className="bg-slate-900/40 border-slate-800/60 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Flame className="w-5 h-5 text-red-400" />
+                  <h3 className="font-semibold text-white">Hot Attention</h3>
+                </div>
+                <HotAttentionSubPage />
+              </Card>
             </div>
+          </TabsContent>
 
-            {/* Recent Ideas Preview */}
-            <Card className="bg-slate-900/40 border-slate-800/60 p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-white">Recent Trade Ideas</h3>
-                <Button variant="ghost" size="sm" onClick={() => setActiveTab('ideas')}>
-                  View All <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+          {/* DISCOVERY TAB - Best Setups + Tomorrow Surgers */}
+          <TabsContent value="discovery" className="space-y-6 mt-6">
+            {/* Best Setups Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Star className="w-5 h-5 text-amber-400" />
+                <h2 className="text-lg font-bold text-white">Best Setups</h2>
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+                  AI PICKED
+                </Badge>
               </div>
-              {isLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="h-14 bg-slate-800/40 rounded-lg animate-pulse" />
-                  ))}
-                </div>
-              ) : tradeIdeas.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
-                  <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p>No trade ideas available</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {allIdeasDeduplicated.slice(0, 5).map((idea) => (
-                    <TradeIdeaRow key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
-                  ))}
-                </div>
-              )}
-            </Card>
+              <BestSetupsSubPage />
+            </div>
+
+            {/* Tomorrow's Surgers Section */}
+            <div className="mt-8">
+              <TomorrowSurgersSubPage />
+            </div>
           </TabsContent>
 
-          {/* All Trade Ideas Tab */}
-          <TabsContent value="ideas" className="mt-6">
-            <TradeIdeasList ideas={allIdeasDeduplicated} title="All Trade Ideas" />
-          </TabsContent>
-
-          {/* Best Setups Tab - AI Stock Picker */}
-          <TabsContent value="setups" className="mt-6">
-            <BestSetupsSubPage />
-          </TabsContent>
-
-          {/* Surge Detection Tab - Now/Early/Tomorrow */}
-          <TabsContent value="surges" className="mt-6">
-            <SurgeDetectionSubPage />
-          </TabsContent>
-
-          {/* Market Movers Tab */}
-          <TabsContent value="movers" className="mt-6">
-            <MarketMoversSubPage />
-          </TabsContent>
-
-          {/* Convergence Tab */}
-          <TabsContent value="convergence" className="mt-6">
-            <ConvergenceSubPage />
-          </TabsContent>
-
-          {/* Hot Attention Tab */}
-          <TabsContent value="hot" className="mt-6">
-            <HotAttentionSubPage />
-          </TabsContent>
-
-          {/* Tomorrow's Surgers Tab - Overnight Predictions */}
-          <TabsContent value="tomorrow" className="mt-6">
-            <TomorrowSurgersSubPage />
-          </TabsContent>
-
-          {/* Portfolio Tab - Broker Import */}
+          {/* PORTFOLIO TAB - Broker Import */}
           <TabsContent value="portfolio" className="mt-6">
             <BrokerImport />
           </TabsContent>
