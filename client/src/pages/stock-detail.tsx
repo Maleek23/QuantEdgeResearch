@@ -568,189 +568,45 @@ export default function StockDetailPage() {
           </div>
         </div>
 
-        {/* Main Layout - Compact Design */}
-        <div className="grid grid-cols-12 gap-5">
-          {/* Left Sidebar - QuantEdge AI Analysis */}
-          <div className="col-span-4 space-y-3">
-            {/* Overall AI Grade - Intellectia inspired */}
-            <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-teal-500/20 p-5">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-teal-500/20">
-                    <Brain className="w-4 h-4 text-teal-400" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-white">QuantEdge AI Score</h3>
-                </div>
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-bold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                      {tier}
-                    </span>
-                    <span className="text-lg text-slate-500">/ S</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-white">
-                      {analysisData?.overall?.confidence || analysisData?.confidenceScore || 72}
-                      <span className="text-lg text-teal-400">%</span>
-                    </div>
-                    <div className="text-xs text-slate-500 uppercase tracking-wider">Confidence</div>
-                  </div>
-                </div>
-                <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-teal-500 to-cyan-400"
-                    style={{ width: `${analysisData?.overall?.confidence || analysisData?.confidenceScore || 72}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-400 mt-4 leading-relaxed">
-                  {tier === 'S' || tier.startsWith('A') ? '✨ Strong buy signal with high conviction across all engines' :
-                   tier.startsWith('B') ? '📊 Moderate opportunity with acceptable risk profile' :
-                   tier.startsWith('C') ? '⚠️ Neutral outlook - exercise caution before entry' :
-                   '🔻 Weak signals detected - consider alternatives'}
-                </p>
-              </div>
-            </Card>
-
-            {/* Key Stats - Quick Reference */}
-            <Card className="bg-slate-900/60 border-slate-800/60 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-md bg-slate-700/50">
-                  <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-                <h3 className="text-sm font-medium text-white">Quick Stats</h3>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">Market Cap</span>
-                  <span className="text-xs font-medium text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">P/E Ratio</span>
-                  <span className="text-xs font-medium text-white">{quoteData?.pe?.toFixed(1) || analysisData?.components?.fundamental?.pe?.toFixed(1) || '—'}</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">52W High</span>
-                  <span className="text-xs font-medium text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (price * 1.3).toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">52W Low</span>
-                  <span className="text-xs font-medium text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (price * 0.7).toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">Avg Volume</span>
-                  <span className="text-xs font-medium text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Entry Signal - Compact */}
-            <Card className={cn(
-              "p-4 border",
-              tier === 'S' || tier.startsWith('A') ? "bg-teal-500/10 border-teal-500/30" :
-              tier.startsWith('B') ? "bg-cyan-500/10 border-cyan-500/30" :
-              "bg-amber-500/10 border-amber-500/30"
+        {/* Compact Quick Stats Bar - Key metrics at a glance */}
+        <div className="grid grid-cols-6 gap-3 mb-6">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-bold",
+              tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-amber-400" :
+              tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
+              tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-amber-400"
             )}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-slate-400 uppercase tracking-wider">Signal</span>
-                <Badge className={cn(
-                  "text-xs",
-                  tier === 'S' || tier.startsWith('A') ? "bg-teal-500/20 text-teal-400 border-teal-500/30" :
-                  tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
-                  "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                )}>
-                  {tier === 'S' || tier.startsWith('A') ? 'BUY' : tier.startsWith('B') ? 'HOLD' : 'WAIT'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Entry</span>
-                <span className="font-mono text-sm text-white">${(price * 0.98).toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Target</span>
-                <span className="font-mono text-sm text-teal-400">${(price * 1.08).toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Stop</span>
-                <span className="font-mono text-sm text-red-400">${(price * 0.95).toFixed(2)}</span>
-              </div>
-              <div className="pt-3 mt-3 border-t border-slate-700/50 flex justify-between text-xs">
-                <span className="text-slate-400">Risk/Reward</span>
-                <span className="font-bold text-teal-400">1 : 2.5</span>
-              </div>
-            </Card>
-
-            {/* 6-Engine Score Breakdown - QuantEdge Professional */}
-            <Card className="bg-slate-900/60 border-slate-800/60 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded-md bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
-                    <Activity className="w-3 h-3 text-teal-400" />
-                  </div>
-                  <h3 className="text-xs font-semibold text-white">6-Engine Analysis</h3>
-                </div>
-                <span className="text-lg font-bold text-teal-400">{tier}</span>
-              </div>
-
-              {/* Compact 6-Engine Grid */}
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { name: 'Technical', key: 'technical', score: analysisData?.components?.technical?.score || 42, grade: analysisData?.components?.technical?.grade || 'B-', color: 'cyan' },
-                  { name: 'Fundamental', key: 'fundamental', score: analysisData?.components?.fundamental?.score || 48, grade: analysisData?.components?.fundamental?.grade || 'C', color: 'emerald' },
-                  { name: 'Quant', key: 'quant', score: analysisData?.components?.quant?.score || 62, grade: analysisData?.components?.quant?.grade || 'B-', color: 'amber' },
-                  { name: 'ML/AI', key: 'ml', score: analysisData?.components?.ml?.score || 38, grade: analysisData?.components?.ml?.grade || 'D', color: 'violet' },
-                  { name: 'Flow', key: 'flow', score: analysisData?.components?.flow?.score || 72, grade: analysisData?.components?.flow?.grade || 'B+', color: 'rose' },
-                  { name: 'Sentiment', key: 'sentiment', score: analysisData?.components?.sentiment?.score || 58, grade: analysisData?.components?.sentiment?.grade || 'C+', color: 'purple' },
-                ].map((engine) => {
-                  const colorMap: Record<string, { bg: string; border: string; text: string; bar: string }> = {
-                    cyan: { bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', text: 'text-cyan-400', bar: 'bg-cyan-500' },
-                    emerald: { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-400', bar: 'bg-emerald-500' },
-                    amber: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', text: 'text-amber-400', bar: 'bg-amber-500' },
-                    violet: { bg: 'bg-violet-500/5', border: 'border-violet-500/20', text: 'text-violet-400', bar: 'bg-violet-500' },
-                    rose: { bg: 'bg-rose-500/5', border: 'border-rose-500/20', text: 'text-rose-400', bar: 'bg-rose-500' },
-                    purple: { bg: 'bg-purple-500/5', border: 'border-purple-500/20', text: 'text-purple-400', bar: 'bg-purple-500' },
-                  };
-                  const colors = colorMap[engine.color];
-                  return (
-                    <div key={engine.key} className={cn("p-2 rounded-lg border", colors.bg, colors.border)}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[9px] text-slate-400 uppercase tracking-wide">{engine.name}</span>
-                        <span className={cn("text-xs font-bold", colors.text)}>{engine.grade}</span>
-                      </div>
-                      <div className="h-1 bg-slate-800/60 rounded-full overflow-hidden">
-                        <div className={cn("h-full rounded-full", colors.bar)} style={{ width: `${engine.score}%` }} />
-                      </div>
-                      <div className="text-[9px] text-slate-500 text-right mt-0.5">{engine.score}%</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-2 pt-2 border-t border-slate-700/30 flex items-center justify-between">
-                <span className="text-[9px] text-slate-500">QuantEdge Pro Analysis</span>
-                <span className="text-[9px] text-teal-400 font-medium">{analysisData?.overall?.confidence || 72}% Confidence</span>
-              </div>
-            </Card>
-
-            {/* Quick Actions */}
-            <div className="space-y-2">
-              <Link href={`/options-analyzer?symbol=${symbol}`}>
-                <Button className="w-full justify-start bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0">
-                  <BarChart2 className="w-4 h-4 mr-2" />
-                  Options Analyzer
-                </Button>
-              </Link>
-              <Link href="/trade-desk">
-                <Button variant="outline" size="sm" className="w-full justify-start border-slate-700 text-slate-300 hover:bg-teal-600 hover:text-white hover:border-teal-600">
-                  <Zap className="w-4 h-4 mr-2" />
-                  Trade Ideas
-                </Button>
-              </Link>
+              {tier}
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase">AI Grade</div>
+              <div className="text-sm font-bold text-white">{analysisData?.overall?.confidence || 72}%</div>
             </div>
           </div>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className="text-[10px] text-slate-500 uppercase">Market Cap</div>
+            <div className="text-sm font-bold text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className="text-[10px] text-slate-500 uppercase">P/E Ratio</div>
+            <div className="text-sm font-bold text-white">{quoteData?.pe?.toFixed(1) || '—'}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className="text-[10px] text-slate-500 uppercase">52W High</div>
+            <div className="text-sm font-bold text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (price * 1.3).toFixed(2)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
+            <div className="text-sm font-bold text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (price * 0.7).toFixed(2)}</div>
+          </div>
+          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+            <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
+            <div className="text-sm font-bold text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
+          </div>
+        </div>
 
-          {/* Main Content */}
-          <div className="col-span-8">
+        {/* Main Content - Full Width */}
+        <div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-1.5 mb-5">
                 <TabsTrigger
@@ -2339,7 +2195,6 @@ export default function StockDetailPage() {
                 )}
               </TabsContent>
             </Tabs>
-          </div>
         </div>
       </div>
     </div>

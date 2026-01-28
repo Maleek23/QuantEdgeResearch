@@ -4134,7 +4134,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stocks/:symbol/analysts", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new YahooFinance();
 
       try {
         // Fetch multiple modules for comprehensive analyst data
@@ -4201,7 +4202,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stocks/:symbol/insiders", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new YahooFinance();
 
       try {
         const result = await yahooFinance.quoteSummary(symbol, { modules: ['insiderTransactions', 'insiderHolders'] });
@@ -4237,7 +4239,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stocks/:symbol/institutions", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new YahooFinance();
 
       try {
         const result = await yahooFinance.quoteSummary(symbol, { modules: ['institutionOwnership', 'majorHoldersBreakdown'] });
