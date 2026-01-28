@@ -5711,12 +5711,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
       const limit = Math.min(parseInt(req.query.limit as string) || 5, 100);
 
-      // Get all active trade ideas
-      const allIdeas = await storage.getAllTradeIdeas();
+      // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
+      // instead of getAllTradeIdeas which can hang with large datasets
+      const hoursBack = period === 'daily' ? 48 : 168; // 2 days or 7 days
+      const allIdeas = await storage.getRecentTradeIdeas(hoursBack, 2000);
       const now = new Date();
 
       // DEBUG: Log total ideas and field presence
-      logger.info(`[BEST-SETUPS] Total ideas in database: ${allIdeas.length}`);
+      logger.info(`[BEST-SETUPS] Recent ideas (${hoursBack}h): ${allIdeas.length}`);
       const openStatusCount = allIdeas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
       const hasEntryPrice = allIdeas.filter(i => i.entryPrice).length;
       const hasTargetPrice = allIdeas.filter(i => i.targetPrice).length;
