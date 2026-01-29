@@ -1565,7 +1565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
     try {
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0000";
+      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
       if (req.body.code === adminCode) {
         logger.info('Admin access code verified', { ip: req.ip });
         res.json({ success: true });
