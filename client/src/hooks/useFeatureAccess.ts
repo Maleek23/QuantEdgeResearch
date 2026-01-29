@@ -304,11 +304,12 @@ export function useFeatureAccess() {
 
   // Determine user's access tier - only 2 tiers
   const getAccessTier = (): AccessTier => {
-    // Beta users have full access
+    // Beta users and admins have full access
     if (
       isAuthenticated &&
       user &&
       (user.hasBetaAccess ||
+        user.isAdmin ||
         user.subscriptionTier === "pro" ||
         user.subscriptionTier === "admin")
     ) {
