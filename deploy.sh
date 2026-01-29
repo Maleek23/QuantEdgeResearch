@@ -6,7 +6,7 @@
 # === CONFIGURE THESE ===
 SERVER_IP="46.225.2.217"
 SERVER_USER="root"
-PROJECT_PATH="/root/quantedge"
+PROJECT_PATH="/var/www/quantedge"
 # ========================
 
 echo "🚀 Deploying QuantEdge to Hetzner..."
@@ -18,7 +18,7 @@ git push origin main
 # SSH and deploy
 echo "🔗 Connecting to server..."
 ssh ${SERVER_USER}@${SERVER_IP} << 'ENDSSH'
-cd /root/quantedge
+cd /var/www/quantedge
 echo "📥 Pulling latest code..."
 git pull origin main
 echo "📦 Installing dependencies..."
