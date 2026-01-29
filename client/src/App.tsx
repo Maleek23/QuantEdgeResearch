@@ -261,19 +261,19 @@ function Router() {
       </Route>
       <Route path="/pricing" component={Pricing} />
 
-      {/* Admin Pages - Protected */}
-      <Route path="/admin" component={withAdminProtection(AdminOverview)} />
-      <Route path="/admin/users" component={withAdminProtection(AdminUsers)} />
-      <Route path="/admin/invites" component={withAdminProtection(AdminInvites)} />
-      <Route path="/admin/waitlist" component={withAdminProtection(AdminWaitlist)} />
-      <Route path="/admin/system" component={withAdminProtection(AdminSystem)} />
-      <Route path="/admin/trade-ideas" component={withAdminProtection(AdminTradeIdeas)} />
-      <Route path="/admin/blog" component={withAdminProtection(AdminBlog)} />
-      <Route path="/admin/reports" component={withAdminProtection(AdminReports)} />
-      <Route path="/admin/security" component={withAdminProtection(AdminSecurity)} />
-      <Route path="/admin/win-loss" component={withAdminProtection(AdminWinLoss)} />
-      <Route path="/admin/credits" component={withAdminProtection(AdminCredits)} />
-      <Route path="/admin/beta-invites" component={withAdminProtection(AdminBetaInvites)} />
+      {/* Admin Pages - Have their own password auth via AdminLayout */}
+      <Route path="/admin" component={AdminOverview} />
+      <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/invites" component={AdminInvites} />
+      <Route path="/admin/waitlist" component={AdminWaitlist} />
+      <Route path="/admin/system" component={AdminSystem} />
+      <Route path="/admin/trade-ideas" component={AdminTradeIdeas} />
+      <Route path="/admin/blog" component={AdminBlog} />
+      <Route path="/admin/reports" component={AdminReports} />
+      <Route path="/admin/security" component={AdminSecurity} />
+      <Route path="/admin/win-loss" component={AdminWinLoss} />
+      <Route path="/admin/credits" component={AdminCredits} />
+      <Route path="/admin/beta-invites" component={AdminBetaInvites} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
