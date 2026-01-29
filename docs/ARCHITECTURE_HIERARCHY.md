@@ -1,21 +1,25 @@
 # QuantEdge Platform Architecture Hierarchy
 
-## Navigation Structure
+## Navigation Structure (Current)
 
 ```
-QuantEdge
-├── Landing (/) - Marketing page
-├── Trade Desk (/trade-desk) - Main trading hub
-├── Markets (/market) - Market overview
-├── Chart (/chart-analysis) - Advanced charting
+QuantEdge Header Navigation
+├── Trade Desk (/trade-desk) - AI trade setups & ideas
+├── AI Picks (/trade-desk/best-setups) - Best AI-selected setups
+├── Markets (/market) - Market overview & movers
+├── Charts (/chart-analysis) - Advanced charting
+├── Smart Money (/smart-money) - Institutional flow
 ├── Watchlist (/watchlist) - User watchlists
-├── Research (/research-hub) - Research dashboard
-└── Flow (/whale-flow) - Options flow tracker
+└── Discover (dropdown)
+    ├── Academy (/academy) - Learning resources
+    ├── News & Social (/discover) - Social trends
+    ├── Bullish Trends (/bullish-trends) - Trending stocks
+    └── Market Scanner (/market-scanner) - Stock screener
 ```
 
 ---
 
-## Complete Page Hierarchy (63 Pages)
+## Complete Page Hierarchy (59 Pages - Consolidated from 63)
 
 ```
 CLIENT PAGES
@@ -28,51 +32,68 @@ PUBLIC (No Auth Required)
 │   ├── pricing.tsx          → /pricing
 │   ├── about.tsx            → /about
 │   ├── academy.tsx          → /academy
-│   └── blog.tsx             → /blog
+│   ├── blog.tsx             → /blog
+│   └── blog-post.tsx        → /blog/:slug
 │
 ├── Auth
 │   ├── login.tsx            → /login
 │   ├── signup.tsx           → /signup
 │   ├── forgot-password.tsx  → /forgot-password
 │   ├── reset-password.tsx   → /reset-password
-│   └── join-beta.tsx        → /join-beta
+│   ├── join-beta.tsx        → /join-beta
+│   └── invite-welcome.tsx   → /invite
 │
 └── Legal
-    ├── privacy-policy.tsx   → /privacy-policy
-    └── terms-of-service.tsx → /terms-of-service
+    ├── privacy-policy.tsx   → /privacy
+    └── terms-of-service.tsx → /terms
 
-PROTECTED (Auth Required)
+PROTECTED (Beta Access Required)
 ├── Core Trading
+│   ├── home.tsx             → /home (Dashboard)
 │   ├── trade-desk.tsx       → /trade-desk (MAIN HUB)
-│   ├── research-hub.tsx     → /research-hub
 │   ├── chart-analysis.tsx   → /chart-analysis
 │   ├── stock-detail.tsx     → /stock/:symbol
-│   ├── discover.tsx         → /discover
 │   ├── market.tsx           → /market
-│   └── market-movers.tsx    → /market-movers
+│   ├── market-scanner.tsx   → /market-scanner
+│   ├── discover.tsx         → /discover
+│   └── unified-watchlist.tsx → /watchlist
 │
 ├── Analysis Tools
 │   ├── options-analyzer.tsx → /options-analyzer
-│   ├── whale-flow.tsx       → /whale-flow
 │   ├── smart-money.tsx      → /smart-money
-│   └── screener.tsx         → /screener
+│   ├── bullish-trends.tsx   → /bullish-trends
+│   └── analysis.tsx         → /analysis/:symbol
 │
-├── Automation
-│   ├── watchlist-bot.tsx    → /watchlist-bot
+├── Automation & Trading
 │   ├── automations.tsx      → /automations
 │   ├── paper-trading.tsx    → /paper-trading
-│   └── trading-engine.tsx   → /trading-engine
+│   ├── trading-engine.tsx   → /trading-engine
+│   └── futures.tsx          → /futures (→ trade-desk?tab=futures)
 │
-├── Performance
+├── Performance & History
 │   ├── performance.tsx      → /performance
 │   ├── history.tsx          → /history
 │   └── backtest.tsx         → /backtest
 │
-└── Admin (Admin Role)
-    ├── admin/overview.tsx   → /admin
-    ├── admin/users.tsx      → /admin/users
-    ├── admin/trade-ideas.tsx→ /admin/trade-ideas
-    └── ... (9 admin pages)
+├── Utility
+│   ├── settings.tsx         → /settings
+│   ├── trade-audit.tsx      → /trade-ideas/:id/audit
+│   ├── ct-tracker.tsx       → /ct-tracker
+│   └── wallet-tracker.tsx   → /wallet-tracker
+│
+└── Admin (Consolidated - 12 pages)
+    ├── admin/overview.tsx      → /admin
+    ├── admin/users.tsx         → /admin/users
+    ├── admin/invites.tsx       → /admin/invites
+    ├── admin/waitlist.tsx      → /admin/waitlist
+    ├── admin/system.tsx        → /admin/system
+    ├── admin/trade-ideas.tsx   → /admin/trade-ideas
+    ├── admin/blog.tsx          → /admin/blog
+    ├── admin/reports.tsx       → /admin/reports
+    ├── admin/security.tsx      → /admin/security
+    ├── admin/win-loss.tsx      → /admin/win-loss
+    ├── admin/credits.tsx       → /admin/credits
+    └── admin/beta-invites.tsx  → /admin/beta-invites
 ```
 
 ---
@@ -98,7 +119,7 @@ DATA SOURCES
 ├── polygon-api.ts         → Historical data
 └── news-service.ts        → News aggregation
 
-ANALYSIS ENGINES
+ANALYSIS ENGINES (6 Engines)
 ├── ML Engine
 │   ├── pattern-predictor.ts
 │   ├── multi-factor-analysis.ts
@@ -180,7 +201,7 @@ ALERTING
                     ┌─────────────────────┴───────────────────────┐
                     │           CLIENT - React Frontend           │
                     ├─────────────────────────────────────────────┤
-                    │  Landing │ Trade Desk │ Charts │ Research  │
+                    │  Landing │ Trade Desk │ Charts │ Markets   │
                     └─────────────────────────────────────────────┘
                                           │
                     ┌─────────────────────┴───────────────────────┐
@@ -191,30 +212,38 @@ ALERTING
 
 ---
 
-## CRITICAL ISSUES FOUND
+## CLEANUP COMPLETED (2026-01-29)
 
-### 1. Unused/Dead Code
+### Removed Dead Code
+| Item | Status |
+|------|--------|
+| `/components/terminal/` | ✅ DELETED |
+| `/components/remotion/` | ✅ DELETED |
+| `catalyst-calendar.tsx` | ✅ DELETED |
+| `data-audit-center.tsx` | ✅ DELETED |
+| Root-level admin-*.tsx files | ✅ MOVED to admin/ |
+| `admin.tsx` (old monolith) | ✅ DELETED |
 
-| Item | Location | Status |
-|------|----------|--------|
-| `/components/terminal/` | Client | NOT IMPORTED ANYWHERE |
-| `/components/remotion/` | Client | INTERNAL ONLY |
-| `catalyst-calendar.tsx` | Client | ORPHANED |
-| `/api/polymarket/*` | Server | NO FRONTEND CALLS |
+### Admin Consolidation
+All admin pages now live in `pages/admin/`:
+- overview, users, invites, waitlist, system
+- trade-ideas, blog, reports, security
+- win-loss, credits, beta-invites
 
-### 2. Hardcoded Mock Data
+---
 
-| File | Line | Problem |
-|------|------|---------|
-| `landing.tsx` | 257-304 | Fake NVDA trade with hardcoded prices |
-| `landing.tsx` | 321-326 | Fake "Trusted by" badges |
-| `landing.tsx` | 338 | Fake "2.5K+ Active Beta Users" |
-| `landing.tsx` | 599-633 | Fake testimonials |
-| `live-activity-feed.tsx` | 14-23 | Mock win activities |
-| `whale-flow-monitor.tsx` | 357-438 | Fallback mock flow data |
-| `trading-signals-feed.tsx` | 51-70 | Random signal generator |
+## REMAINING ISSUES
 
-### 3. Duplicate Services
+### 1. Hardcoded Mock Data (To Fix)
+
+| File | Problem |
+|------|---------|
+| `landing.tsx` | Some mock testimonials |
+| `live-activity-feed.tsx` | Mock win activities |
+| `whale-flow-monitor.tsx` | Fallback mock flow data |
+| `trading-signals-feed.tsx` | Random signal generator |
+
+### 2. Duplicate Services (To Consolidate)
 
 | Service 1 | Service 2 |
 |-----------|-----------|
@@ -225,17 +254,17 @@ ALERTING
 
 ## SCALING PIPELINE
 
-### Current State: MVP
+### Current State: Post-Cleanup
+- 59 pages (down from 63)
 - 6 analysis engines running
-- Basic trade idea generation
 - Discord alerts working
-- ~60 pages, 100+ services
+- Admin pages consolidated
 
-### Phase 1: Data Quality (NOW)
-- [ ] Replace ALL hardcoded mock data
-- [ ] Connect landing page to real API data
-- [ ] Remove fake testimonials/stats
-- [ ] Delete unused components
+### Phase 1: Data Quality ✅ STARTED
+- [x] Delete unused components
+- [x] Consolidate admin pages
+- [ ] Replace remaining mock data
+- [ ] Remove fake testimonials
 
 ### Phase 2: Real-Time Data
 - [ ] WebSocket price streaming
@@ -257,4 +286,4 @@ ALERTING
 
 ---
 
-*Generated: 2026-01-27*
+*Updated: 2026-01-29*

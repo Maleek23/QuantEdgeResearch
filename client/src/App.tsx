@@ -39,17 +39,16 @@ const StockDetailPage = lazy(() => import("@/pages/stock-detail"));
 const MarketPage = lazy(() => import("@/pages/market"));
 const PerformancePage = lazy(() => import("@/pages/performance"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
-const AdminPanel = lazy(() => import("@/pages/admin"));
 const AdminOverview = lazy(() => import("@/pages/admin/overview"));
 const AdminUsers = lazy(() => import("@/pages/admin/users"));
 const AdminInvites = lazy(() => import("@/pages/admin/invites"));
 const AdminWaitlist = lazy(() => import("@/pages/admin/waitlist"));
 const AdminSystem = lazy(() => import("@/pages/admin/system"));
-const AdminReports = lazy(() => import("@/pages/admin-reports"));
-const AdminSecurity = lazy(() => import("@/pages/admin-security"));
-const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
-const AdminCredits = lazy(() => import("@/pages/admin-credits"));
-const AdminBetaInvites = lazy(() => import("@/pages/admin-beta-invites"));
+const AdminReports = lazy(() => import("@/pages/admin/reports"));
+const AdminSecurity = lazy(() => import("@/pages/admin/security"));
+const AdminWinLoss = lazy(() => import("@/pages/admin/win-loss"));
+const AdminCredits = lazy(() => import("@/pages/admin/credits"));
+const AdminBetaInvites = lazy(() => import("@/pages/admin/beta-invites"));
 const AdminBlog = lazy(() => import("@/pages/admin/blog"));
 const AdminTradeIdeas = lazy(() => import("@/pages/admin/trade-ideas"));
 const About = lazy(() => import("@/pages/about"));
@@ -66,7 +65,6 @@ const PaperTrading = lazy(() => import("@/pages/paper-trading"));
 const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
 const CTTracker = lazy(() => import("@/pages/ct-tracker"));
 const TradeAudit = lazy(() => import("@/pages/trade-audit"));
-const DataAuditCenter = lazy(() => import("@/pages/data-audit-center"));
 const AutomationsPage = lazy(() => import("@/pages/automations"));
 const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
@@ -264,7 +262,6 @@ function Router() {
       <Route path="/admin/win-loss" component={AdminWinLoss} />
       <Route path="/admin/credits" component={AdminCredits} />
       <Route path="/admin/beta-invites" component={AdminBetaInvites} />
-      <Route path="/admin/old" component={AdminPanel} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
