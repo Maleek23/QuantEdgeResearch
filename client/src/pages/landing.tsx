@@ -156,10 +156,26 @@ function TradeDeskCard() {
     refetchInterval: 120000,
   });
 
-  const ideas = tradeIdeasData?.ideas || [];
+  // Map API response to expected format (API returns 'setups' not 'ideas')
+  const rawSetups = tradeIdeasData?.setups || [];
+  const ideas = rawSetups.map((setup: any) => ({
+    symbol: setup.symbol,
+    companyName: setup.analysis?.split(' showing')[0] || setup.symbol,
+    direction: setup.direction?.toUpperCase() || 'LONG',
+    currentPrice: setup.entryPrice,
+    entryPrice: setup.entryPrice,
+    targetPrice: setup.targetPrice,
+    stopLoss: setup.stopLoss,
+    confidenceScore: setup.confidenceScore || setup.confidence || 85,
+    bullishEngines: Math.min(Math.round((setup.confidenceScore || 85) / 20), 6),
+    totalEngines: 6,
+    probabilityBand: setup.probabilityBand,
+    catalyst: setup.catalyst,
+  }));
+
   const currentIdea = ideas[currentIdeaIndex] || null;
 
-  // Fallback data if no ideas
+  // Fallback data if no ideas from API
   const displayIdea = currentIdea || {
     symbol: 'NVDA',
     companyName: 'NVIDIA Corp',
@@ -217,12 +233,12 @@ function TradeDeskCard() {
 
   return (
     <Link href="/trade-desk">
-      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 text-white hover:border-cyan-500/50 transition-all cursor-pointer group">
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 text-white hover:border-blue-500/50 transition-all cursor-pointer group">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-cyan-500" />
-            <span className="text-sm font-semibold text-cyan-400">Trade Desk</span>
-            <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+            <Target className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-semibold text-blue-400">Trade Desk</span>
+            <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-blue-400 transition-colors" />
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -260,7 +276,7 @@ function TradeDeskCard() {
         <div className="mb-3 p-3 bg-[#111] rounded-lg border border-[#1a1a1a]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider">6-Engine Analysis</span>
-            <span className="text-xs font-mono text-cyan-400">
+            <span className="text-xs font-mono text-blue-400">
               {showResult ? `${displayIdea.confidenceScore || 87}%` : 'Scanning...'}
             </span>
           </div>
@@ -309,9 +325,9 @@ function TradeDeskCard() {
                 <div className="text-[9px] text-red-400">Stop</div>
                 <div className="text-xs font-mono text-red-400">${displayIdea.stopLoss}</div>
               </div>
-              <div className="p-1.5 bg-cyan-500/10 rounded">
-                <div className="text-[9px] text-cyan-400">Score</div>
-                <div className="text-xs font-mono text-cyan-400">{displayIdea.confidenceScore || 87}%</div>
+              <div className="p-1.5 bg-blue-500/10 rounded">
+                <div className="text-[9px] text-blue-400">Score</div>
+                <div className="text-xs font-mono text-blue-400">{displayIdea.confidenceScore || 87}%</div>
               </div>
             </div>
           </div>
@@ -345,7 +361,7 @@ function TradeDeskCard() {
               <span
                 key={i}
                 className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  i === currentIdeaIndex ? 'bg-cyan-400' : 'bg-slate-700'
+                  i === currentIdeaIndex ? 'bg-blue-400' : 'bg-slate-700'
                 }`}
               />
             ))}
@@ -477,15 +493,17 @@ export default function Landing() {
           <Link href="/" className="flex items-center gap-2.5">
             <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-8 w-8" />
             <div className="hidden sm:block">
-              <span className="font-bold text-lg bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">QuantEdge</span>
-              <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Labs</span>
+              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">QuantEdge</span>
+              <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium">Labs</span>
             </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            <Link href="/market"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Markets</span></Link>
-            <Link href="/market-scanner"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Scanner</span></Link>
-            <Link href="/features"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Features</span></Link>
+            <Link href="/trade-desk"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Trade Desk</span></Link>
+            <Link href="/market"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Markets</span></Link>
+            <Link href="/market-scanner"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Scanner</span></Link>
+            <Link href="/features"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Features</span></Link>
+            <Link href="/pricing"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Pricing</span></Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -496,7 +514,7 @@ export default function Landing() {
             {isAuthenticated ? (
               hasBetaAccess ? (
                 <Link href="/home">
-                  <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-8 px-4 text-xs font-medium">
+                  <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white h-8 px-4 text-xs font-medium">
                     Open App
                   </Button>
                 </Link>
@@ -510,7 +528,7 @@ export default function Landing() {
                 <Link href="/login">
                   <Button size="sm" variant="ghost" className="text-gray-600 dark:text-slate-400 h-8 px-3 text-xs">Sign in</Button>
                 </Link>
-                <Button size="sm" onClick={() => setWaitlistOpen(true)} className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-8 px-4 text-xs font-medium">
+                <Button size="sm" onClick={() => setWaitlistOpen(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white h-8 px-4 text-xs font-medium">
                   Get Started
                 </Button>
               </>
@@ -546,14 +564,14 @@ export default function Landing() {
           <div className="max-w-6xl mx-auto">
             {/* Tagline */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-medium mb-6">
                 <Zap className="w-3 h-3" />
                 Institutional-grade research for retail traders
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
                 Your AI<br />
-                <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">Research Hub</span>
+                <span className="bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 bg-clip-text text-transparent">Research Hub</span>
               </h1>
 
               <p className="text-lg text-gray-600 dark:text-slate-400 max-w-xl mx-auto mb-8">
@@ -563,7 +581,7 @@ export default function Landing() {
               {/* Search Bar */}
               <div className="max-w-lg mx-auto mb-6">
                 <div className="relative">
-                  <div className="flex items-center bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-xl overflow-hidden focus-within:border-emerald-500 dark:focus-within:border-emerald-500 transition-colors">
+                  <div className="flex items-center bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-xl overflow-hidden focus-within:border-blue-500 dark:focus-within:border-blue-500 transition-colors">
                     <Search className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
                     <input
                       type="text"
@@ -573,7 +591,7 @@ export default function Landing() {
                       placeholder="Search any stock, ETF, or crypto..."
                       className="flex-1 px-3 py-3.5 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 outline-none text-sm"
                     />
-                    <Button onClick={handleSearch} className="m-1 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-9 px-5 text-sm">
+                    <Button onClick={handleSearch} className="m-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white h-9 px-5 text-sm">
                       Search
                     </Button>
                   </div>
@@ -584,7 +602,7 @@ export default function Landing() {
                     <button
                       key={symbol}
                       onClick={() => { setSearchQuery(symbol); if (isAuthenticated) setLocation(`/stock/${symbol}`); else setWaitlistOpen(true); }}
-                      className="px-2 py-0.5 rounded bg-gray-100 dark:bg-[#1a1a1a] hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      className="px-2 py-0.5 rounded bg-gray-100 dark:bg-[#1a1a1a] hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
                       {symbol}
                     </button>
@@ -602,7 +620,7 @@ export default function Landing() {
                     <TrendingUp className="w-4 h-4 text-emerald-500" />
                     <span className="text-sm font-semibold">Trending</span>
                   </div>
-                  <Link href="/market" className="text-xs text-gray-500 hover:text-emerald-500 flex items-center gap-0.5">
+                  <Link href="/market" className="text-xs text-gray-500 hover:text-blue-400 flex items-center gap-0.5">
                     More <ChevronRight className="w-3 h-3" />
                   </Link>
                 </div>
@@ -637,35 +655,44 @@ export default function Landing() {
               {/* News & Earnings */}
               <div className="space-y-4">
                 {/* News */}
-                <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Newspaper className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm font-semibold">News</span>
-                  </div>
-                  <div className="space-y-2">
-                    {breakingNews.slice(0, 3).map((news, i) => (
-                      <div key={i} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors cursor-pointer">
-                        <p className="text-xs text-gray-900 dark:text-white line-clamp-1">{news.title}</p>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500">
-                          <span>{news.source}</span>
-                          <span>·</span>
-                          <span>{news.time}</span>
-                        </div>
+                <Link href="/market">
+                  <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 hover:border-amber-500/50 transition-all cursor-pointer group">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Newspaper className="w-4 h-4 text-amber-500" />
+                        <span className="text-sm font-semibold">Market News</span>
                       </div>
-                    ))}
+                      <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-amber-500 transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                      {breakingNews.slice(0, 3).map((news, i) => (
+                        <div key={i} className="p-2 rounded-lg bg-gray-100/50 dark:bg-[#0a0a0a]">
+                          <p className="text-xs text-gray-900 dark:text-white line-clamp-1">{news.title}</p>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500">
+                            <span>{news.source}</span>
+                            <span>·</span>
+                            <span>{news.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-[10px] text-amber-500 font-medium">View all market news →</div>
                   </div>
-                </div>
+                </Link>
 
                 {/* Earnings */}
-                <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-semibold">Earnings</span>
-                  </div>
-                  <div className="space-y-2">
-                    {upcomingEarnings.map((earning) => (
-                      <Link key={earning.symbol} href={`/stock/${earning.symbol}`}>
-                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors cursor-pointer">
+                <Link href="/market">
+                  <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 hover:border-blue-500/50 transition-all cursor-pointer group">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-semibold">Earnings Calendar</span>
+                      </div>
+                      <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    </div>
+                    <div className="space-y-2">
+                      {upcomingEarnings.map((earning) => (
+                        <div key={earning.symbol} className="flex items-center justify-between p-2 rounded-lg bg-gray-100/50 dark:bg-[#0a0a0a]">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold">{earning.symbol}</span>
                             <span className="text-[10px] text-gray-500">{earning.name}</span>
@@ -674,10 +701,11 @@ export default function Landing() {
                             {earning.date} · {earning.time}
                           </div>
                         </div>
-                      </Link>
-                    ))}
+                      ))}
+                    </div>
+                    <div className="mt-3 text-[10px] text-blue-500 font-medium">View full calendar →</div>
                   </div>
-                </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -693,7 +721,7 @@ export default function Landing() {
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {tradingEngines.map((engine) => (
-                <div key={engine.id} className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 text-center hover:border-emerald-500/50 transition-colors">
+                <div key={engine.id} className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 text-center hover:border-blue-500/50 transition-colors">
                   <div className="w-10 h-10 rounded-lg mx-auto mb-2 flex items-center justify-center" style={{ backgroundColor: `${engine.color}15` }}>
                     <engine.icon className="w-5 h-5" style={{ color: engine.color }} />
                   </div>
@@ -720,7 +748,7 @@ export default function Landing() {
               <div className="grid grid-cols-3 gap-2 p-4 border-b border-gray-200 dark:border-[#1a1a1a] bg-gray-50 dark:bg-[#0d0d0d]">
                 <div className="text-sm font-semibold">Feature</div>
                 <div className="text-center text-sm font-semibold text-gray-500">Free</div>
-                <div className="text-center text-sm font-semibold text-emerald-500">Beta Member</div>
+                <div className="text-center text-sm font-semibold text-blue-500">Beta Member</div>
               </div>
 
               {/* Table Rows */}
@@ -745,7 +773,7 @@ export default function Landing() {
                     ) : row.beta === false ? (
                       <span className="text-gray-300 dark:text-slate-700">—</span>
                     ) : (
-                      <span className="text-xs text-emerald-500 font-medium">{row.beta}</span>
+                      <span className="text-xs text-blue-500 font-medium">{row.beta}</span>
                     )}
                   </div>
                 </div>
@@ -782,12 +810,12 @@ export default function Landing() {
         </section>
 
         {/* Simple CTA */}
-        <section className="px-4 py-16 bg-gradient-to-br from-emerald-500 to-cyan-500">
+        <section className="px-4 py-16 bg-gradient-to-br from-blue-600 to-indigo-600">
           <div className="max-w-2xl mx-auto text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Start researching smarter</h2>
-            <p className="text-emerald-100 mb-6">Free during beta. No credit card required.</p>
+            <p className="text-blue-100 mb-6">Free during beta. No credit card required.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button onClick={() => setWaitlistOpen(true)} size="lg" className="bg-white text-emerald-600 hover:bg-gray-100 h-12 px-8 font-medium">
+              <Button onClick={() => setWaitlistOpen(true)} size="lg" className="bg-white text-blue-600 hover:bg-gray-100 h-12 px-8 font-medium">
                 Join Beta Free
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -805,13 +833,13 @@ export default function Landing() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-6 w-6" />
-                <span className="font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">QuantEdge Labs</span>
+                <span className="font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">QuantEdge Labs</span>
               </div>
               <div className="flex items-center gap-6 text-xs text-gray-500">
-                <Link href="/features" className="hover:text-emerald-500">Features</Link>
-                <Link href="/terms" className="hover:text-emerald-500">Terms</Link>
-                <Link href="/privacy" className="hover:text-emerald-500">Privacy</Link>
-                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-500">Discord</a>
+                <Link href="/features" className="hover:text-blue-400">Features</Link>
+                <Link href="/terms" className="hover:text-blue-400">Terms</Link>
+                <Link href="/privacy" className="hover:text-blue-400">Privacy</Link>
+                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400">Discord</a>
               </div>
               <p className="text-[10px] text-gray-400">Not financial advice. Research platform only.</p>
             </div>
