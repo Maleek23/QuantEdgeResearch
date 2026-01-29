@@ -81,7 +81,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
 
     try {
-      await apiRequest('POST', '/api/admin/verify-code', { code: pinCode });
+      const res = await fetch('/api/admin/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: pinCode }),
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        throw new Error('Invalid access code');
+      }
+
       setAuthStep('password');
       toast({ title: "Access code verified", description: "Enter admin password" });
     } catch (error) {
@@ -92,15 +102,26 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handlePasswordSubmit = async () => {
     try {
-      const res = await apiRequest('POST', '/api/admin/login', { password });
-      const response = await res.json() as { success: boolean; expiresIn: string };
-      setAuthStep('authenticated');
-      toast({ 
-        title: "Admin access granted", 
-        description: `Session expires in ${response.expiresIn}` 
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+        credentials: 'include',
       });
-    } catch (error) {
-      toast({ title: "Invalid password", variant: "destructive" });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Login failed' }));
+        throw new Error(error.error || 'Invalid password');
+      }
+
+      const response = await res.json();
+      setAuthStep('authenticated');
+      toast({
+        title: "Admin access granted",
+        description: `Session expires in ${response.expiresIn || '24h'}`
+      });
+    } catch (error: any) {
+      toast({ title: error.message || "Invalid password", variant: "destructive" });
     }
   };
 
