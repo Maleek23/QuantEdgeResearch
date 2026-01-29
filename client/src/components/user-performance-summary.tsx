@@ -268,7 +268,7 @@ export function UserPerformanceSummary() {
             <div className="text-sm">
               <p className="font-medium mb-1">What do these numbers mean?</p>
               <p className="text-muted-foreground">
-                Our AI engines analyze market data to generate trade ideas. The win rate shows
+                Our trading engines analyze market data to generate trade ideas. The win rate shows
                 how often ideas that hit their target vs stop loss. A <span className="text-green-400 font-medium">70%+ win rate</span> indicates
                 strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies.
               </p>

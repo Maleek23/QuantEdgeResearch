@@ -5,7 +5,7 @@ import {
   Settings, Zap, Search, ChevronLeft, ChevronRight,
   Crosshair, TrendingUp, Bot, Wallet, BookOpen,
   Sparkles, Eye, DollarSign, MessageSquare, GraduationCap,
-  PieChart, Flame
+  PieChart
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuroraLayout } from "@/contexts/aurora-layout-context";
@@ -38,7 +38,6 @@ const analysisNav: NavItem[] = [
 // RESEARCH - Research & insights
 const researchNav: NavItem[] = [
   { icon: TrendingUp, label: "Discover", href: "/discover", color: "text-purple-400", glow: "rgba(192,132,252,0.3)" },
-  { icon: Flame, label: "Social Trends", href: "/social-trends", color: "text-orange-400", glow: "rgba(251,146,60,0.3)" },
   { icon: History, label: "Historical AI", href: "/historical-intelligence", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
   { icon: LineChart, label: "Backtest", href: "/backtest", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
 ];

@@ -57,49 +57,84 @@ function formatShares(shares: number): string {
 }
 
 export default function SmartMoney() {
-  // Fetch insider trades data
-  const { data: insiderData, isLoading: insiderLoading, refetch: refetchInsider } = useQuery<{
-    trades: InsiderTrade[];
+  // Fetch catalysts data (includes insider trades)
+  const { data: catalystData, isLoading: catalystLoading, refetch: refetchCatalysts } = useQuery<{
+    catalysts: Array<{
+      symbol: string;
+      type: string;
+      title: string;
+      insiderName?: string;
+      insiderTitle?: string;
+      transactionType?: string;
+      shares?: number;
+      value?: number;
+      date?: string;
+      createdAt?: string;
+    }>;
   }>({
-    queryKey: ["/api/market/insider-trades?limit=10"],
+    queryKey: ["/api/catalysts"],
     refetchInterval: 300000,
   });
 
-  // Fetch analyst ratings
-  const { data: analystData, isLoading: analystLoading } = useQuery<{
-    ratings: AnalystRating[];
+  // Fetch whale flows for options activity
+  const { data: whaleData, isLoading: flowLoading } = useQuery<{
+    flows: Array<{
+      symbol: string;
+      putCallRatio: number;
+      callVolume: number;
+      putVolume: number;
+      sentiment: string;
+      avgPremium: number;
+    }>;
   }>({
-    queryKey: ["/api/market/analyst-ratings?limit=8"],
-    refetchInterval: 300000,
+    queryKey: ["/api/whale-flow"],
+    refetchInterval: 120000,
   });
 
   // Fetch top movers for hot stocks
   const { data: moversData, isLoading: moversLoading } = useQuery<{
-    gainers: Array<{ symbol: string; change: number; price: number; volume: number }>;
+    topGainers: Array<{ symbol: string; percentChange: number; price: number; name?: string }>;
+    topLosers: Array<{ symbol: string; percentChange: number; price: number; name?: string }>;
   }>({
-    queryKey: ["/api/market/top-movers"],
+    queryKey: ["/api/market-movers"],
     refetchInterval: 60000,
   });
 
-  // Fetch options flow for whale activity
-  const { data: flowData, isLoading: flowLoading } = useQuery<{
-    flows: Array<{
-      symbol: string;
-      type: string;
-      strike: number;
-      expiry: string;
-      premium: number;
-      sentiment: string;
-    }>;
-  }>({
-    queryKey: ["/api/options/unusual-flow?limit=6"],
-    refetchInterval: 120000,
-  });
+  // Transform catalysts to insider trades format
+  const insiderTrades: InsiderTrade[] = (catalystData?.catalysts || [])
+    .filter((c) => c.type === "insider_buy" || c.type === "insider_sell")
+    .slice(0, 10)
+    .map((c) => ({
+      symbol: c.symbol,
+      name: c.insiderName || "Corporate Insider",
+      title: c.insiderTitle,
+      transactionType: c.type === "insider_buy" ? "Buy" : "Sell",
+      shares: c.shares || 0,
+      value: c.value || 0,
+      date: c.date || c.createdAt || new Date().toISOString(),
+    }));
 
-  const insiderTrades = insiderData?.trades || [];
-  const analystRatings = analystData?.ratings || [];
-  const hotStocks = moversData?.gainers?.slice(0, 4) || [];
-  const optionsFlow = flowData?.flows || [];
+  // Transform whale flows to options flow format
+  const optionsFlow = (whaleData?.flows || []).slice(0, 6).map((f) => ({
+    symbol: f.symbol,
+    type: f.putCallRatio < 1 ? "Call" : "Put",
+    strike: 0,
+    expiry: "",
+    premium: f.avgPremium || (f.callVolume + f.putVolume) * 100,
+    sentiment: f.sentiment,
+    callVolume: f.callVolume,
+    putVolume: f.putVolume,
+  }));
+
+  const hotStocks = (moversData?.topGainers || []).slice(0, 4).map((s) => ({
+    symbol: s.symbol,
+    change: s.percentChange,
+    price: s.price,
+    name: s.name,
+  }));
+
+  const insiderLoading = catalystLoading;
+  const refetchInsider = refetchCatalysts;
 
   const totalInsiderValue = insiderTrades.reduce((sum, t) => sum + (t.value || 0), 0);
   const buyCount = insiderTrades.filter((t) => t.transactionType === "Buy" || t.transactionType === "P-Purchase").length;
@@ -378,12 +413,14 @@ export default function SmartMoney() {
                                   : "border-red-500/30 text-red-400"
                               )}
                             >
-                              {flow.type}
+                              {flow.type} Heavy
                             </Badge>
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-white font-mono">{formatValue(flow.premium)}</p>
-                            <p className="text-xs text-slate-500">${flow.strike} strike</p>
+                            <p className="text-xs text-slate-500">
+                              {flow.callVolume?.toLocaleString() || 0} calls / {flow.putVolume?.toLocaleString() || 0} puts
+                            </p>
                           </div>
                         </div>
                       </Link>
@@ -415,31 +452,43 @@ export default function SmartMoney() {
                   </div>
                 ) : hotStocks.length > 0 ? (
                   <div className="grid grid-cols-2 gap-3">
-                    {hotStocks.map((stock) => (
-                      <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
-                        <Card className="p-4 bg-slate-800/50 border-slate-700 hover:border-emerald-500/30 transition-all cursor-pointer">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={getStockLogoUrl(stock.symbol)}
-                                alt={stock.symbol}
-                                className="w-6 h-6 rounded-full bg-slate-700"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = "none";
-                                }}
-                              />
-                              <span className="font-bold text-cyan-400">{stock.symbol}</span>
+                    {hotStocks.map((stock) => {
+                      const isUp = (stock.change || 0) >= 0;
+                      return (
+                        <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
+                          <Card className={cn(
+                            "p-4 bg-slate-800/50 border-slate-700 transition-all cursor-pointer",
+                            isUp ? "hover:border-emerald-500/30" : "hover:border-red-500/30"
+                          )}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={getStockLogoUrl(stock.symbol)}
+                                  alt={stock.symbol}
+                                  className="w-6 h-6 rounded-full bg-slate-700"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = "none";
+                                  }}
+                                />
+                                <span className="font-bold text-cyan-400">{stock.symbol}</span>
+                              </div>
+                              <Badge className={cn(
+                                "text-xs",
+                                isUp ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                              )}>
+                                {isUp ? "+" : ""}{stock.change?.toFixed(1)}%
+                              </Badge>
                             </div>
-                            <Badge className="bg-emerald-500/20 text-emerald-400 text-xs">
-                              +{stock.change?.toFixed(1)}%
-                            </Badge>
-                          </div>
-                          <div className="text-lg font-semibold text-slate-100">
-                            ${stock.price?.toFixed(2)}
-                          </div>
-                        </Card>
-                      </Link>
-                    ))}
+                            <div className="text-lg font-semibold text-slate-100">
+                              ${stock.price?.toFixed(2)}
+                            </div>
+                            {stock.name && (
+                              <p className="text-xs text-slate-500 truncate mt-1">{stock.name}</p>
+                            )}
+                          </Card>
+                        </Link>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center text-slate-500">

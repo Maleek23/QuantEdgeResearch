@@ -331,8 +331,8 @@ export function GlobalSearch({
                 </div>
 
                 {/* AI Response Content */}
-                <div className="px-3 py-3 rounded-lg bg-muted/20 mb-3">
-                  <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                <div className="px-3 py-3 rounded-lg bg-gray-100 dark:bg-muted/20 mb-3">
+                  <div className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
                     {aiResponse.response}
                   </div>
                 </div>
@@ -387,7 +387,7 @@ export function GlobalSearch({
                         <button
                           key={i}
                           onClick={() => handleFollowUp(followUp)}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-muted/30 rounded-lg transition-all"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-muted/30 rounded-lg transition-all"
                         >
                           {followUp}
                         </button>
@@ -479,12 +479,12 @@ export function GlobalSearch({
                               {result.name}
                             </div>
                           </div>
-                          {result.price && (
+                          {result.price != null && (
                             <div className="text-right">
                               <div className="font-mono font-bold">
                                 ${result.price.toFixed(2)}
                               </div>
-                              {result.change !== undefined && (
+                              {result.change != null && (
                                 <div className={cn(
                                   "text-xs font-mono flex items-center justify-end gap-1",
                                   result.change >= 0 ? "text-green-400" : "text-red-400"

@@ -1,49 +1,107 @@
+/**
+ * Protected Route Component
+ *
+ * For the new access model:
+ * - Visitors CAN browse most pages (data is accessible)
+ * - Only user-specific features (watchlist, settings) require login
+ * - Beta features are handled by FeatureGate component
+ *
+ * Use this component only for pages that truly require authentication
+ * (e.g., settings, watchlist management, paper trading)
+ */
+
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Redirect, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { Loader2, Lock, Mail } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { WaitlistPromptModal } from "@/components/waitlist-prompt-modal";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** If true, requires beta access (shows invite code UI) */
   requireBetaAccess?: boolean;
 }
 
-export function ProtectedRoute({ children, requireBetaAccess = true }: ProtectedRouteProps) {
+/**
+ * ProtectedRoute - For pages that require authentication
+ *
+ * Most pages should NOT use this anymore since visitors can browse.
+ * Only use for truly auth-required pages like:
+ * - /settings
+ * - /watchlist (management, not viewing)
+ * - /paper-trading
+ */
+export function ProtectedRoute({
+  children,
+  requireBetaAccess = false,
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [inviteCode, setInviteCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(true);
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" data-testid="loading-spinner" />
+        <Loader2
+          className="h-8 w-8 animate-spin text-cyan-400"
+          data-testid="loading-spinner"
+        />
       </div>
     );
   }
 
+  // Not logged in - show waitlist modal
   if (!user) {
-    return <Redirect to="/login" />;
+    return (
+      <>
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
+          <div className="text-center">
+            <Lock className="mx-auto h-12 w-12 text-slate-600 mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">
+              Account Required
+            </h2>
+            <p className="text-slate-400 mb-4">
+              Sign up to access this feature
+            </p>
+            <Button onClick={() => setShowWaitlistModal(true)}>
+              Join Beta Waitlist
+            </Button>
+          </div>
+        </div>
+
+        <WaitlistPromptModal
+          open={showWaitlistModal}
+          onClose={() => setLocation("/")}
+          title="Join the Beta"
+          description="Create a free account to access all features"
+        />
+      </>
+    );
   }
 
-  // Debug logging
-  console.log('ProtectedRoute - User data:', {
-    email: user.email,
-    hasBetaAccess: user.hasBetaAccess,
-    isAdmin: user.isAdmin,
-    subscriptionTier: user.subscriptionTier
-  });
+  // Check beta access if required
+  const hasBetaAccess =
+    user.hasBetaAccess ||
+    user.isAdmin ||
+    user.subscriptionTier === "admin" ||
+    user.subscriptionTier === "pro";
 
-  const hasBetaAccess = user.hasBetaAccess || user.isAdmin || user.subscriptionTier === 'admin' || user.subscriptionTier === 'pro';
-
-  console.log('ProtectedRoute - hasBetaAccess computed:', hasBetaAccess);
-
+  // If beta access required but user doesn't have it
   if (requireBetaAccess && !hasBetaAccess) {
     const handleRedeemInvite = async () => {
       if (!inviteCode.trim()) {
@@ -57,19 +115,17 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
 
       setIsRedeeming(true);
       try {
-        const response = await apiRequest("POST", "/api/beta/redeem", { 
-          token: inviteCode.trim().toLowerCase() 
+        const response = await apiRequest("POST", "/api/beta/redeem", {
+          token: inviteCode.trim().toLowerCase(),
         });
-        
+
         if (response.ok) {
           toast({
             title: "Welcome to the Beta!",
             description: "Your invite code has been redeemed. Enjoy the platform!",
           });
-          // Invalidate both auth endpoints
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-          // Force reload to clear all cache
           window.location.reload();
         } else {
           const data = await response.json();
@@ -79,7 +135,7 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
             variant: "destructive",
           });
         }
-      } catch (error) {
+      } catch {
         toast({
           title: "Error",
           description: "Failed to redeem invite code. Please try again.",
@@ -92,14 +148,15 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
 
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
-        <Card className="w-full max-w-md glass-card border-amber-500/20" data-testid="card-beta-access">
+        <Card className="w-full max-w-md glass-card border-amber-500/20">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
               <Lock className="h-8 w-8 text-amber-400" />
             </div>
             <CardTitle className="text-xl font-bold">Beta Access Required</CardTitle>
             <CardDescription>
-              Quant Edge Labs is currently in private beta. Enter your invite code to access the platform.
+              This feature is available to beta users. Enter your invite code or
+              wait for your invitation.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -109,13 +166,11 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 className="text-center font-mono text-lg tracking-wider"
-                data-testid="input-invite-code"
               />
-              <Button 
-                onClick={handleRedeemInvite} 
+              <Button
+                onClick={handleRedeemInvite}
                 disabled={isRedeeming}
                 className="w-full"
-                data-testid="button-redeem-invite"
               >
                 {isRedeeming ? (
                   <>
@@ -127,7 +182,7 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
                 )}
               </Button>
             </div>
-            
+
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-slate-700" />
@@ -136,44 +191,44 @@ export function ProtectedRoute({ children, requireBetaAccess = true }: Protected
                 <span className="bg-slate-900 px-2 text-muted-foreground">Or</span>
               </div>
             </div>
-            
+
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 Don't have an invite code?
               </p>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setLocation("/pricing")}
                 className="w-full"
-                data-testid="button-join-waitlist"
               >
                 <Mail className="mr-2 h-4 w-4" />
-                Join the Waitlist
+                Apply for Beta Access
               </Button>
             </div>
-            
+
             <p className="text-xs text-center text-muted-foreground mt-4">
               Logged in as: {user.email}
             </p>
-
-            {/* Debug: Force refresh button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-                window.location.reload();
-              }}
-              className="w-full mt-2 text-xs"
-            >
-              Force Refresh Session
-            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // User is authenticated (and has beta if required)
   return <>{children}</>;
+}
+
+/**
+ * AuthProtectedRoute - Simple auth check without beta requirement
+ */
+export function AuthProtectedRoute({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute requireBetaAccess={false}>{children}</ProtectedRoute>;
+}
+
+/**
+ * BetaProtectedRoute - Requires beta access
+ */
+export function BetaProtectedRoute({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute requireBetaAccess={true}>{children}</ProtectedRoute>;
 }

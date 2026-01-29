@@ -8,11 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Search, 
-  RefreshCw, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Search,
+  RefreshCw,
   Loader2,
   ArrowUpRight,
   ArrowDownRight,
@@ -30,7 +30,14 @@ import {
   Activity,
   ChevronRight,
   Send,
-  Repeat
+  Repeat,
+  Flame,
+  MessageSquare,
+  Hash,
+  Rocket,
+  DollarSign,
+  TrendingUpIcon,
+  Users
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -232,6 +239,50 @@ interface DayTradeOpportunity {
   signals: string[];
   timeframe: string;
   createdAt: string;
+}
+
+interface WSBTrendingTicker {
+  symbol: string;
+  mentionCount: number;
+  sentimentScore: number;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  change24h: number;
+  source: 'tradestie' | 'apewisdom' | 'combined';
+  rank?: number;
+}
+
+interface WSBTrendingResponse {
+  success: boolean;
+  count: number;
+  lastUpdated: string;
+  trending: WSBTrendingTicker[];
+  sources: string[];
+}
+
+interface EarningsEvent {
+  symbol: string;
+  name: string;
+  date: string;
+  time: 'bmo' | 'amc' | 'unknown';
+  estimatedEPS?: number;
+  actualEPS?: number;
+  surprise?: number;
+  revenue?: number;
+}
+
+interface BreakoutSignal {
+  symbol: string;
+  name?: string;
+  currentPrice: number;
+  breakoutType: 'resistance' | 'support' | 'channel' | 'pattern';
+  breakoutLevel: number;
+  percentFromBreakout: number;
+  volume: number;
+  avgVolume: number;
+  volumeRatio: number;
+  signals: string[];
+  score: number;
+  detectedAt: string;
 }
 
 function getSwingGradeVariant(grade: string): "default" | "secondary" | "destructive" | "outline" {
@@ -819,6 +870,47 @@ export default function MarketScanner() {
     staleTime: 30000,
   });
 
+  // WSB Trending - Live social sentiment from Reddit/WSB
+  const wsbTrendingQuery = useQuery<WSBTrendingResponse>({
+    queryKey: ['/api/automations/wsb-trending'],
+    queryFn: async () => {
+      const res = await fetch('/api/automations/wsb-trending');
+      if (!res.ok) throw new Error('Failed to fetch WSB trending');
+      return res.json();
+    },
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === 'social',
+  });
+
+  // Upcoming Earnings
+  const earningsQuery = useQuery<EarningsEvent[]>({
+    queryKey: ['/api/earnings/upcoming'],
+    queryFn: async () => {
+      const res = await fetch('/api/earnings/upcoming');
+      if (!res.ok) throw new Error('Failed to fetch earnings');
+      const data = await res.json();
+      return data.earnings || data || [];
+    },
+    refetchInterval: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    enabled: activeTab === 'earnings',
+  });
+
+  // Breakout Scan
+  const breakoutQuery = useQuery<BreakoutSignal[]>({
+    queryKey: ['/api/breakout/scan-stocks'],
+    queryFn: async () => {
+      const res = await fetch('/api/breakout/scan-stocks');
+      if (!res.ok) throw new Error('Failed to fetch breakouts');
+      const data = await res.json();
+      return data.breakouts || data || [];
+    },
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === 'breakouts',
+  });
+
   // Feed surges to Trade Desk
   const feedSurgesToTradeDeskMutation = useMutation({
     mutationFn: async () => {
@@ -1047,12 +1139,24 @@ export default function MarketScanner() {
           </CardContent>
         </Card>
 
-        {/* Main Tab Navigation: Movers vs Day Trade vs Swing */}
+        {/* Main Tab Navigation: Movers vs Day Trade vs Swing vs Social vs Earnings vs Breakouts */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex mb-4 gap-1">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="movers" data-testid="tab-movers">
               <TrendingUp className="w-4 h-4 mr-2" />
               Movers
+            </TabsTrigger>
+            <TabsTrigger value="social" data-testid="tab-social">
+              <Flame className="w-4 h-4 mr-2" />
+              WSB/Social
+            </TabsTrigger>
+            <TabsTrigger value="earnings" data-testid="tab-earnings">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Earnings
+            </TabsTrigger>
+            <TabsTrigger value="breakouts" data-testid="tab-breakouts">
+              <Rocket className="w-4 h-4 mr-2" />
+              Breakouts
             </TabsTrigger>
             <TabsTrigger value="daytrade" data-testid="tab-daytrade">
               <Zap className="w-4 h-4 mr-2" />
@@ -1239,6 +1343,489 @@ export default function MarketScanner() {
             </TabsContent>
           ))}
               </Tabs>
+            </div>
+          </TabsContent>
+
+          {/* Social/WSB Trends Tab Content */}
+          <TabsContent value="social" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-orange-950/20 border-orange-600/30">
+                <CardContent className="py-3">
+                  <p className="text-orange-200 text-sm flex items-center gap-2">
+                    <Flame className="w-4 h-4" />
+                    <span>
+                      <strong>Live Social Sentiment:</strong> Real-time data from Reddit/WSB communities.
+                      Shows trending tickers, sentiment scores, and mention counts from Tradestie & ApeWisdom APIs.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-orange-400" />
+                  WSB Trending Stocks
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => wsbTrendingQuery.refetch()}
+                  disabled={wsbTrendingQuery.isFetching}
+                >
+                  {wsbTrendingQuery.isFetching ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+
+              {wsbTrendingQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : wsbTrendingQuery.data?.trending && wsbTrendingQuery.data.trending.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {wsbTrendingQuery.data.trending.map((ticker, idx) => (
+                    <Link
+                      key={ticker.symbol}
+                      href={`/chart-analysis?symbol=${ticker.symbol}`}
+                      className="block"
+                    >
+                      <Card
+                        className={`hover-elevate cursor-pointer transition-all ${
+                          ticker.sentiment === 'bullish' ? 'border-green-500/30' :
+                          ticker.sentiment === 'bearish' ? 'border-red-500/30' :
+                          'border-border/50'
+                        }`}
+                        data-testid={`card-wsb-${ticker.symbol}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              {ticker.rank && ticker.rank <= 3 && (
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                  ticker.rank === 1 ? 'bg-amber-500/20 text-amber-400' :
+                                  ticker.rank === 2 ? 'bg-slate-400/20 text-slate-300' :
+                                  'bg-orange-600/20 text-orange-400'
+                                }`}>
+                                  {ticker.rank}
+                                </div>
+                              )}
+                              <span className="font-mono font-bold text-lg">${ticker.symbol}</span>
+                            </div>
+                            <Badge
+                              className={`text-xs ${
+                                ticker.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400' :
+                                ticker.sentiment === 'bearish' ? 'bg-red-500/20 text-red-400' :
+                                'bg-slate-500/20 text-slate-300'
+                              }`}
+                            >
+                              {ticker.sentiment}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <Hash className="w-3 h-3" />
+                                Mentions
+                              </span>
+                              <span className="font-mono font-medium text-orange-400">
+                                {ticker.mentionCount.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Sentiment Score</span>
+                              <span className={`font-mono font-medium ${
+                                ticker.sentimentScore > 0 ? 'text-green-400' :
+                                ticker.sentimentScore < 0 ? 'text-red-400' :
+                                'text-slate-400'
+                              }`}>
+                                {ticker.sentimentScore > 0 ? '+' : ''}{ticker.sentimentScore.toFixed(0)}
+                              </span>
+                            </div>
+
+                            {ticker.change24h !== 0 && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">24h Momentum</span>
+                                <span className={`font-mono font-medium ${
+                                  ticker.change24h > 0 ? 'text-green-400' : 'text-red-400'
+                                }`}>
+                                  {ticker.change24h > 0 ? '+' : ''}{ticker.change24h.toFixed(1)}%
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="pt-2 border-t border-border/30">
+                              <Badge variant="outline" className="text-[10px]">
+                                via {ticker.source}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No WSB Data Available</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      Unable to fetch WSB trending data. Try refreshing or check back later.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Data Sources</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-orange-400">Tradestie API</div>
+                      <div className="text-muted-foreground">Top 50 WSB stocks with sentiment analysis</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-orange-400">ApeWisdom API</div>
+                      <div className="text-muted-foreground">WSB trending with upvotes & 24h changes</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Earnings Tab Content */}
+          <TabsContent value="earnings" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-emerald-950/20 border-emerald-600/30">
+                <CardContent className="py-3">
+                  <p className="text-emerald-200 text-sm flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    <span>
+                      <strong>Earnings Calendar:</strong> Upcoming earnings reports for the next 7 days.
+                      Track pre-market (BMO) and after-hours (AMC) announcements.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-emerald-400" />
+                  Upcoming Earnings
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => earningsQuery.refetch()}
+                  disabled={earningsQuery.isFetching}
+                >
+                  {earningsQuery.isFetching ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+
+              {earningsQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : earningsQuery.data && earningsQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {earningsQuery.data.map((event, idx) => (
+                    <Link
+                      key={`${event.symbol}-${idx}`}
+                      href={`/stock/${event.symbol}`}
+                      className="block"
+                    >
+                      <Card
+                        className="hover-elevate cursor-pointer transition-all border-emerald-500/20"
+                        data-testid={`card-earnings-${event.symbol}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-mono font-bold text-lg">${event.symbol}</span>
+                            <Badge
+                              className={`text-xs ${
+                                event.time === 'bmo' ? 'bg-amber-500/20 text-amber-400' :
+                                event.time === 'amc' ? 'bg-purple-500/20 text-purple-400' :
+                                'bg-slate-500/20 text-slate-300'
+                              }`}
+                            >
+                              {event.time === 'bmo' ? '☀️ Pre-Market' :
+                               event.time === 'amc' ? '🌙 After-Hours' :
+                               '📅 TBD'}
+                            </Badge>
+                          </div>
+
+                          <p className="text-sm text-muted-foreground truncate mb-3">
+                            {event.name}
+                          </p>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Report Date</span>
+                              <span className="font-medium">
+                                {new Date(event.date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  weekday: 'short'
+                                })}
+                              </span>
+                            </div>
+
+                            {event.estimatedEPS !== undefined && event.estimatedEPS !== null && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Est. EPS</span>
+                                <span className="font-mono font-medium text-emerald-400">
+                                  ${event.estimatedEPS.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+
+                            {event.surprise !== undefined && event.surprise !== null && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Last Surprise</span>
+                                <span className={`font-mono font-medium ${
+                                  event.surprise >= 0 ? 'text-green-400' : 'text-red-400'
+                                }`}>
+                                  {event.surprise >= 0 ? '+' : ''}{event.surprise.toFixed(1)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Upcoming Earnings</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No earnings announcements found for the next 7 days.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Earnings Legend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-amber-500/20 text-amber-400">☀️ BMO</Badge>
+                      <span className="text-muted-foreground">Before Market Open</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-purple-500/20 text-purple-400">🌙 AMC</Badge>
+                      <span className="text-muted-foreground">After Market Close</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-slate-500/20 text-slate-300">📅 TBD</Badge>
+                      <span className="text-muted-foreground">Time Not Announced</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Breakouts Tab Content */}
+          <TabsContent value="breakouts" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-purple-950/20 border-purple-600/30">
+                <CardContent className="py-3">
+                  <p className="text-purple-200 text-sm flex items-center gap-2">
+                    <Rocket className="w-4 h-4" />
+                    <span>
+                      <strong>Technical Breakouts:</strong> Stocks breaking key resistance/support levels.
+                      Scans for channel breakouts, pattern completions, and volume-confirmed moves.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Rocket className="w-5 h-5 text-purple-400" />
+                  Breakout Scanner
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => breakoutQuery.refetch()}
+                  disabled={breakoutQuery.isFetching}
+                >
+                  {breakoutQuery.isFetching ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+
+              {breakoutQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : breakoutQuery.data && breakoutQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {breakoutQuery.data.map((signal, idx) => (
+                    <Link
+                      key={`${signal.symbol}-${idx}`}
+                      href={`/chart-analysis?symbol=${signal.symbol}`}
+                      className="block"
+                    >
+                      <Card
+                        className="hover-elevate cursor-pointer transition-all border-purple-500/30"
+                        data-testid={`card-breakout-${signal.symbol}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-mono font-bold text-lg">${signal.symbol}</span>
+                            <Badge
+                              className={`text-xs ${
+                                signal.score >= 80 ? 'bg-green-500/20 text-green-400' :
+                                signal.score >= 60 ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-slate-500/20 text-slate-300'
+                              }`}
+                            >
+                              Score: {signal.score}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Current Price</span>
+                              <span className="font-mono font-medium">
+                                ${signal.currentPrice.toFixed(2)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Breakout Level</span>
+                              <span className="font-mono font-medium text-purple-400">
+                                ${signal.breakoutLevel.toFixed(2)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">% From Breakout</span>
+                              <span className={`font-mono font-medium ${
+                                signal.percentFromBreakout >= 0 ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {signal.percentFromBreakout >= 0 ? '+' : ''}{signal.percentFromBreakout.toFixed(1)}%
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Volume Ratio</span>
+                              <span className={`font-mono font-medium ${
+                                signal.volumeRatio >= 1.5 ? 'text-cyan-400' : 'text-slate-400'
+                              }`}>
+                                {signal.volumeRatio.toFixed(1)}x
+                              </span>
+                            </div>
+
+                            <div className="pt-2 border-t border-border/30">
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {signal.breakoutType.replace('_', ' ')} breakout
+                              </Badge>
+                            </div>
+
+                            {signal.signals && signal.signals.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {signal.signals.slice(0, 2).map((s, i) => (
+                                  <Badge key={i} variant="secondary" className="text-[10px]">
+                                    {s}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Rocket className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Breakouts Detected</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No stocks currently meet the breakout criteria. Check back later as market conditions change.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Breakout Criteria</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-purple-400">Resistance Break</div>
+                      <div className="text-muted-foreground">Price above key resistance level</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-purple-400">Volume Confirmation</div>
+                      <div className="text-muted-foreground">1.5x+ average volume required</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-purple-400">Pattern Completion</div>
+                      <div className="text-muted-foreground">Cup & handle, flags, triangles</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-purple-400">Channel Breakout</div>
+                      <div className="text-muted-foreground">Break above/below channel bounds</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

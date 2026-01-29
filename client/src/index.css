@@ -11,94 +11,146 @@
   }
 }
 
-/* LIGHT MODE - Clean Professional Trading Theme */
+/* Film grain texture for light mode */
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+}
+
+.film-grain::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  width: 200%;
+  height: 200%;
+  background: transparent url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E") repeat;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.015;
+  animation: grain 8s steps(10) infinite;
+}
+
+.dark .film-grain::before {
+  opacity: 0;
+}
+
+/* LIGHT MODE - Clean Modern Fintech Theme */
 :root {
   --button-outline: rgba(0,0,0, .08);
   --badge-outline: rgba(0,0,0, .06);
 
   /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
+  --opaque-button-border-intensity: -8;
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(0,0,0, .04);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Clean off-white background */
-  --background: 220 14% 96%;
+  /* Pure white background for clean modern look */
+  --background: 0 0% 100%;
 
-  /* Dark blue-gray text for readability */
-  --foreground: 220 15% 15%;
+  /* Dark text for excellent readability */
+  --foreground: 0 0% 9%;
 
-  /* Subtle cool gray borders */
-  --border: 220 13% 88%;
+  /* Subtle borders */
+  --border: 0 0% 90%;
 
-  /* Pure white cards for contrast */
+  /* White cards */
   --card: 0 0% 100%;
 
-  --card-foreground: 220 15% 12%;
+  --card-foreground: 0 0% 9%;
 
-  --card-border: 220 13% 90%;
+  --card-border: 0 0% 92%;
 
-  /* Light gray sidebar */
-  --sidebar: 220 14% 97%;
+  /* Light sidebar */
+  --sidebar: 0 0% 98%;
 
-  --sidebar-foreground: 220 15% 15%;
+  --sidebar-foreground: 0 0% 15%;
 
-  --sidebar-border: 220 13% 90%;
+  --sidebar-border: 0 0% 92%;
 
-  /* Cyan accent for quant platform */
-  --sidebar-primary: 188 94% 43%;
+  /* Black primary for clean modern look */
+  --sidebar-primary: 0 0% 9%;
 
-  --sidebar-primary-foreground: 220 15% 10%;
+  --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 188 40% 94%;
+  --sidebar-accent: 0 0% 96%;
 
-  --sidebar-accent-foreground: 188 94% 35%;
+  --sidebar-accent-foreground: 0 0% 20%;
 
-  --sidebar-ring: 188 94% 43%;
+  --sidebar-ring: 0 0% 50%;
 
   --popover: 0 0% 100%;
 
-  --popover-foreground: 220 15% 12%;
+  --popover-foreground: 0 0% 9%;
 
-  --popover-border: 220 13% 88%;
+  --popover-border: 0 0% 92%;
 
-  /* Cyan primary for trading actions */
-  --primary: 188 94% 43%;
+  /* Black primary buttons in light mode */
+  --primary: 0 0% 9%;
 
-  --primary-foreground: 220 15% 10%;
+  --primary-foreground: 0 0% 100%;
 
-  /* Dark gray secondary */
-  --secondary: 220 13% 91%;
+  /* Light gray secondary */
+  --secondary: 0 0% 96%;
 
-  --secondary-foreground: 220 15% 20%;
+  --secondary-foreground: 0 0% 20%;
 
   /* Subtle muted backgrounds */
-  --muted: 220 14% 94%;
+  --muted: 0 0% 96%;
 
-  --muted-foreground: 220 10% 45%;
+  --muted-foreground: 0 0% 45%;
 
-  /* Soft accent for highlights */
-  --accent: 188 40% 94%;
+  /* Emerald accent for trading highlights */
+  --accent: 160 84% 95%;
 
-  --accent-foreground: 188 94% 35%;
+  --accent-foreground: 160 84% 30%;
 
   /* Clear red for destructive actions */
-  --destructive: 0 72% 51%;
+  --destructive: 0 84% 60%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 220 13% 88%;
-  --ring: 188 94% 43%;
-  --chart-1: 188 94% 43%;
-  --chart-2: 142 76% 40%;
+  --input: 0 0% 92%;
+  --ring: 0 0% 50%;
+  --chart-1: 160 84% 39%;
+  --chart-2: 217 91% 60%;
   --chart-3: 45 93% 50%;
   --chart-4: 262 83% 58%;
-  --chart-5: 0 72% 51%;
+  --chart-5: 0 84% 60%;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Light mode terminal colors */
+  --terminal-bg: #ffffff;
+  --terminal-bg-secondary: #f8f8f8;
+  --terminal-bg-tertiary: #f5f5f5;
+  --terminal-border: #e5e5e5;
+  --terminal-border-hover: #d4d4d4;
+  --terminal-text: #171717;
+  --terminal-text-secondary: #525252;
+  --terminal-text-muted: #a3a3a3;
+
+  /* Trading colors - same in both modes */
+  --trade-bullish: #10b981;
+  --trade-bullish-bg: rgba(16, 185, 129, 0.1);
+  --trade-bearish: #ef4444;
+  --trade-bearish-bg: rgba(239, 68, 68, 0.1);
+  --trade-neutral: #f59e0b;
+  --trade-neutral-bg: rgba(245, 158, 11, 0.1);
+
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
+  --font-mono: 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
   --radius: 0.875rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
@@ -152,89 +204,95 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .08);
 
-  /* Unified Color System - Clean Blue Accent (Kavout-inspired) */
+  /* ========================================
+     CLEAN DARK DESIGN SYSTEM
+     Matches landing page aesthetic
+     ======================================== */
+
+  /* Core Colors - Super dark */
   --accent-blue: #3b82f6;
   --accent-blue-light: #60a5fa;
-  --bg-glass: rgba(15, 23, 42, 0.6);
-  --border-glass: rgba(148, 163, 184, 0.1);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
+  --bg-glass: rgba(10, 10, 10, 0.8);
+  --border-glass: rgba(34, 34, 34, 0.8);
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #525252;
   --danger-red: #ef4444;
-  --success-green: #22c55e;
+  --success-green: #10b981;
   --warning-amber: #f59e0b;
 
-  /* Glassmorphism Colors - Blue */
+  /* Glassmorphism Colors */
   --glass-blue: 217 91% 60%;
   --glass-blue-rgb: 59, 130, 246;
   --glass-purple: 263 70% 76%;
   --glass-purple-rgb: 167, 139, 250;
-  --glass-border: rgba(148, 163, 184, 0.1);
-  --glass-border-hover: rgba(59, 130, 246, 0.3);
+  --glass-border: rgba(34, 34, 34, 1);
+  --glass-border-hover: rgba(51, 51, 51, 1);
 
-  /* Deep slate background */
-  --background: 222 47% 4%;
+  /* Background - True dark #0a0a0a */
+  --background: 0 0% 4%;
 
-  --foreground: 210 40% 98%;
+  --foreground: 0 0% 100%;
 
-  --border: 217 19% 14%;
+  /* Border - Subtle dark gray #222 */
+  --border: 0 0% 13%;
 
-  /* Card backgrounds */
-  --card: 222 47% 7%;
+  /* Card backgrounds - #111 */
+  --card: 0 0% 7%;
 
-  --card-foreground: 210 40% 96%;
+  --card-foreground: 0 0% 96%;
 
-  --card-border: 217 19% 16%;
+  --card-border: 0 0% 13%;
 
-  /* Sidebar - slightly lighter than background */
-  --sidebar: 222 47% 6%;
+  /* Sidebar - #0d0d0d */
+  --sidebar: 0 0% 5%;
 
-  --sidebar-foreground: 215 20% 85%;
+  --sidebar-foreground: 0 0% 85%;
 
-  --sidebar-border: 217 19% 14%;
+  --sidebar-border: 0 0% 10%;
 
-  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary: 0 0% 100%;
 
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary-foreground: 0 0% 0%;
 
-  --sidebar-accent: 217 91% 15%;
+  --sidebar-accent: 0 0% 10%;
 
-  --sidebar-accent-foreground: 217 91% 70%;
+  --sidebar-accent-foreground: 0 0% 70%;
 
-  --sidebar-ring: 217 91% 60%;
+  --sidebar-ring: 0 0% 50%;
 
-  --popover: 222 47% 7%;
+  --popover: 0 0% 7%;
 
-  --popover-foreground: 210 40% 96%;
+  --popover-foreground: 0 0% 96%;
 
-  --popover-border: 217 19% 18%;
+  --popover-border: 0 0% 15%;
 
-  /* Blue primary for actions */
-  --primary: 217 91% 60%;
+  /* White primary for actions (like landing page buttons) */
+  --primary: 0 0% 100%;
 
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
 
   /* Subtle secondary */
-  --secondary: 217 19% 14%;
+  --secondary: 0 0% 11%;
 
-  --secondary-foreground: 215 20% 80%;
+  --secondary-foreground: 0 0% 80%;
 
   /* Muted backgrounds */
-  --muted: 217 19% 10%;
+  --muted: 0 0% 10%;
 
-  --muted-foreground: 215 14% 55%;
+  --muted-foreground: 0 0% 45%;
 
-  /* Purple accent for AI features */
-  --accent: 263 70% 50%;
+  /* Emerald accent for trading */
+  --accent: 160 84% 39%;
 
-  --accent-foreground: 210 40% 98%;
+  --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 217 19% 14%;
-  --ring: 217 91% 60%;
+  --input: 0 0% 11%;
+  --ring: 0 0% 50%;
   --chart-1: 217 91% 60%;
   --chart-2: 142 71% 55%;
   --chart-3: 45 93% 58%;
@@ -251,8 +309,8 @@
   --shadow-2xl: 0px 25px 50px -12px hsl(222 47% 2% / 0.8);
   --radius: 0.625rem;
   --spacing: 0.25rem;
-  --font-mono: 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
   --tracking-normal: -0.01em;
 
@@ -263,6 +321,232 @@
   --neon-cyan: 188 94% 53%;
   --neon-purple: 263 70% 60%;
   --neon-green: 142 71% 55%;
+
+  /* ========================================
+     CLEAN TERMINAL DESIGN SYSTEM
+     Matches landing page aesthetic
+     ======================================== */
+
+  /* Terminal Backgrounds - True dark */
+  --terminal-bg: #0a0a0a;
+  --terminal-bg-secondary: #111111;
+  --terminal-bg-tertiary: #0d0d0d;
+
+  /* Terminal Borders - Subtle */
+  --terminal-border: #222222;
+  --terminal-border-hover: #333333;
+
+  /* Terminal Text */
+  --terminal-text: #ffffff;
+  --terminal-text-secondary: #94a3b8;
+  --terminal-text-muted: #525252;
+
+  /* Trading Colors - Emerald for bullish */
+  --trade-bullish: #10b981;
+  --trade-bullish-bg: rgba(16, 185, 129, 0.15);
+  --trade-bearish: #ef4444;
+  --trade-bearish-bg: rgba(239, 68, 68, 0.15);
+
+  /* ========================================
+     VIBRANT ACCENT COLORS
+     Blue & Purple for visual interest
+     ======================================== */
+
+  /* Blue accent - for features, highlights */
+  --accent-blue: #3b82f6;
+  --accent-blue-light: #60a5fa;
+  --accent-blue-dark: #2563eb;
+  --accent-blue-bg: rgba(59, 130, 246, 0.15);
+  --accent-blue-border: rgba(59, 130, 246, 0.3);
+
+  /* Purple accent - for premium, special features */
+  --accent-purple: #8b5cf6;
+  --accent-purple-light: #a78bfa;
+  --accent-purple-dark: #7c3aed;
+  --accent-purple-bg: rgba(139, 92, 246, 0.15);
+  --accent-purple-border: rgba(139, 92, 246, 0.3);
+
+  /* Cyan accent - for AI, tech features */
+  --accent-cyan: #06b6d4;
+  --accent-cyan-light: #22d3ee;
+  --accent-cyan-dark: #0891b2;
+  --accent-cyan-bg: rgba(6, 182, 212, 0.15);
+  --accent-cyan-border: rgba(6, 182, 212, 0.3);
+
+  /* Amber accent - for warnings, highlights */
+  --accent-amber: #f59e0b;
+  --accent-amber-light: #fbbf24;
+  --accent-amber-bg: rgba(245, 158, 11, 0.15);
+  --accent-amber-border: rgba(245, 158, 11, 0.3);
+  --trade-neutral: #f59e0b;
+  --trade-neutral-bg: rgba(245, 158, 11, 0.15);
+
+  /* AI/Confidence Colors */
+  --ai-primary: #10b981;
+  --ai-secondary: #10b981;
+  --confidence-high: #10b981;
+  --confidence-medium: #3b82f6;
+  --confidence-low: #f59e0b;
+}
+
+/* ========================================
+   LIGHT MODE - CLEAN MINIMAL THEME
+   Inspired by modern SaaS/fintech designs
+   ======================================== */
+:root {
+  /* Light Terminal (for light mode pages) */
+  --terminal-light-bg: #ffffff;
+  --terminal-light-bg-secondary: #f8fafc;
+  --terminal-light-bg-tertiary: #f1f5f9;
+  --terminal-light-border: rgba(226, 232, 240, 0.8);
+  --terminal-light-text: #0f172a;
+  --terminal-light-text-secondary: #475569;
+  --terminal-light-text-muted: #94a3b8;
+}
+
+/* ========================================
+   TERMINAL CARD COMPONENT STYLES
+   ======================================== */
+.terminal-card {
+  background: var(--terminal-bg);
+  border: 1px solid var(--terminal-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.terminal-card:hover {
+  border-color: var(--terminal-border-hover);
+  box-shadow: 0 4px 20px rgba(20, 184, 166, 0.1);
+}
+
+.terminal-card-light {
+  background: var(--terminal-light-bg);
+  border: 1px solid var(--terminal-light-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.terminal-card-light:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+
+/* Terminal Header Bar */
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--terminal-bg-secondary);
+  border-bottom: 1px solid var(--terminal-border);
+}
+
+.terminal-header-light {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--terminal-light-bg-secondary);
+  border-bottom: 1px solid var(--terminal-light-border);
+}
+
+/* Traffic Light Dots */
+.terminal-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.terminal-dots span {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.terminal-dots .dot-red { background: #ff5f57; }
+.terminal-dots .dot-yellow { background: #febc2e; }
+.terminal-dots .dot-green { background: #28c840; }
+
+/* Monospace Typography */
+.font-terminal {
+  font-family: 'Space Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Clean Badge Styles */
+.badge-bullish {
+  background: var(--trade-bullish-bg);
+  color: var(--trade-bullish);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-bearish {
+  background: var(--trade-bearish-bg);
+  color: var(--trade-bearish);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Progress/Confidence Bar */
+.confidence-bar {
+  height: 0.375rem;
+  background: rgba(51, 65, 85, 0.4);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.confidence-bar-fill.high {
+  background: linear-gradient(to right, #14b8a6, #10b981);
+}
+
+.confidence-bar-fill.medium {
+  background: linear-gradient(to right, #06b6d4, #3b82f6);
+}
+
+.confidence-bar-fill.low {
+  background: linear-gradient(to right, #f59e0b, #f97316);
+}
+
+/* Clean Input Styles */
+.terminal-input {
+  background: var(--terminal-bg-tertiary);
+  border: 1px solid var(--terminal-border);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.875rem;
+  color: var(--terminal-text);
+  transition: all 0.2s ease;
+}
+
+.terminal-input:focus {
+  outline: none;
+  border-color: var(--ai-primary);
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.2);
+}
+
+.terminal-input::placeholder {
+  color: var(--terminal-text-muted);
 }
 
 /* Glassmorphism Utilities */
@@ -1029,6 +1313,42 @@
     animation: float 4s ease-in-out infinite;
   }
 
+  /* Marquee ticker animation */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+
+  /* Horizontal scroll animation for data sources */
+  @keyframes scroll-x {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-scroll {
+    animation: scroll-x 25s linear infinite;
+  }
+
+  .animate-scroll:hover {
+    animation-play-state: paused;
+  }
+
   /* Stagger animation delays */
   .animate-delay-100 { animation-delay: 100ms; }
   .animate-delay-200 { animation-delay: 200ms; }
@@ -1248,5 +1568,223 @@
 
   .density-spacious .grid-gap {
     gap: var(--density-gap);
+  }
+
+  /* ========================================
+     MOBILE & CROSS-PLATFORM UTILITIES
+     For iOS/Android app transformation
+     ======================================== */
+
+  /* Touch-friendly tap targets (44px minimum per Apple/Google guidelines) */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-target-lg {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  /* Safe area padding for notched devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-x {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .safe-area-all {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Hide scrollbars (useful for horizontal scroll containers) */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Prevent text selection (for buttons/interactive elements) */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Hardware-accelerated transforms (smoother animations on mobile) */
+  .gpu-accelerate {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  /* Prevent pull-to-refresh on mobile (when not wanted) */
+  .overscroll-none {
+    overscroll-behavior: none;
+  }
+
+  /* Mobile-optimized text sizing */
+  .text-mobile-sm {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .text-mobile-base {
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .text-mobile-lg {
+    font-size: 17px;
+    line-height: 24px;
+  }
+
+  /* Cross-platform button styles */
+  .btn-native {
+    @apply touch-target flex items-center justify-center font-medium rounded-xl transition-all;
+    @apply active:scale-95 active:opacity-80;
+  }
+
+  .btn-native-primary {
+    @apply btn-native bg-primary text-primary-foreground;
+  }
+
+  .btn-native-secondary {
+    @apply btn-native bg-secondary text-secondary-foreground border border-border;
+  }
+
+  /* Card with native feel (shadows for iOS, elevation for Android) */
+  .card-native {
+    @apply rounded-2xl bg-card;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-native {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Bottom sheet style (for mobile modals) */
+  .bottom-sheet {
+    @apply fixed bottom-0 left-0 right-0 rounded-t-3xl bg-card safe-area-bottom;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    max-height: 90vh;
+  }
+
+  .bottom-sheet-handle {
+    @apply w-10 h-1 rounded-full bg-muted mx-auto mt-3 mb-4;
+  }
+
+  /* Input with native feel */
+  .input-native {
+    @apply touch-target-lg w-full rounded-xl bg-muted/50 border border-border px-4;
+    @apply focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Tab bar for mobile navigation */
+  .tab-bar {
+    @apply fixed bottom-0 left-0 right-0 flex items-center justify-around bg-card border-t border-border;
+    @apply safe-area-bottom;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tab-bar-item {
+    @apply flex flex-col items-center justify-center touch-target no-select;
+    @apply text-muted-foreground transition-colors;
+  }
+
+  .tab-bar-item.active {
+    @apply text-primary;
+  }
+
+  /* Pull-to-refresh indicator area */
+  .pull-to-refresh-area {
+    @apply flex items-center justify-center h-16 -mt-16;
+  }
+
+  /* Skeleton loading with shimmer (mobile-optimized) */
+  .skeleton-native {
+    @apply bg-muted rounded-lg;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* iOS-style blur backgrounds */
+  .blur-ios {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  .dark .blur-ios {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  /* Haptic-ready interactive elements */
+  .haptic-light {
+    @apply active:opacity-70 transition-opacity duration-75;
+  }
+
+  .haptic-medium {
+    @apply active:scale-95 active:opacity-80 transition-all duration-75;
+  }
+
+  .haptic-heavy {
+    @apply active:scale-90 active:opacity-70 transition-all duration-100;
+  }
+
+  /* Status bar spacing */
+  .status-bar-spacing {
+    padding-top: max(env(safe-area-inset-top, 0px), 20px);
+  }
+
+  /* Responsive container with mobile padding */
+  .container-mobile {
+    @apply w-full px-4 mx-auto;
+    max-width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .container-mobile {
+      @apply px-6;
+      max-width: 640px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .container-mobile {
+      max-width: 768px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-mobile {
+      max-width: 1024px;
+    }
   }
 }

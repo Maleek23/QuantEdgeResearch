@@ -4,9 +4,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { SEOHead } from "@/components/seo-head";
-import { 
-  Brain, 
-  Calculator, 
+import {
+  Brain,
+  Calculator,
   ArrowRight,
   Activity,
   Check,
@@ -26,7 +26,23 @@ import {
   LineChart,
   BarChart3,
   Eye,
-  Layers
+  Layers,
+  Search,
+  Zap,
+  Users,
+  Shield,
+  Sparkles,
+  Clock,
+  Wallet,
+  History,
+  Radio,
+  Network,
+  Radar,
+  Building2,
+  DollarSign,
+  Flame,
+  Timer,
+  Play
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/q_1767502987714.png";
 import { AuroraBackground } from "@/components/aurora-background";
@@ -37,11 +53,11 @@ export default function Features() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-slate-950 relative">
+    <div className="min-h-screen bg-[#0a0a0a] relative">
       <SEOHead
         pageKey="features"
         title="Platform Features | Quant Edge Labs"
-        description="Explore all Quant Edge Labs features: 6 AI Engines, ML Predictions, Technical Analysis, Options Flow, Sentiment Tracking, and more."
+        description="Explore all Quant Edge Labs features: 6 Trading Engines, ML Predictions, Technical Analysis, Options Flow, Sentiment Tracking, and more."
       />
 
       {/* Consistent Background with Homepage */}
@@ -102,7 +118,7 @@ export default function Features() {
                   <Button 
                     variant="outline" 
                     onClick={() => setLocation('/login')}
-                    className="hidden sm:inline-flex border-slate-700"
+                    className="hidden sm:inline-flex border-[#222]"
                     data-testid="button-login"
                   >
                     Login
@@ -133,10 +149,34 @@ export default function Features() {
               Everything You Get with{" "}
               <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
             </h1>
-            <p className="text-lg text-slate-400 leading-relaxed">
-              A comprehensive research platform combining AI analysis, quantitative signals, 
+            <p className="text-lg text-slate-400 leading-relaxed mb-8">
+              A comprehensive research platform combining AI analysis, quantitative signals,
               institutional flow detection, and full performance transparency.
             </p>
+
+            {/* Platform Stats */}
+            <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+              <div className="text-center px-4">
+                <div className="text-3xl font-bold text-cyan-400 font-mono">6</div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Trading Engines</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-3xl font-bold text-purple-400 font-mono">5</div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Trading Bots</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-3xl font-bold text-emerald-400 font-mono">8+</div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Scanners</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-3xl font-bold text-amber-400 font-mono">300+</div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">API Endpoints</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-3xl font-bold text-pink-400 font-mono">15+</div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Analytics Dashboards</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -148,7 +188,7 @@ export default function Features() {
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Core Analysis Engines
             </p>
-            <h2 className="text-2xl font-bold text-white">Six AI Engines Working Together</h2>
+            <h2 className="text-2xl font-bold text-white">Six Trading Engines Working Together</h2>
             <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
               Each engine specializes in a different aspect of market analysis.
               When multiple engines converge, you get higher-conviction trade ideas.
@@ -157,7 +197,7 @@ export default function Features() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* ML Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-pink-400" />
@@ -187,7 +227,7 @@ export default function Features() {
             </div>
 
             {/* AI Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
@@ -217,7 +257,7 @@ export default function Features() {
             </div>
 
             {/* Quant Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Calculator className="h-6 w-6 text-blue-400" />
@@ -247,7 +287,7 @@ export default function Features() {
             </div>
 
             {/* Flow Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                   <Activity className="h-6 w-6 text-cyan-400" />
@@ -277,7 +317,7 @@ export default function Features() {
             </div>
 
             {/* Sentiment Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <Target className="h-6 w-6 text-amber-400" />
@@ -307,7 +347,7 @@ export default function Features() {
             </div>
 
             {/* Technical Engine */}
-            <div className="bg-slate-900/60 backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
+            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
                   <CandlestickChart className="h-6 w-6 text-green-400" />
@@ -339,8 +379,314 @@ export default function Features() {
         </div>
       </section>
 
+      {/* Market Scanners & Discovery */}
+      <section className="py-12 lg:py-16 relative z-10 border-t border-[#222]" id="scanners" data-testid="section-scanners">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-emerald-400 mb-2">
+              Real-Time Scanning
+            </p>
+            <h2 className="text-2xl font-bold text-white">Market Scanners & Discovery</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              8+ specialized scanners to find opportunities across the entire market in real-time.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            <div className="bg-[#111] rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+                <Search className="h-5 w-5 text-emerald-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Market Scanner</h3>
+              <p className="text-sm text-slate-400 mb-3">
+                Full market-wide scanner with sector heat maps, top movers, volume surges, and growth stock filtering.
+              </p>
+              <ul className="space-y-1 text-xs text-slate-500">
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Sector performance</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Volume spike detection</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Smart watchlist</li>
+              </ul>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-orange-500/20 hover:border-orange-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
+                <Flame className="h-5 w-5 text-orange-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Bullish Trends</h3>
+              <p className="text-sm text-slate-400 mb-3">
+                Momentum scanner with sector heatmaps, breakout tracking, and multi-source convergence analysis.
+              </p>
+              <ul className="space-y-1 text-xs text-slate-500">
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Sector heat maps</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Breakout detection</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Source convergence</li>
+              </ul>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                <Radar className="h-5 w-5 text-purple-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Swing Scanner</h3>
+              <p className="text-sm text-slate-400 mb-3">
+                Multi-day swing trade opportunities with entry/exit levels and risk:reward calculations.
+              </p>
+              <ul className="space-y-1 text-xs text-slate-500">
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> Swing setups</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> R:R calculation</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> Discord alerts</li>
+              </ul>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+                <Timer className="h-5 w-5 text-cyan-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Day Trade Scanner</h3>
+              <p className="text-sm text-slate-400 mb-3">
+                Intraday opportunities with real-time gap detection and momentum tracking.
+              </p>
+              <ul className="space-y-1 text-xs text-slate-500">
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Gap detection</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Momentum tracking</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Intraday signals</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Smart Money Intelligence */}
+      <section className="py-12 lg:py-16 relative z-10 bg-[#0d0d0d]" id="smart-money" data-testid="section-smart-money">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-amber-400 mb-2">
+              Institutional Intelligence
+            </p>
+            <h2 className="text-2xl font-bold text-white">Smart Money Tracking</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              Follow the whales. Track insider trades, analyst ratings, and institutional flow.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="bg-[#111] rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-4">
+                <Users className="h-5 w-5 text-amber-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Insider Trades</h3>
+              <p className="text-sm text-slate-400">
+                Track executive and director buys/sells with transaction details and historical patterns.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                <Building2 className="h-5 w-5 text-blue-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Institutional Flow</h3>
+              <p className="text-sm text-slate-400">
+                Dark pool prints, block trades, and unusual options activity from smart money.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+                <Target className="h-5 w-5 text-green-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Analyst Ratings</h3>
+              <p className="text-sm text-slate-400">
+                Price targets and rating changes from Wall Street analysts with historical accuracy.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Options Lab */}
+      <section className="py-12 lg:py-16 relative z-10" id="options" data-testid="section-options">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-purple-400 mb-2">
+              Derivatives Analysis
+            </p>
+            <h2 className="text-2xl font-bold text-white">Options Risk Lab</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              Full options chain analysis with Greeks, probability calculations, and strategy builder.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                <Calculator className="h-5 w-5 text-purple-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Greeks Analysis</h3>
+              <p className="text-sm text-slate-400">
+                Delta, gamma, theta, vega calculations with risk visualization.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+                <BarChart3 className="h-5 w-5 text-cyan-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">IV Analysis</h3>
+              <p className="text-sm text-slate-400">
+                IV rank, percentile, skew analysis for volatility trading.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+                <Target className="h-5 w-5 text-emerald-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Probability Calc</h3>
+              <p className="text-sm text-slate-400">
+                Win probability and expected value calculations for strategies.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4">
+                <Layers className="h-5 w-5 text-pink-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Strategy Builder</h3>
+              <p className="text-sm text-slate-400">
+                Build and analyze multi-leg options strategies with P&L charts.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trading Bots & Automation */}
+      <section className="py-12 lg:py-16 relative z-10 bg-[#0d0d0d]" id="bots" data-testid="section-bots">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
+              Automated Trading Research
+            </p>
+            <h2 className="text-2xl font-bold text-white">5 Trading Bots</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              Autonomous paper trading bots that test strategies with full transparency.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
+            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
+                <Bot className="h-6 w-6 text-cyan-400" />
+              </div>
+              <h3 className="font-semibold text-white">Auto-Lotto</h3>
+              <p className="text-xs text-slate-500 mt-1">High R:R Options</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-cyan-500/30 text-cyan-400">
+                Paper Trading
+              </Badge>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                <CandlestickChart className="h-6 w-6 text-green-400" />
+              </div>
+              <h3 className="font-semibold text-white">Futures Bot</h3>
+              <p className="text-xs text-slate-500 mt-1">ES, NQ, GC</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-green-500/30 text-green-400">
+                Paper Trading
+              </Badge>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
+                <Coins className="h-6 w-6 text-amber-400" />
+              </div>
+              <h3 className="font-semibold text-white">Crypto Bot</h3>
+              <p className="text-xs text-slate-500 mt-1">BTC, ETH, Alts</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-amber-500/30 text-amber-400">
+                Paper Trading
+              </Badge>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+                <Radar className="h-6 w-6 text-purple-400" />
+              </div>
+              <h3 className="font-semibold text-white">Swing Bot</h3>
+              <p className="text-xs text-slate-500 mt-1">Multi-Day Holds</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-purple-500/30 text-purple-400">
+                Paper Trading
+              </Badge>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-3">
+                <Timer className="h-6 w-6 text-pink-400" />
+              </div>
+              <h3 className="font-semibold text-white">Day Trade Bot</h3>
+              <p className="text-xs text-slate-500 mt-1">Intraday Only</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-pink-500/30 text-pink-400">
+                Paper Trading
+              </Badge>
+            </div>
+          </div>
+
+          <div className="text-center mt-8">
+            <p className="text-xs text-slate-500">
+              All bots are paper trading only. Track performance with full audit trails.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* AI Learning & Intelligence */}
+      <section className="py-12 lg:py-16 relative z-10" id="ai-learning" data-testid="section-ai-learning">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-pink-400 mb-2">
+              Self-Improving System
+            </p>
+            <h2 className="text-2xl font-bold text-white">AI Learning Dashboard</h2>
+            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+              Watch your engines learn and improve from every trade with ML visualization.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4">
+                <Network className="h-5 w-5 text-pink-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Neural Visualization</h3>
+              <p className="text-sm text-slate-400">
+                See the 6 engines as interconnected nodes, learning from each trade outcome.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                <Sparkles className="h-5 w-5 text-purple-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Learning Insights</h3>
+              <p className="text-sm text-slate-400">
+                AI-generated insights on timing, asset allocation, and confluence optimization.
+              </p>
+            </div>
+
+            <div className="bg-[#111] rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                <Radar className="h-5 w-5 text-blue-400" />
+              </div>
+              <h3 className="font-semibold mb-2 text-white">Engine Radar</h3>
+              <p className="text-sm text-slate-400">
+                Compare engine performance across accuracy, timing, and risk metrics.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Research Tools Section */}
-      <section className="py-12 lg:py-16 relative z-10 border-y border-slate-800/50" id="research-tools" data-testid="section-research-tools">
+      <section className="py-12 lg:py-16 relative z-10 border-y border-[#222]" id="research-tools" data-testid="section-research-tools">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
@@ -362,38 +708,77 @@ export default function Features() {
                 Multi-timeframe chart annotations with AI-powered pattern recognition and key level identification.
               </p>
             </div>
-            
-            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-chart-database">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mb-4">
-                <Database className="h-5 w-5 text-purple-400" />
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-paper-trading">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mb-4">
+                <Play className="h-5 w-5 text-cyan-400" />
               </div>
-              <h3 className="font-semibold mb-2">Chart Database</h3>
+              <h3 className="font-semibold mb-2">Paper Trading</h3>
               <p className="text-sm text-muted-foreground">
-                Historical trade pattern library for educational study and backtesting research.
+                Simulate trades with virtual portfolios, track equity curves, and validate strategies risk-free.
               </p>
             </div>
-            
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-watchlist">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mb-4">
+                <Eye className="h-5 w-5 text-purple-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Smart Watchlist</h3>
+              <p className="text-sm text-muted-foreground">
+                Graded watchlists with AI suggestions, performance tracking, and real-time alerts.
+              </p>
+            </div>
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-pink-500/50 hover-elevate" data-testid="card-ai-chat">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500/20 to-pink-600/10 flex items-center justify-center mb-4">
+                <MessageSquare className="h-5 w-5 text-pink-400" />
+              </div>
+              <h3 className="font-semibold mb-2">AI Research Chat</h3>
+              <p className="text-sm text-muted-foreground">
+                Conversational AI assistant for real-time symbol research and trade idea generation.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mt-6">
             <div className="glass-card rounded-lg p-5 border-l-2 border-green-500/50 hover-elevate" data-testid="card-futures-terminal">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center mb-4">
                 <CandlestickChart className="h-5 w-5 text-green-400" />
               </div>
               <h3 className="font-semibold mb-2">Futures Terminal</h3>
               <p className="text-sm text-muted-foreground">
-                Real-time NQ, GC futures data with institutional-grade charting and analysis.
+                Real-time ES, NQ, GC futures with session indicators and research briefs.
               </p>
             </div>
-            
-            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-auto-lotto-bot">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mb-4">
-                <Bot className="h-5 w-5 text-cyan-400" />
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50 hover-elevate" data-testid="card-chart-database">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center mb-4">
+                <Database className="h-5 w-5 text-blue-400" />
               </div>
-              <h3 className="font-semibold mb-2">Auto-Lotto Bot</h3>
+              <h3 className="font-semibold mb-2">Chart Database</h3>
               <p className="text-sm text-muted-foreground">
-                Autonomous paper trading system that tests high R:R strategies with full transparency.
+                Historical trade pattern library for educational study and backtesting.
               </p>
-              <Badge variant="outline" className="mt-2 text-xs border-cyan-500/30 text-cyan-400">
-                Paper Trading Only
-              </Badge>
+            </div>
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-emerald-500/50 hover-elevate" data-testid="card-historical">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center mb-4">
+                <History className="h-5 w-5 text-emerald-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Historical Intelligence</h3>
+              <p className="text-sm text-muted-foreground">
+                Past trade analysis with pattern discovery and performance calibration.
+              </p>
+            </div>
+
+            <div className="glass-card rounded-lg p-5 border-l-2 border-orange-500/50 hover-elevate" data-testid="card-strategy">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/10 flex items-center justify-center mb-4">
+                <ClipboardList className="h-5 w-5 text-orange-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Strategy Playbooks</h3>
+              <p className="text-sm text-muted-foreground">
+                Pre-built trading strategy templates with entry/exit rules and risk parameters.
+              </p>
             </div>
           </div>
         </div>
@@ -449,7 +834,7 @@ export default function Features() {
       </section>
 
       {/* Analytics & Risk Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="analytics" data-testid="section-analytics">
+      <section className="py-12 lg:py-16 bg-[#111]/30 dark:bg-[#111]/30" id="analytics" data-testid="section-analytics">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -553,7 +938,7 @@ export default function Features() {
       </section>
 
       {/* Education Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="education" data-testid="section-education">
+      <section className="py-12 lg:py-16 bg-[#111]/30 dark:bg-[#111]/30" id="education" data-testid="section-education">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -651,7 +1036,7 @@ export default function Features() {
               <Button 
                 variant="outline"
                 onClick={() => setLocation('/pricing')}
-                className="border-slate-700"
+                className="border-[#222]"
                 data-testid="button-cta-pricing"
               >
                 View Pricing
@@ -662,7 +1047,7 @@ export default function Features() {
       </section>
 
       {/* Educational Disclaimer */}
-      <section className="py-8 border-t border-slate-800/50" data-testid="section-disclaimer">
+      <section className="py-8 border-t border-[#222]" data-testid="section-disclaimer">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-xs text-muted-foreground/60 leading-relaxed">
@@ -676,7 +1061,7 @@ export default function Features() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-slate-800/50">
+      <footer className="py-8 border-t border-[#222]">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">

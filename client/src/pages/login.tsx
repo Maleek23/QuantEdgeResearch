@@ -1,26 +1,22 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { GlassInput } from "@/components/ui/glass-input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { LogIn, ArrowLeft, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
-import { Separator } from "@/components/ui/separator";
-import { Link } from "wouter";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AuroraBackground } from "@/components/aurora-background";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import { WaitlistPopup } from "@/components/waitlist-popup";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
-  rememberMe: z.boolean().default(false),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -30,31 +26,31 @@ export default function Login() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [accessCode, setAccessCode] = useState("");
-  const [showDevLogin, setShowDevLogin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   // Handle URL error parameters from OAuth callbacks
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
-    
+
     if (error) {
       const errorMessages: Record<string, string> = {
-        'invite_required': 'This is an invite-only beta. You need an invite to sign in with Google. Join our waitlist to request access!',
+        'invite_required': 'This is an invite-only beta. Join the waitlist to request access.',
         'google_auth_failed': 'Google sign-in failed. Please try again.',
         'no_user': 'Could not retrieve your account. Please try again.',
         'login_failed': 'Login failed. Please try again.',
+        'not_on_waitlist': 'You must be on the waitlist to sign in. Join below.',
       };
-      
+
       setAuthError(errorMessages[error] || 'An error occurred during sign-in.');
-      
-      // Clear the error from URL without page reload
       window.history.replaceState({}, '', '/login');
     }
   }, []);
 
-  // Dev login mutation
-  const devLoginMutation = useMutation({
+  // Admin login mutation
+  const adminLoginMutation = useMutation({
     mutationFn: async (code: string) => {
       const response = await apiRequest("POST", "/api/auth/dev-login", { accessCode: code });
       return response.json();
@@ -62,10 +58,7 @@ export default function Login() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({
-        title: "Welcome!",
-        description: "Dev login successful.",
-      });
+      toast({ title: "Welcome!", description: "Admin login successful." });
       setLocation("/trade-desk");
     },
     onError: (error: Error) => {
@@ -79,11 +72,7 @@ export default function Login() {
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      rememberMe: false,
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const loginMutation = useMutation({
@@ -92,19 +81,10 @@ export default function Login() {
       return response.json();
     },
     onSuccess: async () => {
-      // Wait for queries to invalidate before navigation
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-
-      toast({
-        title: "Welcome back!",
-        description: "You have been logged in successfully.",
-      });
-
-      // Small delay to ensure state updates
-      setTimeout(() => {
-        setLocation("/trade-desk");
-      }, 100);
+      toast({ title: "Welcome back!", description: "You have been logged in successfully." });
+      setTimeout(() => setLocation("/trade-desk"), 100);
     },
     onError: (error: Error) => {
       toast({
@@ -119,217 +99,286 @@ export default function Login() {
     loginMutation.mutate(data);
   };
 
+  const handleAdminLogin = () => {
+    if (accessCode.trim()) {
+      adminLoginMutation.mutate(accessCode);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black p-4 relative overflow-hidden">
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
-      <AuroraBackground />
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] flex transition-colors">
+      {/* Left Panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 dark:from-emerald-950/50 via-[#fafafa] dark:via-[#0a0a0a] to-[#fafafa] dark:to-[#0a0a0a]" />
 
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
-        <div className="relative z-10">
-          <div className="space-y-2 mb-8">
-            <div className="flex items-center gap-2 mb-6">
-              <Link href="/">
-                <Button variant="ghost" size="icon" className="hover-elevate" data-testid="button-back">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 border border-cyan-500/20">
-                <LogIn className="h-6 w-6 text-cyan-400" />
+        {/* Grid pattern */}
+        <div className="absolute inset-0 opacity-20" style={{
+          backgroundImage: `linear-gradient(rgba(16, 185, 129, 0.1) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(16, 185, 129, 0.1) 1px, transparent 1px)`,
+          backgroundSize: '60px 60px'
+        }} />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          <div>
+            <Link href="/">
+              <div className="flex items-center gap-3 cursor-pointer">
+                <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-8 w-8" />
+                <span className="text-gray-900 dark:text-white font-medium">QuantEdge</span>
               </div>
-            </div>
-            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 text-center">
-              Welcome Back
-            </p>
-            <h2 className="text-2xl font-bold text-center text-white">Sign in to your account</h2>
-            <p className="text-center text-slate-400 text-sm">
-              Enter your credentials to access your account
-            </p>
+            </Link>
           </div>
-          
-          <div className="space-y-4">
-            {authError && (
-              <Alert variant="destructive" className="mb-4" data-testid="alert-auth-error">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Access Denied</AlertTitle>
-                <AlertDescription className="space-y-2">
-                  <p>{authError}</p>
-                  {authError.includes('invite') && (
-                    <Link href="/">
-                      <Button variant="outline" size="sm" className="mt-2" data-testid="button-join-waitlist">
-                        Join Waitlist
-                      </Button>
-                    </Link>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
 
-            <a href="/api/auth/google" className="w-full">
-              <Button
-                type="button"
-                variant="glass-secondary"
-                className="w-full"
-                data-testid="button-google-login"
-              >
-                <SiGoogle className="mr-2 h-4 w-4" />
-                Continue with Google
-              </Button>
-            </a>
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-4xl font-medium text-gray-900 dark:text-white mb-4 leading-tight">
+                Multi-engine.<br />
+                One edge.
+              </h1>
+              <p className="text-gray-500 dark:text-slate-400 text-lg max-w-md">
+                Join thousands of traders using AI-powered analysis to find their next trade.
+              </p>
+            </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full bg-slate-700" />
+            {/* Stats */}
+            <div className="flex gap-8">
+              <div>
+                <div className="text-2xl font-mono text-gray-900 dark:text-white">2,500+</div>
+                <div className="text-sm text-gray-500 dark:text-slate-500">Traders joined</div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#0a1525] px-2 text-slate-400">Or continue with email</span>
+              <div>
+                <div className="text-2xl font-mono text-gray-900 dark:text-white">Multi</div>
+                <div className="text-sm text-gray-500 dark:text-slate-500">Engine convergence</div>
+              </div>
+              <div>
+                <div className="text-2xl font-mono text-emerald-600 dark:text-emerald-400">24/7</div>
+                <div className="text-sm text-gray-500 dark:text-slate-500">Market analysis</div>
               </div>
             </div>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-slate-300">Email</FormLabel>
-                      <FormControl>
-                        <GlassInput
-                          type="email"
-                          placeholder="you@example.com"
-                          data-testid="input-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-slate-300">Password</FormLabel>
-                      <FormControl>
-                        <GlassInput
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          data-testid="input-password"
-                          rightIcon={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setShowPassword(!showPassword)}
-                              data-testid="button-toggle-password"
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          }
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="rememberMe"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between space-y-0">
-                      <div className="flex flex-row items-center space-x-2">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            className="border-slate-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-                            data-testid="checkbox-remember-me"
-                          />
-                        </FormControl>
-                        <FormLabel className="text-sm text-slate-400 font-normal cursor-pointer">
-                          Remember me
-                        </FormLabel>
-                      </div>
-                      <Link href="/forgot-password">
-                        <span className="text-sm text-cyan-400 hover:text-cyan-300 cursor-pointer" data-testid="link-forgot-password">
-                          Forgot password?
-                        </span>
-                      </Link>
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  variant="glass"
-                  className="w-full"
-                  disabled={loginMutation.isPending}
-                  data-testid="button-login"
-                >
-                  {loginMutation.isPending ? (
-                    "Logging in..."
-                  ) : (
-                    <>
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Log in
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
-            
-            <div className="flex flex-col gap-4 mt-6">
-              <div className="text-sm text-muted-foreground text-center">
-                Have an invite code?{" "}
-                <Link href="/join-beta" className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium" data-testid="link-join-beta">
-                  Join Beta
-                </Link>
-              </div>
-              
-              <Separator className="my-2" />
-              
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowDevLogin(!showDevLogin)}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid="button-show-dev-login"
-                >
-                  Quick Access (Admin)
-                </button>
-              </div>
-              
-              {showDevLogin && (
-                <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-muted">
-                  <GlassInput
-                    type="password"
-                    placeholder="Enter access code"
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value)}
-                    variant="solid"
-                    data-testid="input-access-code"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => devLoginMutation.mutate(accessCode)}
-                    disabled={devLoginMutation.isPending || !accessCode}
-                    data-testid="button-dev-login"
-                  >
-                    {devLoginMutation.isPending ? "Logging in..." : "Quick Login"}
-                  </Button>
+            {/* Testimonial */}
+            <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-lg p-5 max-w-md">
+              <p className="text-gray-600 dark:text-slate-300 text-sm mb-3">
+                "Finally, a platform that gives retail traders the same analysis tools institutions have been using for years."
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">JM</span>
                 </div>
-              )}
+                <div>
+                  <div className="text-sm text-gray-900 dark:text-white">James M.</div>
+                  <div className="text-xs text-gray-500 dark:text-slate-500">Beta tester</div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="text-xs text-gray-400 dark:text-slate-600">
+            © {new Date().getFullYear()} Quant Edge Labs
           </div>
         </div>
       </div>
+
+      {/* Right Panel - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center justify-center mb-8">
+            <Link href="/">
+              <div className="flex items-center gap-2">
+                <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-8 w-8" />
+                <span className="text-gray-900 dark:text-white font-medium">QuantEdge</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Back button */}
+          <Link href="/">
+            <button className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors mb-8">
+              <ArrowLeft className="w-4 h-4" />
+              Back to home
+            </button>
+          </Link>
+
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-medium text-gray-900 dark:text-white mb-2">Welcome back</h2>
+            <p className="text-gray-500 dark:text-slate-500">
+              Sign in to access your dashboard
+            </p>
+          </div>
+
+          {/* Error Alert */}
+          {authError && (
+            <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+              <p className="text-sm text-red-400">{authError}</p>
+              {authError.includes('waitlist') && (
+                <button
+                  onClick={() => setWaitlistOpen(true)}
+                  className="mt-2 text-sm text-white underline"
+                >
+                  Join the waitlist
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Waitlist Notice */}
+          <div className="mb-6 p-4 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-900 dark:text-white font-medium">Invite-only beta</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">
+                  Sign in is only available for approved waitlist members.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Sign In */}
+          <a href="/api/auth/google" className="block mb-4">
+            <Button
+              type="button"
+              className="w-full h-11 bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1a1a1a] hover:border-gray-300 dark:hover:border-[#333]"
+            >
+              <SiGoogle className="mr-2 h-4 w-4" />
+              Continue with Google
+            </Button>
+          </a>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200 dark:border-[#222]" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-[#fafafa] dark:bg-[#0a0a0a] px-3 text-gray-400 dark:text-slate-600">or continue with email</span>
+            </div>
+          </div>
+
+          {/* Email/Password Form */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-600" />
+                        <Input
+                          type="email"
+                          placeholder="Email address"
+                          className="h-11 pl-10 bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-600 focus:border-gray-300 dark:focus:border-[#333] focus:ring-0"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-500 dark:text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-600" />
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          className="h-11 pl-10 pr-10 bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-600 focus:border-gray-300 dark:focus:border-[#333] focus:ring-0"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-600 hover:text-gray-900 dark:hover:text-white"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-500 dark:text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex items-center justify-between">
+                <Link href="/forgot-password">
+                  <span className="text-xs text-gray-500 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition-colors">
+                    Forgot password?
+                  </span>
+                </Link>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-slate-200 font-medium"
+                disabled={loginMutation.isPending}
+              >
+                {loginMutation.isPending ? "Signing in..." : "Sign in"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          </Form>
+
+          {/* Waitlist CTA */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500 dark:text-slate-500 mb-3">Don't have access yet?</p>
+            <Button
+              variant="outline"
+              className="w-full h-10 border-gray-200 dark:border-[#222] text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#111]"
+              onClick={() => setWaitlistOpen(true)}
+            >
+              Join the waitlist
+            </Button>
+          </div>
+
+          {/* Admin Access - Hidden by default */}
+          <div className="mt-8 pt-6 border-t border-[#1a1a1a]">
+            <button
+              type="button"
+              onClick={() => setShowAdminLogin(!showAdminLogin)}
+              className="text-xs text-slate-700 hover:text-slate-500 transition-colors w-full text-center"
+            >
+              Admin access
+            </button>
+
+            {showAdminLogin && (
+              <div className="mt-4 space-y-3">
+                <Input
+                  type="password"
+                  placeholder="Admin access code"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                  className="h-10 bg-[#111] border-[#222] text-white placeholder:text-slate-600 focus:border-[#333] focus:ring-0"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-9 border-[#222] text-slate-400 hover:text-white hover:bg-[#111] text-xs"
+                  onClick={handleAdminLogin}
+                  disabled={adminLoginMutation.isPending || !accessCode.trim()}
+                >
+                  {adminLoginMutation.isPending ? "Logging in..." : "Admin Login"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Waitlist Popup */}
+      <WaitlistPopup open={waitlistOpen} onOpenChange={setWaitlistOpen} />
     </div>
   );
 }

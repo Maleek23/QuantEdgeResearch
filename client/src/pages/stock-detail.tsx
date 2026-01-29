@@ -177,7 +177,7 @@ function AIInsightCard({
               phase === 'complete' ? "text-teal-400" : "text-teal-400/60"
             )} />
           </motion.div>
-          <h3 className="text-sm font-semibold text-white">AI Research Summary</h3>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">AI Research Summary</h3>
           {phase !== 'complete' && (
             <motion.div
               className="flex gap-1 ml-auto"
@@ -206,12 +206,12 @@ function AIInsightCard({
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                 />
-                <span className="font-mono">Analyzing 6 AI engines...</span>
+                <span className="font-mono">Analyzing 6 trading engines...</span>
               </div>
               <div className="space-y-2">
                 {['Technical Analysis', 'Fundamental Analysis', 'Sentiment Analysis', 'Quant Models', 'ML Predictions', 'Options Flow'].map((engine, i) => (
                   <div key={engine} className="flex items-center gap-2">
-                    <div className="h-1.5 flex-1 bg-slate-800/50 rounded overflow-hidden">
+                    <div className="h-1.5 flex-1 bg-gray-100 dark:bg-[#1a1a1a] rounded overflow-hidden">
                       <motion.div
                         className="h-full bg-gradient-to-r from-teal-500 to-cyan-500"
                         initial={{ width: '0%' }}
@@ -437,7 +437,7 @@ export default function StockDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] flex items-center justify-center transition-colors">
         <div className="text-sm text-slate-400 flex items-center gap-2">
           <Activity className="w-4 h-4 animate-pulse text-teal-500" />
           Loading {symbol}...
@@ -488,37 +488,37 @@ export default function StockDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-slate-100">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
       <div className="max-w-[1800px] mx-auto px-6 py-5">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Link href="/trade-desk">
-              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-teal-400 hover:bg-slate-900">
+              <Button variant="ghost" size="sm" className="text-gray-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-white dark:bg-[#111]">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Trade Desk
               </Button>
             </Link>
-            <div className="h-6 w-px bg-slate-800" />
+            <div className="h-6 w-px bg-gray-200 dark:bg-slate-800" />
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-white">{symbol}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-900 dark:text-white">{symbol}</h1>
                 <div className={cn("text-xs font-bold px-2.5 py-1 rounded-md", getTierColor(tier))}>
                   {tier}
                 </div>
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">{companyName}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-500 mt-0.5">{companyName}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <Link href={`/chart-analysis?symbol=${symbol}`}>
-              <Button variant="outline" size="sm" className="border-teal-500/30 text-teal-400 hover:bg-teal-500/10 hover:text-teal-300 hover:border-teal-500/50">
+              <Button variant="outline" size="sm" className="border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 hover:text-teal-500 dark:hover:text-teal-300 hover:border-teal-500/50">
                 <BarChart2 className="w-4 h-4 mr-2" />
                 Deep Chart
               </Button>
             </Link>
-            <Button variant="outline" size="sm" className="border-slate-800 text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-700">
+            <Button variant="outline" size="sm" className="border-gray-200 dark:border-gray-200 dark:border-[#222] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white dark:bg-[#111] hover:text-gray-900 dark:hover:text-white">
               <Star className="w-4 h-4 mr-2" />
               Watchlist
             </Button>
@@ -532,7 +532,7 @@ export default function StockDetailPage() {
         {/* Price Header */}
         <div className="mb-6 flex items-end gap-6">
           <div>
-            <div className="text-5xl font-bold text-white tracking-tight">
+            <div className="text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
               {price > 0 ? `$${price.toFixed(2)}` : '—'}
             </div>
             {price > 0 && (
@@ -551,7 +551,7 @@ export default function StockDetailPage() {
           <div className="flex gap-6 ml-auto text-sm">
             <div>
               <span className="text-slate-500">Volume</span>
-              <span className="ml-2 text-slate-200 font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
+              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
             </div>
             <div>
               <span className="text-slate-500">High</span>
@@ -563,14 +563,14 @@ export default function StockDetailPage() {
             </div>
             <div>
               <span className="text-slate-500">Prev Close</span>
-              <span className="ml-2 text-slate-200 font-medium">{price ? `$${(price - change).toFixed(2)}` : '—'}</span>
+              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{price ? `$${(price - change).toFixed(2)}` : '—'}</span>
             </div>
           </div>
         </div>
 
         {/* Compact Quick Stats Bar - Key metrics at a glance */}
         <div className="grid grid-cols-6 gap-3 mb-6">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-bold",
               tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-amber-400" :
               tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
@@ -580,35 +580,35 @@ export default function StockDetailPage() {
             </div>
             <div>
               <div className="text-[10px] text-slate-500 uppercase">AI Grade</div>
-              <div className="text-sm font-bold text-white">{analysisData?.overall?.confidence || 72}%</div>
+              <div className="text-sm font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 72}%</div>
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Market Cap</div>
-            <div className="text-sm font-bold text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</div>
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">P/E Ratio</div>
-            <div className="text-sm font-bold text-white">{quoteData?.pe?.toFixed(1) || '—'}</div>
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.pe?.toFixed(1) || '—'}</div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W High</div>
             <div className="text-sm font-bold text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (price * 1.3).toFixed(2)}</div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
             <div className="text-sm font-bold text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (price * 0.7).toFixed(2)}</div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
-            <div className="text-sm font-bold text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
           </div>
         </div>
 
         {/* Main Content - Full Width */}
         <div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-1.5 mb-5">
+              <TabsList className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-xl p-1.5 mb-5">
                 <TabsTrigger
                   value="ai-report"
                   className="px-5 py-2 text-sm font-medium text-slate-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white rounded-lg transition-all hover:text-slate-300 flex items-center gap-2"
@@ -636,7 +636,7 @@ export default function StockDetailPage() {
                     {/* Top Row: Grade + Recommendation + Trade Levels */}
                     <div className="flex items-stretch gap-5">
                       {/* Left: Overall Grade */}
-                      <div className="flex items-center gap-4 pr-5 border-r border-slate-700/50">
+                      <div className="flex items-center gap-4 pr-5 border-r border-[#1a1a1a]">
                         <div className={cn("w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold",
                           tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-amber-400" :
                           tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
@@ -646,7 +646,7 @@ export default function StockDetailPage() {
                         </div>
                         <div>
                           <div className="text-xs text-slate-500 uppercase tracking-wider">QuantEdge Score</div>
-                          <div className="text-2xl font-bold text-white">{analysisData?.overall?.confidence || 72}%</div>
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 72}%</div>
                           <div className={cn("text-sm font-semibold",
                             tier === 'S' || tier.startsWith('A') ? "text-teal-400" :
                             tier.startsWith('B') ? "text-cyan-400" : "text-amber-400"
@@ -658,19 +658,19 @@ export default function StockDetailPage() {
 
                       {/* Center: Trade Levels */}
                       <div className="flex-1 grid grid-cols-4 gap-3">
-                        <div className="p-3 rounded-lg bg-slate-800/40 border border-emerald-500/20">
+                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
                           <div className="text-xs text-slate-500">Entry Zone</div>
-                          <div className="text-sm font-mono font-bold text-white">${(price * 0.98).toFixed(2)} - ${price.toFixed(2)}</div>
+                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${(price * 0.98).toFixed(2)} - ${price.toFixed(2)}</div>
                         </div>
-                        <div className="p-3 rounded-lg bg-slate-800/40 border border-teal-500/30">
+                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
                           <div className="text-xs text-slate-500">Target</div>
                           <div className="text-sm font-mono font-bold text-teal-400">${(price * 1.08).toFixed(2)} (+8%)</div>
                         </div>
-                        <div className="p-3 rounded-lg bg-slate-800/40 border border-red-500/20">
+                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
                           <div className="text-xs text-slate-500">Stop Loss</div>
                           <div className="text-sm font-mono font-bold text-red-400">${(price * 0.95).toFixed(2)} (-5%)</div>
                         </div>
-                        <div className="p-3 rounded-lg bg-slate-800/40">
+                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                           <div className="text-xs text-slate-500">Risk/Reward</div>
                           <div className="text-sm font-bold text-teal-400">1 : {((price * 0.08) / (price * 0.05)).toFixed(1)}</div>
                         </div>
@@ -678,7 +678,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Simplified Engine Summary - Links to Radar */}
-                    <div className="mt-5 pt-5 border-t border-slate-700/40">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-[#222]/40">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xs text-slate-500 uppercase tracking-wider">Engine Summary</span>
                         <span className="text-xs text-slate-600">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -717,13 +717,13 @@ export default function StockDetailPage() {
                 {/* Visual Analysis Section - Radar Chart + Bulls vs Bears */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pentagon Radar Chart - 6 Engine Visualization */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-slate-800/60 p-5">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222] p-5">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl" />
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1.5 rounded-lg bg-teal-500/20">
                         <PieChart className="w-4 h-4 text-teal-400" />
                       </div>
-                      <h3 className="text-sm font-semibold text-white">Engine Performance Radar</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Engine Performance Radar</h3>
                     </div>
 
                     {/* SVG Radar Chart */}
@@ -844,11 +844,11 @@ export default function StockDetailPage() {
                             className={cn(
                               positions[item.pos],
                               "text-center px-2 py-1 rounded-lg border transition-all cursor-pointer hover:scale-105",
-                              isSelected ? colorMap[item.color] : "border-transparent hover:border-slate-600 hover:bg-slate-800/50"
+                              isSelected ? colorMap[item.color] : "border-transparent hover:border-slate-600 hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
                             )}
                           >
                             <div className="text-[10px] text-slate-400">{item.name}</div>
-                            <div className="text-xs font-bold text-white">{item.score}%</div>
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">{item.score}%</div>
                           </button>
                         );
                       })}
@@ -856,7 +856,7 @@ export default function StockDetailPage() {
 
                     {/* Expanded Engine Detail Panel */}
                     {expandedEngine && (
-                      <div className="mt-4 pt-4 border-t border-slate-700/40">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-[#222]/40">
                         {(() => {
                           const engineData: Record<string, { grade: string; calculations: Array<{ label: string; value: string; status: string }>; reasoning: string; color: string }> = {
                             technical: {
@@ -945,7 +945,7 @@ export default function StockDetailPage() {
                               </div>
                               <div className="grid grid-cols-2 gap-2 mb-3">
                                 {engine.calculations.map((calc, i) => (
-                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-slate-800/50">
+                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-gray-100 dark:bg-[#1a1a1a]">
                                     <span className="text-slate-400">{calc.label}</span>
                                     <span className={cn("font-mono font-medium",
                                       calc.status === 'bullish' ? "text-teal-400" :
@@ -963,7 +963,7 @@ export default function StockDetailPage() {
                   </Card>
 
                   {/* Bulls vs Bears Panel */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-slate-800/60 p-5">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222] p-5">
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-3xl" />
 
@@ -971,7 +971,7 @@ export default function StockDetailPage() {
                       <div className="p-1.5 rounded-lg bg-gradient-to-r from-emerald-500/20 to-red-500/20">
                         <Gauge className="w-4 h-4 text-slate-300" />
                       </div>
-                      <h3 className="text-sm font-semibold text-white">Bulls vs Bears Sentiment</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Bulls vs Bears Sentiment</h3>
                     </div>
 
                     {/* Main Gauge */}
@@ -1039,14 +1039,14 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Detailed Breakdown */}
-                    <div className="space-y-3 pt-3 border-t border-slate-700/50">
+                    <div className="space-y-3 pt-3 border-t border-[#1a1a1a]">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] text-slate-400 uppercase tracking-wide">Strong Buy</span>
                             <span className="text-sm font-bold text-emerald-400">{analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : tier.startsWith('A') ? 12 : 5)}</span>
                           </div>
-                          <div className="h-1 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
+                          <div className="h-1 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : 8)) * 4}%` }} />
                           </div>
                         </div>
@@ -1055,7 +1055,7 @@ export default function StockDetailPage() {
                             <span className="text-[10px] text-slate-400 uppercase tracking-wide">Strong Sell</span>
                             <span className="text-sm font-bold text-red-400">{analystData?.consensus?.strongSell || (tier.startsWith('C') || tier.startsWith('D') ? 8 : 2)}</span>
                           </div>
-                          <div className="h-1 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
+                          <div className="h-1 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
                             <div className="h-full bg-red-500 rounded-full" style={{ width: `${(analystData?.consensus?.strongSell || 2) * 4}%` }} />
                           </div>
                         </div>
@@ -1075,24 +1075,24 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid - Key Trading Levels */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-slate-900/50 border-slate-800/60 p-3">
+                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Support Level</div>
                     <div className="text-lg font-mono font-bold text-red-400">${(price * 0.95).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-600">-5% from current</div>
                   </Card>
-                  <Card className="bg-slate-900/50 border-slate-800/60 p-3">
+                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Resistance</div>
                     <div className="text-lg font-mono font-bold text-teal-400">${(price * 1.05).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-600">+5% from current</div>
                   </Card>
-                  <Card className="bg-slate-900/50 border-slate-800/60 p-3">
+                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Volatility (30d)</div>
                     <div className={cn("text-lg font-bold",
                       (analysisData?.quant?.volatility || 25) > 35 ? "text-red-400" : "text-white"
                     )}>{analysisData?.quant?.volatility?.toFixed(0) || '25'}%</div>
                     <div className="text-[10px] text-slate-600">{(analysisData?.quant?.volatility || 25) > 35 ? 'High Risk' : 'Moderate'}</div>
                   </Card>
-                  <Card className="bg-slate-900/50 border-slate-800/60 p-3">
+                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Inst. Ownership</div>
                     <div className="text-lg font-bold text-purple-400">{institutionData?.breakdown?.institutionsPercent?.toFixed(0) || '65'}%</div>
                     <div className="text-[10px] text-slate-600">{institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}+ funds</div>
@@ -1118,14 +1118,14 @@ export default function StockDetailPage() {
 
               <TabsContent value="overview" className="space-y-4">
                 {/* Professional Trading Chart Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-slate-800/60">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222]">
                   {/* Decorative elements */}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/50 via-cyan-500/50 to-teal-500/50" />
                   <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl" />
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl" />
 
                   {/* Chart Header - Professional Trading Terminal Style */}
-                  <div className="relative p-4 border-b border-slate-800/60">
+                  <div className="relative p-4 border-b border-gray-200 dark:border-[#222]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         {/* Symbol & Price */}
@@ -1135,13 +1135,13 @@ export default function StockDetailPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-white">{symbol}</span>
-                              <Badge className="bg-slate-700/50 text-slate-300 border-slate-600 text-[10px]">
+                              <span className="text-lg font-bold text-gray-900 dark:text-white">{symbol}</span>
+                              <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600 text-[10px]">
                                 {chartRange}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-sm font-mono text-white">${price.toFixed(2)}</span>
+                              <span className="text-sm font-mono text-gray-900 dark:text-white">${price.toFixed(2)}</span>
                               <span className={cn(
                                 "text-xs font-medium flex items-center gap-0.5",
                                 isPositive ? "text-emerald-400" : "text-red-400"
@@ -1154,17 +1154,17 @@ export default function StockDetailPage() {
                         </div>
 
                         {/* Divider */}
-                        <div className="h-10 w-px bg-slate-700/50" />
+                        <div className="h-10 w-px bg-gray-200 dark:bg-slate-700/50" />
 
                         {/* Chart Type Toggle */}
-                        <div className="flex items-center gap-1 bg-slate-800/60 rounded-lg p-1 border border-slate-700/50">
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 border border-[#1a1a1a]">
                           <button
                             onClick={() => setChartType('area')}
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'area'
                                 ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/20"
-                                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                                : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
                             )}
                           >
                             <LineChart className="w-3.5 h-3.5" />
@@ -1176,7 +1176,7 @@ export default function StockDetailPage() {
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'candlestick'
                                 ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/20"
-                                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                                : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
                             )}
                           >
                             <BarChart2 className="w-3.5 h-3.5" />
@@ -1191,7 +1191,7 @@ export default function StockDetailPage() {
                             "p-2 rounded-lg transition-all border",
                             chartExpanded
                               ? "bg-teal-600/20 border-teal-500/30 text-teal-400"
-                              : "border-slate-700/50 text-slate-400 hover:text-white hover:border-slate-600"
+                              : "border-[#1a1a1a] text-slate-400 hover:text-white hover:border-slate-600"
                           )}
                         >
                           {chartExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1199,7 +1199,7 @@ export default function StockDetailPage() {
                       </div>
 
                       {/* Time Range Selector - Pill Style */}
-                      <div className="flex items-center gap-1 bg-slate-800/40 rounded-xl p-1 border border-slate-700/40">
+                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-xl p-1 border border-gray-200 dark:border-[#222]/40">
                         {['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'].map((range) => (
                           <button
                             key={range}
@@ -1208,7 +1208,7 @@ export default function StockDetailPage() {
                               "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
                               chartRange === range
                                 ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md"
-                                : "text-slate-500 hover:text-white hover:bg-slate-700/50"
+                                : "text-slate-500 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
                             )}
                           >
                             {range}
@@ -1218,7 +1218,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Live Indicator & Stats Bar */}
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/50">
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-[#222]">
                       <div className="flex items-center gap-4">
                         {/* Live Indicator */}
                         <div className="flex items-center gap-2">
@@ -1231,19 +1231,19 @@ export default function StockDetailPage() {
 
                         {/* Quick Stats */}
                         <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/50">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">H:</span>
                             <span className="text-emerald-400 font-mono font-medium">${quoteData?.high?.toFixed(2) || '—'}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/50">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">L:</span>
                             <span className="text-red-400 font-mono font-medium">${quoteData?.low?.toFixed(2) || '—'}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/50">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">O:</span>
                             <span className="text-slate-300 font-mono font-medium">${quoteData?.open?.toFixed(2) || (price - change).toFixed(2)}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-800/50">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <Volume2 className="w-3 h-3 text-slate-500" />
                             <span className="text-slate-300 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
                           </div>
@@ -1256,7 +1256,7 @@ export default function StockDetailPage() {
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
                           (analysisData?.components?.technical?.rsi || 50) > 70 ? "bg-red-500/20 text-red-400" :
                           (analysisData?.components?.technical?.rsi || 50) < 30 ? "bg-emerald-500/20 text-emerald-400" :
-                          "bg-slate-700/50 text-slate-300"
+                          "bg-gray-200 dark:bg-slate-700/50 text-slate-300"
                         )}>
                           <span className="text-slate-500">RSI</span>
                           <span>{analysisData?.components?.technical?.rsi?.toFixed(0) || '50'}</span>
@@ -1310,7 +1310,7 @@ export default function StockDetailPage() {
 
                   {/* Chart Footer - Key Levels */}
                   <div className="relative px-4 pb-4">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#151515] border border-[#1a1a1a]">
                       <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500" />
@@ -1343,14 +1343,14 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid Below Chart */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-slate-800/60 p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-teal-500/20">
                         <Target className="w-3.5 h-3.5 text-teal-400" />
                       </div>
                       <span className="text-xs text-slate-500">Day Range</span>
                     </div>
-                    <div className="relative h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                    <div className="relative h-2 bg-gray-200 dark:bg-slate-700/50 rounded-full overflow-hidden">
                       <div
                         className="absolute h-full bg-gradient-to-r from-red-500 via-amber-500 to-emerald-500 rounded-full"
                         style={{
@@ -1374,36 +1374,36 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-slate-800/60 p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-purple-500/20">
                         <PieChart className="w-3.5 h-3.5 text-purple-400" />
                       </div>
                       <span className="text-xs text-slate-500">Market Cap</span>
                     </div>
-                    <p className="text-lg font-bold text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</p>
                     <p className="text-[10px] text-slate-600 mt-1">Enterprise Value</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-slate-800/60 p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-amber-500/20">
                         <Activity className="w-3.5 h-3.5 text-amber-400" />
                       </div>
                       <span className="text-xs text-slate-500">Avg Volume</span>
                     </div>
-                    <p className="text-lg font-bold text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</p>
                     <p className="text-[10px] text-slate-600 mt-1">10-day average</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-slate-800/60 p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-cyan-500/20">
                         <Clock className="w-3.5 h-3.5 text-cyan-400" />
                       </div>
                       <span className="text-xs text-slate-500">P/E Ratio</span>
                     </div>
-                    <p className="text-lg font-bold text-white">{quoteData?.pe?.toFixed(1) || analysisData?.components?.fundamental?.pe?.toFixed(1) || '—'}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.pe?.toFixed(1) || analysisData?.components?.fundamental?.pe?.toFixed(1) || '—'}</p>
                     <p className="text-[10px] text-slate-600 mt-1">TTM earnings</p>
                   </Card>
                 </div>
@@ -1411,11 +1411,11 @@ export default function StockDetailPage() {
 
               <TabsContent value="options" className="space-y-4">
                 {/* Whale Flow */}
-                <Card className="bg-slate-900/80 border-slate-800">
-                  <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
+                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      <h3 className="text-sm font-semibold text-white">Whale Flow Activity</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Whale Flow Activity</h3>
                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">Live</Badge>
                     </div>
                     <Link href="/trade-desk">
@@ -1426,7 +1426,7 @@ export default function StockDetailPage() {
                   </div>
                   <div className="p-4 space-y-2">
                     {flowData && flowData.length > 0 ? flowData.map((flow: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className={cn("w-2 h-2 rounded-full", flow.direction === 'long' ? "bg-emerald-500" : "bg-red-500")} />
                           <span className={cn("text-sm font-medium", flow.direction === 'long' ? "text-emerald-400" : "text-red-400")}>
@@ -1436,7 +1436,7 @@ export default function StockDetailPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           {flow.volume && <span className="text-xs text-slate-400">{formatVolume(flow.volume)} vol</span>}
-                          <span className="font-mono text-sm text-slate-200">${flow.entryPrice?.toFixed(2)}</span>
+                          <span className="font-mono text-sm text-gray-700 dark:text-slate-200">${flow.entryPrice?.toFixed(2)}</span>
                           <Badge variant="outline" className={cn(
                             "text-xs",
                             flow.confidenceScore >= 80 ? "text-emerald-400 border-emerald-500/40" :
@@ -1455,14 +1455,14 @@ export default function StockDetailPage() {
                 </Card>
 
                 {/* Options Chain */}
-                <Card className="bg-slate-900/80 border-slate-800">
-                  <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
+                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-white">Options Chain</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Options Chain</h3>
                       {optionsData?.stockPrice && <span className="text-xs text-slate-400">@ ${optionsData.stockPrice.toFixed(2)}</span>}
                     </div>
                     <Link href={`/options-analyzer?symbol=${symbol}`}>
-                      <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-teal-600 hover:text-white hover:border-teal-600">
+                      <Button variant="outline" size="sm" className="border-gray-200 dark:border-[#222] text-slate-300 hover:bg-teal-600 hover:text-white hover:border-teal-600">
                         <BarChart2 className="w-4 h-4 mr-2" /> Analyzer
                       </Button>
                     </Link>
@@ -1494,10 +1494,10 @@ export default function StockDetailPage() {
                           {optionsData?.calls?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-emerald-500" : "bg-slate-800/30 hover:bg-slate-800/50"
+                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-emerald-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-slate-200")}>${opt.strike}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
                               <span className="font-mono text-emerald-400 w-14 text-right">{opt.bid?.toFixed(2) || '—'}</span>
                               <span className="font-mono text-emerald-400 w-14 text-right">{opt.ask?.toFixed(2) || '—'}</span>
                               <span className="text-slate-500 w-12 text-right">{opt.iv ? `${(opt.iv * 100).toFixed(0)}%` : '—'}</span>
@@ -1525,10 +1525,10 @@ export default function StockDetailPage() {
                           {optionsData?.puts?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-red-500" : "bg-slate-800/30 hover:bg-slate-800/50"
+                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-red-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-slate-200")}>${opt.strike}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
                               <span className="font-mono text-red-400 w-14 text-right">{opt.bid?.toFixed(2) || '—'}</span>
                               <span className="font-mono text-red-400 w-14 text-right">{opt.ask?.toFixed(2) || '—'}</span>
                               <span className="text-slate-500 w-12 text-right">{opt.iv ? `${(opt.iv * 100).toFixed(0)}%` : '—'}</span>
@@ -1547,7 +1547,7 @@ export default function StockDetailPage() {
 
               <TabsContent value="news" className="space-y-4">
                 {/* News Header Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-slate-800/60 p-4">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-gray-200 dark:border-[#222] p-4">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
                   <div className="relative flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1555,7 +1555,7 @@ export default function StockDetailPage() {
                         <Newspaper className="w-5 h-5 text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">{symbol} News Feed</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{symbol} News Feed</h3>
                         <p className="text-xs text-slate-500">Latest news and market coverage</p>
                       </div>
                     </div>
@@ -1567,7 +1567,7 @@ export default function StockDetailPage() {
                         </div>
                         <span className="text-xs text-blue-400 font-medium">Live</span>
                       </div>
-                      <Badge className="bg-slate-700/50 text-slate-300 border-slate-600">
+                      <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
                         {newsData?.length || 0} Articles
                       </Badge>
                     </div>
@@ -1577,7 +1577,7 @@ export default function StockDetailPage() {
                 {/* News Articles Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   {newsLoading ? (
-                    <Card className="col-span-2 bg-slate-900/80 border-slate-800 p-8">
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222] p-8">
                       <div className="flex flex-col items-center justify-center text-slate-400">
                         <motion.div
                           className="mb-3"
@@ -1592,7 +1592,7 @@ export default function StockDetailPage() {
                   ) : newsData && newsData.length > 0 ? (
                     <>
                       {/* Featured Article - First One */}
-                      <Card className="col-span-2 relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800/50 border-slate-700/50 hover:border-blue-500/50 transition-all group">
+                      <Card className="col-span-2 relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800/50 border-[#1a1a1a] hover:border-blue-500/50 transition-all group">
                         <a
                           href={newsData[0]?.url || newsData[0]?.link}
                           target="_blank"
@@ -1608,7 +1608,7 @@ export default function StockDetailPage() {
                           )}
                           <div className="flex items-center gap-4 mt-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
                                 <Building2 className="w-3 h-3 text-slate-400" />
                               </div>
                               <span className="text-xs text-blue-400 font-medium">{newsData[0]?.source}</span>
@@ -1623,7 +1623,7 @@ export default function StockDetailPage() {
                       {newsData.slice(1).map((item: any, i: number) => (
                         <Card
                           key={i}
-                          className="relative overflow-hidden bg-slate-900/60 border-slate-800/60 hover:border-slate-700 transition-all group"
+                          className="relative overflow-hidden bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] hover:border-gray-200 dark:border-[#222] transition-all group"
                         >
                           <a
                             href={item.url || item.link}
@@ -1632,7 +1632,7 @@ export default function StockDetailPage() {
                             className="block p-4"
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <h4 className="text-sm font-medium text-slate-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                              <h4 className="text-sm font-medium text-gray-700 dark:text-slate-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
                                 {item.title || item.headline}
                               </h4>
                               <ArrowUpRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 transition-colors shrink-0" />
@@ -1647,7 +1647,7 @@ export default function StockDetailPage() {
                       ))}
                     </>
                   ) : (
-                    <Card className="col-span-2 bg-slate-900/80 border-slate-800 p-8">
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222] p-8">
                       <div className="flex flex-col items-center justify-center text-slate-500">
                         <Newspaper className="w-10 h-10 text-slate-600 mb-2" />
                         <span className="text-sm">No news articles available for {symbol}</span>
@@ -1660,7 +1660,7 @@ export default function StockDetailPage() {
               <TabsContent value="analysts" className="space-y-4">
                 {/* Analyst Consensus Header */}
                 <div className="grid grid-cols-3 gap-4">
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-slate-800/60 p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1669,7 +1669,7 @@ export default function StockDetailPage() {
                         </div>
                         <span className="text-xs text-slate-500">Analyst Consensus</span>
                       </div>
-                      <div className="text-2xl font-bold text-white">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
                         {analystData?.consensus?.recommendation || 'Moderate Buy'}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">
@@ -1678,7 +1678,7 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-slate-800/60 p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-[#222] p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1698,7 +1698,7 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-slate-800/60 p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-[#222] p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1718,8 +1718,8 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Rating Distribution */}
-                <Card className="bg-slate-900/60 border-slate-800/60 p-4">
-                  <h3 className="text-sm font-semibold text-white mb-4">Rating Distribution</h3>
+                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Rating Distribution</h3>
                   <div className="flex items-center gap-3">
                     {[
                       { label: 'Strong Buy', value: analystData?.consensus?.strongBuy || 3, color: 'bg-emerald-500' },
@@ -1739,7 +1739,7 @@ export default function StockDetailPage() {
                             />
                           </div>
                           <div className="text-center mt-2">
-                            <div className="text-xs font-bold text-white">{item.value}</div>
+                            <div className="text-xs font-bold text-gray-900 dark:text-white">{item.value}</div>
                             <div className="text-[10px] text-slate-500 mt-0.5">{item.label}</div>
                           </div>
                         </div>
@@ -1749,10 +1749,10 @@ export default function StockDetailPage() {
                 </Card>
 
                 {/* Recent Ratings Table */}
-                <Card className="bg-slate-900/60 border-slate-800/60 overflow-hidden">
-                  <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">Recent Analyst Actions</h3>
-                    <Badge className="bg-slate-700/50 text-slate-300 border-slate-600">
+                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Recent Analyst Actions</h3>
+                    <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
                       {analystData?.ratings?.length || 0} Ratings
                     </Badge>
                   </div>
@@ -1764,9 +1764,9 @@ export default function StockDetailPage() {
                   ) : analystData?.ratings && analystData.ratings.length > 0 ? (
                     <div className="divide-y divide-slate-800/50">
                       {analystData.ratings.map((rating: any, i: number) => (
-                        <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
+                        <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-slate-800/80 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800/80 flex items-center justify-center">
                               <Building2 className="w-5 h-5 text-slate-500" />
                             </div>
                             <div>
@@ -1824,7 +1824,7 @@ export default function StockDetailPage() {
 
                     return (
                       <>
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-slate-800/60 p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
@@ -1838,7 +1838,7 @@ export default function StockDetailPage() {
                           </div>
                         </Card>
 
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-slate-800/60 p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-gray-200 dark:border-[#222] p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
@@ -1853,7 +1853,7 @@ export default function StockDetailPage() {
                         </Card>
 
                         <Card className={cn(
-                          "relative overflow-hidden border-slate-800/60 p-4",
+                          "relative overflow-hidden border-gray-200 dark:border-[#222] p-4",
                           netActivity >= 0
                             ? "bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30"
                             : "bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/30"
@@ -1888,18 +1888,18 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Insider Transactions Table */}
-                <Card className="bg-slate-900/60 border-slate-800/60 overflow-hidden">
-                  <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
                         <Shield className="w-4 h-4 text-purple-400" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-white">Insider Transactions</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Insider Transactions</h3>
                         <p className="text-xs text-slate-500">Recent executive & director trades</p>
                       </div>
                     </div>
-                    <Badge className="bg-slate-700/50 text-slate-300 border-slate-600">
+                    <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
                       {insiderData?.transactions?.length || 0} Trades
                     </Badge>
                   </div>
@@ -1917,7 +1917,7 @@ export default function StockDetailPage() {
                         const totalValue = shares * pricePerShare;
 
                         return (
-                          <div key={i} className="p-4 hover:bg-slate-800/30 transition-colors">
+                          <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-3">
                                 <div className={cn(
@@ -1944,7 +1944,7 @@ export default function StockDetailPage() {
                                 </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800/50">
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-[#222]">
                               <div className="flex items-center gap-4 text-xs">
                                 <div>
                                   <span className="text-slate-500">Shares:</span>
@@ -1979,7 +1979,7 @@ export default function StockDetailPage() {
 
               <TabsContent value="institutions" className="space-y-4">
                 {institutionLoading ? (
-                  <Card className="bg-slate-900/80 border-slate-800">
+                  <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
                     <div className="p-8 flex flex-col items-center justify-center text-slate-400">
                       <motion.div
                         className="mb-3"
@@ -1995,7 +1995,7 @@ export default function StockDetailPage() {
                   <>
                     {/* Ownership Overview */}
                     <div className="grid grid-cols-4 gap-4">
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-slate-800/60 p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-[#222] p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2007,13 +2007,13 @@ export default function StockDetailPage() {
                           <div className="text-3xl font-bold text-teal-400">
                             {institutionData?.breakdown?.institutionsPercent?.toFixed(1) || '65.0'}%
                           </div>
-                          <div className="h-1.5 bg-slate-700/50 rounded-full mt-3 overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-teal-500 rounded-full" style={{ width: `${institutionData?.breakdown?.institutionsPercent || 65}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-slate-800/60 p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-gray-200 dark:border-[#222] p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2025,13 +2025,13 @@ export default function StockDetailPage() {
                           <div className="text-3xl font-bold text-purple-400">
                             {institutionData?.breakdown?.insidersPercent?.toFixed(2) || '0.50'}%
                           </div>
-                          <div className="h-1.5 bg-slate-700/50 rounded-full mt-3 overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((institutionData?.breakdown?.insidersPercent || 0.5) * 10, 100)}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-slate-800/60 p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2043,13 +2043,13 @@ export default function StockDetailPage() {
                           <div className="text-3xl font-bold text-emerald-400">
                             {institutionData?.breakdown?.floatPercent?.toFixed(1) || '85.0'}%
                           </div>
-                          <div className="h-1.5 bg-slate-700/50 rounded-full mt-3 overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${institutionData?.breakdown?.floatPercent || 85}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-slate-800/60 p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-[#222] p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2067,8 +2067,8 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Ownership Pie Visualization */}
-                    <Card className="bg-slate-900/60 border-slate-800/60 p-5">
-                      <h3 className="text-sm font-semibold text-white mb-4">Ownership Distribution</h3>
+                    <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-5">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Ownership Distribution</h3>
                       <div className="flex items-center gap-8">
                         {/* Simple visual bar breakdown */}
                         <div className="flex-1">
@@ -2096,25 +2096,25 @@ export default function StockDetailPage() {
                     </Card>
 
                     {/* Top Institutional Holders */}
-                    <Card className="bg-slate-900/60 border-slate-800/60 overflow-hidden">
-                      <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+                    <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
+                      <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30">
                             <Building2 className="w-5 h-5 text-teal-400" />
                           </div>
                           <div>
-                            <h3 className="text-sm font-semibold text-white">Top Institutional Holders</h3>
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Top Institutional Holders</h3>
                             <p className="text-xs text-slate-500">Major fund positions in {symbol}</p>
                           </div>
                         </div>
-                        <Badge className="bg-slate-700/50 text-slate-300 border-slate-600">
+                        <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
                           {institutionData?.holders?.length || 0} Holders
                         </Badge>
                       </div>
                       {institutionData?.holders && institutionData.holders.length > 0 ? (
                         <div className="divide-y divide-slate-800/50">
                           {institutionData.holders.map((holder: any, i: number) => (
-                            <div key={i} className="p-4 hover:bg-slate-800/30 transition-colors">
+                            <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start gap-3">
                                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-lg font-bold text-slate-400">
@@ -2129,7 +2129,7 @@ export default function StockDetailPage() {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-sm font-bold text-white">${formatVolume(holder.value)}</p>
+                                  <p className="text-sm font-bold text-gray-900 dark:text-white">${formatVolume(holder.value)}</p>
                                   {holder.changePercent !== undefined && holder.changePercent !== 0 && (
                                     <div className={cn(
                                       "flex items-center gap-1 justify-end text-xs mt-1",
@@ -2161,18 +2161,18 @@ export default function StockDetailPage() {
                               <div className="p-1.5 rounded-lg bg-teal-500/20">
                                 <Brain className="w-4 h-4 text-teal-400" />
                               </div>
-                              <span className="text-sm font-semibold text-white">QuantEdge Flow Analysis</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">QuantEdge Flow Analysis</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="p-3 rounded-lg bg-slate-800/50">
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Options Flow Grade</div>
                                 <div className="text-lg font-bold text-rose-400">{analysisData?.components?.flow?.grade || 'B+'}</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-slate-800/50">
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Flow Score</div>
-                                <div className="text-lg font-bold text-white">{analysisData?.components?.flow?.score || 72}%</div>
+                                <div className="text-lg font-bold text-gray-900 dark:text-white">{analysisData?.components?.flow?.score || 72}%</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-slate-800/50">
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Smart Money Signal</div>
                                 <div className={cn("text-sm font-bold",
                                   (analysisData?.components?.flow?.score || 72) >= 70 ? "text-emerald-400" :
@@ -2181,7 +2181,7 @@ export default function StockDetailPage() {
                                   {(analysisData?.components?.flow?.score || 72) >= 70 ? 'Bullish' : (analysisData?.components?.flow?.score || 72) >= 50 ? 'Neutral' : 'Bearish'}
                                 </div>
                               </div>
-                              <div className="p-3 rounded-lg bg-slate-800/50">
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Institutional Est.</div>
                                 <div className="text-lg font-bold text-teal-400">{institutionData?.breakdown?.institutionsPercent?.toFixed(0) || '65'}%</div>
                               </div>

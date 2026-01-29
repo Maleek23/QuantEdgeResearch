@@ -67,13 +67,11 @@ const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
 const CTTracker = lazy(() => import("@/pages/ct-tracker"));
 const TradeAudit = lazy(() => import("@/pages/trade-audit"));
 const DataAuditCenter = lazy(() => import("@/pages/data-audit-center"));
-const WatchlistBot = lazy(() => import("@/pages/watchlist-bot"));
 const AutomationsPage = lazy(() => import("@/pages/automations"));
 const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
-const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const UnifiedWatchlist = lazy(() => import("@/pages/unified-watchlist"));
@@ -89,15 +87,8 @@ const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
-const WhaleFlowPage = lazy(() => import("@/pages/whale-flow"));
-const WSBTrending = lazy(() => import("@/pages/wsb-trending"));
-const SocialTrends = lazy(() => import("@/pages/social-trends"));
-const SmartAdvisor = lazy(() => import("@/pages/smart-advisor"));
-const ResearchHubPage = lazy(() => import("@/pages/research-hub"));
 const DiscoverPage = lazy(() => import("@/pages/discover"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
-const AIStockPickerPage = lazy(() => import("@/pages/ai-stock-picker"));
-const MarketMoversPage = lazy(() => import("@/pages/market-movers"));
 const HistoryPage = lazy(() => import("@/pages/history"));
 
 function PageLoader() {
@@ -125,9 +116,9 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, go to Research Hub (main dashboard)
+  // If logged in, go to Home (main dashboard)
   if (user) {
-    return <Redirect to="/research" />;
+    return <Redirect to="/home" />;
   }
 
   // Otherwise show landing page
@@ -147,19 +138,21 @@ function Router() {
       {/* AI Learning Dashboard */}
       <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
-      {/* Whale Flow Monitor - Institutional Options Flow */}
-      <Route path="/whale-flow" component={withBetaProtection(WhaleFlowPage)} />
+      {/* Whale Flow redirects to Smart Money */}
+      <Route path="/whale-flow">
+        <Redirect to="/smart-money" />
+      </Route>
 
       {/* Home Dashboard - Main landing for logged in users */}
       <Route path="/home" component={withBetaProtection(HomePage)} />
       <Route path="/dashboard">
-        <Redirect to="/research" />
+        <Redirect to="/home" />
       </Route>
       <Route path="/command-center">
-        <Redirect to="/research" />
+        <Redirect to="/home" />
       </Route>
       <Route path="/command-center-v2">
-        <Redirect to="/research" />
+        <Redirect to="/home" />
       </Route>
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
@@ -179,20 +172,36 @@ function Router() {
       <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
       <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
       <Route path="/ct-tracker" component={withBetaProtection(CTTracker)} />
-      <Route path="/wsb-trending" component={withBetaProtection(WSBTrending)} />
-      <Route path="/social-trends" component={withBetaProtection(SocialTrends)} />
-      <Route path="/watchlist-bot" component={withBetaProtection(WatchlistBot)} />
+      <Route path="/wsb-trending">
+        <Redirect to="/discover" />
+      </Route>
+      <Route path="/social-trends">
+        <Redirect to="/discover" />
+      </Route>
+      <Route path="/watchlist-bot">
+        <Redirect to="/automations" />
+      </Route>
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
-      <Route path="/smart-advisor" component={withBetaProtection(SmartAdvisor)} />
-      <Route path="/research" component={withBetaProtection(ResearchHubPage)} />
+      <Route path="/smart-advisor">
+        <Redirect to="/trading-engine" />
+      </Route>
+      <Route path="/research">
+        <Redirect to="/home" />
+      </Route>
       <Route path="/stock/:symbol" component={withBetaProtection(StockDetailPage)} />
       <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
-      <Route path="/market-movers" component={withBetaProtection(MarketMoversPage)} />
+      <Route path="/market-movers">
+        <Redirect to="/market" />
+      </Route>
       <Route path="/watchlist" component={withBetaProtection(UnifiedWatchlist)} />
-      <Route path="/ai-stock-picker" component={withBetaProtection(AIStockPickerPage)} />
-      <Route path="/smart-signals" component={withBetaProtection(SwingScanner)} />
+      <Route path="/ai-stock-picker">
+        <Redirect to="/trade-desk" />
+      </Route>
+      <Route path="/smart-signals">
+        <Redirect to="/market-scanner" />
+      </Route>
       <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
       <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
       <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
@@ -209,7 +218,9 @@ function Router() {
       <Route path="/pattern-scanner">
         <Redirect to="/chart-analysis" />
       </Route>
-      <Route path="/swing-scanner" component={withBetaProtection(SwingScanner)} />
+      <Route path="/swing-scanner">
+        <Redirect to="/market-scanner" />
+      </Route>
       <Route path="/bullish-trends" component={withBetaProtection(BullishTrends)} />
       <Route path="/futures">
         <Redirect to="/trade-desk?tab=futures" />

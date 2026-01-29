@@ -46,7 +46,18 @@ export const users = pgTable("users", {
   // Beta Access Control
   hasBetaAccess: boolean("has_beta_access").default(false), // True if user has redeemed invite or is grandfathered
   betaInviteId: varchar("beta_invite_id"), // Which invite they used to join
-  
+
+  // Daily Credits System (for waitlist users - non-beta)
+  credits: integer("credits").notNull().default(10), // Current credit balance
+  lastCreditRefresh: timestamp("last_credit_refresh"), // Last daily refresh timestamp
+  loginStreak: integer("login_streak").notNull().default(0), // Consecutive login days
+  lastLoginDate: text("last_login_date"), // YYYY-MM-DD format for streak tracking
+
+  // Referral System
+  referralCode: varchar("referral_code").unique(), // User's unique referral code
+  referredBy: varchar("referred_by"), // Referral code used at signup
+  totalCreditsEarned: integer("total_credits_earned").default(0), // Lifetime credits earned
+
   // Onboarding fields (captured during beta signup)
   occupation: varchar("occupation"),
   tradingExperienceLevel: varchar("trading_experience_level"), // 'beginner' | 'intermediate' | 'advanced' | 'professional'
@@ -2391,6 +2402,45 @@ export const AI_CREDIT_ALLOCATIONS: Record<SubscriptionTier, number> = {
   pro: 1500,      // ~50 chats/day
   admin: 999999,  // Unlimited for admins
 };
+
+// ============================================================================
+// FEATURE CREDIT TRANSACTIONS - Track daily credits for waitlist users
+// ============================================================================
+
+export type CreditTransactionType =
+  | 'daily_refresh'      // Daily 10 credits reset
+  | 'daily_login'        // +2 for login
+  | 'streak_bonus'       // +10 for 7-day streak
+  | 'referral_signup'    // +20 for referral
+  | 'lesson_complete'    // +3 for lesson
+  | 'twitter_share'      // +5 for sharing
+  | 'feature_spend'      // Negative - spent on feature
+  | 'admin_grant'        // Admin-granted credits
+  | 'promo_code';        // Promotional credits
+
+export const creditTransactions = pgTable("credit_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+
+  // Transaction details
+  type: varchar("type").$type<CreditTransactionType>().notNull(),
+  amount: integer("amount").notNull(), // Positive for earn, negative for spend
+  balanceAfter: integer("balance_after").notNull(),
+
+  // Context
+  featureId: varchar("feature_id"), // Which feature was used (for spends)
+  description: text("description"), // Human-readable description
+  metadata: jsonb("metadata"), // Extra context (referral user ID, lesson ID, etc.)
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_credit_transactions_user_id").on(table.userId),
+  index("idx_credit_transactions_created_at").on(table.createdAt),
+]);
+
+export const insertCreditTransactionSchema = createInsertSchema(creditTransactions).omit({ id: true, createdAt: true });
+export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
+export type CreditTransaction = typeof creditTransactions.$inferSelect;
 
 // ============================================================================
 // BETA WAITLIST - Email collection for early access

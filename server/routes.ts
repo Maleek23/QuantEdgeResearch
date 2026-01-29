@@ -70,6 +70,7 @@ import {
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
 import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './realtime-price-service';
 import { creditService } from './creditService';
+import { featureCreditService } from './featureCreditService';
 import { generateInviteToken, sendBetaInviteEmail, sendWelcomeEmail, isEmailServiceConfigured } from './emailService';
 import { 
   getCalibratedConfidence as getCalibrationScore, 
@@ -3904,15 +3905,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/ai/credits/analytics", async (req, res) => {
     try {
       const userId = req.session?.userId || (req.user as any)?.claims?.sub;
-      
+
       if (!userId) {
         return res.status(401).json({ error: "Authentication required" });
       }
-      
+
       const user = await storage.getUserById(userId);
       const tier = (user?.subscriptionTier as 'free' | 'advanced' | 'pro' | 'admin') || 'free';
       const analytics = await creditService.getTierAnalytics(tier, userId);
-      
+
       res.json({
         ...analytics,
         tier,
@@ -3920,6 +3921,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'get credit analytics' });
       res.status(500).json({ error: "Failed to fetch credit analytics" });
+    }
+  });
+
+  // ============================================================================
+  // FEATURE CREDITS - Daily credits for waitlist users
+  // ============================================================================
+
+  // GET /api/credits/balance - Get current user's feature credit balance
+  app.get("/api/credits/balance", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Beta users have unlimited credits
+      if (user.hasBetaAccess || user.subscriptionTier === 'pro' || user.subscriptionTier === 'admin') {
+        return res.json({
+          balance: Infinity,
+          streak: 0,
+          referralCode: user.referralCode,
+          dailyEarned: 0,
+          isBeta: true,
+        });
+      }
+
+      const balance = await featureCreditService.getBalance(userId);
+      res.json({
+        ...balance,
+        isBeta: false,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'get feature credit balance' });
+      res.status(500).json({ error: "Failed to fetch credit balance" });
+    }
+  });
+
+  // POST /api/credits/spend - Spend credits on a feature
+  app.post("/api/credits/spend", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { featureId, amount } = req.body;
+
+      if (!featureId || typeof amount !== 'number' || amount <= 0) {
+        return res.status(400).json({ error: "Invalid request: featureId and amount required" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Beta users don't spend credits
+      if (user.hasBetaAccess || user.subscriptionTier === 'pro' || user.subscriptionTier === 'admin') {
+        return res.json({ success: true, balance: Infinity });
+      }
+
+      const result = await featureCreditService.deductCredits(userId, amount, featureId);
+
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error, balance: result.newBalance });
+      }
+
+      res.json({ success: true, balance: result.newBalance });
+    } catch (error) {
+      logError(error as Error, { context: 'spend feature credits' });
+      res.status(500).json({ error: "Failed to spend credits" });
+    }
+  });
+
+  // POST /api/credits/earn - Earn credits through actions
+  app.post("/api/credits/earn", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { action, metadata } = req.body;
+
+      if (!action) {
+        return res.status(400).json({ error: "Action is required" });
+      }
+
+      // Validate allowed actions
+      const allowedActions = ['lesson_complete', 'twitter_share'];
+      if (!allowedActions.includes(action)) {
+        return res.status(400).json({ error: "Invalid action" });
+      }
+
+      const result = await featureCreditService.awardCredits(userId, action, metadata);
+
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      res.json({ success: true, balance: result.newBalance, earned: result.amount });
+    } catch (error) {
+      logError(error as Error, { context: 'earn feature credits' });
+      res.status(500).json({ error: "Failed to award credits" });
+    }
+  });
+
+  // GET /api/credits/history - Get credit transaction history
+  app.get("/api/credits/history", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const history = await featureCreditService.getTransactionHistory(userId, limit);
+
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'get credit history' });
+      res.status(500).json({ error: "Failed to fetch credit history" });
+    }
+  });
+
+  // POST /api/credits/referral-code - Generate or get referral code
+  app.post("/api/credits/referral-code", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const code = await featureCreditService.generateReferralCode(userId);
+      res.json({ referralCode: code });
+    } catch (error) {
+      logError(error as Error, { context: 'generate referral code' });
+      res.status(500).json({ error: "Failed to generate referral code" });
     }
   });
 

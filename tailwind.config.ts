@@ -4,7 +4,32 @@ export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
+    // Custom screens for mobile-first design (easier iOS/Android transition)
+    screens: {
+      'xs': '375px',    // iPhone SE, small phones
+      'sm': '640px',    // Large phones, small tablets
+      'md': '768px',    // Tablets
+      'lg': '1024px',   // Laptops
+      'xl': '1280px',   // Desktops
+      '2xl': '1536px',  // Large screens
+    },
     extend: {
+      // Touch-friendly sizes (44px minimum for iOS/Android)
+      minHeight: {
+        'touch': '44px',
+        'touch-lg': '48px',
+      },
+      minWidth: {
+        'touch': '44px',
+        'touch-lg': '48px',
+      },
+      // Safe area insets for notched devices
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
       borderRadius: {
         lg: ".5625rem", /* 9px */
         md: ".375rem", /* 6px */

@@ -9,29 +9,33 @@ import {
   TrendingDown,
   ArrowRight,
   ChevronRight,
-  BarChart2,
   Brain,
   Target,
   Activity,
-  Clock,
   Zap,
   Newspaper,
-  Shield,
-  Flame,
-  Search,
   LineChart,
-  PieChart,
-  BookOpen,
-  Users,
-  Sparkles,
-  Eye,
-  Calculator,
   Layers,
   Globe,
+  Search,
+  Star,
+  Sparkles,
+  Eye,
+  BarChart3,
+  Cpu,
+  Calendar,
+  Clock,
+  ExternalLink,
+  AlertCircle,
+  Bot,
+  Radar,
+  Users,
+  Play,
+  Flame,
+  DollarSign,
 } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
-import { AuroraBackground } from "@/components/aurora-background";
-import { ParticleBackground } from "@/components/particle-background";
+import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
 interface MarketQuote {
   regularMarketPrice: number;
@@ -54,208 +58,166 @@ function useMarketStatus() {
   const isAfterHours = timeInMinutes >= 960 && timeInMinutes < 1200;
 
   let status = "Closed";
-  let statusColor = "text-slate-500";
-  let statusBg = "bg-slate-500/10";
   if (!isWeekend) {
-    if (isMarketHours) {
-      status = "Open";
-      statusColor = "text-emerald-400";
-      statusBg = "bg-emerald-500/10";
-    } else if (isPreMarket) {
-      status = "Pre-Market";
-      statusColor = "text-amber-400";
-      statusBg = "bg-amber-500/10";
-    } else if (isAfterHours) {
-      status = "After Hours";
-      statusColor = "text-amber-400";
-      statusBg = "bg-amber-500/10";
-    }
+    if (isMarketHours) status = "Open";
+    else if (isPreMarket) status = "Pre-Market";
+    else if (isAfterHours) status = "After Hours";
   }
 
-  return { status, statusColor, statusBg, isOpen: isMarketHours && !isWeekend };
+  return { status, isOpen: isMarketHours && !isWeekend };
 }
 
-// Compact Market Ticker
+// Market Ticker Bar (same style as landing)
 function MarketTicker() {
   const { data: marketData } = useQuery<{ quotes: Record<string, MarketQuote> }>({
-    queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,VIX"],
+    queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,VIX,BTC-USD,ETH-USD"],
     refetchInterval: 30000,
   });
 
-  const { status, statusColor, statusBg } = useMarketStatus();
-
-  const vix = marketData?.quotes?.VIX?.regularMarketPrice || 0;
-  const vixColor = vix < 15 ? "text-emerald-400" : vix < 20 ? "text-cyan-400" : vix < 30 ? "text-amber-400" : "text-red-400";
+  const { status, isOpen } = useMarketStatus();
 
   const indices = [
-    { symbol: "SPY", name: "S&P" },
+    { symbol: "SPY", name: "S&P 500" },
     { symbol: "QQQ", name: "Nasdaq" },
     { symbol: "DIA", name: "Dow" },
     { symbol: "IWM", name: "Russell" },
+    { symbol: "VIX", name: "VIX" },
+    { symbol: "BTC-USD", name: "Bitcoin" },
+    { symbol: "ETH-USD", name: "Ethereum" },
   ];
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border", statusBg, status === "Open" ? "border-emerald-500/20" : "border-slate-700/50")}>
-        <div className={cn("w-2 h-2 rounded-full", status === "Open" ? "bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50" : "bg-slate-400")} />
-        <span className={statusColor}>{status}</span>
-      </div>
-
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 justify-center">
-        {indices.map((index) => {
-          const quote = marketData?.quotes?.[index.symbol];
-          const change = quote?.regularMarketChangePercent || 0;
-          return (
-            <Link key={index.symbol} href={`/stock/${index.symbol}`}>
-              <div className={cn(
-                "flex items-center gap-1.5 text-xs whitespace-nowrap cursor-pointer px-3 py-1.5 rounded-lg transition-all duration-200",
-                "hover:bg-slate-800/50 hover:scale-105",
-                change >= 0 ? "bg-emerald-500/5 border border-emerald-500/10" : "bg-red-500/5 border border-red-500/10"
-              )}>
-                <span className="text-slate-400 font-medium">{index.name}</span>
-                <span className={cn("font-bold tabular-nums", change >= 0 ? "text-emerald-400" : "text-red-400")}>
-                  {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-        <div className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border",
-          vix < 20 ? "bg-slate-800/50 border-slate-700/50" : "bg-amber-500/10 border-amber-500/20"
-        )}>
-          <span className="text-xs text-slate-400 font-medium">VIX</span>
-          <span className={cn("text-xs font-bold tabular-nums", vixColor)}>{vix.toFixed(1)}</span>
+    <div className="bg-gray-50 dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#1a1a1a] overflow-hidden">
+      <div className="flex items-center h-8">
+        <div className="flex-shrink-0 flex items-center gap-1.5 px-4 border-r border-gray-200 dark:border-[#222] bg-gray-50 dark:bg-[#0a0a0a] z-10">
+          <div className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            isOpen ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+          )} />
+          <span className={cn(
+            "text-[11px] font-medium",
+            isOpen ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"
+          )}>{status}</span>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <div className="flex animate-marquee">
+            {[...indices, ...indices].map((idx, i) => {
+              const quote = marketData?.quotes?.[idx.symbol];
+              const change = quote?.regularMarketChangePercent || 0;
+              return (
+                <Link key={`${idx.symbol}-${i}`} href={`/stock/${idx.symbol}`}>
+                  <div className="flex items-center gap-3 px-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-[#111] transition-colors">
+                    <span className="text-[11px] font-medium text-gray-600 dark:text-slate-400">{idx.symbol}</span>
+                    <span className={cn(
+                      "text-[11px] font-mono",
+                      change >= 0 ? "text-emerald-500" : "text-red-500"
+                    )}>
+                      {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Research Tools Grid - What the platform offers
+// Multi-Engine Visualization (matching landing page)
+const tradingEngines = [
+  { id: "ML", name: "Machine Learning", desc: "Pattern recognition", color: "#10b981", icon: Cpu },
+  { id: "AI", name: "AI Analysis", desc: "Multi-layer AI", color: "#8b5cf6", icon: Brain },
+  { id: "QNT", name: "Quantitative", desc: "Statistical signals", color: "#3b82f6", icon: BarChart3 },
+  { id: "FLW", name: "Order Flow", desc: "Dark pools & institutions", color: "#f59e0b", icon: Activity },
+  { id: "SNT", name: "Sentiment", desc: "News & social", color: "#ec4899", icon: Eye },
+  { id: "TCH", name: "Technical", desc: "Chart patterns", color: "#06b6d4", icon: LineChart },
+];
+
+// Research Tools Grid
 function ResearchTools() {
   const tools = [
     {
       title: "AI Trade Ideas",
-      description: "6-engine signal analysis with confidence scores",
+      description: "Multi-engine convergence signals with confidence scores",
       icon: Brain,
       href: "/trade-desk",
-      color: "text-cyan-400",
-      bg: "bg-cyan-500/10",
-      badge: "Popular",
+      color: "emerald",
     },
     {
       title: "Technical Charts",
-      description: "Advanced charting with indicators & patterns",
+      description: "Advanced charting with 50+ indicators",
       icon: LineChart,
       href: "/chart-analysis",
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
+      color: "purple",
     },
     {
       title: "Stock Screener",
       description: "Filter stocks by technicals & fundamentals",
       icon: Target,
       href: "/discover",
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
+      color: "emerald",
     },
     {
       title: "Market News",
       description: "Real-time news with sentiment analysis",
       icon: Newspaper,
       href: "/market",
-      color: "text-amber-400",
-      bg: "bg-amber-500/10",
+      color: "amber",
     },
     {
       title: "Options Flow",
-      description: "Track unusual options activity",
+      description: "Track unusual options activity & smart money",
       icon: Layers,
       href: "/smart-money",
-      color: "text-pink-400",
-      bg: "bg-pink-500/10",
+      color: "pink",
     },
     {
       title: "Market Overview",
-      description: "Live market data & sector analysis",
+      description: "Sector heatmaps & market breadth",
       icon: Globe,
       href: "/market",
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
+      color: "blue",
     },
   ];
 
+  const colorClasses: Record<string, { bg: string; text: string; border: string }> = {
+    emerald: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "hover:border-emerald-500/30" },
+    purple: { bg: "bg-purple-500/10", text: "text-purple-500", border: "hover:border-purple-500/30" },
+    teal: { bg: "bg-teal-500/10", text: "text-teal-500", border: "hover:border-teal-500/30" },
+    amber: { bg: "bg-amber-500/10", text: "text-amber-500", border: "hover:border-amber-500/30" },
+    pink: { bg: "bg-pink-500/10", text: "text-pink-500", border: "hover:border-pink-500/30" },
+    blue: { bg: "bg-blue-500/10", text: "text-blue-500", border: "hover:border-blue-500/30" },
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {tools.map((tool) => (
-        <Link key={tool.title} href={tool.href}>
-          <Card className="cursor-pointer bg-slate-900/60 backdrop-blur-sm border-slate-800/50 hover:border-slate-600 hover:bg-slate-900/80 transition-all duration-300 group h-full overflow-hidden relative">
-            {/* Hover glow effect */}
-            <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br to-transparent", tool.bg.replace('bg-', 'from-'))} />
-            <CardContent className="p-4 relative">
-              <div className="flex items-start justify-between mb-2">
-                <div className={cn("p-2.5 rounded-xl", tool.bg, "group-hover:scale-110 transition-transform duration-300")}>
-                  <tool.icon className={cn("h-4 w-4", tool.color)} />
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      {tools.map((tool) => {
+        const colors = colorClasses[tool.color];
+        return (
+          <Link key={tool.title} href={tool.href}>
+            <Card className={cn(
+              "cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] transition-all duration-200",
+              colors.border,
+              "hover:shadow-lg hover:-translate-y-0.5"
+            )}>
+              <CardContent className="p-4">
+                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", colors.bg)}>
+                  <tool.icon className={cn("h-5 w-5", colors.text)} />
                 </div>
-                {tool.badge && (
-                  <Badge className="text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">{tool.badge}</Badge>
-                )}
-              </div>
-              <h3 className="text-sm font-semibold text-white mb-1 group-hover:text-cyan-50 transition-colors">{tool.title}</h3>
-              <p className="text-[11px] text-slate-500 leading-relaxed">{tool.description}</p>
-              <ArrowRight className="w-4 h-4 text-slate-600 absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{tool.title}</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-500">{tool.description}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
-// Who it's for section
-function TraderTypes() {
-  const types = [
-    {
-      title: "Day Traders",
-      description: "Real-time signals, momentum plays, quick analysis",
-      icon: Zap,
-      color: "text-amber-400",
-    },
-    {
-      title: "Swing Traders",
-      description: "Multi-day setups, technical patterns, entry/exit levels",
-      icon: TrendingUp,
-      color: "text-emerald-400",
-    },
-    {
-      title: "Options Traders",
-      description: "Flow analysis, unusual activity, Greeks",
-      icon: Layers,
-      color: "text-purple-400",
-    },
-    {
-      title: "Investors",
-      description: "Fundamental research, long-term analysis",
-      icon: PieChart,
-      color: "text-blue-400",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {types.map((type) => (
-        <div key={type.title} className="text-center p-4 rounded-lg bg-slate-800/30 border border-slate-700/30">
-          <type.icon className={cn("h-5 w-5 mx-auto mb-2", type.color)} />
-          <h4 className="text-sm font-semibold text-white mb-1">{type.title}</h4>
-          <p className="text-[10px] text-slate-500">{type.description}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Latest AI Ideas - Compact
+// Latest AI Ideas
 function LatestIdeas() {
   const { data } = useQuery<{ setups: Array<{
     symbol: string;
@@ -267,348 +229,725 @@ function LatestIdeas() {
     refetchInterval: 60000,
   });
 
-  const ideas = data?.setups?.slice(0, 4) || [];
+  const ideas = data?.setups?.slice(0, 5) || [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-semibold text-white">Latest AI Ideas</h3>
-        </div>
-        <Link href="/trade-desk">
-          <span className="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1">
-            View all <ChevronRight className="h-3 w-3" />
-          </span>
-        </Link>
-      </div>
-      <div className="space-y-2">
-        {ideas.length > 0 ? ideas.map((idea, i) => {
-          const isLong = idea.direction === "bullish" || idea.direction === "LONG" || idea.direction === "long";
-          return (
-            <Link key={i} href={`/stock/${idea.symbol}`}>
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 border border-slate-700/30 transition-all cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "w-7 h-7 rounded flex items-center justify-center font-bold text-[10px]",
-                    isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                  )}>
-                    {idea.symbol.slice(0, 2)}
-                  </div>
-                  <div>
-                    <span className="font-semibold text-white text-sm">{idea.symbol}</span>
-                    <span className={cn(
-                      "ml-2 text-[10px] px-1.5 py-0.5 rounded",
-                      isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                    )}>
-                      {isLong ? '↑' : '↓'}
-                    </span>
-                  </div>
-                </div>
-                <span className={cn(
-                  "text-sm font-bold",
-                  idea.confidenceScore >= 75 ? "text-emerald-400" :
-                  idea.confidenceScore >= 60 ? "text-amber-400" : "text-slate-400"
-                )}>
-                  {idea.confidenceScore}%
-                </span>
-              </div>
-            </Link>
-          );
-        }) : (
-          <div className="text-xs text-slate-500 text-center py-6 bg-slate-800/20 rounded-lg">
-            No active ideas right now
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+              <Brain className="w-4 h-4 text-emerald-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">AI Trade Ideas</h3>
           </div>
-        )}
-      </div>
-    </div>
+          <Link href="/trade-desk">
+            <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+              View all <ChevronRight className="h-3 w-3" />
+            </span>
+          </Link>
+        </div>
+        <div className="space-y-2">
+          {ideas.length > 0 ? ideas.map((idea, i) => {
+            const isLong = idea.direction === "bullish" || idea.direction === "LONG" || idea.direction === "long";
+            return (
+              <Link key={i} href={`/stock/${idea.symbol}`}>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs",
+                      isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                    )}>
+                      {idea.symbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-900 dark:text-white text-sm">{idea.symbol}</span>
+                      <span className={cn(
+                        "ml-2 text-[10px] px-1.5 py-0.5 rounded font-medium",
+                        isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                      )}>
+                        {isLong ? "LONG" : "SHORT"}
+                      </span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={cn(
+                    "font-mono",
+                    idea.confidenceScore >= 75 ? "border-emerald-500/30 text-emerald-500" :
+                    idea.confidenceScore >= 60 ? "border-amber-500/30 text-amber-500" : "border-gray-300 dark:border-slate-600 text-gray-500 dark:text-slate-400"
+                  )}>
+                    {idea.confidenceScore}%
+                  </Badge>
+                </div>
+              </Link>
+            );
+          }) : (
+            <div className="text-sm text-gray-500 dark:text-slate-500 text-center py-8 bg-gray-50 dark:bg-[#0a0a0a] rounded-lg">
+              No active ideas right now
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// Market Movers - Compact
+// Breaking News Feed
+function BreakingNews() {
+  const { data, isLoading } = useQuery<{
+    news: Array<{
+      title: string;
+      summary?: string;
+      url: string;
+      source: string;
+      publishedAt: string;
+      tickers?: string[];
+      sentiment?: string;
+    }>;
+  }>({
+    queryKey: ["/api/news?limit=6"],
+    refetchInterval: 120000,
+  });
+
+  const news = data?.news?.slice(0, 6) || [];
+
+  const getSentimentColor = (sentiment?: string) => {
+    if (sentiment === 'bullish' || sentiment === 'positive') return 'text-emerald-500 bg-emerald-500/10';
+    if (sentiment === 'bearish' || sentiment === 'negative') return 'text-red-500 bg-red-500/10';
+    return 'text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-[#1a1a1a]';
+  };
+
+  const formatTimeAgo = (date: string) => {
+    const now = new Date();
+    const published = new Date(date);
+    const diffMs = now.getTime() - published.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+  };
+
+  return (
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
+              <Newspaper className="w-4 h-4 text-orange-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Breaking News</h3>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse mr-1.5" />
+            Live
+          </Badge>
+        </div>
+        <div className="space-y-2">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="p-3 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] animate-pulse">
+                  <div className="h-4 bg-gray-200 dark:bg-[#222] rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-100 dark:bg-[#1a1a1a] rounded w-1/4" />
+                </div>
+              ))}
+            </div>
+          ) : news.length > 0 ? (
+            news.map((article, i) => (
+              <a
+                key={i}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-3 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {article.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-gray-500 dark:text-slate-500">{article.source}</span>
+                      <span className="text-gray-300 dark:text-slate-600">·</span>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatTimeAgo(article.publishedAt)}
+                      </span>
+                      {article.tickers && article.tickers.length > 0 && (
+                        <>
+                          <span className="text-gray-300 dark:text-slate-600">·</span>
+                          <div className="flex gap-1">
+                            {article.tickers.slice(0, 2).map((ticker) => (
+                              <span key={ticker} className="text-[10px] font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                ${ticker}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-gray-400 dark:text-slate-600 flex-shrink-0 group-hover:text-emerald-500 transition-colors" />
+                </div>
+              </a>
+            ))
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-slate-500 text-center py-8 bg-gray-50 dark:bg-[#0a0a0a] rounded-lg">
+              No breaking news right now
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Upcoming Earnings Calendar
+function EarningsCalendar() {
+  const { data, isLoading } = useQuery<{
+    earnings: Array<{
+      symbol: string;
+      company?: string;
+      reportDate: string;
+      fiscalQuarter?: string;
+      estimatedEps?: number;
+      time?: string;
+    }>;
+  }>({
+    queryKey: ["/api/earnings/upcoming?days=7"],
+    refetchInterval: 300000,
+  });
+
+  const earnings = data?.earnings?.slice(0, 8) || [];
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const getTimeLabel = (time?: string) => {
+    if (time === 'bmo' || time === 'BMO') return { label: 'Before Open', color: 'text-amber-500 bg-amber-500/10' };
+    if (time === 'amc' || time === 'AMC') return { label: 'After Close', color: 'text-purple-500 bg-purple-500/10' };
+    return { label: 'TBD', color: 'text-gray-500 bg-gray-100 dark:bg-[#1a1a1a]' };
+  };
+
+  return (
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
+              <Calendar className="w-4 h-4 text-blue-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Earnings Calendar</h3>
+          </div>
+          <Link href="/market">
+            <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+              Full calendar <ChevronRight className="h-3 w-3" />
+            </span>
+          </Link>
+        </div>
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="p-2.5 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] animate-pulse">
+                  <div className="h-4 bg-gray-200 dark:bg-[#222] rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-gray-100 dark:bg-[#1a1a1a] rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : earnings.length > 0 ? (
+            earnings.map((earning, i) => {
+              const timeInfo = getTimeLabel(earning.time);
+              return (
+                <Link key={i} href={`/stock/${earning.symbol}`}>
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center text-xs font-bold text-blue-500">
+                        {earning.symbol.slice(0, 2)}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-gray-900 dark:text-white">{earning.symbol}</span>
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", timeInfo.color)}>
+                            {timeInfo.label}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 dark:text-slate-500">
+                          {earning.company?.slice(0, 25)}{earning.company && earning.company.length > 25 ? '...' : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(earning.reportDate)}</div>
+                      {earning.estimatedEps && (
+                        <div className="text-[10px] text-gray-500 dark:text-slate-500">
+                          Est: ${earning.estimatedEps.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-slate-500 text-center py-8 bg-gray-50 dark:bg-[#0a0a0a] rounded-lg flex flex-col items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              No upcoming earnings
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Market Movers
 function TopMovers() {
   const { data } = useQuery<{
-    topGainers: Array<{ symbol: string; percentChange: number }>;
-    topLosers: Array<{ symbol: string; percentChange: number }>;
+    topGainers: Array<{ symbol: string; name?: string; percentChange: number; price?: number }>;
+    topLosers: Array<{ symbol: string; name?: string; percentChange: number; price?: number }>;
   }>({
     queryKey: ["/api/market-movers"],
     refetchInterval: 60000,
   });
 
-  const gainers = data?.topGainers?.slice(0, 3) || [];
-  const losers = data?.topLosers?.slice(0, 3) || [];
+  const gainers = data?.topGainers?.slice(0, 4) || [];
+  const losers = data?.topLosers?.slice(0, 4) || [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-purple-400" />
-          <h3 className="text-sm font-semibold text-white">Market Movers</h3>
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-purple-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Market Movers</h3>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5" />
+            Live
+          </Badge>
         </div>
-        <Badge variant="outline" className="text-[9px] border-slate-700/50 text-slate-400">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
-          Live
-        </Badge>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <h4 className="text-[10px] text-emerald-400 flex items-center gap-1 px-1">
-            <TrendingUp className="h-3 w-3" /> Gainers
-          </h4>
-          {gainers.length > 0 ? gainers.map((stock) => (
-            <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-all cursor-pointer">
-                <span className="text-xs font-semibold text-white">{stock.symbol}</span>
-                <span className="text-xs font-bold text-emerald-400">+{stock.percentChange?.toFixed(1)}%</span>
-              </div>
-            </Link>
-          )) : (
-            <div className="h-20 rounded bg-slate-800/30 animate-pulse" />
-          )}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="flex items-center gap-1.5 mb-2 text-emerald-500">
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Top Gainers</span>
+            </div>
+            <div className="space-y-1.5">
+              {gainers.map((stock) => (
+                <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-colors cursor-pointer">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
+                    <span className="text-xs font-bold text-emerald-500">+{stock.percentChange?.toFixed(1)}%</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 mb-2 text-red-500">
+              <TrendingDown className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Top Losers</span>
+            </div>
+            <div className="space-y-1.5">
+              {losers.map((stock) => (
+                <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-colors cursor-pointer">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
+                    <span className="text-xs font-bold text-red-500">{stock.percentChange?.toFixed(1)}%</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <h4 className="text-[10px] text-red-400 flex items-center gap-1 px-1">
-            <TrendingDown className="h-3 w-3" /> Losers
-          </h4>
-          {losers.length > 0 ? losers.map((stock) => (
-            <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-all cursor-pointer">
-                <span className="text-xs font-semibold text-white">{stock.symbol}</span>
-                <span className="text-xs font-bold text-red-400">{stock.percentChange?.toFixed(1)}%</span>
-              </div>
-            </Link>
-          )) : (
-            <div className="h-20 rounded bg-slate-800/30 animate-pulse" />
-          )}
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// Free tier benefits - Premium Styling
-function FreeBenefits() {
-  const benefits = [
-    { icon: Search, text: "Unlimited stock research" },
-    { icon: LineChart, text: "Real-time charts & data" },
-    { icon: Brain, text: "AI-powered analysis" },
-    { icon: Newspaper, text: "Market news & alerts" },
-    { icon: Globe, text: "Stocks, ETFs, crypto" },
-    { icon: BookOpen, text: "Educational resources" },
-  ];
+// Trending Tickers with mini charts
+function TrendingTickers() {
+  const { data } = useQuery<{ topGainers: Array<{ symbol: string; name: string; price: number; changePercent: number }> }>({
+    queryKey: ["/api/market-movers"],
+    refetchInterval: 60000,
+  });
+
+  const tickers = data?.topGainers?.slice(0, 6) || [];
 
   return (
-    <div className="relative p-4 rounded-2xl bg-slate-900/60 backdrop-blur-sm border border-slate-800/50 overflow-hidden">
-      {/* Subtle gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5" />
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {tickers.map((ticker, idx) => {
+        const isUp = ticker.changePercent >= 0;
+        const chartData = Array.from({ length: 8 }, (_, i) => ({
+          value: isUp ? 40 + i * 3 + Math.random() * 5 : 60 - i * 3 - Math.random() * 5,
+        }));
 
-      <div className="relative">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="p-1.5 rounded-lg bg-cyan-500/10">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-          <h3 className="text-sm font-semibold text-white">Free Research Tools</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {benefits.map((benefit, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors">
-              <benefit.icon className="w-3 h-3 text-cyan-500/60" />
-              <span>{benefit.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+        return (
+          <Link key={ticker.symbol} href={`/stock/${ticker.symbol}`}>
+            <Card className="cursor-pointer bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] transition-all hover:shadow-md">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-sm text-gray-900 dark:text-white">{ticker.symbol}</span>
+                  <span className={cn(
+                    "text-xs font-mono font-medium",
+                    isUp ? "text-emerald-500" : "text-red-500"
+                  )}>
+                    {isUp ? "+" : ""}{ticker.changePercent?.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="h-8">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id={`gradient-${ticker.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={isUp ? "#10b981" : "#ef4444"} stopOpacity={0.3} />
+                          <stop offset="100%" stopColor={isUp ? "#10b981" : "#ef4444"} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke={isUp ? "#10b981" : "#ef4444"}
+                        strokeWidth={1.5}
+                        fill={`url(#gradient-${ticker.symbol})`}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[10px] text-gray-500 dark:text-slate-500 truncate mt-1">{ticker.name}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950 relative">
-      <AuroraBackground />
-      <div className="fixed inset-0 pointer-events-none z-[1]">
-        <ParticleBackground />
-      </div>
-      <div className="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 pointer-events-none z-[2]" />
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+      {/* Market Ticker */}
+      <MarketTicker />
 
-      <div className="relative z-[10] max-w-6xl mx-auto px-4 sm:px-6">
-        {/* Market ticker */}
-        <div className="py-2.5 border-b border-slate-800/50">
-          <MarketTicker />
-        </div>
-
-        {/* Hero Section - Search-Centric with Premium Styling */}
-        <div className="py-10 md:py-16 text-center relative">
-          {/* Ambient glow effects */}
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute top-20 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 mb-6 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-cyan-400 font-medium">AI-Powered Trading Intelligence</span>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Hero Section */}
+        <section className="text-center mb-12">
+          {/* Social Proof - Clean stats only */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mb-6 text-sm">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <Activity className="w-4 h-4 text-emerald-500" />
+              <span className="text-gray-600 dark:text-slate-400">
+                <strong className="text-emerald-600 dark:text-emerald-400">2,500+</strong> traders
+              </span>
             </div>
-
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4">
-              <span className="text-white">Research.</span>{" "}
-              <span className="bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent animate-gradient">Analyze.</span>{" "}
-              <span className="text-white">Trade.</span>
-            </h1>
-
-            <p className="text-lg text-slate-400 mb-8 max-w-2xl mx-auto">
-              6 AI engines analyze stocks, options & crypto 24/7. Get research briefs with confidence scores, technical patterns, and smart money signals.
-            </p>
-
-            {/* Search - Premium Glassmorphism Style */}
-            <div className="max-w-2xl mx-auto mb-8 relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-teal-500/10 to-purple-500/20 rounded-2xl blur-lg opacity-60" />
-              <div className="relative">
-                <GlobalSearch variant="large" placeholder="Search any stock, ETF, or crypto..." />
-              </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              ))}
+              <span className="text-gray-600 dark:text-slate-400 ml-1">
+                <strong className="text-amber-600 dark:text-amber-400">4.9</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+              <Target className="w-4 h-4 text-cyan-500" />
+              <span className="text-gray-600 dark:text-slate-400">
+                <strong className="text-cyan-600 dark:text-cyan-400">89%</strong> accuracy
+              </span>
             </div>
           </div>
 
-          {/* Quick Action Cards - Premium Glassmorphism */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mb-6">
-            <Link href="/trade-desk">
-              <div className="group relative p-4 rounded-xl backdrop-blur-md bg-slate-900/50 border border-cyan-500/30 hover:border-cyan-400/60 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-cyan-500/10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Brain className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-white block">AI Trade Ideas</span>
-                  <p className="text-[10px] text-slate-500 mt-1">6 engines, live signals</p>
-                </div>
-              </div>
-            </Link>
-            <Link href="/chart-analysis">
-              <div className="group relative p-4 rounded-xl backdrop-blur-md bg-slate-900/50 border border-purple-500/30 hover:border-purple-400/60 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <LineChart className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-white block">Charts</span>
-                  <p className="text-[10px] text-slate-500 mt-1">Advanced technicals</p>
-                </div>
-              </div>
-            </Link>
-            <Link href="/discover">
-              <div className="group relative p-4 rounded-xl backdrop-blur-md bg-slate-900/50 border border-emerald-500/30 hover:border-emerald-400/60 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Target className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-white block">Screener</span>
-                  <p className="text-[10px] text-slate-500 mt-1">Filter & discover</p>
-                </div>
-              </div>
-            </Link>
-            <Link href="/smart-money">
-              <div className="group relative p-4 rounded-xl backdrop-blur-md bg-slate-900/50 border border-amber-500/30 hover:border-amber-400/60 transition-all cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Layers className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <span className="text-sm font-semibold text-white block">Options Flow</span>
-                  <p className="text-[10px] text-slate-500 mt-1">Smart money tracking</p>
-                </div>
-              </div>
-            </Link>
+          {/* Headline */}
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Your AI Trading<br />
+            <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">Research Hub</span>
+          </h1>
+          <p className="text-gray-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+            Multi-engine convergence analysis for every stock. Get institutional-grade research in seconds.
+          </p>
+
+          {/* Search */}
+          <div className="max-w-2xl mx-auto mb-6">
+            <GlobalSearch variant="large" placeholder="Search any stock, ETF, or crypto..." />
           </div>
 
-          {/* Popular Searches */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-            <span>Trending:</span>
-            {['NVDA', 'AAPL', 'TSLA', 'SPY', 'BTC', 'META'].map((symbol) => (
+          {/* Trending */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+            <span className="text-gray-500 dark:text-slate-500">Trending:</span>
+            {["NVDA", "AAPL", "TSLA", "SPY", "BTC", "META"].map((symbol) => (
               <Link key={symbol} href={`/stock/${symbol}`}>
-                <Badge variant="outline" className="cursor-pointer hover:bg-cyan-500/10 hover:border-cyan-500/50 hover:text-cyan-400 border-slate-700 text-slate-400 transition-colors">
+                <Badge variant="outline" className="cursor-pointer hover:bg-emerald-500/10 hover:border-emerald-500/50 hover:text-emerald-500 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-slate-400 transition-colors">
                   {symbol}
                 </Badge>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
+
+        {/* Multi-Engine Section */}
+        <section className="mb-12">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Sparkles className="w-5 h-5 text-emerald-500" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Multi-Engine Convergence</h2>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {tradingEngines.map((engine) => (
+              <div key={engine.id} className="text-center p-4 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333] transition-colors">
+                <div
+                  className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${engine.color}15` }}
+                >
+                  <engine.icon className="w-5 h-5" style={{ color: engine.color }} />
+                </div>
+                <div className="text-xs font-bold text-gray-900 dark:text-white">{engine.id}</div>
+                <div className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">{engine.desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Trending Tickers */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
+              Trending Now
+            </h2>
+            <Link href="/market">
+              <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+                View all <ChevronRight className="w-3 h-3" />
+              </span>
+            </Link>
+          </div>
+          <TrendingTickers />
+        </section>
 
         {/* Research Tools */}
-        <div className="mb-8">
+        <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-400" />
-              All Tools
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" />
+              Research Tools
             </h2>
             <Link href="/features">
-              <span className="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer flex items-center gap-1">
+              <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
                 See all <ChevronRight className="w-3 h-3" />
               </span>
             </Link>
           </div>
           <ResearchTools />
-        </div>
+        </section>
 
-        {/* Three column grid - Premium Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-800/50 hover:border-slate-700/50 transition-all duration-300">
-            <LatestIdeas />
+        {/* Market Scanners */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Radar className="w-5 h-5 text-purple-500" />
+              Market Scanners
+            </h2>
+            <Link href="/market-scanner">
+              <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+                Open Scanner <ChevronRight className="w-3 h-3" />
+              </span>
+            </Link>
           </div>
-          <div className="bg-slate-900/60 backdrop-blur-sm rounded-2xl p-4 border border-slate-800/50 hover:border-slate-700/50 transition-all duration-300">
-            <TopMovers />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Link href="/market-scanner">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-purple-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mb-3">
+                    <Search className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Market Scanner</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Sectors, surges & movers</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/bullish-trends">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-orange-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-3">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Bullish Trends</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Momentum & breakouts</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/discover">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-cyan-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-3">
+                    <Eye className="h-5 w-5 text-cyan-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Discover</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">News & trending stocks</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/smart-money">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-amber-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-3">
+                    <Users className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Smart Money</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Insiders & institutions</p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
-          <div className="space-y-3">
-            <FreeBenefits />
-            {/* CTA with glow effect */}
-            <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative p-4 rounded-2xl bg-slate-900/60 backdrop-blur-sm border border-slate-800/50 text-center">
-                <p className="text-xs text-slate-400 mb-3">Ready to level up your research?</p>
-                <Link href="/trade-desk">
-                  <Button size="sm" className="w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-xs shadow-lg shadow-cyan-500/20">
-                    <Brain className="w-3 h-3 mr-1" />
-                    Explore AI Trade Ideas
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        </section>
 
-        {/* Bottom stats - Platform Highlights with Premium Styling */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pb-8">
-          {[
-            { value: "6", label: "AI Engines", sublabel: "Analyzing 24/7", color: "from-cyan-400 to-teal-400", bgColor: "cyan", icon: Brain },
-            { value: "5+", label: "FREE LLMs", sublabel: "Cross-validating", color: "from-purple-400 to-violet-400", bgColor: "purple", icon: Sparkles },
-            { value: "100%", label: "Free Tools", sublabel: "No credit card", color: "from-emerald-400 to-green-400", bgColor: "emerald", icon: Zap },
-            { value: "Live", label: "Real-time", sublabel: "Market data", color: "from-amber-400 to-orange-400", bgColor: "amber", icon: Activity },
-          ].map((stat) => (
-            <div key={stat.label} className="relative overflow-hidden text-center p-5 rounded-2xl bg-slate-900/60 backdrop-blur-sm border border-slate-800/50 hover:border-slate-700 transition-all duration-300 group">
-              {/* Top accent line */}
-              <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", stat.color)} />
-              {/* Hover glow */}
-              <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300", `bg-${stat.bgColor}-500/5`)} />
+        {/* Automation & Bots */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Bot className="w-5 h-5 text-cyan-500" />
+              Automation & Bots
+            </h2>
+            <Link href="/automations">
+              <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+                View all <ChevronRight className="w-3 h-3" />
+              </span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {[
+              { name: "Auto-Lotto", desc: "High R:R options", href: "/automations", color: "cyan" },
+              { name: "Futures Bot", desc: "ES, NQ, GC", href: "/automations", color: "green" },
+              { name: "Crypto Bot", desc: "BTC, ETH, Alts", href: "/automations", color: "amber" },
+              { name: "Swing Bot", desc: "Multi-day holds", href: "/automations", color: "purple" },
+              { name: "Day Trade", desc: "Intraday signals", href: "/automations", color: "pink" },
+            ].map((bot) => (
+              <Link key={bot.name} href={bot.href}>
+                <Card className={`cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-${bot.color}-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5`}>
+                  <CardContent className="p-3 text-center">
+                    <div className={`w-8 h-8 mx-auto rounded-lg bg-${bot.color}-500/10 flex items-center justify-center mb-2`}>
+                      <Bot className={`h-4 w-4 text-${bot.color}-500`} />
+                    </div>
+                    <h3 className="text-xs font-semibold text-gray-900 dark:text-white">{bot.name}</h3>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-500 mt-0.5">{bot.desc}</p>
+                    <Badge variant="outline" className="mt-1.5 text-[8px] border-cyan-500/30 text-cyan-500">
+                      Paper
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
 
-              <div className="relative">
-                <div className={cn("w-10 h-10 mx-auto mb-3 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300", `bg-${stat.bgColor}-500/10`)}>
-                  <stat.icon className={cn("w-5 h-5", `text-${stat.bgColor}-400`)} />
-                </div>
-                <div className={cn("text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent", stat.color)}>{stat.value}</div>
-                <div className="text-xs font-semibold text-white mt-1">{stat.label}</div>
-                <div className="text-[10px] text-slate-500">{stat.sublabel}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Performance & Learning */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-500" />
+              Performance & Learning
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Link href="/performance">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-emerald-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-3">
+                    <BarChart3 className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Performance</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Win rates & analytics</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/paper-trading">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-cyan-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-3">
+                    <Play className="h-5 w-5 text-cyan-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Paper Trading</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Simulate & validate</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/learning">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-pink-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center mb-3">
+                    <Sparkles className="h-5 w-5 text-pink-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">AI Learning</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Watch engines learn</p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/historical-intelligence">
+              <Card className="cursor-pointer h-full bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] hover:border-blue-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5">
+                <CardContent className="p-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
+                    <DollarSign className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Historical Intel</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-500">Past trade patterns</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </section>
+
+        {/* Live Data Grid - News, Ideas, Earnings, Movers */}
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Data Feed</h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <BreakingNews />
+            <EarningsCalendar />
+          </div>
+        </section>
+
+        {/* Trading Intelligence */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <LatestIdeas />
+          <TopMovers />
+        </section>
+
+        {/* CTA */}
+        <section className="text-center py-12 px-6 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-500/20">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+            Ready to trade smarter?
+          </h2>
+          <p className="text-gray-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
+            Get AI-powered trade ideas with entry, target, and stop levels.
+          </p>
+          <Link href="/trade-desk">
+            <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white px-8">
+              <Brain className="w-4 h-4 mr-2" />
+              View Trade Ideas
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        </section>
 
         {/* Footer */}
-        <div className="text-center pb-6 border-t border-slate-800/50 pt-6">
-          <p className="text-[10px] text-slate-600">
+        <footer className="text-center py-8 mt-8 border-t border-gray-200 dark:border-[#1a1a1a]">
+          <p className="text-xs text-gray-500 dark:text-slate-500">
             Educational research platform for self-directed traders. Not financial advice.
           </p>
-        </div>
-      </div>
+        </footer>
+      </main>
     </div>
   );
 }

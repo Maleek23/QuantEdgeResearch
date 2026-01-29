@@ -1,875 +1,824 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/useAuth";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
-  TrendingUp,
-  Brain,
-  Calculator,
-  Check,
   ArrowRight,
-  Activity,
-  Target,
-  Coins,
-  CandlestickChart,
-  Sparkles,
+  Search,
+  Brain,
   BarChart3,
+  Activity,
+  Eye,
+  TrendingUp,
+  TrendingDown,
   Zap,
+  Target,
+  LineChart,
+  ChevronRight,
+  Flame,
+  Cpu,
+  Bot,
+  Newspaper,
+  Calendar,
+  ScanLine,
   Shield,
-  ChartLine,
-  Play,
-  Loader2
+  Lock,
+  CheckCircle2,
+  Users,
 } from "lucide-react";
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useEffect, useState as useReactState } from "react";
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 
-// Interface for real trade idea from API
-interface TradeIdea {
-  symbol: string;
-  direction?: string;
-  confidenceScore?: number;
-  entryPrice?: number;
-  targetPrice?: number;
-  stopLoss?: number;
-  riskRewardRatio?: number;
-  analysis?: string;
-}
-
-// Lazy load heavy components
-const LiveActivityFeed = lazy(() => import("@/components/live-activity-feed").then(m => ({ default: m.LiveActivityFeed })));
-
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
-// FAQ data for both display and structured data
-const faqData = [
-  { id: 'what', q: 'What is Quant Edge Labs?', a: 'Quant Edge Labs is an AI-powered stock analysis platform for self-directed traders. We use 6 specialized engines (ML, AI, Quant, Flow, Sentiment, Technical) to analyze markets 24/7 and surface potential trading setups. This is an educational research tool—not a signal service or financial advice.' },
-  { id: 'engines', q: 'How do the 6 AI engines work together?', a: 'Each engine specializes in a different analysis type: ML for predictions, AI for news/filings, Quant for statistical patterns, Flow for institutional activity, Sentiment for social signals, and Technical for chart patterns. When multiple engines agree on a setup, you get higher-conviction trade ideas with confidence scores.' },
-  { id: 'risk', q: 'How does the risk management work?', a: 'Every trade idea includes calculated risk/reward ratios, suggested entry points, profit targets, and stop-loss levels. We also provide a paper trading simulator so you can practice strategies without risking real capital.' },
-  { id: 'data', q: 'Where does the market data come from?', a: 'We source real-time data from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). All data refreshes every few seconds during market hours for accurate analysis.' },
-  { id: 'advice', q: 'Is this financial advice?', a: 'No. Quant Edge Labs is strictly an educational research platform. We provide AI-powered analysis tools and pattern recognition—not buy/sell recommendations. You make all trading decisions yourself. Trading involves substantial risk of loss.' },
+// Trading Engines
+const tradingEngines = [
+  { id: 'ML', name: 'Machine Learning', desc: 'Pattern recognition', color: '#10b981', icon: Cpu },
+  { id: 'AI', name: 'AI Analysis', desc: 'LLM consensus', color: '#8b5cf6', icon: Brain },
+  { id: 'QNT', name: 'Quantitative', desc: 'Statistical signals', color: '#3b82f6', icon: BarChart3 },
+  { id: 'FLW', name: 'Order Flow', desc: 'Dark pool activity', color: '#f59e0b', icon: Activity },
+  { id: 'SNT', name: 'Sentiment', desc: 'News & social', color: '#ec4899', icon: Eye },
+  { id: 'TCH', name: 'Technical', desc: 'Chart patterns', color: '#06b6d4', icon: LineChart },
 ];
 
-export default function Landing() {
-  const [, setLocation] = useLocation();
-  const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+// Symbols for ticker
+const TICKER_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX', 'BTC-USD', 'ETH-USD'];
 
-  // Fetch REAL trade idea for hero section
-  const { data: heroIdea, isLoading: heroLoading } = useQuery<TradeIdea>({
-    queryKey: ['/api/trade-ideas/featured'],
+// Types
+interface MarketQuote {
+  regularMarketPrice: number;
+  regularMarketChange: number;
+  regularMarketChangePercent: number;
+}
+
+interface MarketDataResponse {
+  quotes: Record<string, MarketQuote>;
+}
+
+interface NewsItem {
+  title: string;
+  publishedAt: string;
+  source: string;
+}
+
+interface EarningsItem {
+  symbol: string;
+  companyName: string;
+  reportDate: string;
+  timing: string;
+  epsEstimate: number | null;
+}
+
+interface MoverItem {
+  symbol: string;
+  name: string;
+  price: number;
+  changePercent: number;
+}
+
+// Fallback data
+const fallbackMarketIndices = [
+  { symbol: 'SPY', price: 480.50, change: 0.45 },
+  { symbol: 'QQQ', price: 425.30, change: 0.62 },
+  { symbol: 'DIA', price: 382.20, change: 0.28 },
+  { symbol: 'IWM', price: 198.40, change: -0.15 },
+  { symbol: 'VIX', price: 14.80, change: -2.30 },
+  { symbol: 'BTC-USD', price: 42500, change: 1.2 },
+];
+
+const fallbackTrendingTickers = [
+  { symbol: 'NVDA', name: 'NVIDIA', price: 875.50, change: 3.2, data: [40, 45, 48, 52, 55, 58, 62, 68] },
+  { symbol: 'TSLA', name: 'Tesla', price: 245.80, change: 1.8, data: [42, 44, 46, 48, 50, 52, 54, 56] },
+  { symbol: 'AAPL', name: 'Apple', price: 185.20, change: 0.9, data: [45, 46, 47, 48, 49, 50, 51, 52] },
+  { symbol: 'AMD', name: 'AMD', price: 165.40, change: 2.1, data: [38, 42, 45, 48, 52, 55, 58, 60] },
+  { symbol: 'META', name: 'Meta', price: 485.60, change: 1.5, data: [40, 42, 44, 46, 48, 50, 52, 54] },
+  { symbol: 'PLTR', name: 'Palantir', price: 24.80, change: 4.2, data: [35, 40, 45, 50, 55, 60, 65, 70] },
+];
+
+const fallbackNews = [
+  { title: 'Markets Rally on Fed Commentary', time: '2h ago', source: 'Bloomberg' },
+  { title: 'Tech Stocks Lead Morning Gains', time: '4h ago', source: 'Reuters' },
+  { title: 'Earnings Season Kicks Off Strong', time: '6h ago', source: 'CNBC' },
+  { title: 'Oil Prices Surge on Supply Concerns', time: '8h ago', source: 'WSJ' },
+];
+
+const fallbackEarnings = [
+  { symbol: 'AAPL', name: 'Apple', date: 'Jan 30', time: 'AMC' },
+  { symbol: 'MSFT', name: 'Microsoft', date: 'Jan 30', time: 'AMC' },
+  { symbol: 'AMZN', name: 'Amazon', date: 'Feb 1', time: 'AMC' },
+  { symbol: 'GOOGL', name: 'Alphabet', date: 'Feb 4', time: 'AMC' },
+];
+
+// Trust Badges
+const trustBadges = [
+  { icon: Lock, label: '256-bit SSL', desc: 'Bank-grade encryption' },
+  { icon: Shield, label: 'Read-Only', desc: 'No trading access needed' },
+  { icon: Users, label: 'Privacy First', desc: 'Your data stays yours' },
+  { icon: CheckCircle2, label: 'SOC 2', desc: 'Enterprise compliant' },
+];
+
+// Feature Comparison (2 tiers: Free vs Beta)
+const featureComparison = [
+  { feature: 'Stock Quotes & Charts', free: true, beta: true },
+  { feature: 'Market News & Headlines', free: true, beta: true },
+  { feature: 'Earnings Calendar', free: true, beta: true },
+  { feature: 'Market Movers', free: true, beta: true },
+  { feature: 'Basic Watchlist', free: '5 stocks', beta: 'Unlimited' },
+  { feature: 'AI Stock Summaries', free: '1 trial', beta: true },
+  { feature: 'Technical Snapshot', free: '1 trial', beta: true },
+  { feature: 'Sentiment Analysis', free: '1 trial', beta: true },
+  { feature: '6-Engine Analysis', free: false, beta: true },
+  { feature: 'AI Trade Ideas', free: false, beta: true },
+  { feature: 'Dark Pool Data', free: false, beta: true },
+  { feature: 'Options Flow', free: false, beta: true },
+  { feature: 'Smart Money Tracking', free: false, beta: true },
+];
+
+// Trade Desk Card - Real-time trade ideas with animated engine signals
+function TradeDeskCard() {
+  const [activeEngines, setActiveEngines] = useReactState<number[]>([]);
+  const [showResult, setShowResult] = useReactState(false);
+  const [currentIdeaIndex, setCurrentIdeaIndex] = useReactState(0);
+
+  // Fetch real trade ideas from API
+  const { data: tradeIdeasData } = useQuery({
+    queryKey: ['/api/trade-ideas/best-setups'],
     queryFn: async () => {
-      try {
-        // Try to get best setup first
-        const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=1');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.setups && data.setups.length > 0) {
-            return data.setups[0];
-          }
-        }
-        // Fallback to latest trade idea
-        const fallback = await fetch('/api/trade-ideas?limit=1');
-        if (fallback.ok) {
-          const ideas = await fallback.json();
-          if (ideas.length > 0) return ideas[0];
-        }
-        return null;
-      } catch {
-        return null;
-      }
+      const res = await fetch('/api/trade-ideas/best-setups?limit=5');
+      if (!res.ok) return null;
+      return res.json();
     },
     staleTime: 60000,
     refetchInterval: 120000,
   });
 
-  // Inject FAQ structured data for SEO rich snippets
+  const ideas = tradeIdeasData?.ideas || [];
+  const currentIdea = ideas[currentIdeaIndex] || null;
+
+  // Fallback data if no ideas
+  const displayIdea = currentIdea || {
+    symbol: 'NVDA',
+    companyName: 'NVIDIA Corp',
+    direction: 'LONG',
+    currentPrice: 875.42,
+    entryPrice: 872,
+    targetPrice: 920,
+    stopLoss: 845,
+    confidenceScore: 87,
+    bullishEngines: 5,
+    totalEngines: 6,
+  };
+
+  const isLong = displayIdea.direction === 'LONG' || displayIdea.direction === 'long';
+  const bullishCount = displayIdea.bullishEngines || 5;
+
+  // Animate engines lighting up - simulates real-time signal detection
   useEffect(() => {
-    const faqSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": faqData.map(faq => ({
-        "@type": "Question",
-        "name": faq.q,
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": faq.a
-        }
+    setActiveEngines([]);
+    setShowResult(false);
+
+    // Determine which engines are "bullish" based on bullishCount
+    const engineCount = Math.min(bullishCount, 6);
+    const engineSequence = [0, 5, 4, 2, 3, 1].slice(0, engineCount); // ML, TCH, SNT, QNT, FLW, AI
+    const delays = [600, 1100, 1600, 2000, 2400, 2800];
+
+    const timers: NodeJS.Timeout[] = [];
+
+    engineSequence.forEach((engineIdx, i) => {
+      const timer = setTimeout(() => {
+        setActiveEngines(prev => [...prev, engineIdx]);
+      }, delays[i]);
+      timers.push(timer);
+    });
+
+    // Show final result
+    const resultTimer = setTimeout(() => {
+      setShowResult(true);
+    }, delays[engineCount - 1] + 500);
+    timers.push(resultTimer);
+
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [currentIdeaIndex, bullishCount]);
+
+  // Cycle through ideas
+  useEffect(() => {
+    if (ideas.length <= 1) return;
+
+    const cycleInterval = setInterval(() => {
+      setCurrentIdeaIndex(prev => (prev + 1) % ideas.length);
+    }, 8000);
+
+    return () => clearInterval(cycleInterval);
+  }, [ideas.length]);
+
+  return (
+    <Link href="/trade-desk">
+      <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 text-white hover:border-cyan-500/50 transition-all cursor-pointer group">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-cyan-500" />
+            <span className="text-sm font-semibold text-cyan-400">Trade Desk</span>
+            <ChevronRight className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] text-emerald-400">Live</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold">{displayIdea.symbol}</span>
+              {showResult && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium animate-in fade-in duration-300 ${
+                  isLong ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {isLong ? 'LONG' : 'SHORT'}
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-slate-500">{displayIdea.companyName}</span>
+          </div>
+          <div className="text-right">
+            <div className="text-xl font-mono font-bold">
+              ${typeof displayIdea.currentPrice === 'number' ? displayIdea.currentPrice.toFixed(2) : displayIdea.currentPrice}
+            </div>
+            {showResult && (
+              <span className={`text-xs font-mono ${isLong ? 'text-emerald-400' : 'text-red-400'}`}>
+                {bullishCount}/6 engines
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Real-time Engine Signals */}
+        <div className="mb-3 p-3 bg-[#111] rounded-lg border border-[#1a1a1a]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">6-Engine Analysis</span>
+            <span className="text-xs font-mono text-cyan-400">
+              {showResult ? `${displayIdea.confidenceScore || 87}%` : 'Scanning...'}
+            </span>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {tradingEngines.map((engine, idx) => {
+              const isActive = activeEngines.includes(idx);
+              return (
+                <div
+                  key={engine.id}
+                  className={`relative p-2 rounded-lg text-center transition-all duration-500 ${
+                    isActive
+                      ? 'bg-emerald-500/20 border border-emerald-500/50 scale-105'
+                      : 'bg-[#0d0d0d] border border-[#222]'
+                  }`}
+                >
+                  <engine.icon className={`w-3.5 h-3.5 mx-auto mb-1 transition-colors duration-300 ${
+                    isActive ? 'text-emerald-400' : 'text-slate-600'
+                  }`} />
+                  <span className={`text-[9px] font-bold block transition-colors duration-300 ${
+                    isActive ? 'text-emerald-400' : 'text-slate-600'
+                  }`}>
+                    {engine.id}
+                  </span>
+                  {isActive && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Trade Levels - Show when analysis complete */}
+        {showResult && (
+          <div className="animate-in slide-in-from-bottom-2 duration-300">
+            <div className="grid grid-cols-4 gap-1.5 mb-3 text-center">
+              <div className="p-1.5 bg-[#111] rounded">
+                <div className="text-[9px] text-slate-500">Entry</div>
+                <div className="text-xs font-mono">${displayIdea.entryPrice}</div>
+              </div>
+              <div className="p-1.5 bg-emerald-500/10 rounded">
+                <div className="text-[9px] text-emerald-400">Target</div>
+                <div className="text-xs font-mono text-emerald-400">${displayIdea.targetPrice}</div>
+              </div>
+              <div className="p-1.5 bg-red-500/10 rounded">
+                <div className="text-[9px] text-red-400">Stop</div>
+                <div className="text-xs font-mono text-red-400">${displayIdea.stopLoss}</div>
+              </div>
+              <div className="p-1.5 bg-cyan-500/10 rounded">
+                <div className="text-[9px] text-cyan-400">Score</div>
+                <div className="text-xs font-mono text-cyan-400">{displayIdea.confidenceScore || 87}%</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Engine Status Bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1">
+            {tradingEngines.map((e, i) => (
+              <span
+                key={e.id}
+                className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all duration-300 ${
+                  activeEngines.includes(i)
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-[#222] text-slate-600'
+                }`}
+              >
+                {e.id}
+              </span>
+            ))}
+          </div>
+          <span className="text-[10px] text-emerald-400">
+            {activeEngines.length}/6 {isLong ? 'Bullish' : 'Bearish'}
+          </span>
+        </div>
+
+        {/* Ideas count indicator */}
+        {ideas.length > 1 && (
+          <div className="flex items-center justify-center gap-1 mt-3">
+            {ideas.slice(0, 5).map((_: unknown, i: number) => (
+              <span
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  i === currentIdeaIndex ? 'bg-cyan-400' : 'bg-slate-700'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
+function formatEarningsDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+export default function Landing() {
+  const [, setLocation] = useLocation();
+  const [waitlistOpen, setWaitlistOpen] = useReactState(false);
+  const [searchQuery, setSearchQuery] = useReactState('');
+  const { isAuthenticated, user } = useAuth();
+  const hasBetaAccess = user?.hasBetaAccess || false;
+
+  // Fetch market data
+  const { data: marketDataRaw } = useQuery<MarketDataResponse>({
+    queryKey: ['/api/market-data/batch', TICKER_SYMBOLS.join(',')],
+    queryFn: async () => {
+      const res = await fetch(`/api/market-data/batch/${TICKER_SYMBOLS.join(',')}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    staleTime: 60000,
+    refetchInterval: 60000,
+  });
+
+  const marketIndices = marketDataRaw?.quotes && Object.keys(marketDataRaw.quotes).length > 0
+    ? Object.entries(marketDataRaw.quotes).map(([symbol, quote]) => ({
+        symbol,
+        price: quote.regularMarketPrice,
+        change: quote.regularMarketChangePercent,
       }))
-    };
+    : fallbackMarketIndices;
 
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify(faqSchema);
-    script.id = 'faq-schema';
+  // Fetch movers
+  const { data: moversData } = useQuery<{ topGainers: MoverItem[] }>({
+    queryKey: ['/api/market-movers'],
+    queryFn: async () => {
+      const res = await fetch('/api/market-movers');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
+  });
 
-    // Remove existing schema if present
-    const existing = document.getElementById('faq-schema');
-    if (existing) existing.remove();
+  const trendingTickers = moversData?.topGainers?.slice(0, 6).map((mover, idx) => ({
+    symbol: mover.symbol,
+    name: mover.name?.split(' ')[0] || mover.symbol,
+    price: mover.price,
+    change: mover.changePercent,
+    data: mover.changePercent >= 0
+      ? [40 + idx * 2, 42 + idx * 2, 45 + idx * 2, 48 + idx * 2, 50 + idx * 2, 52 + idx * 2, 55 + idx * 2, 58 + idx * 2]
+      : [58 - idx * 2, 55 - idx * 2, 52 - idx * 2, 50 - idx * 2, 48 - idx * 2, 45 - idx * 2, 42 - idx * 2, 40 - idx * 2],
+  })) || fallbackTrendingTickers;
 
-    document.head.appendChild(script);
+  // Fetch news
+  const { data: newsData } = useQuery<{ news: NewsItem[] }>({
+    queryKey: ['/api/news'],
+    queryFn: async () => {
+      const res = await fetch('/api/news?limit=4');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    staleTime: 300000,
+    refetchInterval: 300000,
+  });
 
-    return () => {
-      const el = document.getElementById('faq-schema');
-      if (el) el.remove();
-    };
-  }, []);
+  const breakingNews = newsData?.news?.slice(0, 4).map(item => ({
+    title: item.title,
+    time: formatTimeAgo(item.publishedAt),
+    source: item.source,
+  })) || fallbackNews;
 
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  // Fetch earnings
+  const { data: earningsData } = useQuery<{ earnings: EarningsItem[] }>({
+    queryKey: ['/api/earnings/upcoming'],
+    queryFn: async () => {
+      const res = await fetch('/api/earnings/upcoming?days=7');
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    staleTime: 600000,
+    refetchInterval: 600000,
+  });
+
+  const upcomingEarnings = earningsData?.earnings?.slice(0, 4).map(item => ({
+    symbol: item.symbol,
+    name: item.companyName?.split(' ')[0] || item.symbol,
+    date: formatEarningsDate(item.reportDate),
+    time: item.timing === 'bmo' ? 'BMO' : item.timing === 'amc' ? 'AMC' : 'TBD',
+  })) || fallbackEarnings;
+
+  const handleSearch = () => {
+    if (searchQuery) {
+      if (isAuthenticated) {
+        setLocation(`/stock/${searchQuery.toUpperCase()}`);
+      } else {
+        setWaitlistOpen(true);
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen bg-black">
-      {/* Gradient Background */}
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 via-slate-900 to-black" />
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0a] text-gray-900 dark:text-white">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-gray-200 dark:border-[#1a1a1a]">
+        <div className="flex items-center justify-between h-14 px-4 max-w-7xl mx-auto">
+          <Link href="/" className="flex items-center gap-2.5">
+            <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-8 w-8" />
+            <div className="hidden sm:block">
+              <span className="font-bold text-lg bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">QuantEdge</span>
+              <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Labs</span>
+            </div>
+          </Link>
 
-      {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50" data-testid="navbar">
-        <div className="container mx-auto px-6">
-          <div className="flex items-center justify-between h-16 gap-4">
-            <Link href="/" className="flex-shrink-0" data-testid="link-logo">
-              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
-            </Link>
+          <nav className="hidden md:flex items-center gap-1">
+            <Link href="/market"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Markets</span></Link>
+            <Link href="/market-scanner"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Scanner</span></Link>
+            <Link href="/features"><span className="px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer">Features</span></Link>
+          </nav>
 
-            <nav className="hidden md:flex items-center gap-6">
-              <Link 
-                href="/features" 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-features"
-              >
-                Features
-              </Link>
-              <button 
-                onClick={() => scrollToSection('pricing')} 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-pricing"
-              >
-                Pricing
-              </button>
-              <Link 
-                href="/academy" 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-academy"
-              >
-                Academy
-              </Link>
-              <Link 
-                href="/blog" 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-blog"
-              >
-                Blog
-              </Link>
-              <Link 
-                href="/about" 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-about"
-              >
-                About
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                data-testid="button-discord-nav"
-              >
-                <SiDiscord className="h-4 w-4" />
-              </Button>
-              {isAuthenticated ? (
-                <Link href="/trade-desk">
-                  <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="button-dashboard">
-                    Dashboard
+          <div className="flex items-center gap-2">
+            <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors">
+              <SiDiscord className="w-4 h-4" />
+            </a>
+            <ThemeToggle />
+            {isAuthenticated ? (
+              hasBetaAccess ? (
+                <Link href="/home">
+                  <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-8 px-4 text-xs font-medium">
+                    Open App
                   </Button>
                 </Link>
               ) : (
+                <Button size="sm" onClick={() => setWaitlistOpen(true)} className="bg-gray-900 dark:bg-white text-white dark:text-black h-8 px-4 text-xs font-medium">
+                  Request Access
+                </Button>
+              )
+            ) : (
+              <>
                 <Link href="/login">
-                  <Button size="sm" variant="outline" data-testid="button-login">
-                    Sign In
-                  </Button>
+                  <Button size="sm" variant="ghost" className="text-gray-600 dark:text-slate-400 h-8 px-3 text-xs">Sign in</Button>
                 </Link>
-              )}
-            </div>
+                <Button size="sm" onClick={() => setWaitlistOpen(true)} className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-8 px-4 text-xs font-medium">
+                  Get Started
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Hero Section - Side by Side Layout */}
-      <section className="relative pt-24 pb-12" data-testid="hero-section">
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Hero Text */}
-            <div className="text-center lg:text-left">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm mb-6">
-                <Zap className="h-3.5 w-3.5" />
-                <span>AI-Powered Trading Research</span>
+      {/* Market Ticker */}
+      <div className="fixed top-14 left-0 right-0 z-40 bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#1a1a1a]">
+        <div className="flex items-center h-8 max-w-7xl mx-auto">
+          <div className="flex items-center gap-1.5 px-3 border-r border-gray-200 dark:border-[#222]">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">LIVE</span>
+          </div>
+          <div className="flex-1 flex items-center gap-6 px-4 overflow-x-auto scrollbar-hide">
+            {marketIndices.map((idx) => (
+              <div key={idx.symbol} className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-[11px] font-medium text-gray-500 dark:text-slate-500">{idx.symbol}</span>
+                <span className={`text-[11px] font-mono font-medium ${idx.change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {idx.change >= 0 ? '+' : ''}{idx.change.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="pt-[88px]">
+        {/* Hero Section - Clean & Focused */}
+        <section className="px-4 py-12 lg:py-16">
+          <div className="max-w-6xl mx-auto">
+            {/* Tagline */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium mb-6">
+                <Zap className="w-3 h-3" />
+                Institutional-grade research for retail traders
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-white">
-                AI Stock Analysis.
-                <br />
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Six Engines. One Edge.</span>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
+                Your AI<br />
+                <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">Research Hub</span>
               </h1>
 
-              <p className="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 mb-8">
-                Our AI trading platform combines ML predictions, sentiment analysis, order flow tracking, and technical signals into higher-conviction trade ideas.
+              <p className="text-lg text-gray-600 dark:text-slate-400 max-w-xl mx-auto mb-8">
+                6 trading engines analyze every stock. When they converge, you get a signal.
               </p>
 
-              <div className="flex flex-wrap gap-3 justify-center lg:justify-start mb-8">
-                <Button
-                  size="lg"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 px-6"
-                  onClick={() => setWaitlistOpen(true)}
-                >
-                  Join Beta Waitlist
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-slate-700 hover:bg-slate-800 h-12 px-6"
-                  onClick={() => scrollToSection('features')}
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  See How It Works
-                </Button>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-sm text-slate-500">
-                <span className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-green-500" />
-                  256-bit SSL encryption
-                </span>
-                <span className="flex items-center gap-2">
-                  <ChartLine className="h-4 w-4 text-cyan-500" />
-                  Live market data
-                </span>
-                <span className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-500" />
-                  Free forever in beta
-                </span>
+              {/* Search Bar */}
+              <div className="max-w-lg mx-auto mb-6">
+                <div className="relative">
+                  <div className="flex items-center bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-xl overflow-hidden focus-within:border-emerald-500 dark:focus-within:border-emerald-500 transition-colors">
+                    <Search className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="Search any stock, ETF, or crypto..."
+                      className="flex-1 px-3 py-3.5 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 outline-none text-sm"
+                    />
+                    <Button onClick={handleSearch} className="m-1 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white h-9 px-5 text-sm">
+                      Search
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-2 mt-3 text-xs text-gray-500">
+                  <span>Try:</span>
+                  {['NVDA', 'TSLA', 'AAPL', 'SPY'].map((symbol) => (
+                    <button
+                      key={symbol}
+                      onClick={() => { setSearchQuery(symbol); if (isAuthenticated) setLocation(`/stock/${symbol}`); else setWaitlistOpen(true); }}
+                      className="px-2 py-0.5 rounded bg-gray-100 dark:bg-[#1a1a1a] hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    >
+                      {symbol}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Right: Animated Trading Visualization - Typewriter.ai inspired */}
-            <div className="relative h-[500px] lg:h-[550px]">
-              {/* Decorative arc/curve - like Typewriter.ai */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 500">
-                <defs>
-                  <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.1"/>
-                    <stop offset="50%" stopColor="#10b981" stopOpacity="0.2"/>
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.1"/>
-                  </linearGradient>
-                </defs>
-                {/* Large decorative arc */}
-                <path
-                  d="M 50 450 Q 200 100, 350 450"
-                  fill="none"
-                  stroke="url(#arcGradient)"
-                  strokeWidth="1"
-                  strokeDasharray="4,6"
-                  className="animate-draw-line"
-                />
-                {/* Connection dots on arc */}
-                <circle cx="100" cy="350" r="3" fill="#10b981" fillOpacity="0.4" />
-                <circle cx="200" cy="180" r="3" fill="#06b6d4" fillOpacity="0.4" />
-                <circle cx="300" cy="350" r="3" fill="#10b981" fillOpacity="0.4" />
-              </svg>
-
-              {/* Subtle ambient glow */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-500/10 rounded-full blur-[100px]" />
-
-              {/* ========== Main Card - Center ========== */}
-              <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <div className="relative w-[340px] animate-float">
-                  {/* Card Frame */}
-                  <div className="relative bg-slate-900/95 border border-slate-700/60 rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-slate-800/60 border-b border-slate-700/40">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
-                          {(heroIdea?.symbol || 'NVDA').slice(0, 2)}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-white">{heroIdea?.symbol || 'NVDA'}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">
-                              {heroIdea?.direction?.toUpperCase() || 'LONG'}
-                            </span>
+            {/* 3-Column Layout: Trending | AI Pick | News/Earnings */}
+            <div className="grid lg:grid-cols-3 gap-4">
+              {/* Trending Tickers */}
+              <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm font-semibold">Trending</span>
+                  </div>
+                  <Link href="/market" className="text-xs text-gray-500 hover:text-emerald-500 flex items-center gap-0.5">
+                    More <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {trendingTickers.slice(0, 5).map((ticker) => (
+                    <Link key={ticker.symbol} href={`/stock/${ticker.symbol}`}>
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-[#222] flex items-center justify-center text-xs font-bold">
+                            {ticker.symbol.slice(0, 2)}
                           </div>
-                          <span className="text-[11px] text-slate-500">AI Trade Signal</span>
+                          <div>
+                            <div className="text-sm font-medium">{ticker.symbol}</div>
+                            <div className="text-[10px] text-gray-500">{ticker.name}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-mono">${ticker.price.toFixed(2)}</div>
+                          <div className={`text-[10px] font-mono ${ticker.change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {ticker.change >= 0 ? '+' : ''}{ticker.change.toFixed(2)}%
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] text-emerald-400 font-medium">LIVE</span>
-                      </div>
-                    </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Chart */}
-                    <div className="px-4 pt-3 pb-2">
-                      <div className="relative h-28 bg-slate-800/40 rounded-lg overflow-hidden">
-                        <svg className="w-full h-full" viewBox="0 0 280 100" preserveAspectRatio="none">
-                          <defs>
-                            <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25"/>
-                              <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
-                            </linearGradient>
-                          </defs>
-                          <path d="M0 80 Q 35 75, 55 70 T 110 55 T 165 40 T 220 30 T 280 18 L 280 100 L 0 100 Z" fill="url(#chartGrad)" />
-                          <path d="M0 80 Q 35 75, 55 70 T 110 55 T 165 40 T 220 30 T 280 18" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-                          <circle cx="280" cy="18" r="4" fill="#10b981" />
-                        </svg>
-                        <div className="absolute top-2 right-2 text-right">
-                          <div className="text-xl font-bold text-white">${heroIdea?.entryPrice?.toFixed(2) || '892.45'}</div>
-                          <div className="text-xs text-emerald-400 font-medium">+5.23%</div>
-                        </div>
-                      </div>
-                    </div>
+              {/* Trade Desk - Real-time Signals */}
+              <TradeDeskCard />
 
-                    {/* AI Confidence */}
-                    <div className="px-4 pb-2">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <Brain className="w-3.5 h-3.5 text-cyan-400" />
-                          <span className="text-xs text-slate-400">AI Confidence</span>
-                        </div>
-                        <span className="text-sm font-bold text-cyan-400">{heroIdea?.confidenceScore?.toFixed(0) || '94'}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full" style={{ width: `${heroIdea?.confidenceScore || 94}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Price Targets */}
-                    <div className="px-4 pb-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center p-2 rounded-lg bg-slate-800/50">
-                          <div className="text-[9px] text-slate-500 uppercase mb-0.5">Entry</div>
-                          <div className="text-xs font-bold text-white">${heroIdea?.entryPrice?.toFixed(2) || '885.00'}</div>
-                        </div>
-                        <div className="text-center p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                          <div className="text-[9px] text-emerald-400 uppercase mb-0.5">Target</div>
-                          <div className="text-xs font-bold text-emerald-400">${heroIdea?.targetPrice?.toFixed(2) || '950.00'}</div>
-                        </div>
-                        <div className="text-center p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                          <div className="text-[9px] text-red-400 uppercase mb-0.5">Stop</div>
-                          <div className="text-xs font-bold text-red-400">${heroIdea?.stopLoss?.toFixed(2) || '860.00'}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 6 Engine Footer */}
-                    <div className="px-4 py-2.5 bg-slate-800/40 border-t border-slate-700/40">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          {['ML', 'AI', 'QT', 'FL', 'ST', 'TC'].map((engine) => (
-                            <div key={engine} className="w-7 h-5 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                              <span className="text-[8px] font-semibold text-emerald-400">{engine}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <span className="text-[10px] font-medium text-emerald-400">6/6 Bullish</span>
-                      </div>
-                    </div>
+              {/* News & Earnings */}
+              <div className="space-y-4">
+                {/* News */}
+                <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Newspaper className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-semibold">News</span>
                   </div>
-                  {/* Shadow */}
-                  <div className="absolute -bottom-3 left-6 right-6 h-6 bg-black/30 blur-xl rounded-full" />
-                </div>
-              </div>
-
-              {/* ========== Floating Elements - Different depths like Typewriter.ai ========== */}
-
-              {/* Top-left: Input label style card */}
-              <div className="absolute top-8 left-0 hidden lg:block animate-float" style={{ animationDelay: '0s' }}>
-                <div className="bg-slate-800/90 border border-slate-700/50 rounded-lg px-3 py-2 shadow-lg">
-                  <div className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Signal</div>
-                  <div className="text-sm font-semibold text-emerald-400">"Buy on breakout"</div>
-                </div>
-                {/* Connection line */}
-                <svg className="absolute -right-8 top-1/2 w-8 h-px">
-                  <line x1="0" y1="0" x2="32" y2="0" stroke="#334155" strokeWidth="1" strokeDasharray="2,2" />
-                </svg>
-              </div>
-
-              {/* Top-right: Output/Result card */}
-              <div className="absolute top-4 right-0 hidden lg:block animate-float" style={{ animationDelay: '0.3s' }}>
-                <div className="bg-slate-800/90 border border-slate-700/50 rounded-xl p-3 shadow-lg max-w-[180px]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                      <Brain className="w-3 h-3 text-cyan-400" />
-                    </div>
-                    <span className="text-[10px] text-slate-400">AI Analysis</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Strong momentum with institutional accumulation detected.
-                  </p>
-                </div>
-              </div>
-
-              {/* Bottom-left: Small floating stat */}
-              <div className="absolute bottom-24 left-4 hidden lg:block animate-float" style={{ animationDelay: '0.6s' }}>
-                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-1.5 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5 text-purple-400" />
-                    <span className="text-xs text-purple-400 font-medium">Vol +180%</span>
+                  <div className="space-y-2">
+                    {breakingNews.slice(0, 3).map((news, i) => (
+                      <div key={i} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors cursor-pointer">
+                        <p className="text-xs text-gray-900 dark:text-white line-clamp-1">{news.title}</p>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-500">
+                          <span>{news.source}</span>
+                          <span>·</span>
+                          <span>{news.time}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Bottom-right: Small floating badge */}
-              <div className="absolute bottom-16 right-8 hidden lg:block animate-float" style={{ animationDelay: '0.9s' }}>
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-1.5 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-xs text-amber-400 font-medium">Smart Money</span>
+                {/* Earnings */}
+                <div className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-semibold">Earnings</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Mid-left: Breakout indicator */}
-              <div className="absolute top-1/2 -translate-y-1/2 left-0 hidden lg:block animate-float" style={{ animationDelay: '1.2s' }}>
-                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5 shadow-lg">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs text-emerald-400 font-medium">Breakout</span>
+                  <div className="space-y-2">
+                    {upcomingEarnings.map((earning) => (
+                      <Link key={earning.symbol} href={`/stock/${earning.symbol}`}>
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold">{earning.symbol}</span>
+                            <span className="text-[10px] text-gray-500">{earning.name}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            {earning.date} · {earning.time}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                </div>
-              </div>
-
-              {/* Floating mini cards at different scales (depth effect) */}
-              <div className="absolute top-32 right-4 hidden lg:block opacity-60 scale-90 animate-float" style={{ animationDelay: '1.5s' }}>
-                <div className="bg-slate-800/60 border border-slate-700/40 rounded-lg p-2 w-24">
-                  <div className="text-[8px] text-slate-500">R:R Ratio</div>
-                  <div className="text-sm font-bold text-cyan-400">1:2.4</div>
-                </div>
-              </div>
-
-              <div className="absolute bottom-40 left-8 hidden lg:block opacity-50 scale-75 animate-float" style={{ animationDelay: '1.8s' }}>
-                <div className="bg-slate-800/50 border border-slate-700/30 rounded-lg p-2 w-20">
-                  <div className="text-[7px] text-slate-500">Win Rate</div>
-                  <div className="text-xs font-bold text-emerald-400">78%</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Subtle gradient orb */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
-      </section>
+        {/* Engines Section - Compact */}
+        <section className="px-4 py-12 bg-gray-50 dark:bg-[#0d0d0d] border-y border-gray-200 dark:border-[#1a1a1a]">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold mb-2">6 Engines. 1 Signal.</h2>
+              <p className="text-sm text-gray-600 dark:text-slate-400">When they converge, you trade.</p>
+            </div>
 
-      {/* Data Sources Strip - REAL */}
-      <section className="relative py-8 border-y border-slate-800/50 bg-slate-900/20">
-        <div className="container mx-auto px-6">
-          <p className="text-center text-xs text-slate-500 mb-4 uppercase tracking-wider">Powered by real-time data from</p>
-          <div className="flex items-center justify-center gap-8 md:gap-12 flex-wrap opacity-60">
-            {['Tradier API', 'Yahoo Finance', 'Alpha Vantage', 'CoinGecko', 'Polygon.io'].map((name) => (
-              <span key={name} className="text-sm font-medium text-slate-400">
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section - Real Capabilities */}
-      <section className="relative py-12">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {[
-              { value: '6', label: 'AI Analysis Engines', suffix: '' },
-              { value: '5K', label: 'Stocks Scanned Daily', suffix: '+' },
-              { value: '24/7', label: 'Real-Time Monitoring', suffix: '' },
-              { value: '100', label: 'Data Sources Integrated', suffix: '+' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center p-4">
-                <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                  {stat.value}<span className="text-cyan-400">{stat.suffix}</span>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {tradingEngines.map((engine) => (
+                <div key={engine.id} className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 text-center hover:border-emerald-500/50 transition-colors">
+                  <div className="w-10 h-10 rounded-lg mx-auto mb-2 flex items-center justify-center" style={{ backgroundColor: `${engine.color}15` }}>
+                    <engine.icon className="w-5 h-5" style={{ color: engine.color }} />
+                  </div>
+                  <div className="text-xs font-mono font-bold mb-1" style={{ color: engine.color }}>{engine.id}</div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-white">{engine.name}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-slate-500">{engine.desc}</div>
                 </div>
-                <p className="text-xs text-slate-500">{stat.label}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Comparison Table */}
+        <section className="px-4 py-12 bg-gray-50 dark:bg-[#0d0d0d] border-y border-gray-200 dark:border-[#1a1a1a]">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+              <span className="text-xs font-medium uppercase tracking-wider text-purple-500 mb-2 block">Access Levels</span>
+              <h2 className="text-2xl font-bold mb-2">Free to Try, Powerful When Unlocked</h2>
+              <p className="text-sm text-gray-600 dark:text-slate-400">Start exploring instantly. Apply for beta to unlock everything.</p>
+            </div>
+
+            <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl overflow-hidden">
+              {/* Table Header */}
+              <div className="grid grid-cols-3 gap-2 p-4 border-b border-gray-200 dark:border-[#1a1a1a] bg-gray-50 dark:bg-[#0d0d0d]">
+                <div className="text-sm font-semibold">Feature</div>
+                <div className="text-center text-sm font-semibold text-gray-500">Free</div>
+                <div className="text-center text-sm font-semibold text-emerald-500">Beta Member</div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Six Engines Section */}
-      <section className="relative py-12" id="features" data-testid="section-features">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold mb-2 text-white">Six AI Trading Engines Working Together</h2>
-            <p className="text-sm text-slate-400">Comprehensive stock analysis from every angle—technical patterns, fundamentals, sentiment, and institutional flow.</p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            {[
-              { name: 'ML Engine', icon: Sparkles, color: 'pink', desc: 'AI stock predictions using machine learning to detect market regime shifts and momentum changes before they happen' },
-              { name: 'AI Engine', icon: Brain, color: 'purple', desc: 'Multi-LLM analysis of SEC filings, earnings calls, and breaking news to surface trading catalysts' },
-              { name: 'Quant Engine', icon: Calculator, color: 'blue', desc: 'Quantitative stock screener with RSI, VWAP, volume analysis and statistical edge detection for day traders' },
-              { name: 'Flow Engine', icon: Activity, color: 'cyan', desc: 'Track institutional order flow, dark pool prints, and whale trades in real-time to follow smart money' },
-              { name: 'Sentiment Engine', icon: Target, color: 'amber', desc: 'Social media sentiment analysis with Fear & Greed tracking to gauge market psychology and retail positioning' },
-              { name: 'Technical Engine', icon: CandlestickChart, color: 'green', desc: 'AI-powered chart pattern recognition with automated support, resistance, and trend line detection' },
-            ].map((engine) => {
-              const Icon = engine.icon;
-              const colorMap: Record<string, string> = {
-                pink: 'border-pink-500/20 hover:border-pink-500/40',
-                purple: 'border-purple-500/20 hover:border-purple-500/40',
-                blue: 'border-blue-500/20 hover:border-blue-500/40',
-                cyan: 'border-cyan-500/20 hover:border-cyan-500/40',
-                amber: 'border-amber-500/20 hover:border-amber-500/40',
-                green: 'border-green-500/20 hover:border-green-500/40',
-              };
-              const iconColorMap: Record<string, string> = {
-                pink: 'text-pink-400',
-                purple: 'text-purple-400',
-                blue: 'text-blue-400',
-                cyan: 'text-cyan-400',
-                amber: 'text-amber-400',
-                green: 'text-green-400',
-              };
-              return (
+              {/* Table Rows */}
+              {featureComparison.map((row, i) => (
                 <div
-                  key={engine.name}
-                  className={`p-5 rounded-xl bg-slate-900/50 border transition-colors ${colorMap[engine.color]}`}
+                  key={row.feature}
+                  className={`grid grid-cols-3 gap-2 p-3 ${i !== featureComparison.length - 1 ? 'border-b border-gray-100 dark:border-[#1a1a1a]' : ''}`}
                 >
-                  <Icon className={`h-6 w-6 mb-3 ${iconColorMap[engine.color]}`} />
-                  <h3 className="font-semibold text-white mb-1">{engine.name}</h3>
-                  <p className="text-sm text-slate-400">{engine.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Asset Classes */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500 mb-4 text-center">Asset Classes</p>
-            <div className="grid grid-cols-4 gap-2 max-w-2xl mx-auto">
-              {[
-                { name: 'Stocks', icon: TrendingUp, desc: 'US Equities' },
-                { name: 'Options', icon: Activity, desc: 'Calls & Puts' },
-                { name: 'Crypto', icon: Coins, desc: 'BTC, ETH, SOL' },
-                { name: 'Futures', icon: BarChart3, desc: 'NQ, ES, GC' },
-              ].map((asset) => {
-                const Icon = asset.icon;
-                return (
-                  <div key={asset.name} className="text-center p-4 rounded-lg bg-slate-900/30 border border-slate-800">
-                    <Icon className="h-5 w-5 mx-auto mb-2 text-slate-400" />
-                    <p className="font-medium text-sm text-white">{asset.name}</p>
-                    <p className="text-xs text-slate-500">{asset.desc}</p>
+                  <div className="text-sm text-gray-700 dark:text-slate-300">{row.feature}</div>
+                  <div className="text-center">
+                    {row.free === true ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
+                    ) : row.free === false ? (
+                      <span className="text-gray-300 dark:text-slate-700">—</span>
+                    ) : (
+                      <span className="text-xs text-amber-500 font-medium">{row.free}</span>
+                    )}
                   </div>
-                );
-              })}
+                  <div className="text-center">
+                    {row.beta === true ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
+                    ) : row.beta === false ? (
+                      <span className="text-gray-300 dark:text-slate-700">—</span>
+                    ) : (
+                      <span className="text-xs text-emerald-500 font-medium">{row.beta}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* How It Works */}
-      <section className="py-10 bg-slate-900/30 border-y border-slate-800/50">
-        <div className="container mx-auto px-6">
-          <h2 className="text-xl font-bold text-white mb-6 text-center">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-            {[
-              { step: '01', title: 'Connect & Scan', desc: 'Sign up free. Our 6 AI engines immediately start analyzing thousands of stocks, options, and crypto' },
-              { step: '02', title: 'Get Trade Ideas', desc: 'Receive AI-generated setups when multiple engines converge—with entry, targets, and risk levels' },
-              { step: '03', title: 'Execute or Paper Trade', desc: 'Act on high-conviction ideas or practice risk-free with our built-in paper trading simulator' },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="text-3xl font-bold text-cyan-500/20 mb-1">{item.step}</div>
-                <h3 className="font-semibold text-white text-sm mb-1">{item.title}</h3>
-                <p className="text-xs text-slate-400">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section - Prominent */}
-      <section className="py-16 bg-gradient-to-b from-slate-900/50 to-slate-950 relative z-10" id="pricing" data-testid="section-pricing">
-        <div className="container mx-auto px-6">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 mb-4 text-sm px-4 py-1">
-              <Sparkles className="w-3.5 h-3.5 mr-1.5 inline" />
-              Limited Beta Access
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
-              Start Free. <span className="text-cyan-400">No Credit Card.</span>
-            </h2>
-            <p className="text-slate-400 max-w-lg mx-auto">
-              Get full access to all 6 AI engines and professional tools while we're in beta. Upgrade later when Pro launches.
+            <p className="text-center text-xs text-gray-500 mt-4">
+              Beta spots are limited. Apply now to get early access.
             </p>
           </div>
+        </section>
 
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Free Beta - Featured */}
-            <div className="relative rounded-2xl border-2 border-cyan-500 bg-gradient-to-b from-cyan-500/10 via-slate-900/50 to-slate-900/80 p-6 md:p-8">
-              {/* Most Popular Badge */}
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-cyan-500 text-slate-950 font-semibold px-4 py-1 shadow-lg shadow-cyan-500/30">
-                  MOST POPULAR
-                </Badge>
-              </div>
+        {/* Trust & Security Section */}
+        <section className="px-4 py-12">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-8">
+              <span className="text-xs font-medium uppercase tracking-wider text-green-500 mb-2 block">Trust & Security</span>
+              <h2 className="text-2xl font-bold mb-2">Your Data is Safe</h2>
+              <p className="text-sm text-gray-600 dark:text-slate-400">We never access your brokerage or execute trades on your behalf</p>
+            </div>
 
-              <div className="mt-4 mb-6">
-                <h3 className="text-lg font-semibold text-white mb-1">Beta Access</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold text-white">$0</span>
-                  <span className="text-slate-400">/forever during beta</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {trustBadges.map((badge) => (
+                <div key={badge.label} className="bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded-xl p-4 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                    <badge.icon className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="text-sm font-semibold mb-1">{badge.label}</div>
+                  <div className="text-[10px] text-gray-500">{badge.desc}</div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-              <ul className="space-y-3 mb-8">
-                {[
-                  'All 6 AI research engines',
-                  'Real-time market analysis',
-                  'Advanced charting tools',
-                  'Stock screener & discovery',
-                  'Paper trading simulator',
-                  'Market news & sentiment',
-                  'Discord community access',
-                  'Unlimited stock research',
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-slate-200">
-                    <div className="w-5 h-5 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-cyan-400" />
-                    </div>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                size="lg"
-                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold h-12 text-base"
-                onClick={() => setWaitlistOpen(true)}
-              >
-                Join Beta Waitlist
+        {/* Simple CTA */}
+        <section className="px-4 py-16 bg-gradient-to-br from-emerald-500 to-cyan-500">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Start researching smarter</h2>
+            <p className="text-emerald-100 mb-6">Free during beta. No credit card required.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button onClick={() => setWaitlistOpen(true)} size="lg" className="bg-white text-emerald-600 hover:bg-gray-100 h-12 px-8 font-medium">
+                Join Beta Free
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-
-              <p className="text-center text-xs text-slate-500 mt-3">
-                No credit card required • Cancel anytime
-              </p>
+              <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 h-12 px-6 rounded-lg border border-white/30 text-white hover:bg-white/10 transition-colors font-medium">
+                <SiDiscord className="w-5 h-5" />
+                Join Discord
+              </a>
             </div>
+          </div>
+        </section>
 
-            {/* Pro Coming Soon */}
-            <div className="rounded-2xl border border-slate-700/50 bg-slate-900/30 p-6 md:p-8 relative overflow-hidden">
-              {/* Coming Soon Overlay */}
-              <div className="absolute top-4 right-4">
-                <Badge variant="outline" className="border-purple-500/50 text-purple-400 bg-purple-500/10">
-                  Coming Q2 2025
-                </Badge>
+        {/* Footer */}
+        <footer className="px-4 py-8 border-t border-gray-200 dark:border-[#1a1a1a]">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-6 w-6" />
+                <span className="font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">QuantEdge Labs</span>
               </div>
-
-              <div className="mt-4 mb-6">
-                <h3 className="text-lg font-semibold text-white mb-1">Pro</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-slate-400">$29</span>
-                  <span className="text-slate-500">/month</span>
-                </div>
+              <div className="flex items-center gap-6 text-xs text-gray-500">
+                <Link href="/features" className="hover:text-emerald-500">Features</Link>
+                <Link href="/terms" className="hover:text-emerald-500">Terms</Link>
+                <Link href="/privacy" className="hover:text-emerald-500">Privacy</Link>
+                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-500">Discord</a>
               </div>
-
-              <p className="text-sm text-slate-400 mb-4">Everything in Beta, plus:</p>
-
-              <ul className="space-y-3 mb-8">
-                {[
-                  'Priority real-time alerts',
-                  'Auto-Lotto options bot',
-                  'API access for automation',
-                  'Advanced screener filters',
-                  'Backtesting & analytics',
-                  'Priority support',
-                ].map(f => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-slate-400">
-                    <div className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-slate-500" />
-                    </div>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 h-12"
-                onClick={() => setWaitlistOpen(true)}
-              >
-                Join Pro Waitlist
-              </Button>
-
-              <p className="text-center text-xs text-slate-600 mt-3">
-                Be first to know when Pro launches
-              </p>
+              <p className="text-[10px] text-gray-400">Not financial advice. Research platform only.</p>
             </div>
           </div>
+        </footer>
+      </main>
 
-          {/* Trust indicators */}
-          <div className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-slate-500">
-            <span className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-500" />
-              Secure & encrypted
-            </span>
-            <span className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-cyan-500" />
-              No credit card needed
-            </span>
-            <span className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-purple-500" />
-              2,500+ traders joined
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Platform Features Section */}
-      <section className="py-8 relative z-10 bg-slate-950" data-testid="section-features-highlight">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-6">
-            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 mb-3">Platform Highlights</Badge>
-            <h2 className="text-2xl font-bold text-white mb-2">Built for Serious Traders</h2>
-            <p className="text-sm text-slate-400">Real data. Real analysis. No fluff.</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            {[
-              {
-                title: "Multi-Engine Analysis",
-                description: "6 independent AI engines analyze every trade from different angles - technical, fundamental, flow, sentiment, and more.",
-                icon: Brain,
-              },
-              {
-                title: "Real-Time Data",
-                description: "Live market data from Tradier, Yahoo Finance, and Polygon. Options flow, earnings calendars, and news - all in one place.",
-                icon: Zap,
-              },
-              {
-                title: "Risk Management",
-                description: "Every trade idea includes entry, target, stop-loss, and risk/reward ratio. Paper trading to test strategies risk-free.",
-                icon: Shield,
-              },
-            ].map((feature, idx) => {
-              const Icon = feature.icon;
-              return (
-                <div key={idx} className="p-5 rounded-xl bg-slate-900/50 border border-slate-800/50 hover:border-cyan-500/30 transition-colors">
-                  <Icon className="w-8 h-8 text-cyan-400 mb-3" />
-                  <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-6 bg-slate-900/30 border-y border-slate-800/50 relative z-10" data-testid="section-faq">
-        <div className="container mx-auto px-6">
-          <h2 className="text-xl font-bold text-center text-white mb-6">FAQ</h2>
-          <div className="max-w-2xl mx-auto">
-            <Accordion type="single" collapsible className="space-y-2">
-              {faqData.map((faq) => (
-                <AccordionItem key={faq.id} value={faq.id} className="border border-slate-800 rounded-lg px-4">
-                  <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm text-white">
-                    {faq.q}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-slate-400 pb-3 text-sm">
-                    {faq.a}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="pt-8 pb-6 border-t border-slate-800 bg-slate-950 relative z-10">
-        <div className="container mx-auto px-6">
-          {/* Footer Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-            {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-8 w-8" />
-                <span className="font-bold text-white">QuantEdge</span>
-              </div>
-              <p className="text-xs text-slate-500 mb-4">AI-powered trading intelligence. Six engines, one edge.</p>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 hover:bg-indigo-500/20"
-                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
-                >
-                  <SiDiscord className="h-4 w-4 text-slate-400 hover:text-indigo-400" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-3">Product</h4>
-              <ul className="space-y-2">
-                <li><Link href="/features" className="text-xs text-slate-500 hover:text-white transition-colors">Features</Link></li>
-                <li><Link href="/trade-desk" className="text-xs text-slate-500 hover:text-white transition-colors">Trade Desk</Link></li>
-                <li><Link href="/chart-analysis" className="text-xs text-slate-500 hover:text-white transition-colors">Chart Analysis</Link></li>
-                <li><button onClick={() => scrollToSection('pricing')} className="text-xs text-slate-500 hover:text-white transition-colors">Pricing</button></li>
-              </ul>
-            </div>
-
-            {/* Resources */}
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-3">Resources</h4>
-              <ul className="space-y-2">
-                <li><Link href="/academy" className="text-xs text-slate-500 hover:text-white transition-colors">Academy</Link></li>
-                <li><Link href="/blog" className="text-xs text-slate-500 hover:text-white transition-colors">Blog</Link></li>
-                <li><Link href="/success-stories" className="text-xs text-slate-500 hover:text-white transition-colors">Success Stories</Link></li>
-                <li><Link href="/technical-guide" className="text-xs text-slate-500 hover:text-white transition-colors">Technical Guide</Link></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-3">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link href="/terms" className="text-xs text-slate-500 hover:text-white transition-colors">Terms of Service</Link></li>
-                <li><Link href="/privacy" className="text-xs text-slate-500 hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="text-xs text-slate-500 hover:text-white transition-colors">Risk Disclosure</Link></li>
-                <li><Link href="/about" className="text-xs text-slate-500 hover:text-white transition-colors">About Us</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="pt-6 border-t border-slate-800/50 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-600">© {new Date().getFullYear()} Quant Edge Labs. All rights reserved.</p>
-            <p className="text-[10px] text-slate-600 max-w-md text-center md:text-right">
-              Trading involves substantial risk. Past performance is not indicative of future results. This is an educational research platform, not financial advice.
-            </p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Waitlist Popup */}
       <WaitlistPopup open={waitlistOpen} onOpenChange={setWaitlistOpen} />
     </div>
   );
