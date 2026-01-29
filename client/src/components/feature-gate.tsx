@@ -369,7 +369,7 @@ function JoinBetaModal({
               size="lg"
               onClick={handleJoinBeta}
             >
-              {requiresAuth ? "Join Beta Waitlist" : "Apply for Beta Access"}
+              {requiresAuth ? "Create Free Account" : "Apply for Beta Access"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
 
@@ -388,7 +388,9 @@ function JoinBetaModal({
 
           {/* Note */}
           <p className="text-xs text-center text-slate-500">
-            Beta spots are limited. We're reviewing applications daily.
+            {requiresAuth
+              ? "Sign up to get 10 free daily credits and try AI features."
+              : "Beta spots are limited. We're reviewing applications daily."}
           </p>
         </div>
       </DialogContent>

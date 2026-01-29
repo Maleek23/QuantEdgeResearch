@@ -35,6 +35,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
+import { WSBTrendingCard } from "@/components/wsb-trending-card";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
 interface MarketQuote {
@@ -718,20 +719,30 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Trending Tickers */}
+        {/* Trending Tickers + WSB Trending */}
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-              Trending Now
-            </h2>
-            <Link href="/market">
-              <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
-                View all <ChevronRight className="w-3 h-3" />
-              </span>
-            </Link>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Trending Tickers - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-500" />
+                  Trending Now
+                </h2>
+                <Link href="/market">
+                  <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+                    View all <ChevronRight className="w-3 h-3" />
+                  </span>
+                </Link>
+              </div>
+              <TrendingTickers />
+            </div>
+
+            {/* WSB Trending - Takes 1 column */}
+            <div>
+              <WSBTrendingCard limit={5} className="h-full" />
+            </div>
           </div>
-          <TrendingTickers />
         </section>
 
         {/* Research Tools */}

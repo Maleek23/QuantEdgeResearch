@@ -76,10 +76,10 @@ export function ProtectedRoute({
               Account Required
             </h2>
             <p className="text-slate-400 mb-4">
-              Sign up to access this feature
+              Create a free account to access this feature
             </p>
             <Button onClick={() => setShowWaitlistModal(true)}>
-              Join Beta Waitlist
+              Sign Up Free
             </Button>
           </div>
         </div>
@@ -87,8 +87,8 @@ export function ProtectedRoute({
         <WaitlistPromptModal
           open={showWaitlistModal}
           onClose={() => setLocation("/")}
-          title="Join the Beta"
-          description="Create a free account to access all features"
+          title="Create Your Account"
+          description="Sign up to unlock market data, AI trials, and more"
         />
       </>
     );
@@ -231,4 +231,43 @@ export function AuthProtectedRoute({ children }: { children: React.ReactNode }) 
  */
 export function BetaProtectedRoute({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute requireBetaAccess={true}>{children}</ProtectedRoute>;
+}
+
+/**
+ * AdminProtectedRoute - Requires admin role
+ * Shows 404-like page for non-admins (security through obscurity)
+ */
+export function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+      </div>
+    );
+  }
+
+  // Not logged in or not admin - show generic "not found" (don't reveal admin exists)
+  const isAdmin = user?.isAdmin || user?.subscriptionTier === "admin";
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
+        <div className="text-center">
+          <h1 className="text-6xl font-bold text-slate-700 mb-4">404</h1>
+          <h2 className="text-xl font-semibold text-white mb-2">Page Not Found</h2>
+          <p className="text-slate-400 mb-6">
+            The page you're looking for doesn't exist.
+          </p>
+          <Button onClick={() => setLocation("/")}>
+            Go Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

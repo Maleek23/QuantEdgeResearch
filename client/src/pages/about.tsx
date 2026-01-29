@@ -351,7 +351,7 @@ export default function About() {
             <Link href="/signup">
               <Button size="lg" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600">
                 <Sparkles className="h-4 w-4 mr-2" />
-                Join Beta
+                Sign Up Free
               </Button>
             </Link>
             <Link href="/features">

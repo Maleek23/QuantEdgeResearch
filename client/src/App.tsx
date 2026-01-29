@@ -23,7 +23,7 @@ import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { BotNotificationPopup } from "@/components/bot-notification-popup";
 import { cn } from "@/lib/utils";
-import { ProtectedRoute } from "@/components/protected-route";
+import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
@@ -104,6 +104,16 @@ function withBetaProtection<P extends object>(Component: ComponentType<P>) {
       <ProtectedRoute requireBetaAccess={true}>
         <Component {...props} />
       </ProtectedRoute>
+    );
+  };
+}
+
+function withAdminProtection<P extends object>(Component: ComponentType<P>) {
+  return function AdminProtectedComponent(props: P) {
+    return (
+      <AdminProtectedRoute>
+        <Component {...props} />
+      </AdminProtectedRoute>
     );
   };
 }
@@ -250,18 +260,20 @@ function Router() {
         <Redirect to="/settings" />
       </Route>
       <Route path="/pricing" component={Pricing} />
-      <Route path="/admin" component={AdminOverview} />
-      <Route path="/admin/users" component={AdminUsers} />
-      <Route path="/admin/invites" component={AdminInvites} />
-      <Route path="/admin/waitlist" component={AdminWaitlist} />
-      <Route path="/admin/system" component={AdminSystem} />
-      <Route path="/admin/trade-ideas" component={AdminTradeIdeas} />
-      <Route path="/admin/blog" component={AdminBlog} />
-      <Route path="/admin/reports" component={AdminReports} />
-      <Route path="/admin/security" component={AdminSecurity} />
-      <Route path="/admin/win-loss" component={AdminWinLoss} />
-      <Route path="/admin/credits" component={AdminCredits} />
-      <Route path="/admin/beta-invites" component={AdminBetaInvites} />
+
+      {/* Admin Pages - Protected */}
+      <Route path="/admin" component={withAdminProtection(AdminOverview)} />
+      <Route path="/admin/users" component={withAdminProtection(AdminUsers)} />
+      <Route path="/admin/invites" component={withAdminProtection(AdminInvites)} />
+      <Route path="/admin/waitlist" component={withAdminProtection(AdminWaitlist)} />
+      <Route path="/admin/system" component={withAdminProtection(AdminSystem)} />
+      <Route path="/admin/trade-ideas" component={withAdminProtection(AdminTradeIdeas)} />
+      <Route path="/admin/blog" component={withAdminProtection(AdminBlog)} />
+      <Route path="/admin/reports" component={withAdminProtection(AdminReports)} />
+      <Route path="/admin/security" component={withAdminProtection(AdminSecurity)} />
+      <Route path="/admin/win-loss" component={withAdminProtection(AdminWinLoss)} />
+      <Route path="/admin/credits" component={withAdminProtection(AdminCredits)} />
+      <Route path="/admin/beta-invites" component={withAdminProtection(AdminBetaInvites)} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}

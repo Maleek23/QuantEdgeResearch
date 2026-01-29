@@ -123,12 +123,12 @@ export default function Features() {
                   >
                     Login
                   </Button>
-                  <Button 
-                    onClick={() => setLocation('/')}
+                  <Button
+                    onClick={() => setLocation('/signup')}
                     className="bg-cyan-500 text-slate-950"
                     data-testid="button-join-beta"
                   >
-                    Join Beta
+                    Sign Up
                   </Button>
                 </>
               )}

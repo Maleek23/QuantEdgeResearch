@@ -1,99 +1,258 @@
 # QuantEdge Platform Architecture Hierarchy
 
-## Navigation Structure (Current)
+*Updated: 2026-01-29*
+
+---
+
+## Access Control Model
 
 ```
-QuantEdge Header Navigation
-├── Trade Desk (/trade-desk) - AI trade setups & ideas
-├── AI Picks (/trade-desk/best-setups) - Best AI-selected setups
-├── Markets (/market) - Market overview & movers
-├── Charts (/chart-analysis) - Advanced charting
-├── Smart Money (/smart-money) - Institutional flow
-├── Watchlist (/watchlist) - User watchlists
-└── Discover (dropdown)
-    ├── Academy (/academy) - Learning resources
-    ├── News & Social (/discover) - Social trends
-    ├── Bullish Trends (/bullish-trends) - Trending stocks
-    └── Market Scanner (/market-scanner) - Stock screener
+┌─────────────────────────────────────────────────────────────────┐
+│                        ACCESS TIERS                             │
+├─────────────────────────────────────────────────────────────────┤
+│  VISITORS              │  BETA USERS                            │
+│  (not logged in)       │  (hasBetaAccess=true)                  │
+├────────────────────────┼────────────────────────────────────────┤
+│  • Landing page        │  • Full unlimited access               │
+│  • Marketing pages     │  • All features unlocked               │
+│  • Auth pages          │  • No restrictions                     │
+│  • Educational content │                                        │
+│  • Blurred preview     │                                        │
+│    of protected pages  │                                        │
+└────────────────────────┴────────────────────────────────────────┘
 ```
 
 ---
 
-## Complete Page Hierarchy (59 Pages - Consolidated from 63)
+## Page Purposes & Connections
+
+### 1. CORE HUB PAGES
+
+| Page | Route | Lines | Purpose | Connects To |
+|------|-------|-------|---------|-------------|
+| **Home** | `/home` | 953 | Central dashboard hub, gateway to all tools | trade-desk, chart-analysis, market, discover, smart-money, watchlist |
+| **Trade Desk** | `/trade-desk` | 3,374 | AI trade idea generation & multi-engine signals | stock/:symbol, chart-analysis |
+| **Market** | `/market` | 985 | Market overview, movers, sector analysis | stock/:symbol, chart-analysis |
+| **Charts** | `/chart-analysis` | 5,173 | Advanced technical analysis with 50+ indicators | stock/:symbol |
+| **Watchlist** | `/watchlist` | - | Unified watchlist (personal + bot picks) | stock/:symbol |
+
+**Data Flow:**
+```
+Home (hub) ──► Trade Desk ──► Stock Detail ──► Chart Analysis
+    │              │              │
+    ├──► Market ───┘              │
+    │                             │
+    └──► Watchlist ───────────────┘
+```
+
+### 2. DISCOVERY PAGES
+
+| Page | Route | Purpose | Key Data |
+|------|-------|---------|----------|
+| **Discover** | `/discover` | News, social trends, earnings | News API, earnings, movers |
+| **Market Scanner** | `/market-scanner` | Multi-timeframe stock screening | Movers, sectors, scanners |
+| **Bullish Trends** | `/bullish-trends` | Momentum & breakout patterns | Breakouts, heat scores |
+| **Smart Money** | `/smart-money` | Institutional flow, insiders | Whale flow, insider trades |
+
+**Overlap Analysis:**
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    DATA DUPLICATION MAP                        │
+├────────────────────────────────────────────────────────────────┤
+│  Market Movers: home, market, discover, market-scanner,        │
+│                 trade-desk, smart-money (6 PAGES!)             │
+│                                                                │
+│  News Feed: home, discover, market, stock-detail (4 PAGES)    │
+│                                                                │
+│  Earnings: home, discover, market-scanner (3 PAGES)           │
+│                                                                │
+│  Breakouts: trade-desk, market-scanner, bullish-trends        │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 3. ANALYSIS PAGES
+
+| Page | Route | Purpose | API Endpoints |
+|------|-------|---------|---------------|
+| **Stock Detail** | `/stock/:symbol` | Full stock research | `/api/analyze/:symbol`, quotes, news, options, analysts, insiders |
+| **Options Analyzer** | `/options-analyzer` | Greeks, volatility, Black-Scholes | `/api/options-analyzer/*` |
+| **Analysis** | `/analysis/:symbol` | Multi-engine analysis view | `/api/analyze/:symbol` |
+
+### 4. TRADING PAGES
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| **Paper Trading** | `/paper-trading` | Simulated trading, portfolio tracking |
+| **Automations** | `/automations` | Bot management (Lotto, Crypto, Futures, Swing, Day) |
+| **Trading Engine** | `/trading-engine` | Live trading execution |
+
+### 5. PERFORMANCE PAGES
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| **Performance** | `/performance` | Win rates, P&L, engine metrics, calibration |
+| **History** | `/history` | Chat & research history |
+| **Backtest** | `/backtest` | Strategy backtesting |
+
+### 6. EDUCATIONAL PAGES
+
+| Page | Route | Content | Dynamic? |
+|------|-------|---------|----------|
+| **Academy** | `/academy` | Trading fundamentals | Static (hardcoded) |
+| **Blog** | `/blog` | Market insights, updates | Dynamic (API) |
+| **Technical Guide** | `/technical-guide` | Trading techniques | Static |
+| **Trading Rules** | `/trading-rules` | Platform rules | Static |
+
+### 7. MARKETING PAGES
+
+| Page | Route | Purpose |
+|------|-------|---------|
+| **Landing** | `/` | Marketing, convert visitors |
+| **Features** | `/features` | Feature showcase |
+| **Pricing** | `/pricing` | Plan comparison |
+| **About** | `/about` | Company info |
+
+---
+
+## User Flow Diagrams
+
+### Visitor Flow
+```
+Visitor ──► Landing Page
+              │
+    ┌─────────┼─────────┬─────────┐
+    ▼         ▼         ▼         ▼
+Features  Pricing   Academy    Blog
+    │         │
+    └────┬────┘
+         ▼
+      Sign Up ──► Waitlist ──► (Admin Approval) ──► Beta Access
+```
+
+### Beta User Flow
+```
+Beta User ──► Home (Dashboard)
+               │
+    ┌──────────┼──────────┬──────────┬──────────┐
+    ▼          ▼          ▼          ▼          ▼
+Trade Desk  Market    Charts    Watchlist   More...
+    │          │          │          │
+    │          │          │          │
+    └──────────┴──────────┴──────────┘
+                    │
+                    ▼
+            Stock Detail ──► Options Analyzer
+                    │              │
+                    ▼              ▼
+            Paper Trading ──► Performance
+```
+
+---
+
+## Consolidation Opportunities
+
+### HIGH PRIORITY: Discovery Pages (4 → 1)
 
 ```
-CLIENT PAGES
-============
+CURRENT:                          PROPOSED:
+├── discover.tsx                  └── discover.tsx (tabs)
+├── market-scanner.tsx      ──►       ├── Tab: News & Social
+├── bullish-trends.tsx                ├── Tab: Scanner
+└── smart-money.tsx                   ├── Tab: Momentum
+                                      └── Tab: Smart Money
+```
 
-PUBLIC (No Auth Required)
-├── Marketing
-│   ├── landing.tsx          → /
-│   ├── features.tsx         → /features
-│   ├── pricing.tsx          → /pricing
-│   ├── about.tsx            → /about
-│   ├── academy.tsx          → /academy
-│   ├── blog.tsx             → /blog
-│   └── blog-post.tsx        → /blog/:slug
-│
-├── Auth
-│   ├── login.tsx            → /login
-│   ├── signup.tsx           → /signup
-│   ├── forgot-password.tsx  → /forgot-password
-│   ├── reset-password.tsx   → /reset-password
-│   ├── join-beta.tsx        → /join-beta
-│   └── invite-welcome.tsx   → /invite
-│
-└── Legal
-    ├── privacy-policy.tsx   → /privacy
-    └── terms-of-service.tsx → /terms
+**Why:** All 4 pages show variations of the same data (movers, breakouts, trends).
 
-PROTECTED (Beta Access Required)
-├── Core Trading
-│   ├── home.tsx             → /home (Dashboard)
-│   ├── trade-desk.tsx       → /trade-desk (MAIN HUB)
-│   ├── chart-analysis.tsx   → /chart-analysis
-│   ├── stock-detail.tsx     → /stock/:symbol
-│   ├── market.tsx           → /market
-│   ├── market-scanner.tsx   → /market-scanner
-│   ├── discover.tsx         → /discover
-│   └── unified-watchlist.tsx → /watchlist
-│
-├── Analysis Tools
-│   ├── options-analyzer.tsx → /options-analyzer
-│   ├── smart-money.tsx      → /smart-money
-│   ├── bullish-trends.tsx   → /bullish-trends
-│   └── analysis.tsx         → /analysis/:symbol
-│
-├── Automation & Trading
-│   ├── automations.tsx      → /automations
-│   ├── paper-trading.tsx    → /paper-trading
-│   ├── trading-engine.tsx   → /trading-engine
-│   └── futures.tsx          → /futures (→ trade-desk?tab=futures)
-│
-├── Performance & History
-│   ├── performance.tsx      → /performance
-│   ├── history.tsx          → /history
-│   └── backtest.tsx         → /backtest
-│
-├── Utility
-│   ├── settings.tsx         → /settings
-│   ├── trade-audit.tsx      → /trade-ideas/:id/audit
-│   ├── ct-tracker.tsx       → /ct-tracker
-│   └── wallet-tracker.tsx   → /wallet-tracker
-│
-└── Admin (Consolidated - 12 pages)
-    ├── admin/overview.tsx      → /admin
-    ├── admin/users.tsx         → /admin/users
-    ├── admin/invites.tsx       → /admin/invites
-    ├── admin/waitlist.tsx      → /admin/waitlist
-    ├── admin/system.tsx        → /admin/system
-    ├── admin/trade-ideas.tsx   → /admin/trade-ideas
-    ├── admin/blog.tsx          → /admin/blog
-    ├── admin/reports.tsx       → /admin/reports
-    ├── admin/security.tsx      → /admin/security
-    ├── admin/win-loss.tsx      → /admin/win-loss
-    ├── admin/credits.tsx       → /admin/credits
-    └── admin/beta-invites.tsx  → /admin/beta-invites
+### MEDIUM PRIORITY: Market vs Scanner
+
+```
+CURRENT:                          PROPOSED:
+├── market.tsx (has scanner)      └── market.tsx
+└── market-scanner.tsx       ──►      ├── Tab: Overview
+                                      └── Tab: Full Scanner
+```
+
+**Why:** market.tsx already has a scanner tab; market-scanner.tsx is redundant.
+
+### MEDIUM PRIORITY: Trade Desk Focus
+
+```
+CURRENT: trade-desk.tsx (3,374 lines - does everything)
+
+PROPOSED: Focus on core value
+└── trade-desk.tsx
+    ├── Best AI Trade Ideas (PRIMARY)
+    ├── Convergence Signals
+    └── Quick links to specialized pages
+```
+
+**Why:** Too bloated; breakouts/momentum belong in discovery.
+
+---
+
+## Page Size Analysis
+
+| Page | Lines | Assessment |
+|------|-------|------------|
+| chart-analysis.tsx | 5,173 | ⚠️ Too large - split charting logic |
+| trade-desk.tsx | 3,374 | ⚠️ Too large - remove duplicated features |
+| stock-detail.tsx | 2,202 | ✅ Acceptable |
+| market-scanner.tsx | 2,141 | ⚠️ Consider merge with market.tsx |
+| options-analyzer.tsx | 1,728 | ✅ Acceptable |
+| automations.tsx | 1,578 | ✅ Acceptable |
+| market.tsx | 985 | ✅ Good |
+| home.tsx | 953 | ✅ Good |
+| settings.tsx | 801 | ✅ Good |
+| paper-trading.tsx | 784 | ✅ Good |
+
+---
+
+## Security Issues
+
+| Route | Issue | Priority |
+|-------|-------|----------|
+| `/admin/*` | No auth protection | 🔴 HIGH |
+| `/signal-weights` | Maps to PerformancePage unprotected | 🟡 MEDIUM |
+
+---
+
+## Shared Data Hooks Needed
+
+```typescript
+// These hooks would reduce API call duplication:
+
+useMarketMovers()     // Used by 6 pages
+useNewsFeed()         // Used by 4 pages
+useEarnings()         // Used by 3 pages
+useBreakouts()        // Used by 3 pages
+useOptionsData()      // Used by 3 pages
+```
+
+---
+
+## Complete Page List
+
+### Public Pages (20)
+```
+Marketing:     /, /features, /pricing, /about
+Auth:          /login, /signup, /forgot-password, /reset-password, /join-beta, /invite
+Educational:   /academy, /blog, /blog/:slug, /technical-guide, /trading-rules,
+               /chart-database, /success-stories
+Legal:         /privacy, /terms
+```
+
+### Protected Pages (35)
+```
+Core:          /home, /trade-desk, /chart-analysis, /stock/:symbol, /market, /watchlist
+Discovery:     /discover, /market-scanner, /bullish-trends, /smart-money
+Analysis:      /options-analyzer, /analysis/:symbol
+Trading:       /paper-trading, /automations, /trading-engine
+Performance:   /performance, /history, /backtest
+Utility:       /settings, /trade-ideas/:id/audit, /ct-tracker, /wallet-tracker
+Admin (12):    /admin, /admin/users, /admin/invites, /admin/waitlist, /admin/system,
+               /admin/trade-ideas, /admin/blog, /admin/reports, /admin/security,
+               /admin/win-loss, /admin/credits, /admin/beta-invites
 ```
 
 ---
@@ -120,33 +279,12 @@ DATA SOURCES
 └── news-service.ts        → News aggregation
 
 ANALYSIS ENGINES (6 Engines)
-├── ML Engine
-│   ├── pattern-predictor.ts
-│   ├── multi-factor-analysis.ts
-│   └── confidence-calibration.ts
-│
-├── AI Engine
-│   ├── ai-service.ts
-│   ├── multi-llm-service.ts
-│   └── multi-llm-validation.ts
-│
-├── Quant Engine
-│   ├── quantitative-engine.ts
-│   ├── breakout-scanner.ts
-│   └── bullish-trend-scanner.ts
-│
-├── Flow Engine
-│   ├── flow-scanner.ts
-│   ├── whale-tracker.ts
-│   └── institutional-flow.ts
-│
-├── Sentiment Engine
-│   ├── sentiment-analyzer.ts
-│   └── social-scanner.ts
-│
-└── Technical Engine
-    ├── technical-scanner.ts
-    └── chart-pattern-detector.ts
+├── ML Engine              → pattern-predictor, multi-factor-analysis, confidence-calibration
+├── AI Engine              → ai-service, multi-llm-service, multi-llm-validation
+├── Quant Engine           → quantitative-engine, breakout-scanner, bullish-trend-scanner
+├── Flow Engine            → flow-scanner, whale-tracker, institutional-flow
+├── Sentiment Engine       → sentiment-analyzer, social-scanner
+└── Technical Engine       → technical-scanner, chart-pattern-detector
 
 TRADING SYSTEMS
 ├── trading-engine.ts
@@ -155,135 +293,36 @@ TRADING SYSTEMS
 ├── convergence-engine.ts
 ├── pre-move-detection-service.ts
 └── breakout-discovery-service.ts
-
-ALERTING
-├── discord-service.ts
-├── email-service.ts
-└── notification-service.ts
 ```
 
 ---
 
-## Data Flow Diagram
+## Cleanup History
 
-```
-                    ┌─────────────────────────────────────────────┐
-                    │              EXTERNAL DATA SOURCES          │
-                    ├─────────────────────────────────────────────┤
-                    │  Tradier  │  Yahoo  │  Polygon  │  News APIs│
-                    └─────┬─────┴────┬────┴─────┬─────┴─────┬─────┘
-                          │          │          │           │
-                          ▼          ▼          ▼           ▼
-                    ┌─────────────────────────────────────────────┐
-                    │           SERVER - Analysis Layer           │
-                    ├─────────────────────────────────────────────┤
-                    │  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   │
-                    │  │ ML  │ │ AI  │ │Quant│ │Flow │ │Sent │   │
-                    │  │Eng. │ │Eng. │ │Eng. │ │Eng. │ │Eng. │   │
-                    │  └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘   │
-                    │     └──────┬┴──────┬┴──────┬┴──────┬┘      │
-                    │            ▼       ▼       ▼       ▼       │
-                    │     ┌─────────────────────────────────┐    │
-                    │     │     CONVERGENCE ENGINE          │    │
-                    │     │  (Multi-signal correlation)     │    │
-                    │     └───────────────┬─────────────────┘    │
-                    └─────────────────────┼───────────────────────┘
-                                          ▼
-                    ┌─────────────────────────────────────────────┐
-                    │              PostgreSQL Database            │
-                    │  trade_ideas │ watchlists │ users │ alerts │
-                    └─────────────────────┬───────────────────────┘
-                                          │
-                    ┌─────────────────────┴───────────────────────┐
-                    │              API ROUTES (/api/*)            │
-                    └─────────────────────┬───────────────────────┘
-                                          │
-                    ┌─────────────────────┴───────────────────────┐
-                    │           CLIENT - React Frontend           │
-                    ├─────────────────────────────────────────────┤
-                    │  Landing │ Trade Desk │ Charts │ Markets   │
-                    └─────────────────────────────────────────────┘
-                                          │
-                    ┌─────────────────────┴───────────────────────┐
-                    │              DISCORD ALERTS                 │
-                    │  Pre-move signals │ Convergence │ Movers   │
-                    └─────────────────────────────────────────────┘
-```
+### Completed (2026-01-29)
+- [x] Deleted `/components/terminal/` (unused)
+- [x] Deleted `/components/remotion/` (unused)
+- [x] Deleted `catalyst-calendar.tsx`
+- [x] Deleted `data-audit-center.tsx`
+- [x] Moved admin-*.tsx to admin/ folder
+- [x] Deleted old `admin.tsx` monolith (2,447 lines)
+
+### Remaining Issues
+| Issue | Status |
+|-------|--------|
+| Mock testimonials in landing.tsx | Pending |
+| Mock data in live-activity-feed.tsx | Pending |
+| Duplicate services (realtime-price vs realtime-pricing) | Pending |
 
 ---
 
-## CLEANUP COMPLETED (2026-01-29)
+## Next Steps
 
-### Removed Dead Code
-| Item | Status |
-|------|--------|
-| `/components/terminal/` | ✅ DELETED |
-| `/components/remotion/` | ✅ DELETED |
-| `catalyst-calendar.tsx` | ✅ DELETED |
-| `data-audit-center.tsx` | ✅ DELETED |
-| Root-level admin-*.tsx files | ✅ MOVED to admin/ |
-| `admin.tsx` (old monolith) | ✅ DELETED |
-
-### Admin Consolidation
-All admin pages now live in `pages/admin/`:
-- overview, users, invites, waitlist, system
-- trade-ideas, blog, reports, security
-- win-loss, credits, beta-invites
+1. **Immediate:** Fix admin page security (add protection)
+2. **Short-term:** Implement blurred preview for visitors on protected pages
+3. **Medium-term:** Consolidate discovery pages (4 → 1 with tabs)
+4. **Long-term:** Create shared data hooks to reduce API duplication
 
 ---
 
-## REMAINING ISSUES
-
-### 1. Hardcoded Mock Data (To Fix)
-
-| File | Problem |
-|------|---------|
-| `landing.tsx` | Some mock testimonials |
-| `live-activity-feed.tsx` | Mock win activities |
-| `whale-flow-monitor.tsx` | Fallback mock flow data |
-| `trading-signals-feed.tsx` | Random signal generator |
-
-### 2. Duplicate Services (To Consolidate)
-
-| Service 1 | Service 2 |
-|-----------|-----------|
-| `realtime-price-service.ts` | `realtime-pricing-service.ts` |
-| `loss-analyzer.ts` | `loss-analyzer-service.ts` |
-
----
-
-## SCALING PIPELINE
-
-### Current State: Post-Cleanup
-- 59 pages (down from 63)
-- 6 analysis engines running
-- Discord alerts working
-- Admin pages consolidated
-
-### Phase 1: Data Quality ✅ STARTED
-- [x] Delete unused components
-- [x] Consolidate admin pages
-- [ ] Replace remaining mock data
-- [ ] Remove fake testimonials
-
-### Phase 2: Real-Time Data
-- [ ] WebSocket price streaming
-- [ ] Live options flow (not cached)
-- [ ] Real-time news sentiment
-- [ ] Institutional flow tracking
-
-### Phase 3: AI Enhancement
-- [ ] Better LLM prompting for ideas
-- [ ] Multi-factor ranking system
-- [ ] Backtesting validation
-- [ ] Win rate tracking
-
-### Phase 4: Scale
-- [ ] Redis caching layer
-- [ ] Background job queue
-- [ ] Rate limit management
-- [ ] Multi-region deployment
-
----
-
-*Updated: 2026-01-29*
+*This document should be updated when pages are added, removed, or consolidated.*

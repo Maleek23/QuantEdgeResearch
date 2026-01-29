@@ -47,6 +47,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { StockChart } from "@/components/stock-chart";
+import { ShouldIBuy } from "@/components/should-i-buy";
+import { WSBTrendingCard } from "@/components/wsb-trending-card";
 
 // AI Summary Card with typewriter animation - Full Report Style
 function AIInsightCard({

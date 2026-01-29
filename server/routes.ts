@@ -16494,6 +16494,56 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // ============================================
+  // EARNINGS PREDICTION ENDPOINTS
+  // ============================================
+
+  // Get AI-powered earnings prediction for a symbol
+  app.get("/api/earnings/prediction/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const { generateEarningsPrediction } = await import("./earnings-prediction-service");
+      const prediction = await generateEarningsPrediction(symbol.toUpperCase());
+
+      if (!prediction) {
+        return res.status(404).json({ error: `Unable to generate earnings prediction for ${symbol}` });
+      }
+
+      res.json(prediction);
+    } catch (error: any) {
+      logger.error(`[EARNINGS-PREDICTION] Error:`, error);
+      res.status(500).json({ error: error?.message || "Earnings prediction failed" });
+    }
+  });
+
+  // Get historical earnings surprises for a symbol
+  app.get("/api/earnings/history/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const { getEarningsHistory } = await import("./earnings-prediction-service");
+      const history = await getEarningsHistory(symbol.toUpperCase());
+
+      if (!history) {
+        return res.status(404).json({ error: `No earnings history found for ${symbol}` });
+      }
+
+      res.json({ symbol: symbol.toUpperCase(), history });
+    } catch (error: any) {
+      logger.error(`[EARNINGS-HISTORY] Error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to fetch earnings history" });
+    }
+  });
+
   // Smart Position Advisor - Get exit/rebuy signals for a position
   app.post("/api/smart-advisor/analyze", async (req, res) => {
     try {
