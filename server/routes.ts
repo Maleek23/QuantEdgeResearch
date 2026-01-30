@@ -16582,6 +16582,18 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // Index Lotto Scanner - High R:R plays on SPX/SPY/IWM/QQQ
+  app.get("/api/scanner/index-lotto", async (_req, res) => {
+    try {
+      const { scanIndexLottoPlays } = await import("./index-lotto-scanner");
+      const result = await scanIndexLottoPlays();
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[INDEX-LOTTO] Error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to scan index lotto plays" });
+    }
+  });
+
   // Smart Position Advisor - Get exit/rebuy signals for a position
   app.post("/api/smart-advisor/analyze", async (req, res) => {
     try {

@@ -54,6 +54,7 @@ import {
 import type { TradeIdea } from "@shared/schema";
 import { getLetterGrade, getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
+import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 
 // ============================================
 // MARKET PULSE HEADER
@@ -3341,6 +3342,9 @@ export default function TradeDeskRedesigned() {
                 <HotAttentionSubPage />
               </Card>
             </div>
+
+            {/* Index Lotto Scanner - High R:R plays on SPX/SPY/IWM/QQQ */}
+            <IndexLottoScanner />
           </TabsContent>
 
           {/* DISCOVERY TAB - Best Setups + Tomorrow Surgers */}
