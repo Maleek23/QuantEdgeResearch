@@ -3019,38 +3019,39 @@ export default function TradeDeskRedesigned() {
     },
   });
 
-  // Fetch all trade ideas with optimized caching
+  // Fetch ONLY fresh, high-quality trade ideas via best-setups endpoint
+  // Don't fetch raw /api/trade-ideas which returns thousands of old ideas
   const { data: tradeIdeas = [], isLoading, error } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas/best-setups', 'all'],
+    queryKey: ['/api/trade-ideas/best-setups', 'fresh'],
     queryFn: async () => {
-      try {
-        const authRes = await fetch('/api/trade-ideas');
-        if (authRes.ok) {
-          const ideas = await authRes.json();
-          if (Array.isArray(ideas) && ideas.length > 0) return ideas;
-        }
-      } catch {
-        // Auth endpoint failed, fall through to public endpoint
-      }
-      const res = await fetch('/api/trade-ideas/best-setups?period=weekly&limit=100');
+      // Use best-setups endpoint with daily filter for freshest ideas
+      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=50');
       if (!res.ok) return [];
       const data = await res.json();
       return data.setups || [];
     },
-    staleTime: 60 * 1000,     // Data fresh for 1 minute
-    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
-    refetchInterval: 60000,   // Refresh every minute
+    staleTime: 30 * 1000,     // Data fresh for 30 seconds
+    gcTime: 5 * 60 * 1000,    // Keep in cache for 5 minutes
+    refetchInterval: 30000,   // Refresh every 30 seconds for fresh ideas
   });
 
   // ============================================
   // DEDUPLICATION & EXPIRY FILTER LOGIC
-  // Max 2 ideas per symbol/direction/type, filter expired
+  // Max 1 idea per symbol - only show the BEST idea for each symbol
+  // AGGRESSIVE time filtering to keep ideas fresh
   // ============================================
-  const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 2): TradeIdea[] => {
+  const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 1): TradeIdea[] => {
     const now = new Date();
 
-    // First, filter out expired/stale ideas
+    // First, filter out expired/stale ideas - AGGRESSIVE filtering
     const nonExpired = ideas.filter(idea => {
+      // Must have a timestamp - reject ideas with no date
+      if (!idea.timestamp) return false;
+
+      const ideaTime = new Date(idea.timestamp);
+      const hoursSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
+      const daysSince = hoursSince / 24;
+
       // If it has an expiry date (options) and it's in the past, filter it out
       if (idea.expiryDate) {
         const expiryDate = new Date(idea.expiryDate);
@@ -3068,47 +3069,54 @@ export default function TradeDeskRedesigned() {
       }
       // Filter out closed/resolved trades
       if (idea.outcomeStatus && idea.outcomeStatus !== 'open') return false;
-      // Day trades: filter out if older than 12 hours (more aggressive for day trades)
-      if (idea.holdingPeriod === 'day' && idea.timestamp) {
-        const ideaTime = new Date(idea.timestamp);
-        const hoursSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
-        if (hoursSince > 12) return false;
+
+      // AGGRESSIVE TIME FILTERS - keep ideas FRESH
+      // Day trades: filter out if older than 6 hours
+      if (idea.holdingPeriod === 'day') {
+        if (hoursSince > 6) return false;
       }
-      // Swing trades: filter out if older than 5 days
-      if ((idea.holdingPeriod === 'swing' || !idea.holdingPeriod) && idea.timestamp) {
-        const ideaTime = new Date(idea.timestamp);
-        const daysSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSince > 5) return false;
+      // Swing trades: filter out if older than 2 days (was 5)
+      else if (idea.holdingPeriod === 'swing' || !idea.holdingPeriod) {
+        if (daysSince > 2) return false;
       }
-      // Position trades: filter out if older than 14 days
-      if (idea.holdingPeriod === 'position' && idea.timestamp) {
-        const ideaTime = new Date(idea.timestamp);
-        const daysSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSince > 14) return false;
+      // Position trades: filter out if older than 7 days (was 14)
+      else if (idea.holdingPeriod === 'position') {
+        if (daysSince > 7) return false;
       }
+      // Catch-all: anything older than 3 days is stale
+      else {
+        if (daysSince > 3) return false;
+      }
+
       return true;
     });
 
-    // Group by symbol + direction + optionType (for options)
+    // Group by symbol ONLY - one idea per symbol regardless of direction
+    // This prevents confusing users with conflicting signals
     const groups = new Map<string, TradeIdea[]>();
     for (const idea of nonExpired) {
-      const direction = (idea.direction || 'long').toLowerCase();
-      const optType = idea.optionType || 'stock';
-      const key = `${idea.symbol}-${direction}-${optType}`;
-
+      const key = idea.symbol;
       if (!groups.has(key)) {
         groups.set(key, []);
       }
       groups.get(key)!.push(idea);
     }
 
-    // For each group, sort by confidence and take top N
+    // For each symbol, take ONLY the best idea (highest confidence)
     const result: TradeIdea[] = [];
     Array.from(groups.values()).forEach((groupIdeas) => {
-      // Sort by confidence descending
-      groupIdeas.sort((a: TradeIdea, b: TradeIdea) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
-      // Take only top maxPerGroup
-      result.push(...groupIdeas.slice(0, maxPerGroup));
+      // Sort by timestamp (most recent first), then by confidence
+      groupIdeas.sort((a: TradeIdea, b: TradeIdea) => {
+        const timeA = new Date(a.timestamp || 0).getTime();
+        const timeB = new Date(b.timestamp || 0).getTime();
+        // Prefer recent ideas, then higher confidence
+        if (Math.abs(timeB - timeA) > 6 * 60 * 60 * 1000) { // More than 6 hours difference
+          return timeB - timeA; // Prefer newer
+        }
+        return (b.confidenceScore || 0) - (a.confidenceScore || 0);
+      });
+      // Take only the SINGLE best idea per symbol
+      result.push(groupIdeas[0]);
     });
 
     // Re-sort final result by confidence

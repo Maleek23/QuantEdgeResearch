@@ -5971,26 +5971,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       if (period === 'daily') {
-        // Ideas from last 24 hours OR still valid today
+        // Ideas from last 24 hours - STRICT filtering, no date = no show
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         openIdeas = openIdeas.filter(i => {
           const ideaDate = getIdeaDate(i);
+          // MUST have a timestamp - don't show ideas with no date
+          if (!ideaDate) return false;
           const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
-          // Include if: recent creation/timestamp OR entry still valid OR no date info (show by default)
-          return (ideaDate && ideaDate >= oneDayAgo) || 
-                 (entryValidUntil && entryValidUntil >= now) ||
-                 (!ideaDate && !entryValidUntil);
+          // Include if: recent creation/timestamp OR entry still valid
+          return ideaDate >= oneDayAgo || (entryValidUntil && entryValidUntil >= now);
         });
       } else if (period === 'weekly') {
-        // Ideas from last 7 days
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        // Ideas from last 3 days (tightened from 7) - keep it fresh
+        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
         openIdeas = openIdeas.filter(i => {
           const ideaDate = getIdeaDate(i);
+          // MUST have a timestamp - don't show ideas with no date
+          if (!ideaDate) return false;
           const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
-          // Include if: recent OR entry still valid OR no date info
-          return (ideaDate && ideaDate >= oneWeekAgo) || 
-                 (entryValidUntil && entryValidUntil >= now) ||
-                 (!ideaDate && !entryValidUntil);
+          // Include if: recent OR entry still valid
+          return ideaDate >= threeDaysAgo || (entryValidUntil && entryValidUntil >= now);
         });
       }
       
