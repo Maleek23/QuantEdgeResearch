@@ -219,25 +219,60 @@ function LiveTradeCard({ idea, index }: { idea: any; index: number }) {
   );
 }
 
-// Live Trade Ideas Showcase
+// Live Trade Ideas Showcase - REAL DATA ONLY
 function TradeIdeasShowcase() {
-  const { data } = useQuery<{ setups: any[] }>({
-    queryKey: ["/api/trade-ideas/best-setups?limit=6"],
+  const { data, isLoading } = useQuery<{ setups: any[] }>({
+    queryKey: ["/api/trade-ideas/best-setups?limit=6&period=daily"],
     refetchInterval: 60000,
+    staleTime: 30000,
   });
 
-  const ideas = data?.setups?.slice(0, 5) || [
-    { symbol: 'NVDA', direction: 'long', confidenceScore: 94, probabilityBand: 'A+', entryPrice: 875.50, targetPrice: 945.00, stopLoss: 830.00 },
-    { symbol: 'META', direction: 'long', confidenceScore: 88, probabilityBand: 'A', entryPrice: 485.20, targetPrice: 520.00, stopLoss: 460.00 },
-    { symbol: 'TSLA', direction: 'short', confidenceScore: 82, probabilityBand: 'A-', entryPrice: 245.00, targetPrice: 215.00, stopLoss: 265.00 },
-    { symbol: 'AMD', direction: 'long', confidenceScore: 79, probabilityBand: 'B+', entryPrice: 165.50, targetPrice: 180.00, stopLoss: 155.00 },
-    { symbol: 'AAPL', direction: 'long', confidenceScore: 85, probabilityBand: 'A', entryPrice: 185.00, targetPrice: 198.00, stopLoss: 175.00 },
-  ];
+  const ideas = data?.setups?.slice(0, 5) || [];
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-500">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="relative p-4 rounded-2xl bg-slate-900/50 border border-slate-700/50">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-slate-800 animate-pulse" />
+              <div className="flex-1">
+                <div className="w-20 h-5 bg-slate-800 rounded animate-pulse mb-2" />
+                <div className="w-32 h-3 bg-slate-800/50 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="w-full h-2 bg-slate-800 rounded-full mb-4 animate-pulse" />
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="p-2 rounded-lg bg-slate-800/30 animate-pulse h-12" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // No ideas available
+  if (ideas.length === 0) {
+    return (
+      <div className="text-center py-16 animate-in fade-in duration-500">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800/50 flex items-center justify-center">
+          <Activity className="w-8 h-8 text-slate-500" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">Analyzing Markets</h3>
+        <p className="text-slate-400 max-w-md mx-auto">
+          Our 6 engines are scanning for high-conviction setups. Check back soon for fresh trade ideas.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {ideas.map((idea, i) => (
-        <LiveTradeCard key={i} idea={idea} index={i} />
+        <LiveTradeCard key={idea.id || i} idea={idea} index={i} />
       ))}
     </div>
   );
@@ -357,11 +392,11 @@ function AnimatedStat({ value, label, suffix = '' }: { value: number; label: str
   );
 }
 
-// Market Ticker Component
+// Market Ticker Component with real data
 function MarketTicker() {
-  const { data: marketData } = useQuery<{ quotes: Record<string, { regularMarketChangePercent: number }> }>({
-    queryKey: [`/api/market-data/batch/${TICKER_SYMBOLS.join(',')}`],
-    refetchInterval: 30000,
+  const { data: marketData, isLoading } = useQuery<{ quotes: Record<string, { regularMarketPrice?: number; regularMarketChange?: number; regularMarketChangePercent?: number }> }>({
+    queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,VIX,BTC-USD,ETH-USD"],
+    refetchInterval: 15000,
   });
 
   const { status, isOpen } = useMarketStatus();
@@ -393,17 +428,24 @@ function MarketTicker() {
           <div className="flex animate-marquee">
             {[...indices, ...indices].map((idx, i) => {
               const quote = marketData?.quotes?.[idx.symbol];
-              const change = quote?.regularMarketChangePercent || (Math.random() * 4 - 2);
+              const change = quote?.regularMarketChangePercent;
+              const hasData = change !== undefined && change !== null;
               return (
-                <div key={`${idx.symbol}-${i}`} className="flex items-center gap-3 px-5 whitespace-nowrap">
-                  <span className="text-xs font-medium text-slate-400">{idx.symbol}</span>
-                  <span className={cn(
-                    "text-xs font-mono font-bold",
-                    change >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}>
-                    {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-                  </span>
-                </div>
+                <Link key={`${idx.symbol}-${i}`} href={`/stock/${idx.symbol}`}>
+                  <div className="flex items-center gap-3 px-5 whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors">
+                    <span className="text-xs font-medium text-slate-400">{idx.symbol}</span>
+                    {isLoading || !hasData ? (
+                      <div className="w-12 h-3 bg-slate-800 rounded animate-pulse" />
+                    ) : (
+                      <span className={cn(
+                        "text-xs font-mono font-bold",
+                        change >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}>
+                        {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                </Link>
               );
             })}
           </div>
@@ -436,13 +478,10 @@ export default function Landing() {
   const { isAuthenticated, user } = useAuth();
   const hasBetaAccess = user?.hasBetaAccess || false;
 
+  // Allow ALL users (including visitors) to search stocks
   const handleSearch = () => {
     if (searchQuery) {
-      if (isAuthenticated) {
-        setLocation(`/stock/${searchQuery.toUpperCase()}`);
-      } else {
-        setWaitlistOpen(true);
-      }
+      setLocation(`/stock/${searchQuery.toUpperCase()}`);
     }
   };
 
@@ -558,13 +597,11 @@ export default function Landing() {
             <div className="flex items-center justify-center gap-2 mt-3 text-sm text-slate-500">
               <span>Try:</span>
               {['NVDA', 'TSLA', 'AAPL', 'BTC'].map((symbol) => (
-                <button
-                  key={symbol}
-                  onClick={() => { setSearchQuery(symbol); if (isAuthenticated) setLocation(`/stock/${symbol}`); else setWaitlistOpen(true); }}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                >
-                  {symbol}
-                </button>
+                <Link key={symbol} href={`/stock/${symbol}`}>
+                  <button className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+                    {symbol}
+                  </button>
+                </Link>
               ))}
             </div>
           </div>

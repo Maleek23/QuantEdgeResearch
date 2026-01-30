@@ -199,7 +199,8 @@ function Router() {
       <Route path="/research">
         <Redirect to="/home" />
       </Route>
-      <Route path="/stock/:symbol" component={withBetaProtection(StockDetailPage)} />
+      {/* Stock detail is PUBLIC - visitors can browse and analyze any stock */}
+      <Route path="/stock/:symbol" component={StockDetailPage} />
       <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
       <Route path="/market-movers">
         <Redirect to="/market" />
