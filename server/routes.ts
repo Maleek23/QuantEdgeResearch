@@ -7387,20 +7387,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/news", marketDataLimiter, async (req, res) => {
     try {
       const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
-      
+
       // Optional query params for filtering
       const tickers = req.query.tickers as string | undefined;
       const topics = req.query.topics as string | undefined;
       const limit = parseInt(req.query.limit as string) || 50;
-      
+
       logger.info(`📰 [NEWS-API] Fetching breaking news (tickers=${tickers || 'all'}, topics=${topics || 'all'}, limit=${limit})`);
-      
+
       const breakingNews = await fetchBreakingNews(tickers, topics, limit);
       const status = getNewsServiceStatus();
-      
+
+      // Transform to frontend-expected format
+      const transformedNews = breakingNews.map((article: any) => ({
+        id: article.uuid,
+        title: article.title,
+        summary: article.summary,
+        source: article.source || article.sourceDomain || 'Unknown',
+        url: article.url,
+        publishedAt: article.timePublished,
+        symbols: article.tickers || [],
+        sentiment: article.overallSentimentLabel || 'Neutral',
+      }));
+
       res.json({
-        news: breakingNews,
-        count: breakingNews.length,
+        news: transformedNews,
+        count: transformedNews.length,
         serviceStatus: status
       });
     } catch (error: any) {
