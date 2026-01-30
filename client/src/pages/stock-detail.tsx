@@ -49,6 +49,8 @@ import {
 import { StockChart } from "@/components/stock-chart";
 import { ShouldIBuy } from "@/components/should-i-buy";
 import { WSBTrendingCard } from "@/components/wsb-trending-card";
+import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
+import type { TradeIdea } from "@shared/schema";
 
 // AI Summary Card with typewriter animation - Full Report Style
 function AIInsightCard({
@@ -448,6 +450,33 @@ export default function StockDetailPage() {
     },
     enabled: !!symbol,
   });
+
+  // Fetch all trade ideas for this symbol (for deep analysis display)
+  const { data: symbolTradeIdeas } = useQuery<TradeIdea[]>({
+    queryKey: [`/api/trade-ideas`, symbol, 'all'],
+    queryFn: async () => {
+      if (!symbol) return [];
+      const res = await fetch(`/api/trade-ideas`);
+      if (!res.ok) return [];
+      const ideas = await res.json();
+      return ideas.filter((idea: any) =>
+        idea.symbol === symbol && (idea.outcomeStatus === 'open' || !idea.outcomeStatus)
+      ).slice(0, 5);
+    },
+    enabled: !!symbol,
+  });
+
+  // Get the best trade idea with deep analysis
+  const bestTradeIdea = useMemo(() => {
+    if (!symbolTradeIdeas || symbolTradeIdeas.length === 0) return null;
+    // Find idea with convergenceAnalysis, sorted by confidence
+    const withAnalysis = symbolTradeIdeas.filter(i => i.convergenceAnalysis);
+    if (withAnalysis.length > 0) {
+      return withAnalysis.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))[0];
+    }
+    // Otherwise return highest confidence idea
+    return symbolTradeIdeas.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))[0];
+  }, [symbolTradeIdeas]);
 
   if (isLoading) {
     return (
@@ -1123,6 +1152,85 @@ export default function StockDetailPage() {
                   aiSummary={analysisData?.aiSummary}
                   analysisData={analysisData}
                 />
+
+                {/* Deep Analysis Panel - Shows trade idea breakdown if available */}
+                {bestTradeIdea && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-teal-400" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">Active Trade Idea</span>
+                        {bestTradeIdea.probabilityBand && (
+                          <Badge className={cn(
+                            "text-[10px]",
+                            bestTradeIdea.probabilityBand.startsWith('A') ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                            bestTradeIdea.probabilityBand.startsWith('B') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
+                            "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          )}>
+                            Grade {bestTradeIdea.probabilityBand}
+                          </Badge>
+                        )}
+                      </div>
+                      <Link href="/trade-desk">
+                        <Button variant="ghost" size="sm" className="text-teal-400 hover:text-teal-300 text-xs">
+                          View on Trade Desk <ArrowUpRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      </Link>
+                    </div>
+
+                    {/* Trade Idea Quick Info */}
+                    <Card className="p-4 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-[#222]">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Badge className={cn(
+                            "text-xs font-bold",
+                            bestTradeIdea.direction?.toLowerCase() === 'long' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          )}>
+                            {bestTradeIdea.direction?.toUpperCase() || 'LONG'}
+                          </Badge>
+                          <span className="text-sm text-slate-400">{bestTradeIdea.strategy || 'Swing Trade'}</span>
+                          {bestTradeIdea.confidenceScore && (
+                            <span className="text-xs text-slate-500">{bestTradeIdea.confidenceScore}% confidence</span>
+                          )}
+                        </div>
+                        {bestTradeIdea.timestamp && (
+                          <span className="text-[10px] text-slate-600">
+                            {new Date(bestTradeIdea.timestamp).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div className="p-2 rounded bg-slate-800/50">
+                          <div className="text-[10px] text-slate-500">Entry</div>
+                          <div className="text-sm font-mono text-white">${bestTradeIdea.entryPrice?.toFixed(2) || safePrice.toFixed(2)}</div>
+                        </div>
+                        <div className="p-2 rounded bg-emerald-500/10">
+                          <div className="text-[10px] text-slate-500">Target</div>
+                          <div className="text-sm font-mono text-emerald-400">${bestTradeIdea.targetPrice?.toFixed(2) || (safePrice * 1.08).toFixed(2)}</div>
+                        </div>
+                        <div className="p-2 rounded bg-red-500/10">
+                          <div className="text-[10px] text-slate-500">Stop</div>
+                          <div className="text-sm font-mono text-red-400">${bestTradeIdea.stopLoss?.toFixed(2) || (safePrice * 0.95).toFixed(2)}</div>
+                        </div>
+                      </div>
+
+                      {bestTradeIdea.catalyst && (
+                        <p className="text-xs text-slate-400 line-clamp-2 mb-3">{bestTradeIdea.catalyst}</p>
+                      )}
+                    </Card>
+
+                    {/* Deep Analysis Panel if available */}
+                    {bestTradeIdea.convergenceAnalysis && (
+                      <DeepAnalysisPanel
+                        analysis={bestTradeIdea.convergenceAnalysis}
+                        symbol={symbol}
+                        direction={bestTradeIdea.direction?.toLowerCase() === 'long' ? 'long' : 'short'}
+                        defaultExpanded={false}
+                      />
+                    )}
+                  </div>
+                )}
 
                 {/* Compact Disclaimer */}
                 <div className="text-center text-[10px] text-slate-600 px-4">
