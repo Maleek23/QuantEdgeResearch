@@ -154,14 +154,16 @@ export interface IngestionResult {
 }
 
 /**
- * Check if a symbol was recently ingested from the same source
+ * Check if a symbol was recently ingested from the same source AND asset type
+ * This allows both stock AND option ideas for the same symbol
  */
-function isDuplicate(symbol: string, source: IdeaSource): boolean {
-  const key = `${symbol}:${source}`;
+function isDuplicate(symbol: string, source: IdeaSource, assetType?: string): boolean {
+  // Include asset type in the key to allow both stock and option ideas for same symbol
+  const key = `${symbol}:${source}:${assetType || 'stock'}`;
   const lastIngestion = recentIngestions.get(key);
-  
+
   if (!lastIngestion) return false;
-  
+
   const elapsed = Date.now() - lastIngestion;
   return elapsed < INGESTION_COOLDOWN_MS;
 }
@@ -169,8 +171,8 @@ function isDuplicate(symbol: string, source: IdeaSource): boolean {
 /**
  * Mark a symbol as recently ingested
  */
-function markIngested(symbol: string, source: IdeaSource): void {
-  const key = `${symbol}:${source}`;
+function markIngested(symbol: string, source: IdeaSource, assetType?: string): void {
+  const key = `${symbol}:${source}:${assetType || 'stock'}`;
   recentIngestions.set(key, Date.now());
   
   // Clean up old entries periodically
@@ -198,11 +200,11 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
   const symbol = input.symbol.toUpperCase();
   const source = input.source;
   
-  // Gate 1: Deduplication
-  if (isDuplicate(symbol, source)) {
+  // Gate 1: Deduplication (includes asset type to allow both stock AND option for same symbol)
+  if (isDuplicate(symbol, source, input.assetType)) {
     return {
       success: false,
-      reason: `Duplicate - ${symbol} from ${source} already ingested recently`,
+      reason: `Duplicate - ${symbol} ${input.assetType || 'stock'} from ${source} already ingested recently`,
       symbol,
       source
     };
@@ -318,8 +320,8 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
     });
     
     if (success) {
-      markIngested(symbol, source);
-      logger.info(`[INGESTION] ✅ Saved ${symbol} from ${source} to Trade Desk`);
+      markIngested(symbol, source, input.assetType);
+      logger.info(`[INGESTION] ✅ Saved ${symbol} ${input.assetType || 'stock'} from ${source} to Trade Desk`);
       return {
         success: true,
         reason: 'Idea saved to Trade Desk',

@@ -225,6 +225,30 @@ app.use((req, res, next) => {
     startNewsOptionsPipeline();
     log('📰 News→Options Pipeline started - generating options plays from breaking news catalysts (RDW, USAR, BNAI-style surges)');
 
+    // Start Popular Tickers Scanner (TSLA, AMD, NVDA, AAPL, etc. - dedicated coverage for major stocks)
+    const { startPopularTickersScanner } = await import('./popular-tickers-scanner');
+    startPopularTickersScanner();
+    log('🌟 Popular Tickers Scanner started - scanning TSLA, AMD, NVDA, AAPL, META, etc. every 2 hours during market hours');
+
+    // Start Dynamic Mover Options Generation (catches ANY mover and generates options plays)
+    const { generateOptionsForMovers } = await import('./mover-discovery');
+    // Run immediately on startup
+    generateOptionsForMovers().catch(err => logger.error('[MOVER-OPTIONS] Initial run failed:', err));
+    // Schedule every 90 minutes during market hours
+    setInterval(async () => {
+      const now = new Date();
+      const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const hour = nowET.getHours();
+      const dayOfWeek = nowET.getDay();
+      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+      const isMarketHours = hour >= 9 && hour < 16;
+      if (isWeekday && isMarketHours) {
+        logger.info('[MOVER-OPTIONS] Starting scheduled mover options scan...');
+        await generateOptionsForMovers().catch(err => logger.error('[MOVER-OPTIONS] Scheduled run failed:', err));
+      }
+    }, 90 * 60 * 1000);
+    log('🔥 Dynamic Mover Options started - generating options for ANY discovered mover every 90 minutes');
+
     // Start ML Retraining Service (self-improving models)
     // TODO: Implement ML retraining service
     // const { startMLRetrainingService } = await import('./ml-retraining-service');
@@ -1369,7 +1393,31 @@ app.use((req, res, next) => {
     });
     
     log('📊 Watchlist Grading started - re-grading every 15 minutes during market hours');
-    
+
+    // Earnings Trade Scanner - Scan for earnings plays every hour during market hours
+    cron.default.schedule('0 * * * *', async () => {
+      try {
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const hour = nowCT.getHours();
+        const dayOfWeek = nowCT.getDay();
+
+        // Only scan during market hours (8 AM - 4 PM CT on weekdays)
+        if (dayOfWeek === 0 || dayOfWeek === 6 || hour < 8 || hour >= 16) {
+          return; // Silent skip outside market hours
+        }
+
+        const { scanEarningsOpportunities } = await import('./earnings-trade-scanner');
+        logger.info('[EARNINGS] Starting scheduled earnings opportunity scan...');
+        const ideasGenerated = await scanEarningsOpportunities();
+        logger.info(`[EARNINGS] Scan complete: ${ideasGenerated} trade ideas generated`);
+      } catch (error: any) {
+        logger.error('[EARNINGS] Scheduled scan failed:', error);
+      }
+    });
+
+    log('📅 Earnings Trade Scanner started - scanning for earnings plays every hour during market hours');
+
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

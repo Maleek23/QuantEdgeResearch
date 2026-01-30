@@ -58,6 +58,17 @@ export const GRADE_THRESHOLDS: { min: number; grade: GradeLetter; description: s
  * This is the CANONICAL grading function for the entire platform
  */
 export function scoreToGrade(score: number): GradeInfo {
+  // NaN protection: if score is NaN or undefined, return F grade
+  if (score === null || score === undefined || isNaN(score)) {
+    return {
+      grade: 'F',
+      description: 'Invalid score',
+      tier: 'failing',
+      minScore: 0,
+      maxScore: 59,
+    };
+  }
+
   const clampedScore = Math.max(0, Math.min(100, score));
   
   for (let i = 0; i < GRADE_THRESHOLDS.length; i++) {

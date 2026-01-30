@@ -515,11 +515,23 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
     confidence = 70 + dampenedExcess;
   }
 
+  // NaN protection: if any calculation produced NaN, fall back to base confidence
+  if (isNaN(confidence)) {
+    logger.warn(`[UNIVERSAL-IDEA] NaN confidence detected for ${source}, using base confidence`);
+    confidence = SOURCE_BASE_CONFIDENCE[source] || 60;
+  }
+
   // Clamp to valid range
   let rawConfidence = Math.max(0, Math.min(94, Math.round(confidence)));
 
   // Apply ML calibration adjustment based on historical accuracy (NEW)
   const calibratedConfidence = applyMLCalibration(rawConfidence);
+
+  // Final NaN check
+  if (isNaN(calibratedConfidence)) {
+    logger.warn(`[UNIVERSAL-IDEA] NaN after calibration for ${source}, using raw confidence`);
+    return rawConfidence;
+  }
 
   return calibratedConfidence;
 }

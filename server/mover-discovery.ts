@@ -367,3 +367,155 @@ export async function ingestMoversToTradeDesk(): Promise<{ ingested: number; ski
   logger.info(`[DISCOVERY->TRADE-DESK] Complete: ${ingested} ingested, ${skipped} skipped`);
   return { ingested, skipped };
 }
+
+/**
+ * Generate OPTIONS (calls/puts) for dynamically discovered movers
+ * This ensures we don't miss opportunities like SNDK puts or SLV calls
+ */
+export async function generateOptionsForMovers(): Promise<{ ingested: number; skipped: number }> {
+  const { ingestTradeIdea, createScannerSignals } = await import('./trade-idea-ingestion');
+  const { getTradierOptionsChainsByDTE } = await import('./tradier-api');
+
+  const movers = await discoverMovers();
+  let ingested = 0;
+  let skipped = 0;
+
+  // Filter for movers suitable for options (need liquidity and significant move)
+  const optionableMovers = movers.filter(m =>
+    Math.abs(m.changePercent) >= 3 &&
+    m.relativeVolume >= 1.3 &&
+    m.price >= 10 && // Options need decent price
+    m.price <= 500 // Not too expensive
+  );
+
+  logger.info(`[MOVER-OPTIONS] Processing ${optionableMovers.length} movers for options plays...`);
+
+  for (const mover of optionableMovers.slice(0, 15)) { // Limit to 15 to avoid rate limits
+    try {
+      const direction = mover.changePercent >= 0 ? 'bullish' : 'bearish';
+      const optionType: 'call' | 'put' = direction === 'bullish' ? 'call' : 'put';
+
+      // Fetch options chain
+      const optionsChain = await getTradierOptionsChainsByDTE(mover.symbol);
+      if (!optionsChain || optionsChain.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+
+      // Group by expiration
+      const expirationMap = new Map<string, typeof optionsChain>();
+      for (const opt of optionsChain) {
+        if (!opt.expiration_date || opt.expiration_date <= today) continue;
+        if (!expirationMap.has(opt.expiration_date)) {
+          expirationMap.set(opt.expiration_date, []);
+        }
+        expirationMap.get(opt.expiration_date)!.push(opt);
+      }
+
+      // Find weekly expiration (5-10 days out)
+      const sortedExpirations = Array.from(expirationMap.keys()).sort();
+      const weeklyExpiration = sortedExpirations.find(exp => {
+        const dte = Math.ceil((new Date(exp).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return dte >= 5 && dte <= 14;
+      });
+
+      if (!weeklyExpiration) {
+        skipped++;
+        continue;
+      }
+
+      const dte = Math.ceil((new Date(weeklyExpiration).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const expirationOptions = expirationMap.get(weeklyExpiration) || [];
+
+      // Filter for our option type with valid pricing
+      const validOptions = expirationOptions.filter(opt => {
+        if (opt.option_type !== optionType) return false;
+        const hasBidAsk = opt.bid && opt.bid > 0 && opt.ask && opt.ask > 0;
+        if (!hasBidAsk) return false;
+        const delta = Math.abs(opt.greeks?.delta || 0);
+        return delta >= 0.20 && delta <= 0.45; // Slightly OTM
+      });
+
+      if (validOptions.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      // Sort by delta closest to 0.30 (sweet spot)
+      validOptions.sort((a, b) => {
+        const deltaA = Math.abs(Math.abs(a.greeks?.delta || 0) - 0.30);
+        const deltaB = Math.abs(Math.abs(b.greeks?.delta || 0) - 0.30);
+        return deltaA - deltaB;
+      });
+
+      const bestOption = validOptions[0];
+      const entryPrice = (bestOption.bid + bestOption.ask) / 2;
+      const delta = Math.abs(bestOption.greeks?.delta || 0);
+
+      // Calculate targets
+      const targetPrice = entryPrice * 1.40; // 40% target
+      const stopLoss = entryPrice * 0.50; // 50% stop
+
+      // Create signals
+      const signals = createScannerSignals({
+        changePercent: Math.abs(mover.changePercent),
+        relativeVolume: mover.relativeVolume,
+        breakout: Math.abs(mover.changePercent) >= 5 && mover.relativeVolume >= 2,
+      });
+
+      signals.push({
+        type: 'dynamic_discovery',
+        weight: 10,
+        description: `Dynamically discovered mover (${mover.source.replace('_', ' ')})`,
+      });
+
+      const sourceLabel = mover.source.replace('_', ' ');
+      const result = await ingestTradeIdea({
+        source: 'market_scanner',
+        symbol: mover.symbol,
+        assetType: 'option',
+        direction,
+        signals,
+        holdingPeriod: dte <= 7 ? 'day' : 'swing',
+        currentPrice: entryPrice,
+        suggestedEntry: entryPrice,
+        suggestedTarget: targetPrice,
+        suggestedStop: stopLoss,
+        optionType,
+        strikePrice: bestOption.strike,
+        expiryDate: weeklyExpiration,
+        catalyst: `${optionType.toUpperCase()} on ${sourceLabel}: ${mover.changePercent >= 0 ? '+' : ''}${mover.changePercent.toFixed(1)}%`,
+        analysis: `DYNAMIC DISCOVERY: ${mover.name || mover.symbol} ${optionType.toUpperCase()} $${bestOption.strike} exp ${weeklyExpiration}. ` +
+          `Stock moved ${mover.changePercent.toFixed(1)}% with ${mover.relativeVolume.toFixed(1)}x volume. ` +
+          `Delta: ${delta.toFixed(2)}, Premium: $${entryPrice.toFixed(2)}. ` +
+          `${mover.isNewDiscovery ? 'NEW DISCOVERY - not in static watchlist!' : ''}`,
+        sourceMetadata: {
+          scannerType: 'dynamic_mover_options',
+          dte,
+          delta,
+          moverSource: mover.source,
+          isNewDiscovery: mover.isNewDiscovery,
+        },
+      });
+
+      if (result.success) {
+        ingested++;
+        logger.info(`[MOVER-OPTIONS] ✅ ${optionType.toUpperCase()} for ${mover.symbol}: $${bestOption.strike} exp ${weeklyExpiration}`);
+      } else {
+        skipped++;
+      }
+
+      // Rate limit protection
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (err) {
+      logger.error(`[MOVER-OPTIONS] Error processing ${mover.symbol}:`, err);
+      skipped++;
+    }
+  }
+
+  logger.info(`[MOVER-OPTIONS] Complete: ${ingested} options generated, ${skipped} skipped`);
+  return { ingested, skipped };
+}

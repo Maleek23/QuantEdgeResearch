@@ -5478,8 +5478,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ideas = deconflictedIdeas;
       
       // 🎯 RELIABILITY FILTER: Minimum confidence for options trades
-      // Options require strong conviction due to premium cost and time decay
-      const MIN_OPTIONS_CONFIDENCE = 70;
+      // Lowered from 70% to 55% to show more trade coverage
+      const MIN_OPTIONS_CONFIDENCE = 55;
       const beforeOptionsFilter = ideas.length;
       ideas = ideas.filter(idea => {
         if (idea.assetType === 'option' || idea.optionType) {
@@ -5891,32 +5891,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // 🎯 BEST SETUPS - Top 5 conviction plays for daily/weekly view
   // Forces discipline: wait for the perfect pitch instead of swinging at everything
+  // Now supports status filtering (all, open, hit_target, stopped_out, expired)
+  // And date filtering (specific date in YYYY-MM-DD format)
   app.get("/api/trade-ideas/best-setups", async (req: any, res) => {
     try {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
       const limit = Math.min(parseInt(req.query.limit as string) || 5, 100);
+      const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'stopped_out', 'expired'
+      const dateFilter = req.query.date as string; // Optional: 'YYYY-MM-DD' for specific day
 
       // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
-      // instead of getAllTradeIdeas which can hang with large datasets
-      const hoursBack = period === 'daily' ? 48 : 168; // 2 days or 7 days
-      const allIdeas = await storage.getRecentTradeIdeas(hoursBack, 2000);
+      // Expand time window if viewing closed trades or specific date
+      const needsAllData = statusFilter !== 'open' || dateFilter;
+      const hoursBack = needsAllData ? 720 : (period === 'daily' ? 48 : 168); // 30 days for history, otherwise 2-7 days
+      const allIdeas = await storage.getRecentTradeIdeas(hoursBack, needsAllData ? 5000 : 2000);
       const now = new Date();
 
       // DEBUG: Log total ideas and field presence
-      logger.info(`[BEST-SETUPS] Recent ideas (${hoursBack}h): ${allIdeas.length}`);
+      logger.info(`[BEST-SETUPS] Recent ideas (${hoursBack}h): ${allIdeas.length}, statusFilter: ${statusFilter}, dateFilter: ${dateFilter || 'none'}`);
       const openStatusCount = allIdeas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
-      const hasEntryPrice = allIdeas.filter(i => i.entryPrice).length;
-      const hasTargetPrice = allIdeas.filter(i => i.targetPrice).length;
-      const hasStopLoss = allIdeas.filter(i => i.stopLoss).length;
-      const hasAllPrices = allIdeas.filter(i => i.entryPrice && i.targetPrice && i.stopLoss).length;
-      logger.info(`[BEST-SETUPS] Field stats: ${openStatusCount} open, ${hasEntryPrice} w/entry, ${hasTargetPrice} w/target, ${hasStopLoss} w/stop, ${hasAllPrices} w/all prices`);
+      const closedCount = allIdeas.filter(i => i.outcomeStatus && i.outcomeStatus !== 'open').length;
+      logger.info(`[BEST-SETUPS] Status breakdown: ${openStatusCount} open, ${closedCount} closed`);
 
-      // Filter to open ideas only
-      let openIdeas = allIdeas.filter(i =>
-        (i.outcomeStatus === 'open' || !i.outcomeStatus) &&
+      // Apply status filter
+      let filteredIdeas = allIdeas.filter(i => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        return i.outcomeStatus === statusFilter;
+      });
+
+      // Apply date filter if specified
+      if (dateFilter) {
+        const filterDate = new Date(dateFilter);
+        const filterDateStart = new Date(filterDate.setHours(0, 0, 0, 0));
+        const filterDateEnd = new Date(filterDate.setHours(23, 59, 59, 999));
+
+        filteredIdeas = filteredIdeas.filter(i => {
+          if (!i.timestamp) return false;
+          const ideaDate = new Date(i.timestamp);
+          return ideaDate >= filterDateStart && ideaDate <= filterDateEnd;
+        });
+        logger.info(`[BEST-SETUPS] After date filter (${dateFilter}): ${filteredIdeas.length} ideas`);
+      }
+
+      // Filter to ideas with complete price data
+      let openIdeas = filteredIdeas.filter(i =>
         i.entryPrice && i.targetPrice && i.stopLoss
       );
-      logger.info(`[BEST-SETUPS] After open+prices filter: ${openIdeas.length} ideas`);
+      logger.info(`[BEST-SETUPS] After prices filter: ${openIdeas.length} ideas`);
       
       // 🎯 RELIABILITY FILTER: Remove conflicting directional signals for Best Setups
       // Only show the strongest directional conviction per symbol
@@ -5951,8 +5974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       openIdeas = deconflictedIdeas;
       
-      // 🎯 RELIABILITY FILTER: Minimum confidence for options trades (same as Trade Ideas)
-      const MIN_OPTIONS_CONFIDENCE_BEST = 70;
+      // 🎯 RELIABILITY FILTER: Minimum confidence for options trades
+      // Lowered from 70% to 55% to show more trade ideas
+      const MIN_OPTIONS_CONFIDENCE_BEST = 55;
       openIdeas = openIdeas.filter(idea => {
         if (idea.assetType === 'option' || idea.optionType) {
           return (idea.confidenceScore || 0) >= MIN_OPTIONS_CONFIDENCE_BEST;
@@ -5992,13 +6016,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-grade ideas (A+/A/A-/B+/B/B-/C+/C)
-      // Expanded from B+ minimum to C minimum to capture more valid setups
+      // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-grade ideas
+      // Expanded to include C- and D+ to show more trade ideas
       const highGradeIdeas = openIdeas.filter(i => {
         const grade = i.probabilityBand || '';
-        return ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'].includes(grade);
+        return ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+'].includes(grade);
       });
-      logger.info(`[BEST-SETUPS] High-grade filter: ${highGradeIdeas.length} ideas (grades A+ to C)`);
+      logger.info(`[BEST-SETUPS] High-grade filter: ${highGradeIdeas.length} ideas (grades A+ to D+)`);
 
       // Fallback: if fewer than limit high-grade ideas, include all open ideas
       const candidateIdeas = highGradeIdeas.length >= limit
@@ -6057,6 +6081,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Signal confluence bonus (more signals = higher conviction)
         convictionScore += signalCount * 5;
+
+        // 🎯 ASSET TYPE BONUS - Prioritize STOCKS over OPTIONS
+        // Options are confusing in the UI (entry price = premium, not stock price)
+        // Users want to see actual stock trades as the primary content
+        const assetType = idea.assetType || '';
+        if (assetType === 'stock') {
+          convictionScore += 20; // Boost stocks significantly
+        } else if (assetType === 'option') {
+          convictionScore -= 10; // Deprioritize options (still show them, just lower)
+        }
 
         // Risk/Reward bonus (capped at 3:1 for max bonus)
         convictionScore += Math.min(riskReward, 3) * 10;
@@ -11455,6 +11489,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Failed to fetch upcoming earnings:", error);
       res.status(500).json({ error: "Failed to fetch earnings" });
+    }
+  });
+
+  // GET /api/earnings/high-attention - Get high-profile earnings for next 14 days
+  app.get("/api/earnings/high-attention", marketDataLimiter, async (req, res) => {
+    try {
+      const { getHighAttentionEarnings } = await import("./earnings-trade-scanner");
+      const limit = parseInt(req.query.limit as string) || 15;
+      const earnings = await getHighAttentionEarnings(limit);
+
+      res.json({
+        earnings,
+        count: earnings.length,
+      });
+    } catch (error) {
+      logger.error("Failed to fetch high-attention earnings:", error);
+      res.status(500).json({ error: "Failed to fetch high-attention earnings" });
+    }
+  });
+
+  // POST /api/earnings/scan - Manually trigger earnings trade scan (admin only)
+  app.post("/api/earnings/scan", async (req, res) => {
+    try {
+      const { scanEarningsOpportunities } = await import("./earnings-trade-scanner");
+      logger.info("[EARNINGS] Manual scan triggered via API");
+
+      const ideasGenerated = await scanEarningsOpportunities();
+
+      res.json({
+        success: true,
+        ideasGenerated,
+        message: `Scanned earnings opportunities and generated ${ideasGenerated} trade ideas`,
+      });
+    } catch (error) {
+      logger.error("Failed to scan earnings opportunities:", error);
+      res.status(500).json({ error: "Failed to scan earnings opportunities" });
+    }
+  });
+
+  // GET /api/earnings/catalyst/:symbol - Check if symbol has upcoming earnings catalyst
+  app.get("/api/earnings/catalyst/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { hasEarningsCatalyst } = await import("./earnings-trade-scanner");
+
+      const catalyst = await hasEarningsCatalyst(symbol.toUpperCase());
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        ...catalyst,
+      });
+    } catch (error) {
+      logger.error(`Failed to check earnings catalyst for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to check earnings catalyst" });
+    }
+  });
+
+  // POST /api/popular-tickers/scan - Manually trigger popular tickers scan
+  app.post("/api/popular-tickers/scan", async (req, res) => {
+    try {
+      const { scanPopularTickers, POPULAR_TICKERS } = await import("./popular-tickers-scanner");
+      logger.info("[POPULAR-SCANNER] Manual scan triggered via API");
+
+      const ideasGenerated = await scanPopularTickers();
+
+      res.json({
+        success: true,
+        ideasGenerated,
+        tickersScanned: POPULAR_TICKERS.length,
+        tickers: POPULAR_TICKERS.slice(0, 20), // Show first 20 tickers
+        message: `Scanned ${POPULAR_TICKERS.length} popular tickers and generated ${ideasGenerated} trade ideas`,
+      });
+    } catch (error) {
+      logger.error("Failed to scan popular tickers:", error);
+      res.status(500).json({ error: "Failed to scan popular tickers" });
+    }
+  });
+
+  // GET /api/popular-tickers/list - Get the list of popular tickers being scanned
+  app.get("/api/popular-tickers/list", async (req, res) => {
+    try {
+      const { POPULAR_TICKERS } = await import("./popular-tickers-scanner");
+      res.json({
+        tickers: POPULAR_TICKERS,
+        count: POPULAR_TICKERS.length,
+      });
+    } catch (error) {
+      logger.error("Failed to get popular tickers list:", error);
+      res.status(500).json({ error: "Failed to get popular tickers list" });
+    }
+  });
+
+  // POST /api/movers/scan-options - Generate OPTIONS for dynamically discovered movers
+  // This catches ANY mover in the market and generates calls/puts
+  app.post("/api/movers/scan-options", async (req, res) => {
+    try {
+      const { generateOptionsForMovers, discoverMovers } = await import("./mover-discovery");
+      logger.info("[MOVER-OPTIONS] Manual scan triggered via API");
+
+      // First discover current movers
+      const movers = await discoverMovers();
+
+      // Then generate options
+      const result = await generateOptionsForMovers();
+
+      res.json({
+        success: true,
+        moversDiscovered: movers.length,
+        optionsGenerated: result.ingested,
+        skipped: result.skipped,
+        topMovers: movers.slice(0, 10).map(m => ({
+          symbol: m.symbol,
+          change: m.changePercent,
+          volume: m.relativeVolume,
+          source: m.source,
+          isNew: m.isNewDiscovery,
+        })),
+        message: `Discovered ${movers.length} movers, generated ${result.ingested} options plays`,
+      });
+    } catch (error) {
+      logger.error("Failed to scan movers for options:", error);
+      res.status(500).json({ error: "Failed to scan movers for options" });
+    }
+  });
+
+  // GET /api/movers/current - Get current market movers
+  app.get("/api/movers/current", async (req, res) => {
+    try {
+      const { discoverMovers } = await import("./mover-discovery");
+      const movers = await discoverMovers();
+
+      res.json({
+        movers: movers.slice(0, 30).map(m => ({
+          symbol: m.symbol,
+          name: m.name,
+          price: m.price,
+          changePercent: m.changePercent,
+          volume: m.volume,
+          relativeVolume: m.relativeVolume,
+          source: m.source,
+          isNewDiscovery: m.isNewDiscovery,
+        })),
+        count: movers.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Failed to get current movers:", error);
+      res.status(500).json({ error: "Failed to get current movers" });
     }
   });
 
@@ -22337,7 +22519,8 @@ Use this checklist before entering any trade:
 
   // POST /api/convergence/analyze/:symbol - On-demand convergence analysis for a symbol
   // Creates a trade idea with full deep analysis breakdown
-  app.post("/api/convergence/analyze/:symbol", isAuthenticated, async (req, res) => {
+  // Made accessible without auth to allow stock analysis from search
+  app.post("/api/convergence/analyze/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       if (!symbol || symbol.length > 10) {

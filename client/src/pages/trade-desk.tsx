@@ -2790,12 +2790,69 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
   const [search, setSearch] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("quality");
+  const [statusFilter, setStatusFilter] = useState<string>("open"); // NEW: open, closed, hit_target, stopped_out, expired, all
+  const [dateFilter, setDateFilter] = useState<string>("all"); // NEW: all, today, yesterday, or specific date
   const [sortBy, setSortBy] = useState<string>("confidence");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Generate date options for last 7 days
+  const dateOptions = useMemo(() => {
+    const options = [
+      { value: 'all', label: 'All Dates' },
+      { value: 'today', label: 'Today' },
+      { value: 'yesterday', label: 'Yesterday' },
+    ];
+    const today = new Date();
+    for (let i = 2; i <= 6; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      options.push({ value: dateStr, label });
+    }
+    return options;
+  }, []);
+
   const filteredIdeas = useMemo(() => {
-    let filtered = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
+    let filtered = [...ideas];
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(i => {
+        if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        return i.outcomeStatus === statusFilter;
+      });
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let startDate: Date;
+      let endDate: Date;
+
+      if (dateFilter === 'today') {
+        startDate = today;
+        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      } else if (dateFilter === 'yesterday') {
+        startDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        endDate = today;
+      } else {
+        // Specific date (YYYY-MM-DD format)
+        startDate = new Date(dateFilter);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      filtered = filtered.filter(i => {
+        if (!i.timestamp) return false;
+        const ideaDate = new Date(i.timestamp);
+        return ideaDate >= startDate && ideaDate < endDate;
+      });
+    }
 
     // Search filter
     if (search) {
@@ -2838,7 +2895,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
     });
 
     return filtered;
-  }, [ideas, search, directionFilter, gradeFilter, sortBy]);
+  }, [ideas, search, directionFilter, gradeFilter, statusFilter, dateFilter, sortBy]);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -2890,6 +2947,31 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
             <SelectItem value="all">All Directions</SelectItem>
             <SelectItem value="long">Long / Calls</SelectItem>
             <SelectItem value="short">Short / Puts</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="hit_target">Hit Target ✅</SelectItem>
+            <SelectItem value="stopped_out">Stopped Out ❌</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+            <SelectItem value="closed">All Closed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+            <SelectValue placeholder="Date" />
+          </SelectTrigger>
+          <SelectContent>
+            {dateOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -3019,13 +3101,14 @@ export default function TradeDeskRedesigned() {
     },
   });
 
-  // Fetch ONLY fresh, high-quality trade ideas via best-setups endpoint
-  // Don't fetch raw /api/trade-ideas which returns thousands of old ideas
+  // Fetch trade ideas with ALL statuses to support filtering
+  // Client-side filtering handles status, date, direction, etc.
   const { data: tradeIdeas = [], isLoading, error } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas/best-setups', 'fresh'],
+    queryKey: ['/api/trade-ideas/best-setups', 'all-statuses'],
     queryFn: async () => {
-      // Use best-setups endpoint with daily filter for freshest ideas
-      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=50');
+      // Fetch with status=all to get both open and closed trades
+      // This enables the new status and date filtering
+      const res = await fetch('/api/trade-ideas/best-setups?period=weekly&limit=200&status=all');
       if (!res.ok) return [];
       const data = await res.json();
       return data.setups || [];

@@ -14,7 +14,7 @@
  */
 
 import { logger } from '../logger';
-import yahooFinance from 'yahoo-finance2';
+import { getYahooFinance, safeQuote } from '../yahoo-finance-service';
 
 export type MarketRegime =
   | 'TRENDING_UP'
@@ -349,7 +349,10 @@ function getSignalCategory(signalType: string): keyof SignalMultipliers {
  */
 async function fetchVIX(): Promise<{ vix: number; vixChange: number }> {
   try {
-    const quote = await yahooFinance.quote('^VIX');
+    const quote = await safeQuote('^VIX');
+    if (!quote) {
+      return { vix: 20, vixChange: 0 };
+    }
     return {
       vix: quote.regularMarketPrice || 20,
       vixChange: quote.regularMarketChangePercent || 0,
@@ -375,7 +378,8 @@ async function fetchSPYData(): Promise<{
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 100); // Need 50+ days for SMA50
 
-    const history = await yahooFinance.chart('SPY', {
+    const yf = await getYahooFinance();
+    const history = await yf.chart('SPY', {
       period1: startDate,
       period2: endDate,
       interval: '1d',
