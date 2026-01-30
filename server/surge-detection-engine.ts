@@ -1,20 +1,19 @@
 import { logger } from './logger';
 import { ingestTradeIdea, IngestionInput } from './trade-idea-ingestion';
+import { safeScreener, safeQuote } from './yahoo-finance-service';
 
 // Market-wide scan - fetch actual surging stocks from the ENTIRE market
 async function fetchMarketWideSurgers(): Promise<Array<{ symbol: string; change: number; price: number; volume: number }>> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
-
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), 10000)
     );
 
     // Fetch TOP GAINERS from the ENTIRE market - not limited to any watchlist
-    const gainersPromise = yahooFinance.screener({
+    const gainersPromise = safeScreener({
       scrIds: 'day_gainers',
       count: 100, // Get top 100 gainers market-wide
-    }).catch(() => null);
+    });
 
     const gainers = await Promise.race([gainersPromise, timeoutPromise]);
 
@@ -108,8 +107,6 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
   const alerts: DetectionAlert[] = [];
 
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
-
     // STEP 1: MARKET-WIDE SCAN - This is the PRIMARY source now
     // Catches ANY stock surging in the market (APLD, LAZR, whatever is moving)
     const marketWideSurgers = await fetchMarketWideSurgers();
@@ -152,7 +149,7 @@ async function checkPriceThresholds(): Promise<DetectionAlert[]> {
       const results = await Promise.allSettled(
         batch.map(async (symbol) => {
           try {
-            const quote = await yahooFinance.quote(symbol);
+            const quote = await safeQuote(symbol);
             if (!quote || !quote.regularMarketPrice) return null;
 
             const price = quote.regularMarketPrice;
@@ -298,18 +295,16 @@ async function checkSectorMoves(): Promise<DetectionAlert[]> {
   const alerts: DetectionAlert[] = [];
   
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
-    
     const sectorETFs = [
       { symbol: 'SMH', sector: 'Semiconductor', triggers: ['ARM', 'NVDA', 'AMD', 'AVGO', 'INTC', 'MU', 'QCOM'] },
       { symbol: 'ARKK', sector: 'Innovation', triggers: ['COIN', 'PLTR', 'PATH', 'ROKU', 'SQ'] },
       { symbol: 'URA', sector: 'Uranium/Nuclear', triggers: ['CCJ', 'LEU', 'UUUU', 'UEC', 'NNE', 'OKLO', 'SMR'] },
       { symbol: 'BITQ', sector: 'Crypto', triggers: ['COIN', 'MARA', 'RIOT', 'MSTR', 'CLSK'] }
     ];
-    
+
     for (const etf of sectorETFs) {
       try {
-        const quote = await yahooFinance.quote(etf.symbol);
+        const quote = await safeQuote(etf.symbol);
         if (!quote || !quote.regularMarketChangePercent) continue;
         
         const change = quote.regularMarketChangePercent;

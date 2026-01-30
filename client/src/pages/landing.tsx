@@ -394,21 +394,23 @@ function AnimatedStat({ value, label, suffix = '' }: { value: number; label: str
 
 // Market Ticker Component with real data
 function MarketTicker() {
+  // Note: VIX requires ^VIX for Yahoo Finance
   const { data: marketData, isLoading } = useQuery<{ quotes: Record<string, { regularMarketPrice?: number; regularMarketChange?: number; regularMarketChangePercent?: number }> }>({
-    queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,VIX,BTC-USD,ETH-USD"],
+    queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,^VIX,BTC-USD,ETH-USD"],
     refetchInterval: 15000,
   });
 
   const { status, isOpen } = useMarketStatus();
 
+  // Map display names to API symbols
   const indices = [
-    { symbol: "SPY", name: "S&P 500" },
-    { symbol: "QQQ", name: "Nasdaq" },
-    { symbol: "DIA", name: "Dow" },
-    { symbol: "IWM", name: "Russell" },
-    { symbol: "VIX", name: "VIX" },
-    { symbol: "BTC-USD", name: "Bitcoin" },
-    { symbol: "ETH-USD", name: "Ethereum" },
+    { symbol: "SPY", apiSymbol: "SPY", name: "S&P 500" },
+    { symbol: "QQQ", apiSymbol: "QQQ", name: "Nasdaq" },
+    { symbol: "DIA", apiSymbol: "DIA", name: "Dow" },
+    { symbol: "IWM", apiSymbol: "IWM", name: "Russell" },
+    { symbol: "VIX", apiSymbol: "^VIX", name: "VIX" },
+    { symbol: "BTC-USD", apiSymbol: "BTC-USD", name: "Bitcoin" },
+    { symbol: "ETH-USD", apiSymbol: "ETH-USD", name: "Ethereum" },
   ];
 
   return (
@@ -427,7 +429,8 @@ function MarketTicker() {
         <div className="flex-1 overflow-hidden">
           <div className="flex animate-marquee">
             {[...indices, ...indices].map((idx, i) => {
-              const quote = marketData?.quotes?.[idx.symbol];
+              // Use apiSymbol for data lookup, symbol for display
+              const quote = marketData?.quotes?.[idx.apiSymbol];
               const change = quote?.regularMarketChangePercent;
               const hasData = change !== undefined && change !== null;
               return (

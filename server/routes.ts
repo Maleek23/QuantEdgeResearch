@@ -4159,14 +4159,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (missingSymbols.length > 0) {
         try {
-          const { default: yahooFinance } = await import('yahoo-finance2');
-          // yahooFinance is already instantiated
-          const yahooQuotes = await yahooFinance.quote(missingSymbols);
-          const quoteArray = Array.isArray(yahooQuotes) ? yahooQuotes : [yahooQuotes];
+          const { safeBatchQuotes } = await import('./yahoo-finance-service');
+          const yahooQuotes = await safeBatchQuotes(missingSymbols);
 
-          for (const quote of quoteArray) {
-            if (quote && quote.symbol) {
-              quotes[quote.symbol] = {
+          for (const [symbol, quote] of Object.entries(yahooQuotes)) {
+            if (quote) {
+              quotes[symbol] = {
                 regularMarketPrice: quote.regularMarketPrice || 0,
                 regularMarketChange: quote.regularMarketChange || 0,
                 regularMarketChangePercent: quote.regularMarketChangePercent || 0,
@@ -4174,7 +4172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (error: any) {
-          logger.warn(`Failed to fetch symbols from Yahoo Finance (${missingSymbols.join(',')}):`, error.message || error);
+          logger.warn(`Failed to fetch from Yahoo Finance:`, error.message || error);
         }
       }
 

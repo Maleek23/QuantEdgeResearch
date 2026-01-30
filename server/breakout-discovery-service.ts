@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { enrichStockWithCatalysts, formatCatalystBadge } from './catalyst-tracker-service';
 import type { AnyCatalyst } from '../shared/catalyst-types';
+import { safeScreener } from './yahoo-finance-service';
 
 interface BreakoutCandidate {
   symbol: string;
@@ -35,17 +36,15 @@ interface RealMover {
 // Fetch actual market movers from Yahoo Finance - AGGRESSIVE market-wide scan
 async function fetchRealMarketMovers(): Promise<string[]> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
-
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), 8000)
     );
 
     // Get day gainers - these are ACTUAL surging stocks across the ENTIRE market
-    const gainersPromise = yahooFinance.screener({
+    const gainersPromise = safeScreener({
       scrIds: 'day_gainers',
       count: 100, // INCREASED - catch more surging stocks market-wide
-    }).catch(() => null);
+    });
 
     const gainers = await Promise.race([gainersPromise, timeoutPromise]);
 
@@ -76,8 +75,6 @@ async function fetchRealMarketMovers(): Promise<string[]> {
 // NEW: Fetch detailed data for real market movers - this is where we catch ANY surging stock
 async function fetchDetailedMarketMovers(): Promise<RealMover[]> {
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
-
     const timeoutPromise = new Promise<null>((resolve) =>
       setTimeout(() => resolve(null), 10000)
     );
@@ -85,11 +82,11 @@ async function fetchDetailedMarketMovers(): Promise<RealMover[]> {
     // Fetch top gainers AND most active stocks
     const [gainersResult, activeResult] = await Promise.all([
       Promise.race([
-        yahooFinance.screener({ scrIds: 'day_gainers', count: 50 }).catch(() => null),
+        safeScreener({ scrIds: 'day_gainers', count: 50 }),
         timeoutPromise
       ]),
       Promise.race([
-        yahooFinance.screener({ scrIds: 'most_actives', count: 30 }).catch(() => null),
+        safeScreener({ scrIds: 'most_actives', count: 30 }),
         new Promise<null>((r) => setTimeout(() => r(null), 10000))
       ])
     ]);
