@@ -665,7 +665,7 @@ export default function Landing() {
         </footer>
       </main>
 
-      <WaitlistPopup isOpen={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
+      <WaitlistPopup open={waitlistOpen} onOpenChange={setWaitlistOpen} />
     </div>
   );
 }

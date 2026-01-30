@@ -101,7 +101,7 @@ export function HighConvictionAlertProvider({
 
   const dismissAlert = (id: string) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
-    setDismissedIds(prev => new Set([...prev, id]));
+    setDismissedIds(prev => new Set([...Array.from(prev), id]));
   };
 
   const goToTradeDesk = (idea: TradeIdea) => {
