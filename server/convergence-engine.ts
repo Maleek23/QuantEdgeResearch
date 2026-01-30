@@ -24,7 +24,7 @@ import { eq, desc, gte, and, or, sql } from 'drizzle-orm';
 import { logger } from './logger';
 import { recordSymbolAttention, getHotSymbols } from './attention-tracking-service';
 import { fetchBreakingNews } from './news-service';
-import { getUpcomingCatalysts, fetchGovernmentContractsForTicker } from './catalyst-intelligence-service';
+import { getUpcomingCatalysts, fetchGovernmentContractsForTicker, getCatalystsForSymbol } from './catalyst-intelligence-service';
 import { scanForPreMoveSignals, HIGH_PROFILE_TICKERS, DEFENSE_TICKERS } from './pre-move-detection-service';
 import { getTradierQuote } from './tradier-api';
 import { createAndSaveUniversalIdea, type IdeaSignal } from './universal-idea-generator';
@@ -262,6 +262,46 @@ async function createConvergenceTradeIdea(result: ConvergenceResult): Promise<vo
       description: `${result.signals.length} independent sources converged`,
     });
 
+    // 🎯 BUILD DEEP ANALYSIS for Trade Desk display
+    const convergenceAnalysis = {
+      signals: result.signals.map((s: ConvergenceSignal) => ({
+        source: s.source,
+        type: s.source.toUpperCase(),
+        direction: s.direction,
+        weight: s.magnitude * 2,
+        confidence: s.confidence,
+        description: s.details,
+        data: s.metadata || {},
+        timestamp: s.timestamp.toISOString(),
+      })),
+      convergenceScore: result.convergenceScore,
+      signalCount: result.signals.length,
+      primaryThesis: result.recommendation,
+      technicalSummary: result.signals
+        .filter((s: ConvergenceSignal) => ['volume_spike', 'iv_expansion', 'premarket_surge'].includes(s.source))
+        .map((s: ConvergenceSignal) => s.details)
+        .join('. ') || undefined,
+      flowSummary: result.signals
+        .filter((s: ConvergenceSignal) => s.source === 'options_sweep')
+        .map((s: ConvergenceSignal) => s.details)
+        .join('. ') || undefined,
+      newsSummary: result.signals
+        .filter((s: ConvergenceSignal) => ['breaking_news', 'defense_contract', 'analyst_upgrade'].includes(s.source))
+        .map((s: ConvergenceSignal) => s.details)
+        .join('. ') || undefined,
+      sentimentSummary: result.signals
+        .filter((s: ConvergenceSignal) => ['social_momentum', 'earnings_whisper'].includes(s.source))
+        .map((s: ConvergenceSignal) => s.details)
+        .join('. ') || undefined,
+      riskFactors: result.urgency === 'low' ? ['Low urgency - may take time to develop'] : undefined,
+      keyLevels: [
+        { type: 'entry', price: price, label: 'Current Price' },
+        { type: 'target', price: price * (isLong ? 1.08 : 0.92), label: 'Target (+8%)' },
+        { type: 'stop', price: price * (isLong ? 0.95 : 1.05), label: 'Stop Loss (-5%)' },
+      ],
+      generatedAt: new Date().toISOString(),
+    };
+
     await createAndSaveUniversalIdea({
       symbol: result.symbol,
       source: 'bot_screener',
@@ -277,6 +317,7 @@ async function createConvergenceTradeIdea(result: ConvergenceResult): Promise<vo
         `Sources: ${result.signals.map((s: ConvergenceSignal) => s.source).join(', ')}. ` +
         `Direction: ${result.direction.toUpperCase()}. ` +
         `Urgency: ${result.urgency.toUpperCase()}.`,
+      convergenceAnalysis, // 🎯 Include deep analysis
     });
 
     // Discord alert for critical/high urgency
@@ -706,6 +747,233 @@ export function stopConvergenceEngine(): void {
     overnightTimeout = null;
   }
   logger.info('[CONVERGENCE] Convergence Engine stopped');
+}
+
+/**
+ * Analyze a symbol on-demand and generate a trade idea with deep analysis
+ * Called from stock search to provide instant convergence analysis
+ */
+export async function analyzeSymbolOnDemand(symbol: string): Promise<{
+  success: boolean;
+  tradeIdea?: any;
+  convergenceAnalysis?: any;
+  message: string;
+}> {
+  const upperSymbol = symbol.toUpperCase();
+  logger.info(`[CONVERGENCE] On-demand analysis requested for ${upperSymbol}`);
+
+  try {
+    // Get current price
+    const quote = await getTradierQuote(upperSymbol);
+    if (!quote || !quote.last) {
+      return { success: false, message: 'Unable to fetch quote for symbol' };
+    }
+
+    const price = quote.last;
+    const volume = quote.volume || 0;
+    const avgVolume = quote.average_volume || volume;
+    const change = quote.change_percentage || 0;
+
+    // Gather signals from various sources
+    const signals: ConvergenceSignal[] = [];
+    const signalExpiry = new Date(Date.now() + SIGNAL_TTL_MS);
+
+    // 1. Check for existing active signals
+    const existingSignals = activeSignals.get(upperSymbol) || [];
+    signals.push(...existingSignals);
+
+    // 2. Technical signals based on current data
+    if (Math.abs(change) > 3) {
+      signals.push({
+        source: 'premarket_surge',
+        symbol: upperSymbol,
+        magnitude: Math.min(10, Math.abs(change) / 2),
+        confidence: Math.min(85, 50 + Math.abs(change) * 5),
+        direction: change > 0 ? 'bullish' : 'bearish',
+        timestamp: new Date(),
+        expiresAt: signalExpiry,
+        details: `${change > 0 ? '+' : ''}${change.toFixed(2)}% move detected`,
+        metadata: { changePercent: change },
+      });
+    }
+
+    // 3. Volume signal
+    if (avgVolume > 0 && volume > avgVolume * 1.5) {
+      const volumeRatio = volume / avgVolume;
+      signals.push({
+        source: 'volume_spike',
+        symbol: upperSymbol,
+        magnitude: Math.min(10, volumeRatio * 2),
+        confidence: Math.min(80, 40 + volumeRatio * 15),
+        direction: change >= 0 ? 'bullish' : 'bearish',
+        timestamp: new Date(),
+        expiresAt: signalExpiry,
+        details: `Volume ${volumeRatio.toFixed(1)}x average (${(volume / 1000000).toFixed(2)}M vs ${(avgVolume / 1000000).toFixed(2)}M avg)`,
+        metadata: { volumeRatio, volume, avgVolume },
+      });
+    }
+
+    // 4. Check for recent news
+    try {
+      const news = await fetchBreakingNews();
+      const symbolNews = news.filter(n =>
+        n.title?.toUpperCase().includes(upperSymbol) ||
+        n.summary?.toUpperCase().includes(upperSymbol)
+      );
+      if (symbolNews.length > 0) {
+        signals.push({
+          source: 'breaking_news',
+          symbol: upperSymbol,
+          magnitude: Math.min(10, symbolNews.length * 3),
+          confidence: 70,
+          direction: 'neutral',
+          timestamp: new Date(),
+          expiresAt: signalExpiry,
+          details: `${symbolNews.length} recent news article(s): ${symbolNews[0]?.title?.slice(0, 80)}...`,
+          metadata: { newsCount: symbolNews.length },
+        });
+      }
+    } catch (e) {
+      // News fetch failed, continue without
+    }
+
+    // 5. Check catalysts for this symbol
+    try {
+      const catalysts = await getCatalystsForSymbol(upperSymbol, 5);
+      if (catalysts && catalysts.length > 0) {
+        const firstCatalyst = catalysts[0];
+        signals.push({
+          source: 'earnings_whisper',
+          symbol: upperSymbol,
+          magnitude: 7,
+          confidence: 65,
+          direction: 'neutral',
+          timestamp: new Date(),
+          expiresAt: signalExpiry,
+          details: `Upcoming catalyst: ${firstCatalyst?.eventType || 'Event'} - ${firstCatalyst?.title || 'soon'}`,
+          metadata: { catalystCount: catalysts.length },
+        });
+      }
+    } catch (e) {
+      // Catalyst fetch failed, continue
+    }
+
+    // Calculate direction and score
+    const bullish = signals.filter(s => s.direction === 'bullish');
+    const bearish = signals.filter(s => s.direction === 'bearish');
+    const direction = bullish.length > bearish.length ? 'bullish' :
+                      bearish.length > bullish.length ? 'bearish' : 'neutral';
+
+    const isLong = direction === 'bullish' || direction === 'neutral';
+
+    // Calculate convergence score
+    let totalWeight = 0;
+    let weightedConf = 0;
+    for (const s of signals) {
+      const w = s.magnitude;
+      totalWeight += w;
+      weightedConf += s.confidence * w;
+    }
+
+    const sources = new Set(signals.map(s => s.source));
+    const convergenceScore = signals.length > 0
+      ? Math.min(95, Math.round((weightedConf / totalWeight) * (1 + sources.size * 0.05)))
+      : 50; // Base score if no signals
+
+    // Build deep analysis
+    const convergenceAnalysis = {
+      signals: signals.map(s => ({
+        source: s.source,
+        type: s.source.toUpperCase(),
+        direction: s.direction,
+        weight: s.magnitude * 2,
+        confidence: s.confidence,
+        description: s.details,
+        data: s.metadata || {},
+        timestamp: s.timestamp.toISOString(),
+      })),
+      convergenceScore,
+      signalCount: signals.length,
+      primaryThesis: signals.length > 0
+        ? `${upperSymbol}: ${sources.size} signal source(s) detected. ${direction.toUpperCase()} bias with ${convergenceScore}% confidence.`
+        : `${upperSymbol}: Current price $${price.toFixed(2)}. Monitoring for opportunities.`,
+      technicalSummary: signals
+        .filter(s => ['volume_spike', 'premarket_surge', 'iv_expansion'].includes(s.source))
+        .map(s => s.details)
+        .join('. ') || 'No significant technical signals.',
+      flowSummary: signals
+        .filter(s => s.source === 'options_sweep')
+        .map(s => s.details)
+        .join('. ') || undefined,
+      newsSummary: signals
+        .filter(s => ['breaking_news', 'defense_contract', 'analyst_upgrade'].includes(s.source))
+        .map(s => s.details)
+        .join('. ') || undefined,
+      sentimentSummary: signals
+        .filter(s => ['social_momentum', 'earnings_whisper'].includes(s.source))
+        .map(s => s.details)
+        .join('. ') || undefined,
+      riskFactors: [
+        convergenceScore < 60 ? 'Low convergence - limited signal confirmation' : null,
+        signals.length < 2 ? 'Single source - needs more confirmation' : null,
+        Math.abs(change) > 10 ? 'Extended move - potential pullback risk' : null,
+      ].filter(Boolean) as string[],
+      keyLevels: [
+        { type: 'entry', price: price, label: 'Current Price' },
+        { type: 'target', price: price * (isLong ? 1.08 : 0.92), label: 'Target (+8%)' },
+        { type: 'stop', price: price * (isLong ? 0.95 : 1.05), label: 'Stop Loss (-5%)' },
+      ],
+      generatedAt: new Date().toISOString(),
+    };
+
+    // Build trade idea signals
+    const ideaSignals: IdeaSignal[] = signals.map(s => ({
+      type: s.source.toUpperCase().replace(/_/g, '_'),
+      weight: s.magnitude * 2,
+      description: s.details,
+      data: { confidence: s.confidence },
+    }));
+
+    // Add convergence signal
+    if (signals.length > 1) {
+      ideaSignals.push({
+        type: 'CONVERGENCE_MULTI_SOURCE',
+        weight: signals.length * 3,
+        description: `${signals.length} signal sources analyzed`,
+      });
+    }
+
+    // Create and save the trade idea
+    const tradeIdea = await createAndSaveUniversalIdea({
+      symbol: upperSymbol,
+      source: 'bot_screener',
+      assetType: 'stock',
+      direction: isLong ? 'bullish' : 'bearish',
+      currentPrice: price,
+      targetPrice: price * (isLong ? 1.08 : 0.92),
+      stopLoss: price * (isLong ? 0.95 : 1.05),
+      signals: ideaSignals,
+      holdingPeriod: 'swing',
+      catalyst: convergenceAnalysis.primaryThesis,
+      analysis: `ON-DEMAND ANALYSIS: ${upperSymbol} at $${price.toFixed(2)}. ` +
+        `${signals.length} signals from ${sources.size} sources. ` +
+        `Direction: ${direction.toUpperCase()}. Score: ${convergenceScore}%.`,
+      convergenceAnalysis,
+    });
+
+    logger.info(`[CONVERGENCE] On-demand analysis complete for ${upperSymbol}: ${convergenceScore}% score, ${signals.length} signals`);
+
+    return {
+      success: true,
+      tradeIdea,
+      convergenceAnalysis,
+      message: `Analysis complete: ${convergenceScore}% convergence score with ${signals.length} signals`,
+    };
+
+  } catch (error) {
+    logger.error(`[CONVERGENCE] On-demand analysis failed for ${upperSymbol}:`, error);
+    return { success: false, message: 'Analysis failed: ' + (error as Error).message };
+  }
 }
 
 // Export for API routes

@@ -120,6 +120,10 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   'IONQ', 'RGTI', 'QUBT', 'PLTR', 'AI', 'SOUN', 'ARQQ', 'QBTS', 'LAES', 'NBIS',
   // Major Indices & ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
+  // 🥇 COMMODITY ETFs - Metals, Gold, Silver, Copper (user requested)
+  'GLD', 'SLV', 'COPX', 'GDX', 'GDXJ', 'SIL', 'SILJ', 'JNUG', 'NUGT', 'GOLD', 'NEM', 'FCX', 'SCCO', 'TECK',
+  // 🛢️ OIL & GAS ETFs
+  'USO', 'XOP', 'OIH', 'UCO', 'GUSH', 'DRIP',
   // Mega-Cap Tech
   'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
   // AI & Semiconductors
@@ -490,7 +494,53 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   if (unusualFlows.length > 0) {
     await sendFlowAlerts(unusualFlows.slice(0, 5));
   }
-  
+
+  // 🎯 AUTO-GENERATE TRADE IDEAS from high-quality flows
+  // Convert top flows (score >= 75, premium >= $50k) into actual trade ideas
+  const highQualityFlows = unusualFlows.filter(f => f.unusualScore >= 75 && f.premium >= 50000);
+  if (highQualityFlows.length > 0) {
+    logger.info(`[OPTIONS-FLOW] 🎯 Converting ${highQualityFlows.length} high-quality flows to trade ideas...`);
+
+    try {
+      const { generateIdeaFromFlow } = await import('./universal-idea-generator');
+      const { storage } = await import('./storage');
+
+      let ideasCreated = 0;
+      // Limit to top 5 flows per scan to avoid flooding
+      for (const flow of highQualityFlows.slice(0, 5)) {
+        try {
+          const idea = await generateIdeaFromFlow(
+            flow.symbol,
+            flow.optionType,
+            flow.strikePrice,
+            flow.expiryDate,
+            flow.premium,
+            flow.unusualScore,
+            [
+              {
+                type: flow.flowType === 'sweep' ? 'SWEEP_DETECTED' : 'UNUSUAL_CALL_FLOW',
+                weight: 12,
+                description: `${flow.flowType.toUpperCase()} flow detected - Vol/OI: ${flow.volumeOIRatio.toFixed(1)}x`
+              }
+            ]
+          );
+
+          if (idea) {
+            await storage.createTradeIdea(idea);
+            ideasCreated++;
+            logger.info(`[OPTIONS-FLOW] ✅ Created trade idea: ${flow.symbol} ${flow.optionType.toUpperCase()} $${flow.strikePrice} (${flow.expiryDate})`);
+          }
+        } catch (ideaErr) {
+          logger.debug(`[OPTIONS-FLOW] Failed to create idea for ${flow.symbol}:`, ideaErr);
+        }
+      }
+
+      logger.info(`[OPTIONS-FLOW] 🎯 Created ${ideasCreated} trade ideas from options flow`);
+    } catch (err) {
+      logger.warn('[OPTIONS-FLOW] Failed to generate trade ideas from flows:', err);
+    }
+  }
+
   return unusualFlows;
 }
 
@@ -917,10 +967,55 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     }
     
     logger.info(`[OPTIONS-FLOW] Watchlist scan complete: ${symbols.length} scanned, ${allFlows.length} flows found, ${savedCount} saved`);
-    
-    return { scanned: symbols.length, flowsFound: allFlows.length, saved: savedCount };
+
+    // 🎯 AUTO-GENERATE TRADE IDEAS from high-quality watchlist flows
+    const highQualityFlows = allFlows.filter(f => f.unusualScore >= 70 && f.premium >= 25000);
+    let ideasCreated = 0;
+
+    if (highQualityFlows.length > 0) {
+      logger.info(`[OPTIONS-FLOW] 🎯 Converting ${highQualityFlows.length} watchlist flows to trade ideas...`);
+
+      try {
+        const { generateIdeaFromFlow } = await import('./universal-idea-generator');
+
+        // Limit to top 5 flows per scan
+        for (const flow of highQualityFlows.slice(0, 5)) {
+          try {
+            const idea = await generateIdeaFromFlow(
+              flow.symbol,
+              flow.optionType,
+              flow.strikePrice,
+              flow.expiryDate,
+              flow.premium,
+              flow.unusualScore,
+              [
+                {
+                  type: flow.flowType === 'sweep' ? 'SWEEP_DETECTED' : flow.optionType === 'call' ? 'UNUSUAL_CALL_FLOW' : 'UNUSUAL_PUT_FLOW',
+                  weight: 12,
+                  description: `Watchlist ${flow.flowType.toUpperCase()} - Vol/OI: ${flow.volumeOIRatio.toFixed(1)}x`
+                }
+              ]
+            );
+
+            if (idea) {
+              await storage.createTradeIdea(idea);
+              ideasCreated++;
+              logger.info(`[OPTIONS-FLOW] ✅ Created watchlist idea: ${flow.symbol} ${flow.optionType.toUpperCase()} $${flow.strikePrice}`);
+            }
+          } catch (ideaErr) {
+            logger.debug(`[OPTIONS-FLOW] Failed to create idea for ${flow.symbol}:`, ideaErr);
+          }
+        }
+
+        logger.info(`[OPTIONS-FLOW] 🎯 Created ${ideasCreated} trade ideas from watchlist flow`);
+      } catch (err) {
+        logger.warn('[OPTIONS-FLOW] Failed to generate trade ideas from watchlist flows:', err);
+      }
+    }
+
+    return { scanned: symbols.length, flowsFound: allFlows.length, saved: savedCount, ideasCreated };
   } catch (error) {
     logger.error('[OPTIONS-FLOW] Watchlist flow scan failed:', error);
-    return { scanned: 0, flowsFound: 0, saved: 0 };
+    return { scanned: 0, flowsFound: 0, saved: 0, ideasCreated: 0 };
   }
 }

@@ -140,7 +140,33 @@ app.use((req, res, next) => {
     const { pennyScanner } = await import('./penny-scanner');
     pennyScanner.start();
     log('🚀 Penny Moonshot Scanner started - scanning at 4:00 AM, 9:30 AM, 8:00 PM CT weekdays');
-    
+
+    // Start Options Flow Scanner (every 30 min during market hours - generates trade ideas from flows)
+    const { scanOptionsFlow } = await import('./options-flow-scanner');
+    const startOptionsFlowScheduler = () => {
+      // Run scan immediately on startup
+      scanOptionsFlow().catch(err => logger.error('[OPTIONS-FLOW] Initial scan failed:', err));
+
+      // Schedule every 30 minutes
+      setInterval(async () => {
+        const now = new Date();
+        const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const hour = nowET.getHours();
+        const dayOfWeek = nowET.getDay();
+
+        // Only scan during market hours (9:30 AM - 4 PM ET, weekdays)
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+        const isMarketHours = hour >= 9 && hour < 16;
+
+        if (isWeekday && isMarketHours) {
+          logger.info('[OPTIONS-FLOW] Starting scheduled scan...');
+          await scanOptionsFlow().catch(err => logger.error('[OPTIONS-FLOW] Scheduled scan failed:', err));
+        }
+      }, 30 * 60 * 1000); // 30 minutes
+    };
+    startOptionsFlowScheduler();
+    log('📊 Options Flow Scanner started - scanning every 30 minutes during market hours');
+
     // Start Bullish Trend Scanner (tracks momentum stocks every 15 min during market hours)
     const { startBullishTrendScanner } = await import('./bullish-trend-scanner');
     startBullishTrendScanner();

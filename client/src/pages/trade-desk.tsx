@@ -51,10 +51,11 @@ import {
   PieChart,
   Gem,
 } from "lucide-react";
-import type { TradeIdea } from "@shared/schema";
+import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
 import { getLetterGrade, getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
+import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 
 // ============================================
 // MARKET PULSE HEADER
@@ -2565,6 +2566,16 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
             </div>
           )}
 
+          {/* Deep Analysis - Full Signal Breakdown */}
+          {idea.convergenceSignalsJson && (
+            <DeepAnalysisPanel
+              analysis={idea.convergenceSignalsJson}
+              symbol={idea.symbol}
+              direction={(idea.direction?.toLowerCase() || 'long') as 'long' | 'short'}
+              defaultExpanded={false}
+            />
+          )}
+
           {/* Analysis */}
           {idea.analysis && (
             <div>
@@ -3038,24 +3049,42 @@ export default function TradeDeskRedesigned() {
   const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 2): TradeIdea[] => {
     const now = new Date();
 
-    // First, filter out expired options
+    // First, filter out expired/stale ideas
     const nonExpired = ideas.filter(idea => {
-      // If it has an expiry date and it's in the past, filter it out
+      // If it has an expiry date (options) and it's in the past, filter it out
       if (idea.expiryDate) {
         const expiryDate = new Date(idea.expiryDate);
         if (expiryDate < now) return false;
       }
-      // Also filter out ideas older than 48 hours for day trades
+      // If entry window has closed, filter it out
+      if (idea.entryValidUntil) {
+        const entryExpiry = new Date(idea.entryValidUntil);
+        if (entryExpiry < now) return false;
+      }
+      // If exitBy has passed, the trade is closed/expired
+      if (idea.exitBy) {
+        const exitTime = new Date(idea.exitBy);
+        if (exitTime < now) return false;
+      }
+      // Filter out closed/resolved trades
+      if (idea.outcomeStatus && idea.outcomeStatus !== 'open') return false;
+      // Day trades: filter out if older than 12 hours (more aggressive for day trades)
       if (idea.holdingPeriod === 'day' && idea.timestamp) {
         const ideaTime = new Date(idea.timestamp);
         const hoursSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
-        if (hoursSince > 48) return false;
+        if (hoursSince > 12) return false;
       }
-      // Filter out ideas older than 7 days for swing trades
+      // Swing trades: filter out if older than 5 days
       if ((idea.holdingPeriod === 'swing' || !idea.holdingPeriod) && idea.timestamp) {
         const ideaTime = new Date(idea.timestamp);
         const daysSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSince > 7) return false;
+        if (daysSince > 5) return false;
+      }
+      // Position trades: filter out if older than 14 days
+      if (idea.holdingPeriod === 'position' && idea.timestamp) {
+        const ideaTime = new Date(idea.timestamp);
+        const daysSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince > 14) return false;
       }
       return true;
     });

@@ -118,6 +118,32 @@ export type RiskProfile = 'conservative' | 'moderate' | 'aggressive' | 'speculat
 // Sector Focus - Thematic sector categorization
 export type SectorFocus = 'quantum_computing' | 'nuclear_fusion' | 'healthcare' | 'ai_ml' | 'space' | 'clean_energy' | 'crypto' | 'fintech' | 'other';
 
+// 🎯 Convergence Analysis - Deep analysis breakdown for trade ideas
+export interface ConvergenceSignal {
+  source: string; // 'options_flow' | 'breaking_news' | 'technical' | 'sentiment' | 'insider' | 'sector_momentum'
+  type: string; // 'SWEEP_DETECTED' | 'RSI_OVERSOLD' | 'BULLISH_MACD' | etc.
+  direction: 'bullish' | 'bearish' | 'neutral';
+  weight: number; // 1-20 signal strength
+  confidence: number; // 0-100
+  description: string; // Human-readable explanation
+  data?: Record<string, any>; // Raw data (RSI value, volume, etc.)
+  timestamp?: string;
+}
+
+export interface ConvergenceAnalysis {
+  signals: ConvergenceSignal[]; // All signals that contributed
+  convergenceScore: number; // 0-100 overall score
+  signalCount: number; // Number of independent sources
+  primaryThesis: string; // Main reason for the trade
+  technicalSummary?: string; // RSI, MACD, support/resistance summary
+  flowSummary?: string; // Options flow summary if applicable
+  newsSummary?: string; // News catalyst summary if applicable
+  sentimentSummary?: string; // Social/market sentiment
+  riskFactors?: string[]; // Key risks to watch
+  keyLevels?: { type: string; price: number; label: string }[]; // S/R levels
+  generatedAt: string; // ISO timestamp
+}
+
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -237,6 +263,10 @@ export const tradeIdeas = pgTable("trade_ideas", {
   researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
   riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative
   sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear_fusion, healthcare, ai_ml, etc.
+
+  // 🎯 DEEP ANALYSIS - Full signal breakdown for transparency (Trade Desk integration)
+  // Stores the complete reasoning behind why this trade was generated
+  convergenceSignalsJson: jsonb("convergence_signals_json").$type<ConvergenceAnalysis>(), // Full breakdown of all signals
 }, (table) => [
   // CRITICAL PERFORMANCE INDEXES - Speed up queries without affecting timing
   index("idx_trade_ideas_timestamp").on(table.timestamp), // Fast recent trades lookup

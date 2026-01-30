@@ -269,11 +269,35 @@ export interface UniversalIdeaInput {
   
   // Holding period suggestion
   holdingPeriod?: 'day' | 'swing' | 'position';
-  
+
   // Analysis text
   catalyst?: string;
   analysis?: string;
   technicalSignals?: string[];
+
+  // 🎯 Deep Analysis - Full signal breakdown for Trade Desk
+  convergenceAnalysis?: {
+    signals: Array<{
+      source: string;
+      type: string;
+      direction: 'bullish' | 'bearish' | 'neutral';
+      weight: number;
+      confidence: number;
+      description: string;
+      data?: Record<string, any>;
+      timestamp?: string;
+    }>;
+    convergenceScore: number;
+    signalCount: number;
+    primaryThesis: string;
+    technicalSummary?: string;
+    flowSummary?: string;
+    newsSummary?: string;
+    sentimentSummary?: string;
+    riskFactors?: string[];
+    keyLevels?: Array<{ type: string; price: number; label: string }>;
+    generatedAt: string;
+  };
 }
 
 // Base confidence by source (starting points) - CALIBRATED for realistic distribution
@@ -908,12 +932,15 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       
       // Source metadata
       dataSourceUsed: input.source,
-      
+
       // News sentiment fields
       newsBias: newsContext?.newsBias || null,
       earningsBeat: newsContext?.earningsBeat ?? null,
+
+      // 🎯 Deep Analysis - Store full signal breakdown for Trade Desk
+      convergenceSignalsJson: input.convergenceAnalysis || null,
     };
-    
+
     logger.info(`[UNIVERSAL] Generated ${input.symbol} idea from ${input.source}: ${confidence}% (${grade})`);
     
     return idea;

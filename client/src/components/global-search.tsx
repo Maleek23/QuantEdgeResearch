@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,12 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useStockContext } from "@/contexts/stock-context";
+import { useToast } from "@/hooks/use-toast";
 import {
   Search, TrendingUp, TrendingDown, Loader2,
   BarChart3, Bitcoin, DollarSign, Rocket,
   ArrowRight, Star, Clock, Sparkles, MessageSquare,
-  BookOpen, ChartLine, HelpCircle
+  BookOpen, ChartLine, HelpCircle, Zap, Brain
 } from "lucide-react";
 
 interface SearchResult {
@@ -125,8 +126,11 @@ export function GlobalSearch({
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showAIResponse, setShowAIResponse] = useState(false);
+  const [analyzingSymbol, setAnalyzingSymbol] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const { setCurrentStock } = useStockContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -165,6 +169,48 @@ export function GlobalSearch({
       setShowAIResponse(true);
     },
   });
+
+  // Convergence analysis mutation
+  const analysisMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      const response = await fetch(`/api/convergence/analyze/${symbol}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Analysis failed');
+      }
+      return response.json();
+    },
+    onSuccess: (data, symbol) => {
+      setAnalyzingSymbol(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Analysis Complete",
+        description: `Trade idea generated for ${symbol} with ${data.convergenceAnalysis?.convergenceScore || 0}% convergence score`,
+      });
+      // Navigate to trade desk to see the new idea
+      setLocation('/trade-desk');
+      setIsFocused(false);
+      setQuery('');
+      setDisplayQuery('');
+    },
+    onError: (error) => {
+      setAnalyzingSymbol(null);
+      toast({
+        title: "Analysis Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateAnalysis = (symbol: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAnalyzingSymbol(symbol);
+    analysisMutation.mutate(symbol);
+  };
 
   const isLoading = isSymbolLoading || aiSearchMutation.isPending;
 
@@ -459,48 +505,74 @@ export function GlobalSearch({
                     </div>
                     <div className="space-y-1">
                       {results.map((result) => (
-                        <button
+                        <div
                           key={result.symbol}
-                          onClick={() => handleSelect(result.symbol, result)}
-                          className="w-full flex items-center gap-3 p-3 rounded-lg hover-elevate transition-all text-left"
-                          data-testid={`result-${result.symbol}`}
+                          className="flex items-center gap-2"
                         >
-                          <div className="p-2 rounded-lg bg-muted/30">
-                            {getAssetIcon(result.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold font-mono">{result.symbol}</span>
-                              <Badge variant="outline" className="text-[10px]">
-                                {result.type.replace('_', ' ')}
-                              </Badge>
+                          <button
+                            onClick={() => handleSelect(result.symbol, result)}
+                            className="flex-1 flex items-center gap-3 p-3 rounded-lg hover-elevate transition-all text-left"
+                            data-testid={`result-${result.symbol}`}
+                          >
+                            <div className="p-2 rounded-lg bg-muted/30">
+                              {getAssetIcon(result.type)}
                             </div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {result.name}
-                            </div>
-                          </div>
-                          {result.price != null && (
-                            <div className="text-right">
-                              <div className="font-mono font-bold">
-                                ${result.price.toFixed(2)}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold font-mono">{result.symbol}</span>
+                                <Badge variant="outline" className="text-[10px]">
+                                  {result.type.replace('_', ' ')}
+                                </Badge>
+                                {result.hasIdeas && (
+                                  <Badge className="text-[9px] bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                                    <Zap className="h-2 w-2 mr-0.5" /> Trade Idea
+                                  </Badge>
+                                )}
                               </div>
-                              {result.change != null && (
-                                <div className={cn(
-                                  "text-xs font-mono flex items-center justify-end gap-1",
-                                  result.change >= 0 ? "text-green-400" : "text-red-400"
-                                )}>
-                                  {result.change >= 0 ? (
-                                    <TrendingUp className="h-3 w-3" />
-                                  ) : (
-                                    <TrendingDown className="h-3 w-3" />
-                                  )}
-                                  {result.change >= 0 ? '+' : ''}{result.change.toFixed(2)}%
-                                </div>
-                              )}
+                              <div className="text-sm text-muted-foreground truncate">
+                                {result.name}
+                              </div>
                             </div>
+                            {result.price != null && (
+                              <div className="text-right">
+                                <div className="font-mono font-bold">
+                                  ${result.price.toFixed(2)}
+                                </div>
+                                {result.change != null && (
+                                  <div className={cn(
+                                    "text-xs font-mono flex items-center justify-end gap-1",
+                                    result.change >= 0 ? "text-green-400" : "text-red-400"
+                                  )}>
+                                    {result.change >= 0 ? (
+                                      <TrendingUp className="h-3 w-3" />
+                                    ) : (
+                                      <TrendingDown className="h-3 w-3" />
+                                    )}
+                                    {result.change >= 0 ? '+' : ''}{result.change.toFixed(2)}%
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          {/* Generate Analysis Button */}
+                          {result.type === 'stock' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-10 px-3 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20"
+                              onClick={(e) => handleGenerateAnalysis(result.symbol, e)}
+                              disabled={analyzingSymbol === result.symbol}
+                              title="Generate Trade Thesis"
+                            >
+                              {analyzingSymbol === result.symbol ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Brain className="h-4 w-4" />
+                              )}
+                            </Button>
                           )}
-                          <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>

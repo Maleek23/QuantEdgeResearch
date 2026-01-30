@@ -22325,6 +22325,37 @@ Use this checklist before entering any trade:
     }
   });
 
+  // POST /api/convergence/analyze/:symbol - On-demand convergence analysis for a symbol
+  // Creates a trade idea with full deep analysis breakdown
+  app.post("/api/convergence/analyze/:symbol", isAuthenticated, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const { analyzeSymbolOnDemand } = await import("./convergence-engine");
+      const result = await analyzeSymbolOnDemand(symbol);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+          tradeIdea: result.tradeIdea,
+          convergenceAnalysis: result.convergenceAnalysis,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.message,
+        });
+      }
+    } catch (error) {
+      logger.error("Error running on-demand convergence analysis", { error });
+      res.status(500).json({ error: "Failed to run convergence analysis" });
+    }
+  });
+
   // POST /api/convergence/scan-overnight - Manually trigger overnight catalyst scan
   app.post("/api/convergence/scan-overnight", requireAdminJWT, async (_req, res) => {
     try {
