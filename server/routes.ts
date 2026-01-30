@@ -1293,43 +1293,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const accessCode = req.body.accessCode;
       const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
-      
+
+      logger.info('[DEV-LOGIN] Attempting login', { accessCode: accessCode ? '***' : 'missing' });
+
       // Also accept "0065" as a backup code
       if (accessCode !== adminCode && accessCode !== "0065") {
+        logger.warn('[DEV-LOGIN] Invalid access code');
         return res.status(401).json({ error: "Invalid access code" });
       }
-      
+
       // Login as admin user (use ADMIN_EMAIL from env)
       const adminEmail = process.env.ADMIN_EMAIL || "abdulamlikajisegiri@gmail.com";
+      logger.info('[DEV-LOGIN] Looking up user by email', { email: adminEmail });
+
       let user = await storage.getUserByEmail(adminEmail);
-      
+
       if (!user) {
-        // Create admin user if doesn't exist
+        logger.info('[DEV-LOGIN] User not found, creating new admin user');
+        // Create admin user if doesn't exist - only include basic fields, let DB defaults handle the rest
         user = await storage.upsertUser({
-          id: "admin_001",
+          id: `admin_${Date.now()}`, // Use unique ID to avoid conflicts
           email: adminEmail,
           firstName: "Abdulmalik",
           lastName: "Ajisegiri",
           profileImageUrl: null,
           hasBetaAccess: true,
+          subscriptionTier: 'free',
+          subscriptionStatus: 'active',
         });
+        logger.info('[DEV-LOGIN] Created new admin user', { userId: user?.id });
       } else {
+        logger.info('[DEV-LOGIN] Found existing user', { userId: user.id, hasBetaAccess: user.hasBetaAccess });
         // Ensure existing user has beta access
         if (!user.hasBetaAccess) {
+          logger.info('[DEV-LOGIN] Updating user to grant beta access');
           await storage.updateUser(user.id, { hasBetaAccess: true });
-          user = await storage.getUser(user.id);
+          const updatedUser = await storage.getUser(user.id);
+          if (updatedUser) {
+            user = updatedUser;
+          }
         }
       }
-      logger.info('Admin user logged in via dev access', { userId: user.id, email: user.email });
+
+      if (!user) {
+        logger.error('[DEV-LOGIN] Failed to create or retrieve user');
+        return res.status(500).json({ error: "Failed to create user" });
+      }
+
+      logger.info('[DEV-LOGIN] Admin user logged in via dev access', { userId: user.id, email: user.email });
 
       // Store userId in session
       (req.session as any).userId = user.id;
-      
-      logger.info('Dev user logged in', { userId: user.id });
+
+      // Save session explicitly
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            logger.error('[DEV-LOGIN] Session save failed', { error: err.message });
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      logger.info('[DEV-LOGIN] Session saved successfully', { userId: user.id });
       res.json({ user: sanitizeUser(user) });
     } catch (error) {
-      logError(error as Error, { context: 'auth/dev-login' });
-      res.status(500).json({ error: "Failed to log in" });
+      const err = error as Error;
+      logger.error('[DEV-LOGIN] Error during login', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      logError(err, { context: 'auth/dev-login' });
+      res.status(500).json({ error: "Failed to log in", details: err.message });
     }
   });
 
