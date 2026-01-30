@@ -153,26 +153,29 @@ async function getIndexData(symbol: string, name: string): Promise<IndexData | n
     if (!quote || !quote.last) return null;
 
     // Get historical data for technicals
-    const history = await getTradierHistoryOHLC(symbol, 'daily', 30);
-    if (!history || history.length < 20) return null;
+    const historyData = await getTradierHistoryOHLC(symbol, 30);
+    if (!historyData || !historyData.closes || historyData.closes.length < 20) return null;
 
-    const closes = history.map((d: any) => d.close);
-    const highs = history.map((d: any) => d.high);
-    const lows = history.map((d: any) => d.low);
-    const volumes = history.map((d: any) => d.volume);
+    const closes = historyData.closes;
+    const highs = historyData.highs;
+    const lows = historyData.lows;
+    // Volume not available from this API, use placeholder
+    const volumes = closes.map(() => 1000000);
 
     // Calculate technicals
     const rsi = calculateRSI(closes, 14);
     const macd = calculateMACD(closes);
 
-    // Pivot points from yesterday's data
-    const yesterday = history[history.length - 2];
-    const pivots = calculatePivotPoints(yesterday.high, yesterday.low, yesterday.close);
+    // Pivot points from yesterday's data (second to last values)
+    const yesterdayIdx = closes.length - 2;
+    const pivots = calculatePivotPoints(
+      highs[yesterdayIdx] || highs[closes.length - 1],
+      lows[yesterdayIdx] || lows[closes.length - 1],
+      closes[yesterdayIdx] || closes[closes.length - 1]
+    );
 
-    // Volume analysis
-    const avgVolume = volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20;
-    const todayVolume = volumes[volumes.length - 1] || avgVolume;
-    const volumeProfile = todayVolume > avgVolume * 1.2 ? 'above_avg' : todayVolume < avgVolume * 0.8 ? 'below_avg' : 'average';
+    // Volume analysis (using placeholder since volume not available)
+    const volumeProfile: 'above_avg' | 'below_avg' | 'average' = 'average';
 
     // MACD signal
     const macdSignal = macd.histogram > 0 && macd.macdLine > macd.signalLine ? 'bullish' :
