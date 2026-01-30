@@ -3,7 +3,7 @@
  * Clean architecture with dedicated sections for different trading views
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -3161,6 +3161,132 @@ export default function TradeDeskRedesigned() {
       default: return allIdeasDeduplicated;
     }
   }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, allIdeasDeduplicated]);
+
+  // ============================================
+  // INITIAL LOADING ANIMATION (minimum 0.5s)
+  // ============================================
+  const [showInitialLoader, setShowInitialLoader] = useState(true);
+
+  useEffect(() => {
+    // Minimum 500ms loading animation for smooth entry
+    const minLoadTime = setTimeout(() => {
+      if (!isLoading) {
+        setShowInitialLoader(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(minLoadTime);
+  }, []);
+
+  // When data finishes loading after min time, hide loader
+  useEffect(() => {
+    if (!isLoading && showInitialLoader) {
+      const timer = setTimeout(() => setShowInitialLoader(false), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, showInitialLoader]);
+
+  // Show loading skeleton during initial load
+  if (showInitialLoader || isLoading) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+        {/* Market Pulse Header Skeleton */}
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#1a1a1a]">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-medium text-emerald-500">LOADING</span>
+          </div>
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="h-3 w-8 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+
+        <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between animate-in fade-in duration-300">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
+                <Brain className="w-4 h-4 text-gray-400 dark:text-slate-600 animate-pulse" />
+              </div>
+              <div>
+                <div className="h-6 w-32 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+                <div className="h-3 w-48 bg-gray-200 dark:bg-slate-800 rounded mt-1 animate-pulse" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-[160px] bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+              <div className="h-7 w-24 bg-emerald-500/10 rounded-full animate-pulse" />
+            </div>
+          </div>
+
+          {/* Tabs Skeleton */}
+          <div className="flex gap-2 animate-in fade-in duration-300 delay-100">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="h-9 w-24 bg-gray-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+            ))}
+          </div>
+
+          {/* Top Conviction Skeleton */}
+          <div className="animate-in fade-in duration-300 delay-150">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
+                <Star className="w-5 h-5 text-amber-400/50 animate-pulse" />
+              </div>
+              <div>
+                <div className="h-5 w-36 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+                <div className="h-3 w-48 bg-gray-200 dark:bg-slate-800 rounded mt-1 animate-pulse" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <Card key={i} className="p-4 bg-white dark:bg-[#111] border-gray-200 dark:border-[#1a1a1a] animate-pulse">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-6 w-16 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-5 w-10 bg-emerald-500/20 rounded" />
+                  </div>
+                  <div className="h-4 w-full bg-gray-200 dark:bg-slate-800 rounded mb-2" />
+                  <div className="h-4 w-2/3 bg-gray-200 dark:bg-slate-800 rounded mb-3" />
+                  <div className="flex gap-2">
+                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Ideas Grid Skeleton */}
+          <div className="animate-in fade-in duration-300 delay-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-5 w-24 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+              <div className="h-5 w-16 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <Card key={i} className="p-4 bg-white dark:bg-[#111] border-gray-200 dark:border-[#1a1a1a] animate-pulse">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-7 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-6 w-14 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                  </div>
+                  <div className="h-4 w-full bg-gray-200 dark:bg-slate-800 rounded mb-2" />
+                  <div className="h-4 w-3/4 bg-gray-200 dark:bg-slate-800 rounded mb-4" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
+                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
