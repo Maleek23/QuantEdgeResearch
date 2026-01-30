@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -491,8 +491,8 @@ export default function StockDetailPage() {
 
   const price = quoteData?.price || 0;
   const safePrice = price > 0 ? price : 100; // Safe fallback for calculations
-  const change = quoteData?.change || 0;
-  const changePercent = quoteData?.changePercent || 0;
+  const change = safeNumber(quoteData?.change);
+  const changePercent = safeNumber(quoteData?.changePercent);
   const isPositive = changePercent >= 0;
   const companyName = quoteData?.name || analysisData?.name || '';
   const tier = analysisData?.overall?.tier || analysisData?.overall?.grade || 'C';
@@ -585,7 +585,7 @@ export default function StockDetailPage() {
                 isPositive ? "text-teal-400" : "text-red-400"
               )}>
                 {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                {isPositive ? '+' : ''}{change.toFixed(2)} ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+                {isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)
                 <span className="text-slate-600 font-normal ml-2">Today</span>
               </div>
             )}

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Activity } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface MarketQuote {
@@ -18,40 +18,40 @@ export function MarketTickerBar() {
   });
 
   const tickers: MarketQuote[] = [
-    { 
-      symbol: "SPY", 
-      name: "S&P 500", 
-      price: marketData?.quotes?.SPY?.regularMarketPrice || 0,
-      change: marketData?.quotes?.SPY?.regularMarketChange || 0,
-      changePercent: marketData?.quotes?.SPY?.regularMarketChangePercent || 0,
+    {
+      symbol: "SPY",
+      name: "S&P 500",
+      price: safeNumber(marketData?.quotes?.SPY?.regularMarketPrice),
+      change: safeNumber(marketData?.quotes?.SPY?.regularMarketChange),
+      changePercent: safeNumber(marketData?.quotes?.SPY?.regularMarketChangePercent),
     },
-    { 
-      symbol: "QQQ", 
-      name: "Nasdaq", 
-      price: marketData?.quotes?.QQQ?.regularMarketPrice || 0,
-      change: marketData?.quotes?.QQQ?.regularMarketChange || 0,
-      changePercent: marketData?.quotes?.QQQ?.regularMarketChangePercent || 0,
+    {
+      symbol: "QQQ",
+      name: "Nasdaq",
+      price: safeNumber(marketData?.quotes?.QQQ?.regularMarketPrice),
+      change: safeNumber(marketData?.quotes?.QQQ?.regularMarketChange),
+      changePercent: safeNumber(marketData?.quotes?.QQQ?.regularMarketChangePercent),
     },
-    { 
-      symbol: "DIA", 
-      name: "Dow Jones", 
-      price: marketData?.quotes?.DIA?.regularMarketPrice || 0,
-      change: marketData?.quotes?.DIA?.regularMarketChange || 0,
-      changePercent: marketData?.quotes?.DIA?.regularMarketChangePercent || 0,
+    {
+      symbol: "DIA",
+      name: "Dow Jones",
+      price: safeNumber(marketData?.quotes?.DIA?.regularMarketPrice),
+      change: safeNumber(marketData?.quotes?.DIA?.regularMarketChange),
+      changePercent: safeNumber(marketData?.quotes?.DIA?.regularMarketChangePercent),
     },
-    { 
-      symbol: "IWM", 
-      name: "Russell 2000", 
-      price: marketData?.quotes?.IWM?.regularMarketPrice || 0,
-      change: marketData?.quotes?.IWM?.regularMarketChange || 0,
-      changePercent: marketData?.quotes?.IWM?.regularMarketChangePercent || 0,
+    {
+      symbol: "IWM",
+      name: "Russell 2000",
+      price: safeNumber(marketData?.quotes?.IWM?.regularMarketPrice),
+      change: safeNumber(marketData?.quotes?.IWM?.regularMarketChange),
+      changePercent: safeNumber(marketData?.quotes?.IWM?.regularMarketChangePercent),
     },
-    { 
-      symbol: "VIX", 
-      name: "Volatility", 
-      price: marketData?.quotes?.VIX?.regularMarketPrice || 0,
-      change: marketData?.quotes?.VIX?.regularMarketChange || 0,
-      changePercent: marketData?.quotes?.VIX?.regularMarketChangePercent || 0,
+    {
+      symbol: "VIX",
+      name: "Volatility",
+      price: safeNumber(marketData?.quotes?.VIX?.regularMarketPrice),
+      change: safeNumber(marketData?.quotes?.VIX?.regularMarketChange),
+      changePercent: safeNumber(marketData?.quotes?.VIX?.regularMarketChangePercent),
     },
   ];
 

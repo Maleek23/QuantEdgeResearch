@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -104,7 +104,7 @@ function MarketTicker() {
           <div className="flex animate-marquee">
             {[...indices, ...indices].map((idx, i) => {
               const quote = marketData?.quotes?.[idx.symbol];
-              const change = quote?.regularMarketChangePercent || 0;
+              const change = safeNumber(quote?.regularMarketChangePercent);
               return (
                 <Link key={`${idx.symbol}-${i}`} href={`/stock/${idx.symbol}`}>
                   <div className="flex items-center gap-3 px-4 whitespace-nowrap cursor-pointer hover:bg-gray-100 dark:hover:bg-[#111] transition-colors">
@@ -113,7 +113,7 @@ function MarketTicker() {
                       "text-[11px] font-mono",
                       change >= 0 ? "text-emerald-500" : "text-red-500"
                     )}>
-                      {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                      {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                     </span>
                   </div>
                 </Link>
@@ -549,7 +549,7 @@ function TopMovers() {
                 <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-colors cursor-pointer">
                     <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
-                    <span className="text-xs font-bold text-emerald-500">+{stock.percentChange?.toFixed(1)}%</span>
+                    <span className="text-xs font-bold text-emerald-500">+{safeToFixed(stock.percentChange, 1)}%</span>
                   </div>
                 </Link>
               ))}
@@ -565,7 +565,7 @@ function TopMovers() {
                 <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-colors cursor-pointer">
                     <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
-                    <span className="text-xs font-bold text-red-500">{stock.percentChange?.toFixed(1)}%</span>
+                    <span className="text-xs font-bold text-red-500">{safeToFixed(stock.percentChange, 1)}%</span>
                   </div>
                 </Link>
               ))}
@@ -604,7 +604,7 @@ function TrendingTickers() {
                     "text-xs font-mono font-medium",
                     isUp ? "text-emerald-500" : "text-red-500"
                   )}>
-                    {isUp ? "+" : ""}{ticker.changePercent?.toFixed(2)}%
+                    {isUp ? "+" : ""}{safeToFixed(ticker.changePercent, 2)}%
                   </span>
                 </div>
                 <div className="h-8">

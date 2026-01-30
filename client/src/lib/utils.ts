@@ -335,3 +335,52 @@ export function calculateDynamicSignal(
     action: 'WATCH'
   };
 }
+
+// ============================================
+// SAFE NUMBER FORMATTING UTILITIES
+// Prevents "Cannot read properties of null (reading 'toFixed')" errors
+// ============================================
+
+/**
+ * Safely converts a value to a number, returning a fallback if null/undefined/NaN
+ */
+export function safeNumber(value: any, fallback: number = 0): number {
+  if (value === null || value === undefined) return fallback;
+  const num = Number(value);
+  return isNaN(num) ? fallback : num;
+}
+
+/**
+ * Safely formats a number with toFixed, returning fallback string if value is invalid
+ */
+export function safeToFixed(value: any, decimals: number = 2, fallback: string = '0.00'): string {
+  const num = safeNumber(value);
+  if (num === 0 && (value === null || value === undefined)) return fallback;
+  return num.toFixed(decimals);
+}
+
+/**
+ * Safely formats a price with dollar sign
+ */
+export function safePrice(value: any, decimals: number = 2): string {
+  const num = safeNumber(value);
+  return `$${num.toFixed(decimals)}`;
+}
+
+/**
+ * Safely formats a percentage with sign
+ */
+export function safePercent(value: any, decimals: number = 2, showSign: boolean = true): string {
+  const num = safeNumber(value);
+  const sign = showSign && num >= 0 ? '+' : '';
+  return `${sign}${num.toFixed(decimals)}%`;
+}
+
+/**
+ * Safely formats currency with proper locale formatting
+ */
+export function safeCurrency(value: any, fallback: string = '$0.00'): string {
+  const num = safeNumber(value);
+  if (num === 0 && (value === null || value === undefined)) return fallback;
+  return formatCurrency(num);
+}
