@@ -2404,12 +2404,18 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   onToggle: () => void;
 }) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
   const style = getGradeStyle(grade);
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
   const isOption = idea.assetType === 'option' || idea.optionType;
   const isCall = idea.optionType === 'call';
   const confidence = idea.confidenceScore || 50;
+
+  // Navigate to full analysis page
+  const handleNavigate = () => {
+    setLocation(`/stock/${idea.symbol}`);
+  };
 
   // Get actual drivers from idea data
   const ideaDrivers = useMemo(() => getIdeaDrivers(idea), [idea]);
@@ -2459,8 +2465,8 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
       "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50 overflow-hidden transition-all",
       expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600"
     )}>
-      {/* Compact Card Content */}
-      <div className="p-4 cursor-pointer" onClick={onToggle}>
+      {/* Compact Card Content - Click navigates to full analysis */}
+      <div className="p-4 cursor-pointer" onClick={handleNavigate}>
         {/* Header Row: Symbol + Direction Badge + Confidence */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
@@ -2538,12 +2544,24 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
           </div>
         </div>
 
-        {/* Expand hint */}
-        <div className="flex items-center justify-center mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50">
-          <ChevronRight className={cn(
-            "w-4 h-4 text-slate-500 transition-transform",
-            expanded && "rotate-90"
-          )} />
+        {/* Quick preview toggle + View full analysis hint */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <ChevronRight className={cn(
+              "w-4 h-4 transition-transform",
+              expanded && "rotate-90"
+            )} />
+            <span>{expanded ? 'Hide preview' : 'Quick preview'}</span>
+          </button>
+          <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <Eye className="w-3 h-3" /> Click for full analysis
+          </span>
         </div>
       </div>
 
