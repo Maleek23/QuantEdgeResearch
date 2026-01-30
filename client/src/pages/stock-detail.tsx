@@ -83,14 +83,26 @@ function AIInsightCard({
     const priceAction = changePercent >= 0 ? 'gaining' : 'declining';
     const volumeProfile = flowGrade.startsWith('A') ? 'elevated institutional participation' : flowGrade.startsWith('B') ? 'normal trading activity' : 'below-average volume';
 
-    const support = (price * 0.95).toFixed(2);
-    const resistance = (price * 1.08).toFixed(2);
-    const target1 = (price * 1.05).toFixed(2);
-    const target2 = (price * 1.12).toFixed(2);
-    const stopLoss = (price * 0.93).toFixed(2);
+    // Safe price fallback for calculations (avoid division by zero)
+    const safePrice = price > 0 ? price : 100;
+    const support = (safePrice * 0.95).toFixed(2);
+    const resistance = (safePrice * 1.08).toFixed(2);
+    const target1 = (safePrice * 1.05).toFixed(2);
+    const target2 = (safePrice * 1.12).toFixed(2);
+    const stopLoss = (safePrice * 0.93).toFixed(2);
+
+    // Calculate risk/reward ratio safely
+    const riskRewardRatio = (() => {
+      const targetVal = parseFloat(target1);
+      const stopVal = parseFloat(stopLoss);
+      const reward = targetVal - safePrice;
+      const risk = safePrice - stopVal;
+      if (risk <= 0) return '1.6';
+      return (reward / risk).toFixed(1);
+    })();
 
     // Paragraph 1: Overview & Current State
-    const para1 = `${symbol} is currently trading at $${price.toFixed(2)}, ${priceAction} ${Math.abs(changePercent).toFixed(1)}% in today's session. Our multi-engine analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, machine learning predictions, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
+    const para1 = `${symbol} is currently trading at $${safePrice.toFixed(2)}, ${priceAction} ${Math.abs(changePercent || 0).toFixed(1)}% in today's session. Our multi-engine analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, machine learning predictions, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
 
     // Paragraph 2: Technical Analysis
     const techDesc = techGrade.startsWith('A')
@@ -105,11 +117,11 @@ function AIInsightCard({
       : `Fundamental analysis reveals areas requiring attention including valuation concerns relative to growth trajectory. Sentiment indicators show ${sentGrade.startsWith('C') || sentGrade.startsWith('D') ? 'skepticism' : 'uncertainty'} among market participants. Options flow data suggests ${flowGrade.startsWith('A') || flowGrade.startsWith('B') ? 'smart money positioning for potential moves' : 'hedging activity outweighing bullish bets'}.`;
 
     // Paragraph 4: Quantitative & ML Predictions
-    const quantDesc = `Our quantitative models, incorporating mean-reversion analysis and momentum factors, assign a ${quantGrade} rating to the current setup. Machine learning algorithms trained on historical patterns identify this configuration with ${mlGrade.startsWith('A') || mlGrade.startsWith('B') ? 'high' : mlGrade.startsWith('C') ? 'moderate' : 'low'} probability of ${changePercent >= 0 ? 'continuation' : 'reversal'}. Statistical edge metrics suggest ${tier.startsWith('A') || tier === 'S' ? 'favorable' : tier.startsWith('B') ? 'acceptable' : 'unfavorable'} risk-adjusted return potential over the next 5-10 trading sessions.`;
+    const quantDesc = `Our quantitative models, incorporating mean-reversion analysis and momentum factors, assign a ${quantGrade} rating to the current setup. Machine learning algorithms trained on historical patterns identify this configuration with ${mlGrade.startsWith('A') || mlGrade.startsWith('B') ? 'high' : mlGrade.startsWith('C') ? 'moderate' : 'low'} probability of ${(changePercent || 0) >= 0 ? 'continuation' : 'reversal'}. Statistical edge metrics suggest ${tier.startsWith('A') || tier === 'S' ? 'favorable' : tier.startsWith('B') ? 'acceptable' : 'unfavorable'} risk-adjusted return potential over the next 5-10 trading sessions.`;
 
     // Paragraph 5: Trade Setup & Recommendation
     const recommendation = tier === 'S' || tier.startsWith('A')
-      ? `TRADE SETUP: Consider initiating ${changePercent >= 0 ? 'long' : 'short'} positions with entries near $${price.toFixed(2)}-$${(price * 0.98).toFixed(2)}. Initial target at $${target1}, extended target at $${target2}. Place protective stops below $${stopLoss} to limit downside risk. The risk/reward profile is favorable with ${((parseFloat(target1) - price) / (price - parseFloat(stopLoss))).toFixed(1)}:1 ratio. Position size according to your risk tolerance.`
+      ? `TRADE SETUP: Consider initiating ${(changePercent || 0) >= 0 ? 'long' : 'short'} positions with entries near $${safePrice.toFixed(2)}-$${(safePrice * 0.98).toFixed(2)}. Initial target at $${target1}, extended target at $${target2}. Place protective stops below $${stopLoss} to limit downside risk. The risk/reward profile is favorable with ${riskRewardRatio}:1 ratio. Position size according to your risk tolerance.`
       : tier.startsWith('B')
         ? `TRADE SETUP: This presents a moderate opportunity requiring patience. Wait for confirmation via volume expansion or a clear break of the $${resistance} resistance level before committing capital. If entering, use smaller position sizes with stops at $${stopLoss}. Target $${target1} initially with potential for $${target2} on momentum continuation.`
         : `CAUTION ADVISED: Current signals do not support aggressive positioning. If holding existing positions, consider tightening stops to $${stopLoss}. New entries should wait for improved technical structure or fundamental catalyst. Monitor for changes in institutional flow patterns that could signal regime shift.`;
@@ -449,6 +461,7 @@ export default function StockDetailPage() {
   }
 
   const price = quoteData?.price || 0;
+  const safePrice = price > 0 ? price : 100; // Safe fallback for calculations
   const change = quoteData?.change || 0;
   const changePercent = quoteData?.changePercent || 0;
   const isPositive = changePercent >= 0;
@@ -595,11 +608,11 @@ export default function StockDetailPage() {
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W High</div>
-            <div className="text-sm font-bold text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (price * 1.3).toFixed(2)}</div>
+            <div className="text-sm font-bold text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (safePrice * 1.3).toFixed(2)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
-            <div className="text-sm font-bold text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (price * 0.7).toFixed(2)}</div>
+            <div className="text-sm font-bold text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (safePrice * 0.7).toFixed(2)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
@@ -662,19 +675,19 @@ export default function StockDetailPage() {
                       <div className="flex-1 grid grid-cols-4 gap-3">
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
                           <div className="text-xs text-slate-500">Entry Zone</div>
-                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${(price * 0.98).toFixed(2)} - ${price.toFixed(2)}</div>
+                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${(safePrice * 0.98).toFixed(2)} - ${safePrice.toFixed(2)}</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
                           <div className="text-xs text-slate-500">Target</div>
-                          <div className="text-sm font-mono font-bold text-teal-400">${(price * 1.08).toFixed(2)} (+8%)</div>
+                          <div className="text-sm font-mono font-bold text-teal-400">${(safePrice * 1.08).toFixed(2)} (+8%)</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
                           <div className="text-xs text-slate-500">Stop Loss</div>
-                          <div className="text-sm font-mono font-bold text-red-400">${(price * 0.95).toFixed(2)} (-5%)</div>
+                          <div className="text-sm font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)} (-5%)</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                           <div className="text-xs text-slate-500">Risk/Reward</div>
-                          <div className="text-sm font-bold text-teal-400">1 : {((price * 0.08) / (price * 0.05)).toFixed(1)}</div>
+                          <div className="text-sm font-bold text-teal-400">1 : 1.6</div>
                         </div>
                       </div>
                     </div>
@@ -1079,12 +1092,12 @@ export default function StockDetailPage() {
                 <div className="grid grid-cols-4 gap-3">
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Support Level</div>
-                    <div className="text-lg font-mono font-bold text-red-400">${(price * 0.95).toFixed(2)}</div>
+                    <div className="text-lg font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-600">-5% from current</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Resistance</div>
-                    <div className="text-lg font-mono font-bold text-teal-400">${(price * 1.05).toFixed(2)}</div>
+                    <div className="text-lg font-mono font-bold text-teal-400">${(safePrice * 1.05).toFixed(2)}</div>
                     <div className="text-[10px] text-slate-600">+5% from current</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
@@ -1272,10 +1285,10 @@ export default function StockDetailPage() {
                         </div>
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          price > (price * 0.98) ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          price > (safePrice * 0.98) ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                         )}>
                           <span className="text-slate-500">50 DMA</span>
-                          <span>{price > (price * 0.98) ? 'ABOVE' : 'BELOW'}</span>
+                          <span>{price > (safePrice * 0.98) ? 'ABOVE' : 'BELOW'}</span>
                         </div>
                       </div>
                     </div>
@@ -1317,18 +1330,18 @@ export default function StockDetailPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500" />
                           <span className="text-xs text-slate-400">Support</span>
-                          <span className="text-xs font-mono font-bold text-red-400">${(price * 0.95).toFixed(2)}</span>
+                          <span className="text-xs font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500" />
                           <span className="text-xs text-slate-400">Resistance</span>
-                          <span className="text-xs font-mono font-bold text-emerald-400">${(price * 1.05).toFixed(2)}</span>
+                          <span className="text-xs font-mono font-bold text-emerald-400">${(safePrice * 1.05).toFixed(2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500" />
                           <span className="text-xs text-slate-400">52W Range</span>
                           <span className="text-xs font-mono text-slate-300">
-                            ${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (price * 0.7).toFixed(2)} - ${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (price * 1.3).toFixed(2)}
+                            ${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (safePrice * 0.7).toFixed(2)} - ${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (safePrice * 1.3).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -1690,12 +1703,12 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Avg Price Target</span>
                       </div>
                       <div className="text-2xl font-bold text-teal-400">
-                        ${analystData?.priceTarget?.average?.toFixed(2) || (price * 1.15).toFixed(2)}
+                        ${analystData?.priceTarget?.average?.toFixed(2) || (safePrice * 1.15).toFixed(2)}
                       </div>
                       <div className={cn("text-xs mt-1",
                         (analystData?.priceTarget?.average || price * 1.15) > price ? "text-emerald-400" : "text-red-400"
                       )}>
-                        {((((analystData?.priceTarget?.average || price * 1.15) - price) / price) * 100).toFixed(1)}% upside
+                        {((((analystData?.priceTarget?.average || safePrice * 1.15) - safePrice) / safePrice) * 100).toFixed(1)}% upside
                       </div>
                     </div>
                   </Card>
@@ -1710,9 +1723,9 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Target Range</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-red-400">${analystData?.priceTarget?.low?.toFixed(2) || (price * 0.85).toFixed(2)}</span>
+                        <span className="text-sm text-red-400">${analystData?.priceTarget?.low?.toFixed(2) || (safePrice * 0.85).toFixed(2)}</span>
                         <span className="text-xs text-slate-600">-</span>
-                        <span className="text-sm text-emerald-400">${analystData?.priceTarget?.high?.toFixed(2) || (price * 1.35).toFixed(2)}</span>
+                        <span className="text-sm text-emerald-400">${analystData?.priceTarget?.high?.toFixed(2) || (safePrice * 1.35).toFixed(2)}</span>
                       </div>
                       <div className="text-xs text-slate-500 mt-1">Low - High estimates</div>
                     </div>
@@ -1793,7 +1806,7 @@ export default function StockDetailPage() {
                                 <div className={cn("text-[10px]",
                                   rating.priceTarget > price ? "text-emerald-400" : "text-red-400"
                                 )}>
-                                  {((rating.priceTarget - price) / price * 100).toFixed(1)}%
+                                  {safePrice > 0 ? ((rating.priceTarget - safePrice) / safePrice * 100).toFixed(1) : '0.0'}%
                                 </div>
                               </div>
                             )}
