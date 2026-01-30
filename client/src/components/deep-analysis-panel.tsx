@@ -268,7 +268,7 @@ export function DeepAnalysisPanel({
                       level.type === 'entry' && "border-cyan-500/50 text-cyan-400"
                     )}
                   >
-                    {level.label}: ${level.price.toFixed(2)}
+                    {level.label}: ${level.price?.toFixed(2) ?? '—'}
                   </Badge>
                 ))}
               </div>

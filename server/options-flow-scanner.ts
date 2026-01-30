@@ -495,9 +495,9 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
     await sendFlowAlerts(unusualFlows.slice(0, 5));
   }
 
-  // 🎯 AUTO-GENERATE TRADE IDEAS from high-quality flows
-  // Convert top flows (score >= 75, premium >= $50k) into actual trade ideas
-  const highQualityFlows = unusualFlows.filter(f => f.unusualScore >= 75 && f.premium >= 50000);
+  // 🎯 AUTO-GENERATE TRADE IDEAS from options flow
+  // LOWERED THRESHOLDS: score >= 60, premium >= $15k to catch more plays
+  const highQualityFlows = unusualFlows.filter(f => f.unusualScore >= 60 && f.premium >= 15000);
   if (highQualityFlows.length > 0) {
     logger.info(`[OPTIONS-FLOW] 🎯 Converting ${highQualityFlows.length} high-quality flows to trade ideas...`);
 
@@ -968,8 +968,9 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     
     logger.info(`[OPTIONS-FLOW] Watchlist scan complete: ${symbols.length} scanned, ${allFlows.length} flows found, ${savedCount} saved`);
 
-    // 🎯 AUTO-GENERATE TRADE IDEAS from high-quality watchlist flows
-    const highQualityFlows = allFlows.filter(f => f.unusualScore >= 70 && f.premium >= 25000);
+    // 🎯 AUTO-GENERATE TRADE IDEAS from watchlist flows
+    // LOWERED THRESHOLDS: score >= 55, premium >= $10k for watchlist stocks
+    const highQualityFlows = allFlows.filter(f => f.unusualScore >= 55 && f.premium >= 10000);
     let ideasCreated = 0;
 
     if (highQualityFlows.length > 0) {

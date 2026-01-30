@@ -22,6 +22,7 @@ import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { BotNotificationPopup } from "@/components/bot-notification-popup";
+import { HighConvictionAlertProvider } from "@/components/high-conviction-alert";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
@@ -445,6 +446,7 @@ function App() {
                   )}
                   <AIChatbotPopup />
                   <BotNotificationPopup />
+                  <HighConvictionAlertProvider />
                   <Toaster />
                 </ContentDensityProvider>
               </PreferencesProvider>
