@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 import { Brain, TrendingUp, TrendingDown, Clock, Target, ShieldAlert, DollarSign, Calendar, Zap, BarChart3 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
@@ -96,7 +96,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-white font-mono text-sm">${payload[0].value.toFixed(2)}</p>
+        <p className="text-white font-mono text-sm">${safeToFixed(payload[0]?.value, 2)}</p>
       </div>
     );
   }
@@ -195,9 +195,9 @@ export function TradeIdeaCard({
           {companyName || (assetType === "penny_stock" ? "Penny Stock" : symbol)}
         </div>
         <div className="text-right">
-          <span className="text-xl font-bold text-white font-mono">${entryPrice.toFixed(2)}</span>
+          <span className="text-xl font-bold text-white font-mono">${safeToFixed(entryPrice, 2)}</span>
           <span className={cn("text-sm font-medium ml-2", isLong ? "text-emerald-400" : "text-red-400")}>
-            {isLong ? "+" : ""}{percentChange.toFixed(1)}%
+            {isLong ? "+" : ""}{safeToFixed(percentChange, 1)}%
           </span>
         </div>
       </div>
@@ -304,19 +304,19 @@ export function TradeIdeaCard({
       <div className="grid grid-cols-4 gap-2 px-4 pb-3">
         <div className="text-center p-2 rounded-lg bg-[#0a0a0a] border border-[#1a1a1a]">
           <div className="text-[9px] text-slate-500 font-mono uppercase mb-1">Entry</div>
-          <div className="text-xs font-bold text-white font-mono">${entryPrice.toFixed(2)}</div>
+          <div className="text-xs font-bold text-white font-mono">${safeToFixed(entryPrice, 2)}</div>
         </div>
         <div className="text-center p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
           <div className="text-[9px] text-emerald-400/70 font-mono uppercase mb-1">Target</div>
-          <div className="text-xs font-bold text-emerald-400 font-mono">${targetPrice.toFixed(2)}</div>
+          <div className="text-xs font-bold text-emerald-400 font-mono">${safeToFixed(targetPrice, 2)}</div>
         </div>
         <div className="text-center p-2 rounded-lg bg-red-500/5 border border-red-500/10">
           <div className="text-[9px] text-red-400/70 font-mono uppercase mb-1">Stop</div>
-          <div className="text-xs font-bold text-red-400 font-mono">${stopLoss.toFixed(2)}</div>
+          <div className="text-xs font-bold text-red-400 font-mono">${safeToFixed(stopLoss, 2)}</div>
         </div>
         <div className="text-center p-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
           <div className="text-[9px] text-blue-400/70 font-mono uppercase mb-1">R:R</div>
-          <div className="text-xs font-bold text-blue-400 font-mono">1:{rrRatio.toFixed(1)}</div>
+          <div className="text-xs font-bold text-blue-400 font-mono">1:{safeToFixed(rrRatio, 1)}</div>
         </div>
       </div>
 
@@ -348,7 +348,7 @@ export function TradeIdeaCard({
               <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                 <div className="text-[9px] text-emerald-400/70 font-mono uppercase mb-1">Buy Zone</div>
                 <div className="text-xs text-emerald-400 font-mono">
-                  ${buyZone.low.toFixed(2)} - ${buyZone.high.toFixed(2)}
+                  ${safeToFixed(buyZone.low, 2)} - ${safeToFixed(buyZone.high, 2)}
                 </div>
               </div>
             )}
@@ -356,7 +356,7 @@ export function TradeIdeaCard({
               <div className="p-2 rounded-lg bg-red-500/5 border border-red-500/10">
                 <div className="text-[9px] text-red-400/70 font-mono uppercase mb-1">Sell Zone</div>
                 <div className="text-xs text-red-400 font-mono">
-                  ${sellZone.low.toFixed(2)} - ${sellZone.high.toFixed(2)}
+                  ${safeToFixed(sellZone.low, 2)} - ${safeToFixed(sellZone.high, 2)}
                 </div>
               </div>
             )}
@@ -470,15 +470,15 @@ export function TradeIdeaRow({
       <div className="flex items-center gap-4 flex-1 text-xs font-mono">
         <div>
           <span className="text-slate-500 text-[9px] block">Entry</span>
-          <span className="text-white font-medium">${entryPrice.toFixed(2)}</span>
+          <span className="text-white font-medium">${safeToFixed(entryPrice, 2)}</span>
         </div>
         <div>
           <span className="text-emerald-400/60 text-[9px] block">Target</span>
-          <span className="text-emerald-400 font-medium">${targetPrice.toFixed(2)}</span>
+          <span className="text-emerald-400 font-medium">${safeToFixed(targetPrice, 2)}</span>
         </div>
         <div>
           <span className="text-red-400/60 text-[9px] block">Stop</span>
-          <span className="text-red-400 font-medium">${stopLoss.toFixed(2)}</span>
+          <span className="text-red-400 font-medium">${safeToFixed(stopLoss, 2)}</span>
         </div>
       </div>
 
@@ -486,7 +486,7 @@ export function TradeIdeaRow({
       <div className="flex items-center gap-3">
         <div className="text-xs font-mono">
           <span className="text-slate-500 text-[9px] block">R:R</span>
-          <span className="text-blue-400 font-bold">1:{rrRatio.toFixed(1)}</span>
+          <span className="text-blue-400 font-bold">1:{safeToFixed(rrRatio, 1)}</span>
         </div>
         <div className={cn(
           "px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono",

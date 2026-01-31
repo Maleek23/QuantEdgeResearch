@@ -42,7 +42,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
@@ -431,8 +431,8 @@ function MarketTicker() {
             {[...indices, ...indices].map((idx, i) => {
               // Use apiSymbol for data lookup, symbol for display
               const quote = marketData?.quotes?.[idx.apiSymbol];
-              const change = quote?.regularMarketChangePercent;
-              const hasData = change !== undefined && change !== null;
+              const change = safeNumber(quote?.regularMarketChangePercent);
+              const hasData = quote?.regularMarketChangePercent !== undefined && quote?.regularMarketChangePercent !== null;
               return (
                 <Link key={`${idx.symbol}-${i}`} href={`/stock/${idx.symbol}`}>
                   <div className="flex items-center gap-3 px-5 whitespace-nowrap cursor-pointer hover:bg-white/5 transition-colors">
@@ -444,7 +444,7 @@ function MarketTicker() {
                         "text-xs font-mono font-bold",
                         change >= 0 ? "text-emerald-400" : "text-red-400"
                       )}>
-                        {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                        {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                       </span>
                     )}
                   </div>
