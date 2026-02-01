@@ -607,7 +607,7 @@ export default function StockDetailPage() {
             </div>
             <div>
               <span className="text-slate-500">Prev Close</span>
-              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{price ? `$${(price - change).toFixed(2)}` : '—'}</span>
+              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{price ? `$${safeToFixed(price - change, 2)}` : '—'}</span>
             </div>
           </div>
         </div>
@@ -1264,13 +1264,13 @@ export default function StockDetailPage() {
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-sm font-mono text-gray-900 dark:text-white">${price.toFixed(2)}</span>
+                              <span className="text-sm font-mono text-gray-900 dark:text-white">${safeToFixed(price, 2)}</span>
                               <span className={cn(
                                 "text-xs font-medium flex items-center gap-0.5",
                                 isPositive ? "text-emerald-400" : "text-red-400"
                               )}>
                                 {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                                {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
                               </span>
                             </div>
                           </div>
@@ -1364,7 +1364,7 @@ export default function StockDetailPage() {
                           </div>
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">O:</span>
-                            <span className="text-slate-300 font-mono font-medium">${quoteData?.open?.toFixed(2) || (price - change).toFixed(2)}</span>
+                            <span className="text-slate-300 font-mono font-medium">${quoteData?.open?.toFixed(2) || safeToFixed(price - change, 2)}</span>
                           </div>
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <Volume2 className="w-3 h-3 text-slate-500" />
@@ -1582,7 +1582,7 @@ export default function StockDetailPage() {
                   <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Options Chain</h3>
-                      {optionsData?.stockPrice && <span className="text-xs text-slate-400">@ ${optionsData.stockPrice.toFixed(2)}</span>}
+                      {optionsData?.stockPrice && <span className="text-xs text-slate-400">@ ${safeToFixed(optionsData.stockPrice, 2)}</span>}
                     </div>
                     <Link href={`/options-analyzer?symbol=${symbol}`}>
                       <Button variant="outline" size="sm" className="border-gray-200 dark:border-[#222] text-slate-300 hover:bg-teal-600 hover:text-white hover:border-teal-600">
@@ -2075,7 +2075,7 @@ export default function StockDetailPage() {
                                 </div>
                                 <div>
                                   <span className="text-slate-500">Price:</span>
-                                  <span className="ml-1 font-mono text-white">${pricePerShare.toFixed(2)}</span>
+                                  <span className="ml-1 font-mono text-white">${safeToFixed(pricePerShare, 2)}</span>
                                 </div>
                                 <div>
                                   <span className="text-slate-500">Value:</span>
@@ -2263,7 +2263,7 @@ export default function StockDetailPage() {
                                       ) : (
                                         <ArrowDownRight className="w-3 h-3" />
                                       )}
-                                      {holder.changePercent >= 0 ? '+' : ''}{holder.changePercent?.toFixed(1)}%
+                                      {holder.changePercent >= 0 ? '+' : ''}{safeToFixed(holder.changePercent, 1)}%
                                     </div>
                                   )}
                                 </div>
