@@ -2860,6 +2860,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
   const [gradeFilter, setGradeFilter] = useState<string>("all"); // Show all grades by default
   const [statusFilter, setStatusFilter] = useState<string>("all"); // Show all statuses by default
   const [dateFilter, setDateFilter] = useState<string>("all"); // Show all dates by default
+  const [tradeTypeFilter, setTradeTypeFilter] = useState<string>("all"); // Day Trade, Swings, LEAPs
   const [sortBy, setSortBy] = useState<string>("confidence");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -2952,6 +2953,35 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
       });
     }
 
+    // Trade type filter (Day Trade, Swings, LEAPs) - based on DTE
+    if (tradeTypeFilter !== 'all') {
+      filtered = filtered.filter(i => {
+        // Calculate DTE from expiry date
+        const expiry = i.expiryDate || i.expiration;
+        if (!expiry) {
+          // No expiry = stock/crypto, treat as swing
+          return tradeTypeFilter === 'swing';
+        }
+        const expiryDate = new Date(expiry);
+        const now = new Date();
+        const dte = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (tradeTypeFilter === 'daytrade') {
+          // Day trade: 0-3 DTE (same day to 3 days out)
+          return dte >= 0 && dte <= 3;
+        }
+        if (tradeTypeFilter === 'swing') {
+          // Swing: 4-45 DTE (up to ~6 weeks)
+          return dte > 3 && dte <= 45;
+        }
+        if (tradeTypeFilter === 'leaps') {
+          // LEAPs: 46+ DTE (long-term options)
+          return dte > 45;
+        }
+        return true;
+      });
+    }
+
     // Sort
     filtered.sort((a, b) => {
       if (sortBy === 'confidence') return (b.confidenceScore || 0) - (a.confidenceScore || 0);
@@ -2965,7 +2995,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
     });
 
     return filtered;
-  }, [ideas, search, directionFilter, gradeFilter, statusFilter, dateFilter, sortBy]);
+  }, [ideas, search, directionFilter, gradeFilter, statusFilter, dateFilter, tradeTypeFilter, sortBy]);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -3054,6 +3084,18 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
             <SelectItem value="quality">Quality (A-B)</SelectItem>
             <SelectItem value="elite">Elite (A only)</SelectItem>
             <SelectItem value="strong">Strong (B only)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={tradeTypeFilter} onValueChange={setTradeTypeFilter}>
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+            <SelectValue placeholder="Trade Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="daytrade">Day Trade (0-3 DTE)</SelectItem>
+            <SelectItem value="swing">Swing (4-45 DTE)</SelectItem>
+            <SelectItem value="leaps">LEAPs (45+ DTE)</SelectItem>
           </SelectContent>
         </Select>
 
