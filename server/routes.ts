@@ -6155,11 +6155,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by conviction score descending
       scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
       
-      // 🎯 CRITICAL: Deduplicate by symbol - only keep the BEST setup per symbol
-      // This prevents showing 5 copies of the same INTC trade
+      // 🎯 CRITICAL: Deduplicate by symbol+assetType - keep BEST setup per symbol/type combo
+      // This allows showing SNDK stock AND SNDK option as separate entries
       const symbolBestMap = new Map<string, typeof scoredIdeas[0]>();
       for (const idea of scoredIdeas) {
-        const key = idea.symbol;
+        const assetType = idea.assetType || 'stock';
+        const key = `${idea.symbol}:${assetType}`;
         const existing = symbolBestMap.get(key);
         // Keep the one with higher conviction (first one wins since already sorted)
         if (!existing) {
