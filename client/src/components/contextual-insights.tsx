@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { 
   TrendingUp, TrendingDown, Target, AlertTriangle, CheckCircle2, 
   XCircle, Info, Calculator, Zap, BarChart3, Clock, DollarSign

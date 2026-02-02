@@ -4205,12 +4205,16 @@ export default function ChartAnalysis() {
 
   const calculateGainPercent = () => {
     if (!analysisResult) return 0;
-    return ((analysisResult.targetPrice - analysisResult.entryPoint) / analysisResult.entryPoint) * 100;
+    const entry = safeNumber(analysisResult.entryPoint, 1);
+    const target = safeNumber(analysisResult.targetPrice, entry * 1.05);
+    return entry > 0 ? ((target - entry) / entry) * 100 : 0;
   };
 
   const calculateRiskPercent = () => {
     if (!analysisResult) return 0;
-    return ((analysisResult.entryPoint - analysisResult.stopLoss) / analysisResult.entryPoint) * 100;
+    const entry = safeNumber(analysisResult.entryPoint, 1);
+    const stop = safeNumber(analysisResult.stopLoss, entry * 0.95);
+    return entry > 0 ? ((entry - stop) / entry) * 100 : 0;
   };
 
   const validationWarnings = analysisResult ? (() => {
