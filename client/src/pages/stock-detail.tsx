@@ -1622,7 +1622,7 @@ export default function StockDetailPage() {
                               opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-emerald-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-gray-700 dark:text-slate-200")}>${safeToFixed(opt.strike, 2, '—')}</span>
                               <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
                               <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
                               <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
@@ -1653,7 +1653,7 @@ export default function StockDetailPage() {
                               opt.inTheMoney ? "bg-red-500/15 border-l-2 border-red-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-gray-700 dark:text-slate-200")}>${safeToFixed(opt.strike, 2, '—')}</span>
                               <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
                               <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
                               <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
