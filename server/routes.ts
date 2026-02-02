@@ -5965,6 +5965,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       logger.info(`[BEST-SETUPS] After prices filter: ${openIdeas.length} ideas`);
       
+      // 🎯 TRACK EARLIEST TIMESTAMPS before deconfliction (so we don't lose early signals)
+      // Key: symbol:assetType:optionType -> earliest timestamp
+      const symbolFirstTimestamp = new Map<string, string>();
+      for (const idea of openIdeas) {
+        const assetType = idea.assetType || 'stock';
+        const optionType = idea.optionType || '';
+        const key = `${idea.symbol}:${assetType}:${optionType}`;
+        
+        const ideaTime = idea.timestamp ? new Date(idea.timestamp).getTime() : Infinity;
+        const existingFirstTime = symbolFirstTimestamp.get(key);
+        if (!existingFirstTime || ideaTime < new Date(existingFirstTime).getTime()) {
+          symbolFirstTimestamp.set(key, idea.timestamp || '');
+        }
+      }
+      
       // 🎯 RELIABILITY FILTER: Remove conflicting directional signals for Best Setups
       // Only show the strongest directional conviction per symbol
       const symbolGroups = new Map<string, typeof openIdeas>();
@@ -6165,14 +6180,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 🎯 CRITICAL: Deduplicate by symbol+assetType+optionType - keep BEST setup per unique combo
       // This allows showing DIS CALL and DIS PUT as separate entries
       const symbolBestMap = new Map<string, typeof scoredIdeas[0]>();
+      
       for (const idea of scoredIdeas) {
         const assetType = idea.assetType || 'stock';
         const optionType = idea.optionType || '';  // Include call/put distinction
         const key = `${idea.symbol}:${assetType}:${optionType}`;
         const existing = symbolBestMap.get(key);
+        
         // Keep the one with higher conviction (first one wins since already sorted)
         if (!existing) {
           symbolBestMap.set(key, idea);
+        }
+      }
+      
+      // Attach the EARLIEST timestamp (tracked before deconfliction) as 'firstGeneratedAt'
+      for (const [key, idea] of symbolBestMap) {
+        const firstTs = symbolFirstTimestamp.get(key);
+        if (firstTs) {
+          (idea as any).firstGeneratedAt = firstTs;
         }
       }
       

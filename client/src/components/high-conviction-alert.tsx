@@ -99,25 +99,52 @@ export function HighConvictionAlertProvider({
     }
   }, [ideas, enabled, minConfidence, soundEnabled, isMuted, dismissedIds]);
 
+  // Track individual alert timeouts with stable refs (not tied to dependency array changes)
+  const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  
   const dismissAlert = (id: string) => {
+    // Clear the auto-dismiss timer for this alert
+    const timer = alertTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      alertTimersRef.current.delete(id);
+    }
     setAlerts(prev => prev.filter(a => a.id !== id));
     setDismissedIds(prev => new Set([...Array.from(prev), id]));
   };
-
-  // Auto-dismiss alerts after 8 seconds
+  
+  // Auto-dismiss alerts after 8 seconds - using stable refs to avoid timer reset issues
   useEffect(() => {
-    if (alerts.length === 0) return;
-    
-    const timers = alerts.map(alert => {
-      return setTimeout(() => {
-        dismissAlert(alert.id || '');
-      }, 8000); // 8 seconds auto-dismiss
+    // Start timers for any NEW alerts that don't already have timers
+    alerts.forEach(alert => {
+      const alertId = alert.id || '';
+      if (alertId && !alertTimersRef.current.has(alertId)) {
+        const timer = setTimeout(() => {
+          alertTimersRef.current.delete(alertId);
+          setAlerts(prev => prev.filter(a => a.id !== alertId));
+          setDismissedIds(prev => new Set([...Array.from(prev), alertId]));
+        }, 8000); // 8 seconds auto-dismiss
+        alertTimersRef.current.set(alertId, timer);
+      }
     });
-
+    
+    // Cleanup timers for alerts that no longer exist
+    const currentIds = new Set(alerts.map(a => a.id || ''));
+    alertTimersRef.current.forEach((timer, id) => {
+      if (!currentIds.has(id)) {
+        clearTimeout(timer);
+        alertTimersRef.current.delete(id);
+      }
+    });
+  }, [alerts]);
+  
+  // Cleanup all timers on unmount
+  useEffect(() => {
     return () => {
-      timers.forEach(timer => clearTimeout(timer));
+      alertTimersRef.current.forEach(timer => clearTimeout(timer));
+      alertTimersRef.current.clear();
     };
-  }, [alerts.map(a => a.id).join(',')]);
+  }, []);
 
   const goToTradeDesk = (idea: TradeIdea) => {
     dismissAlert(idea.id || '');
