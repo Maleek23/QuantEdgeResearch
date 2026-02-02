@@ -439,12 +439,14 @@ export default function StockDetailPage() {
   });
 
   const { data: flowData } = useQuery({
-    queryKey: [`/api/trade-ideas`, symbol, 'flow'],
+    queryKey: [`/api/trade-ideas/best-setups`, symbol, 'flow'],
     queryFn: async () => {
       if (!symbol) return [];
-      const res = await fetch(`/api/trade-ideas`);
+      // Use public best-setups endpoint (no auth required)
+      const res = await fetch(`/api/trade-ideas/best-setups?limit=100`);
       if (!res.ok) return [];
-      const ideas = await res.json();
+      const data = await res.json();
+      const ideas = data.setups || [];
       return ideas.filter((idea: any) =>
         idea.symbol === symbol && (idea.source === 'flow' || idea.engine === 'flow')
       ).slice(0, 5);
@@ -453,15 +455,18 @@ export default function StockDetailPage() {
   });
 
   // Fetch all trade ideas for this symbol (for deep analysis display)
+  // Uses public best-setups endpoint so it works for non-authenticated users
   const { data: symbolTradeIdeas } = useQuery<TradeIdea[]>({
-    queryKey: [`/api/trade-ideas`, symbol, 'all'],
+    queryKey: [`/api/trade-ideas/best-setups`, symbol, 'all'],
     queryFn: async () => {
       if (!symbol) return [];
-      const res = await fetch(`/api/trade-ideas`);
+      // Use public best-setups endpoint (no auth required)
+      const res = await fetch(`/api/trade-ideas/best-setups?limit=100`);
       if (!res.ok) return [];
-      const ideas = await res.json();
+      const data = await res.json();
+      const ideas = data.setups || [];
       return ideas.filter((idea: any) =>
-        idea.symbol === symbol && (idea.outcomeStatus === 'open' || !idea.outcomeStatus)
+        idea.symbol === symbol
       ).slice(0, 5);
     },
     enabled: !!symbol,
