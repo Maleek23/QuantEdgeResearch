@@ -99,7 +99,10 @@ function getEventLabel(eventType: string): string {
 
 function PlanCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "long";
-  const potentialGain = safeToFixed((Number(idea.targetPrice) - Number(idea.entryPrice)) / Number(idea.entryPrice) * 100, 1);
+  const safeEntry = safeNumber(idea.entryPrice, 1);
+  const potentialGain = safeEntry > 0
+    ? safeToFixed((safeNumber(idea.targetPrice) - safeEntry) / safeEntry * 100, 1)
+    : '0.0';
   
   return (
     <Card className="glass-card">
