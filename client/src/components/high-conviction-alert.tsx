@@ -104,6 +104,21 @@ export function HighConvictionAlertProvider({
     setDismissedIds(prev => new Set([...Array.from(prev), id]));
   };
 
+  // Auto-dismiss alerts after 8 seconds
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    
+    const timers = alerts.map(alert => {
+      return setTimeout(() => {
+        dismissAlert(alert.id || '');
+      }, 8000); // 8 seconds auto-dismiss
+    });
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [alerts.map(a => a.id).join(',')]);
+
   const goToTradeDesk = (idea: TradeIdea) => {
     dismissAlert(idea.id || '');
     setLocation('/trade-desk');
