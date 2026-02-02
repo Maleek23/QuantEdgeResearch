@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useInView, useMotionValue, useSpring } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface NumberTickerProps {
   value: number;
@@ -48,7 +48,7 @@ export function NumberTicker({
         const formatted = Intl.NumberFormat("en-US", {
           minimumFractionDigits: decimalPlaces,
           maximumFractionDigits: decimalPlaces,
-        }).format(Number(latest.toFixed(decimalPlaces)));
+        }).format(Number(safeToFixed(latest, decimalPlaces)));
         ref.current.textContent = `${prefix}${formatted}${suffix}`;
       }
     });

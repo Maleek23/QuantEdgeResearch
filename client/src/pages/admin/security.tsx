@@ -28,7 +28,7 @@ import {
   Ban,
   Server,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   PieChart,
@@ -350,7 +350,7 @@ export default function AdminSecurityPage() {
                     outerRadius={80}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
                   >
                     {statusChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />

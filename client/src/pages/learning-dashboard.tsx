@@ -23,6 +23,7 @@ import {
   Target,
   Zap,
 } from 'lucide-react';
+import { safeToFixed } from '@/lib/utils';
 
 import { AIBrainVisualization } from '@/components/dashboard/ai-brain-visualization';
 import { LiveMetricsGrid } from '@/components/dashboard/live-metrics-grid';
@@ -217,7 +218,7 @@ export default function LearningDashboard() {
                                 {insight.category}
                               </Badge>
                               <span className="text-xs text-gray-500">
-                                {(insight.confidence * 100).toFixed(0)}% confidence
+                                {safeToFixed(insight.confidence * 100, 0)}% confidence
                               </span>
                             </div>
                             <p className="text-white font-medium mb-2">
@@ -259,7 +260,7 @@ export default function LearningDashboard() {
                               </svg>
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <span className="text-xs font-bold text-white">
-                                  {(insight.confidence * 100).toFixed(0)}
+                                  {safeToFixed(insight.confidence * 100, 0)}
                                 </span>
                               </div>
                             </div>

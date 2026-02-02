@@ -7,7 +7,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   ChevronDown,
   Activity,
@@ -114,13 +114,13 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
             {hasResearchData && (
               <div className="flex items-center gap-4 mt-2 text-xs text-slate-600">
                 {metric.statisticalSignificance && (
-                  <span>p={metric.statisticalSignificance.pValue?.toFixed(3)}</span>
+                  <span>p={safeToFixed(metric.statisticalSignificance.pValue, 3)}</span>
                 )}
                 {metric.historicalContext && (
                   <span>P{metric.historicalContext.percentile}</span>
                 )}
                 {metric.backtestPerformance && (
-                  <span>WR:{(metric.backtestPerformance.winRate * 100).toFixed(0)}%</span>
+                  <span>WR:{safeToFixed(safeNumber(metric.backtestPerformance.winRate) * 100, 0)}%</span>
                 )}
               </div>
             )}
@@ -157,13 +157,13 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">p-value</p>
                     <p className="text-sm font-mono font-semibold text-cyan-400">
-                      {metric.statisticalSignificance.pValue?.toFixed(4)}
+                      {safeToFixed(metric.statisticalSignificance.pValue, 4)}
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">z-score</p>
                     <p className="text-sm font-mono font-semibold text-cyan-400">
-                      {metric.statisticalSignificance.zScore?.toFixed(2)}
+                      {safeToFixed(metric.statisticalSignificance.zScore, 2)}
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
@@ -193,13 +193,13 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">Mean</p>
                     <p className="text-sm font-mono font-semibold text-slate-300">
-                      {metric.historicalContext.mean?.toFixed(1)}
+                      {safeToFixed(metric.historicalContext.mean, 1)}
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">Std Dev</p>
                     <p className="text-sm font-mono font-semibold text-slate-300">
-                      {metric.historicalContext.stdDev?.toFixed(1)}
+                      {safeToFixed(metric.historicalContext.stdDev, 1)}
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
@@ -224,32 +224,32 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
                     <p className="text-xs text-slate-500 mb-1">Win Rate</p>
                     <p className={cn(
                       "text-sm font-mono font-semibold",
-                      metric.backtestPerformance.winRate >= 0.6 ? "text-emerald-400" :
-                      metric.backtestPerformance.winRate >= 0.5 ? "text-cyan-400" :
+                      safeNumber(metric.backtestPerformance.winRate) >= 0.6 ? "text-emerald-400" :
+                      safeNumber(metric.backtestPerformance.winRate) >= 0.5 ? "text-cyan-400" :
                       "text-red-400"
                     )}>
-                      {(metric.backtestPerformance.winRate * 100).toFixed(1)}%
+                      {safeToFixed(safeNumber(metric.backtestPerformance.winRate) * 100, 1)}%
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">Avg Return</p>
                     <p className={cn(
                       "text-sm font-mono font-semibold",
-                      metric.backtestPerformance.avgReturn >= 0 ? "text-emerald-400" : "text-red-400"
+                      safeNumber(metric.backtestPerformance.avgReturn) >= 0 ? "text-emerald-400" : "text-red-400"
                     )}>
-                      {metric.backtestPerformance.avgReturn >= 0 ? '+' : ''}
-                      {metric.backtestPerformance.avgReturn?.toFixed(2)}%
+                      {safeNumber(metric.backtestPerformance.avgReturn) >= 0 ? '+' : ''}
+                      {safeToFixed(metric.backtestPerformance.avgReturn, 2)}%
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">
                     <p className="text-xs text-slate-500 mb-1">Sharpe</p>
                     <p className={cn(
                       "text-sm font-mono font-semibold",
-                      metric.backtestPerformance.sharpeRatio >= 1 ? "text-emerald-400" :
-                      metric.backtestPerformance.sharpeRatio >= 0 ? "text-cyan-400" :
+                      safeNumber(metric.backtestPerformance.sharpeRatio) >= 1 ? "text-emerald-400" :
+                      safeNumber(metric.backtestPerformance.sharpeRatio) >= 0 ? "text-cyan-400" :
                       "text-red-400"
                     )}>
-                      {metric.backtestPerformance.sharpeRatio?.toFixed(2)}
+                      {safeToFixed(metric.backtestPerformance.sharpeRatio, 2)}
                     </p>
                   </div>
                   <div className="bg-slate-800/50 rounded p-2">

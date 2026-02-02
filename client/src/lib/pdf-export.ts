@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { safeToFixed } from './utils';
 
 // Extend jsPDF with autoTable type
 declare module 'jspdf' {
@@ -51,7 +52,7 @@ export async function generateDailyTradeAnalysisPDF(ideas: any[]) {
     // Details Table
     const details = [
       ['Entry Price', `$${idea.entryPrice}`, 'Target Price', `$${idea.targetPrice}`],
-      ['Stop Loss', `$${idea.stopLoss}`, 'R:R Ratio', idea.riskRewardRatio?.toFixed(2) || 'N/A'],
+      ['Stop Loss', `$${idea.stopLoss}`, 'R:R Ratio', safeToFixed(idea.riskRewardRatio, 2, 'N/A')],
       ['Confidence', `${idea.confidenceScore}%`, 'Source', idea.source?.toUpperCase() || 'QUANT'],
     ];
 
@@ -195,15 +196,15 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
   yPos += 14;
   
   // Key Metrics Table
-  const winRate = report.overallWinRate?.toFixed(1) || '—';
-  const totalPnl = report.totalPnlPercent?.toFixed(2) || '—';
+  const winRate = safeToFixed(report.overallWinRate, 1, '—');
+  const totalPnl = safeToFixed(report.totalPnlPercent, 2, '—');
   const pnlColor = (report.totalPnlPercent || 0) >= 0 ? [34, 197, 94] : [239, 68, 68]; // green or red
   
   const summaryData = [
     ['Ideas Generated', String(report.totalIdeasGenerated), 'Trades Resolved', String(report.totalTradesResolved || 0)],
     ['Total Wins', String(report.totalWins || 0), 'Total Losses', String(report.totalLosses || 0)],
     ['Win Rate', `${winRate}%`, 'Total P&L', `${totalPnl}%`],
-    ['Best Engine', ENGINE_LABELS[report.bestPerformingEngine || ''] || '—', 'Avg Gain', `${report.avgGainPercent?.toFixed(2) || '—'}%`],
+    ['Best Engine', ENGINE_LABELS[report.bestPerformingEngine || ''] || '—', 'Avg Gain', `${safeToFixed(report.avgGainPercent, 2, '—')}%`],
   ];
   
   doc.autoTable({
@@ -244,19 +245,19 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
         eng.resolved,
         eng.wins,
         eng.losses,
-        `${eng.winRate?.toFixed(1) || '—'}%`,
+        `${safeToFixed(eng.winRate, 1, '—')}%`,
       ]);
     }
   } else {
     // Fallback to top-level data
     if (report.aiIdeasGenerated) {
-      engineData.push(['AI Engine', report.aiIdeasGenerated, '—', '—', '—', `${report.aiWinRate?.toFixed(1) || '—'}%`]);
+      engineData.push(['AI Engine', report.aiIdeasGenerated, '—', '—', '—', `${safeToFixed(report.aiWinRate, 1, '—')}%`]);
     }
     if (report.quantIdeasGenerated) {
-      engineData.push(['Quant Engine', report.quantIdeasGenerated, '—', '—', '—', `${report.quantWinRate?.toFixed(1) || '—'}%`]);
+      engineData.push(['Quant Engine', report.quantIdeasGenerated, '—', '—', '—', `${safeToFixed(report.quantWinRate, 1, '—')}%`]);
     }
     if (report.hybridIdeasGenerated) {
-      engineData.push(['Hybrid Engine', report.hybridIdeasGenerated, '—', '—', '—', `${report.hybridWinRate?.toFixed(1) || '—'}%`]);
+      engineData.push(['Hybrid Engine', report.hybridIdeasGenerated, '—', '—', '—', `${safeToFixed(report.hybridWinRate, 1, '—')}%`]);
     }
   }
   
@@ -288,10 +289,10 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
   
   const botData = [
     ['Bot Type', 'Trades', 'P&L'],
-    ['Auto-Lotto', String(report.autoLottoTrades || 0), `${report.autoLottoPnl?.toFixed(2) || '0.00'}%`],
-    ['Futures Bot', String(report.futuresBotTrades || 0), `${report.futuresBotPnl?.toFixed(2) || '0.00'}%`],
-    ['Crypto Bot', String(report.cryptoBotTrades || 0), `${report.cryptoBotPnl?.toFixed(2) || '0.00'}%`],
-    ['Prop Firm', String(report.propFirmTrades || 0), `${report.propFirmPnl?.toFixed(2) || '0.00'}%`],
+    ['Auto-Lotto', String(report.autoLottoTrades || 0), `${safeToFixed(report.autoLottoPnl, 2)}%`],
+    ['Futures Bot', String(report.futuresBotTrades || 0), `${safeToFixed(report.futuresBotPnl, 2)}%`],
+    ['Crypto Bot', String(report.cryptoBotTrades || 0), `${safeToFixed(report.cryptoBotPnl, 2)}%`],
+    ['Prop Firm', String(report.propFirmTrades || 0), `${safeToFixed(report.propFirmPnl, 2)}%`],
   ];
   
   doc.autoTable({
@@ -328,7 +329,7 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
     
     const winnerData = [['Symbol', 'Wins', 'Losses', 'Total P&L']];
     for (const sym of report.topWinningSymbols.slice(0, 5)) {
-      winnerData.push([sym.symbol, String(sym.wins), String(sym.losses), `+${sym.totalPnl.toFixed(2)}%`]);
+      winnerData.push([sym.symbol, String(sym.wins), String(sym.losses), `+${safeToFixed(sym.totalPnl, 2)}%`]);
     }
     
     doc.autoTable({
@@ -361,7 +362,7 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
     
     const loserData = [['Symbol', 'Wins', 'Losses', 'Total P&L']];
     for (const sym of report.topLosingSymbols.slice(0, 5)) {
-      loserData.push([sym.symbol, String(sym.wins), String(sym.losses), `${sym.totalPnl.toFixed(2)}%`]);
+      loserData.push([sym.symbol, String(sym.wins), String(sym.losses), `${safeToFixed(sym.totalPnl, 2)}%`]);
     }
     
     doc.autoTable({

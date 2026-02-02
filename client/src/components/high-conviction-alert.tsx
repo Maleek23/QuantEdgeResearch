@@ -10,7 +10,7 @@ import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   AlertTriangle,
   TrendingUp,
@@ -198,19 +198,19 @@ export function HighConvictionAlertProvider({
               <div className="p-2 rounded bg-slate-800/50">
                 <div className="text-[10px] text-slate-500">Entry</div>
                 <div className="text-sm font-mono text-white">
-                  ${idea.entryPrice?.toFixed(2) || '—'}
+                  ${safeToFixed(idea.entryPrice, 2, '—')}
                 </div>
               </div>
               <div className="p-2 rounded bg-emerald-500/10">
                 <div className="text-[10px] text-slate-500">Target</div>
                 <div className="text-sm font-mono text-emerald-400">
-                  ${idea.targetPrice?.toFixed(2) || '—'}
+                  ${safeToFixed(idea.targetPrice, 2, '—')}
                 </div>
               </div>
               <div className="p-2 rounded bg-red-500/10">
                 <div className="text-[10px] text-slate-500">Stop</div>
                 <div className="text-sm font-mono text-red-400">
-                  ${idea.stopLoss?.toFixed(2) || '—'}
+                  ${safeToFixed(idea.stopLoss, 2, '—')}
                 </div>
               </div>
             </div>

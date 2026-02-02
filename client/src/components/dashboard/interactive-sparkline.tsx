@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { safeToFixed } from "@/lib/utils";
 
 interface InteractiveSparklineProps {
   data: number[];
@@ -142,7 +143,7 @@ export function InteractiveSparkline({
           className="absolute left-1/2 -translate-x-1/2 -top-8 glass-card border border-slate-700 rounded px-2 py-1 shadow-xl pointer-events-none z-10"
         >
           <p className="text-xs font-mono font-bold whitespace-nowrap" style={{ color }}>
-            {points[hoveredIndex].value.toFixed(2)}
+            {safeToFixed(points[hoveredIndex].value, 2)}
           </p>
         </motion.div>
       )}

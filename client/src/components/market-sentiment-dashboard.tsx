@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   TrendingUp, TrendingDown, AlertTriangle, Shield, 
   Zap, Activity, Clock, Target, ArrowUp, ArrowDown,
@@ -61,7 +61,7 @@ function SentimentGauge({ score, sentiment }: { score: number; sentiment: string
           score >= 55 ? "text-green-400" : score >= 45 ? "text-yellow-400" : "text-red-400"
         )}>
           {getIcon()}
-          {score.toFixed(0)}
+          {safeToFixed(score, 0)}
         </div>
         <div className="text-lg font-semibold text-slate-300 mt-1">{getLabel()}</div>
         <div className="text-xs text-slate-500 uppercase tracking-wide mt-1">
@@ -240,11 +240,11 @@ function WarningsPanel({ context }: { context: MarketContextData }) {
   }
   
   if (context.vixLevel && context.vixLevel > 30) {
-    warnings.push({ text: `Extreme fear (VIX ${context.vixLevel.toFixed(1)}) - expect violent swings`, severity: 'high' });
+    warnings.push({ text: `Extreme fear (VIX ${safeToFixed(context.vixLevel, 1)}) - expect violent swings`, severity: 'high' });
   } else if (context.vixLevel && context.vixLevel > 25) {
-    warnings.push({ text: `Elevated VIX (${context.vixLevel.toFixed(1)}) - reduce size, widen stops`, severity: 'medium' });
+    warnings.push({ text: `Elevated VIX (${safeToFixed(context.vixLevel, 1)}) - reduce size, widen stops`, severity: 'medium' });
   } else if (context.vixLevel && context.vixLevel > 20) {
-    warnings.push({ text: `Above-average VIX (${context.vixLevel.toFixed(1)}) - be selective`, severity: 'low' });
+    warnings.push({ text: `Above-average VIX (${safeToFixed(context.vixLevel, 1)}) - be selective`, severity: 'low' });
   }
   
   if (context.regime === 'volatile') {
@@ -429,14 +429,14 @@ export function MarketSentimentDashboard() {
         <div className="grid grid-cols-2 gap-4 lg:col-span-2">
           <MarketConditionCard
             title="SPY"
-            value={context.spyData ? `${context.spyData.change >= 0 ? '+' : ''}${context.spyData.change.toFixed(2)}%` : 'N/A'}
-            subtitle={context.spyData ? `$${context.spyData.price.toFixed(2)}` : undefined}
+            value={context.spyData ? `${context.spyData.change >= 0 ? '+' : ''}${safeToFixed(context.spyData.change, 2)}%` : 'N/A'}
+            subtitle={context.spyData ? `$${safeToFixed(context.spyData.price, 2)}` : undefined}
             icon={context.spyData && context.spyData.change >= 0 ? TrendingUp : TrendingDown}
             status={getSpyStatus()}
           />
           <MarketConditionCard
             title="VIX (Fear)"
-            value={context.vixLevel ? context.vixLevel.toFixed(1) : 'N/A'}
+            value={context.vixLevel ? safeToFixed(context.vixLevel, 1) : 'N/A'}
             subtitle={
               context.vixLevel 
                 ? context.vixLevel < 15 ? "Low - Complacent" 
@@ -450,7 +450,7 @@ export function MarketSentimentDashboard() {
           />
           <MarketConditionCard
             title="Volume"
-            value={context.spyData ? `${context.spyData.relativeVolume.toFixed(1)}x` : 'N/A'}
+            value={context.spyData ? `${safeToFixed(context.spyData.relativeVolume, 1)}x` : 'N/A'}
             subtitle="Relative to Avg"
             icon={Activity}
             status={

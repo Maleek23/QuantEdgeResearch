@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatCTTime } from "@/lib/utils";
+import { formatCurrency, formatCTTime, safeToFixed } from "@/lib/utils";
 import { CryptoQuantAnalysis } from "./crypto-quant-analysis";
 import type { WatchlistItem } from "@shared/schema";
 import { Star, Trash2, Eye, BarChart2, ChevronDown, Bell, RefreshCw, TrendingUp, Info, Building2, Newspaper, Zap, ExternalLink } from "lucide-react";
@@ -72,9 +72,9 @@ function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boole
 
   const formatMarketCap = (value?: number) => {
     if (!value) return 'N/A';
-    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e12) return `$${safeToFixed(value / 1e12, 2)}T`;
+    if (value >= 1e9) return `$${safeToFixed(value / 1e9, 2)}B`;
+    if (value >= 1e6) return `$${safeToFixed(value / 1e6, 2)}M`;
     return `$${value.toLocaleString()}`;
   };
 
@@ -198,19 +198,19 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                 <div className="font-medium text-[10px] text-muted-foreground">Technical</div>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                   {typeof gradeInputs.rsi14 === 'number' && (
-                    <div>RSI(14): {gradeInputs.rsi14.toFixed(1)}</div>
+                    <div>RSI(14): {safeToFixed(gradeInputs.rsi14, 1)}</div>
                   )}
                   {typeof gradeInputs.rsi2 === 'number' && (
-                    <div>RSI(2): {gradeInputs.rsi2.toFixed(1)}</div>
+                    <div>RSI(2): {safeToFixed(gradeInputs.rsi2, 1)}</div>
                   )}
                   {typeof gradeInputs.momentum5d === 'number' && (
-                    <div>5D Mom: {gradeInputs.momentum5d >= 0 ? '+' : ''}{gradeInputs.momentum5d.toFixed(1)}%</div>
+                    <div>5D Mom: {gradeInputs.momentum5d >= 0 ? '+' : ''}{safeToFixed(gradeInputs.momentum5d, 1)}%</div>
                   )}
                   {typeof gradeInputs.adx === 'number' && (
-                    <div>ADX: {gradeInputs.adx.toFixed(1)}</div>
+                    <div>ADX: {safeToFixed(gradeInputs.adx, 1)}</div>
                   )}
                   {typeof gradeInputs.volumeRatio === 'number' && (
-                    <div>Vol: {gradeInputs.volumeRatio.toFixed(2)}x</div>
+                    <div>Vol: {safeToFixed(gradeInputs.volumeRatio, 2)}x</div>
                   )}
                   {gradeInputs.bollingerPosition && (
                     <div>BB: {String(gradeInputs.bollingerPosition).replace(/_/g, ' ')}</div>
@@ -225,12 +225,12 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     {typeof gradeInputs.supportLevel === 'number' && (
                       <div className="text-green-600 dark:text-green-400">
-                        S: ${gradeInputs.supportLevel.toFixed(2)}
+                        S: ${safeToFixed(gradeInputs.supportLevel, 2)}
                       </div>
                     )}
                     {typeof gradeInputs.resistanceLevel === 'number' && (
                       <div className="text-red-600 dark:text-red-400">
-                        R: ${gradeInputs.resistanceLevel.toFixed(2)}
+                        R: ${safeToFixed(gradeInputs.resistanceLevel, 2)}
                       </div>
                     )}
                   </div>
@@ -243,24 +243,24 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                   <div className="font-medium text-[10px] text-muted-foreground">Fundamentals</div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     {typeof gradeInputs.peRatio === 'number' && (
-                      <div>P/E: {gradeInputs.peRatio.toFixed(1)}</div>
+                      <div>P/E: {safeToFixed(gradeInputs.peRatio, 1)}</div>
                     )}
                     {typeof gradeInputs.eps === 'number' && (
-                      <div>EPS: ${gradeInputs.eps.toFixed(2)}</div>
+                      <div>EPS: ${safeToFixed(gradeInputs.eps, 2)}</div>
                     )}
                     {typeof gradeInputs.revenueGrowth === 'number' && (
                       <div className={gradeInputs.revenueGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                        Rev: {gradeInputs.revenueGrowth >= 0 ? '+' : ''}{gradeInputs.revenueGrowth.toFixed(0)}%
+                        Rev: {gradeInputs.revenueGrowth >= 0 ? '+' : ''}{safeToFixed(gradeInputs.revenueGrowth, 0)}%
                       </div>
                     )}
                     {typeof gradeInputs.profitMargin === 'number' && (
-                      <div>Margin: {gradeInputs.profitMargin.toFixed(0)}%</div>
+                      <div>Margin: {safeToFixed(gradeInputs.profitMargin, 0)}%</div>
                     )}
                     {typeof gradeInputs.returnOnEquity === 'number' && (
-                      <div>ROE: {gradeInputs.returnOnEquity.toFixed(0)}%</div>
+                      <div>ROE: {safeToFixed(gradeInputs.returnOnEquity, 0)}%</div>
                     )}
                     {typeof gradeInputs.debtToEquity === 'number' && (
-                      <div>D/E: {gradeInputs.debtToEquity.toFixed(0)}</div>
+                      <div>D/E: {safeToFixed(gradeInputs.debtToEquity, 0)}</div>
                     )}
                   </div>
                 </div>
@@ -284,14 +284,14 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                     )}
                     {typeof gradeInputs.fairValueUpside === 'number' && (
                       <div className={gradeInputs.fairValueUpside >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                        {gradeInputs.fairValueUpside >= 0 ? '+' : ''}{gradeInputs.fairValueUpside.toFixed(0)}% to Target
+                        {gradeInputs.fairValueUpside >= 0 ? '+' : ''}{safeToFixed(gradeInputs.fairValueUpside, 0)}% to Target
                       </div>
                     )}
                     {typeof gradeInputs.shortPercentOfFloat === 'number' && (
-                      <div>Short: {gradeInputs.shortPercentOfFloat.toFixed(0)}% Float</div>
+                      <div>Short: {safeToFixed(gradeInputs.shortPercentOfFloat, 0)}% Float</div>
                     )}
                     {typeof gradeInputs.analystTargetPrice === 'number' && (
-                      <div>Target: ${gradeInputs.analystTargetPrice.toFixed(0)}</div>
+                      <div>Target: ${safeToFixed(gradeInputs.analystTargetPrice, 0)}</div>
                     )}
                   </div>
                 </div>

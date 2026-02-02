@@ -39,6 +39,7 @@ import {
   XCircle
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { safeToFixed, safeNumber } from "@/lib/utils";
 import { formatInTimeZone } from "date-fns-tz";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -128,10 +129,10 @@ function FuturesCard({ quote, onClick }: { quote: FuturesQuote; onClick: () => v
           
           <div className={`flex items-center gap-2 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
             <span className="font-medium" data-testid={`text-futures-change-${quote.symbol}`}>
-              {isPositive ? '+' : ''}{quote.change.toFixed(2)}
+              {isPositive ? '+' : ''}{safeToFixed(quote.change, 2)}
             </span>
             <Badge variant="outline" className={isPositive ? 'border-green-500/30 text-green-400' : 'border-red-500/30 text-red-400'}>
-              {isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%
+              {isPositive ? '+' : ''}{safeToFixed(quote.changePercent, 2)}%
             </Badge>
           </div>
           
@@ -238,22 +239,22 @@ function ResearchBriefCard({
           <div className="p-2 rounded-lg stat-glass">
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Resistance</div>
             <div className="text-sm font-medium font-mono text-red-400" data-testid={`text-brief-resistance-${brief.symbol}`}>
-              {resistanceLevels.length > 0 
-                ? resistanceLevels.slice(0, 2).map(r => '$' + parseFloat(r).toFixed(2)).join(', ')
+              {resistanceLevels.length > 0
+                ? resistanceLevels.slice(0, 2).map(r => '$' + safeToFixed(parseFloat(r), 2)).join(', ')
                 : 'N/A'}
             </div>
           </div>
           <div className="p-2 rounded-lg stat-glass">
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Pivot</div>
             <div className="text-sm font-medium font-mono text-yellow-400" data-testid={`text-brief-pivot-${brief.symbol}`}>
-              {brief.pivotLevel ? '$' + brief.pivotLevel.toFixed(2) : 'N/A'}
+              {brief.pivotLevel ? '$' + safeToFixed(brief.pivotLevel, 2) : 'N/A'}
             </div>
           </div>
           <div className="p-2 rounded-lg stat-glass">
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Support</div>
             <div className="text-sm font-medium font-mono text-green-400" data-testid={`text-brief-support-${brief.symbol}`}>
-              {supportLevels.length > 0 
-                ? supportLevels.slice(0, 2).map(s => '$' + parseFloat(s).toFixed(2)).join(', ')
+              {supportLevels.length > 0
+                ? supportLevels.slice(0, 2).map(s => '$' + safeToFixed(parseFloat(s), 2)).join(', ')
                 : 'N/A'}
             </div>
           </div>
@@ -273,19 +274,19 @@ function ResearchBriefCard({
               <div>
                 <span className="text-muted-foreground">Entry: </span>
                 <span className="font-medium" data-testid={`text-trade-entry-${brief.symbol}`}>
-                  ${brief.tradeEntry?.toFixed(2) || 'N/A'}
+                  ${brief.tradeEntry != null ? safeToFixed(brief.tradeEntry, 2) : 'N/A'}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Target: </span>
                 <span className="font-medium text-green-400" data-testid={`text-trade-target-${brief.symbol}`}>
-                  ${brief.tradeTarget?.toFixed(2) || 'N/A'}
+                  ${brief.tradeTarget != null ? safeToFixed(brief.tradeTarget, 2) : 'N/A'}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Stop: </span>
                 <span className="font-medium text-red-400" data-testid={`text-trade-stop-${brief.symbol}`}>
-                  ${brief.tradeStop?.toFixed(2) || 'N/A'}
+                  ${brief.tradeStop != null ? safeToFixed(brief.tradeStop, 2) : 'N/A'}
                 </span>
               </div>
             </div>
@@ -695,7 +696,7 @@ export function FuturesContent() {
                     const stop = typeof brief.tradeStop === 'number' ? brief.tradeStop : 0;
                     const risk = isLong ? Math.abs(entry - stop) : Math.abs(stop - entry);
                     const reward = isLong ? Math.abs(target - entry) : Math.abs(entry - target);
-                    const rrRatio = risk > 0 && reward > 0 ? (reward / risk).toFixed(2) : 'N/A';
+                    const rrRatio = risk > 0 && reward > 0 ? safeToFixed(safeNumber(reward) / safeNumber(risk), 2) : 'N/A';
                     const biasStrengthValue = brief.biasStrength || 'moderate';
                     
                     return (
@@ -736,19 +737,19 @@ export function FuturesContent() {
                             <div className="p-2 rounded-lg stat-glass text-center">
                               <div className="text-[10px] text-muted-foreground uppercase">Entry</div>
                               <div className="font-mono font-medium text-sm">
-                                {entry > 0 ? `$${entry.toFixed(2)}` : 'N/A'}
+                                {entry > 0 ? `$${safeToFixed(entry, 2)}` : 'N/A'}
                               </div>
                             </div>
                             <div className="p-2 rounded-lg stat-glass text-center">
                               <div className="text-[10px] text-muted-foreground uppercase">Target</div>
                               <div className="font-mono font-medium text-sm text-green-400">
-                                {target > 0 ? `$${target.toFixed(2)}` : 'N/A'}
+                                {target > 0 ? `$${safeToFixed(target, 2)}` : 'N/A'}
                               </div>
                             </div>
                             <div className="p-2 rounded-lg stat-glass text-center">
                               <div className="text-[10px] text-muted-foreground uppercase">Stop</div>
                               <div className="font-mono font-medium text-sm text-red-400">
-                                {stop > 0 ? `$${stop.toFixed(2)}` : 'N/A'}
+                                {stop > 0 ? `$${safeToFixed(stop, 2)}` : 'N/A'}
                               </div>
                             </div>
                             <div className="p-2 rounded-lg stat-glass text-center">
@@ -847,13 +848,13 @@ export function FuturesContent() {
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-portfolio">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Portfolio</div>
                       <div className="text-xl font-bold font-mono text-cyan-400" data-testid="text-bot-portfolio-value">
-                        ${((botData?.futuresPortfolio?.startingCapital || 300) + (botData?.futuresPortfolio?.totalPnL || 0)).toFixed(0)}
+                        ${safeToFixed(safeNumber(botData?.futuresPortfolio?.startingCapital, 300) + safeNumber(botData?.futuresPortfolio?.totalPnL, 0), 0)}
                       </div>
                     </div>
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-pnl">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total P&L</div>
-                      <div className={`text-xl font-bold font-mono ${(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-bot-pnl-value">
-                        {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}${(botData?.futuresPortfolio?.totalPnL || 0).toFixed(2)}
+                      <div className={`text-xl font-bold font-mono ${safeNumber(botData?.futuresPortfolio?.totalPnL, 0) >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-bot-pnl-value">
+                        {safeNumber(botData?.futuresPortfolio?.totalPnL, 0) >= 0 ? '+' : ''}${safeToFixed(botData?.futuresPortfolio?.totalPnL, 2)}
                       </div>
                     </div>
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-winrate">
@@ -959,26 +960,26 @@ export function FuturesContent() {
                                 <span className="text-sm text-muted-foreground">x{position.quantity}</span>
                               </div>
                               <div className={`font-bold font-mono ${pnlPositive ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-position-pnl-${position.id}`}>
-                                {pnlPositive ? '+' : ''}${position.unrealizedPnL?.toFixed(2) || '0.00'}
-                                <span className="text-xs ml-1">({position.unrealizedPnLPercent?.toFixed(2) || '0.00'}%)</span>
+                                {pnlPositive ? '+' : ''}${safeToFixed(position.unrealizedPnL, 2)}
+                                <span className="text-xs ml-1">({safeToFixed(position.unrealizedPnLPercent, 2)}%)</span>
                               </div>
                             </div>
                             <div className="grid grid-cols-4 gap-2 text-xs">
                               <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-entry-${position.id}`}>
                                 <div className="text-muted-foreground uppercase">Entry</div>
-                                <div className="font-mono font-medium">${position.entryPrice?.toFixed(2)}</div>
+                                <div className="font-mono font-medium">${safeToFixed(position.entryPrice, 2)}</div>
                               </div>
                               <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-current-${position.id}`}>
                                 <div className="text-muted-foreground uppercase">Current</div>
-                                <div className="font-mono font-medium">${position.currentPrice?.toFixed(2)}</div>
+                                <div className="font-mono font-medium">${safeToFixed(position.currentPrice, 2)}</div>
                               </div>
                               <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-target-${position.id}`}>
                                 <div className="text-muted-foreground uppercase">Target</div>
-                                <div className="font-mono font-medium text-green-400">${position.targetPrice?.toFixed(2)}</div>
+                                <div className="font-mono font-medium text-green-400">${safeToFixed(position.targetPrice, 2)}</div>
                               </div>
                               <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-stop-${position.id}`}>
                                 <div className="text-muted-foreground uppercase">Stop</div>
-                                <div className="font-mono font-medium text-red-400">${position.stopLoss?.toFixed(2)}</div>
+                                <div className="font-mono font-medium text-red-400">${safeToFixed(position.stopLoss, 2)}</div>
                               </div>
                             </div>
                           </div>
@@ -1024,7 +1025,7 @@ export function FuturesContent() {
                               </Badge>
                             </div>
                             <div className={`font-mono font-bold ${isWin ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-trade-pnl-${trade.id}`}>
-                              {isWin ? '+' : ''}${trade.unrealizedPnL?.toFixed(2) || '0.00'}
+                              {isWin ? '+' : ''}${safeToFixed(trade.unrealizedPnL, 2)}
                             </div>
                           </div>
                         );
@@ -1196,7 +1197,7 @@ export function FuturesContent() {
                   <div className="stat-glass rounded-lg p-3">
                     <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Change</div>
                     <div className={`text-xl font-bold font-mono tabular-nums ${selectedQuote.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {selectedQuote.changePercent >= 0 ? '+' : ''}{selectedQuote.changePercent.toFixed(2)}%
+                      {selectedQuote.changePercent >= 0 ? '+' : ''}{safeToFixed(selectedQuote.changePercent, 2)}%
                     </div>
                   </div>
                   <div className="stat-glass rounded-lg p-3">
@@ -1230,7 +1231,7 @@ export function FuturesContent() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">1 Tick Move = </span>
-                      <span className="font-medium font-mono">${(selectedInfo.tickSize * selectedInfo.pointValue).toFixed(2)}</span>
+                      <span className="font-medium font-mono">${safeToFixed(safeNumber(selectedInfo.tickSize) * safeNumber(selectedInfo.pointValue), 2)}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">1 Point Move = </span>
@@ -1238,12 +1239,12 @@ export function FuturesContent() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Day Range = </span>
-                      <span className="font-medium font-mono">${(selectedQuote.high - selectedQuote.low).toFixed(2)} pts</span>
+                      <span className="font-medium font-mono">${safeToFixed(safeNumber(selectedQuote.high) - safeNumber(selectedQuote.low), 2)} pts</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Day P&L (1 lot) = </span>
                       <span className={`font-medium font-mono ${selectedQuote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {selectedQuote.change >= 0 ? '+' : ''}${(selectedQuote.change * selectedInfo.pointValue).toFixed(2)}
+                        {selectedQuote.change >= 0 ? '+' : ''}${safeToFixed(safeNumber(selectedQuote.change) * safeNumber(selectedInfo.pointValue), 2)}
                       </span>
                     </div>
                   </div>

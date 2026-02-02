@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Target
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface ResearchStats {
   total: number;
@@ -101,7 +101,7 @@ export default function PersonalEdgeAnalytics({ year = new Date().getFullYear() 
                       pattern.winRate >= 60 ? 'text-green-400' :
                       pattern.winRate >= 50 ? 'text-amber-400' : 'text-red-400'
                     )}>
-                      {pattern.winRate.toFixed(0)}%
+                      {safeToFixed(pattern.winRate, 0)}%
                     </span>
                   </div>
                 </div>

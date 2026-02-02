@@ -22,7 +22,7 @@ import {
   Zap,
   LineChart,
 } from "lucide-react";
-import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { cn, formatCurrency, formatPercent, safeToFixed } from "@/lib/utils";
 
 interface TechnicalAnalysis {
   rsi: { value: number; signal: string };
@@ -158,7 +158,7 @@ function SignalBadge({ signal, value }: { signal: string; value?: number }) {
       {isBearish && <ArrowDown className="w-3 h-3 mr-1" />}
       {!isBullish && !isBearish && <Minus className="w-3 h-3 mr-1" />}
       {signal.charAt(0).toUpperCase() + signal.slice(1)}
-      {value !== undefined && ` (${value.toFixed(1)})`}
+      {value !== undefined && ` (${safeToFixed(value, 1)})`}
     </Badge>
   );
 }
@@ -341,7 +341,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                 <div className="space-y-1">
                   <span className="text-muted-foreground">RSI(14)</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums font-medium">{technicals.rsi.value.toFixed(1)}</span>
+                    <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.rsi.value, 1)}</span>
                     <SignalBadge signal={technicals.rsi.signal} />
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                 <div className="space-y-1">
                   <span className="text-muted-foreground">MACD</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums font-medium">{technicals.macd.value.toFixed(2)}</span>
+                    <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.macd.value, 2)}</span>
                     <SignalBadge signal={technicals.macd.signal} />
                   </div>
                 </div>
@@ -359,7 +359,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                 <div className="space-y-1">
                   <span className="text-muted-foreground">ADX</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums font-medium">{technicals.adx.value.toFixed(1)}</span>
+                    <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.adx.value, 1)}</span>
                     <Badge variant="outline" className={technicals.adx.trending ? "text-green-400 border-green-400/30" : "text-muted-foreground"}>
                       {technicals.adx.trending ? "Trending" : "Ranging"}
                     </Badge>
@@ -370,7 +370,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                 <div className="space-y-1">
                   <span className="text-muted-foreground">Volume</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono tabular-nums font-medium">{technicals.volume.ratio.toFixed(1)}x</span>
+                    <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.volume.ratio, 1)}x</span>
                     {technicals.volume.unusual && (
                       <Badge variant="outline" className="text-amber-400 border-amber-400/30">
                         <Zap className="w-3 h-3 mr-1" />
@@ -461,7 +461,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
               <div className="space-y-1">
                 <span className="text-muted-foreground">R:R Ratio</span>
                 <div className="font-mono tabular-nums text-green-400 font-bold">
-                  {thesis.riskReward.toFixed(1)}:1
+                  {safeToFixed(thesis.riskReward, 1)}:1
                 </div>
               </div>
             </div>

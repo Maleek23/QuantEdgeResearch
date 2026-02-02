@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
+import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal, safeToFixed, safeNumber } from "@/lib/utils";
 import { formatDateOnly } from "@/lib/timezone";
 import type { TradeIdea } from "@shared/schema";
 import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity, Clock, Zap } from "lucide-react";
@@ -352,7 +352,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                   {idea.futuresTickSize && idea.futuresMultiplier && (
                     <div className="flex items-center justify-between text-sm" data-testid={`text-futures-tick-${idea.symbol}`}>
                       <span className="text-muted-foreground">Tick:</span>
-                      <span className="font-mono font-bold">{idea.futuresTickSize} = ${(idea.futuresTickSize * idea.futuresMultiplier).toFixed(0)}</span>
+                      <span className="font-mono font-bold">{idea.futuresTickSize} = ${safeToFixed(safeNumber(idea.futuresTickSize) * safeNumber(idea.futuresMultiplier), 0)}</span>
                     </div>
                   )}
                 </div>
@@ -387,14 +387,14 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                     )}
                     data-testid={`badge-risk-reward-${idea.symbol}`}
                   >
-                    {idea.riskRewardRatio?.toFixed(2) ?? '0.00'}:1 R:R
+                    {safeToFixed(idea.riskRewardRatio, 2, '0.00')}:1 R:R
                   </Badge>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
                 <p className="font-semibold mb-1">Risk/Reward Ratio Explained</p>
-                <p className="text-xs">For every <strong>${riskDollars.toFixed(2)}</strong> you risk, you could gain <strong>${rewardDollars.toFixed(2)}</strong></p>
+                <p className="text-xs">For every <strong>${safeToFixed(riskDollars, 2)}</strong> you risk, you could gain <strong>${safeToFixed(rewardDollars, 2)}</strong></p>
                 <p className="text-xs mt-1">Higher ratios (2:1 or better) offer better risk-adjusted returns</p>
               </TooltipContent>
             </Tooltip>

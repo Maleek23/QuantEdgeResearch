@@ -14,7 +14,7 @@ import {
   FileText,
   Download
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface ResearchStats {
   total: number;
@@ -138,7 +138,7 @@ export default function ResearchPulseWidget({
             <Eye className="h-3 w-3 text-cyan-400" />
             {stats.watched}
           </span>
-          <span className="font-mono text-green-400">{stats.winRate.toFixed(0)}% WR</span>
+          <span className="font-mono text-green-400">{safeToFixed(stats.winRate, 0)}% WR</span>
         </div>
       </Card>
     );
@@ -172,19 +172,19 @@ export default function ResearchPulseWidget({
             <Target className="h-4 w-4 text-green-400 mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.traded}</span>
             <span className="text-xs text-slate-400">Traded</span>
-            <span className="text-xs text-green-400 block">({tradedPercent.toFixed(1)}%)</span>
+            <span className="text-xs text-green-400 block">({safeToFixed(tradedPercent, 1)}%)</span>
           </div>
           <div className="text-center p-2 bg-cyan-500/10 rounded-md border border-cyan-500/30">
             <Eye className="h-4 w-4 text-cyan-400 mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.watched}</span>
             <span className="text-xs text-slate-400">Watched</span>
-            <span className="text-xs text-cyan-400 block">({watchedPercent.toFixed(1)}%)</span>
+            <span className="text-xs text-cyan-400 block">({safeToFixed(watchedPercent, 1)}%)</span>
           </div>
           <div className="text-center p-2 bg-slate-500/10 rounded-md border border-slate-500/30">
             <Ban className="h-4 w-4 text-slate-400 mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.ignored}</span>
             <span className="text-xs text-slate-400">Ignored</span>
-            <span className="text-xs text-slate-400 block">({ignoredPercent.toFixed(1)}%)</span>
+            <span className="text-xs text-slate-400 block">({safeToFixed(ignoredPercent, 1)}%)</span>
           </div>
         </div>
         
@@ -205,7 +205,7 @@ export default function ResearchPulseWidget({
               <span className={cn(
                 "font-mono text-lg",
                 stats.winRate >= 50 ? 'text-green-400' : 'text-red-400'
-              )}>{stats.winRate.toFixed(0)}%</span>
+              )}>{safeToFixed(stats.winRate, 0)}%</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function ResearchPulseWidget({
               <span className={cn(
                 "font-mono text-lg",
                 stats.avgReturn >= 0 ? 'text-green-400' : 'text-red-400'
-              )}>{stats.avgReturn >= 0 ? '+' : ''}{stats.avgReturn.toFixed(1)}%</span>
+              )}>{stats.avgReturn >= 0 ? '+' : ''}{safeToFixed(stats.avgReturn, 1)}%</span>
             </div>
           </div>
         </div>
@@ -244,7 +244,7 @@ export default function ResearchPulseWidget({
                       "font-mono text-sm",
                       p.winRate >= 60 ? 'text-green-400' : 
                       p.winRate >= 50 ? 'text-amber-400' : 'text-red-400'
-                    )}>{p.winRate.toFixed(0)}%</span>
+                    )}>{safeToFixed(p.winRate, 0)}%</span>
                   </div>
                 </div>
               ))}

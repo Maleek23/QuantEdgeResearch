@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Brain, Calculator, GitBranch, TrendingUp } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface EngineStats {
   totalIdeas: number;
@@ -75,7 +76,7 @@ export function EnginePerformanceChart() {
         <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
           <p className="font-semibold mb-1">{data.name} Engine</p>
           <p className="text-sm text-muted-foreground">
-            Win Rate: <span className="font-semibold text-foreground">{data.winRate.toFixed(1)}%</span>
+            Win Rate: <span className="font-semibold text-foreground">{safeToFixed(data.winRate, 1)}%</span>
           </p>
           <p className="text-sm text-muted-foreground">
             Validated Trades: <span className="font-semibold text-foreground">{data.closedIdeas}</span>
@@ -131,7 +132,7 @@ export function EnginePerformanceChart() {
               <Icon className="h-4 w-4" style={{ color: engine.color }} />
               <div>
                 <p className="text-xs font-medium">{engine.name}</p>
-                <p className="text-xs text-muted-foreground">{engine.winRate.toFixed(1)}%</p>
+                <p className="text-xs text-muted-foreground">{safeToFixed(engine.winRate, 1)}%</p>
               </div>
             </div>
           );

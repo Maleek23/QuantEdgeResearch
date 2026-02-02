@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
-import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
+import { getMarketSession, formatCTTime, formatCurrency, formatPercent, safeToFixed, safeNumber } from "@/lib/utils";
 
 interface SmartWatchlistPick {
   symbol: string;
@@ -91,30 +91,33 @@ interface SectorData {
 }
 
 const formatPrice = (price: number) => {
-  if (price >= 1) return `$${price.toFixed(2)}`;
-  if (price >= 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(8)}`;
+  const safePrice = safeNumber(price);
+  if (safePrice >= 1) return `$${safeToFixed(safePrice, 2)}`;
+  if (safePrice >= 0.01) return `$${safeToFixed(safePrice, 4)}`;
+  return `$${safeToFixed(safePrice, 8)}`;
 };
 
 const formatPercentage = (value: number | undefined) => {
   if (value === undefined || value === null) return "-";
   const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
+  return `${prefix}${safeToFixed(value, 2)}%`;
 };
 
 const formatVolume = (vol: number) => {
-  if (vol >= 1e9) return `${(vol / 1e9).toFixed(1)}B`;
-  if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
-  if (vol >= 1e3) return `${(vol / 1e3).toFixed(1)}K`;
-  return vol.toString();
+  const safeVol = safeNumber(vol);
+  if (safeVol >= 1e9) return `${safeToFixed(safeVol / 1e9, 1)}B`;
+  if (safeVol >= 1e6) return `${safeToFixed(safeVol / 1e6, 1)}M`;
+  if (safeVol >= 1e3) return `${safeToFixed(safeVol / 1e3, 1)}K`;
+  return safeVol.toString();
 };
 
 const formatMarketCap = (cap: number | undefined) => {
   if (!cap) return "-";
-  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(1)}T`;
-  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(1)}B`;
-  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(0)}M`;
-  return `$${cap.toFixed(0)}`;
+  const safeCap = safeNumber(cap);
+  if (safeCap >= 1e12) return `$${safeToFixed(safeCap / 1e12, 1)}T`;
+  if (safeCap >= 1e9) return `$${safeToFixed(safeCap / 1e9, 1)}B`;
+  if (safeCap >= 1e6) return `$${safeToFixed(safeCap / 1e6, 0)}M`;
+  return `$${safeToFixed(safeCap, 0)}`;
 };
 
 function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: string }) {
@@ -289,7 +292,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-cyan-400">{pick.volumeRatio.toFixed(1)}x avg</p>
+                <p className="text-xs text-cyan-400">{safeToFixed(pick.volumeRatio, 1)}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -299,7 +302,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             {pick.distanceFrom52High !== undefined && (
               <div className="bg-card border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">From 52W High</p>
-                <p className="font-mono font-medium text-amber-400">-{pick.distanceFrom52High.toFixed(1)}%</p>
+                <p className="font-mono font-medium text-amber-400">-{safeToFixed(pick.distanceFrom52High, 1)}%</p>
               </div>
             )}
             {pick.week52High && (
@@ -537,7 +540,7 @@ export default function MarketPage() {
                 </div>
               </div>
               <p className={`text-2xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
-                {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
+                {avgChange >= 0 ? '+' : ''}{safeToFixed(avgChange, 2)}%
               </p>
               <p className="text-sm text-muted-foreground mt-1">Average Change</p>
             </Card>
@@ -550,7 +553,7 @@ export default function MarketPage() {
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-volume">
-                {totalVolume >= 1e9 ? `${(totalVolume / 1e9).toFixed(1)}B` : `${(totalVolume / 1e6).toFixed(1)}M`}
+                {totalVolume >= 1e9 ? `${safeToFixed(safeNumber(totalVolume) / 1e9, 1)}B` : `${safeToFixed(safeNumber(totalVolume) / 1e6, 1)}M`}
               </p>
               <p className="text-sm text-muted-foreground mt-1">Combined Trading Volume</p>
             </Card>

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Target } from "lucide-react";
+import { safeToFixed } from '@/lib/utils';
 
 interface SignalCombination {
   combination: string;
@@ -135,7 +136,7 @@ export function SignalCorrelationHeatmap({ combinations }: SignalCorrelationHeat
                             className={`h-12 w-12 flex flex-col items-center justify-center rounded-md border-2 transition-transform hover:scale-110 cursor-pointer ${getHeatColor(cell.winRate)}`}
                           >
                             <span className="text-xs font-bold text-white">
-                              {(cell.winRate * 100).toFixed(0)}%
+                              {safeToFixed(cell.winRate * 100, 0)}%
                             </span>
                             <span className="text-[10px] text-white/80">
                               ({cell.occurrences})
@@ -147,14 +148,14 @@ export function SignalCorrelationHeatmap({ combinations }: SignalCorrelationHeat
                             <div className="glass-intense rounded-lg p-3 shadow-xl border border-primary/20 min-w-[200px]">
                               <p className="text-xs font-semibold mb-1">{sig1} + {sig2}</p>
                               <p className="text-xs text-muted-foreground mb-1">
-                                Win Rate: <span className="text-white font-mono">{(cell.winRate * 100).toFixed(1)}%</span>
+                                Win Rate: <span className="text-white font-mono">{safeToFixed(cell.winRate * 100, 1)}%</span>
                               </p>
                               <p className="text-xs text-muted-foreground mb-1">
                                 Trades: <span className="text-white font-mono">{cell.occurrences}</span>
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 Avg Gain: <span className="text-white font-mono">
-                                  {cell.avgGain >= 0 ? '+' : ''}{cell.avgGain.toFixed(1)}%
+                                  {cell.avgGain >= 0 ? '+' : ''}{safeToFixed(cell.avgGain, 1)}%
                                 </span>
                               </p>
                             </div>

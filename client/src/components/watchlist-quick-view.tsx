@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Eye, TrendingUp, TrendingDown, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface WatchlistItem {
@@ -82,7 +82,7 @@ export function WatchlistQuickView() {
                   </div>
                   <div className="flex items-center gap-2">
                     {item.currentPrice && (
-                      <span className="text-sm text-foreground">${item.currentPrice.toFixed(2)}</span>
+                      <span className="text-sm text-foreground">${safeToFixed(item.currentPrice, 2)}</span>
                     )}
                     {item.priceChangePercent !== undefined && (
                       <div className={cn(
@@ -94,7 +94,7 @@ export function WatchlistQuickView() {
                         ) : (
                           <TrendingDown className="h-3 w-3" />
                         )}
-                        <span>{item.priceChangePercent >= 0 ? "+" : ""}{item.priceChangePercent.toFixed(2)}%</span>
+                        <span>{item.priceChangePercent >= 0 ? "+" : ""}{safeToFixed(item.priceChangePercent, 2)}%</span>
                       </div>
                     )}
                   </div>

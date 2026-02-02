@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Target
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface StockContextBarProps {
   className?: string;
@@ -47,11 +47,11 @@ export function StockContextBar({ className }: StockContextBarProps) {
             {currentStock.price && (
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-white font-medium">
-                  ${currentStock.price.toFixed(2)}
+                  ${safeToFixed(currentStock.price, 2)}
                 </span>
                 {currentStock.change && (
                   <span className={cn("font-medium", changeColor)}>
-                    {changeSign}{currentStock.change.toFixed(2)}%
+                    {changeSign}{safeToFixed(currentStock.change, 2)}%
                   </span>
                 )}
               </div>

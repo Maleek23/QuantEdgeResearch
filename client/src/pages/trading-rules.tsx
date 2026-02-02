@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { safeToFixed } from "@/lib/utils";
 import { 
   Calculator, 
   Shield, 
@@ -184,15 +185,15 @@ export default function TradingRules() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Position Cost:</span>
-                    <span className="font-mono font-medium">${optionsPositionCost.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(optionsPositionCost, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Max Risk (10%):</span>
-                    <span className="font-mono font-medium">${optionsMaxRiskAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(optionsMaxRiskAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (50%):</span>
-                    <span className="font-mono font-medium text-red-400">-${optionsStopLossAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium text-red-400">-${safeToFixed(optionsStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -240,10 +241,10 @@ export default function TradingRules() {
                     <span className="font-medium text-red-400">Stop Loss (50% drop)</span>
                   </div>
                   <div className="text-2xl font-mono font-bold text-red-400">
-                    ${optionsStopLoss50.toFixed(2)}
+                    ${safeToFixed(optionsStopLoss50, 2)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Exit immediately if option drops to this price. Loss: -${optionsStopLossAmount.toFixed(2)}
+                    Exit immediately if option drops to this price. Loss: -${safeToFixed(optionsStopLossAmount, 2)}
                   </p>
                 </div>
 
@@ -254,9 +255,9 @@ export default function TradingRules() {
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-sm font-medium text-green-400">Target 1 (50%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${optionsTarget50.toFixed(2)}</span>
+                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget50, 2)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${(optionPrice * 50 * contracts).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${safeToFixed(optionPrice * 50 * contracts, 2)}</p>
                   </div>
 
                   <div className="p-4 rounded-lg glass-success">
@@ -265,9 +266,9 @@ export default function TradingRules() {
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-sm font-medium text-green-400">Target 2 (100%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${optionsTarget100.toFixed(2)}</span>
+                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget100, 2)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Double your money: +${(optionPrice * 100 * contracts).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Double your money: +${safeToFixed(optionPrice * 100 * contracts, 2)}</p>
                   </div>
 
                   <div className="p-4 rounded-lg glass-success">
@@ -276,9 +277,9 @@ export default function TradingRules() {
                         <Zap className="h-4 w-4 text-green-400" />
                         <span className="text-sm font-medium text-green-400">Target 3 (200%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${optionsTarget200.toFixed(2)}</span>
+                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget200, 2)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Triple up: +${(optionPrice * 200 * contracts).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Triple up: +${safeToFixed(optionPrice * 200 * contracts, 2)}</p>
                   </div>
                 </div>
               </div>
@@ -548,15 +549,15 @@ export default function TradingRules() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Position Cost:</span>
-                    <span className="font-mono font-medium">${stocksPositionCost.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(stocksPositionCost, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Max Risk (10%):</span>
-                    <span className="font-mono font-medium">${stocksMaxRiskAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(stocksMaxRiskAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (3.5%):</span>
-                    <span className="font-mono font-medium text-red-400">-${stocksStopLossAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium text-red-400">-${safeToFixed(stocksStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -604,10 +605,10 @@ export default function TradingRules() {
                     <span className="font-medium text-red-400">Stop Loss (3.5% drop)</span>
                   </div>
                   <div className="text-2xl font-mono font-bold text-red-400">
-                    ${stocksStopLossPrice.toFixed(2)}
+                    ${safeToFixed(stocksStopLossPrice, 2)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Exit if price drops below this level. Loss: -${stocksStopLossAmount.toFixed(2)}
+                    Exit if price drops below this level. Loss: -${safeToFixed(stocksStopLossAmount, 2)}
                   </p>
                 </div>
 
@@ -618,9 +619,9 @@ export default function TradingRules() {
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-sm font-medium text-green-400">Target 1 (7% - 2:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${stocksTarget1.toFixed(2)}</span>
+                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(stocksTarget1, 2)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${((stocksTarget1 - stockPrice) * shares).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${safeToFixed((stocksTarget1 - stockPrice) * shares, 2)}</p>
                   </div>
 
                   <div className="p-4 rounded-lg glass-success">
@@ -629,9 +630,9 @@ export default function TradingRules() {
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-sm font-medium text-green-400">Target 2 (10.5% - 3:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${stocksTarget2.toFixed(2)}</span>
+                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(stocksTarget2, 2)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Let winners run: +${((stocksTarget2 - stockPrice) * shares).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Let winners run: +${safeToFixed((stocksTarget2 - stockPrice) * shares, 2)}</p>
                   </div>
                 </div>
 
@@ -824,15 +825,15 @@ export default function TradingRules() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Position Cost:</span>
-                    <span className="font-mono font-medium">${cryptoPositionCost.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(cryptoPositionCost, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Max Risk (10%):</span>
-                    <span className="font-mono font-medium">${cryptoMaxRiskAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium">${safeToFixed(cryptoMaxRiskAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (5%):</span>
-                    <span className="font-mono font-medium text-red-400">-${cryptoStopLossAmount.toFixed(2)}</span>
+                    <span className="font-mono font-medium text-red-400">-${safeToFixed(cryptoStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -875,7 +876,7 @@ export default function TradingRules() {
                     ${cryptoStopLossPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Wider stop to account for crypto volatility. Loss: -${cryptoStopLossAmount.toFixed(2)}
+                    Wider stop to account for crypto volatility. Loss: -${safeToFixed(cryptoStopLossAmount, 2)}
                   </p>
                 </div>
 
@@ -888,7 +889,7 @@ export default function TradingRules() {
                       </div>
                       <span className="text-lg font-mono font-bold text-green-400">${cryptoTarget1.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Take partial profit: +${((cryptoTarget1 - cryptoPrice) * cryptoAmount).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Take partial profit: +${safeToFixed((cryptoTarget1 - cryptoPrice) * cryptoAmount, 2)}</p>
                   </div>
 
                   <div className="p-4 rounded-lg glass-success">
@@ -899,7 +900,7 @@ export default function TradingRules() {
                       </div>
                       <span className="text-lg font-mono font-bold text-green-400">${cryptoTarget2.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Let winners run: +${((cryptoTarget2 - cryptoPrice) * cryptoAmount).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Let winners run: +${safeToFixed((cryptoTarget2 - cryptoPrice) * cryptoAmount, 2)}</p>
                   </div>
                 </div>
 

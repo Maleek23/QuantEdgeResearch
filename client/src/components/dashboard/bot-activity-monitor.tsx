@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Bot, Play, Pause, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type BotStatus = "running" | "paused" | "error" | "completed";
@@ -100,7 +100,7 @@ export function BotActivityMonitor({ bots, className }: BotActivityMonitorProps)
                     bot.todayPnl >= 0 ? "text-green-400" : "text-red-400"
                   )}
                 >
-                  {bot.todayPnl >= 0 ? "+" : ""}${bot.todayPnl.toFixed(0)}
+                  {bot.todayPnl >= 0 ? "+" : ""}${safeToFixed(bot.todayPnl, 0, '0')}
                 </span>
               </div>
 

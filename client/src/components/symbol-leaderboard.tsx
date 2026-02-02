@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { fetchWithParams } from "@/lib/queryClient";
 
 interface SymbolPerformance {
@@ -133,19 +133,19 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
                     {symbol.losses}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge 
+                    <Badge
                       variant={getWinRateBadgeVariant(symbol.winRate)}
                       className={cn("font-mono", getWinRateBadgeColor(symbol.winRate))}
                       data-testid={`badge-winrate-${symbol.symbol}`}
                     >
-                      {symbol.winRate.toFixed(1)}%
+                      {safeToFixed(symbol.winRate, 1)}%
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-green-500">
-                    +{symbol.avgGain.toFixed(2)}%
+                    +{safeToFixed(symbol.avgGain, 2)}%
                   </TableCell>
                   <TableCell className="text-right font-mono text-red-500">
-                    {symbol.avgLoss.toFixed(2)}%
+                    {safeToFixed(symbol.avgLoss, 2)}%
                   </TableCell>
                 </TableRow>
               ))}

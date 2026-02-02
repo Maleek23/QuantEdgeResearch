@@ -1,11 +1,7 @@
-import { Component, ErrorInfo, ReactNode } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
@@ -15,63 +11,56 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-    errorInfo: null,
-  };
-
-  public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo);
-    this.setState({ errorInfo });
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, error };
   }
 
-  private handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
-    window.location.reload();
-  };
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('=== ERROR BOUNDARY CAUGHT ===');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('Component Stack:', errorInfo.componentStack);
+    console.error('============================');
 
-  public render() {
+    this.setState({ error, errorInfo });
+  }
+
+  render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950">
-          <Card className="w-full max-w-lg bg-slate-900/80 border-red-500/30" data-testid="error-boundary-card">
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-                <AlertTriangle className="h-8 w-8 text-red-400" />
-              </div>
-              <CardTitle className="text-xl text-red-400">Something went wrong</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                An unexpected error occurred. Please try refreshing the page.
-              </p>
-              {this.state.error && (
-                <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                  <p className="text-xs font-mono text-red-300 break-all">
-                    {this.state.error.message}
-                  </p>
-                </div>
-              )}
-              <Button 
-                onClick={this.handleReset}
-                className="w-full"
-                variant="outline"
-                data-testid="button-reload"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reload Page
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen bg-slate-900 text-white p-8">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-red-500 mb-4">Something went wrong</h1>
+            <div className="bg-slate-800 rounded-lg p-4 mb-4">
+              <h2 className="text-lg font-semibold text-red-400 mb-2">Error Message:</h2>
+              <pre className="text-sm text-red-300 whitespace-pre-wrap break-all">
+                {this.state.error?.message}
+              </pre>
+            </div>
+            <div className="bg-slate-800 rounded-lg p-4 mb-4">
+              <h2 className="text-lg font-semibold text-yellow-400 mb-2">Stack Trace:</h2>
+              <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all overflow-auto max-h-64">
+                {this.state.error?.stack}
+              </pre>
+            </div>
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h2 className="text-lg font-semibold text-cyan-400 mb-2">Component Stack:</h2>
+              <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all overflow-auto max-h-64">
+                {this.state.errorInfo?.componentStack}
+              </pre>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       );
     }

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, XCircle, AlertTriangle, Activity } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
+import { safeToFixed } from "@/lib/utils";
 
 interface ValidationResult {
   metric: string;
@@ -130,8 +131,8 @@ export function CrossValidationPanel() {
   const winRateValid = Math.abs(expectedWinRate - actualWinRate) < 0.01;
   validations.push({
     metric: 'Market Win Rate',
-    expected: `${expectedWinRate.toFixed(1)}%`,
-    actual: `${actualWinRate.toFixed(1)}%`,
+    expected: `${safeToFixed(expectedWinRate, 1)}%`,
+    actual: `${safeToFixed(actualWinRate, 1)}%`,
     source: 'Calculated vs Performance Stats',
     valid: winRateValid,
     severity: winRateValid ? 'success' : 'error'

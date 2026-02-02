@@ -9,7 +9,7 @@ import {
   Zap,
   Radio,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 function useMarketStatus() {
   const getStatus = () => {
@@ -126,7 +126,7 @@ function LiveStatsBar() {
         <Activity className="h-3.5 w-3.5 text-amber-400" />
         <span className="text-muted-foreground">VIX:</span>
         <span className={cn("font-medium", getRegimeColor(regime))}>
-          {vix.toFixed(1)}
+          {safeToFixed(vix, 1)}
         </span>
       </div>
     </div>

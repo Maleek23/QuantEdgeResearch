@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -76,7 +76,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
           <div className="flex flex-col items-center">
             <CheckCircle className="h-6 w-6 text-green-400 mb-1" />
             <p className={cn("text-2xl font-bold", getWinRateColor(stats.overall.winRate))}>
-              {stats.overall.winRate.toFixed(1)}%
+              {safeToFixed(stats.overall.winRate, 1)}%
             </p>
             <p className="text-xs text-muted-foreground">Win Rate</p>
           </div>
@@ -98,7 +98,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
           <div className="flex flex-col items-center">
             <BarChart3 className="h-6 w-6 text-purple-400 mb-1" />
             <p className={cn("text-2xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-green-500" : stats.overall.profitFactor >= 1 ? "text-amber-500" : "text-red-500")}>
-              {stats.overall.profitFactor.toFixed(2)}x
+              {safeToFixed(stats.overall.profitFactor, 2)}x
             </p>
             <p className="text-xs text-muted-foreground">Profit Factor</p>
           </div>
@@ -124,7 +124,7 @@ function SourceBreakdown({ stats }: { stats: HistoricalStats }) {
               <div className="flex justify-between items-center text-sm">
                 <span className="capitalize font-medium">{source}</span>
                 <span className={cn("font-medium", getWinRateColor(data.winRate))}>
-                  {data.winRate.toFixed(1)}%
+                  {safeToFixed(data.winRate, 1)}%
                 </span>
               </div>
               <Progress value={data.winRate} className="h-1.5" />
@@ -162,7 +162,7 @@ function TopPerformers({ stats }: { stats: HistoricalStats }) {
                   <TableCell className="font-mono text-xs">{performer.symbol}</TableCell>
                   <TableCell className="text-right text-xs">{performer.trades}</TableCell>
                   <TableCell className={cn("text-right font-bold text-xs", getWinRateColor(performer.winRate))}>
-                    {performer.winRate.toFixed(0)}%
+                    {safeToFixed(performer.winRate, 0)}%
                   </TableCell>
                 </TableRow>
               ))}
@@ -193,7 +193,7 @@ function TopPerformers({ stats }: { stats: HistoricalStats }) {
                   <TableCell className="font-mono text-xs">{performer.symbol}</TableCell>
                   <TableCell className="text-right text-xs">{performer.trades}</TableCell>
                   <TableCell className={cn("text-right font-bold text-xs", getWinRateColor(performer.winRate))}>
-                    {performer.winRate.toFixed(0)}%
+                    {safeToFixed(performer.winRate, 0)}%
                   </TableCell>
                 </TableRow>
               ))}
@@ -229,7 +229,7 @@ function DirectionBreakdown({ stats }: { stats: HistoricalStats }) {
                   <span className="text-xs text-muted-foreground">{data.ideas} ideas</span>
                 </div>
                 <span className={cn("font-medium", getWinRateColor(data.winRate))}>
-                  {data.winRate.toFixed(1)}%
+                  {safeToFixed(data.winRate, 1)}%
                 </span>
               </div>
               <Progress value={data.winRate} className="h-1.5" />

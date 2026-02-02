@@ -31,7 +31,7 @@ import {
   Gauge,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface EngineMetrics {
   engine: string;
@@ -84,11 +84,11 @@ function MetricValue({
 }) {
   let formatted: string;
   if (format === "percent") {
-    formatted = `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+    formatted = `${value >= 0 ? "+" : ""}${safeToFixed(value, 2)}%`;
   } else if (format === "ratio") {
-    formatted = value === Infinity ? "∞" : value.toFixed(2);
+    formatted = value === Infinity ? "∞" : safeToFixed(value, 2);
   } else {
-    formatted = value.toFixed(2);
+    formatted = safeToFixed(value, 2);
   }
 
   let colorClass = "text-muted-foreground";
@@ -188,9 +188,9 @@ function EngineCard({ metrics }: { metrics: EngineMetrics }) {
           <div>
             <p className="text-xs text-muted-foreground">Avg Win / Loss</p>
             <span className="text-xs font-mono">
-              <span className="text-green-500">+{metrics.avgWinPercent.toFixed(1)}%</span>
+              <span className="text-green-500">+{safeToFixed(metrics.avgWinPercent, 1)}%</span>
               {" / "}
-              <span className="text-red-500">-{metrics.avgLossPercent.toFixed(1)}%</span>
+              <span className="text-red-500">-{safeToFixed(metrics.avgLossPercent, 1)}%</span>
             </span>
           </div>
         </div>
@@ -224,7 +224,7 @@ function CalibrationChart({ bins }: { bins: CalibrationData["bins"] }) {
             />
           </div>
           <div className="text-xs font-mono w-24 text-right">
-            {bin.actualWinRate.toFixed(0)}% ({bin.sampleSize})
+            {safeToFixed(bin.actualWinRate, 0)}% ({bin.sampleSize})
           </div>
         </div>
       ))}
@@ -407,7 +407,7 @@ export function AdminMLPerformance() {
                 aggregateMetrics.avgExpectancy >= 0 ? "text-green-500" : "text-red-500"
               )}>
                 {aggregateMetrics.avgExpectancy >= 0 ? "+" : ""}
-                {aggregateMetrics.avgExpectancy.toFixed(2)}%
+                {safeToFixed(aggregateMetrics.avgExpectancy, 2)}%
               </p>
             </CardContent>
           </Card>
@@ -476,7 +476,7 @@ export function AdminMLPerformance() {
                       value={Math.max(0, 100 - calibration.brierScore * 400)}
                       className="flex-1"
                     />
-                    <span className="font-mono text-sm">{calibration.brierScore.toFixed(3)}</span>
+                    <span className="font-mono text-sm">{safeToFixed(calibration.brierScore, 3)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {calibration.brierScore < 0.15
@@ -494,7 +494,7 @@ export function AdminMLPerformance() {
                       className="flex-1"
                     />
                     <span className="font-mono text-sm">
-                      {calibration.expectedCalibrationError.toFixed(1)}%
+                      {safeToFixed(calibration.expectedCalibrationError, 1)}%
                     </span>
                   </div>
                 </div>
@@ -502,7 +502,7 @@ export function AdminMLPerformance() {
                   <p className="text-xs text-muted-foreground">Reliability Score</p>
                   <div className="flex items-center gap-2">
                     <Progress value={calibration.reliability} className="flex-1" />
-                    <span className="font-mono text-sm">{calibration.reliability.toFixed(0)}%</span>
+                    <span className="font-mono text-sm">{safeToFixed(calibration.reliability, 0)}%</span>
                   </div>
                 </div>
                 {calibration.recommendations.length > 0 && (

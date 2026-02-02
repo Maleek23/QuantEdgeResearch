@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { 
   BarChart3, Zap, RefreshCw, Target, LineChart, ChevronRight
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { format } from "date-fns";
 import { Link } from "wouter";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";
@@ -78,7 +78,7 @@ function BotActivityMonitor() {
             <div className={cn("text-lg font-mono font-bold",
               todayPnL >= 0 ? "text-green-400" : "text-red-400"
             )}>
-              {todayPnL >= 0 ? '+' : ''}{todayPnL.toFixed(0)}
+              {todayPnL >= 0 ? '+' : ''}{safeToFixed(todayPnL, 0)}
             </div>
           </div>
         </div>
@@ -151,11 +151,11 @@ function PaperPortfolios() {
               <div key={p.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
                 <span className="text-sm">{p.name}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono">${totalValue.toFixed(0)}</span>
+                  <span className="text-sm font-mono">${safeToFixed(totalValue, 0)}</span>
                   <Badge variant="outline" className={cn("text-xs",
                     pnlPct >= 0 ? "text-green-400" : "text-red-400"
                   )}>
-                    {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%
+                    {pnlPct >= 0 ? '+' : ''}{safeToFixed(pnlPct, 1)}%
                   </Badge>
                 </div>
               </div>

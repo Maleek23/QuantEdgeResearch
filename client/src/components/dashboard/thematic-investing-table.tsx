@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Layers, TrendingUp, ExternalLink } from "lucide-react";
 
 type ConvictionLevel = "high" | "medium" | "speculative";
@@ -101,17 +101,17 @@ export function ThematicInvestingTable({
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="font-mono text-sm tabular-nums text-slate-300">
-                      ${stock.entry.toFixed(2)}
+                      ${safeToFixed(stock.entry, 2)}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="font-mono text-sm tabular-nums text-green-400">
-                      ${stock.target.toFixed(0)}
+                      ${safeToFixed(stock.target, 0)}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
                     <span className="font-mono text-sm tabular-nums text-green-400">
-                      +{stock.upside.toFixed(0)}%
+                      +{safeToFixed(stock.upside, 0)}%
                     </span>
                   </td>
                   <td className="py-3 px-2 text-center">

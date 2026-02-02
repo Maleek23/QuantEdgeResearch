@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Activity, BarChart3, Target, AlertCircle } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, safeToFixed } from "@/lib/utils";
 
 interface CryptoQuantAnalysisProps {
   symbol: string;
@@ -81,7 +81,7 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <span className={`text-2xl font-bold font-mono ${getRSIColor(rsi.value)}`} data-testid={`rsi-value-${symbol}`}>
-                  {rsi.value.toFixed(2)}
+                  {safeToFixed(rsi.value, 2)}
                 </span>
                 <Badge variant={rsi.direction === 'long' ? 'default' : rsi.direction === 'short' ? 'destructive' : 'secondary'}>
                   {rsi.signal.replace('_', ' ').toUpperCase()}
@@ -106,7 +106,7 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <span className={`text-2xl font-bold font-mono ${getMACDColor(macd.histogram)}`} data-testid={`macd-value-${symbol}`}>
-                  {macd.histogram > 0 ? '+' : ''}{macd.histogram.toFixed(4)}
+                  {macd.histogram > 0 ? '+' : ''}{safeToFixed(macd.histogram, 4, '0.0000')}
                 </span>
                 <Badge variant={macd.direction === 'long' ? 'default' : macd.direction === 'short' ? 'destructive' : 'secondary'}>
                   {macd.analysis.replace('_', ' ').toUpperCase()}
@@ -199,7 +199,7 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
                 {formatCurrency(analysis.currentPrice)}
               </p>
               <p className={`text-xs font-semibold mt-1 ${analysis.changePercent >= 0 ? 'text-bullish' : 'text-bearish'}`}>
-                {analysis.changePercent >= 0 ? '+' : ''}{analysis.changePercent.toFixed(2)}%
+                {analysis.changePercent >= 0 ? '+' : ''}{safeToFixed(analysis.changePercent, 2)}%
               </p>
             </div>
             <div className="text-center">

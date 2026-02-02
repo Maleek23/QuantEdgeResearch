@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface EngineMetrics {
   tradesWon: number;
@@ -124,7 +124,7 @@ export function UserPerformanceSummary() {
               <div>
                 <p className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Platform Reliability</p>
                 <p className={cn("text-4xl font-bold font-mono", getWinRateColor(overallWinRate))}>
-                  {overallWinRate.toFixed(0)}%
+                  {safeToFixed(overallWinRate, 0)}%
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   {wins} wins, {losses} losses ({totalDecided} resolved)
@@ -144,7 +144,7 @@ export function UserPerformanceSummary() {
                   "text-2xl font-bold font-mono",
                   (stats?.overall?.avgPercentGain ?? 0) >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {(stats?.overall?.avgPercentGain ?? 0) >= 0 ? '+' : ''}{(stats?.overall?.avgPercentGain ?? 0).toFixed(1)}%
+                  {(stats?.overall?.avgPercentGain ?? 0) >= 0 ? '+' : ''}{safeToFixed(stats?.overall?.avgPercentGain ?? 0, 1)}%
                 </p>
               </div>
               <div className="text-center">
@@ -153,7 +153,7 @@ export function UserPerformanceSummary() {
                   "text-2xl font-bold font-mono",
                   (botData?.overall?.totalPnL ?? 0) >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {(botData?.overall?.totalPnL ?? 0) >= 0 ? '+' : ''}${(botData?.overall?.totalPnL ?? 0).toFixed(0)}
+                  {(botData?.overall?.totalPnL ?? 0) >= 0 ? '+' : ''}${safeToFixed(botData?.overall?.totalPnL ?? 0, 0)}
                 </p>
               </div>
             </div>
@@ -191,7 +191,7 @@ export function UserPerformanceSummary() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className={cn("text-xl font-bold font-mono", getWinRateColor(winRate))}>
-                      {winRate !== null ? `${winRate.toFixed(0)}%` : '—'}
+                      {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
                     </span>
                     <span className="text-xs text-muted-foreground">win rate</span>
                   </div>
@@ -235,7 +235,7 @@ export function UserPerformanceSummary() {
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Win Rate</p>
                 <p className={cn("text-xl font-bold font-mono", getWinRateColor(botData.overall.winRate))}>
-                  {botData.overall.winRate.toFixed(0)}%
+                  {safeToFixed(botData.overall.winRate, 0)}%
                 </p>
               </div>
               <div>
@@ -252,7 +252,7 @@ export function UserPerformanceSummary() {
                   "text-xl font-bold font-mono",
                   botData.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {botData.overall.totalPnL >= 0 ? '+' : ''}${botData.overall.totalPnL.toFixed(0)}
+                  {botData.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData.overall.totalPnL, 0)}
                 </p>
               </div>
             </div>

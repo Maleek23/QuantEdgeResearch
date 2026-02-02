@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Zap, TrendingUp, Activity, Target, Shield, Sparkles } from 'lucide-react';
+import { safeToFixed } from '@/lib/utils';
 
 interface EngineNode {
   id: string;
@@ -202,7 +203,7 @@ export function AIBrainVisualization() {
                   Win Rate: {engine.winRate > 0 ? `${engine.winRate}%` : 'N/A'}
                 </div>
                 <div className="text-xs text-gray-400">
-                  Confidence: {engine.confidence.toFixed(0)}%
+                  Confidence: {safeToFixed(engine.confidence, 0)}%
                 </div>
                 <div className="text-xs text-gray-400">
                   {engine.tradesProcessed.toLocaleString()} trades analyzed

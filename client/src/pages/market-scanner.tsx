@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { safeToFixed } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSearch, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -301,30 +302,30 @@ function getTrendIcon(trend: string) {
 }
 
 const formatPrice = (price: number) => {
-  if (price >= 1) return `$${price.toFixed(2)}`;
-  if (price >= 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(8)}`;
+  if (price >= 1) return `$${safeToFixed(price, 2)}`;
+  if (price >= 0.01) return `$${safeToFixed(price, 4)}`;
+  return `$${safeToFixed(price, 8, '0.00000000')}`;
 };
 
 const formatPercentage = (value: number | undefined) => {
   if (value === undefined || value === null) return "-";
   const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
+  return `${prefix}${safeToFixed(value, 2)}%`;
 };
 
 const formatVolume = (vol: number) => {
-  if (vol >= 1e9) return `${(vol / 1e9).toFixed(1)}B`;
-  if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
-  if (vol >= 1e3) return `${(vol / 1e3).toFixed(1)}K`;
+  if (vol >= 1e9) return `${safeToFixed(vol / 1e9, 1, '0.0')}B`;
+  if (vol >= 1e6) return `${safeToFixed(vol / 1e6, 1, '0.0')}M`;
+  if (vol >= 1e3) return `${safeToFixed(vol / 1e3, 1, '0.0')}K`;
   return vol.toString();
 };
 
 const formatMarketCap = (cap: number | undefined) => {
   if (!cap) return "-";
-  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(1)}T`;
-  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(1)}B`;
-  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(0)}M`;
-  return `$${cap.toFixed(0)}`;
+  if (cap >= 1e12) return `$${safeToFixed(cap / 1e12, 1, '0.0')}T`;
+  if (cap >= 1e9) return `$${safeToFixed(cap / 1e9, 1, '0.0')}B`;
+  if (cap >= 1e6) return `$${safeToFixed(cap / 1e6, 0, '0')}M`;
+  return `$${safeToFixed(cap, 0, '0')}`;
 };
 
 function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: string }) {
@@ -529,7 +530,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                   </div>
                   {contract.awardAmount && (
                     <span className="text-green-400 font-mono">
-                      ${(contract.awardAmount / 1e6).toFixed(1)}M
+                      ${safeToFixed(contract.awardAmount / 1e6, 1, '0.0')}M
                     </span>
                   )}
                 </div>
@@ -589,7 +590,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                         variant="secondary"
                         className={`text-[10px] ${trade.outcome === 'hit_target' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
                       >
-                        {trade.outcome === 'hit_target' ? 'WIN' : 'LOSS'} {trade.gain > 0 ? '+' : ''}{trade.gain?.toFixed(1)}%
+                        {trade.outcome === 'hit_target' ? 'WIN' : 'LOSS'} {trade.gain > 0 ? '+' : ''}{safeToFixed(trade.gain, 1, '0.0')}%
                       </Badge>
                     </div>
                   ))}
@@ -647,9 +648,9 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                     <span className="font-mono font-medium">{year}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground">{stats.trades} trades</span>
-                      <span className="text-green-400">{stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(0) : 0}% win</span>
+                      <span className="text-green-400">{stats.trades > 0 ? safeToFixed((stats.wins / stats.trades) * 100, 0, '0') : 0}% win</span>
                       <span className={`font-mono ${avgGainNum >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
-                        {avgGainNum >= 0 ? '+' : ''}{avgGainNum.toFixed(1)}%
+                        {avgGainNum >= 0 ? '+' : ''}{safeToFixed(avgGainNum, 1, '0.0')}%
                       </span>
                     </div>
                   </div>
@@ -762,7 +763,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-cyan-400">{pick.volumeRatio.toFixed(1)}x avg</p>
+                <p className="text-xs text-cyan-400">{safeToFixed(pick.volumeRatio, 1, '0.0')}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -772,7 +773,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             {pick.distanceFrom52High !== undefined && (
               <div className="bg-card border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">From 52W High</p>
-                <p className="font-mono font-medium text-amber-400">-{pick.distanceFrom52High.toFixed(1)}%</p>
+                <p className="font-mono font-medium text-amber-400">-{safeToFixed(pick.distanceFrom52High, 1, '0.0')}%</p>
               </div>
             )}
             {pick.week52High && (
@@ -1106,12 +1107,12 @@ export default function MarketScanner() {
                         </Badge>
                       </div>
                       <div className={`font-mono font-bold ${surge.priceChangePercent > 0 ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-change-${surge.symbol}`}>
-                        {surge.priceChangePercent > 0 ? '+' : ''}{surge.priceChangePercent.toFixed(1)}%
+                        {surge.priceChangePercent > 0 ? '+' : ''}{safeToFixed(surge.priceChangePercent, 1, '0.0')}%
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                      <span className="font-mono" data-testid={`text-price-${surge.symbol}`}>${surge.currentPrice.toFixed(2)}</span>
-                      <span className="text-cyan-400" data-testid={`text-volume-${surge.symbol}`}>{surge.volumeRatio.toFixed(1)}x vol</span>
+                      <span className="font-mono" data-testid={`text-price-${surge.symbol}`}>${safeToFixed(surge.currentPrice, 2)}</span>
+                      <span className="text-cyan-400" data-testid={`text-volume-${surge.symbol}`}>{safeToFixed(surge.volumeRatio, 1, '0.0')}x vol</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       <Badge variant="outline" className="text-xs" data-testid={`badge-type-${surge.symbol}`}>
@@ -1452,7 +1453,7 @@ export default function MarketScanner() {
                                 ticker.sentimentScore < 0 ? 'text-red-400' :
                                 'text-slate-400'
                               }`}>
-                                {ticker.sentimentScore > 0 ? '+' : ''}{ticker.sentimentScore.toFixed(0)}
+                                {ticker.sentimentScore > 0 ? '+' : ''}{safeToFixed(ticker.sentimentScore, 0, '0')}
                               </span>
                             </div>
 
@@ -1462,7 +1463,7 @@ export default function MarketScanner() {
                                 <span className={`font-mono font-medium ${
                                   ticker.change24h > 0 ? 'text-green-400' : 'text-red-400'
                                 }`}>
-                                  {ticker.change24h > 0 ? '+' : ''}{ticker.change24h.toFixed(1)}%
+                                  {ticker.change24h > 0 ? '+' : ''}{safeToFixed(ticker.change24h, 1, '0.0')}%
                                 </span>
                               </div>
                             )}
@@ -1605,7 +1606,7 @@ export default function MarketScanner() {
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">Est. EPS</span>
                                 <span className="font-mono font-medium text-emerald-400">
-                                  ${event.estimatedEPS.toFixed(2)}
+                                  ${safeToFixed(event.estimatedEPS, 2)}
                                 </span>
                               </div>
                             )}
@@ -1616,7 +1617,7 @@ export default function MarketScanner() {
                                 <span className={`font-mono font-medium ${
                                   event.surprise >= 0 ? 'text-green-400' : 'text-red-400'
                                 }`}>
-                                  {event.surprise >= 0 ? '+' : ''}{event.surprise.toFixed(1)}%
+                                  {event.surprise >= 0 ? '+' : ''}{safeToFixed(event.surprise, 1, '0.0')}%
                                 </span>
                               </div>
                             )}
@@ -1739,14 +1740,14 @@ export default function MarketScanner() {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">Current Price</span>
                               <span className="font-mono font-medium">
-                                ${signal.currentPrice.toFixed(2)}
+                                ${safeToFixed(signal.currentPrice, 2)}
                               </span>
                             </div>
 
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">Breakout Level</span>
                               <span className="font-mono font-medium text-purple-400">
-                                ${signal.breakoutLevel.toFixed(2)}
+                                ${safeToFixed(signal.breakoutLevel, 2)}
                               </span>
                             </div>
 
@@ -1755,7 +1756,7 @@ export default function MarketScanner() {
                               <span className={`font-mono font-medium ${
                                 signal.percentFromBreakout >= 0 ? 'text-green-400' : 'text-red-400'
                               }`}>
-                                {signal.percentFromBreakout >= 0 ? '+' : ''}{signal.percentFromBreakout.toFixed(1)}%
+                                {signal.percentFromBreakout >= 0 ? '+' : ''}{safeToFixed(signal.percentFromBreakout, 1, '0.0')}%
                               </span>
                             </div>
 
@@ -1764,7 +1765,7 @@ export default function MarketScanner() {
                               <span className={`font-mono font-medium ${
                                 signal.volumeRatio >= 1.5 ? 'text-cyan-400' : 'text-slate-400'
                               }`}>
-                                {signal.volumeRatio.toFixed(1)}x
+                                {safeToFixed(signal.volumeRatio, 1, '0.0')}x
                               </span>
                             </div>
 
@@ -1880,7 +1881,7 @@ export default function MarketScanner() {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span className="font-mono">${opp.currentPrice.toFixed(2)}</span>
+                          <span className="font-mono">${safeToFixed(opp.currentPrice, 2)}</span>
                           <span>•</span>
                           <span className="truncate text-xs">{opp.pattern}</span>
                         </div>
@@ -1890,25 +1891,25 @@ export default function MarketScanner() {
                           <div>
                             <span className="text-muted-foreground">VWAP:</span>
                             <span className={`ml-2 font-mono ${opp.vwapDistance > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              ${opp.vwap.toFixed(2)} ({opp.vwapDistance > 0 ? '+' : ''}{opp.vwapDistance.toFixed(1)}%)
+                              ${safeToFixed(opp.vwap, 2)} ({opp.vwapDistance > 0 ? '+' : ''}{safeToFixed(opp.vwapDistance, 1, '0.0')}%)
                             </span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">RSI(2):</span>
                             <span className={`ml-2 font-mono ${opp.rsi2 < 20 ? 'text-red-400' : opp.rsi2 > 80 ? 'text-green-400' : ''}`}>
-                              {opp.rsi2.toFixed(0)}
+                              {safeToFixed(opp.rsi2, 0, '0')}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Target className="w-3 h-3 text-green-500" />
                             <span className="text-green-400">
-                              ${opp.target.toFixed(2)} (+{opp.targetPercent.toFixed(1)}%)
+                              ${safeToFixed(opp.target, 2)} (+{safeToFixed(opp.targetPercent, 1, '0.0')}%)
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3 text-red-500" />
                             <span className="text-red-400">
-                              ${opp.stopLoss.toFixed(2)} (-{opp.stopPercent.toFixed(1)}%)
+                              ${safeToFixed(opp.stopLoss, 2)} (-{safeToFixed(opp.stopPercent, 1, '0.0')}%)
                             </span>
                           </div>
                         </div>
@@ -1916,10 +1917,10 @@ export default function MarketScanner() {
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-1 text-muted-foreground">
                             <Activity className="w-3 h-3" />
-                            <span>{opp.volumeSpike.toFixed(1)}x vol</span>
+                            <span>{safeToFixed(opp.volumeSpike, 1, '0.0')}x vol</span>
                           </div>
                           <Badge variant="outline" className={`text-xs ${opp.riskReward >= 2 ? 'text-green-400 border-green-500/30' : ''}`}>
-                            R:R {opp.riskReward.toFixed(1)}:1
+                            R:R {safeToFixed(opp.riskReward, 1, '0.0')}:1
                           </Badge>
                         </div>
 
@@ -2028,24 +2029,24 @@ export default function MarketScanner() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <span className="text-muted-foreground">Entry:</span>
-                            <span className="ml-2 font-mono">${opp.currentPrice.toFixed(2)}</span>
+                            <span className="ml-2 font-mono">${safeToFixed(opp.currentPrice, 2)}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">RSI(14):</span>
                             <span className={`ml-2 font-mono ${opp.rsi14 < 30 ? 'text-red-400' : opp.rsi14 < 40 ? 'text-orange-400' : ''}`}>
-                              {opp.rsi14.toFixed(1)}
+                              {safeToFixed(opp.rsi14, 1, '0.0')}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Target className="w-3 h-3 text-green-500" />
                             <span className="text-green-400">
-                              ${opp.targetPrice.toFixed(2)} (+{opp.targetPercent.toFixed(1)}%)
+                              ${safeToFixed(opp.targetPrice, 2)} (+{safeToFixed(opp.targetPercent, 1, '0.0')}%)
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3 text-red-500" />
                             <span className="text-red-400">
-                              ${opp.stopLoss.toFixed(2)} (-{opp.stopLossPercent.toFixed(1)}%)
+                              ${safeToFixed(opp.stopLoss, 2)} (-{safeToFixed(opp.stopLossPercent, 1, '0.0')}%)
                             </span>
                           </div>
                         </div>
@@ -2061,7 +2062,7 @@ export default function MarketScanner() {
                         </div>
 
                         <div className="text-xs text-muted-foreground">
-                          Volume: {opp.volumeRatio.toFixed(1)}x avg • SMA50: ${opp.sma50.toFixed(2)}
+                          Volume: {safeToFixed(opp.volumeRatio, 1, '0.0')}x avg • SMA50: ${safeToFixed(opp.sma50, 2)}
                         </div>
 
                         <Button

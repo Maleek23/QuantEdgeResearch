@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from "recharts";
+import { safeToFixed } from "@/lib/utils";
 
 interface LossSummary {
   totalLosses: number;
@@ -99,7 +100,7 @@ function LossReasonsPieChart({ data }: { data: { reason: string; count: number; 
               fontSize: '12px'
             }}
             formatter={(value: number, name: string, props: any) => [
-              `${value} trades (${props.payload.avgLoss.toFixed(1)}% avg loss)`,
+              `${value} trades (${safeToFixed(props.payload.avgLoss, 1)}% avg loss)`,
               name
             ]}
           />
@@ -137,7 +138,7 @@ function EngineBreakdownChart({ data }: { data: { engine: string; count: number;
               fontSize: '12px'
             }}
             formatter={(value: number, name: string, props: any) => [
-              `${value} losses (${props.payload.avgLoss.toFixed(1)}% avg)`,
+              `${value} losses (${safeToFixed(props.payload.avgLoss, 1)}% avg)`,
               'Count'
             ]}
           />
@@ -242,11 +243,11 @@ export function LossPatternsDashboard() {
             <p className="text-sm text-muted-foreground">Total Losses</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <p className="text-2xl font-bold text-amber-500">{summary.avgLoss.toFixed(2)}%</p>
+            <p className="text-2xl font-bold text-amber-500">{safeToFixed(summary.avgLoss, 2)}%</p>
             <p className="text-sm text-muted-foreground">Avg Loss</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
-            <p className="text-2xl font-bold text-orange-500">{summary.totalLossAmount.toFixed(1)}%</p>
+            <p className="text-2xl font-bold text-orange-500">{safeToFixed(summary.totalLossAmount, 1)}%</p>
             <p className="text-sm text-muted-foreground">Total Lost</p>
           </div>
         </div>
@@ -283,7 +284,7 @@ export function LossPatternsDashboard() {
                                 {reason.count} trades
                               </Badge>
                               <span className="text-red-500 text-xs font-mono">
-                                {reason.avgLoss.toFixed(2)}% avg
+                                {safeToFixed(reason.avgLoss, 2)}% avg
                               </span>
                             </div>
                           </div>
@@ -320,7 +321,7 @@ export function LossPatternsDashboard() {
                       <span className="text-sm font-medium">{formatEngine(engine.engine)}</span>
                       <div className="text-right">
                         <span className="text-sm text-muted-foreground">{engine.count}</span>
-                        <span className="text-xs text-red-500 ml-2">({engine.avgLoss.toFixed(1)}%)</span>
+                        <span className="text-xs text-red-500 ml-2">({safeToFixed(engine.avgLoss, 1)}%)</span>
                       </div>
                     </div>
                   ))}
@@ -349,7 +350,7 @@ export function LossPatternsDashboard() {
                 >
                   <span className="font-mono font-bold">{symbol.symbol}</span>
                   <span className="ml-2 text-red-500">
-                    {symbol.totalLoss.toFixed(1)}%
+                    {safeToFixed(symbol.totalLoss, 1)}%
                   </span>
                   <span className="ml-1 text-muted-foreground">
                     ({symbol.count}x)

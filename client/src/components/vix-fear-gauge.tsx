@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface MarketRegime {
@@ -77,7 +77,7 @@ export function VixFearGauge() {
               </div>
             </div>
             <div className="text-right">
-              <p className={cn("text-2xl font-bold", gauge.color)}>{vix.toFixed(1)}</p>
+              <p className={cn("text-2xl font-bold", gauge.color)}>{safeToFixed(vix, 1)}</p>
               <p className="text-xs text-muted-foreground">{gauge.label}</p>
             </div>
           </div>

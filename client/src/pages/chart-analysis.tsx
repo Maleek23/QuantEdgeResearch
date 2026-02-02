@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time, CandlestickSeries, LineSeries, createSeriesMarkers } from "lightweight-charts";
 
 interface PatternData {
@@ -477,9 +477,9 @@ function PriceRangeBar({ entry, target, stop, sentiment }: {
         />
       </div>
       <div className="flex justify-between text-xs">
-        <span className="text-red-500" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
-        <span className="text-primary font-medium" data-testid="text-range-entry">Entry ${entry.toFixed(2)}</span>
-        <span className="text-green-500" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
+        <span className="text-red-500" data-testid="text-range-stop">Stop ${safeToFixed(stop, 2)}</span>
+        <span className="text-primary font-medium" data-testid="text-range-entry">Entry ${safeToFixed(entry, 2)}</span>
+        <span className="text-green-500" data-testid="text-range-target">Target ${safeToFixed(target, 2)}</span>
       </div>
     </div>
   );
@@ -542,7 +542,7 @@ function TrendArrow({ sentiment, confidence, gainPercent }: {
           "text-2xl font-bold block font-mono tabular-nums",
           isBullish ? "text-green-500" : isBearish ? "text-red-500" : "text-muted-foreground"
         )} data-testid="text-expected-move">
-          {isBullish ? "+" : isBearish ? "-" : "±"}{Math.abs(gainPercent).toFixed(1)}%
+          {isBullish ? "+" : isBearish ? "-" : "±"}{safeToFixed(Math.abs(gainPercent), 1)}%
         </span>
         <p className="text-xs text-muted-foreground">Expected</p>
       </div>
@@ -671,7 +671,7 @@ function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: n
         <span className="text-muted-foreground">Signal Balance</span>
         <span className="text-green-500 font-medium">Bulls</span>
       </div>
-      <div className="relative h-4 bg-muted/30 rounded-full overflow-hidden flex" role="img" aria-label={`Signal balance: ${bullishPercent.toFixed(0)}% bullish`}>
+      <div className="relative h-4 bg-muted/30 rounded-full overflow-hidden flex" role="img" aria-label={`Signal balance: ${safeToFixed(bullishPercent, 0)}% bullish`}>
         <div 
           className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
           style={{ width: `${100 - bullishPercent}%` }}
@@ -685,8 +685,8 @@ function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: n
         </div>
       </div>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span data-testid="text-bearish-percent">{(100 - bullishPercent).toFixed(0)}%</span>
-        <span data-testid="text-bullish-percent">{bullishPercent.toFixed(0)}%</span>
+        <span data-testid="text-bearish-percent">{safeToFixed(100 - bullishPercent, 0)}%</span>
+        <span data-testid="text-bullish-percent">{safeToFixed(bullishPercent, 0)}%</span>
       </div>
     </div>
   );
@@ -823,19 +823,19 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Entry</p>
                 <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-day-entry">
-                  ${dayTrade.entry.toFixed(2)}
+                  ${safeToFixed(dayTrade.entry, 2)}
                 </p>
               </div>
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Target</p>
                 <p className="font-mono tabular-nums font-semibold text-green-400" data-testid="text-day-target">
-                  ${dayTrade.target.toFixed(2)}
+                  ${safeToFixed(dayTrade.target, 2)}
                 </p>
               </div>
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Stop</p>
                 <p className="font-mono tabular-nums font-semibold text-red-400" data-testid="text-day-stop">
-                  ${dayTrade.stop.toFixed(2)}
+                  ${safeToFixed(dayTrade.stop, 2)}
                 </p>
               </div>
             </div>
@@ -846,7 +846,7 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
                 "font-mono tabular-nums font-medium",
                 dayTrade.rrRatio >= 1.5 ? "text-green-400" : dayTrade.rrRatio >= 1 ? "text-amber-400" : "text-red-400"
               )} data-testid="text-day-rr">
-                1:{dayTrade.rrRatio.toFixed(1)}
+                1:{safeToFixed(dayTrade.rrRatio, 1)}
               </span>
             </div>
             
@@ -881,19 +881,19 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Entry</p>
                 <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-swing-entry">
-                  ${swingTrade.entry.toFixed(2)}
+                  ${safeToFixed(swingTrade.entry, 2)}
                 </p>
               </div>
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Target</p>
                 <p className="font-mono tabular-nums font-semibold text-green-400" data-testid="text-swing-target">
-                  ${swingTrade.target.toFixed(2)}
+                  ${safeToFixed(swingTrade.target, 2)}
                 </p>
               </div>
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Stop</p>
                 <p className="font-mono tabular-nums font-semibold text-red-400" data-testid="text-swing-stop">
-                  ${swingTrade.stop.toFixed(2)}
+                  ${safeToFixed(swingTrade.stop, 2)}
                 </p>
               </div>
             </div>
@@ -904,7 +904,7 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
                 "font-mono tabular-nums font-medium",
                 swingTrade.rrRatio >= 2 ? "text-green-400" : swingTrade.rrRatio >= 1.5 ? "text-amber-400" : "text-red-400"
               )} data-testid="text-swing-rr">
-                1:{swingTrade.rrRatio.toFixed(1)}
+                1:{safeToFixed(swingTrade.rrRatio, 1)}
               </span>
             </div>
             
@@ -1419,7 +1419,7 @@ function PatternSearchTab() {
                   Current Price
                 </p>
                 <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-pattern-price">
-                  ${patternData.currentPrice.toFixed(2)}
+                  ${safeToFixed(patternData.currentPrice, 2)}
                 </p>
               </CardContent>
             </Card>
@@ -1438,7 +1438,7 @@ function PatternSearchTab() {
                   ) : (
                     <TrendingDown className="h-4 w-4" />
                   )}
-                  {patternData.priceChange >= 0 ? "+" : ""}{patternData.priceChange.toFixed(2)}%
+                  {patternData.priceChange >= 0 ? "+" : ""}{safeToFixed(patternData.priceChange, 2)}%
                 </p>
               </CardContent>
             </Card>
@@ -1497,7 +1497,7 @@ function PatternSearchTab() {
                 <Activity className="h-5 w-5 text-purple-400" />
                 RSI (14)
                 <Badge variant="outline" className="ml-2 font-mono tabular-nums" data-testid="badge-pattern-rsi-value">
-                  {patternData.indicators.rsi.value.toFixed(1)}
+                  {safeToFixed(patternData.indicators.rsi.value, 1)}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -1556,7 +1556,7 @@ function PatternSearchTab() {
                 <TableBody>
                   <TableRow data-testid="row-pattern-rsi">
                     <TableCell className="font-medium">RSI (14)</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi.value < 30 ? (
                         <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
@@ -1569,7 +1569,7 @@ function PatternSearchTab() {
                   </TableRow>
                   <TableRow data-testid="row-pattern-rsi2">
                     <TableCell className="font-medium">RSI (2)</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi2.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi2.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi2.value < 10 ? (
                         <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Extreme Oversold</Badge>
@@ -1583,7 +1583,7 @@ function PatternSearchTab() {
                   <TableRow data-testid="row-pattern-macd">
                     <TableCell className="font-medium">MACD</TableCell>
                     <TableCell className="font-mono tabular-nums">
-                      {patternData.indicators.macd.macd.toFixed(4)} / {patternData.indicators.macd.signal.toFixed(4)}
+                      {safeToFixed(patternData.indicators.macd.macd, 4)} / {safeToFixed(patternData.indicators.macd.signal, 4)}
                     </TableCell>
                     <TableCell>
                       {patternData.indicators.macd.histogram > 0 ? (
@@ -1596,9 +1596,9 @@ function PatternSearchTab() {
                   <TableRow data-testid="row-pattern-bb">
                     <TableCell className="font-medium">Bollinger Bands</TableCell>
                     <TableCell className="font-mono tabular-nums text-xs">
-                      U: ${patternData.indicators.bollingerBands.upper.toFixed(2)} | 
-                      M: ${patternData.indicators.bollingerBands.middle.toFixed(2)} | 
-                      L: ${patternData.indicators.bollingerBands.lower.toFixed(2)}
+                      U: ${safeToFixed(patternData.indicators.bollingerBands.upper, 2)} |
+                      M: ${safeToFixed(patternData.indicators.bollingerBands.middle, 2)} |
+                      L: ${safeToFixed(patternData.indicators.bollingerBands.lower, 2)}
                     </TableCell>
                     <TableCell>
                       {patternData.currentPrice < patternData.indicators.bollingerBands.lower ? (
@@ -1612,7 +1612,7 @@ function PatternSearchTab() {
                   </TableRow>
                   <TableRow data-testid="row-pattern-adx">
                     <TableCell className="font-medium">ADX</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.adx.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.adx.value, 2)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
                         {patternData.indicators.adx.regime} ({patternData.indicators.adx.suitableFor.replace("_", " ")})
@@ -1623,7 +1623,7 @@ function PatternSearchTab() {
                     <TableRow data-testid="row-pattern-stochrsi">
                       <TableCell className="font-medium">Stochastic RSI</TableCell>
                       <TableCell className="font-mono tabular-nums">
-                        K: {patternData.indicators.stochRSI.k.toFixed(2)} / D: {patternData.indicators.stochRSI.d.toFixed(2)}
+                        K: {safeToFixed(patternData.indicators.stochRSI.k, 2)} / D: {safeToFixed(patternData.indicators.stochRSI.d, 2)}
                       </TableCell>
                       <TableCell>
                         {patternData.indicators.stochRSI.k < 20 ? (
@@ -1639,7 +1639,7 @@ function PatternSearchTab() {
                   {patternData.indicators.williamsR && (
                     <TableRow data-testid="row-pattern-williamsr">
                       <TableCell className="font-medium">Williams %R (14)</TableCell>
-                      <TableCell className="font-mono tabular-nums">{patternData.indicators.williamsR.value.toFixed(2)}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.williamsR.value, 2)}</TableCell>
                       <TableCell>
                         <Badge className={cn(
                           patternData.indicators.williamsR.interpretation === 'oversold' 
@@ -1654,7 +1654,7 @@ function PatternSearchTab() {
                   {patternData.indicators.cci && (
                     <TableRow data-testid="row-pattern-cci">
                       <TableCell className="font-medium">CCI (20)</TableCell>
-                      <TableCell className="font-mono tabular-nums">{patternData.indicators.cci.value.toFixed(2)}</TableCell>
+                      <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.cci.value, 2)}</TableCell>
                       <TableCell>
                         <Badge className={cn(
                           patternData.indicators.cci.interpretation === 'oversold' 
@@ -1669,7 +1669,7 @@ function PatternSearchTab() {
                   {patternData.indicators.vwap && (
                     <TableRow data-testid="row-pattern-vwap">
                       <TableCell className="font-medium">VWAP</TableCell>
-                      <TableCell className="font-mono tabular-nums">${patternData.indicators.vwap.value.toFixed(2)}</TableCell>
+                      <TableCell className="font-mono tabular-nums">${safeToFixed(patternData.indicators.vwap.value, 2)}</TableCell>
                       <TableCell>
                         <Badge className={cn(
                           patternData.indicators.vwap.priceVsVwap === 'above' 
@@ -1717,7 +1717,7 @@ function PatternSearchTab() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Confluence Score</span>
                     <span className="font-mono tabular-nums font-semibold" data-testid="text-confluence-score">
-                      {patternData.multiLayerAnalysis.confluenceScore.toFixed(0)}%
+                      {safeToFixed(patternData.multiLayerAnalysis.confluenceScore, 0)}%
                     </span>
                   </div>
                   <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
@@ -1749,7 +1749,7 @@ function PatternSearchTab() {
                       <span className="text-sm font-medium">Momentum</span>
                     </div>
                     <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-layer-momentum">
-                      {patternData.multiLayerAnalysis.layers.momentum.score.toFixed(0)}
+                      {safeToFixed(patternData.multiLayerAnalysis.layers.momentum.score, 0)}
                     </div>
                     <p className="text-xs text-muted-foreground">{patternData.multiLayerAnalysis.layers.momentum.signals[0]}</p>
                   </div>
@@ -1791,7 +1791,7 @@ function PatternSearchTab() {
                       {patternData.multiLayerAnalysis.layers.volume.trend}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {patternData.multiLayerAnalysis.layers.volume.relativeVolume.toFixed(1)}x avg | MF: {patternData.multiLayerAnalysis.layers.volume.moneyFlow.toFixed(0)}
+                      {safeToFixed(patternData.multiLayerAnalysis.layers.volume.relativeVolume, 1)}x avg | MF: {safeToFixed(patternData.multiLayerAnalysis.layers.volume.moneyFlow, 0)}
                     </p>
                   </div>
                   
@@ -1814,7 +1814,7 @@ function PatternSearchTab() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      S: ${patternData.multiLayerAnalysis.layers.levels.support.toFixed(2)} | R: ${patternData.multiLayerAnalysis.layers.levels.resistance.toFixed(2)}
+                      S: ${safeToFixed(patternData.multiLayerAnalysis.layers.levels.support, 2)} | R: ${safeToFixed(patternData.multiLayerAnalysis.layers.levels.resistance, 2)}
                     </p>
                   </div>
                 </div>
@@ -1869,7 +1869,7 @@ function PatternSearchTab() {
                       <p className={cn(
                         "font-mono tabular-nums font-semibold",
                         patternData.currentPrice > patternData.indicators.ema.ema9 ? "text-green-400" : "text-red-400"
-                      )} data-testid="text-ema9">${patternData.indicators.ema.ema9.toFixed(2)}</p>
+                      )} data-testid="text-ema9">${safeToFixed(patternData.indicators.ema.ema9, 2)}</p>
                     ) : (
                       <p className="text-muted-foreground text-sm" data-testid="text-ema9">N/A</p>
                     )}
@@ -1880,7 +1880,7 @@ function PatternSearchTab() {
                       <p className={cn(
                         "font-mono tabular-nums font-semibold",
                         patternData.currentPrice > patternData.indicators.ema.ema21 ? "text-green-400" : "text-red-400"
-                      )} data-testid="text-ema21">${patternData.indicators.ema.ema21.toFixed(2)}</p>
+                      )} data-testid="text-ema21">${safeToFixed(patternData.indicators.ema.ema21, 2)}</p>
                     ) : (
                       <p className="text-muted-foreground text-sm" data-testid="text-ema21">N/A</p>
                     )}
@@ -1891,7 +1891,7 @@ function PatternSearchTab() {
                       <p className={cn(
                         "font-mono tabular-nums font-semibold",
                         patternData.currentPrice > patternData.indicators.ema.ema50 ? "text-green-400" : "text-red-400"
-                      )} data-testid="text-ema50">${patternData.indicators.ema.ema50.toFixed(2)}</p>
+                      )} data-testid="text-ema50">${safeToFixed(patternData.indicators.ema.ema50, 2)}</p>
                     ) : (
                       <p className="text-muted-foreground text-sm" data-testid="text-ema50">N/A</p>
                     )}
@@ -1902,7 +1902,7 @@ function PatternSearchTab() {
                       <p className={cn(
                         "font-mono tabular-nums font-semibold",
                         patternData.currentPrice > patternData.indicators.ema.ema200 ? "text-green-400" : "text-red-400"
-                      )} data-testid="text-ema200">${patternData.indicators.ema.ema200.toFixed(2)}</p>
+                      )} data-testid="text-ema200">${safeToFixed(patternData.indicators.ema.ema200, 2)}</p>
                     ) : (
                       <p className="text-muted-foreground text-sm" data-testid="text-ema200">N/A</p>
                     )}
@@ -2006,7 +2006,7 @@ function PatternSearchTab() {
                       {patternData.levels.support.map((level, i) => (
                         <div key={i} className="flex justify-between items-center p-2 rounded bg-green-500/10">
                           <span className="text-sm">S{i + 1}</span>
-                          <span className="font-mono tabular-nums font-semibold text-green-400">${level.toFixed(2)}</span>
+                          <span className="font-mono tabular-nums font-semibold text-green-400">${safeToFixed(level, 2)}</span>
                         </div>
                       ))}
                     </div>
@@ -2017,7 +2017,7 @@ function PatternSearchTab() {
                       {patternData.levels.resistance.map((level, i) => (
                         <div key={i} className="flex justify-between items-center p-2 rounded bg-red-500/10">
                           <span className="text-sm">R{i + 1}</span>
-                          <span className="font-mono tabular-nums font-semibold text-red-400">${level.toFixed(2)}</span>
+                          <span className="font-mono tabular-nums font-semibold text-red-400">${safeToFixed(level, 2)}</span>
                         </div>
                       ))}
                     </div>
@@ -2056,7 +2056,7 @@ function PatternSearchTab() {
                     <p className={cn(
                       "text-xl font-bold font-mono tabular-nums",
                       patternData.volumeAnalysis.relativeVolume > 1.5 ? "text-cyan-400" : "text-muted-foreground"
-                    )} data-testid="text-relative-volume">{patternData.volumeAnalysis.relativeVolume.toFixed(2)}x</p>
+                    )} data-testid="text-relative-volume">{safeToFixed(patternData.volumeAnalysis.relativeVolume, 2)}x</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/20 text-center">
                     <p className="text-xs text-muted-foreground mb-1">Volume Profile</p>
@@ -2067,11 +2067,11 @@ function PatternSearchTab() {
                     <p className={cn(
                       "text-xl font-bold font-mono tabular-nums",
                       patternData.volumeAnalysis.moneyFlow > 0 ? "text-green-400" : "text-red-400"
-                    )} data-testid="text-money-flow">{patternData.volumeAnalysis.moneyFlow > 0 ? '+' : ''}{patternData.volumeAnalysis.moneyFlow.toFixed(0)}</p>
+                    )} data-testid="text-money-flow">{patternData.volumeAnalysis.moneyFlow > 0 ? '+' : ''}{safeToFixed(patternData.volumeAnalysis.moneyFlow, 0)}</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/20 text-center">
                     <p className="text-xs text-muted-foreground mb-1">Avg Volume</p>
-                    <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-avg-volume">{(patternData.volumeAnalysis.averageVolume / 1000000).toFixed(2)}M</p>
+                    <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-avg-volume">{safeToFixed(patternData.volumeAnalysis.averageVolume / 1000000, 2)}M</p>
                   </div>
                 </div>
                 {patternData.volumeAnalysis.signals.length > 0 && (
@@ -2126,7 +2126,7 @@ function PatternBacktestTab() {
               Avg Win Rate
             </p>
             <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-avg-winrate">
-              {avgWinRate.toFixed(1)}%
+              {safeToFixed(avgWinRate, 1)}%
             </p>
           </CardContent>
         </Card>
@@ -2813,26 +2813,26 @@ function PatternScannerTab() {
                             </Badge>
                           </td>
                           <td className="p-3 text-right font-mono text-sm">
-                            ${signal.currentPrice?.toFixed(2) || "—"}
+                            ${safeToFixed(signal.currentPrice, 2, "—")}
                           </td>
                           <td className="p-3 text-right font-mono text-sm text-green-400">
-                            ${signal.targetPrice?.toFixed(2) || "—"}
+                            ${safeToFixed(signal.targetPrice, 2, "—")}
                           </td>
                           <td className="p-3 text-right font-mono text-sm text-red-400">
-                            ${signal.stopLoss?.toFixed(2) || "—"}
+                            ${safeToFixed(signal.stopLoss, 2, "—")}
                           </td>
                           <td className="p-3 text-center">
                             <span className={cn(
                               "font-mono text-sm",
                               signal.riskRewardRatio && signal.riskRewardRatio >= 2 ? "text-green-400" : "text-slate-400"
                             )}>
-                              {signal.riskRewardRatio?.toFixed(1) || "—"}
+                              {safeToFixed(signal.riskRewardRatio, 1, "—")}
                             </span>
                           </td>
                           <td className="p-3 text-center">
                             <span className="font-mono text-sm text-slate-400">
-                              {signal.distanceToBreakout !== undefined && signal.distanceToBreakout !== null 
-                                ? `${signal.distanceToBreakout.toFixed(1)}%` 
+                              {signal.distanceToBreakout !== undefined && signal.distanceToBreakout !== null
+                                ? `${safeToFixed(signal.distanceToBreakout, 1)}%`
                                 : "—"}
                             </span>
                           </td>
@@ -2905,11 +2905,11 @@ function PatternScannerTab() {
                       <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                         <div>
                           <span className="text-slate-500">Target</span>
-                          <span className="text-green-400 ml-1">${signal.targetPrice?.toFixed(2)}</span>
+                          <span className="text-green-400 ml-1">${safeToFixed(signal.targetPrice, 2)}</span>
                         </div>
                         <div>
                           <span className="text-slate-500">R:R</span>
-                          <span className="text-slate-300 ml-1">{signal.riskRewardRatio?.toFixed(1)}</span>
+                          <span className="text-slate-300 ml-1">{safeToFixed(signal.riskRewardRatio, 1)}</span>
                         </div>
                       </div>
                     </div>
@@ -3336,12 +3336,12 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                 </CardTitle>
                 {chartData && (
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs font-mono">
-                    ${chartData.currentPrice?.toFixed(2)}
+                    ${safeToFixed(chartData.currentPrice, 2)}
                     <span className={cn(
                       "ml-1",
                       (chartData.priceChange || 0) >= 0 ? "text-emerald-400" : "text-red-400"
                     )}>
-                      {(chartData.priceChange || 0) >= 0 ? "+" : ""}{chartData.priceChange?.toFixed(2)}%
+                      {(chartData.priceChange || 0) >= 0 ? "+" : ""}{safeToFixed(chartData.priceChange, 2)}%
                     </span>
                   </Badge>
                 )}
@@ -3454,30 +3454,30 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                         <div className="grid grid-cols-3 gap-2 text-xs font-mono">
                           <div>
                             <span className="text-slate-500">Entry</span>
-                            <span className="text-slate-300 ml-1">${pattern.entryPrice?.toFixed(2) ?? '—'}</span>
+                            <span className="text-slate-300 ml-1">${safeToFixed(pattern.entryPrice, 2, '—')}</span>
                           </div>
                           <div>
                             <span className="text-slate-500">Target</span>
-                            <span className="text-green-400 ml-1">${pattern.targetPrice?.toFixed(2) ?? '—'}</span>
+                            <span className="text-green-400 ml-1">${safeToFixed(pattern.targetPrice, 2, '—')}</span>
                           </div>
                           <div>
                             <span className="text-slate-500">Stop</span>
-                            <span className="text-red-400 ml-1">${pattern.stopLoss?.toFixed(2) ?? '—'}</span>
+                            <span className="text-red-400 ml-1">${safeToFixed(pattern.stopLoss, 2, '—')}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-4 mt-2 text-xs">
                           <span className="text-slate-500">
-                            R:R <span className="text-slate-300">{pattern.riskRewardRatio?.toFixed(1) ?? '—'}</span>
+                            R:R <span className="text-slate-300">{safeToFixed(pattern.riskRewardRatio, 1, '—')}</span>
                           </span>
                           <span className="text-slate-500">
-                            Distance <span className="text-slate-300">{pattern.distanceToBreakout?.toFixed(1) ?? '—'}%</span>
+                            Distance <span className="text-slate-300">{safeToFixed(pattern.distanceToBreakout, 1, '—')}%</span>
                           </span>
                           <span className="text-slate-500">
                             Conf <span className="text-slate-300">{Math.round(confidence)}%</span>
                           </span>
                           {pattern.technicalContext?.rsi && (
                             <span className="text-slate-500">
-                              RSI <span className="text-slate-300">{pattern.technicalContext.rsi.toFixed(0)}</span>
+                              RSI <span className="text-slate-300">{safeToFixed(pattern.technicalContext.rsi, 0)}</span>
                             </span>
                           )}
                         </div>
@@ -3544,15 +3544,15 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   <div className="grid grid-cols-3 gap-2">
                     <div className="p-2 rounded bg-slate-800/50 text-center">
                       <p className="text-xs text-slate-500 font-mono">ENTRY</p>
-                      <p className="text-sm font-mono text-slate-200">${aiResult.entryPoint?.toFixed(2) || '—'}</p>
+                      <p className="text-sm font-mono text-slate-200">${safeToFixed(aiResult.entryPoint, 2, '—')}</p>
                     </div>
                     <div className="p-2 rounded bg-slate-800/50 text-center">
                       <p className="text-xs text-slate-500 font-mono">TARGET</p>
-                      <p className="text-sm font-mono text-green-400">${aiResult.targetPrice?.toFixed(2) || '—'}</p>
+                      <p className="text-sm font-mono text-green-400">${safeToFixed(aiResult.targetPrice, 2, '—')}</p>
                     </div>
                     <div className="p-2 rounded bg-slate-800/50 text-center">
                       <p className="text-xs text-slate-500 font-mono">STOP</p>
-                      <p className="text-sm font-mono text-red-400">${aiResult.stopLoss?.toFixed(2) || '—'}</p>
+                      <p className="text-sm font-mono text-red-400">${safeToFixed(aiResult.stopLoss, 2, '—')}</p>
                     </div>
                   </div>
 
@@ -3611,7 +3611,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-sm">Hurst Exponent</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-mono font-bold">{mathPatterns.hurst.exponent.toFixed(3)}</span>
+                        <span className="text-lg font-mono font-bold">{safeToFixed(mathPatterns.hurst.exponent, 3)}</span>
                         <Badge className={cn(
                           "text-xs",
                           mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/20 text-cyan-400" :
@@ -3655,19 +3655,19 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                             <div className="grid grid-cols-3 gap-2 mt-2 text-slate-400">
                               <div>
                                 <span className="text-slate-500">Completion</span>
-                                <span className="block text-slate-200 font-mono">{pattern.completionPercent.toFixed(0)}%</span>
+                                <span className="block text-slate-200 font-mono">{safeToFixed(pattern.completionPercent, 0)}%</span>
                               </div>
                               <div>
                                 <span className="text-slate-500">Target</span>
-                                <span className="block text-green-400 font-mono">${pattern.priceTarget.toFixed(2)}</span>
+                                <span className="block text-green-400 font-mono">${safeToFixed(pattern.priceTarget, 2)}</span>
                               </div>
                               <div>
                                 <span className="text-slate-500">Stop</span>
-                                <span className="block text-red-400 font-mono">${pattern.stopLoss.toFixed(2)}</span>
+                                <span className="block text-red-400 font-mono">${safeToFixed(pattern.stopLoss, 2)}</span>
                               </div>
                             </div>
                             <div className="mt-2 text-slate-500">
-                              PRZ: ${pattern.potentialReversalZone.low.toFixed(2)} - ${pattern.potentialReversalZone.high.toFixed(2)}
+                              PRZ: ${safeToFixed(pattern.potentialReversalZone.low, 2)} - ${safeToFixed(pattern.potentialReversalZone.high, 2)}
                             </div>
                           </div>
                         ))}
@@ -3703,7 +3703,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                         </div>
                         <div>
                           <span className="text-slate-500">Complete</span>
-                          <span className="block text-slate-200 font-mono">{mathPatterns.elliottWave.completionPercent.toFixed(0)}%</span>
+                          <span className="block text-slate-200 font-mono">{safeToFixed(mathPatterns.elliottWave.completionPercent, 0)}%</span>
                         </div>
                       </div>
                     </div>
@@ -3719,12 +3719,12 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                           <div className="mt-1 space-y-0.5">
                             {mathPatterns.fibonacci?.retracements?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
-                                <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
+                                <span className="text-slate-400">{safeToFixed(fib.level * 100, 1)}%</span>
                                 <span className={cn(
                                   "font-mono",
                                   fib.strength === 'strong' ? "text-amber-400" : "text-slate-300"
                                 )}>
-                                  ${fib.price.toFixed(2)}
+                                  ${safeToFixed(fib.price, 2)}
                                 </span>
                               </div>
                             ))}
@@ -3735,12 +3735,12 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                           <div className="mt-1 space-y-0.5">
                             {mathPatterns.fibonacci?.extensions?.slice(0, 3).map((fib, idx) => (
                               <div key={idx} className="flex justify-between">
-                                <span className="text-slate-400">{(fib.level * 100).toFixed(1)}%</span>
+                                <span className="text-slate-400">{safeToFixed(fib.level * 100, 1)}%</span>
                                 <span className={cn(
                                   "font-mono",
                                   fib.strength === 'strong' ? "text-amber-400" : "text-slate-300"
                                 )}>
-                                  ${fib.price.toFixed(2)}
+                                  ${safeToFixed(fib.price, 2)}
                                 </span>
                               </div>
                             ))}
@@ -4205,10 +4205,10 @@ export default function ChartAnalysis() {
   const validationWarnings = analysisResult ? (() => {
     const warnings: string[] = [];
     if (analysisResult.riskRewardRatio < 1.5) {
-      warnings.push(`Risk/Reward of ${analysisResult.riskRewardRatio.toFixed(1)}:1 is below recommended 1.5:1 minimum`);
+      warnings.push(`Risk/Reward of ${safeToFixed(analysisResult.riskRewardRatio, 1)}:1 is below recommended 1.5:1 minimum`);
     }
     if (calculateRiskPercent() > 5) {
-      warnings.push(`Risk of ${calculateRiskPercent().toFixed(1)}% exceeds recommended 5% max per trade`);
+      warnings.push(`Risk of ${safeToFixed(calculateRiskPercent(), 1)}% exceeds recommended 5% max per trade`);
     }
     if (analysisResult.confidence < 60) {
       warnings.push(`Confidence of ${analysisResult.confidence}% is below recommended 60% threshold`);
@@ -4400,12 +4400,12 @@ export default function ChartAnalysis() {
               <div className="p-3 rounded-lg bg-card/50 border border-border/50">
                 <div className="text-xs text-muted-foreground mb-1">Entry / Target / Stop</div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-mono" data-testid="text-entry">${sixEngineAnalysis.tradeIdea.entry.toFixed(2)}</span>
+                  <span className="text-lg font-mono" data-testid="text-entry">${safeToFixed(sixEngineAnalysis.tradeIdea.entry, 2)}</span>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-lg font-mono text-green-400" data-testid="text-target">${sixEngineAnalysis.tradeIdea.target.toFixed(2)}</span>
+                  <span className="text-lg font-mono text-green-400" data-testid="text-target">${safeToFixed(sixEngineAnalysis.tradeIdea.target, 2)}</span>
                 </div>
                 <div className="text-sm text-red-400 mt-1" data-testid="text-stoploss">
-                  Stop: ${sixEngineAnalysis.tradeIdea.stopLoss.toFixed(2)}
+                  Stop: ${safeToFixed(sixEngineAnalysis.tradeIdea.stopLoss, 2)}
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-card/50 border border-border/50">
@@ -4414,7 +4414,7 @@ export default function ChartAnalysis() {
                   {sixEngineAnalysis.tradeIdea.riskReward}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
-                  Price: ${sixEngineAnalysis.currentPrice.toFixed(2)} ({sixEngineAnalysis.priceChangePercent > 0 ? '+' : ''}{sixEngineAnalysis.priceChangePercent.toFixed(2)}%)
+                  Price: ${safeToFixed(sixEngineAnalysis.currentPrice, 2)} ({sixEngineAnalysis.priceChangePercent > 0 ? '+' : ''}{safeToFixed(sixEngineAnalysis.priceChangePercent, 2)}%)
                 </div>
               </div>
             </div>
@@ -4823,33 +4823,33 @@ export default function ChartAnalysis() {
                       <div className="text-center p-3 rounded-lg bg-muted/30">
                         <p className="text-xs text-muted-foreground mb-1">Entry</p>
                         <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-entry-point">
-                          ${analysisResult.entryPoint.toFixed(2)}
+                          ${safeToFixed(analysisResult.entryPoint, 2)}
                         </p>
                       </div>
                       <div className="text-center p-3 rounded-lg bg-green-500/10">
                         <p className="text-xs text-muted-foreground mb-1">Target</p>
                         <p className="text-lg font-bold font-mono text-green-500 tabular-nums" data-testid="text-target-price">
-                          ${analysisResult.targetPrice.toFixed(2)}
+                          ${safeToFixed(analysisResult.targetPrice, 2)}
                         </p>
                         <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
                           <ArrowUpRight className="h-3 w-3" />
-                          +{calculateGainPercent().toFixed(1)}%
+                          +{safeToFixed(calculateGainPercent(), 1)}%
                         </p>
                       </div>
                       <div className="text-center p-3 rounded-lg bg-red-500/10">
                         <p className="text-xs text-muted-foreground mb-1">Stop</p>
                         <p className="text-lg font-bold font-mono text-red-500 tabular-nums" data-testid="text-stop-loss">
-                          ${analysisResult.stopLoss.toFixed(2)}
+                          ${safeToFixed(analysisResult.stopLoss, 2)}
                         </p>
                         <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
                           <ArrowDownRight className="h-3 w-3" />
-                          -{calculateRiskPercent().toFixed(1)}%
+                          -{safeToFixed(calculateRiskPercent(), 1)}%
                         </p>
                       </div>
                       <div className="text-center p-3 rounded-lg bg-cyan-500/10">
                         <p className="text-xs text-muted-foreground mb-1">R:R</p>
                         <p className="text-lg font-bold font-mono text-cyan-500 tabular-nums" data-testid="text-risk-reward">
-                          {analysisResult.riskRewardRatio.toFixed(1)}:1
+                          {safeToFixed(analysisResult.riskRewardRatio, 1)}:1
                         </p>
                       </div>
                     </div>
@@ -5012,7 +5012,7 @@ export default function ChartAnalysis() {
                                 {analysisResult.resistanceLevels.map((level, i) => (
                                   <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
                                     <span className="text-xs text-muted-foreground">R{i + 1}</span>
-                                    <span className="text-sm font-mono font-semibold text-red-400">${level.toFixed(2)}</span>
+                                    <span className="text-sm font-mono font-semibold text-red-400">${safeToFixed(level, 2)}</span>
                                   </div>
                                 ))}
                               </div>
@@ -5026,7 +5026,7 @@ export default function ChartAnalysis() {
                                 {analysisResult.supportLevels.map((level, i) => (
                                   <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
                                     <span className="text-xs text-muted-foreground">S{i + 1}</span>
-                                    <span className="text-sm font-mono font-semibold text-green-400">${level.toFixed(2)}</span>
+                                    <span className="text-sm font-mono font-semibold text-green-400">${safeToFixed(level, 2)}</span>
                                   </div>
                                 ))}
                               </div>

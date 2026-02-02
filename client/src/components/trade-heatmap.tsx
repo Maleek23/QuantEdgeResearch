@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 
@@ -130,7 +130,7 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                       <div className="flex items-center gap-0.5">
                         <TrendIcon className="h-3 w-3" />
                         <span className="font-mono font-bold text-xs">
-                          {trade.plPercent >= 0 ? '+' : ''}{trade.plPercent.toFixed(1)}%
+                          {trade.plPercent >= 0 ? '+' : ''}{safeToFixed(trade.plPercent, 1)}%
                         </span>
                       </div>
                     ) : (
@@ -152,13 +152,13 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                     <p className="font-bold">{trade.symbol} - {trade.direction.toUpperCase()}</p>
                     {hasPrice && (
                       <>
-                        <p>Entry: ${trade.entryPrice.toFixed(2)}</p>
-                        <p>Current: ${trade.currentPrice?.toFixed(2)}</p>
+                        <p>Entry: ${safeToFixed(trade.entryPrice, 2)}</p>
+                        <p>Current: ${safeToFixed(trade.currentPrice, 2)}</p>
                         <p className={cn(
                           "font-bold",
                           trade.plPercent >= 0 ? "text-green-400" : "text-red-400"
                         )}>
-                          P/L: {trade.plPercent >= 0 ? '+' : ''}{trade.plPercent.toFixed(2)}%
+                          P/L: {trade.plPercent >= 0 ? '+' : ''}{safeToFixed(trade.plPercent, 2)}%
                         </p>
                       </>
                     )}
@@ -187,14 +187,14 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                 <div className="text-xs text-muted-foreground mb-0.5">Winners</div>
                 <div className="text-lg font-bold text-green-400">{winners.length}</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {withPrices.length > 0 ? ((winners.length / withPrices.length) * 100).toFixed(0) : 0}%
+                  {withPrices.length > 0 ? safeToFixed((winners.length / withPrices.length) * 100, 0) : 0}%
                 </div>
               </div>
               <div className="text-center p-2 rounded-lg bg-red-500/10">
                 <div className="text-xs text-muted-foreground mb-0.5">Losers</div>
                 <div className="text-lg font-bold text-red-400">{losers.length}</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {withPrices.length > 0 ? ((losers.length / withPrices.length) * 100).toFixed(0) : 0}%
+                  {withPrices.length > 0 ? safeToFixed((losers.length / withPrices.length) * 100, 0) : 0}%
                 </div>
               </div>
               <div className="text-center p-2 rounded-lg bg-muted/30">
@@ -203,7 +203,7 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                   "text-lg font-bold font-mono",
                   avgPL >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {avgPL >= 0 ? '+' : ''}{avgPL.toFixed(1)}%
+                  {avgPL >= 0 ? '+' : ''}{safeToFixed(avgPL, 1)}%
                 </div>
                 <div className="text-[10px] text-muted-foreground">
                   {withPrices.length} priced
@@ -227,21 +227,21 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Entry Price</div>
-                  <div className="font-mono font-bold">${selectedTrade.entryPrice.toFixed(2)}</div>
+                  <div className="font-mono font-bold">${safeToFixed(selectedTrade.entryPrice, 2)}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Current Price</div>
                   <div className="font-mono font-bold">
-                    {selectedTrade.currentPrice ? `$${selectedTrade.currentPrice.toFixed(2)}` : 'N/A'}
+                    {selectedTrade.currentPrice ? `$${safeToFixed(selectedTrade.currentPrice, 2)}` : 'N/A'}
                   </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Target</div>
-                  <div className="font-mono font-bold text-green-400">${selectedTrade.targetPrice.toFixed(2)}</div>
+                  <div className="font-mono font-bold text-green-400">${safeToFixed(selectedTrade.targetPrice, 2)}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Stop Loss</div>
-                  <div className="font-mono font-bold text-red-400">${selectedTrade.stopLoss.toFixed(2)}</div>
+                  <div className="font-mono font-bold text-red-400">${safeToFixed(selectedTrade.stopLoss, 2)}</div>
                 </div>
               </div>
               {selectedTrade.catalyst && (

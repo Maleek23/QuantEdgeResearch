@@ -6,7 +6,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   BarChart3,
   TrendingUp,
@@ -100,7 +100,7 @@ export function InteractivePriceChart({
             <h3 className="text-xl font-bold text-slate-100">Price Chart</h3>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-2xl font-bold font-mono text-slate-100">
-                ${latestData?.close.toFixed(2)}
+                ${safeToFixed(latestData?.close, 2)}
               </span>
               <div
                 className={cn(
@@ -115,8 +115,8 @@ export function InteractivePriceChart({
                 )}
                 <span>
                   {isPositive ? "+" : ""}
-                  {priceChange.toFixed(2)} ({isPositive ? "+" : ""}
-                  {priceChangePercent.toFixed(2)}%)
+                  {safeToFixed(priceChange, 2)} ({isPositive ? "+" : ""}
+                  {safeToFixed(priceChangePercent, 2)}%)
                 </span>
               </div>
             </div>
@@ -225,17 +225,17 @@ export function InteractivePriceChart({
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Price:</span>
-                  <span className="font-mono font-bold text-cyan-400">${latestData?.close.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-cyan-400">${safeToFixed(latestData?.close, 2)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Change:</span>
                   <span className={cn("font-mono font-semibold", isPositive ? "text-emerald-400" : "text-red-400")}>
-                    {isPositive ? "+" : ""}{priceChange.toFixed(2)} ({isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%)
+                    {isPositive ? "+" : ""}{safeToFixed(priceChange, 2)} ({isPositive ? "+" : ""}{safeToFixed(priceChangePercent, 2)}%)
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Volume:</span>
-                  <span className="font-mono text-slate-300">{(latestData?.volume / 1000000).toFixed(2)}M</span>
+                  <span className="font-mono text-slate-300">{safeToFixed(safeNumber(latestData?.volume) / 1000000, 2)}M</span>
                 </div>
               </div>
             </motion.div>
@@ -359,7 +359,7 @@ export function InteractivePriceChart({
                 </Badge>
               </div>
               <div className="text-lg font-bold font-mono text-slate-100">
-                {indicator.value.toFixed(2)}
+                {safeToFixed(indicator.value, 2)}
               </div>
               <p className="text-xs text-slate-600 mt-1 line-clamp-1">
                 {indicator.description}

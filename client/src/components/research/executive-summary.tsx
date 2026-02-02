@@ -5,7 +5,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -85,14 +85,14 @@ export function ExecutiveSummary({
           {/* Price Display */}
           <div className="text-right">
             <div className="text-3xl font-bold text-slate-100 mb-1">
-              ${price?.toFixed(2)}
+              ${safeToFixed(price, 2)}
             </div>
             <div className={cn(
               "flex items-center gap-2 justify-end text-sm font-semibold",
               isPositive ? "text-emerald-400" : "text-red-400"
             )}>
               {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              <span>{isPositive ? '+' : ''}{change?.toFixed(2)} ({isPositive ? '+' : ''}{changePercent?.toFixed(2)}%)</span>
+              <span>{isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)</span>
             </div>
             {marketCap && (
               <p className="text-xs text-slate-500 mt-1">Market Cap: {marketCap}</p>
@@ -193,11 +193,11 @@ export function ExecutiveSummary({
                     <span className="text-slate-600 text-xs">/100</span>
                   </td>
                   <td className="text-center py-3 px-2">
-                    <span className="font-mono text-slate-400">{(data.weight * 100).toFixed(0)}%</span>
+                    <span className="font-mono text-slate-400">{safeToFixed(safeNumber(data.weight) * 100, 0)}%</span>
                   </td>
                   <td className="text-right py-3 px-2">
                     <span className="font-mono text-purple-400">
-                      {(data.score * data.weight).toFixed(1)}
+                      {safeToFixed(safeNumber(data.score) * safeNumber(data.weight), 1)}
                     </span>
                   </td>
                 </tr>
@@ -217,7 +217,7 @@ export function ExecutiveSummary({
                 </td>
                 <td className="text-right py-3 px-2">
                   <span className="font-mono text-purple-400 text-base">
-                    {overallScore.toFixed(1)}
+                    {safeToFixed(overallScore, 1)}
                   </span>
                 </td>
               </tr>

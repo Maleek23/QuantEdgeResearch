@@ -5,7 +5,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
 interface AnalysisSectionProps {
@@ -95,7 +95,7 @@ export function AnalysisSection({
             {metricCount !== undefined && (
               <p className="text-xs text-slate-500 mt-1">
                 {metricCount} metrics
-                {weight !== undefined && ` • ${(weight * 100).toFixed(0)}% portfolio weight`}
+                {weight !== undefined && ` • ${safeToFixed(weight * 100, 0)}% portfolio weight`}
               </p>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Award, TrendingUp, TrendingDown } from "lucide-react";
 
 interface SymbolPerformance {
@@ -50,7 +50,7 @@ export function SymbolLeaderboard({ winners, losers, className }: SymbolLeaderbo
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono tabular-nums text-green-400">
-                    +{item.totalReturn.toFixed(1)}%
+                    +{safeToFixed(item.totalReturn, 1)}%
                   </span>
                 </div>
               </div>
@@ -77,7 +77,7 @@ export function SymbolLeaderboard({ winners, losers, className }: SymbolLeaderbo
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono tabular-nums text-red-400">
-                    {item.totalReturn.toFixed(1)}%
+                    {safeToFixed(item.totalReturn, 1)}%
                   </span>
                 </div>
               </div>

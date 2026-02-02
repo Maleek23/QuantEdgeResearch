@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   TrendingUp, TrendingDown, Target, AlertTriangle, CheckCircle2, 
   XCircle, Info, Calculator, Zap, BarChart3, Clock, DollarSign
@@ -118,7 +118,7 @@ export function ConfluenceInsights({
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-300 flex items-center gap-1.5">
               <Zap className="h-3 w-3" />
-              Momentum Health (RSI {rsi.toFixed(0)})
+              Momentum Health (RSI {safeToFixed(rsi, 0)})
             </span>
             <span className={rsiStatus.color}>
               {rsiStatus.pts > 0 ? '+' : ''}{rsiStatus.pts} pts ({rsiStatus.text})
@@ -128,7 +128,7 @@ export function ConfluenceInsights({
           <div className="flex justify-between items-center text-xs">
             <span className="text-slate-300 flex items-center gap-1.5">
               <BarChart3 className="h-3 w-3" />
-              Volatility Environment (ATR {atrPercent.toFixed(2)}%)
+              Volatility Environment (ATR {safeToFixed(atrPercent, 2)}%)
             </span>
             <span className={volStatus.color}>
               {volStatus.pts > 0 ? '+' : ''}{volStatus.pts} pts ({volStatus.text})
@@ -221,12 +221,12 @@ export function TechnicalInsights({
   const breakoutEntry = resistance * 1.002;
   const breakoutStop = resistance * 0.99;
   const breakoutTarget = resistance * 1.02;
-  const breakoutRR = ((breakoutTarget - breakoutEntry) / (breakoutEntry - breakoutStop)).toFixed(1);
+  const breakoutRR = safeToFixed((breakoutTarget - breakoutEntry) / (breakoutEntry - breakoutStop), 1);
   
   const rangeShortEntry = resistance * 0.998;
   const rangeShortStop = resistance * 1.005;
   const rangeTarget = (support + resistance) / 2;
-  const rangeRR = ((rangeShortEntry - rangeTarget) / (rangeShortStop - rangeShortEntry)).toFixed(1);
+  const rangeRR = safeToFixed((rangeShortEntry - rangeTarget) / (rangeShortStop - rangeShortEntry), 1);
   
   return (
     <InsightPanel>
@@ -243,11 +243,11 @@ export function TechnicalInsights({
         </div>
         
         <p className="text-xs text-slate-400 leading-relaxed mb-2">
-          {rsi >= 70 
-            ? `RSI at ${rsi.toFixed(1)} indicates overbought conditions. When RSI > 70 in ${symbol}, historically there's a 68% chance of a 2-5% pullback within 5 days.`
+          {rsi >= 70
+            ? `RSI at ${safeToFixed(rsi, 1)} indicates overbought conditions. When RSI > 70 in ${symbol}, historically there's a 68% chance of a 2-5% pullback within 5 days.`
             : rsi <= 30
-              ? `RSI at ${rsi.toFixed(1)} indicates oversold conditions. This often precedes a bounce, but wait for confirmation before entering long.`
-              : `RSI at ${rsi.toFixed(1)} is in neutral territory. The trend has room to continue without immediate exhaustion signals.`
+              ? `RSI at ${safeToFixed(rsi, 1)} indicates oversold conditions. This often precedes a bounce, but wait for confirmation before entering long.`
+              : `RSI at ${safeToFixed(rsi, 1)} is in neutral territory. The trend has room to continue without immediate exhaustion signals.`
           }
         </p>
         
@@ -260,10 +260,10 @@ export function TechnicalInsights({
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-          <h5 className="text-green-400 font-semibold text-xs mb-1">SUPPORT: ${support.toFixed(2)}</h5>
+          <h5 className="text-green-400 font-semibold text-xs mb-1">SUPPORT: ${safeToFixed(support, 2)}</h5>
           <ul className="text-xs text-slate-400 space-y-0.5">
             <li>Major support level</li>
-            <li>{priceToSupport.toFixed(1)}% below current price</li>
+            <li>{safeToFixed(priceToSupport, 1)}% below current price</li>
           </ul>
           <p className="text-amber-400 text-xs mt-2">
             If broken: Expect accelerated selling
@@ -271,13 +271,13 @@ export function TechnicalInsights({
         </div>
         
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-          <h5 className="text-red-400 font-semibold text-xs mb-1">RESISTANCE: ${resistance.toFixed(2)}</h5>
+          <h5 className="text-red-400 font-semibold text-xs mb-1">RESISTANCE: ${safeToFixed(resistance, 2)}</h5>
           <ul className="text-xs text-slate-400 space-y-0.5">
             <li>Key resistance zone</li>
-            <li>{priceToResistance.toFixed(1)}% above current</li>
+            <li>{safeToFixed(priceToResistance, 1)}% above current</li>
           </ul>
           <p className="text-green-400 text-xs mt-2">
-            If broken: Measured move to ${(resistance * 1.03).toFixed(2)}
+            If broken: Measured move to ${safeToFixed(resistance * 1.03, 2)}
           </p>
         </div>
       </div>
@@ -288,9 +288,9 @@ export function TechnicalInsights({
           <div className="bg-slate-900/50 rounded p-2 border border-slate-700/40">
             <h6 className="text-cyan-400 font-semibold text-xs mb-1">Breakout</h6>
             <div className="text-xs text-slate-400 space-y-0.5 font-mono">
-              <div>Entry: ${breakoutEntry.toFixed(2)}</div>
-              <div>Stop: ${breakoutStop.toFixed(2)}</div>
-              <div>Target: ${breakoutTarget.toFixed(2)}</div>
+              <div>Entry: ${safeToFixed(breakoutEntry, 2)}</div>
+              <div>Stop: ${safeToFixed(breakoutStop, 2)}</div>
+              <div>Target: ${safeToFixed(breakoutTarget, 2)}</div>
               <div className="text-green-400">R:R: {breakoutRR}:1</div>
             </div>
           </div>
@@ -298,9 +298,9 @@ export function TechnicalInsights({
           <div className="bg-slate-900/50 rounded p-2 border border-slate-700/40">
             <h6 className="text-purple-400 font-semibold text-xs mb-1">Range Trade</h6>
             <div className="text-xs text-slate-400 space-y-0.5 font-mono">
-              <div>Short: ${rangeShortEntry.toFixed(2)}</div>
-              <div>Stop: ${rangeShortStop.toFixed(2)}</div>
-              <div>Target: ${rangeTarget.toFixed(2)}</div>
+              <div>Short: ${safeToFixed(rangeShortEntry, 2)}</div>
+              <div>Stop: ${safeToFixed(rangeShortStop, 2)}</div>
+              <div>Target: ${safeToFixed(rangeTarget, 2)}</div>
               <div className="text-amber-400">R:R: {rangeRR}:1</div>
             </div>
           </div>
@@ -416,28 +416,28 @@ export function PositionSizeCalculator({
         <div>
           <label className="text-xs text-slate-400 block mb-1">Trade Risk</label>
           <div className="h-8 flex items-center font-mono text-sm text-slate-200">
-            {calculations.riskPercentTrade.toFixed(2)}% (${calculations.riskPerShare.toFixed(2)})
+            {safeToFixed(calculations.riskPercentTrade, 2)}% (${safeToFixed(calculations.riskPerShare, 2)})
           </div>
         </div>
       </div>
       
       <div className="bg-slate-900/50 rounded-lg p-3 mb-4">
         <div className="text-xs font-mono text-slate-400 mb-1">
-          Position Size = ${calculations.dollarRisk.toFixed(0)} / ${calculations.riskPerShare.toFixed(2)} = {calculations.shares} shares
+          Position Size = ${safeToFixed(calculations.dollarRisk, 0)} / ${safeToFixed(calculations.riskPerShare, 2)} = {calculations.shares} shares
         </div>
         <div className="text-sm font-mono text-cyan-400">
-          You can {direction} {calculations.shares} shares of {symbol} at ${entryPrice.toFixed(2)} (Total: ${calculations.positionValue.toFixed(0)})
+          You can {direction} {calculations.shares} shares of {symbol} at ${safeToFixed(entryPrice, 2)} (Total: ${safeToFixed(calculations.positionValue, 0)})
         </div>
         {isOversized && (
           <div className="text-xs text-amber-400 mt-2 flex items-center gap-1.5">
             <AlertTriangle className="h-3 w-3" />
-            This is {calculations.positionPercent.toFixed(0)}% of your account - exceeds diversification rules. Consider reducing size.
+            This is {safeToFixed(calculations.positionPercent, 0)}% of your account - exceeds diversification rules. Consider reducing size.
           </div>
         )}
         {!isValidSetup && (
           <div className="text-xs text-red-400 mt-2 flex items-center gap-1.5">
             <XCircle className="h-3 w-3" />
-            R:R of {calculations.riskReward.toFixed(1)}:1 is below minimum 1.5:1 threshold.
+            R:R of {safeToFixed(calculations.riskReward, 1)}:1 is below minimum 1.5:1 threshold.
           </div>
         )}
       </div>
@@ -447,14 +447,14 @@ export function PositionSizeCalculator({
         <div className="flex justify-between text-xs">
           <span className="text-slate-400">If Stop Hit:</span>
           <span className="font-mono text-red-400">
-            {calculations.stopLoss.toFixed(0)} ({((calculations.stopLoss / accountSize) * 100).toFixed(2)}% account)
+            {safeToFixed(calculations.stopLoss, 0)} ({safeToFixed((calculations.stopLoss / accountSize) * 100, 2)}% account)
           </span>
         </div>
         {targets[0] && (
           <div className="flex justify-between text-xs">
             <span className="text-slate-400">If Target 1 Hit:</span>
             <span className="font-mono text-green-400">
-              +${calculations.target1Gain.toFixed(0)} (+{((calculations.target1Gain / accountSize) * 100).toFixed(2)}% account)
+              +${safeToFixed(calculations.target1Gain, 0)} (+{safeToFixed((calculations.target1Gain / accountSize) * 100, 2)}% account)
             </span>
           </div>
         )}
@@ -462,7 +462,7 @@ export function PositionSizeCalculator({
           <div className="flex justify-between text-xs">
             <span className="text-slate-400">If Target 2 Hit:</span>
             <span className="font-mono text-green-400">
-              +${calculations.target2Gain.toFixed(0)} (+{((calculations.target2Gain / accountSize) * 100).toFixed(2)}% account)
+              +${safeToFixed(calculations.target2Gain, 0)} (+{safeToFixed((calculations.target2Gain / accountSize) * 100, 2)}% account)
             </span>
           </div>
         )}
@@ -470,7 +470,7 @@ export function PositionSizeCalculator({
           <div className="flex justify-between text-xs">
             <span className="text-slate-400">If Target 3 Hit:</span>
             <span className="font-mono text-green-400">
-              +${calculations.target3Gain.toFixed(0)} (+{((calculations.target3Gain / accountSize) * 100).toFixed(2)}% account)
+              +${safeToFixed(calculations.target3Gain, 0)} (+{safeToFixed((calculations.target3Gain / accountSize) * 100, 2)}% account)
             </span>
           </div>
         )}
@@ -480,7 +480,7 @@ export function PositionSizeCalculator({
         <span className="font-semibold">Action:</span>
         <span className="text-slate-300">
           {isValidSetup && !isOversized
-            ? `Valid setup. Use ${calculations.shares} shares with stop at $${stopPrice.toFixed(2)}.`
+            ? `Valid setup. Use ${calculations.shares} shares with stop at $${safeToFixed(stopPrice, 2)}.`
             : !isValidSetup
               ? "Improve R:R by adjusting stop or targets before entering."
               : "Reduce position size to stay within risk parameters."
@@ -573,7 +573,7 @@ export function MarketContextInsights({
               "font-mono text-sm font-semibold",
               vixLevel > 30 ? "text-red-400" : vixLevel > 20 ? "text-amber-400" : "text-green-400"
             )}>
-              {vixLevel.toFixed(1)}
+              {safeToFixed(vixLevel, 1)}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
@@ -626,7 +626,7 @@ export function NewsInsights({
       <div className="mb-4">
         <h5 className="text-sm text-slate-300 leading-relaxed">
           <span className="font-semibold">
-            {sentimentLabel} Sentiment ({sentimentScore > 0 ? '+' : ''}{sentimentScore.toFixed(2)})
+            {sentimentLabel} Sentiment ({sentimentScore > 0 ? '+' : ''}{safeToFixed(sentimentScore, 2)})
           </span>
           {isContrarian && (
             <span className="text-amber-400"> is actually a bullish contrarian signal in this context.</span>

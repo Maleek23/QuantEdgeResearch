@@ -37,6 +37,7 @@ import {
   Camera
 } from "lucide-react";
 import { NavigationCustomizer } from "@/components/navigation-customizer";
+import { safeToFixed } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -679,7 +680,7 @@ export default function SettingsPage() {
                           <span className={position.direction === 'long' ? 'text-emerald-500' : 'text-red-500'}>
                             {position.direction?.toUpperCase()}
                           </span>
-                          <span className="text-muted-foreground">@${position.entryPrice?.toFixed(2)}</span>
+                          <span className="text-muted-foreground">@${safeToFixed(position.entryPrice, 2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs px-1.5 py-0.5 rounded bg-muted">{position.portfolioName?.replace('Auto-Lotto ', '')}</span>

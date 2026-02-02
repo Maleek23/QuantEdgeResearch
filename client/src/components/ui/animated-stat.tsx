@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, useSpring, useTransform } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface AnimatedStatProps {
   value: number;
@@ -28,7 +28,7 @@ export function AnimatedStat({
   });
 
   const display = useTransform(spring, (current) =>
-    current.toFixed(decimals)
+    safeToFixed(current, decimals)
   );
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function SimpleAnimatedStat({
       className={cn("font-bold tabular-nums", className)}
     >
       {prefix}
-      {count.toFixed(decimals)}
+      {safeToFixed(count, decimals)}
       {suffix}
     </motion.span>
   );

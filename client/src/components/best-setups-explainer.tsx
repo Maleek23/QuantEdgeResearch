@@ -11,7 +11,7 @@ import {
   Target,
   ArrowRight
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface BestSetupsExplainerProps {
   marketRegime?: 'trending' | 'ranging' | 'volatile' | 'unknown';
@@ -83,7 +83,7 @@ export default function BestSetupsExplainer({
             <span className="text-sm text-slate-400">Market Regime</span>
           </div>
           {avgAdx && (
-            <span className="font-mono text-sm text-slate-400">ADX: {avgAdx.toFixed(1)}</span>
+            <span className="font-mono text-sm text-slate-400">ADX: {safeToFixed(avgAdx, 1)}</span>
           )}
         </div>
         

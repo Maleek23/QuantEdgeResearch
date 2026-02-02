@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Activity, TrendingUp, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 import { getEngineExpectedValue } from "@shared/constants";
 
@@ -166,7 +166,7 @@ function SignalStrengthTooltipContent({
             </span>
           </div>
           <div className="text-[10px] text-muted-foreground">
-            Based on {engine.toUpperCase()} engine: {evData.data.winRate.toFixed(1)}% win rate across {evData.data.totalTrades} trades
+            Based on {engine.toUpperCase()} engine: {safeToFixed(evData.data.winRate, 1)}% win rate across {evData.data.totalTrades} trades
           </div>
         </div>
       )}

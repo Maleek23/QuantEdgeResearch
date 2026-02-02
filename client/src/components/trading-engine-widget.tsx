@@ -16,7 +16,7 @@ import {
   Target, TrendingUp, TrendingDown, AlertTriangle, 
   CheckCircle2, XCircle, ArrowRight, Activity, Minus
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface TradingEngineResult {
@@ -149,17 +149,17 @@ function SymbolCard({ result }: { result: TradingEngineResult }) {
           </Badge>
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground">Entry:</span>
-            <span className="font-mono">${result.tradeStructure.entry.price.toFixed(2)}</span>
+            <span className="font-mono">${safeToFixed(result.tradeStructure.entry.price, 2)}</span>
           </div>
           <ArrowRight className="h-3 w-3 text-muted-foreground" />
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground">Target:</span>
             <span className="font-mono text-green-400">
-              ${result.tradeStructure.targets[0]?.price.toFixed(2)}
+              ${safeToFixed(result.tradeStructure.targets[0]?.price, 2)}
             </span>
           </div>
           <Badge variant="secondary" className="text-xs">
-            {result.tradeStructure.riskReward.toFixed(1)}:1
+            {safeToFixed(result.tradeStructure.riskReward, 1)}:1
           </Badge>
         </div>
       )}

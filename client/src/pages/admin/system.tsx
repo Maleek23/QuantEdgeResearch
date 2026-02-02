@@ -23,7 +23,7 @@ import {
   Brain,
   TrendingUp,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 function getCSRFToken(): string | null {
   const match = document.cookie.match(/csrf_token=([^;]+)/);
@@ -354,7 +354,7 @@ function AdminSystemContent() {
                   <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
                     <p className="text-sm text-slate-400">Total Rows</p>
                     <p className="text-2xl font-bold text-white">
-                      {((dbHealth?.totalRows || 0) / 1000).toFixed(1)}k
+                      {safeToFixed((dbHealth?.totalRows || 0) / 1000, 1)}k
                     </p>
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Target, Calendar, DollarSign, 
   Trophy, AlertTriangle, BarChart3 
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
 interface PerformanceStats {
@@ -115,20 +115,20 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
             Performance Attribution
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn("text-xs", winRateColor)}
             >
-              {stats.winRate.toFixed(1)}% WR
+              {safeToFixed(stats.winRate, 1)}% WR
             </Badge>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
                 "text-xs",
                 stats.totalPnL >= 0 ? "text-green-400" : "text-red-400"
               )}
             >
-              {stats.totalPnL >= 0 ? '+' : ''}${stats.totalPnL.toFixed(0)}
+              {stats.totalPnL >= 0 ? '+' : ''}${safeToFixed(stats.totalPnL, 0)}
             </Badge>
           </div>
         </div>
@@ -146,24 +146,24 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
             trend={stats.wins > stats.losses ? 'positive' : stats.wins < stats.losses ? 'negative' : 'neutral'}
             icon={Trophy}
           />
-          <StatRow 
-            label="Avg Return" 
-            value={`${stats.avgReturn >= 0 ? '+' : ''}${stats.avgReturn.toFixed(1)}%`}
+          <StatRow
+            label="Avg Return"
+            value={`${stats.avgReturn >= 0 ? '+' : ''}${safeToFixed(stats.avgReturn, 1)}%`}
             trend={stats.avgReturn >= 0 ? 'positive' : 'negative'}
             icon={TrendingUp}
           />
           {stats.bestTrade && (
-            <StatRow 
-              label="Best Trade" 
-              value={`+$${stats.bestTrade.pnl.toFixed(0)}`}
+            <StatRow
+              label="Best Trade"
+              value={`+$${safeToFixed(stats.bestTrade.pnl, 0)}`}
               trend="positive"
               icon={TrendingUp}
             />
           )}
           {stats.worstTrade && (
-            <StatRow 
-              label="Worst Trade" 
-              value={`-$${Math.abs(stats.worstTrade.pnl).toFixed(0)}`}
+            <StatRow
+              label="Worst Trade"
+              value={`-$${safeToFixed(Math.abs(stats.worstTrade.pnl), 0)}`}
               trend="negative"
               icon={TrendingDown}
             />

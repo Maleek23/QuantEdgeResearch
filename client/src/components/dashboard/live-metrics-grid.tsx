@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { safeToFixed } from '@/lib/utils';
 import {
   TrendingUp,
   TrendingDown,
@@ -165,7 +166,7 @@ function MetricCard({
               <TrendingDown className="w-3 h-3" />
             ) : null}
             {change > 0 ? '+' : ''}
-            {change.toFixed(1)}%
+            {safeToFixed(change, 1)}%
           </div>
           {changeLabel && (
             <span className="text-xs text-gray-500">{changeLabel}</span>
@@ -221,7 +222,7 @@ export function LiveMetricsGrid() {
   const cards: MetricCardProps[] = [
     {
       title: 'Win Rate',
-      value: `${metrics.winRate.toFixed(1)}%`,
+      value: `${safeToFixed(metrics.winRate, 1)}%`,
       change: 3.2,
       changeLabel: 'vs last week',
       icon: <Target className="w-5 h-5" />,
@@ -250,7 +251,7 @@ export function LiveMetricsGrid() {
     },
     {
       title: 'Avg Risk/Reward',
-      value: `${metrics.avgRR.toFixed(1)}:1`,
+      value: `${safeToFixed(metrics.avgRR, 1)}:1`,
       change: 0.3,
       changeLabel: 'improvement',
       icon: <BarChart3 className="w-5 h-5" />,
@@ -266,7 +267,7 @@ export function LiveMetricsGrid() {
     },
     {
       title: 'AI Confidence',
-      value: `${metrics.aiConfidence.toFixed(0)}%`,
+      value: `${safeToFixed(metrics.aiConfidence, 0)}%`,
       change: 5,
       changeLabel: 'learning rate',
       icon: <Brain className="w-5 h-5" />,

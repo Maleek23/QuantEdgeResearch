@@ -73,7 +73,7 @@ export function MarketTickerBar() {
                 <span className="text-xs text-muted-foreground">({ticker.symbol})</span>
               </div>
               <span className="text-sm font-medium text-foreground">
-                ${ticker.price.toFixed(2)}
+                ${safeToFixed(ticker.price, 2)}
               </span>
               <div className={cn(
                 "flex items-center gap-0.5 text-xs font-medium",
@@ -85,7 +85,7 @@ export function MarketTickerBar() {
                   <TrendingDown className="h-3 w-3" />
                 )}
                 <span>
-                  {ticker.change >= 0 ? "+" : ""}{ticker.changePercent.toFixed(2)}%
+                  {ticker.change >= 0 ? "+" : ""}{safeToFixed(ticker.changePercent, 2)}%
                 </span>
               </div>
             </div>

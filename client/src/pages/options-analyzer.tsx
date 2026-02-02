@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { useStockContext } from "@/contexts/stock-context";
 import { 
   Search, 
@@ -577,14 +577,14 @@ export default function OptionsAnalyzer() {
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-lg">{searchedSymbol}</CardTitle>
                       <span className="text-2xl font-bold font-mono" data-testid="text-stock-price">
-                        ${chainData.stockPrice?.toFixed(2)}
+                        ${safeToFixed(chainData.stockPrice, 2)}
                       </span>
                       <Badge variant={chainData.stockChange >= 0 ? "default" : "destructive"} className={cn(
                         "text-xs",
                         chainData.stockChange >= 0 ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
                       )}>
                         {chainData.stockChange >= 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                        {chainData.stockChangePercent?.toFixed(2)}%
+                        {safeToFixed(chainData.stockChangePercent, 2)}%
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -793,22 +793,22 @@ function OptionsChainTable({
               >
                 <td className="p-2 font-mono font-medium">
                   <div className="flex items-center gap-2">
-                    ${opt.strike.toFixed(2)}
+                    ${safeToFixed(opt.strike, 2)}
                     {isATM && <Badge variant="secondary" className="text-[9px] py-0">ATM</Badge>}
                     {isITM && <Badge variant="secondary" className="text-[9px] py-0 bg-green-500/10 text-green-500">ITM</Badge>}
                   </div>
                 </td>
-                <td className="p-2 text-right font-mono">${opt.bid.toFixed(2)}</td>
-                <td className="p-2 text-right font-mono">${opt.ask.toFixed(2)}</td>
-                <td className="p-2 text-right font-mono">${opt.last.toFixed(2)}</td>
+                <td className="p-2 text-right font-mono">${safeToFixed(opt.bid, 2)}</td>
+                <td className="p-2 text-right font-mono">${safeToFixed(opt.ask, 2)}</td>
+                <td className="p-2 text-right font-mono">${safeToFixed(opt.last, 2)}</td>
                 <td className="p-2 text-right font-mono">{opt.volume.toLocaleString()}</td>
                 <td className="p-2 text-right font-mono">{opt.openInterest.toLocaleString()}</td>
                 <td className="p-2 text-right font-mono">
                   <span className={opt.delta > 0 ? "text-green-500" : "text-red-500"}>
-                    {opt.delta.toFixed(2)}
+                    {safeToFixed(opt.delta, 2)}
                   </span>
                 </td>
-                <td className="p-2 text-right font-mono">{opt.iv.toFixed(1)}%</td>
+                <td className="p-2 text-right font-mono">{safeToFixed(opt.iv, 1)}%</td>
                 <td className="p-2">
                   <Button 
                     variant="ghost" 
@@ -875,14 +875,14 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-muted/30">
               <p className="text-xs text-muted-foreground mb-1">Mid Price</p>
-              <p className="text-lg font-bold font-mono">${analysis.midPrice.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">${(analysis.midPrice * 100).toFixed(0)} / contract</p>
+              <p className="text-lg font-bold font-mono">${safeToFixed(analysis.midPrice, 2)}</p>
+              <p className="text-xs text-muted-foreground">${safeToFixed(analysis.midPrice * 100, 0)} / contract</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/30">
               <p className="text-xs text-muted-foreground mb-1">Break Even</p>
-              <p className="text-lg font-bold font-mono">${analysis.probability.breakEvenPrice.toFixed(2)}</p>
+              <p className="text-lg font-bold font-mono">${safeToFixed(analysis.probability.breakEvenPrice, 2)}</p>
               <p className="text-xs text-muted-foreground">
-                {analysis.technical.breakEvenMove > 0 ? '+' : ''}{analysis.technical.breakEvenMove.toFixed(1)}% move
+                {analysis.technical.breakEvenMove > 0 ? '+' : ''}{safeToFixed(analysis.technical.breakEvenMove, 1)}% move
               </p>
             </div>
           </div>
@@ -901,28 +901,28 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
             <div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delta</span>
-                <span className="font-mono">{analysis.greeks.delta.toFixed(3)}</span>
+                <span className="font-mono">{safeToFixed(analysis.greeks.delta, 3)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{analysis.greeks.deltaInterpretation}</p>
             </div>
             <div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Gamma</span>
-                <span className="font-mono">{analysis.greeks.gamma.toFixed(4)}</span>
+                <span className="font-mono">{safeToFixed(analysis.greeks.gamma, 4)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{analysis.greeks.gammaRisk}</p>
             </div>
             <div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Theta</span>
-                <span className="font-mono text-red-400">{analysis.greeks.theta.toFixed(3)}</span>
+                <span className="font-mono text-red-400">{safeToFixed(analysis.greeks.theta, 3)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{analysis.greeks.thetaImpact}</p>
             </div>
             <div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Vega</span>
-                <span className="font-mono">{analysis.greeks.vega.toFixed(3)}</span>
+                <span className="font-mono">{safeToFixed(analysis.greeks.vega, 3)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{analysis.greeks.vegaExposure}</p>
             </div>
@@ -940,13 +940,13 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
         <CardContent className="p-4 pt-0 space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">Current IV</span>
-            <span className="font-mono font-medium">{analysis.iv.currentIV.toFixed(1)}%</span>
+            <span className="font-mono font-medium">{safeToFixed(analysis.iv.currentIV, 1)}%</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-muted-foreground">IV Rank</span>
             <div className="flex items-center gap-2">
               <Progress value={analysis.iv.ivRank} className="w-20 h-2" />
-              <span className="font-mono">{analysis.iv.ivRank.toFixed(0)}%</span>
+              <span className="font-mono">{safeToFixed(analysis.iv.ivRank, 0)}%</span>
             </div>
           </div>
           <div className="flex justify-between items-center">
@@ -980,7 +980,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
                 <span className="text-sm font-medium">2x (Doubler)</span>
               </div>
               <span className="font-mono font-bold text-green-500" data-testid="text-target-2x">
-                ${analysis.scenarios.targetPrices.doubler.toFixed(2)}
+                ${safeToFixed(analysis.scenarios.targetPrices.doubler, 2)}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-cyan-500/10">
@@ -989,7 +989,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
                 <span className="text-sm font-medium">3x (Tripler)</span>
               </div>
               <span className="font-mono font-bold text-cyan-500" data-testid="text-target-3x">
-                ${analysis.scenarios.targetPrices.tripler.toFixed(2)}
+                ${safeToFixed(analysis.scenarios.targetPrices.tripler, 2)}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-purple-500/10">
@@ -998,7 +998,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
                 <span className="text-sm font-medium">5x (Five Bagger)</span>
               </div>
               <span className="font-mono font-bold text-purple-500" data-testid="text-target-5x">
-                ${analysis.scenarios.targetPrices.fiveBagger.toFixed(2)}
+                ${safeToFixed(analysis.scenarios.targetPrices.fiveBagger, 2)}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-amber-500/10">
@@ -1007,7 +1007,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
                 <span className="text-sm font-medium">10x (Ten Bagger)</span>
               </div>
               <span className="font-mono font-bold text-amber-500" data-testid="text-target-10x">
-                ${analysis.scenarios.targetPrices.tenBagger.toFixed(2)}
+                ${safeToFixed(analysis.scenarios.targetPrices.tenBagger, 2)}
               </span>
             </div>
           </div>
@@ -1025,20 +1025,20 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-2 rounded bg-green-500/10">
               <p className="text-xs text-muted-foreground">Max Profit</p>
-              <p className="font-mono text-green-500">${analysis.probability.maxProfit.toFixed(0)}</p>
+              <p className="font-mono text-green-500">${safeToFixed(analysis.probability.maxProfit, 0)}</p>
             </div>
             <div className="p-2 rounded bg-red-500/10">
               <p className="text-xs text-muted-foreground">Max Loss</p>
-              <p className="font-mono text-red-500">${analysis.probability.maxLoss.toFixed(0)}</p>
+              <p className="font-mono text-red-500">${safeToFixed(analysis.probability.maxLoss, 0)}</p>
             </div>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Prob. of Profit</span>
-            <span className="font-mono">{analysis.probability.probabilityOfProfit.toFixed(1)}%</span>
+            <span className="font-mono">{safeToFixed(analysis.probability.probabilityOfProfit, 1)}%</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">R:R Ratio</span>
-            <span className="font-mono">{analysis.probability.riskRewardRatio.toFixed(2)}:1</span>
+            <span className="font-mono">{safeToFixed(analysis.probability.riskRewardRatio, 2)}:1</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Days to 50% Decay</span>
@@ -1198,7 +1198,7 @@ function VolatilitySurfacePanel({
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-mono text-xs">
-                              ${strike.toFixed(0)} | IV: {(iv * 100).toFixed(1)}%
+                              ${safeToFixed(strike, 0)} | IV: {safeToFixed(iv * 100, 1)}%
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -1237,7 +1237,7 @@ function VolatilitySurfacePanel({
                         style={{ width: `${Math.min(100, iv * 100)}%` }}
                       />
                     </div>
-                    <span className="font-mono text-xs w-12 text-right">{(iv * 100).toFixed(1)}%</span>
+                    <span className="font-mono text-xs w-12 text-right">{safeToFixed(iv * 100, 1)}%</span>
                   </div>
                 );
               })}
@@ -1254,28 +1254,28 @@ function VolatilitySurfacePanel({
           <CardContent className="p-4 pt-0 space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">ATM Volatility</span>
-              <span className="font-mono font-medium">{(skew.atmVolatility * 100).toFixed(1)}%</span>
+              <span className="font-mono font-medium">{safeToFixed(skew.atmVolatility * 100, 1)}%</span>
             </div>
             <Separator />
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Put/Call Skew</span>
               <Badge variant={skew.putCallSkew > 0 ? "destructive" : "default"} className="font-mono">
-                {skew.putCallSkew > 0 ? '+' : ''}{skew.putCallSkew.toFixed(2)} pts
+                {skew.putCallSkew > 0 ? '+' : ''}{safeToFixed(skew.putCallSkew, 2)} pts
               </Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Skew Slope</span>
-              <span className="font-mono text-sm">{skew.skewSlope.toFixed(3)}</span>
+              <span className="font-mono text-sm">{safeToFixed(skew.skewSlope, 3)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Term Slope</span>
               <Badge variant={skew.termStructureSlope > 0 ? "default" : "secondary"} className="font-mono">
-                {skew.termStructureSlope > 0 ? '+' : ''}{skew.termStructureSlope.toFixed(2)} pts
+                {skew.termStructureSlope > 0 ? '+' : ''}{safeToFixed(skew.termStructureSlope, 2)} pts
               </Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Butterfly</span>
-              <span className="font-mono text-sm">{skew.butterflySpread.toFixed(2)} pts</span>
+              <span className="font-mono text-sm">{safeToFixed(skew.butterflySpread, 2)} pts</span>
             </div>
           </CardContent>
         </Card>
@@ -1393,14 +1393,14 @@ function PricingLabPanel({
           </div>
 
           {stockPrice && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="w-full"
               onClick={() => setInputs({ ...inputs, spotPrice: stockPrice, strikePrice: stockPrice })}
               data-testid="button-use-current-price"
             >
-              Use Current Price (${stockPrice.toFixed(2)})
+              Use Current Price (${safeToFixed(stockPrice, 2)})
             </Button>
           )}
 
@@ -1419,16 +1419,16 @@ function PricingLabPanel({
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="text-3xl font-bold font-mono text-cyan-400" data-testid="text-bs-price">
-                ${bsResult.theoreticalPrice.toFixed(4)}
+                ${safeToFixed(bsResult.theoreticalPrice, 4)}
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
                 <div>
                   <span className="text-muted-foreground">Intrinsic</span>
-                  <span className="font-mono ml-2">${bsResult.intrinsicValue.toFixed(2)}</span>
+                  <span className="font-mono ml-2">${safeToFixed(bsResult.intrinsicValue, 2)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Time Value</span>
-                  <span className="font-mono ml-2">${bsResult.timeValue.toFixed(2)}</span>
+                  <span className="font-mono ml-2">${safeToFixed(bsResult.timeValue, 2)}</span>
                 </div>
               </div>
             </CardContent>
@@ -1445,35 +1445,35 @@ function PricingLabPanel({
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Delta (Δ)</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.delta.toFixed(4)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.delta, 4)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Gamma (Γ)</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.gamma.toFixed(6)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.gamma, 6)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Theta (Θ)/day</span>
-                  <span className="font-mono font-medium text-red-400">{bsResult.greeks.theta.toFixed(4)}</span>
+                  <span className="font-mono font-medium text-red-400">{safeToFixed(bsResult.greeks.theta, 4)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Vega (ν)/1%</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.vega.toFixed(4)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.vega, 4)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Rho (ρ)/1%</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.rho.toFixed(4)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.rho, 4)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Vanna</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.vanna.toFixed(6)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.vanna, 6)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Volga (Vomma)</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.volga.toFixed(6)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.volga, 6)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Charm</span>
-                  <span className="font-mono font-medium">{bsResult.greeks.charm.toFixed(6)}</span>
+                  <span className="font-mono font-medium">{safeToFixed(bsResult.greeks.charm, 6)}</span>
                 </div>
               </div>
             </CardContent>
@@ -1490,18 +1490,18 @@ function PricingLabPanel({
               <CardContent className="p-4 pt-0 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">MC Price</span>
-                  <span className="font-mono font-medium">${mcResult.monteCarlo.theoreticalPrice.toFixed(4)}</span>
+                  <span className="font-mono font-medium">${safeToFixed(mcResult.monteCarlo.theoreticalPrice, 4)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">95% CI</span>
                   <span className="font-mono text-xs">
-                    [${mcResult.monteCarlo.confidence95[0].toFixed(2)}, ${mcResult.monteCarlo.confidence95[1].toFixed(2)}]
+                    [${safeToFixed(mcResult.monteCarlo.confidence95[0], 2)}, ${safeToFixed(mcResult.monteCarlo.confidence95[1], 2)}]
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">BS vs MC Diff</span>
                   <Badge variant="secondary" className="font-mono">
-                    {mcResult.differencePercent.toFixed(2)}%
+                    {safeToFixed(mcResult.differencePercent, 2)}%
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1622,31 +1622,31 @@ function StrategyLabPanel({
                 <div className="p-3 rounded bg-green-500/10">
                   <p className="text-xs text-muted-foreground">Max Profit</p>
                   <p className="font-mono font-bold text-green-500" data-testid="text-strategy-max-profit">
-                    {typeof strategyResult.maxProfit === 'number' ? `$${strategyResult.maxProfit.toFixed(0)}` : strategyResult.maxProfit}
+                    {typeof strategyResult.maxProfit === 'number' ? `$${safeToFixed(strategyResult.maxProfit, 0)}` : strategyResult.maxProfit}
                   </p>
                 </div>
                 <div className="p-3 rounded bg-red-500/10">
                   <p className="text-xs text-muted-foreground">Max Loss</p>
                   <p className="font-mono font-bold text-red-500" data-testid="text-strategy-max-loss">
-                    {typeof strategyResult.maxLoss === 'number' ? `$${strategyResult.maxLoss.toFixed(0)}` : strategyResult.maxLoss}
+                    {typeof strategyResult.maxLoss === 'number' ? `$${safeToFixed(strategyResult.maxLoss, 0)}` : strategyResult.maxLoss}
                   </p>
                 </div>
               </div>
-              
+
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Prob. of Profit</span>
-                  <span className="font-mono">{strategyResult.probabilityOfProfit.toFixed(1)}%</span>
+                  <span className="font-mono">{safeToFixed(strategyResult.probabilityOfProfit, 1)}%</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Expected Value</span>
-                  <span className="font-mono">${strategyResult.expectedValue.toFixed(2)}</span>
+                  <span className="font-mono">${safeToFixed(strategyResult.expectedValue, 2)}</span>
                 </div>
                 {strategyResult.breakEvenPoints.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Breakeven</span>
                     <span className="font-mono text-xs">
-                      {strategyResult.breakEvenPoints.map(b => `$${b.toFixed(2)}`).join(', ')}
+                      {strategyResult.breakEvenPoints.map(b => `$${safeToFixed(b, 2)}`).join(', ')}
                     </span>
                   </div>
                 )}
@@ -1682,7 +1682,7 @@ function StrategyLabPanel({
                       </TooltipTrigger>
                       <TooltipContent>
                         <p className="font-mono text-xs">
-                          ${point.price.toFixed(0)} → {point.pnl >= 0 ? '+' : ''}${point.pnl.toFixed(0)}
+                          ${safeToFixed(point.price, 0)} → {point.pnl >= 0 ? '+' : ''}${safeToFixed(point.pnl, 0)}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -1690,9 +1690,9 @@ function StrategyLabPanel({
                 })}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>${(stockPrice * 0.8).toFixed(0)}</span>
-                <span>${stockPrice.toFixed(0)} (current)</span>
-                <span>${(stockPrice * 1.2).toFixed(0)}</span>
+                <span>${safeToFixed(stockPrice * 0.8, 0)}</span>
+                <span>${safeToFixed(stockPrice, 0)} (current)</span>
+                <span>${safeToFixed(stockPrice * 1.2, 0)}</span>
               </div>
             </CardContent>
           </Card>
@@ -1708,15 +1708,15 @@ function StrategyLabPanel({
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div className="text-center p-2 rounded bg-muted/30">
                   <span className="text-xs text-muted-foreground block">Delta</span>
-                  <span className="font-mono">{strategyResult.greeksAggregate.delta.toFixed(3)}</span>
+                  <span className="font-mono">{safeToFixed(strategyResult.greeksAggregate.delta, 3)}</span>
                 </div>
                 <div className="text-center p-2 rounded bg-muted/30">
                   <span className="text-xs text-muted-foreground block">Gamma</span>
-                  <span className="font-mono">{strategyResult.greeksAggregate.gamma.toFixed(4)}</span>
+                  <span className="font-mono">{safeToFixed(strategyResult.greeksAggregate.gamma, 4)}</span>
                 </div>
                 <div className="text-center p-2 rounded bg-muted/30">
                   <span className="text-xs text-muted-foreground block">Theta</span>
-                  <span className="font-mono text-red-400">{strategyResult.greeksAggregate.theta.toFixed(3)}</span>
+                  <span className="font-mono text-red-400">{safeToFixed(strategyResult.greeksAggregate.theta, 3)}</span>
                 </div>
               </div>
             </CardContent>

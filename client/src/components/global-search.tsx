@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { useStockContext } from "@/contexts/stock-context";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -536,7 +536,7 @@ export function GlobalSearch({
                             {result.price != null && (
                               <div className="text-right">
                                 <div className="font-mono font-bold">
-                                  ${result.price.toFixed(2)}
+                                  ${safeToFixed(result.price, 2)}
                                 </div>
                                 {result.change != null && (
                                   <div className={cn(
@@ -548,7 +548,7 @@ export function GlobalSearch({
                                     ) : (
                                       <TrendingDown className="h-3 w-3" />
                                     )}
-                                    {result.change >= 0 ? '+' : ''}{result.change.toFixed(2)}%
+                                    {result.change >= 0 ? '+' : ''}{safeToFixed(result.change, 2)}%
                                   </div>
                                 )}
                               </div>

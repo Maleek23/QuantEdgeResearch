@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed, safeNumber } from '@/lib/utils';
 
 interface SymbolHistory {
   timesWatched: number;
@@ -175,7 +175,7 @@ export default function ResearchSignalCard({
           <div className="flex items-center gap-3">
             <PersonalizedConfidence raw={rawConfidence} personal={personalConfidence} symbol={symbol} />
             <span className={cn("font-bold text-lg", getGradeColor(grade))}>{grade}</span>
-            <span className="font-mono text-slate-400">R:R {riskReward.toFixed(1)}</span>
+            <span className="font-mono text-slate-400">R:R {safeToFixed(riskReward, 1)}</span>
           </div>
         </div>
         
@@ -183,7 +183,7 @@ export default function ResearchSignalCard({
           <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-4 text-xs text-slate-400">
             <span>Traded: {symbolHistory.timesTraded}x</span>
             <span className={symbolHistory.yourWinRate >= 50 ? 'text-green-400' : 'text-red-400'}>
-              Your Win Rate: {symbolHistory.yourWinRate.toFixed(0)}%
+              Your Win Rate: {safeToFixed(symbolHistory.yourWinRate, 0)}%
             </span>
             {symbolHistory.lastOutcome && (
               <span className={symbolHistory.lastOutcome === 'hit_target' ? 'text-green-400' : 'text-red-400'}>
@@ -219,7 +219,7 @@ export default function ResearchSignalCard({
               {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
               {direction.toUpperCase()}
             </Badge>
-            <span className="font-mono text-slate-400">R:R {riskReward.toFixed(1)}</span>
+            <span className="font-mono text-slate-400">R:R {safeToFixed(riskReward, 1)}</span>
           </div>
           
           <div className="flex items-center gap-4 mb-3">
@@ -234,15 +234,15 @@ export default function ResearchSignalCard({
             {entryPrice && (
               <div>
                 <span className="text-xs text-slate-500 block">Entry</span>
-                <span className="font-mono text-lg">${entryPrice.toFixed(2)}</span>
+                <span className="font-mono text-lg">${safeToFixed(entryPrice, 2)}</span>
               </div>
             )}
           </div>
           
           {technicals && (
             <div className="flex items-center gap-4 text-xs text-slate-400 font-mono">
-              {technicals.rsi && <span>RSI: {technicals.rsi.toFixed(1)}</span>}
-              {technicals.adx && <span>ADX: {technicals.adx.toFixed(1)}</span>}
+              {technicals.rsi && <span>RSI: {safeToFixed(technicals.rsi, 1)}</span>}
+              {technicals.adx && <span>ADX: {safeToFixed(technicals.adx, 1)}</span>}
             </div>
           )}
         </div>
@@ -322,7 +322,7 @@ export default function ResearchSignalCard({
                   "font-mono text-lg",
                   symbolHistory.yourWinRate >= 50 ? 'text-green-400' : 'text-red-400'
                 )}>
-                  {symbolHistory.yourWinRate.toFixed(0)}%
+                  {safeToFixed(symbolHistory.yourWinRate, 0)}%
                 </span>
               </div>
               <div className="flex flex-col">

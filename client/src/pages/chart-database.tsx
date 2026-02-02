@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { TradeIdea } from "@shared/schema";
 import { Database, Search, Filter, TrendingUp, TrendingDown, BarChart3, Target, Calendar } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { getPnlColor } from "@/lib/signal-grade";
 
 export default function ChartDatabase() {
@@ -232,14 +232,14 @@ export default function ChartDatabase() {
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Entry / Exit</p>
                       <p className="text-sm font-mono font-semibold tabular-nums">
-                        ${trade.entryPrice.toFixed(2)} → {trade.exitPrice ? `$${trade.exitPrice.toFixed(2)}` : <span className="text-muted-foreground">Pending</span>}
+                        ${safeToFixed(trade.entryPrice, 2)} → {trade.exitPrice ? `$${safeToFixed(trade.exitPrice, 2)}` : <span className="text-muted-foreground">Pending</span>}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">P&L</p>
                       {trade.outcomeStatus && trade.outcomeStatus !== 'open' ? (
                         <p className={cn("text-sm font-bold font-mono tabular-nums", getPnlColor(trade.outcomeStatus, trade.percentGain))}>
-                          {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
+                          {(trade.percentGain || 0) >= 0 ? '+' : ''}{safeToFixed(trade.percentGain || 0, 1)}%
                         </p>
                       ) : (
                         <Badge variant="secondary" className="text-xs">OPEN</Badge>

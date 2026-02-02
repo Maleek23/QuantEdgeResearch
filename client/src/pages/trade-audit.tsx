@@ -29,7 +29,7 @@ import {
 import { SiDiscord } from "react-icons/si";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
@@ -99,7 +99,7 @@ function getEventLabel(eventType: string): string {
 
 function PlanCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "long";
-  const potentialGain = ((Number(idea.targetPrice) - Number(idea.entryPrice)) / Number(idea.entryPrice) * 100).toFixed(1);
+  const potentialGain = safeToFixed((Number(idea.targetPrice) - Number(idea.entryPrice)) / Number(idea.entryPrice) * 100, 1);
   
   return (
     <Card className="glass-card">
@@ -135,23 +135,23 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
         <div className="grid grid-cols-2 gap-4">
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Entry Price</p>
-            <p className="font-mono text-lg font-bold tabular-nums">${Number(idea.entryPrice).toFixed(2)}</p>
+            <p className="font-mono text-lg font-bold tabular-nums">${safeToFixed(Number(idea.entryPrice), 2)}</p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Target Price</p>
             <p className="font-mono text-lg font-bold tabular-nums text-green-400">
-              ${Number(idea.targetPrice).toFixed(2)}
+              ${safeToFixed(Number(idea.targetPrice), 2)}
               <span className="text-xs ml-1 opacity-70">+{potentialGain}%</span>
             </p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Stop Loss</p>
-            <p className="font-mono text-lg font-bold tabular-nums text-red-400">${Number(idea.stopLoss).toFixed(2)}</p>
+            <p className="font-mono text-lg font-bold tabular-nums text-red-400">${safeToFixed(Number(idea.stopLoss), 2)}</p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Risk/Reward</p>
             <p className="font-mono text-lg font-bold tabular-nums">
-              {idea.riskRewardRatio ? Number(idea.riskRewardRatio).toFixed(2) + ":1" : "—"}
+              {idea.riskRewardRatio ? safeToFixed(Number(idea.riskRewardRatio), 2) + ":1" : "—"}
             </p>
           </div>
         </div>
@@ -298,13 +298,13 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
               {idea.targetHitProbability && (
                 <div className="stat-glass rounded-lg p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Target Hit Prob</p>
-                  <p className="font-mono font-bold text-green-400">{idea.targetHitProbability.toFixed(1)}%</p>
+                  <p className="font-mono font-bold text-green-400">{safeToFixed(idea.targetHitProbability, 1)}%</p>
                 </div>
               )}
               {idea.timingConfidence && (
                 <div className="stat-glass rounded-lg p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Timing Conf</p>
-                  <p className="font-mono font-bold text-cyan-400">{idea.timingConfidence.toFixed(0)}%</p>
+                  <p className="font-mono font-bold text-cyan-400">{safeToFixed(idea.timingConfidence, 0, '0')}%</p>
                 </div>
               )}
               {idea.volatilityRegime && (
@@ -431,7 +431,7 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
               "font-mono text-2xl font-bold tabular-nums",
               getPnlColor(idea.outcomeStatus, Number(idea.percentGain))
             )}>
-              {Number(idea.percentGain) >= 0 ? "+" : ""}{Number(idea.percentGain).toFixed(2)}%
+              {Number(idea.percentGain) >= 0 ? "+" : ""}{safeToFixed(Number(idea.percentGain), 2)}%
             </span>
           )}
         </div>
@@ -441,7 +441,7 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Exit Price</p>
-                <p className="font-mono text-lg font-bold tabular-nums">${Number(idea.exitPrice || 0).toFixed(2)}</p>
+                <p className="font-mono text-lg font-bold tabular-nums">${safeToFixed(Number(idea.exitPrice || 0), 2)}</p>
               </div>
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Holding Time</p>
@@ -458,13 +458,13 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">High Reached</p>
                 <p className="font-mono text-lg font-bold tabular-nums text-green-400">
-                  ${Number(idea.highestPriceReached || 0).toFixed(2)}
+                  ${safeToFixed(Number(idea.highestPriceReached || 0), 2)}
                 </p>
               </div>
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Low Reached</p>
                 <p className="font-mono text-lg font-bold tabular-nums text-red-400">
-                  ${Number(idea.lowestPriceReached || 0).toFixed(2)}
+                  ${safeToFixed(Number(idea.lowestPriceReached || 0), 2)}
                 </p>
               </div>
             </div>
@@ -568,26 +568,26 @@ function PriceSnapshotTimeline({ snapshots }: { snapshots: TradePriceSnapshot[] 
                       <div>
                         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</span>
                         <p className="font-mono font-bold tabular-nums">
-                          ${Number(snapshot.currentPrice).toFixed(2)}
+                          ${safeToFixed(Number(snapshot.currentPrice), 2)}
                         </p>
                       </div>
                       {snapshot.bidPrice && (
                         <div>
                           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Bid</span>
-                          <p className="font-mono tabular-nums">${Number(snapshot.bidPrice).toFixed(2)}</p>
+                          <p className="font-mono tabular-nums">${safeToFixed(Number(snapshot.bidPrice), 2)}</p>
                         </div>
                       )}
                       {snapshot.askPrice && (
                         <div>
                           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Ask</span>
-                          <p className="font-mono tabular-nums">${Number(snapshot.askPrice).toFixed(2)}</p>
+                          <p className="font-mono tabular-nums">${safeToFixed(Number(snapshot.askPrice), 2)}</p>
                         </div>
                       )}
                     </div>
                     
                     {snapshot.distanceToTargetPercent !== null && (
                       <p className="text-xs text-muted-foreground">
-                        Distance to target: <span className="font-mono">{Number(snapshot.distanceToTargetPercent).toFixed(1)}%</span>
+                        Distance to target: <span className="font-mono">{safeToFixed(Number(snapshot.distanceToTargetPercent), 1)}%</span>
                       </p>
                     )}
                     
@@ -647,45 +647,45 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
             <tbody>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Target Price</td>
-                <td className="text-right font-mono tabular-nums text-green-400">${targetPrice.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums text-green-400">${safeToFixed(targetPrice, 2)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Stop Loss</td>
-                <td className="text-right font-mono tabular-nums text-red-400">${stopLoss.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums text-red-400">${safeToFixed(stopLoss, 2)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Exit Price</td>
                 <td className="text-right font-mono tabular-nums">—</td>
-                <td className="text-right font-mono tabular-nums">${exitPrice.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums">${safeToFixed(exitPrice, 2)}</td>
                 <td className="text-right font-mono tabular-nums">
-                  {(exitPrice - entryPrice >= 0 ? "+" : "") + (exitPrice - entryPrice).toFixed(2)}
+                  {(exitPrice - entryPrice >= 0 ? "+" : "") + safeToFixed(exitPrice - entryPrice, 2)}
                 </td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Max Upside</td>
-                <td className="text-right font-mono tabular-nums text-green-400">+{targetPct.toFixed(1)}%</td>
+                <td className="text-right font-mono tabular-nums text-green-400">+{safeToFixed(targetPct, 1)}%</td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
                   actualPct >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {actualPct >= 0 ? "+" : ""}{actualPct.toFixed(1)}%
+                  {actualPct >= 0 ? "+" : ""}{safeToFixed(actualPct, 1)}%
                 </td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
                   actualPct >= targetPct ? "text-green-400" : "text-amber-400"
                 )}>
-                  {(actualPct - targetPct).toFixed(1)}%
+                  {safeToFixed(actualPct - targetPct, 1)}%
                 </td>
               </tr>
               <tr className="hover-elevate">
                 <td className="py-3">Max Risk</td>
-                <td className="text-right font-mono tabular-nums text-red-400">{stopPct.toFixed(1)}%</td>
+                <td className="text-right font-mono tabular-nums text-red-400">{safeToFixed(stopPct, 1)}%</td>
                 <td className="text-right font-mono tabular-nums">
-                  {idea.outcomeStatus === "hit_stop" ? `${actualPct.toFixed(1)}%` : "—"}
+                  {idea.outcomeStatus === "hit_stop" ? `${safeToFixed(actualPct, 1)}%` : "—"}
                 </td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>

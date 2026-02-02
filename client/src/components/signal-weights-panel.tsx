@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, Minus, Zap, Shield, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { safeToFixed } from '@/lib/utils';
 
 interface SignalWeight {
   signalName: string;
@@ -156,10 +157,10 @@ export function SignalWeightsPanel() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {signal.winRate.toFixed(0)}% / {signal.totalTrades}
+                      {safeToFixed(signal.winRate, 0)}% / {signal.totalTrades}
                     </span>
                     <span className={`font-mono font-bold ${getWeightColor(signal.dynamicWeight)}`}>
-                      {signal.dynamicWeight.toFixed(2)}x
+                      {safeToFixed(signal.dynamicWeight, 2)}x
                     </span>
                   </div>
                 </div>
@@ -181,10 +182,10 @@ export function SignalWeightsPanel() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {signal.winRate.toFixed(0)}% / {signal.totalTrades}
+                      {safeToFixed(signal.winRate, 0)}% / {signal.totalTrades}
                     </span>
                     <span className={`font-mono font-bold ${getWeightColor(signal.dynamicWeight)}`}>
-                      {signal.dynamicWeight.toFixed(2)}x
+                      {safeToFixed(signal.dynamicWeight, 2)}x
                     </span>
                   </div>
                 </div>

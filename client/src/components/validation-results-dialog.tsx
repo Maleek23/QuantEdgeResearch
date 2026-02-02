@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, XCircle, Clock, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { safeToFixed } from "@/lib/utils";
 
 interface ValidationResult {
   id: string;
@@ -112,21 +113,21 @@ export function ValidationResultsDialog({
                 <div className="grid grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Entry Price</p>
-                    <p className="text-sm font-medium">${result.entryPrice.toFixed(2)}</p>
+                    <p className="text-sm font-medium">${safeToFixed(result.entryPrice, 2)}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Current Price</p>
                     <p className={`text-sm font-bold ${getPriceColor(result)}`}>
-                      ${result.currentPrice.toFixed(2)}
+                      ${safeToFixed(result.currentPrice, 2)}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Target Price</p>
-                    <p className="text-sm font-medium text-green-500">${result.targetPrice.toFixed(2)}</p>
+                    <p className="text-sm font-medium text-green-500">${safeToFixed(result.targetPrice, 2)}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Stop Loss</p>
-                    <p className="text-sm font-medium text-red-500">${result.stopLoss.toFixed(2)}</p>
+                    <p className="text-sm font-medium text-red-500">${safeToFixed(result.stopLoss, 2)}</p>
                   </div>
                 </div>
 
@@ -134,13 +135,13 @@ export function ValidationResultsDialog({
                   <div className="glass-card p-2 rounded">
                     <p className="text-xs text-muted-foreground mb-1">Distance to Target</p>
                     <p className={`text-sm font-bold ${Math.abs(result.percentToTarget) < 1 ? 'text-green-500' : 'text-foreground'}`}>
-                      {result.percentToTarget > 0 ? '+' : ''}{result.percentToTarget.toFixed(2)}%
+                      {result.percentToTarget > 0 ? '+' : ''}{safeToFixed(result.percentToTarget, 2)}%
                     </p>
                   </div>
                   <div className="glass-card p-2 rounded">
                     <p className="text-xs text-muted-foreground mb-1">Distance to Stop</p>
                     <p className={`text-sm font-bold ${Math.abs(result.percentToStop) < 1 ? 'text-red-500' : 'text-foreground'}`}>
-                      {result.percentToStop > 0 ? '+' : ''}{result.percentToStop.toFixed(2)}%
+                      {result.percentToStop > 0 ? '+' : ''}{safeToFixed(result.percentToStop, 2)}%
                     </p>
                   </div>
                 </div>

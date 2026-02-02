@@ -12,7 +12,7 @@ import {
   TrendingUp, TrendingDown, Calendar, FileText, Target,
   Clock, BarChart3, Plus, Activity, Zap, Eye, Ban
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { WatchlistHistoryRecord, SymbolNote, WatchlistItem } from '@shared/schema';
@@ -139,7 +139,7 @@ export default function SymbolJourneyModal({
           date: record.snapshotDate,
           type: 'traded',
           title: 'Trade Executed',
-          description: `Price: $${record.price?.toFixed(2)}`,
+          description: `Price: $${safeToFixed(record.price, 2)}`,
         });
       }
       
@@ -185,7 +185,7 @@ export default function SymbolJourneyModal({
               </Badge>
             )}
             <span className="text-xl font-mono text-muted-foreground">
-              {watchlistItem?.gradeScore?.toFixed(0) || '—'}/100
+              {safeToFixed(watchlistItem?.gradeScore, 0, '—')}/100
             </span>
           </DialogTitle>
           <DialogDescription>

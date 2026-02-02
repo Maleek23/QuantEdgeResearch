@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Users, BarChart3, Target, AlertCircle, Star, BookOpen } from "lucide-react";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatCurrency, formatPercent, safeToFixed, safeNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { MarketData } from "@shared/schema";
 
@@ -38,7 +38,7 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
   ];
 
   const mockKeyMetrics = [
-    { label: "Market Cap", value: symbol.marketCap ? `$${(symbol.marketCap / 1e9).toFixed(2)}B` : "N/A" },
+    { label: "Market Cap", value: symbol.marketCap ? `$${safeToFixed(symbol.marketCap / 1e9, 2)}B` : "N/A" },
     { label: "Volume", value: symbol.volume.toLocaleString() },
     { label: "Avg Volume", value: symbol.avgVolume ? symbol.avgVolume.toLocaleString() : "N/A" },
     { label: "24h High", value: symbol.high24h ? formatCurrency(symbol.high24h) : "N/A" },
@@ -116,7 +116,7 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Volume vs Avg</span>
                     <span className={`text-sm font-semibold ${symbol.avgVolume && symbol.volume > symbol.avgVolume ? 'text-bullish' : 'text-muted-foreground'}`}>
-                      {symbol.avgVolume ? `${((symbol.volume / symbol.avgVolume - 1) * 100).toFixed(1)}%` : "N/A"}
+                      {symbol.avgVolume ? `${safeToFixed((safeNumber(symbol.volume) / safeNumber(symbol.avgVolume, 1) - 1) * 100, 1)}%` : "N/A"}
                     </span>
                   </div>
                 </div>

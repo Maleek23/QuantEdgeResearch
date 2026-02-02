@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Calendar, Target, AlertCircle,
   MessageSquare, DollarSign, ArrowUpDown
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   LineChart,
   Line,
@@ -86,20 +86,20 @@ function CustomTooltip({ active, payload, label }: any) {
             {data.gradeLetter || data.tier || 'N/A'}
           </Badge>
           <span className="text-xs font-mono text-cyan-400">
-            {data.gradeScore?.toFixed(0) || '--'}/100
+            {data.gradeScore ? safeToFixed(data.gradeScore, 0) : '--'}/100
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs">Price:</span>
           <span className="text-xs font-mono font-medium">
-            ${data.price?.toFixed(2)}
+            ${safeToFixed(data.price, 2)}
           </span>
           {data.priceChange !== null && (
             <span className={cn(
               "text-xs font-mono",
               data.priceChange >= 0 ? "text-green-400" : "text-red-400"
             )}>
-              {data.priceChange >= 0 ? '+' : ''}{data.priceChange.toFixed(1)}%
+              {data.priceChange >= 0 ? '+' : ''}{safeToFixed(data.priceChange, 1)}%
             </span>
           )}
         </div>
@@ -201,13 +201,13 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
               "text-xs font-mono",
               gradeChange >= 0 ? "text-green-400" : "text-red-400"
             )}>
-              {gradeChange >= 0 ? '+' : ''}{gradeChange.toFixed(0)} pts
+              {gradeChange >= 0 ? '+' : ''}{safeToFixed(gradeChange, 0)} pts
             </span>
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span>{sortedHistory.length} days tracked</span>
-          <span>Price: {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(1)}%</span>
+          <span>Price: {priceChange >= 0 ? '+' : ''}{safeToFixed(priceChange, 1)}%</span>
           {tradeDays > 0 && (
             <span className="text-green-400">{tradeDays} trade(s)</span>
           )}

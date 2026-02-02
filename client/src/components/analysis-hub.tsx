@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 import { 
   BarChart3, Brain, Calculator, TrendingUp, Target, LineChart,
@@ -213,7 +213,7 @@ function SignalConvergenceBar({ signals }: { signals: { source: string; directio
           convergence >= 60 && convergence < 80 && "bg-amber-500/15 text-amber-400",
           convergence < 60 && "bg-slate-700/50 text-slate-400"
         )}>
-          {convergence.toFixed(0)}% {direction}
+          {safeToFixed(convergence, 0)}% {direction}
         </div>
       </div>
       <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden flex">

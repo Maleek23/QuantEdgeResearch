@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,16 +44,18 @@ interface AnalystRating {
 }
 
 function formatValue(value: number): string {
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toFixed(0)}`;
+  const safeVal = safeNumber(value);
+  if (safeVal >= 1_000_000_000) return `$${safeToFixed(safeVal / 1_000_000_000, 1)}B`;
+  if (safeVal >= 1_000_000) return `$${safeToFixed(safeVal / 1_000_000, 1)}M`;
+  if (safeVal >= 1_000) return `$${safeToFixed(safeVal / 1_000, 1)}K`;
+  return `$${safeToFixed(safeVal, 0)}`;
 }
 
 function formatShares(shares: number): string {
-  if (shares >= 1_000_000) return `${(shares / 1_000_000).toFixed(1)}M`;
-  if (shares >= 1_000) return `${(shares / 1_000).toFixed(1)}K`;
-  return shares.toString();
+  const safeShares = safeNumber(shares);
+  if (safeShares >= 1_000_000) return `${safeToFixed(safeShares / 1_000_000, 1)}M`;
+  if (safeShares >= 1_000) return `${safeToFixed(safeShares / 1_000, 1)}K`;
+  return safeShares.toString();
 }
 
 export default function SmartMoney() {
@@ -476,11 +478,11 @@ export default function SmartMoney() {
                                 "text-xs",
                                 isUp ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                               )}>
-                                {isUp ? "+" : ""}{stock.change?.toFixed(1)}%
+                                {isUp ? "+" : ""}{safeToFixed(stock.change, 1)}%
                               </Badge>
                             </div>
                             <div className="text-lg font-semibold text-slate-100">
-                              ${stock.price?.toFixed(2)}
+                              ${safeToFixed(stock.price, 2)}
                             </div>
                             {stock.name && (
                               <p className="text-xs text-slate-500 truncate mt-1">{stock.name}</p>

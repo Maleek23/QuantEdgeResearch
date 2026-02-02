@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, Activity } from "lucide-react";
 
 type Regime = "risk-on" | "risk-off" | "neutral";
@@ -90,7 +90,7 @@ export function MarketRegimeDetector({
               vixLevel > 25 ? "text-red-400" : vixLevel > 18 ? "text-amber-400" : "text-green-400"
             )}
           >
-            {vixLevel.toFixed(2)}
+            {safeToFixed(vixLevel, 2)}
           </span>
         </div>
         <div className="bg-slate-800/40 rounded-lg p-3">

@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, safeToFixed, safeNumber } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
@@ -265,9 +265,9 @@ export default function UnifiedWatchlist() {
                     const quote = batchQuotes[item.symbol];
                     return [
                       item.symbol,
-                      quote?.price?.toFixed(2) || '',
+                      quote?.price ? safeToFixed(quote.price, 2) : '',
                       item.assetType || 'stock',
-                      quote?.changePercent?.toFixed(2) + '%' || '',
+                      quote?.changePercent != null ? safeToFixed(quote.changePercent, 2) + '%' : '',
                       getMarketCap(item),
                       getOutlook(item) || '',
                       item.tier || 'C'
@@ -461,7 +461,7 @@ export default function UnifiedWatchlist() {
                                 "font-mono text-sm",
                                 isPositive ? "text-emerald-400" : "text-red-400"
                               )}>
-                                {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                                {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
                               </span>
                             </div>
                           </TableCell>

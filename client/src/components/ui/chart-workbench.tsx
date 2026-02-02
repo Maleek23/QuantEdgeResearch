@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, IChartApi, ISeriesApi, CandlestickSeries, LineSeries, CandlestickData, LineData, UTCTimestamp } from "lightweight-charts";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CandlestickChart, LineChart, ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
@@ -244,7 +244,7 @@ export function ChartWorkbench({
                   "ml-2 text-sm font-medium",
                   priceChange >= 0 ? "text-emerald-500" : "text-red-500"
                 )}>
-                  {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
+                  {priceChange >= 0 ? "+" : ""}{safeToFixed(priceChange, 2)}%
                 </span>
               )}
             </div>

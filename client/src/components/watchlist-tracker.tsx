@@ -20,7 +20,7 @@ import { Star, Plus, X, TrendingUp, TrendingDown, Eye, AlertCircle, Loader2, Dol
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface WatchlistItem {
   id: string;
@@ -124,9 +124,9 @@ export function WatchlistTracker() {
   };
 
   const formatPremium = (premium: number) => {
-    if (premium >= 1000000) return `$${(premium / 1000000).toFixed(1)}M`;
-    if (premium >= 1000) return `$${(premium / 1000).toFixed(0)}K`;
-    return `$${premium.toFixed(0)}`;
+    if (premium >= 1000000) return `$${safeToFixed(premium / 1000000, 1)}M`;
+    if (premium >= 1000) return `$${safeToFixed(premium / 1000, 0)}K`;
+    return `$${safeToFixed(premium, 0)}`;
   };
 
   const getPriceChangeColor = (changePercent?: number) => {
@@ -303,7 +303,7 @@ export function WatchlistTracker() {
                         {item.currentPrice && (
                           <div className="flex items-center gap-2 text-sm">
                             <span className="font-mono font-medium">
-                              ${item.currentPrice.toFixed(2)}
+                              ${safeToFixed(item.currentPrice, 2)}
                             </span>
                             {item.priceChangePercent !== undefined && (
                               <span className={cn("text-xs font-mono flex items-center", getPriceChangeColor(item.priceChangePercent))}>
@@ -312,7 +312,7 @@ export function WatchlistTracker() {
                                 ) : (
                                   <TrendingDown className="h-3 w-3 mr-0.5" />
                                 )}
-                                {Math.abs(item.priceChangePercent).toFixed(2)}%
+                                {safeToFixed(Math.abs(item.priceChangePercent), 2)}%
                               </span>
                             )}
                           </div>

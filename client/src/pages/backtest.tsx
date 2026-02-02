@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   Search, TrendingUp, TrendingDown, Activity, BarChart3, 
   Target, AlertTriangle, Loader2, RefreshCw
@@ -400,7 +400,7 @@ export default function BacktestPage() {
                   Current Price
                 </p>
                 <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-price">
-                  ${patternData.currentPrice.toFixed(2)}
+                  ${safeToFixed(patternData.currentPrice, 2)}
                 </p>
               </CardContent>
             </Card>
@@ -419,7 +419,7 @@ export default function BacktestPage() {
                   ) : (
                     <TrendingDown className="h-4 w-4" />
                   )}
-                  {patternData.priceChange >= 0 ? "+" : ""}{patternData.priceChange.toFixed(2)}%
+                  {patternData.priceChange >= 0 ? "+" : ""}{safeToFixed(patternData.priceChange, 2)}%
                 </p>
               </CardContent>
             </Card>
@@ -455,7 +455,7 @@ export default function BacktestPage() {
                 <Activity className="h-5 w-5 text-purple-400" />
                 RSI (14)
                 <Badge variant="outline" className="ml-2 font-mono tabular-nums" data-testid="badge-rsi-value">
-                  {patternData.indicators.rsi.value.toFixed(1)}
+                  {safeToFixed(patternData.indicators.rsi.value, 1)}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -514,7 +514,7 @@ export default function BacktestPage() {
                 <TableBody>
                   <TableRow data-testid="row-rsi">
                     <TableCell className="font-medium">RSI (14)</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi.value < 30 ? (
                         <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
@@ -527,7 +527,7 @@ export default function BacktestPage() {
                   </TableRow>
                   <TableRow data-testid="row-rsi2">
                     <TableCell className="font-medium">RSI (2)</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi2.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi2.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi2.value < 10 ? (
                         <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Extreme Oversold</Badge>
@@ -541,7 +541,7 @@ export default function BacktestPage() {
                   <TableRow data-testid="row-macd">
                     <TableCell className="font-medium">MACD</TableCell>
                     <TableCell className="font-mono tabular-nums">
-                      {patternData.indicators.macd.macd.toFixed(4)} / {patternData.indicators.macd.signal.toFixed(4)}
+                      {safeToFixed(patternData.indicators.macd.macd, 4)} / {safeToFixed(patternData.indicators.macd.signal, 4)}
                     </TableCell>
                     <TableCell>
                       {patternData.indicators.macd.histogram > 0 ? (
@@ -554,9 +554,9 @@ export default function BacktestPage() {
                   <TableRow data-testid="row-bb">
                     <TableCell className="font-medium">Bollinger Bands</TableCell>
                     <TableCell className="font-mono tabular-nums text-xs">
-                      U: ${patternData.indicators.bollingerBands.upper.toFixed(2)} | 
-                      M: ${patternData.indicators.bollingerBands.middle.toFixed(2)} | 
-                      L: ${patternData.indicators.bollingerBands.lower.toFixed(2)}
+                      U: ${safeToFixed(patternData.indicators.bollingerBands.upper, 2)} |
+                      M: ${safeToFixed(patternData.indicators.bollingerBands.middle, 2)} |
+                      L: ${safeToFixed(patternData.indicators.bollingerBands.lower, 2)}
                     </TableCell>
                     <TableCell>
                       {patternData.currentPrice < patternData.indicators.bollingerBands.lower ? (
@@ -570,7 +570,7 @@ export default function BacktestPage() {
                   </TableRow>
                   <TableRow data-testid="row-adx">
                     <TableCell className="font-medium">ADX</TableCell>
-                    <TableCell className="font-mono tabular-nums">{patternData.indicators.adx.value.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.adx.value, 2)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
                         {patternData.indicators.adx.regime} ({patternData.indicators.adx.suitableFor.replace("_", " ")})
@@ -581,7 +581,7 @@ export default function BacktestPage() {
                     <TableRow data-testid="row-stochrsi">
                       <TableCell className="font-medium">Stochastic RSI</TableCell>
                       <TableCell className="font-mono tabular-nums">
-                        K: {patternData.indicators.stochRSI.k.toFixed(2)} / D: {patternData.indicators.stochRSI.d.toFixed(2)}
+                        K: {safeToFixed(patternData.indicators.stochRSI.k, 2)} / D: {safeToFixed(patternData.indicators.stochRSI.d, 2)}
                       </TableCell>
                       <TableCell>
                         {patternData.indicators.stochRSI.k < 20 ? (

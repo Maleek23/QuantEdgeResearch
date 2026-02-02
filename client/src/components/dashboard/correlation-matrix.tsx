@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Grid3X3 } from "lucide-react";
 
 interface CorrelationMatrixProps {
@@ -65,9 +65,9 @@ export function CorrelationMatrix({ assets, correlations, className }: Correlati
                             ? "bg-cyan-500/20 text-cyan-400"
                             : getCorrelationColor(value)
                         )}
-                        title={`${rowAsset} vs ${colAsset}: ${value.toFixed(2)}`}
+                        title={`${rowAsset} vs ${colAsset}: ${safeToFixed(value, 2)}`}
                       >
-                        {isDiagonal ? "1.00" : value.toFixed(2)}
+                        {isDiagonal ? "1.00" : safeToFixed(value, 2)}
                       </div>
                     </td>
                   );

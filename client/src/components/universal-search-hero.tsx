@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 import { useStockContext } from '@/contexts/stock-context';
 import {
   Search,
@@ -449,14 +449,14 @@ export function UniversalSearchHero({
                               {isStock && stockResult.price && (
                                 <div className="text-right flex-shrink-0">
                                   <div className="text-sm font-mono font-medium">
-                                    ${stockResult.price?.toFixed(2)}
+                                    ${safeToFixed(stockResult.price, 2)}
                                   </div>
                                   {stockResult.changePercent !== undefined && (
                                     <div className={cn(
                                       "text-xs font-mono",
                                       stockResult.changePercent >= 0 ? "text-emerald-400" : "text-red-400"
                                     )}>
-                                      {stockResult.changePercent >= 0 ? '+' : ''}{stockResult.changePercent?.toFixed(2)}%
+                                      {stockResult.changePercent >= 0 ? '+' : ''}{safeToFixed(stockResult.changePercent, 2)}%
                                     </div>
                                   )}
                                 </div>

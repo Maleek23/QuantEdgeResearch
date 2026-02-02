@@ -54,7 +54,7 @@ const generateChartData = (isLong: boolean, entryPrice: number, targetPrice: num
 
     data.push({
       time: i,
-      price: Number(value.toFixed(2)),
+      price: Number(safeToFixed(value, 2)),
     });
   }
   return data;

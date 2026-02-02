@@ -9,7 +9,7 @@ import {
   Target,
   Award
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface PerformanceStats {
   overall: {
@@ -102,7 +102,7 @@ export function WinRateWidget() {
           <Award className={cn("h-8 w-8", getWinRateColor(winRate))} />
           <div className="text-center">
             <div className={cn("text-3xl font-bold font-mono tabular-nums", getWinRateColor(winRate))}>
-              {winRate.toFixed(1)}%
+              {safeToFixed(winRate, 1)}%
             </div>
             <div className="text-xs text-muted-foreground">All-Time Win Rate</div>
           </div>
@@ -112,13 +112,13 @@ export function WinRateWidget() {
           <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
             <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">7-Day</div>
             <div className={cn("text-lg font-bold font-mono tabular-nums", getWinRateColor(weeklyWinRate))}>
-              {weeklyWinRate.toFixed(0)}%
+              {safeToFixed(weeklyWinRate, 0)}%
             </div>
           </div>
           <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
             <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">30-Day</div>
             <div className={cn("text-lg font-bold font-mono tabular-nums", getWinRateColor(monthlyWinRate))}>
-              {monthlyWinRate.toFixed(0)}%
+              {safeToFixed(monthlyWinRate, 0)}%
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@ export function WinRateWidget() {
             "font-bold font-mono tabular-nums",
             totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
           )}>
-            {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
+            {totalPnL >= 0 ? '+' : ''}${safeToFixed(totalPnL, 2)}
           </span>
         </div>
 
@@ -153,13 +153,13 @@ export function WinRateWidget() {
                     "font-mono",
                     s.winRate >= 50 ? 'text-green-400' : 'text-red-400'
                   )}>
-                    {s.winRate.toFixed(0)}%
+                    {safeToFixed(s.winRate, 0)}%
                   </span>
                   <span className={cn(
                     "font-mono tabular-nums",
                     s.pnl >= 0 ? 'text-green-400' : 'text-red-400'
                   )}>
-                    {s.pnl >= 0 ? '+' : ''}${s.pnl.toFixed(0)}
+                    {s.pnl >= 0 ? '+' : ''}${safeToFixed(s.pnl, 0)}
                   </span>
                 </div>
               </div>

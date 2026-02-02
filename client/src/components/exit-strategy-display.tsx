@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { Target, TrendingUp, Shield, Zap, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface ExitStage {
   targetPercent: number;
@@ -72,7 +72,7 @@ export function ExitStrategyDisplay({
               {stages.map((stage, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  <span>+{stage.targetPercent.toFixed(0)}%: Exit {stage.exitPercent}%</span>
+                  <span>+{safeToFixed(stage.targetPercent, 0)}%: Exit {stage.exitPercent}%</span>
                   {stage.trailAfter && (
                     <Badge variant="outline" className="text-[9px] px-1 py-0 text-green-400">
                       Trail
@@ -125,7 +125,7 @@ export function ExitStrategyDisplay({
                     "font-mono font-medium",
                     isReached ? "text-green-400" : "text-muted-foreground"
                   )}>
-                    Stage {i + 1}: +{stage.targetPercent.toFixed(0)}%
+                    Stage {i + 1}: +{safeToFixed(stage.targetPercent, 0)}%
                   </span>
                   {stage.trailAfter && (
                     <Badge variant="outline" className="text-[10px] px-1 py-0 text-cyan-400 border-cyan-500/30">

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { BarChart3 } from "lucide-react";
 
 interface IndexData {
@@ -52,10 +52,10 @@ export function IndexHeatmap({ indices, className }: IndexHeatmapProps) {
             <div className="flex flex-col">
               <span className="text-xs font-medium opacity-80">{index.symbol}</span>
               <span className="text-lg font-mono tabular-nums font-bold">
-                {index.price >= 1000 ? index.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : index.price.toFixed(2)}
+                {index.price >= 1000 ? index.price.toLocaleString(undefined, { maximumFractionDigits: 0 }) : safeToFixed(index.price, 2)}
               </span>
               <span className="text-xs font-mono tabular-nums">
-                {index.changePercent >= 0 ? "+" : ""}{index.changePercent.toFixed(2)}%
+                {index.changePercent >= 0 ? "+" : ""}{safeToFixed(index.changePercent, 2)}%
               </span>
             </div>
           </div>

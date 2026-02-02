@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Flame, ChevronRight, RefreshCw, ArrowUpRight, Target, Zap, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface BullishTrend {
@@ -109,7 +109,7 @@ export function BullishPatternWidget() {
                           "text-[10px] font-mono",
                           trend.changePercent >= 0 ? "text-green-400" : "text-red-400"
                         )}>
-                          {trend.changePercent >= 0 ? "+" : ""}{trend.changePercent?.toFixed(1)}%
+                          {trend.changePercent >= 0 ? "+" : ""}{safeToFixed(trend.changePercent, 1)}%
                         </span>
                       </div>
                       <div className="flex items-center gap-1 mt-1">
@@ -143,20 +143,20 @@ export function BullishPatternWidget() {
                         <Target className="h-3 w-3 text-cyan-400" />
                         <span className="font-mono text-xs font-bold">{breakout.symbol}</span>
                         <span className="text-[10px] text-muted-foreground">
-                          ${breakout.currentPrice?.toFixed(2)}
+                          ${safeToFixed(breakout.currentPrice, 2)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         {breakout.volumeRatio && breakout.volumeRatio > 1.5 && (
                           <Badge variant="outline" className="text-[8px] px-1 py-0 bg-purple-500/20 text-purple-400 border-purple-500/30">
-                            {breakout.volumeRatio.toFixed(1)}x Vol
+                            {safeToFixed(breakout.volumeRatio, 1)}x Vol
                           </Badge>
                         )}
                         <span className={cn(
                           "text-[10px] font-mono",
                           breakout.changePercent >= 0 ? "text-green-400" : "text-red-400"
                         )}>
-                          {breakout.changePercent >= 0 ? "+" : ""}{breakout.changePercent?.toFixed(1)}%
+                          {breakout.changePercent >= 0 ? "+" : ""}{safeToFixed(breakout.changePercent, 1)}%
                         </span>
                       </div>
                     </div>

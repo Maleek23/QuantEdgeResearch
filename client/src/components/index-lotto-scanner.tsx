@@ -37,7 +37,7 @@ import {
   Brain,
   ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 // Types
 interface TechnicalSetup {
@@ -281,7 +281,7 @@ function IndexOverviewCard({ index }: { index: IndexData }) {
             ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
             : "text-red-400 border-red-500/30 bg-red-500/10"
         )}>
-          {isPositive ? '+' : ''}{index.changePercent.toFixed(2)}%
+          {isPositive ? '+' : ''}{safeToFixed(index.changePercent, 2)}%
         </Badge>
       </div>
 
@@ -345,7 +345,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
               </Badge>
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              {play.underlying} @ ${play.underlyingPrice.toFixed(2)}
+              {play.underlying} @ ${safeToFixed(play.underlyingPrice, 2)}
             </div>
           </div>
           <div className="text-right">
@@ -376,19 +376,19 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
         <div className="grid grid-cols-4 gap-2 text-xs mb-3">
           <div className="text-center p-1.5 bg-slate-800/50 rounded">
             <div className="text-slate-500">Entry</div>
-            <div className="font-medium text-white">${play.suggestedEntry.toFixed(2)}</div>
+            <div className="font-medium text-white">${safeToFixed(play.suggestedEntry, 2)}</div>
           </div>
           <div className="text-center p-1.5 bg-slate-800/50 rounded">
             <div className="text-slate-500">Stop</div>
-            <div className="font-medium text-red-400">${play.stopLoss.toFixed(2)}</div>
+            <div className="font-medium text-red-400">${safeToFixed(play.stopLoss, 2)}</div>
           </div>
           <div className="text-center p-1.5 bg-slate-800/50 rounded">
             <div className="text-slate-500">T1</div>
-            <div className="font-medium text-emerald-400">${play.target1.toFixed(2)}</div>
+            <div className="font-medium text-emerald-400">${safeToFixed(play.target1, 2)}</div>
           </div>
           <div className="text-center p-1.5 bg-slate-800/50 rounded">
             <div className="text-slate-500">T2</div>
-            <div className="font-medium text-emerald-400">${play.target2.toFixed(2)}</div>
+            <div className="font-medium text-emerald-400">${safeToFixed(play.target2, 2)}</div>
           </div>
         </div>
 

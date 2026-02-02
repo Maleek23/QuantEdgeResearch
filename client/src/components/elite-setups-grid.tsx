@@ -9,7 +9,7 @@ import {
   Zap, TrendingUp, Eye, Target, BarChart3, ArrowUpDown, 
   ChevronDown, Calendar, DollarSign
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 import SymbolJourneyModal from './symbol-journey-modal';
 import type { WatchlistItem } from '@shared/schema';
 
@@ -123,7 +123,7 @@ function CompactSetupRow({
               "flex items-center gap-1",
               winRate >= 60 ? "text-green-400" : winRate >= 40 ? "text-amber-400" : "text-red-400"
             )}>
-              {winRate.toFixed(0)}% WR
+              {safeToFixed(winRate, 0)}% WR
             </span>
           )}
           {pnl !== 0 && (
@@ -132,7 +132,7 @@ function CompactSetupRow({
               pnl >= 0 ? "text-green-400" : "text-red-400"
             )}>
               <DollarSign className="h-3 w-3" />
-              {pnl >= 0 ? '+' : ''}{pnl.toFixed(0)}
+              {pnl >= 0 ? '+' : ''}{safeToFixed(pnl, 0)}
             </span>
           )}
         </div>

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -214,7 +214,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                     <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                       <div className="text-[10px] text-slate-500 uppercase">Target</div>
                       <div className="text-xl font-bold text-emerald-400">
-                        +{potentialProfit.toFixed(0)}%
+                        +{safeToFixed(potentialProfit, 0)}%
                       </div>
                     </div>
                   </div>
@@ -223,12 +223,12 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                   <div className="flex items-center justify-between text-xs">
                     <div className="text-center">
                       <div className="text-slate-500">Entry</div>
-                      <div className="font-mono text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
+                      <div className="font-mono text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
                     </div>
                     <ArrowUpRight className="w-4 h-4 text-emerald-400" />
                     <div className="text-center">
                       <div className="text-emerald-400">Target</div>
-                      <div className="font-mono text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
+                      <div className="font-mono text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
                     </div>
                   </div>
 
@@ -428,8 +428,8 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
               <div className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222] transition-colors cursor-pointer">
                 <span className="font-mono font-bold text-white">{stock.symbol}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-emerald-400">+{stock.changePercent?.toFixed(1)}%</span>
-                  <span className="text-xs text-slate-500">${stock.price?.toFixed(2)}</span>
+                  <span className="text-sm font-mono text-emerald-400">+{safeToFixed(stock.changePercent, 1)}%</span>
+                  <span className="text-xs text-slate-500">${safeToFixed(stock.price, 2)}</span>
                 </div>
               </div>
             </Link>
@@ -518,13 +518,13 @@ function TomorrowSurgersSubPage() {
                 <div>
                   <span className="font-bold text-white text-lg">{pred.symbol}</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-slate-500">${pred.currentPrice?.toFixed(2) || '—'}</span>
+                    <span className="text-xs text-slate-500">${safeToFixed(pred.currentPrice, 2, '—')}</span>
                     {pred.change && (
                       <span className={cn(
                         "text-xs font-medium",
-                        pred.change > 0 ? "text-emerald-400" : "text-red-400"
+                        safeNumber(pred.change) > 0 ? "text-emerald-400" : "text-red-400"
                       )}>
-                        {pred.change > 0 ? '+' : ''}{pred.change.toFixed(1)}%
+                        {safeNumber(pred.change) > 0 ? '+' : ''}{safeToFixed(pred.change, 1)}%
                       </span>
                     )}
                   </div>
@@ -535,7 +535,7 @@ function TomorrowSurgersSubPage() {
                   {pred.prediction?.tier?.replace('_', ' ') || 'WATCH'}
                 </Badge>
                 <div className={cn("text-lg font-bold mt-1", style.text)}>
-                  {pred.prediction?.probability?.toFixed(0) || 0}%
+                  {safeToFixed(pred.prediction?.probability, 0, '0')}%
                 </div>
               </div>
             </div>
@@ -545,17 +545,17 @@ function TomorrowSurgersSubPage() {
               <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs mb-3">
                 <div className="text-center">
                   <div className="text-slate-500 text-[10px]">Low Target</div>
-                  <div className="font-semibold text-amber-400">${pred.prediction.targetRange.low?.toFixed(2) || '—'}</div>
+                  <div className="font-semibold text-amber-400">${safeToFixed(pred.prediction.targetRange.low, 2, '—')}</div>
                 </div>
                 <ArrowUpRight className="w-4 h-4 text-emerald-400" />
                 <div className="text-center">
                   <div className="text-slate-500 text-[10px]">High Target</div>
-                  <div className="font-semibold text-emerald-400">${pred.prediction.targetRange.high?.toFixed(2) || '—'}</div>
+                  <div className="font-semibold text-emerald-400">${safeToFixed(pred.prediction.targetRange.high, 2, '—')}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-slate-500 text-[10px]">Potential</div>
                   <div className="font-semibold text-cyan-400">
-                    +{pred.prediction?.expectedMove?.toFixed(0) || '—'}%
+                    +{safeToFixed(pred.prediction?.expectedMove, 0, '—')}%
                   </div>
                 </div>
               </div>
@@ -874,16 +874,16 @@ function BestSetupsSubPage() {
             <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs">
               <div className="text-center">
                 <div className="text-slate-500 text-[10px]">Entry</div>
-                <div className="font-semibold text-white">${setup.entryPrice?.toFixed(2) || '—'}</div>
+                <div className="font-semibold text-white">${safeToFixed(setup.entryPrice, 2, '—')}</div>
               </div>
               <ArrowUpRight className="w-4 h-4 text-emerald-400" />
               <div className="text-center">
                 <div className="text-slate-500 text-[10px]">Target</div>
-                <div className="font-semibold text-emerald-400">${setup.targetPrice?.toFixed(2) || '—'}</div>
+                <div className="font-semibold text-emerald-400">${safeToFixed(setup.targetPrice, 2, '—')}</div>
               </div>
               <div className="text-center">
                 <div className="text-slate-500 text-[10px]">Stop</div>
-                <div className="font-semibold text-red-400">${setup.stopLoss?.toFixed(2) || '—'}</div>
+                <div className="font-semibold text-red-400">${safeToFixed(setup.stopLoss, 2, '—')}</div>
               </div>
             </div>
 
@@ -1063,14 +1063,14 @@ function MarketMoversSubPage() {
             </div>
             <div className="text-right">
               <div className={cn("text-xl font-bold", isGainer ? "text-emerald-400" : "text-red-400")}>
-                {isGainer ? '+' : ''}{stock.changePercent?.toFixed(1)}%
+                {isGainer ? '+' : ''}{safeToFixed(stock.changePercent, 1)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${stock.price?.toFixed(2)}</div>
+              <div className="text-sm font-mono text-slate-400">${safeToFixed(stock.price, 2)}</div>
             </div>
           </div>
           {stock.volume && (
             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/30">
-              <span className="text-[10px] text-slate-500">Vol: {(stock.volume / 1000000).toFixed(1)}M</span>
+              <span className="text-[10px] text-slate-500">Vol: {safeToFixed(safeNumber(stock.volume) / 1000000, 1)}M</span>
             </div>
           )}
         </div>
@@ -1257,10 +1257,10 @@ function SurgeDetectionSubPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className={cn("text-xl font-bold", stock.change > 0 ? "text-emerald-400" : "text-red-400")}>
-                {stock.change > 0 ? '+' : ''}{stock.change?.toFixed(1)}%
+              <div className={cn("text-xl font-bold", safeNumber(stock.change) > 0 ? "text-emerald-400" : "text-red-400")}>
+                {safeNumber(stock.change) > 0 ? '+' : ''}{safeToFixed(stock.change, 1)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${stock.price?.toFixed(2)}</div>
+              <div className="text-sm font-mono text-slate-400">${safeToFixed(stock.price, 2)}</div>
             </div>
           </div>
           <p className="text-[10px] text-slate-500 truncate">{stock.reason}</p>
@@ -1323,14 +1323,14 @@ function SurgeDetectionSubPage() {
                 "text-xl font-bold",
                 pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-cyan-400"
               )}>
-                {pred.prediction?.probability?.toFixed(0)}%
+                {safeToFixed(pred.prediction?.probability, 0)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${pred.currentPrice?.toFixed(2)}</div>
+              <div className="text-sm font-mono text-slate-400">${safeToFixed(pred.currentPrice, 2)}</div>
             </div>
           </div>
           {pred.prediction?.targetRange && (
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>Target: ${pred.prediction.targetRange.low?.toFixed(2)} - ${pred.prediction.targetRange.high?.toFixed(2)}</span>
+              <span>Target: ${safeToFixed(pred.prediction.targetRange.low, 2)} - ${safeToFixed(pred.prediction.targetRange.high, 2)}</span>
             </div>
           )}
           {pred.signals && pred.signals.length > 0 && (
@@ -1660,10 +1660,10 @@ function HotAttentionSubPage() {
             <div className="text-right">
               <div className={cn(
                 "text-xl font-bold",
-                item.heatScore >= 5 ? "text-red-400" :
-                item.heatScore >= 3 ? "text-orange-400" : "text-slate-400"
+                safeNumber(item.heatScore) >= 5 ? "text-red-400" :
+                safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-slate-400"
               )}>
-                {item.heatScore?.toFixed(1)}
+                {safeToFixed(item.heatScore, 1)}
               </div>
               <span className="text-[10px] text-slate-500">heat score</span>
             </div>
@@ -1748,7 +1748,7 @@ function HotAttentionSubPage() {
         </Card>
         <Card className="bg-red-500/10 border-red-500/30 p-4">
           <div className="text-xs text-red-400 mb-1">Highest Heat</div>
-          <div className="text-2xl font-bold text-red-300">{symbols[0]?.heatScore?.toFixed(1) || '0'}</div>
+          <div className="text-2xl font-bold text-red-300">{safeToFixed(symbols[0]?.heatScore, 1, '0')}</div>
         </Card>
       </div>
 
@@ -1908,10 +1908,10 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
             </div>
             <div className="text-right">
               <span className="text-xs font-mono text-white">
-                ${pred.currentPrice?.toFixed(2) || '—'}
+                ${safeToFixed(pred.currentPrice, 2, '—')}
               </span>
               <p className="text-[10px] text-violet-400 font-medium">
-                {pred.prediction?.probability?.toFixed(0)}% prob
+                {safeToFixed(pred.prediction?.probability, 0)}% prob
               </p>
             </div>
           </div>
@@ -1959,14 +1959,14 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
           </div>
           <div className="text-right">
             <span className="text-xs font-mono text-white">
-              ${stock.price?.toFixed(2) || '—'}
+              ${safeToFixed(stock.price, 2, '—')}
             </span>
             {typeof stock.change === 'number' && (
               <p className={cn(
                 "text-xs font-mono font-bold",
-                stock.change > 0 ? "text-emerald-400" : "text-red-400"
+                safeNumber(stock.change) > 0 ? "text-emerald-400" : "text-red-400"
               )}>
-                {stock.change > 0 ? '+' : ''}{stock.change.toFixed(1)}%
+                {safeNumber(stock.change) > 0 ? '+' : ''}{safeToFixed(stock.change, 1)}%
               </p>
             )}
           </div>
@@ -2297,10 +2297,10 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
                 <div className="text-right">
                   <span className={cn(
                     "text-sm font-mono font-bold",
-                    item.heatScore >= 5 ? "text-red-400" :
-                    item.heatScore >= 3 ? "text-orange-400" : "text-slate-400"
+                    safeNumber(item.heatScore) >= 5 ? "text-red-400" :
+                    safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-slate-400"
                   )}>
-                    {item.heatScore?.toFixed(1)}
+                    {safeToFixed(item.heatScore, 1)}
                   </span>
                   <p className="text-[10px] text-slate-500">heat</p>
                 </div>
@@ -2453,11 +2453,11 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   // Calculate R:R
   const riskReward = useMemo(() => {
     if (idea.targetPrice && idea.entryPrice && idea.stopLoss) {
-      const reward = Math.abs(idea.targetPrice - idea.entryPrice);
-      const risk = Math.abs(idea.entryPrice - idea.stopLoss);
-      if (risk > 0) return (reward / risk).toFixed(1);
+      const reward = Math.abs(safeNumber(idea.targetPrice) - safeNumber(idea.entryPrice));
+      const risk = Math.abs(safeNumber(idea.entryPrice) - safeNumber(idea.stopLoss));
+      if (risk > 0) return safeToFixed(reward / risk, 1);
     }
-    return idea.riskRewardRatio?.toFixed(1) || '—';
+    return safeToFixed(idea.riskRewardRatio, 1, '—');
   }, [idea]);
 
   return (
@@ -2528,15 +2528,15 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
         <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs">
           <div className="text-center">
             <div className="text-slate-500 text-[10px]">Entry</div>
-            <div className="font-semibold text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
+            <div className="font-semibold text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
           </div>
           <div className="text-center">
             <div className="text-slate-500 text-[10px]">Target</div>
-            <div className="font-semibold text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
+            <div className="font-semibold text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
           </div>
           <div className="text-center">
             <div className="text-slate-500 text-[10px]">Stop</div>
-            <div className="font-semibold text-red-400">${idea.stopLoss?.toFixed(2) || '—'}</div>
+            <div className="font-semibold text-red-400">${safeToFixed(idea.stopLoss, 2, '—')}</div>
           </div>
           <div className="text-center">
             <div className="text-slate-500 text-[10px]">R:R</div>
@@ -2574,7 +2574,7 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
               <div className="flex items-center gap-1">
                 <Target className="w-3 h-3 text-slate-500" />
                 <span className="text-slate-400">Strike:</span>
-                <span className="font-mono text-white">${idea.strikePrice?.toFixed(2) || '—'}</span>
+                <span className="font-mono text-white">${safeToFixed(idea.strikePrice, 2, '—')}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3 text-slate-500" />
@@ -2682,7 +2682,7 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
         reports.push({
           title: 'Technical Analysis',
           type: 'quant',
-          content: `Technical indicators suggest ${isLong ? 'bullish' : 'bearish'} momentum. ${technicalSignals.slice(0, 2).join('. ')}. Risk/Reward ratio: ${idea.riskRewardRatio?.toFixed(1) || '—'}:1.`
+          content: `Technical indicators suggest ${isLong ? 'bullish' : 'bearish'} momentum. ${technicalSignals.slice(0, 2).join('. ')}. Risk/Reward ratio: ${safeToFixed(idea.riskRewardRatio, 1, '—')}:1.`
         });
       }
     }
@@ -2696,16 +2696,16 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
 
     // Risk Assessment
     const potentialGain = idea.targetPrice && idea.entryPrice
-      ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100)
+      ? ((safeNumber(idea.targetPrice) - safeNumber(idea.entryPrice)) / safeNumber(idea.entryPrice) * 100)
       : 0;
     const potentialLoss = idea.stopLoss && idea.entryPrice
-      ? ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100)
+      ? ((safeNumber(idea.entryPrice) - safeNumber(idea.stopLoss)) / safeNumber(idea.entryPrice) * 100)
       : 0;
 
     reports.push({
       title: 'Risk Profile',
       type: 'quant',
-      content: `Maximum upside: +${potentialGain.toFixed(1)}% to target. Defined risk: -${potentialLoss.toFixed(1)}% to stop. ${potentialGain > potentialLoss * 2 ? 'Favorable risk/reward setup.' : 'Standard risk parameters.'}`
+      content: `Maximum upside: +${safeToFixed(potentialGain, 1)}% to target. Defined risk: -${safeToFixed(potentialLoss, 1)}% to stop. ${potentialGain > potentialLoss * 2 ? 'Favorable risk/reward setup.' : 'Standard risk parameters.'}`
     });
 
     return reports;
@@ -2784,15 +2784,15 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
         <div className="flex items-center gap-6 text-xs">
           <div className="text-right">
             <div className="text-slate-400">Entry</div>
-            <div className="font-mono text-white">${idea.entryPrice?.toFixed(2) || '—'}</div>
+            <div className="font-mono text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
           </div>
           <div className="text-right">
             <div className="text-emerald-400">Target</div>
-            <div className="font-mono text-emerald-400">${idea.targetPrice?.toFixed(2) || '—'}</div>
+            <div className="font-mono text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
           </div>
           <div className="text-right">
             <div className="text-red-400">Stop</div>
-            <div className="font-mono text-red-400">${idea.stopLoss?.toFixed(2) || '—'}</div>
+            <div className="font-mono text-red-400">${safeToFixed(idea.stopLoss, 2, '—')}</div>
           </div>
           <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
         </div>

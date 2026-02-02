@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 
@@ -92,7 +92,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
     
     // Good entry zone (within 2% of entry)
     if (Math.abs(priceDiffPercent) < 2) {
-      const rrText = currentRR > 0 ? ' - R:R ' + currentRR.toFixed(1) + ':1' : '';
+      const rrText = currentRR > 0 ? ' - R:R ' + safeToFixed(currentRR, 1) + ':1' : '';
       return {
         type: 'info',
         icon: CheckCircle,
@@ -134,7 +134,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
     }
     
     // Default - monitor position
-    const rrText = currentRR > 0 ? ' - R:R ' + currentRR.toFixed(1) + ':1' : '';
+    const rrText = currentRR > 0 ? ' - R:R ' + safeToFixed(currentRR, 1) + ':1' : '';
     return {
       type: 'neutral',
       icon: Clock,
@@ -163,7 +163,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
             {advice.message}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Current: ${currentPrice.toFixed(2)} • Entry: ${entryPrice.toFixed(2)} ({priceDiffPercent >= 0 ? '+' : ''}{priceDiffPercent.toFixed(2)}%)
+            Current: ${safeToFixed(currentPrice, 2)} • Entry: ${safeToFixed(entryPrice, 2)} ({priceDiffPercent >= 0 ? '+' : ''}{safeToFixed(priceDiffPercent, 2)}%)
           </p>
         </div>
       </div>

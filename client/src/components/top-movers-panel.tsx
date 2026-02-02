@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface Mover {
@@ -49,7 +49,7 @@ export function TopMoversPanel() {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-sm font-medium text-foreground">${mover.price?.toFixed(2) || "0.00"}</p>
+          <p className="text-sm font-medium text-foreground">${safeToFixed(mover.price, 2)}</p>
           <div className={cn(
             "flex items-center gap-0.5 text-xs font-medium justify-end",
             type === "gainer" ? "text-green-500" : "text-red-500"
@@ -59,7 +59,7 @@ export function TopMoversPanel() {
             ) : (
               <TrendingDown className="h-3 w-3" />
             )}
-            <span>{type === "gainer" ? "+" : ""}{mover.changePercent?.toFixed(2) || "0.00"}%</span>
+            <span>{type === "gainer" ? "+" : ""}{safeToFixed(mover.changePercent, 2)}%</span>
           </div>
         </div>
       </div>

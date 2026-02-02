@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -959,7 +959,7 @@ export default function AdminWinLossAnalysis() {
                           </div>
                         </div>
                         <Badge variant="destructive" className="font-mono">
-                          {pattern.avgLoss?.toFixed(1) || 0}% avg
+                          {safeToFixed(pattern.avgLoss, 1, "0")}% avg
                         </Badge>
                       </div>
                     ))}

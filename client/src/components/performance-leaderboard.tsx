@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Target, BarChart3, Zap, Trophy, AlertTriangle } from "lucide-react";
 
 interface EnginePerformance {
@@ -121,7 +121,7 @@ export function PerformanceLeaderboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={cn("font-bold", getWinRateColor(engine.winRate))}>
-                    {engine.winRate.toFixed(1)}%
+                    {safeToFixed(engine.winRate, 1)}%
                   </span>
                   <span className="text-xs text-muted-foreground">
                     ({engine.wins}W/{engine.losses}L)
@@ -170,11 +170,11 @@ export function PerformanceLeaderboard() {
                 ) : (
                   <TrendingDown className="h-3 w-3 text-red-400" />
                 )}
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className={cn("text-[10px] h-5", getWinRateBgColor(symbol.winRate), getWinRateColor(symbol.winRate))}
                 >
-                  {symbol.winRate.toFixed(0)}% ({symbol.total})
+                  {safeToFixed(symbol.winRate, 0)}% ({symbol.total})
                 </Badge>
               </div>
             </div>
@@ -218,7 +218,7 @@ export function PerformanceLeaderboard() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">{signalCount} signals</span>
                   <span className={cn("font-bold", getWinRateColor(band.winRate))}>
-                    {band.winRate.toFixed(0)}%
+                    {safeToFixed(band.winRate, 0)}%
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     ({band.total})

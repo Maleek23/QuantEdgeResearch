@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Calendar, Target, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { safeToFixed } from "@/lib/utils";
 
 interface ExpiryPattern {
   expiryDate: string;
@@ -131,11 +132,11 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
               <div className="text-xs text-muted-foreground">Overall Sentiment</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-cyan-400">{summary.weeklyWinRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-cyan-400">{safeToFixed(summary.weeklyWinRate, 1, '0.0')}%</div>
               <div className="text-xs text-muted-foreground">Weekly Expiry Win Rate</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-purple-400">{summary.monthlyWinRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-purple-400">{safeToFixed(summary.monthlyWinRate, 1, '0.0')}%</div>
               <div className="text-xs text-muted-foreground">Monthly Expiry Win Rate</div>
             </div>
           </div>
@@ -178,7 +179,7 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
                     <span className="text-red-400">{week.totalPuts} puts</span>
                     <span className="text-muted-foreground">
                       {week.priceDirection === 'up' ? '↑' : week.priceDirection === 'down' ? '↓' : '→'}
-                      {week.confidenceLevel.toFixed(0)}%
+                      {safeToFixed(week.confidenceLevel, 0, '0')}%
                     </span>
                   </div>
                 </div>
@@ -207,7 +208,7 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <span className={pattern.avgPnL >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      ${pattern.avgPnL.toFixed(0)} avg
+                      ${safeToFixed(pattern.avgPnL, 0, '0')} avg
                     </span>
                     <span className="text-muted-foreground">
                       {pattern.totalTrades} trades

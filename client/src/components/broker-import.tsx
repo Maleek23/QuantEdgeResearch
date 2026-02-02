@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   Upload,
   FileSpreadsheet,
@@ -405,17 +405,17 @@ function PositionRow({ position }: { position: Position }) {
             )}
           </div>
           <span className="text-xs text-slate-500">
-            {position.quantity} shares @ ${(position.costBasis / Math.abs(position.quantity) / (position.isOption ? 100 : 1)).toFixed(2)}
+            {position.quantity} shares @ ${safeToFixed(position.costBasis / Math.abs(position.quantity) / (position.isOption ? 100 : 1), 2)}
           </span>
         </div>
       </div>
       <div className="text-right">
         <div className="font-mono text-white">
-          ${position.currentValue?.toFixed(2) || '—'}
+          ${safeToFixed(position.currentValue, 2, '—')}
         </div>
         <div className={cn("text-xs font-mono", plColor)}>
           {(position.unrealizedPLPercent || 0) >= 0 ? '+' : ''}
-          {position.unrealizedPLPercent?.toFixed(1) || 0}%
+          {safeToFixed(position.unrealizedPLPercent, 1, '0')}%
         </div>
       </div>
     </div>
@@ -461,7 +461,7 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
                     )}
                     {portfolio.unrealizedPL >= 0 ? '+' : ''}
                     ${Math.abs(portfolio.unrealizedPL).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    ({portfolio.unrealizedPLPercent >= 0 ? '+' : ''}{portfolio.unrealizedPLPercent.toFixed(1)}%)
+                    ({portfolio.unrealizedPLPercent >= 0 ? '+' : ''}{safeToFixed(portfolio.unrealizedPLPercent, 1)}%)
                   </div>
                 </div>
                 {expanded ? (

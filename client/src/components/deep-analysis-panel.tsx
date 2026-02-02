@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -268,7 +268,7 @@ export function DeepAnalysisPanel({
                       level.type === 'entry' && "border-cyan-500/50 text-cyan-400"
                     )}
                   >
-                    {level.label}: ${level.price?.toFixed(2) ?? '—'}
+                    {level.label}: ${safeToFixed(level.price, 2, '—')}
                   </Badge>
                 ))}
               </div>

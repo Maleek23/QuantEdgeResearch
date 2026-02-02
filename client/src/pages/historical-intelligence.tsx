@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
@@ -104,7 +104,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
           <div className="flex flex-col items-center">
             <CheckCircle className="h-8 w-8 text-green-400 mb-2" />
             <p className={cn("text-3xl font-bold", getWinRateColor(stats.overall.winRate))}>
-              {stats.overall.winRate.toFixed(1)}%
+              {safeToFixed(stats.overall.winRate, 1)}%
             </p>
             <p className="text-xs text-muted-foreground">Win Rate</p>
           </div>
@@ -136,7 +136,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
           <div className="flex flex-col items-center">
             <Zap className="h-8 w-8 text-purple-400 mb-2" />
             <p className={cn("text-3xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-green-500" : stats.overall.profitFactor >= 1 ? "text-amber-500" : "text-red-500")}>
-              {stats.overall.profitFactor.toFixed(2)}x
+              {safeToFixed(stats.overall.profitFactor, 2)}x
             </p>
             <p className="text-xs text-muted-foreground">Profit Factor</p>
           </div>
@@ -167,7 +167,7 @@ function SourceBreakdown({ stats }: { stats: HistoricalStats }) {
                   <span className="text-xs text-muted-foreground">{data.ideas} ideas</span>
                 </div>
                 <span className={cn("font-medium", getWinRateColor(data.winRate))}>
-                  {data.winRate.toFixed(1)}%
+                  {safeToFixed(data.winRate, 1)}%
                 </span>
               </div>
               <Progress value={data.winRate} className="h-2" />
@@ -205,7 +205,7 @@ function CatalystPerformance({ stats }: { stats: HistoricalStats }) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{cat.ideas}</span>
                     <span className={cn("font-medium", getWinRateColor(cat.winRate))}>
-                      {cat.winRate.toFixed(0)}%
+                      {safeToFixed(cat.winRate, 0)}%
                     </span>
                   </div>
                 </div>
@@ -224,7 +224,7 @@ function CatalystPerformance({ stats }: { stats: HistoricalStats }) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{cat.ideas}</span>
                     <span className={cn("font-medium", getWinRateColor(cat.winRate))}>
-                      {cat.winRate.toFixed(0)}%
+                      {safeToFixed(cat.winRate, 0)}%
                     </span>
                   </div>
                 </div>
@@ -265,14 +265,14 @@ function ConfidenceCalibration({ stats }: { stats: HistoricalStats }) {
               <TableRow key={band.band}>
                 <TableCell className="font-medium">{band.band}</TableCell>
                 <TableCell className="text-right">{band.ideas}</TableCell>
-                <TableCell className="text-right">{band.expectedWinRate.toFixed(0)}%</TableCell>
+                <TableCell className="text-right">{safeToFixed(band.expectedWinRate, 0)}%</TableCell>
                 <TableCell className={cn("text-right font-medium", getWinRateColor(band.actualWinRate))}>
-                  {band.actualWinRate.toFixed(1)}%
+                  {safeToFixed(band.actualWinRate, 1)}%
                 </TableCell>
                 <TableCell className={cn("text-right font-medium", 
                   band.calibrationError >= 0 ? "text-green-500" : "text-red-500"
                 )}>
-                  {band.calibrationError >= 0 ? '+' : ''}{band.calibrationError.toFixed(1)}%
+                  {band.calibrationError >= 0 ? '+' : ''}{safeToFixed(band.calibrationError, 1)}%
                 </TableCell>
               </TableRow>
             ))}
@@ -352,10 +352,10 @@ function SymbolLeaderboard({ stats }: { stats: HistoricalStats }) {
                 <TableCell className="text-right">{symbol.ideas}</TableCell>
                 <TableCell className="text-right">{symbol.wins}</TableCell>
                 <TableCell className={cn("text-right font-medium", getWinRateColor(symbol.winRate))}>
-                  {symbol.winRate.toFixed(1)}%
+                  {safeToFixed(symbol.winRate, 1)}%
                 </TableCell>
                 <TableCell className={cn("text-right font-medium", getPnlColor(symbol.pnl))}>
-                  ${symbol.pnl.toFixed(2)}
+                  ${safeToFixed(symbol.pnl, 2)}
                 </TableCell>
               </TableRow>
             ))}
@@ -430,7 +430,7 @@ function SymbolLookup() {
                     "bg-red-500/20 text-red-400"
                   )}
                 >
-                  {intelligence.profile.overallWinRate?.toFixed(0)}% Win Rate
+                  {safeToFixed(intelligence.profile.overallWinRate, 0)}% Win Rate
                 </Badge>
               )}
             </div>
@@ -457,7 +457,7 @@ function SymbolLookup() {
                     intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1.5 ? "text-green-500" : 
                     intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1 ? "text-amber-500" : "text-red-500"
                   )}>
-                    {intelligence.profile.profitFactor?.toFixed(2) || 'N/A'}x
+                    {safeToFixed(intelligence.profile.profitFactor, 2) || 'N/A'}x
                   </p>
                 </div>
               </div>
@@ -602,7 +602,7 @@ export default function HistoricalIntelligencePage() {
                           <span className="text-xs text-muted-foreground">{data.ideas} ideas</span>
                         </div>
                         <span className={cn("font-medium", getWinRateColor(data.winRate))}>
-                          {data.winRate.toFixed(1)}%
+                          {safeToFixed(data.winRate, 1)}%
                         </span>
                       </div>
                       <Progress value={data.winRate} className="h-2" />
@@ -630,7 +630,7 @@ export default function HistoricalIntelligencePage() {
                         <span className="font-medium">{p.symbol}</span>
                         <span className="text-xs text-muted-foreground">({p.trades} trades)</span>
                       </div>
-                      <span className="text-green-400 font-medium">{p.winRate.toFixed(0)}%</span>
+                      <span className="text-green-400 font-medium">{safeToFixed(p.winRate, 0)}%</span>
                     </div>
                   ))}
                 </div>
@@ -653,7 +653,7 @@ export default function HistoricalIntelligencePage() {
                         <span className="font-medium">{p.symbol}</span>
                         <span className="text-xs text-muted-foreground">({p.trades} trades)</span>
                       </div>
-                      <span className="text-red-400 font-medium">{p.winRate.toFixed(0)}%</span>
+                      <span className="text-red-400 font-medium">{safeToFixed(p.winRate, 0)}%</span>
                     </div>
                   ))}
                 </div>

@@ -4,6 +4,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { safeToFixed } from '@/lib/utils';
 
 interface SignalPerformance {
   signalName: string;
@@ -74,11 +75,11 @@ function Neuron({ position, signal, index, totalSignals }: NeuronProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Win Rate:</span>
-              <span className="text-green-400 font-medium">{signal.winRate.toFixed(1)}%</span>
+              <span className="text-green-400 font-medium">{safeToFixed(signal.winRate, 1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Avg Gain:</span>
-              <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
+              <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{safeToFixed(signal.avgGain, 2)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Trades:</span>

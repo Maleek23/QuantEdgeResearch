@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { CheckCircle2, AlertCircle, TrendingUp, Gauge, Clock, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -145,7 +145,7 @@ export function SignalFiltersDisplay({
                   rsiValue > 90 ? 'text-red-400' : 
                   'text-foreground'
                 )}>
-                  {rsiValue.toFixed(1)}
+                  {safeToFixed(rsiValue, 1)}
                 </span>
               </div>
             )}

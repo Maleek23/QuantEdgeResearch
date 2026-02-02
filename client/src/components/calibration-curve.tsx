@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Area, ComposedChart } from "recharts";
 import { AlertTriangle, CheckCircle, Target, TrendingUp, TrendingDown, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface CalibrationPoint {
   confidenceRange: string;
@@ -45,20 +45,20 @@ function CustomTooltip({ active, payload }: any) {
         <div className="mt-2 space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-blue-500">Predicted:</span>
-            <span className="font-mono">{data.predicted.toFixed(1)}%</span>
+            <span className="font-mono">{safeToFixed(data.predicted, 1)}%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-green-500">Actual:</span>
-            <span className="font-mono">{data.actual.toFixed(1)}%</span>
+            <span className="font-mono">{safeToFixed(data.actual, 1)}%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Error:</span>
             <span className={cn(
               "font-mono font-semibold",
-              Math.abs(data.calibrationError) <= 10 ? "text-green-500" : 
+              Math.abs(data.calibrationError) <= 10 ? "text-green-500" :
               Math.abs(data.calibrationError) <= 20 ? "text-amber-500" : "text-red-500"
             )}>
-              {data.calibrationError > 0 ? '+' : ''}{data.calibrationError.toFixed(1)}%
+              {data.calibrationError > 0 ? '+' : ''}{safeToFixed(data.calibrationError, 1)}%
             </span>
             <span className="text-muted-foreground">({errorDir})</span>
           </div>
@@ -69,7 +69,7 @@ function CustomTooltip({ active, payload }: any) {
             </p>
             <p className="text-muted-foreground">
               Avg P&L: <span className={cn("font-mono", data.avgPnL >= 0 ? "text-green-500" : "text-red-500")}>
-                {data.avgPnL >= 0 ? '+' : ''}{data.avgPnL.toFixed(1)}%
+                {data.avgPnL >= 0 ? '+' : ''}{safeToFixed(data.avgPnL, 1)}%
               </span>
             </p>
           </div>
@@ -194,7 +194,7 @@ export default function CalibrationCurve() {
               (summary.brierScore || 0) <= 0.20 ? "text-cyan-500" :
               (summary.brierScore || 0) <= 0.25 ? "text-amber-500" : "text-red-500"
             )}>
-              {summary.brierScore?.toFixed(3) || 'N/A'}
+              {summary.brierScore !== undefined ? safeToFixed(summary.brierScore, 3, 'N/A') : 'N/A'}
             </p>
             <p className="text-[10px] text-muted-foreground">{summary.brierInterpretation || ''}</p>
           </div>
@@ -204,7 +204,7 @@ export default function CalibrationCurve() {
               "text-lg font-bold font-mono",
               (summary.brierSkillScore || 0) > 0 ? "text-green-500" : "text-red-500"
             )}>
-              {summary.brierSkillScore !== undefined ? (summary.brierSkillScore > 0 ? '+' : '') + summary.brierSkillScore.toFixed(3) : 'N/A'}
+              {summary.brierSkillScore !== undefined ? (summary.brierSkillScore > 0 ? '+' : '') + safeToFixed(summary.brierSkillScore, 3) : 'N/A'}
             </p>
             <p className="text-[10px] text-muted-foreground">vs baseline</p>
           </div>
@@ -278,7 +278,7 @@ export default function CalibrationCurve() {
               .slice(0, 3)
               .map(c => (
                 <Badge key={c.confidenceRange} variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 font-mono">
-                  {c.confidenceRange}%: {c.actual.toFixed(0)}% win ({c.trades} trades)
+                  {c.confidenceRange}%: {safeToFixed(c.actual, 0)}% win ({c.trades} trades)
                 </Badge>
               ))}
           </div>
@@ -296,7 +296,7 @@ export default function CalibrationCurve() {
               .slice(0, 3)
               .map(c => (
                 <Badge key={c.confidenceRange} variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 font-mono">
-                  {c.confidenceRange}%: predicted {c.predicted.toFixed(0)}% → actual {c.actual.toFixed(0)}%
+                  {c.confidenceRange}%: predicted {safeToFixed(c.predicted, 0)}% → actual {safeToFixed(c.actual, 0)}%
                 </Badge>
               ))}
           </div>

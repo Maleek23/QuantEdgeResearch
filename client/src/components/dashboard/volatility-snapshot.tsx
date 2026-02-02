@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Zap, TrendingUp, TrendingDown } from "lucide-react";
 
 interface VolatilitySnapshotProps {
@@ -38,7 +38,7 @@ export function VolatilitySnapshot({
       <div className="flex items-center justify-between mb-4">
         <div className="flex flex-col">
           <span className="text-4xl font-bold font-mono tabular-nums">
-            {vix.toFixed(2)}
+            {safeToFixed(vix, 2)}
           </span>
           <span className="text-xs text-slate-400">VIX Index</span>
         </div>
@@ -54,7 +54,7 @@ export function VolatilitySnapshot({
             <TrendingDown className="w-4 h-4" />
           )}
           <span className="font-mono text-sm tabular-nums">
-            {vixChange >= 0 ? "+" : ""}{vixChange.toFixed(2)}%
+            {vixChange >= 0 ? "+" : ""}{safeToFixed(vixChange, 2)}%
           </span>
         </div>
       </div>
@@ -63,19 +63,19 @@ export function VolatilitySnapshot({
         <div className="bg-slate-800/40 rounded-lg p-3">
           <span className="text-xs text-slate-400 block mb-1">VVIX</span>
           <span className="text-lg font-mono tabular-nums font-semibold text-slate-200">
-            {vvix.toFixed(1)}
+            {safeToFixed(vvix, 1, '0.0')}
           </span>
         </div>
         <div className="bg-slate-800/40 rounded-lg p-3">
           <span className="text-xs text-slate-400 block mb-1">Realized</span>
           <span className="text-lg font-mono tabular-nums font-semibold text-blue-400">
-            {realizedVol.toFixed(1)}%
+            {safeToFixed(realizedVol, 1, '0.0')}%
           </span>
         </div>
         <div className="bg-slate-800/40 rounded-lg p-3">
           <span className="text-xs text-slate-400 block mb-1">Implied</span>
           <span className="text-lg font-mono tabular-nums font-semibold text-purple-400">
-            {impliedVol.toFixed(1)}%
+            {safeToFixed(impliedVol, 1, '0.0')}%
           </span>
         </div>
       </div>
@@ -89,7 +89,7 @@ export function VolatilitySnapshot({
               isVolExpensive ? "text-amber-400" : "text-slate-300"
             )}
           >
-            {volSpread >= 0 ? "+" : ""}{volSpread.toFixed(1)}%
+            {volSpread >= 0 ? "+" : ""}{safeToFixed(volSpread, 1, '0.0')}%
             {isVolExpensive && " (expensive)"}
           </span>
         </div>

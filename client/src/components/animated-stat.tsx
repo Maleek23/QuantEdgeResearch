@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { safeToFixed } from "@/lib/utils";
 
 interface AnimatedStatProps {
   value: number | string;
@@ -77,7 +78,7 @@ export function AnimatedStat({
       <div className={`text-2xl font-bold font-mono tabular-nums ${highlight ? 'text-cyan-400' : 'text-foreground'}`}>
         {prefix}
         {isNumeric
-          ? count.toFixed(decimals)
+          ? safeToFixed(count, decimals)
           : value
         }
         {suffix}

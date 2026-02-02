@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Eye, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Eye,
+  TrendingUp,
+  TrendingDown,
   Flame,
   Zap,
   Brain,
@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Sparkles
 } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface WatchReason {
   type: 'earnings' | 'news' | 'flow' | 'technical' | 'ai_pick' | 'quant_signal' | 'momentum' | 'volatility' | 'hybrid' | 'lotto';
@@ -125,7 +126,7 @@ function SuggestionCard({ suggestion }: { suggestion: WatchSuggestion }) {
       
       {suggestion.currentPrice && (
         <div className="mt-2 text-xs text-muted-foreground font-mono">
-          ${suggestion.currentPrice.toFixed(2)}
+          ${safeToFixed(suggestion.currentPrice, 2)}
         </div>
       )}
     </div>

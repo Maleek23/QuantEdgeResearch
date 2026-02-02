@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { safeToFixed } from '@/lib/utils';
 import {
   TrendingUp,
   TrendingDown,
@@ -62,9 +63,9 @@ function generateSignal(): TradingSignal {
     confidence,
     engine,
     engineColor: ENGINE_COLORS[engine],
-    price: parseFloat(basePrice.toFixed(2)),
-    target: parseFloat((basePrice * (direction === 'LONG' ? 1.05 : 0.95)).toFixed(2)),
-    stopLoss: parseFloat((basePrice * (direction === 'LONG' ? 0.97 : 1.03)).toFixed(2)),
+    price: parseFloat(safeToFixed(basePrice, 2)),
+    target: parseFloat(safeToFixed(basePrice * (direction === 'LONG' ? 1.05 : 0.95), 2)),
+    stopLoss: parseFloat(safeToFixed(basePrice * (direction === 'LONG' ? 0.97 : 1.03), 2)),
     timestamp: new Date(),
     reason: getRandomReason(direction),
   };
@@ -200,7 +201,7 @@ function SignalCard({ signal, isNew }: { signal: TradingSignal; isNew: boolean }
 
           <div className="mt-2 text-center">
             <p className="text-xs text-gray-500">R:R</p>
-            <p className="text-sm font-medium text-blue-400">{riskReward.toFixed(1)}:1</p>
+            <p className="text-sm font-medium text-blue-400">{safeToFixed(riskReward, 1)}:1</p>
           </div>
         </div>
       </div>

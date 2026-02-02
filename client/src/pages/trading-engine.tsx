@@ -28,7 +28,7 @@ import {
   Settings, Rocket, Bot, Shield, Save, RotateCcw,
   Crosshair, Layers, Timer, Gauge
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";
@@ -199,7 +199,7 @@ function BotCard({
           <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
             <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">P&L</p>
             <p className={cn("text-xl font-bold font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
-              {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
+              {pnl >= 0 ? "+" : ""}{safeToFixed(pnl, 2)}
             </p>
           </div>
         </div>
@@ -272,7 +272,7 @@ function BotActivityMonitor() {
             <div className={cn("text-2xl font-mono font-bold",
               todayPnL >= 0 ? "text-green-400" : "text-red-400"
             )}>
-              {todayPnL >= 0 ? '+' : ''}{todayPnL.toFixed(0)}
+              {todayPnL >= 0 ? '+' : ''}{safeToFixed(todayPnL, 0, '0')}
             </div>
           </div>
         </div>
@@ -400,7 +400,7 @@ function MLIntelligenceWidget() {
                   s.recommendation === 'sell' ? "text-red-300" :
                   s.recommendation === 'strong_sell' ? "text-red-400" : "text-slate-400"
                 )}>
-                  {s.confidence?.toFixed(0)}%
+                  {safeToFixed(s.confidence, 0, '0')}%
                 </Badge>
               </div>
             ))}
@@ -451,11 +451,11 @@ function PaperPortfolios() {
               <div key={p.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
                 <span className="text-sm">{p.name}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono">${totalValue.toFixed(0)}</span>
+                  <span className="text-sm font-mono">${safeToFixed(totalValue, 0, '0')}</span>
                   <Badge variant="outline" className={cn("text-xs",
                     pnlPct >= 0 ? "text-green-400" : "text-red-400"
                   )}>
-                    {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%
+                    {pnlPct >= 0 ? '+' : ''}{safeToFixed(pnlPct, 1, '0.0')}%
                   </Badge>
                 </div>
               </div>
@@ -523,7 +523,7 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
                     <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50" title={source} />
                   ))}
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground">{s.heatScore.toFixed(0)}pts</span>
+                <span className="text-[10px] font-mono text-muted-foreground">{safeToFixed(s.heatScore, 0, '0')}pts</span>
               </div>
             </button>
           ))}
@@ -607,16 +607,16 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">RSI(14)</span>
-          <span className={cn("text-sm font-mono", 
-            data.momentum.rsi14 > 70 ? "text-red-400" : 
+          <span className={cn("text-sm font-mono",
+            data.momentum.rsi14 > 70 ? "text-red-400" :
             data.momentum.rsi14 < 30 ? "text-green-400" : "text-foreground"
           )}>
-            {data.momentum.rsi14.toFixed(1)}
+            {safeToFixed(data.momentum.rsi14, 1, '0.0')}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">ATR%</span>
-          <span className="text-sm font-mono">{data.volatility.atrPercent.toFixed(2)}%</span>
+          <span className="text-sm font-mono">{safeToFixed(data.volatility.atrPercent, 2)}%</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Regime</span>
@@ -629,22 +629,22 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Price:</span>
-              <span className="font-mono">${data.levels.currentPrice.toFixed(2)}</span>
+              <span className="font-mono">${safeToFixed(data.levels.currentPrice, 2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pivot:</span>
-              <span className="font-mono">${data.levels.pivotPoint.toFixed(2)}</span>
+              <span className="font-mono">${safeToFixed(data.levels.pivotPoint, 2)}</span>
             </div>
             {data.levels.support[0] && (
               <div className="flex justify-between">
                 <span className="text-green-400">S1:</span>
-                <span className="font-mono">${data.levels.support[0].toFixed(2)}</span>
+                <span className="font-mono">${safeToFixed(data.levels.support[0], 2)}</span>
               </div>
             )}
             {data.levels.resistance[0] && (
               <div className="flex justify-between">
                 <span className="text-red-400">R1:</span>
-                <span className="font-mono">${data.levels.resistance[0].toFixed(2)}</span>
+                <span className="font-mono">${safeToFixed(data.levels.resistance[0], 2)}</span>
               </div>
             )}
           </div>
@@ -679,18 +679,18 @@ function TradeStructurePanel({ data, symbol }: { data: NonNullable<TradingEngine
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="p-3 rounded-lg bg-muted/30">
             <div className="text-[10px] text-muted-foreground uppercase">Entry</div>
-            <div className="text-lg font-mono font-bold text-green-400">${data.entry.price.toFixed(2)}</div>
+            <div className="text-lg font-mono font-bold text-green-400">${safeToFixed(data.entry.price, 2)}</div>
             <div className="text-[10px] text-muted-foreground">{data.entry.type}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30">
             <div className="text-[10px] text-muted-foreground uppercase">Stop</div>
-            <div className="text-lg font-mono font-bold text-red-400">${data.stop.price.toFixed(2)}</div>
+            <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(data.stop.price, 2)}</div>
             <div className="text-[10px] text-muted-foreground">{data.stop.type}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30">
             <div className="text-[10px] text-muted-foreground uppercase">Target</div>
             <div className="text-lg font-mono font-bold text-cyan-400">
-              ${data.targets[0]?.price.toFixed(2) || '--'}
+              ${safeToFixed(data.targets[0]?.price, 2) || '--'}
             </div>
             <div className="text-[10px] text-muted-foreground">{data.targets[0]?.probability || 0}% prob</div>
           </div>
@@ -700,7 +700,7 @@ function TradeStructurePanel({ data, symbol }: { data: NonNullable<TradingEngine
           <div className="flex items-center gap-4">
             <div>
               <div className="text-[10px] text-muted-foreground uppercase">R:R Ratio</div>
-              <div className="text-xl font-mono font-bold">{data.riskReward.toFixed(2)}:1</div>
+              <div className="text-xl font-mono font-bold">{safeToFixed(data.riskReward, 2)}:1</div>
             </div>
             <div className="h-8 w-px bg-border" />
             <div>

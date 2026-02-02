@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Activity, Clock, CheckCircle2, XCircle, Circle } from "lucide-react";
 
 type LifecycleStage = "new" | "active" | "resolved" | "expired";
@@ -132,7 +132,7 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
                     pnl >= 0 ? "text-green-400" : "text-red-400"
                   )}
                 >
-                  {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+                  {pnl >= 0 ? "+" : ""}{safeToFixed(pnl, 2)}%
                 </span>
                 <span className="text-[10px] text-slate-500">{idea.createdAt}</span>
               </div>

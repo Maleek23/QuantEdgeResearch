@@ -490,7 +490,7 @@ function EarningsCalendar() {
                       <div className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(earning.reportDate)}</div>
                       {earning.estimatedEps && (
                         <div className="text-[10px] text-gray-500 dark:text-slate-500">
-                          Est: ${earning.estimatedEps.toFixed(2)}
+                          Est: ${safeToFixed(earning.estimatedEps, 2)}
                         </div>
                       )}
                     </div>

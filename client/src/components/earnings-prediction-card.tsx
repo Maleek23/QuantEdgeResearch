@@ -41,7 +41,7 @@ import {
   Lightbulb,
   Scale,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 // ===================
 // TYPE DEFINITIONS
@@ -187,13 +187,13 @@ function ForecastCard({
               isPositive ? "text-emerald-400" : "text-red-400"
             )}
           >
-            {title === "EPS" ? `$${forecast.estimate.toFixed(2)}` : `$${(forecast.estimate / 1e9).toFixed(2)}B`}
+            {title === "EPS" ? `$${safeToFixed(forecast.estimate, 2)}` : `$${safeToFixed(forecast.estimate / 1e9, 2)}B`}
           </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Consensus</p>
           <p className="text-lg font-bold text-slate-300">
-            {title === "EPS" ? `$${forecast.consensus.toFixed(2)}` : `$${(forecast.consensus / 1e9).toFixed(2)}B`}
+            {title === "EPS" ? `$${safeToFixed(forecast.consensus, 2)}` : `$${safeToFixed(forecast.consensus / 1e9, 2)}B`}
           </p>
         </div>
       </div>
@@ -265,7 +265,7 @@ function SurpriseHistoryChart({ history }: { history: EarningsSurprise[] }) {
           <div>
             <p className="text-sm font-medium text-white">{item.date}</p>
             <p className="text-xs text-muted-foreground">
-              Est: ${item.expectedEPS.toFixed(2)} | Act: ${item.actualEPS.toFixed(2)}
+              Est: ${safeToFixed(item.expectedEPS, 2)} | Act: ${safeToFixed(item.actualEPS, 2)}
             </p>
           </div>
           <div className="text-right">

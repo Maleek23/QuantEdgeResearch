@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface AnimatedChartProps {
   className?: string;
@@ -388,7 +388,7 @@ export function LiveChart({
           )}
         >
           {isUp ? "+" : ""}
-          {change.toFixed(2)}%
+          {safeToFixed(change, 2)}%
         </span>
       </div>
 

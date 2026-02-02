@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReactNode } from "react";
+import { safeToFixed } from "@/lib/utils";
 
 // Fade in animation for cards and containers
 export const FadeIn = ({ 
@@ -179,7 +180,7 @@ export const AnimatedNumber = ({
     animate={{ opacity: 1, y: 0 }}
     className={className}
   >
-    {prefix}{value.toFixed(decimals)}{suffix}
+    {prefix}{safeToFixed(value, decimals)}{suffix}
   </motion.span>
 );
 

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ComposedChart } from "recharts";
 import { TrendingDown, TrendingUp, Activity, Info, AlertTriangle, CheckCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EquityCurvePoint {
@@ -49,7 +49,7 @@ interface DrawdownAnalysisData {
 function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const equityReturn = ((data.equity - 1) * 100).toFixed(2);
+    const equityReturn = safeToFixed((data.equity - 1) * 100, 2);
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
         <p className="font-semibold text-sm">Trade #{data.tradeIndex}</p>
@@ -57,7 +57,7 @@ function CustomTooltip({ active, payload }: any) {
         <div className="space-y-1 text-xs">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Equity:</span>
-            <span className="font-mono text-foreground">{data.equity.toFixed(4)}x</span>
+            <span className="font-mono text-foreground">{safeToFixed(data.equity, 4)}x</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Total Return:</span>
@@ -70,7 +70,7 @@ function CustomTooltip({ active, payload }: any) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Peak:</span>
-            <span className="font-mono text-cyan-500">{data.peak.toFixed(4)}x</span>
+            <span className="font-mono text-cyan-500">{safeToFixed(data.peak, 4)}x</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Drawdown:</span>
@@ -169,9 +169,9 @@ export default function DrawdownAnalysisChart() {
               "font-semibold font-mono text-lg",
               summary.totalReturnPercent >= 0 ? "text-green-500" : "text-red-500"
             )}>
-              {summary.totalReturnPercent >= 0 ? '+' : ''}{summary.totalReturnPercent.toFixed(1)}%
+              {summary.totalReturnPercent >= 0 ? '+' : ''}{safeToFixed(summary.totalReturnPercent, 1)}%
             </p>
-            <p className="text-[10px] text-muted-foreground">{summary.finalEquity.toFixed(4)}x</p>
+            <p className="text-[10px] text-muted-foreground">{safeToFixed(summary.finalEquity, 4)}x</p>
           </div>
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <p className="text-xs text-muted-foreground">Max Drawdown</p>
@@ -208,7 +208,7 @@ export default function DrawdownAnalysisChart() {
                   <p className="text-xs text-muted-foreground">&gt;1 = Good risk-adjusted returns</p>
                   {summary.observationYears > 0 && summary.calmar.status === 'valid' && (
                     <p className="text-xs text-muted-foreground">
-                      {summary.observationYears.toFixed(2)} years observed
+                      {safeToFixed(summary.observationYears, 2)} years observed
                     </p>
                   )}
                   {summary.calmar.status === 'insufficient-sample' && (
@@ -255,7 +255,7 @@ export default function DrawdownAnalysisChart() {
                 tickLine={false}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
                 domain={['auto', 'auto']}
-                tickFormatter={(val) => `${val.toFixed(2)}x`}
+                tickFormatter={(val) => `${safeToFixed(val, 2)}x`}
                 label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
               />
               <ReferenceLine y={1} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />

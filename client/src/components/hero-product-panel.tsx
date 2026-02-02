@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Brain, Calculator, Activity, Target, CandlestickChart, Zap, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { safeToFixed } from "@/lib/utils";
 
 interface PerformanceStats {
   overall: {
@@ -106,7 +107,7 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
               </div>
               <div className="flex-shrink-0 text-right">
                 <p className="text-lg font-bold font-mono text-cyan-400">
-                  {perfStats?.overall?.winRate ? `${perfStats.overall.winRate.toFixed(0)}%` : '--'}
+                  {perfStats?.overall?.winRate ? `${safeToFixed(perfStats.overall.winRate, 0)}%` : '--'}
                 </p>
                 <p className="text-[9px] text-muted-foreground">tracked win rate</p>
               </div>

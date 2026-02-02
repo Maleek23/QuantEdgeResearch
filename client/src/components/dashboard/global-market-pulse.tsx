@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   Activity, 
   TrendingUp, 
@@ -121,7 +121,7 @@ function AssetTicker({ asset }: { asset: AssetData }) {
           isPositive ? "text-emerald-400" : "text-red-400"
         )}>
           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {isPositive ? "+" : ""}{asset.change.toFixed(2)}%
+          {isPositive ? "+" : ""}{safeToFixed(asset.change, 2)}%
         </span>
       </div>
     </div>
@@ -301,7 +301,7 @@ export function GlobalMarketPulse() {
               </span>
               {marketContext?.vixLevel && (
                 <div className="text-[10px] text-slate-500 mt-0.5">
-                  VIX: {marketContext.vixLevel.toFixed(1)}
+                  VIX: {safeToFixed(marketContext.vixLevel, 1, '0.0')}
                 </div>
               )}
             </div>

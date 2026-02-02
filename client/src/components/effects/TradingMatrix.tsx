@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { safeToFixed } from "@/lib/utils";
 
 // Trading-specific characters for the matrix effect
 const TRADING_CHARS = [
@@ -37,7 +38,7 @@ const generateColumn = (id: number, totalColumns: number): Column => {
     isPriceColumn,
     chars: Array.from({ length: charCount }, () =>
       isPriceColumn && Math.random() > 0.6
-        ? ["$", (100 + Math.random() * 500).toFixed(2)][Math.floor(Math.random() * 2)]
+        ? ["$", safeToFixed(100 + Math.random() * 500, 2)][Math.floor(Math.random() * 2)]
         : TRADING_CHARS[Math.floor(Math.random() * TRADING_CHARS.length)]
     )
   };
@@ -230,9 +231,9 @@ export const PriceTicker = ({
           return (
             <div key={`${symbol}-${index}`} className="flex items-center gap-3 flex-shrink-0">
               <span className="text-slate-400">{symbol}</span>
-              <span className="text-slate-200">${data.price.toFixed(2)}</span>
+              <span className="text-slate-200">${safeToFixed(data.price, 2)}</span>
               <span className={isPositive ? "text-green-400" : "text-red-400"}>
-                {isPositive ? "↑" : "↓"} {Math.abs(data.change).toFixed(2)}%
+                {isPositive ? "↑" : "↓"} {safeToFixed(Math.abs(data.change), 2)}%
               </span>
             </div>
           );

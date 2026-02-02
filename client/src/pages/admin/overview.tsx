@@ -23,7 +23,7 @@ import {
   Brain,
   Target,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface MetricCardProps {
   title: string;
@@ -407,7 +407,7 @@ function AdminOverviewContent() {
               <DollarSign className="h-8 w-8 text-green-400" />
               <div>
                 <p className="text-lg font-semibold text-white">
-                  ${stats?.revenue?.toFixed(2) || '0.00'}
+                  ${safeToFixed(stats?.revenue, 2, '0.00')}
                 </p>
                 <p className="text-xs text-slate-500">This month</p>
               </div>
@@ -424,7 +424,7 @@ function AdminOverviewContent() {
               <TrendingUp className="h-8 w-8 text-purple-400" />
               <div>
                 <p className="text-lg font-semibold text-white">
-                  {totalInvites > 0 ? ((redeemedInvites / totalInvites) * 100).toFixed(1) : 0}%
+                  {totalInvites > 0 ? safeToFixed((redeemedInvites / totalInvites) * 100, 1) : 0}%
                 </p>
                 <p className="text-xs text-slate-500">Invite → User</p>
               </div>

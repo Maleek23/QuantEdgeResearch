@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, Trophy } from "lucide-react";
 
 interface WinRateData {
@@ -63,7 +63,7 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={cn("text-2xl font-bold font-mono tabular-nums", getWinRateColor(overallWinRate))}>
-              {overallWinRate.toFixed(0)}%
+              {safeToFixed(overallWinRate, 0)}%
             </span>
             <span className="text-[10px] text-slate-400">All Time</span>
           </div>
@@ -85,7 +85,7 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
                 getWinRateColor(item.winRate)
               )}
             >
-              {item.winRate.toFixed(0)}%
+              {safeToFixed(item.winRate, 0)}%
             </span>
             <span className="text-[10px] text-slate-500">
               {item.wins}W / {item.losses}L

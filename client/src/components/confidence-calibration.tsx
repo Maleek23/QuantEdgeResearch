@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AlertTriangle, Info } from "lucide-react";
-import { 
-  ENGINE_HISTORICAL_PERFORMANCE, 
-  calculateExpectedValue, 
+import {
+  ENGINE_HISTORICAL_PERFORMANCE,
+  calculateExpectedValue,
   formatExpectedValue,
-  normalizeEngineKey 
+  normalizeEngineKey
 } from "@shared/constants";
+import { safeToFixed } from "@/lib/utils";
 
 interface ConfidenceBand {
   band: string;
@@ -46,7 +47,7 @@ function CustomTooltip({ active, payload }: any) {
             Losses: <span className="font-mono">{data.losses}</span>
           </p>
           <p className="font-semibold mt-2">
-            Actual Win Rate: <span className="font-mono">{data.winRate.toFixed(1)}%</span>
+            Actual Win Rate: <span className="font-mono">{safeToFixed(data.winRate, 1)}%</span>
           </p>
         </div>
       </div>

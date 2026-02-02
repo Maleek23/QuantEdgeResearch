@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, Award, Target, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Tooltip,
@@ -119,7 +119,7 @@ function SignalRow({ signal }: { signal: SignalStats }) {
             <TooltipTrigger>
               <div className="text-right">
                 <div className={cn("text-lg font-bold", getWinRateColor(signal.winRate))}>
-                  {signal.winRate.toFixed(1)}%
+                  {safeToFixed(signal.winRate, 1)}%
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {signal.winCount}W / {signal.lossCount}L
@@ -130,17 +130,17 @@ function SignalRow({ signal }: { signal: SignalStats }) {
               <div className="space-y-2">
                 <div className="font-medium">{formatSignalName(signal.signalName)}</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>Avg Win: <span className="text-green-400">+{signal.avgWinPercent.toFixed(2)}%</span></div>
-                  <div>Avg Loss: <span className="text-red-400">{signal.avgLossPercent.toFixed(2)}%</span></div>
-                  <div>Profit Factor: <span className="text-cyan-400">{signal.profitFactor.toFixed(2)}</span></div>
-                  <div>Expectancy: <span className={signal.expectancy >= 0 ? 'text-green-400' : 'text-red-400'}>{signal.expectancy.toFixed(2)}%</span></div>
+                  <div>Avg Win: <span className="text-green-400">+{safeToFixed(signal.avgWinPercent, 2)}%</span></div>
+                  <div>Avg Loss: <span className="text-red-400">{safeToFixed(signal.avgLossPercent, 2)}%</span></div>
+                  <div>Profit Factor: <span className="text-cyan-400">{safeToFixed(signal.profitFactor, 2)}</span></div>
+                  <div>Expectancy: <span className={signal.expectancy >= 0 ? 'text-green-400' : 'text-red-400'}>{safeToFixed(signal.expectancy, 2)}%</span></div>
                 </div>
                 {(signal.stockWinRate > 0 || signal.optionWinRate > 0 || signal.cryptoWinRate > 0) && (
                   <div className="pt-2 border-t border-slate-700 text-xs">
                     <div className="font-medium mb-1">By Asset Type:</div>
-                    {signal.stockWinRate > 0 && <div>Stock: {signal.stockWinRate.toFixed(1)}%</div>}
-                    {signal.optionWinRate > 0 && <div>Options: {signal.optionWinRate.toFixed(1)}%</div>}
-                    {signal.cryptoWinRate > 0 && <div>Crypto: {signal.cryptoWinRate.toFixed(1)}%</div>}
+                    {signal.stockWinRate > 0 && <div>Stock: {safeToFixed(signal.stockWinRate, 1)}%</div>}
+                    {signal.optionWinRate > 0 && <div>Options: {safeToFixed(signal.optionWinRate, 1)}%</div>}
+                    {signal.cryptoWinRate > 0 && <div>Crypto: {safeToFixed(signal.cryptoWinRate, 1)}%</div>}
                   </div>
                 )}
               </div>

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { formatCurrency, formatPercent, cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { getPnlColor } from "@/lib/signal-grade";
 import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp, Lightbulb, Star } from "lucide-react";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
@@ -365,7 +365,7 @@ export function TradeIdeaDetailModal({
                         <div>
                           <span className="text-muted-foreground">Target Hit Probability:</span>
                           <div className="font-semibold text-green-400 mt-0.5">
-                            {idea.targetHitProbability.toFixed(1)}%
+                            {safeToFixed(idea.targetHitProbability, 1)}%
                           </div>
                         </div>
                       )}
@@ -373,7 +373,7 @@ export function TradeIdeaDetailModal({
                         <div>
                           <span className="text-muted-foreground">Timing Confidence:</span>
                           <div className="font-semibold text-cyan-400 mt-0.5">
-                            {idea.timingConfidence.toFixed(0)}%
+                            {safeToFixed(idea.timingConfidence, 0)}%
                           </div>
                         </div>
                       )}
@@ -507,7 +507,7 @@ export function TradeIdeaDetailModal({
                   <span className="text-sm text-muted-foreground">Risk:Reward</span>
                   <span className="text-sm font-semibold">
                     {isFinite(idea.riskRewardRatio) && !isNaN(idea.riskRewardRatio) 
-                      ? `${idea.riskRewardRatio.toFixed(1)}:1` 
+                      ? `${safeToFixed(idea.riskRewardRatio, 1)}:1` 
                       : 'N/A'}
                   </span>
                 </div>
@@ -548,7 +548,7 @@ export function TradeIdeaDetailModal({
                       {getLetterGrade(idea.confidenceScore)}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      ({idea.confidenceScore.toFixed(0)}/100)
+                      ({safeToFixed(idea.confidenceScore, 0)}/100)
                     </span>
                   </div>
                 </div>
@@ -625,7 +625,7 @@ export function TradeIdeaDetailModal({
                     {idea.rsiValue != null && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">RSI (14)</div>
-                        <div className="text-lg font-bold font-mono">{idea.rsiValue.toFixed(1)}</div>
+                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.rsiValue, 1)}</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.rsiValue <= 30 ? 'Oversold - Reversal likely' : idea.rsiValue >= 70 ? 'Overbought - Reversal likely' : 'Neutral zone'}
                         </div>
@@ -634,7 +634,7 @@ export function TradeIdeaDetailModal({
                     {idea.volumeRatio != null && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Volume Ratio</div>
-                        <div className="text-lg font-bold font-mono">{idea.volumeRatio.toFixed(1)}x</div>
+                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.volumeRatio, 1)}x</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.volumeRatio >= 2 ? 'Strong confirmation' : idea.volumeRatio >= 1.2 ? 'Confirmed' : 'Below average'}
                         </div>
@@ -643,7 +643,7 @@ export function TradeIdeaDetailModal({
                     {idea.riskRewardRatio > 0 && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Risk/Reward</div>
-                        <div className="text-lg font-bold font-mono">{idea.riskRewardRatio.toFixed(1)}:1</div>
+                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.riskRewardRatio, 1)}:1</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.riskRewardRatio >= 2 ? 'Excellent setup' : idea.riskRewardRatio >= 1.5 ? 'Good setup' : 'Acceptable'}
                         </div>
@@ -652,7 +652,7 @@ export function TradeIdeaDetailModal({
                     {idea.confidenceScore > 0 && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Confidence Score</div>
-                        <div className="text-lg font-bold font-mono">{idea.confidenceScore.toFixed(0)}</div>
+                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.confidenceScore, 0)}</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.confidenceScore >= 90 ? 'Very high confidence' : idea.confidenceScore >= 85 ? 'High confidence' : 'Moderate confidence'}
                         </div>

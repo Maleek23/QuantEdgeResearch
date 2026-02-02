@@ -6,7 +6,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowRight, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -100,14 +100,14 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
                   {/* Price */}
                   <div className="flex items-baseline justify-between">
                     <span className="text-2xl font-bold font-mono text-slate-100">
-                      ${stock.price.toFixed(2)}
+                      ${safeToFixed(stock.price, 2)}
                     </span>
                     <div className={cn(
                       "flex items-center gap-1 text-sm font-semibold",
                       isPositive ? "text-emerald-400" : "text-red-400"
                     )}>
                       {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                      <span>{isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%</span>
+                      <span>{isPositive ? '+' : ''}{safeToFixed(stock.changePercent, 2)}%</span>
                     </div>
                   </div>
 

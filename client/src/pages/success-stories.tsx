@@ -7,6 +7,7 @@ import type { TradeIdea } from "@shared/schema";
 import { TrendingUp, CheckCircle2, Award, Target, BarChart3, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { SEOHead } from "@/components/seo-head";
+import { safeToFixed } from "@/lib/utils";
 
 export default function SuccessStories() {
   const [, setLocation] = useLocation();
@@ -67,7 +68,7 @@ export default function SuccessStories() {
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-foreground mb-1">
                 {winningTrades.length > 0
-                  ? Math.max(...winningTrades.map(t => t.percentGain || 0)).toFixed(1)
+                  ? safeToFixed(Math.max(...winningTrades.map(t => t.percentGain || 0)), 1)
                   : 0}%
               </div>
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Biggest Win</div>
@@ -144,7 +145,7 @@ export default function SuccessStories() {
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold font-mono tabular-nums text-green-400">
-                        +{trade.percentGain?.toFixed(1)}%
+                        +{safeToFixed(trade.percentGain, 1)}%
                       </div>
                       <CheckCircle2 className="h-4 w-4 text-green-400 ml-auto mt-1" />
                     </div>
@@ -154,13 +155,13 @@ export default function SuccessStories() {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Entry</span>
                       <span className="font-mono font-semibold tabular-nums">
-                        ${trade.entryPrice.toFixed(2)}
+                        ${safeToFixed(trade.entryPrice, 2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Exit</span>
                       <span className="font-mono font-semibold tabular-nums text-green-400">
-                        ${(trade.exitPrice || trade.targetPrice).toFixed(2)}
+                        ${safeToFixed(trade.exitPrice || trade.targetPrice, 2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">

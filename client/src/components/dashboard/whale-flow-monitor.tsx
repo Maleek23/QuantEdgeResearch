@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface WhaleFlow {
   id: string;
@@ -42,9 +42,9 @@ interface WhaleFlow {
 
 // Format large numbers
 const formatPremium = (value: number): string => {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
+  if (value >= 1000000) return `$${safeToFixed(value / 1000000, 1)}M`;
+  if (value >= 1000) return `$${safeToFixed(value / 1000, 0)}K`;
+  return `$${safeToFixed(value, 0)}`;
 };
 
 // Flow type colors and icons
@@ -150,7 +150,7 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
               flow.volOiRatio > 2 ? "text-yellow-400" :
               "text-gray-400"
             )}>
-              {flow.volOiRatio.toFixed(1)}x Vol/OI
+              {safeToFixed(flow.volOiRatio, 1)}x Vol/OI
             </span>
           </div>
           <div className="flex-1" />

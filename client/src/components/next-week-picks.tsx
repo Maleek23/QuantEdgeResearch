@@ -20,7 +20,7 @@ import {
   Rocket,
   Crown,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WeeklyPick {
@@ -148,7 +148,7 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
           <div className="text-right">
             <div className="text-xs text-slate-500 mb-1">TARGET</div>
             <div className="text-lg font-bold text-green-400 font-mono">
-              {pick.targetMultiplier.toFixed(1)}x
+              {safeToFixed(pick.targetMultiplier, 1)}x
             </div>
           </div>
         </div>
@@ -157,19 +157,19 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
           <div className="bg-slate-800/50 rounded-md p-2 text-center">
             <div className="text-xs text-slate-500 mb-1">ENTRY</div>
             <div className="font-mono text-white">
-              ${pick.entryPrice.toFixed(2)}
+              ${safeToFixed(pick.entryPrice, 2)}
             </div>
           </div>
           <div className="bg-slate-800/50 rounded-md p-2 text-center">
             <div className="text-xs text-slate-500 mb-1">TARGET</div>
             <div className="font-mono text-green-400">
-              ${pick.targetPrice.toFixed(2)}
+              ${safeToFixed(pick.targetPrice, 2)}
             </div>
           </div>
           <div className="bg-slate-800/50 rounded-md p-2 text-center">
             <div className="text-xs text-slate-500 mb-1">STOP</div>
             <div className="font-mono text-red-400">
-              ${pick.stopLoss.toFixed(2)}
+              ${safeToFixed(pick.stopLoss, 2)}
             </div>
           </div>
         </div>

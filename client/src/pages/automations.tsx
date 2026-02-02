@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   Bot, 
   TrendingUp, 
@@ -227,11 +227,11 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                 <div className="grid grid-cols-4 gap-2 text-[11px] mb-2">
                   <div>
                     <span className="text-muted-foreground block mb-0.5">Entry</span>
-                    <div className="font-mono text-foreground">${pos.entryPrice.toFixed(2)}</div>
+                    <div className="font-mono text-foreground">${safeToFixed(pos.entryPrice, 2)}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground block mb-0.5">Price</span>
-                    <div className="font-mono text-foreground">${pos.currentPrice.toFixed(2)}</div>
+                    <div className="font-mono text-foreground">${safeToFixed(pos.currentPrice, 2)}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground block mb-0.5">Profit</span>
@@ -239,7 +239,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                       "font-mono font-bold",
                       pos.unrealizedPnLPercent >= 0 ? "text-green-400" : "text-red-400"
                     )}>
-                      {pos.unrealizedPnLPercent >= 0 ? '+' : ''}{pos.unrealizedPnLPercent.toFixed(1)}%
+                      {pos.unrealizedPnLPercent >= 0 ? '+' : ''}{safeToFixed(pos.unrealizedPnLPercent, 1)}%
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-1.5">
@@ -838,7 +838,7 @@ export default function AutomationsPage() {
                   <div className="p-2 rounded bg-slate-800/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
                     <p className={cn("text-lg font-bold font-mono", (botData?.portfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                      {(botData?.portfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.portfolio?.totalPnL || 0).toFixed(2)}
+                      {(botData?.portfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.portfolio?.totalPnL, 2)}
                     </p>
                   </div>
                 </div>
@@ -877,7 +877,7 @@ export default function AutomationsPage() {
                   <div className="p-2 rounded bg-slate-800/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
                     <p className={cn("text-lg font-bold font-mono", (botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                      {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.futuresPortfolio?.totalPnL || 0).toFixed(2)}
+                      {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.futuresPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
                 </div>
@@ -916,7 +916,7 @@ export default function AutomationsPage() {
                   <div className="p-2 rounded bg-slate-800/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
                     <p className={cn("text-lg font-bold font-mono", (botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                      {(botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.cryptoPortfolio?.totalPnL || 0).toFixed(2)}
+                      {(botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.cryptoPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
                 </div>
@@ -955,7 +955,7 @@ export default function AutomationsPage() {
                   <div className="p-2 rounded bg-slate-800/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
                     <p className={cn("text-lg font-bold font-mono", (botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                      {(botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.smallAccountPortfolio?.totalPnL || 0).toFixed(2)}
+                      {(botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.smallAccountPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
                 </div>
@@ -1276,7 +1276,7 @@ export default function AutomationsPage() {
                   <div className="flex items-center gap-2 text-xs">
                     <Shield className="w-3.5 h-3.5 text-red-400" />
                     <span className="font-medium text-red-400">Risk/Reward Ratio</span>
-                    <span className="font-mono ml-auto">{(takeProfitPercent / stopLossPercent).toFixed(2)}:1</span>
+                    <span className="font-mono ml-auto">{safeToFixed(takeProfitPercent / stopLossPercent, 2)}:1</span>
                   </div>
                 </div>
               </CardContent>
@@ -1525,7 +1525,7 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Min Delta</Label>
-                    <span className="font-mono text-green-400 text-sm">{optionsMinDelta.toFixed(2)}</span>
+                    <span className="font-mono text-green-400 text-sm">{safeToFixed(optionsMinDelta, 2)}</span>
                   </div>
                   <Slider value={[optionsMinDelta * 100]} onValueChange={([v]) => setOptionsMinDelta(v / 100)} min={5} max={50} step={5} data-testid="slider-min-delta" />
                   <p className="text-[10px] text-muted-foreground">Minimum delta for entries</p>
@@ -1534,7 +1534,7 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Max Delta</Label>
-                    <span className="font-mono text-purple-400 text-sm">{optionsMaxDelta.toFixed(2)}</span>
+                    <span className="font-mono text-purple-400 text-sm">{safeToFixed(optionsMaxDelta, 2)}</span>
                   </div>
                   <Slider value={[optionsMaxDelta * 100]} onValueChange={([v]) => setOptionsMaxDelta(v / 100)} min={20} max={80} step={5} data-testid="slider-max-delta" />
                   <p className="text-[10px] text-muted-foreground">Maximum delta for entries</p>

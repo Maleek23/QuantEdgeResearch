@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface CreditStats {
@@ -335,7 +335,7 @@ export default function AdminCredits() {
                       <div>
                         <div className="text-sm text-muted-foreground">Total Cost</div>
                         <div className="text-xl font-bold">
-                          ${(stats.totalCostCents / 100).toFixed(2)}
+                          ${safeToFixed(stats.totalCostCents / 100, 2)}
                         </div>
                       </div>
                     </div>

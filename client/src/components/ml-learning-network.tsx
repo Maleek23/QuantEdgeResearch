@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface SignalAnalysis {
   signal: string;
@@ -115,7 +116,7 @@ export function MLLearningNetwork({ signals, totalTrades }: MLLearningNetworkPro
                     <p className="text-xs font-semibold mb-1 leading-tight">{signal.signal}</p>
                     <div className="flex items-center justify-center gap-2">
                       <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                        {winRatePercent.toFixed(0)}% WR
+                        {safeToFixed(winRatePercent, 0)}% WR
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] px-1 py-0">
                         {signal.totalTrades}
@@ -129,10 +130,10 @@ export function MLLearningNetwork({ signals, totalTrades }: MLLearningNetworkPro
                       <p className="text-xs font-semibold mb-2">{signal.signal}</p>
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">
-                          Win Rate: <span className="text-white font-mono">{winRatePercent.toFixed(1)}%</span>
+                          Win Rate: <span className="text-white font-mono">{safeToFixed(winRatePercent, 1)}%</span>
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Reliability: <span className="text-white font-mono">{signal.reliabilityScore.toFixed(1)}</span>
+                          Reliability: <span className="text-white font-mono">{safeToFixed(signal.reliabilityScore, 1)}</span>
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Trades: <span className="text-white font-mono">{signal.totalTrades}</span>
@@ -175,16 +176,16 @@ export function MLLearningNetwork({ signals, totalTrades }: MLLearningNetworkPro
                   <div className="flex items-start gap-2">
                     <TrendingUp className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
                     <p className="text-xs">
-                      <span className="font-semibold text-green-500">{sortedSignals[0].signal}</span> is top performer 
-                      ({(sortedSignals[0].winRate * 100).toFixed(0)}% WR)
+                      <span className="font-semibold text-green-500">{sortedSignals[0].signal}</span> is top performer
+                      ({safeToFixed(sortedSignals[0].winRate * 100, 0)}% WR)
                     </p>
                   </div>
                   {sortedSignals.length > 1 && sortedSignals[sortedSignals.length - 1].winRate < 0.5 && (
                     <div className="flex items-start gap-2">
                       <TrendingDown className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
                       <p className="text-xs">
-                        <span className="font-semibold text-amber-500">{sortedSignals[sortedSignals.length - 1].signal}</span> needs tuning 
-                        ({(sortedSignals[sortedSignals.length - 1].winRate * 100).toFixed(0)}% WR)
+                        <span className="font-semibold text-amber-500">{sortedSignals[sortedSignals.length - 1].signal}</span> needs tuning
+                        ({safeToFixed(sortedSignals[sortedSignals.length - 1].winRate * 100, 0)}% WR)
                       </p>
                     </div>
                   )}

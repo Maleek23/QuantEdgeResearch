@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, BarChart2, Activity, Volume2, Target } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, safeToFixed } from "@/lib/utils";
 
 interface ExplainabilityPanelProps {
   idea: TradeIdea;
@@ -106,7 +106,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
                 <span className="text-sm font-medium">RSI (14-period Wilder's)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">{idea.rsiValue.toFixed(1)}</span>
+                <span className="text-lg font-bold font-mono">{safeToFixed(idea.rsiValue, 1)}</span>
                 <Badge variant="outline" className={rsiInfo.color}>
                   {rsiInfo.label}
                 </Badge>
@@ -142,7 +142,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               {idea.macdHistogram != null && (
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold font-mono">
-                    {idea.macdHistogram > 0 ? '+' : ''}{idea.macdHistogram.toFixed(3)}
+                    {idea.macdHistogram > 0 ? '+' : ''}{safeToFixed(idea.macdHistogram, 3)}
                   </span>
                   <Badge variant="outline" className={macdInfo.color}>
                     {macdInfo.label}
@@ -153,15 +153,15 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div>
                 <span className="text-muted-foreground">MACD Line:</span>
-                <span className="ml-1 font-mono">{idea.macdLine != null ? idea.macdLine.toFixed(3) : 'N/A'}</span>
+                <span className="ml-1 font-mono">{idea.macdLine != null ? safeToFixed(idea.macdLine, 3) : 'N/A'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Signal:</span>
-                <span className="ml-1 font-mono">{idea.macdSignal != null ? idea.macdSignal.toFixed(3) : 'N/A'}</span>
+                <span className="ml-1 font-mono">{idea.macdSignal != null ? safeToFixed(idea.macdSignal, 3) : 'N/A'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Histogram:</span>
-                <span className="ml-1 font-mono">{idea.macdHistogram != null ? idea.macdHistogram.toFixed(3) : 'N/A'}</span>
+                <span className="ml-1 font-mono">{idea.macdHistogram != null ? safeToFixed(idea.macdHistogram, 3) : 'N/A'}</span>
               </div>
             </div>
             {idea.macdHistogram != null && (
@@ -191,7 +191,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
                 <span className="text-sm font-medium">Volume vs Average</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">{idea.volumeRatio.toFixed(1)}x</span>
+                <span className="text-lg font-bold font-mono">{safeToFixed(idea.volumeRatio, 1)}x</span>
                 <Badge variant="outline" className={volumeInfo.color}>
                   {volumeInfo.label}
                 </Badge>
@@ -215,7 +215,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               {idea.priceVs52WeekHigh != null && (
                 <div className="flex items-center justify-between p-2 bg-background/50 rounded">
                   <span className="text-muted-foreground">From High:</span>
-                  <span className="font-mono text-red-400">{idea.priceVs52WeekHigh.toFixed(1)}%</span>
+                  <span className="font-mono text-red-400">{safeToFixed(idea.priceVs52WeekHigh, 1)}%</span>
                 </div>
               )}
               {idea.priceVs52WeekLow != null && (

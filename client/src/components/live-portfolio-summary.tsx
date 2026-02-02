@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Activity, Target, Award, BarChart3 } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
@@ -136,7 +136,7 @@ export function LivePortfolioSummary() {
               "text-2xl font-bold font-mono",
               totalPL >= 0 ? "text-green-400" : "text-red-400"
             )}>
-              {totalPL >= 0 ? '+' : ''}{totalPL.toFixed(1)}%
+              {totalPL >= 0 ? '+' : ''}{safeToFixed(totalPL, 1)}%
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
               {tradesWithPrices.length > 0 ? 'portfolio avg' : 'no data'}
@@ -162,7 +162,7 @@ export function LivePortfolioSummary() {
               winRate >= 40 ? "text-amber-400" :
               "text-red-400"
             )}>
-              {winRate.toFixed(0)}%
+              {safeToFixed(winRate, 0)}%
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
               {winners}W / {losers}L
@@ -181,7 +181,7 @@ export function LivePortfolioSummary() {
                   {topPerformer.symbol}
                 </div>
                 <div className="text-xs font-mono text-green-400">
-                  +{topPerformer.plPercent.toFixed(1)}%
+                  +{safeToFixed(topPerformer.plPercent, 1)}%
                 </div>
               </>
             ) : (

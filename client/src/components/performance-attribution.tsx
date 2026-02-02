@@ -7,7 +7,7 @@ import {
   BarChart3, Target, TrendingUp, TrendingDown, 
   Eye, AlertCircle, Sparkles, Activity
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface TierPerformance {
   watched: number;
@@ -75,16 +75,16 @@ function TierRow({ tier, data }: { tier: string; data: TierPerformance }) {
         </div>
         <div>
           <span className="text-xs text-slate-500 block">Traded</span>
-          <span className="font-mono">{data.traded} ({data.conversionRate.toFixed(0)}%)</span>
+          <span className="font-mono">{data.traded} ({safeToFixed(data.conversionRate, 0, '0')}%)</span>
         </div>
         <div>
           <span className="text-xs text-slate-500 block">Win Rate</span>
           <span className={cn(
             "font-mono font-semibold",
-            data.winRate >= 60 ? "text-green-400" : 
+            data.winRate >= 60 ? "text-green-400" :
             data.winRate >= 40 ? "text-amber-400" : "text-red-400"
           )}>
-            {data.winRate.toFixed(0)}%
+            {safeToFixed(data.winRate, 0, '0')}%
           </span>
         </div>
         <div>
@@ -93,7 +93,7 @@ function TierRow({ tier, data }: { tier: string; data: TierPerformance }) {
             "font-mono font-semibold",
             data.avgReturn >= 0 ? "text-green-400" : "text-red-400"
           )}>
-            {data.avgReturn >= 0 ? '+' : ''}{data.avgReturn.toFixed(1)}%
+            {data.avgReturn >= 0 ? '+' : ''}{safeToFixed(data.avgReturn, 1, '0.0')}%
           </span>
         </div>
         <div>
@@ -168,7 +168,7 @@ export default function PerformanceAttribution({
                 "text-xs",
                 eliteStats.avgWinRate >= 60 ? "border-green-500/40 text-green-400" : "border-amber-500/40 text-amber-400"
               )}>
-                {eliteStats.avgWinRate.toFixed(0)}% WR
+                {safeToFixed(eliteStats.avgWinRate, 0, '0')}% WR
               </Badge>
             )}
           </div>
@@ -229,17 +229,17 @@ export default function PerformanceAttribution({
                 <p className="text-xs text-slate-500">Symbols Traded</p>
                 <p className="text-xl font-bold font-mono">{eliteStats.traded}</p>
                 <p className="text-xs text-slate-400">
-                  {((eliteStats.traded / eliteStats.watched) * 100).toFixed(0)}% conversion
+                  {safeToFixed((eliteStats.traded / eliteStats.watched) * 100, 0, '0')}% conversion
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Win Rate</p>
                 <p className={cn(
                   "text-xl font-bold font-mono",
-                  eliteStats.avgWinRate >= 60 ? "text-green-400" : 
+                  eliteStats.avgWinRate >= 60 ? "text-green-400" :
                   eliteStats.avgWinRate >= 40 ? "text-amber-400" : "text-red-400"
                 )}>
-                  {eliteStats.avgWinRate.toFixed(0)}%
+                  {safeToFixed(eliteStats.avgWinRate, 0, '0')}%
                 </p>
               </div>
               <div>
@@ -292,7 +292,7 @@ export default function PerformanceAttribution({
                   </div>
                   <div className="text-right">
                     <span className="text-green-400 font-mono font-semibold">
-                      +{op.priceSinceAdded.toFixed(1)}%
+                      +{safeToFixed(op.priceSinceAdded, 1, '0.0')}%
                     </span>
                     <span className="text-xs text-slate-500 ml-2">since added</span>
                   </div>

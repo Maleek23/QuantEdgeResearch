@@ -5,7 +5,7 @@
 
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   BarChart3,
   DollarSign,
@@ -143,10 +143,10 @@ export function ScoreBreakdownVisual({ items, className }: ScoreBreakdownVisualP
                 </div>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-slate-400">
-                    Weight: <span className="text-cyan-400 font-mono">{(item.weight * 100).toFixed(0)}%</span>
+                    Weight: <span className="text-cyan-400 font-mono">{safeToFixed(item.weight * 100, 0)}%</span>
                   </span>
                   <span className="text-slate-400">
-                    Contribution: <span className="text-purple-400 font-mono">{(item.score * item.weight).toFixed(1)}</span>
+                    Contribution: <span className="text-purple-400 font-mono">{safeToFixed(item.score * item.weight, 1)}</span>
                   </span>
                 </div>
               </div>

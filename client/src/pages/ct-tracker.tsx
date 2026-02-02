@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   Plus,
   RefreshCw,
@@ -95,14 +95,14 @@ interface CTStats {
 }
 
 function formatNumber(value: number): string {
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  if (value >= 1000000) return `${safeToFixed(value / 1000000, 1)}M`;
+  if (value >= 1000) return `${safeToFixed(value / 1000, 1)}K`;
   return value.toString();
 }
 
 function formatPercent(value: number): string {
   const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
+  return `${sign}${safeToFixed(value, 2)}%`;
 }
 
 function PlatformIcon({ platform, className }: { platform: Platform; className?: string }) {
@@ -370,7 +370,7 @@ function SourceCard({ source, onDelete, onRefresh }: { source: CTSource; onDelet
       </div>
       {source.successRate !== undefined && (
         <Badge variant="outline" className="hidden md:flex text-xs">
-          {source.successRate.toFixed(0)}% success
+          {safeToFixed(source.successRate, 0)}% success
         </Badge>
       )}
       <Tooltip>
@@ -496,9 +496,9 @@ function PerformanceTable({ performance }: { performance: CTPerformance[] }) {
                 {p.callType.toUpperCase()}
               </Badge>
             </TableCell>
-            <TableCell className="text-right font-mono">${p.entryPrice.toFixed(2)}</TableCell>
+            <TableCell className="text-right font-mono">${safeToFixed(p.entryPrice, 2)}</TableCell>
             <TableCell className="text-right font-mono">
-              ${(p.exitPrice || p.currentPrice || 0).toFixed(2)}
+              ${safeToFixed(p.exitPrice || p.currentPrice || 0, 2)}
             </TableCell>
             <TableCell className={cn("text-right font-mono", p.pnlPercent >= 0 ? "text-green-400" : "text-red-400")}>
               {formatPercent(p.pnlPercent)}
@@ -558,7 +558,7 @@ export default function CTTracker() {
   };
 
   const bullishBearishRatio = stats.bearishCount > 0
-    ? `${(stats.bullishCount / stats.bearishCount).toFixed(2)}:1`
+    ? `${safeToFixed(stats.bullishCount / stats.bearishCount, 2)}:1`
     : stats.bullishCount > 0 ? `${stats.bullishCount}:0` : "N/A";
 
   const filteredMentions = mentions?.filter((m) => {
@@ -606,7 +606,7 @@ export default function CTTracker() {
             />
             <StatsCard
               title="Avg Success Rate"
-              value={`${stats.avgSuccessRate.toFixed(1)}%`}
+              value={`${safeToFixed(stats.avgSuccessRate, 1)}%`}
               icon={Target}
             />
           </>

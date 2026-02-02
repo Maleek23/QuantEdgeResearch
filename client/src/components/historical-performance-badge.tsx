@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TrendingUp, TrendingDown, Database, Sparkles, DollarSign } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { useDataIntelligence } from "@/hooks/useDataIntelligence";
 import { getEngineExpectedValue } from "@shared/constants";
 
@@ -62,7 +62,7 @@ export function HistoricalPerformanceBadge({
             data-testid={`badge-historical-${symbol}`}
           >
             <Database className="h-2.5 w-2.5 mr-0.5" />
-            {primaryRate.toFixed(0)}%
+            {safeToFixed(primaryRate, 0)}%
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs p-3">
@@ -76,7 +76,7 @@ export function HistoricalPerformanceBadge({
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground capitalize">{engine} Engine:</span>
                   <span className={cn("font-bold", getWinRateColor(engineWinRate).split(' ')[0])}>
-                    {engineWinRate.toFixed(1)}% win rate
+                    {safeToFixed(engineWinRate, 1)}% win rate
                   </span>
                 </div>
               )}
@@ -84,7 +84,7 @@ export function HistoricalPerformanceBadge({
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground">{symbol}:</span>
                   <span className={cn("font-bold", getWinRateColor(symbolData.winRate).split(' ')[0])}>
-                    {symbolData.winRate.toFixed(1)}% ({symbolData.trades} trades)
+                    {safeToFixed(symbolData.winRate, 1)}% ({symbolData.trades} trades)
                   </span>
                 </div>
               )}
@@ -127,7 +127,7 @@ export function HistoricalPerformanceBadge({
               ) : (
                 <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
               )}
-              {engine.toUpperCase()}: {engineWinRate.toFixed(0)}%
+              {engine.toUpperCase()}: {safeToFixed(engineWinRate, 0)}%
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
@@ -154,12 +154,12 @@ export function HistoricalPerformanceBadge({
               ) : (
                 <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
               )}
-              {symbol}: {symbolData.winRate.toFixed(0)}%
+              {symbol}: {safeToFixed(symbolData.winRate, 0)}%
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
             <p className="text-xs">
-              {symbol} historical: {symbolData.trades} trades at {symbolData.winRate.toFixed(1)}% win rate
+              {symbol} historical: {symbolData.trades} trades at {safeToFixed(symbolData.winRate, 1)}% win rate
             </p>
           </TooltipContent>
         </Tooltip>

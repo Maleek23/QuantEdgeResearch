@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Eye, TrendingUp, TrendingDown, AlertTriangle, Plus, BarChart3, Target, ShieldAlert, Clock, ExternalLink } from "lucide-react";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, safeToFixed } from "@/lib/utils";
 import type { WatchlistItem, MarketData, TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 
@@ -164,7 +164,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                           <span className={`text-[10px] flex items-center gap-0.5 ${isUp ? 'text-green-500' : isDown ? 'text-red-500' : 'text-muted-foreground'}`}>
                             {isUp && <TrendingUp className="h-2.5 w-2.5" />}
                             {isDown && <TrendingDown className="h-2.5 w-2.5" />}
-                            {changePercent > 0 ? '+' : ''}{changePercent.toFixed(2)}%
+                            {changePercent > 0 ? '+' : ''}{safeToFixed(changePercent, 2)}%
                           </span>
                         )}
                       </div>
@@ -221,7 +221,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                         "ml-2 text-sm",
                         changePercent > 0 ? "text-green-500" : changePercent < 0 ? "text-red-500" : "text-muted-foreground"
                       )}>
-                        {changePercent > 0 ? '+' : ''}{changePercent.toFixed(2)}%
+                        {changePercent > 0 ? '+' : ''}{safeToFixed(changePercent, 2)}%
                       </span>
                     )}
                   </div>

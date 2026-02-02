@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { safeToFixed } from "@/lib/utils";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -418,7 +419,7 @@ export default function BullishTrends() {
                               <div>
                                 <h3 className="font-semibold text-foreground">{sectorInfo.label}</h3>
                                 <p className="text-xs text-muted-foreground">
-                                  {sector.symbolCount} symbols • Avg Heat: {sector.avgHeat.toFixed(1)}
+                                  {sector.symbolCount} symbols • Avg Heat: {safeToFixed(sector.avgHeat, 1)}
                                 </p>
                               </div>
                             </div>
@@ -431,7 +432,7 @@ export default function BullishTrends() {
                               )}
                               <div className="text-right">
                                 <div className={`text-xl font-bold font-mono ${getHeatColor(sector.avgHeat)}`}>
-                                  {sector.totalHeat.toFixed(0)}
+                                  {safeToFixed(sector.totalHeat, 0)}
                                 </div>
                                 <div className="text-xs text-muted-foreground">Total Heat</div>
                               </div>
@@ -457,13 +458,13 @@ export default function BullishTrends() {
                                         </Badge>
                                       </div>
                                       <div className={`text-lg font-bold font-mono ${getHeatColor(sym.heatScore)}`}>
-                                        {sym.heatScore.toFixed(1)}
+                                        {safeToFixed(sym.heatScore, 1)}
                                       </div>
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent side="top" className="max-w-xs">
                                     <div className="space-y-2">
-                                      <div className="font-semibold">{sym.symbol} - Heat Score: {sym.heatScore.toFixed(2)}</div>
+                                      <div className="font-semibold">{sym.symbol} - Heat Score: {safeToFixed(sym.heatScore, 2)}</div>
                                       <div className="text-xs">
                                         <div className="font-medium mb-1">Sources ({sym.distinctSources}):</div>
                                         <div className="flex flex-wrap gap-1">
@@ -553,11 +554,11 @@ export default function BullishTrends() {
                         <div className="flex items-center gap-6">
                           <div className="text-right">
                             <div className="font-mono font-semibold" data-testid={`text-price-${trend.symbol}`}>
-                              {trend.currentPrice != null ? `$${trend.currentPrice.toFixed(2)}` : 'N/A'}
+                              {trend.currentPrice != null ? `$${safeToFixed(trend.currentPrice, 2)}` : 'N/A'}
                             </div>
                             <div className={`text-sm font-mono flex items-center justify-end gap-1 ${(trend.dayChangePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {(trend.dayChangePercent ?? 0) >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                              {trend.dayChangePercent != null ? `${Math.abs(trend.dayChangePercent).toFixed(2)}%` : 'N/A'}
+                              {trend.dayChangePercent != null ? `${safeToFixed(Math.abs(trend.dayChangePercent), 2)}%` : 'N/A'}
                             </div>
                           </div>
 
@@ -574,8 +575,8 @@ export default function BullishTrends() {
                           </div>
 
                           <div className="text-right hidden lg:block">
-                            <div className="font-mono text-sm">RSI: {trend.rsi14 != null ? trend.rsi14.toFixed(0) : 'N/A'}</div>
-                            <div className="text-xs text-muted-foreground">Vol: {trend.volumeRatio != null ? `${trend.volumeRatio.toFixed(1)}x` : 'N/A'}</div>
+                            <div className="font-mono text-sm">RSI: {trend.rsi14 != null ? safeToFixed(trend.rsi14, 0) : 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">Vol: {trend.volumeRatio != null ? `${safeToFixed(trend.volumeRatio, 1)}x` : 'N/A'}</div>
                           </div>
 
                           <Tooltip>

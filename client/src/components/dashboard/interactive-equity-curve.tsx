@@ -21,6 +21,7 @@ import { TrendingUp, TrendingDown, Calendar, DollarSign, Percent, Activity } fro
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { safeToFixed } from '@/lib/utils';
 
 interface EquityDataPoint {
   date: string;
@@ -50,7 +51,7 @@ function generateEquityData(days: number): EquityDataPoint[] {
     data.push({
       date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       equity: Math.round(equity),
-      drawdown: parseFloat(drawdown.toFixed(2)),
+      drawdown: parseFloat(safeToFixed(drawdown, 2)),
       trades: Math.floor(Math.random() * 5),
     });
   }
@@ -134,7 +135,7 @@ export function InteractiveEquityCurve() {
             <TrendingUp className="w-5 h-5 text-emerald-400" />
             Equity Curve
             <Badge className={`ml-2 ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-              {isPositive ? '+' : ''}{totalReturn.toFixed(1)}%
+              {isPositive ? '+' : ''}{safeToFixed(totalReturn, 1)}%
             </Badge>
           </CardTitle>
 
@@ -167,12 +168,12 @@ export function InteractiveEquityCurve() {
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
             <p className="text-xs text-gray-500 mb-1">Total Return</p>
             <p className={`text-lg font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {isPositive ? '+' : ''}{totalReturn.toFixed(1)}%
+              {isPositive ? '+' : ''}{safeToFixed(totalReturn, 1)}%
             </p>
           </div>
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
             <p className="text-xs text-gray-500 mb-1">Max Drawdown</p>
-            <p className="text-lg font-bold text-red-400">-{maxDrawdown.toFixed(1)}%</p>
+            <p className="text-lg font-bold text-red-400">-{safeToFixed(maxDrawdown, 1)}%</p>
           </div>
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
             <p className="text-xs text-gray-500 mb-1">Total Trades</p>
@@ -226,7 +227,7 @@ export function InteractiveEquityCurve() {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#6B7280', fontSize: 11 }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `$${safeToFixed(value / 1000, 0)}k`}
                 domain={['dataMin - 500', 'dataMax + 500']}
               />
 

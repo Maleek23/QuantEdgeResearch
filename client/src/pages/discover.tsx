@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -159,7 +159,7 @@ export default function Discover() {
                           <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 cursor-pointer">
                             <span className="text-sm font-medium text-cyan-400">{stock.symbol}</span>
                             <span className="text-xs text-emerald-400">
-                              +{stock.change?.toFixed(1)}%
+                              +{safeToFixed(stock.change, 1)}%
                             </span>
                           </div>
                         </Link>

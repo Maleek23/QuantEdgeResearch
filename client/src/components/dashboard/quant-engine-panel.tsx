@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { BarChart2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface QuantMetric {
@@ -61,7 +61,7 @@ export function QuantEnginePanel({
               zScore > 1 ? "text-green-400" : zScore < -1 ? "text-red-400" : "text-slate-300"
             )}
           >
-            {zScore >= 0 ? "+" : ""}{zScore.toFixed(2)}σ
+            {zScore >= 0 ? "+" : ""}{safeToFixed(zScore, 2)}σ
           </span>
         </div>
         <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -94,7 +94,7 @@ export function QuantEnginePanel({
                 <span className="text-xs text-slate-300">{metric.name}</span>
               </div>
               <span className={cn("text-sm font-mono tabular-nums font-medium", metricConfig.color)}>
-                {metric.value.toFixed(2)}
+                {safeToFixed(metric.value, 2)}
               </span>
             </div>
           );

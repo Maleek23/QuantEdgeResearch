@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatPercent, getPriceChangeColor, cn } from "@/lib/utils";
+import { formatCurrency, formatPercent, getPriceChangeColor, cn, safeToFixed, safeNumber } from "@/lib/utils";
 import type { MarketData } from "@shared/schema";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
@@ -43,9 +43,9 @@ export function PriceCard({ data, onClick }: PriceCardProps) {
           </span>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Vol: <span className="font-mono" data-testid={`text-volume-${data.symbol}`}>{(data.volume / 1000000).toFixed(2)}M</span></span>
+          <span>Vol: <span className="font-mono" data-testid={`text-volume-${data.symbol}`}>{safeToFixed(safeNumber(data.volume) / 1000000, 2)}M</span></span>
           {data.marketCap && (
-            <span>MCap: <span className="font-mono">{(data.marketCap / 1000000000).toFixed(2)}B</span></span>
+            <span>MCap: <span className="font-mono">{safeToFixed(safeNumber(data.marketCap) / 1000000000, 2)}B</span></span>
           )}
         </div>
       </CardContent>

@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { ChevronRight, Activity, TrendingUp, TrendingDown } from "lucide-react";
 import { useRealtimePrices } from "@/context/realtime-prices-context";
 import { Link } from "wouter";
@@ -150,7 +150,7 @@ export function MarketMonitorChart({
                     textAnchor="end"
                     className="font-mono"
                   >
-                    {price.toFixed(2)}
+                    {safeToFixed(price, 2)}
                   </text>
                 </g>
               );
@@ -228,7 +228,7 @@ export function MarketMonitorChart({
                   {symbol}
                 </Badge>
                 <span className="text-lg font-bold font-mono text-white">
-                  ${hoveredPoint.price.toFixed(3)}
+                  ${safeToFixed(hoveredPoint.price, 3, '0.000')}
                 </span>
               </div>
               <div className="text-xs text-slate-400 mt-1">
@@ -239,7 +239,7 @@ export function MarketMonitorChart({
                   "text-sm font-mono mt-1",
                   hoveredPoint.change >= 0 ? "text-emerald-400" : "text-red-400"
                 )}>
-                  {hoveredPoint.change >= 0 ? '+' : ''}{hoveredPoint.change.toFixed(2)}%
+                  {hoveredPoint.change >= 0 ? '+' : ''}{safeToFixed(hoveredPoint.change, 2)}%
                 </div>
               )}
             </div>
@@ -251,13 +251,13 @@ export function MarketMonitorChart({
           
           <div className="absolute bottom-16 right-4 bg-slate-800/90 border border-slate-700 rounded-lg px-3 py-1.5 backdrop-blur-sm">
             <span className="text-lg font-bold font-mono text-white">
-              ${currentPrice.toFixed(3)}
+              ${safeToFixed(currentPrice, 3, '0.000')}
             </span>
             <span className={cn(
               "ml-2 text-sm font-mono",
               isPositive ? "text-emerald-400" : "text-red-400"
             )}>
-              {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+              {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
             </span>
           </div>
         </div>
@@ -432,14 +432,14 @@ function MarketIndexCard({ symbol, name }: { symbol: string; name: string }) {
         </div>
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold font-mono text-white">
-            ${price > 0 ? price.toFixed(2) : '--'}
+            ${price > 0 ? safeToFixed(price, 2) : '--'}
           </span>
           <div className={cn(
             "flex items-center gap-1 text-sm font-mono",
             isPositive ? "text-emerald-400" : "text-red-400"
           )}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '--'}
+            {changePercent !== 0 ? `${isPositive ? '+' : ''}${safeToFixed(changePercent, 2)}%` : '--'}
           </div>
         </div>
       </CardContent>

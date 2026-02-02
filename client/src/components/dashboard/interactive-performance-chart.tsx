@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Calendar, Activity } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface PerformanceDataPoint {
   date: string;
@@ -35,7 +36,7 @@ export function InteractivePerformanceChart({
 
   const previousValue = data[data.length - 2]?.[activeMetric] || 0;
   const change = currentValue - previousValue;
-  const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(1) : "0.0";
+  const changePercent = previousValue !== 0 ? safeToFixed((change / previousValue) * 100, 1) : "0.0";
   const isPositive = change >= 0;
 
   return (
@@ -50,7 +51,7 @@ export function InteractivePerformanceChart({
           <h3 className="text-lg font-semibold mb-1">{title}</h3>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-bold font-mono tabular-nums">
-              {activeMetric === "winRate" ? `${currentValue.toFixed(1)}%` : `$${currentValue.toFixed(0)}`}
+              {activeMetric === "winRate" ? `${safeToFixed(currentValue, 1)}%` : `$${safeToFixed(currentValue, 0)}`}
             </span>
             <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
               {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -137,12 +138,12 @@ export function InteractivePerformanceChart({
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-xs text-muted-foreground">Win Rate</span>
-                        <span className="text-sm font-semibold text-cyan-400">{data.winRate.toFixed(1)}%</span>
+                        <span className="text-sm font-semibold text-cyan-400">{safeToFixed(data.winRate, 1)}%</span>
                       </div>
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-xs text-muted-foreground">P&L</span>
                         <span className={`text-sm font-semibold ${data.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ${data.profit.toFixed(0)}
+                          ${safeToFixed(data.profit, 0)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-4">
@@ -178,7 +179,7 @@ export function InteractivePerformanceChart({
         <div>
           <p className="text-xs text-muted-foreground mb-1">Avg Win Rate</p>
           <p className="text-lg font-bold font-mono tabular-nums text-cyan-400">
-            {(data.reduce((sum, d) => sum + d.winRate, 0) / data.length).toFixed(1)}%
+            {safeToFixed(data.reduce((sum, d) => sum + d.winRate, 0) / data.length, 1)}%
           </p>
         </div>
         <div>
@@ -186,7 +187,7 @@ export function InteractivePerformanceChart({
           <p className={`text-lg font-bold font-mono tabular-nums ${
             data.reduce((sum, d) => sum + d.profit, 0) >= 0 ? 'text-green-400' : 'text-red-400'
           }`}>
-            ${data.reduce((sum, d) => sum + d.profit, 0).toFixed(0)}
+            ${safeToFixed(data.reduce((sum, d) => sum + d.profit, 0), 0)}
           </p>
         </div>
       </div>

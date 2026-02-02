@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -117,7 +117,7 @@ function MarketSentiment() {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <div className="text-xs text-slate-500 mb-1">VIX (Fear Index)</div>
-          <div className="text-2xl font-bold text-slate-100">{vix.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-slate-100">{safeToFixed(vix, 2)}</div>
           <div className={cn("text-sm font-medium", fearColor)}>{fearLevel} Fear</div>
         </div>
         <div>
@@ -175,7 +175,7 @@ function SectorPerformance() {
                   "text-xs font-semibold",
                   change >= 0 ? "text-emerald-400" : "text-red-400"
                 )}>
-                  {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+                  {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                 </span>
               </div>
             </Link>
@@ -329,7 +329,7 @@ function TrendingSymbols() {
               <Link key={s.symbol} href={`/chart-analysis?symbol=${s.symbol}`}>
                 <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
                   <span className="text-sm font-medium text-slate-300">{s.symbol}</span>
-                  <span className="text-xs text-emerald-400">+{s.change?.toFixed(1)}%</span>
+                  <span className="text-xs text-emerald-400">+{safeToFixed(s.change, 1)}%</span>
                 </div>
               </Link>
             ))}
@@ -344,7 +344,7 @@ function TrendingSymbols() {
               <Link key={s.symbol} href={`/chart-analysis?symbol=${s.symbol}`}>
                 <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
                   <span className="text-sm font-medium text-slate-300">{s.symbol}</span>
-                  <span className="text-xs text-red-400">{s.change?.toFixed(1)}%</span>
+                  <span className="text-xs text-red-400">{safeToFixed(s.change, 1)}%</span>
                 </div>
               </Link>
             ))}

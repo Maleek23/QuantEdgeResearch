@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { safeToFixed } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Info } from "lucide-react";
@@ -78,7 +79,7 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
               Losses: <span className="font-mono">{data.losses}</span>
             </p>
             <p className="font-semibold">
-              Win Rate: <span className="font-mono">{data.winRate.toFixed(1)}%</span>
+              Win Rate: <span className="font-mono">{safeToFixed(data.winRate, 1)}%</span>
             </p>
           </div>
         </div>

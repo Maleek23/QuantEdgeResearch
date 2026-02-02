@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { safeToFixed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -179,18 +180,18 @@ export function ManualOutcomeRecorder({
               id="exit-price"
               type="number"
               step="0.01"
-              placeholder={`Enter exit price (Entry: $${entryPrice.toFixed(2)})`}
+              placeholder={`Enter exit price (Entry: $${safeToFixed(entryPrice, 2)})`}
               value={exitPrice}
               onChange={(e) => setExitPrice(e.target.value)}
               data-testid="input-exit-price"
             />
             {exitPrice && !isNaN(parseFloat(exitPrice)) && (
               <p className="text-xs text-muted-foreground">
-                Entry: ${entryPrice.toFixed(2)} → Exit: ${parseFloat(exitPrice).toFixed(2)}
+                Entry: ${safeToFixed(entryPrice, 2)} → Exit: ${safeToFixed(parseFloat(exitPrice), 2)}
                 {' '}(
-                  {direction === 'long' 
-                    ? ((parseFloat(exitPrice) - entryPrice) / entryPrice * 100).toFixed(2)
-                    : ((entryPrice - parseFloat(exitPrice)) / entryPrice * 100).toFixed(2)
+                  {direction === 'long'
+                    ? safeToFixed((parseFloat(exitPrice) - entryPrice) / entryPrice * 100, 2)
+                    : safeToFixed((entryPrice - parseFloat(exitPrice)) / entryPrice * 100, 2)
                   }%)
               </p>
             )}

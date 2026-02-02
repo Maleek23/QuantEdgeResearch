@@ -37,6 +37,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { safeToFixed } from "@/lib/utils";
 import type { MarketData, InsertTradeIdea } from "@shared/schema";
 
 interface SymbolActionDialogProps {
@@ -72,8 +73,8 @@ function getTradeRecommendation(data: MarketData): TradeRecommendation {
     
     return {
       type: 'crypto_shares',
-      reason: hasStrongMomentum 
-        ? `Strong ${changePercent > 0 ? 'upward' : 'downward'} momentum in crypto market - ${Math.abs(changePercent).toFixed(1)}% move with ${volumeRatio.toFixed(1)}x volume.`
+      reason: hasStrongMomentum
+        ? `Strong ${changePercent > 0 ? 'upward' : 'downward'} momentum in crypto market - ${safeToFixed(Math.abs(changePercent), 1)}% move with ${safeToFixed(volumeRatio, 1)}x volume.`
         : 'Crypto shares recommended - 24/7 market access with defined risk.',
       confidence,
       direction
@@ -200,12 +201,12 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         assetType: type === 'stock_options' ? 'option' : 
                    type === 'crypto_shares' ? 'crypto' : 'stock',
         direction: recommendation.direction === 'neutral' ? 'long' : recommendation.direction,
-        entryPrice: parseFloat(entryPrice.toFixed(2)),
-        targetPrice: parseFloat(targetPrice.toFixed(2)),
-        stopLoss: parseFloat(stopLoss.toFixed(2)),
-        riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
+        entryPrice: parseFloat(safeToFixed(entryPrice, 2)),
+        targetPrice: parseFloat(safeToFixed(targetPrice, 2)),
+        stopLoss: parseFloat(safeToFixed(stopLoss, 2)),
+        riskRewardRatio: parseFloat(safeToFixed(riskRewardRatio, 2)),
         catalyst: `User-initiated idea from symbol search - ${recommendation.reason}`,
-        analysis: `Based on current price action: ${marketData.changePercent >= 0 ? '+' : ''}${marketData.changePercent.toFixed(2)}% move with ${(marketData.volume / (marketData.avgVolume || marketData.volume)).toFixed(1)}x average volume. ${recommendation.reason}`,
+        analysis: `Based on current price action: ${marketData.changePercent >= 0 ? '+' : ''}${safeToFixed(marketData.changePercent, 2)}% move with ${safeToFixed(marketData.volume / (marketData.avgVolume || marketData.volume), 1)}x average volume. ${recommendation.reason}`,
         liquidityWarning: marketData.currentPrice < 5 && type !== 'crypto_shares',
         sessionContext: marketData.session === 'rth' ? 'Regular Trading Hours' : 
                        marketData.session === 'pre-market' ? 'Pre-Market' : 'After Hours',
@@ -227,7 +228,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
           day: 'numeric', 
           year: 'numeric' 
         });
-        idea.strikePrice = parseFloat(strikePrice.toFixed(2));
+        idea.strikePrice = parseFloat(safeToFixed(strikePrice, 2));
         idea.optionType = isLong ? 'call' : 'put';
       }
 
@@ -276,7 +277,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         symbol: marketData.symbol,
         assetType: marketData.assetType,
         targetPrice: marketData.currentPrice * 1.10, // Default 10% above current
-        notes: `Added from symbol search - Current: $${marketData.currentPrice.toFixed(2)}`,
+        notes: `Added from symbol search - Current: $${safeToFixed(marketData.currentPrice, 2)}`,
         addedAt: new Date().toISOString(),
       };
       
@@ -353,9 +354,9 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         entryPrice,
         targetPrice,
         stopLoss,
-        riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
+        riskRewardRatio: parseFloat(safeToFixed(riskRewardRatio, 2)),
         catalyst: `Manual research brief - User-defined parameters`,
-        analysis: `Manual ${manualDirection.toUpperCase()} pattern on ${marketData.symbol} with ${riskRewardRatio.toFixed(2)}:1 R:R`,
+        analysis: `Manual ${manualDirection.toUpperCase()} pattern on ${marketData.symbol} with ${safeToFixed(riskRewardRatio, 2)}:1 R:R`,
         liquidityWarning: marketData.currentPrice < 5 && manualAssetType !== 'crypto',
         sessionContext: marketData.session === 'rth' ? 'Regular Trading Hours' : 
                        marketData.session === 'pre-market' ? 'Pre-Market' : 'After Hours',
@@ -414,7 +415,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
     }
     
     const rr = Math.abs((target - entry) / (entry - stop));
-    return rr.toFixed(2);
+    return safeToFixed(rr, 2);
   };
 
   if (!marketData) return null;
@@ -463,7 +464,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                   </div>
                   <div className={`text-sm font-medium flex items-center gap-1 justify-end ${isPositive ? 'text-green-500' : 'text-red-500'}`} data-testid="text-dialog-change">
                     {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {isPositive ? '+' : ''}{marketData.changePercent.toFixed(2)}%
+                    {isPositive ? '+' : ''}{safeToFixed(marketData.changePercent, 2)}%
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { WebGLErrorBoundary } from './webgl-error-boundary';
+import { safeToFixed } from '@/lib/utils';
 
 // Lazy load the 3D brain scene to avoid Vite plugin issues
 const BrainScene = lazy(() => 
@@ -75,17 +76,17 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Avg Win Rate</div>
-              <div className="text-xl font-bold text-green-400">{(avgWinRate * 100).toFixed(1)}%</div>
+              <div className="text-xl font-bold text-green-400">{safeToFixed(avgWinRate * 100, 1)}%</div>
             </div>
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Top Signal</div>
               <div className="text-sm font-semibold text-cyan-400 truncate">{topPerformer?.signalName.split(' ')[0]}</div>
-              <div className="text-xs text-muted-foreground">{topPerformer?.winRate.toFixed(0)}% wins</div>
+              <div className="text-xs text-muted-foreground">{safeToFixed(topPerformer?.winRate, 0)}% wins</div>
             </div>
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Improving</div>
               <div className="text-sm font-semibold text-amber-400 truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
-              <div className="text-xs text-muted-foreground">{bottomPerformer?.winRate.toFixed(0)}% wins</div>
+              <div className="text-xs text-muted-foreground">{safeToFixed(bottomPerformer?.winRate, 0)}% wins</div>
             </div>
           </div>
 
@@ -101,11 +102,11 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
                 <CardContent className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Win Rate:</span>
-                    <span className="text-green-400 font-medium">{signal.winRate.toFixed(1)}%</span>
+                    <span className="text-green-400 font-medium">{safeToFixed(signal.winRate, 1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Avg Gain:</span>
-                    <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
+                    <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{safeToFixed(signal.avgGain, 2)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Trades:</span>
@@ -155,17 +156,17 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Avg Win Rate</div>
-            <div className="text-xl font-bold text-green-400">{(avgWinRate * 100).toFixed(1)}%</div>
+            <div className="text-xl font-bold text-green-400">{safeToFixed(avgWinRate * 100, 1)}%</div>
           </div>
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Top Signal</div>
             <div className="text-sm font-semibold text-cyan-400 truncate">{topPerformer?.signalName.split(' ')[0]}</div>
-            <div className="text-xs text-muted-foreground">{topPerformer?.winRate.toFixed(0)}% wins</div>
+            <div className="text-xs text-muted-foreground">{safeToFixed(topPerformer?.winRate, 0)}% wins</div>
           </div>
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Improving</div>
             <div className="text-sm font-semibold text-amber-400 truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
-            <div className="text-xs text-muted-foreground">{bottomPerformer?.winRate.toFixed(0)}% wins</div>
+            <div className="text-xs text-muted-foreground">{safeToFixed(bottomPerformer?.winRate, 0)}% wins</div>
           </div>
         </div>
 

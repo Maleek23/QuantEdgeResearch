@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import type { PaperPortfolio, PaperPosition, PaperEquitySnapshot } from "@shared/schema";
 import {
   TrendingUp,
@@ -56,7 +56,7 @@ function formatCurrency(value: number): string {
 
 function formatPercent(value: number): string {
   const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
+  return `${sign}${safeToFixed(value, 2)}%`;
 }
 
 function PnLDisplay({ value, percent, showPercent = true }: { value: number; percent?: number; showPercent?: boolean }) {
@@ -569,7 +569,7 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => `$${safeToFixed(value / 1000, 0)}k`}
               />
               <Tooltip
                 contentStyle={{

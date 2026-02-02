@@ -46,7 +46,7 @@ import {
 import { generatePlatformReportPDF } from "@/lib/pdf-export";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   PieChart as RechartsPieChart,
@@ -351,7 +351,7 @@ export default function AdminReportsPage() {
                       <span className="flex items-center gap-1">
                         <TrendingUp className="h-3 w-3 text-green-400" />
                         <span className="font-mono tabular-nums text-green-400">
-                          {report.overallWinRate?.toFixed(1) || "—"}%
+                          {report.overallWinRate != null ? safeToFixed(report.overallWinRate, 1) : "—"}%
                         </span>
                       </span>
                       <span className="flex items-center gap-1">
@@ -435,7 +435,7 @@ export default function AdminReportsPage() {
                     "text-2xl font-bold font-mono tabular-nums mt-2",
                     (stats?.summary.overallWinRate || 0) >= 50 ? "text-green-400" : "text-red-400"
                   )} data-testid="text-win-rate">
-                    {stats?.summary.overallWinRate?.toFixed(1) || "—"}%
+                    {stats?.summary.overallWinRate != null ? safeToFixed(stats.summary.overallWinRate, 1) : "—"}%
                   </p>
                 )}
               </CardContent>
@@ -503,7 +503,7 @@ export default function AdminReportsPage() {
                         outerRadius={100}
                         paddingAngle={2}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
                         labelLine={{ stroke: "#64748b" }}
                       >
                         {assetChartData.map((entry, index) => (
@@ -597,7 +597,7 @@ export default function AdminReportsPage() {
                         border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
-                      formatter={(value: number) => [`${value.toFixed(1)}%`, "Win Rate"]}
+                      formatter={(value: number) => [`${safeToFixed(value, 1)}%`, "Win Rate"]}
                     />
                     <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
                       {engineChartData.map((entry, index) => (
@@ -633,7 +633,7 @@ export default function AdminReportsPage() {
                         "font-mono tabular-nums font-semibold",
                         (engine.winRate || 0) >= 50 ? "text-green-400" : "text-red-400"
                       )}>
-                        {engine.winRate?.toFixed(1) || "—"}%
+                        {engine.winRate != null ? safeToFixed(engine.winRate, 1) : "—"}%
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -650,11 +650,11 @@ export default function AdminReportsPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Avg Gain</span>
-                      <span className="font-mono tabular-nums text-green-400">+{engine.avgGain.toFixed(1)}%</span>
+                      <span className="font-mono tabular-nums text-green-400">+{safeToFixed(engine.avgGain, 1)}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Avg Loss</span>
-                      <span className="font-mono tabular-nums text-red-400">-{engine.avgLoss.toFixed(1)}%</span>
+                      <span className="font-mono tabular-nums text-red-400">-{safeToFixed(engine.avgLoss, 1)}%</span>
                     </div>
                   </div>
                 </CardContent>
@@ -694,7 +694,7 @@ export default function AdminReportsPage() {
                         (stats?.botActivity.autoLotto.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
                       )}>
                         {(stats?.botActivity.autoLotto.pnl || 0) >= 0 ? "+" : ""}
-                        ${stats?.botActivity.autoLotto.pnl?.toFixed(2) || "0.00"}
+                        ${safeToFixed(stats?.botActivity.autoLotto.pnl, 2, "0.00")}
                       </span>
                     </div>
                   </div>
@@ -730,7 +730,7 @@ export default function AdminReportsPage() {
                         (stats?.botActivity.futures.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
                       )}>
                         {(stats?.botActivity.futures.pnl || 0) >= 0 ? "+" : ""}
-                        ${stats?.botActivity.futures.pnl?.toFixed(2) || "0.00"}
+                        ${safeToFixed(stats?.botActivity.futures.pnl, 2, "0.00")}
                       </span>
                     </div>
                   </div>
@@ -766,7 +766,7 @@ export default function AdminReportsPage() {
                         (stats?.botActivity.crypto.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
                       )}>
                         {(stats?.botActivity.crypto.pnl || 0) >= 0 ? "+" : ""}
-                        ${stats?.botActivity.crypto.pnl?.toFixed(2) || "0.00"}
+                        ${safeToFixed(stats?.botActivity.crypto.pnl, 2, "0.00")}
                       </span>
                     </div>
                   </div>
@@ -802,7 +802,7 @@ export default function AdminReportsPage() {
                         (stats?.botActivity.propFirm.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
                       )}>
                         {(stats?.botActivity.propFirm.pnl || 0) >= 0 ? "+" : ""}
-                        ${stats?.botActivity.propFirm.pnl?.toFixed(2) || "0.00"}
+                        ${safeToFixed(stats?.botActivity.propFirm.pnl, 2, "0.00")}
                       </span>
                     </div>
                   </div>
@@ -851,13 +851,13 @@ export default function AdminReportsPage() {
                             {symbol.losses}
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums">
-                            {symbol.winRate.toFixed(1)}%
+                            {safeToFixed(symbol.winRate, 1)}%
                           </TableCell>
                           <TableCell className={cn(
                             "text-right font-mono tabular-nums",
                             symbol.totalPnl >= 0 ? "text-green-400" : "text-red-400"
                           )}>
-                            {symbol.totalPnl >= 0 ? "+" : ""}{symbol.totalPnl.toFixed(1)}%
+                            {symbol.totalPnl >= 0 ? "+" : ""}{safeToFixed(symbol.totalPnl, 1)}%
                           </TableCell>
                         </TableRow>
                       ))}
@@ -907,13 +907,13 @@ export default function AdminReportsPage() {
                             {symbol.losses}
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums">
-                            {symbol.winRate.toFixed(1)}%
+                            {safeToFixed(symbol.winRate, 1)}%
                           </TableCell>
                           <TableCell className={cn(
                             "text-right font-mono tabular-nums",
                             symbol.totalPnl >= 0 ? "text-green-400" : "text-red-400"
                           )}>
-                            {symbol.totalPnl >= 0 ? "+" : ""}{symbol.totalPnl.toFixed(1)}%
+                            {symbol.totalPnl >= 0 ? "+" : ""}{safeToFixed(symbol.totalPnl, 1)}%
                           </TableCell>
                         </TableRow>
                       ))}
@@ -977,7 +977,7 @@ export default function AdminReportsPage() {
                           "text-right font-mono tabular-nums",
                           (report.overallWinRate || 0) >= 50 ? "text-green-400" : "text-red-400"
                         )}>
-                          {report.overallWinRate?.toFixed(1) || "—"}%
+                          {report.overallWinRate != null ? safeToFixed(report.overallWinRate, 1) : "—"}%
                         </TableCell>
                         <TableCell className="text-right text-sm">
                           {ENGINE_LABELS[report.bestPerformingEngine || ""] || "—"}

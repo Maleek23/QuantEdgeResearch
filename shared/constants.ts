@@ -309,8 +309,20 @@ export function calculateExpectedValue(data: ExpectedValueData): number {
  * Shows "+$X.XX per $1 risked" or "-$X.XX per $1 risked"
  */
 export function formatExpectedValue(ev: number): string {
-  const sign = ev >= 0 ? '+' : '';
-  return `${sign}$${ev.toFixed(2)} per $1`;
+  try {
+    // Safe handling of null/undefined/NaN
+    if (ev === null || ev === undefined) {
+      return '$0.00 per $1';
+    }
+    const num = typeof ev === 'number' ? ev : Number(ev);
+    if (isNaN(num) || !isFinite(num)) {
+      return '$0.00 per $1';
+    }
+    const sign = num >= 0 ? '+' : '';
+    return `${sign}$${num.toFixed(2)} per $1`;
+  } catch {
+    return '$0.00 per $1';
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface SignalAnalysis {
   signal: string;
@@ -76,7 +77,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-muted-foreground">Win Rate</span>
-                    <span className="text-sm font-bold font-mono">{winRatePercent.toFixed(1)}%</span>
+                    <span className="text-sm font-bold font-mono">{safeToFixed(winRatePercent, 1)}%</span>
                   </div>
                   <div className="h-2 bg-secondary/20 rounded-full overflow-hidden">
                     <div 
@@ -98,7 +99,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
                       isPositive ? 'text-green-500' : 'text-red-500'
                     }`}>
                       {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {signal.avgPercentGain >= 0 ? '+' : ''}{signal.avgPercentGain.toFixed(1)}%
+                      {signal.avgPercentGain >= 0 ? '+' : ''}{safeToFixed(signal.avgPercentGain, 1)}%
                     </div>
                   </div>
 
@@ -116,7 +117,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Reliability</span>
                     <span className="text-sm font-bold font-mono text-primary">
-                      {signal.reliabilityScore.toFixed(1)}
+                      {safeToFixed(signal.reliabilityScore, 1)}
                     </span>
                   </div>
                 </div>

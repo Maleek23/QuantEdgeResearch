@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, TrendingDown, Eye, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import { useBotNotifications, BotNotification, BotEventType } from '@/hooks/use-bot-notifications';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 
 interface NotificationCardProps {
   notification: BotNotification;
@@ -96,7 +96,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
     const parts = [];
     if (notification.optionType) parts.push(notification.optionType.toUpperCase());
     if (notification.strike) parts.push(`$${notification.strike}`);
-    if (notification.price) parts.push(`@ $${notification.price.toFixed(2)}`);
+    if (notification.price) parts.push(`@ $${safeToFixed(notification.price, 2)}`);
     if (notification.quantity) parts.push(`x${notification.quantity}`);
     return parts.join(' ');
   };
@@ -144,7 +144,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         
         {notification.confidence && (
           <div className="text-xs text-slate-400 mt-1">
-            Confidence: {notification.confidence.toFixed(0)}%
+            Confidence: {safeToFixed(notification.confidence, 0)}%
           </div>
         )}
         
@@ -153,7 +153,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
             'text-sm font-bold mt-1',
             notification.pnl >= 0 ? 'text-green-400' : 'text-red-400'
           )}>
-            P&L: {notification.pnl >= 0 ? '+' : ''}${notification.pnl.toFixed(2)}
+            P&L: {notification.pnl >= 0 ? '+' : ''}${safeToFixed(notification.pnl, 2)}
           </div>
         )}
         

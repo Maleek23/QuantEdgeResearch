@@ -5,7 +5,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -145,16 +145,16 @@ export function AIInsightsPanel({
               {recommendation.entry && (
                 <div className="p-3 rounded-lg bg-slate-800/50">
                   <p className="text-xs text-slate-500 mb-1">Entry Zone</p>
-                  <p className="text-lg font-bold font-mono text-cyan-400">${recommendation.entry.toFixed(2)}</p>
+                  <p className="text-lg font-bold font-mono text-cyan-400">${safeToFixed(recommendation.entry, 2)}</p>
                 </div>
               )}
               {recommendation.stop && (
                 <div className="p-3 rounded-lg bg-slate-800/50">
                   <p className="text-xs text-slate-500 mb-1">Stop Loss</p>
-                  <p className="text-lg font-bold font-mono text-red-400">${recommendation.stop.toFixed(2)}</p>
+                  <p className="text-lg font-bold font-mono text-red-400">${safeToFixed(recommendation.stop, 2)}</p>
                   {recommendation.entry && (
                     <p className="text-xs text-slate-600 mt-1">
-                      ({((recommendation.stop - recommendation.entry) / recommendation.entry * 100).toFixed(1)}%)
+                      ({safeToFixed((safeNumber(recommendation.stop) - safeNumber(recommendation.entry)) / safeNumber(recommendation.entry, 1) * 100, 1)}%)
                     </p>
                   )}
                 </div>
@@ -162,10 +162,10 @@ export function AIInsightsPanel({
               {recommendation.target && (
                 <div className="p-3 rounded-lg bg-slate-800/50">
                   <p className="text-xs text-slate-500 mb-1">Price Target</p>
-                  <p className="text-lg font-bold font-mono text-emerald-400">${recommendation.target.toFixed(2)}</p>
+                  <p className="text-lg font-bold font-mono text-emerald-400">${safeToFixed(recommendation.target, 2)}</p>
                   {recommendation.entry && (
                     <p className="text-xs text-slate-600 mt-1">
-                      (+{((recommendation.target - recommendation.entry) / recommendation.entry * 100).toFixed(1)}%)
+                      (+{safeToFixed((safeNumber(recommendation.target) - safeNumber(recommendation.entry)) / safeNumber(recommendation.entry, 1) * 100, 1)}%)
                     </p>
                   )}
                 </div>
@@ -174,7 +174,7 @@ export function AIInsightsPanel({
                 <div className="p-3 rounded-lg bg-slate-800/50">
                   <p className="text-xs text-slate-500 mb-1">Risk/Reward</p>
                   <p className="text-lg font-bold font-mono text-purple-400">
-                    1:{recommendation.riskReward.toFixed(2)}
+                    1:{safeToFixed(recommendation.riskReward, 2)}
                   </p>
                 </div>
               )}

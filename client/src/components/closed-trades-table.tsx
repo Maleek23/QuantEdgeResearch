@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ExternalLink, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { TradeIdea } from "@shared/schema";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { getSignalGrade, getPnlColor } from "@/lib/signal-grade";
 
 type SortColumn = 'symbol' | 'assetType' | 'direction' | 'entry' | 'exit' | 'pnl' | 'status' | 'exitDate';
@@ -180,19 +180,19 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground text-xs">Entry Price</p>
-                        <p className="font-mono font-bold">${selectedTrade.entryPrice.toFixed(2)}</p>
+                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.entryPrice, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Target Price</p>
-                        <p className="font-mono font-bold">${selectedTrade.targetPrice.toFixed(2)}</p>
+                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.targetPrice, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Stop Loss</p>
-                        <p className="font-mono font-bold">${selectedTrade.stopLoss.toFixed(2)}</p>
+                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.stopLoss, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Exit Price</p>
-                        <p className="font-mono font-bold">{selectedTrade.exitPrice ? `$${selectedTrade.exitPrice.toFixed(2)}` : 'N/A'}</p>
+                        <p className="font-mono font-bold">{selectedTrade.exitPrice ? `$${safeToFixed(selectedTrade.exitPrice, 2)}` : 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -210,7 +210,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                             "font-mono font-bold text-lg",
                             getPnlColor(selectedTrade.outcomeStatus, selectedTrade.percentGain)
                           )}>
-                            {selectedTrade.percentGain > 0 ? '+' : ''}{selectedTrade.percentGain.toFixed(2)}%
+                            {selectedTrade.percentGain > 0 ? '+' : ''}{safeToFixed(selectedTrade.percentGain, 2)}%
                           </p>
                         </div>
                         {selectedTrade.realizedPnL !== null && (
@@ -220,7 +220,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                               "font-mono font-bold text-lg",
                               getPnlColor(selectedTrade.outcomeStatus, selectedTrade.realizedPnL)
                             )}>
-                              ${selectedTrade.realizedPnL.toFixed(2)}
+                              ${safeToFixed(selectedTrade.realizedPnL, 2)}
                             </p>
                           </div>
                         )}
@@ -265,7 +265,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">R:R Ratio</p>
-                        <p className="font-mono font-bold">{selectedTrade.riskRewardRatio?.toFixed(2) || 'N/A'}</p>
+                        <p className="font-mono font-bold">{selectedTrade.riskRewardRatio ? safeToFixed(selectedTrade.riskRewardRatio, 2) : 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Source</p>
@@ -444,13 +444,13 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                   className="font-mono text-xs text-right py-2"
                   data-testid={`cell-entry-${row.id}`}
                 >
-                  ${row.entryPrice.toFixed(2)}
+                  ${safeToFixed(row.entryPrice, 2)}
                 </TableCell>
                 <TableCell 
                   className="font-mono text-xs text-right py-2"
                   data-testid={`cell-exit-${row.id}`}
                 >
-                  {row.exitPrice ? `$${row.exitPrice.toFixed(2)}` : '-'}
+                  {row.exitPrice ? `$${safeToFixed(row.exitPrice, 2)}` : '-'}
                 </TableCell>
                 <TableCell 
                   className={cn(
@@ -459,7 +459,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                   )}
                   data-testid={`cell-pnl-${row.id}`}
                 >
-                  {isWin ? '+' : ''}{pnlPercent.toFixed(1)}%
+                  {isWin ? '+' : ''}{safeToFixed(pnlPercent, 1)}%
                 </TableCell>
                 <TableCell 
                   className="py-2"

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Calendar, ChevronRight } from "lucide-react";
@@ -70,7 +70,7 @@ function WinnerCard({
             "text-lg font-bold",
             isPositive ? "text-emerald-500" : "text-red-500"
           )}>
-            {isPositive ? "+" : ""}{totalReturn.toFixed(2)}%
+            {isPositive ? "+" : ""}{safeToFixed(totalReturn, 2)}%
           </div>
           <span className="text-xs text-muted-foreground">Total Return</span>
         </div>

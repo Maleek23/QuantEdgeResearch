@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   ChartContainer, 
   ChartTooltip, 
@@ -431,7 +431,7 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
               </Badge>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-              <span>Entry: ${entryPrice.toFixed(2)}</span>
+              <span>Entry: ${safeToFixed(entryPrice, 2)}</span>
               <span>|</span>
               <span>Qty: {quantity}</span>
               {position.createdAt && (
@@ -448,13 +448,13 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
             "text-lg font-bold font-mono",
             isProfit ? "text-green-400" : "text-red-400"
           )} data-testid={`trade-pnl-${position.id}`}>
-            {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{Math.abs(pnl).toFixed(2)}
+            {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{safeToFixed(Math.abs(pnl), 2)}
           </p>
           <p className={cn(
             "text-xs font-mono",
             isProfit ? "text-green-400/70" : "text-red-400/70"
           )}>
-            {isProfit ? "+" : ""}{pnlPercent.toFixed(1)}%
+            {isProfit ? "+" : ""}{safeToFixed(pnlPercent, 1)}%
           </p>
         </div>
       </div>
@@ -778,10 +778,10 @@ export function AutoLottoDashboard() {
 
       {/* 4 Main Portfolio Bots Grid - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="portfolio-grid">
-        <KPICard 
+        <KPICard
           title="Options Portfolio"
-          value={`$${botData?.portfolio?.totalValue?.toFixed(2) || '300.00'}`}
-          change={`${botData?.portfolio?.totalPnL >= 0 ? '+' : ''}${botData?.portfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          value={`$${safeToFixed(botData?.portfolio?.totalValue, 2, '300.00')}`}
+          change={`${botData?.portfolio?.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData?.portfolio?.totalPnL, 2)}`}
           changeLabel="Click to view trades"
           trend={botData?.portfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={Target}
@@ -789,10 +789,10 @@ export function AutoLottoDashboard() {
           testId="kpi-options-portfolio"
           onClick={() => { setSelectedPortfolio('options'); setPortfolioTab('all'); }}
         />
-        <KPICard 
+        <KPICard
           title="Futures Portfolio"
-          value={`$${botData?.futuresPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
-          change={`${botData?.futuresPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.futuresPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          value={`$${safeToFixed(botData?.futuresPortfolio?.totalValue, 2, '300.00')}`}
+          change={`${botData?.futuresPortfolio?.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData?.futuresPortfolio?.totalPnL, 2)}`}
           changeLabel="Click to view trades"
           trend={botData?.futuresPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={TrendingUp}
@@ -800,10 +800,10 @@ export function AutoLottoDashboard() {
           testId="kpi-futures-portfolio"
           onClick={() => { setSelectedPortfolio('futures'); setPortfolioTab('all'); }}
         />
-        <KPICard 
+        <KPICard
           title="Crypto Portfolio"
-          value={`$${botData?.cryptoPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
-          change={`${botData?.cryptoPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.cryptoPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          value={`$${safeToFixed(botData?.cryptoPortfolio?.totalValue, 2, '300.00')}`}
+          change={`${botData?.cryptoPortfolio?.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData?.cryptoPortfolio?.totalPnL, 2)}`}
           changeLabel="Click to view trades"
           trend={botData?.cryptoPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={DollarSign}
@@ -811,10 +811,10 @@ export function AutoLottoDashboard() {
           testId="kpi-crypto-portfolio"
           onClick={() => { setSelectedPortfolio('crypto'); setPortfolioTab('all'); }}
         />
-        <KPICard 
+        <KPICard
           title="Small Account Lotto"
-          value={`$${botData?.smallAccountPortfolio?.totalValue?.toFixed(2) || '150.00'}`}
-          change={`${botData?.smallAccountPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.smallAccountPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          value={`$${safeToFixed(botData?.smallAccountPortfolio?.totalValue, 2, '150.00')}`}
+          change={`${botData?.smallAccountPortfolio?.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData?.smallAccountPortfolio?.totalPnL, 2)}`}
           changeLabel="Click to view trades"
           trend={botData?.smallAccountPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={Zap}
@@ -912,7 +912,7 @@ export function AutoLottoDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
               title="Total Profit"
-              value={`${(lottoPortfolio?.realizedPnL || 0) >= 0 ? '+' : ''}$${(lottoPortfolio?.realizedPnL || 0).toFixed(2)}`}
+              value={`${(lottoPortfolio?.realizedPnL || 0) >= 0 ? '+' : ''}$${safeToFixed(lottoPortfolio?.realizedPnL || 0, 2)}`}
               changeLabel={`${closedPositions.length} closed trades`}
               icon={DollarSign}
               trend={(lottoPortfolio?.realizedPnL || 0) >= 0 ? "up" : "down"}
@@ -922,7 +922,7 @@ export function AutoLottoDashboard() {
             />
             <KPICard
               title="Win Rate"
-              value={`${(lottoPortfolio?.winRate || 0).toFixed(1)}%`}
+              value={`${safeToFixed(lottoPortfolio?.winRate || 0, 1)}%`}
               changeLabel={`${closedPositions.filter(p => p.realizedPnL > 0).length}W / ${closedPositions.filter(p => p.realizedPnL <= 0).length}L`}
               icon={Target}
               trend={(lottoPortfolio?.winRate || 0) >= 55 ? "up" : "down"}
@@ -941,7 +941,7 @@ export function AutoLottoDashboard() {
             />
             <KPICard
               title="Avg P&L"
-              value={`$${closedPositions.length > 0 ? ((lottoPortfolio?.realizedPnL || 0) / closedPositions.length).toFixed(2) : '0.00'}`}
+              value={`$${closedPositions.length > 0 ? safeToFixed((lottoPortfolio?.realizedPnL || 0) / closedPositions.length, 2) : '0.00'}`}
               changeLabel="Per trade"
               icon={TrendingUp}
               color="amber"
@@ -1103,15 +1103,15 @@ export function AutoLottoDashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
-                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-starting-capital">${(lottoPortfolio?.startingCapital || 150).toFixed(0)}</p>
+                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-starting-capital">${safeToFixed(lottoPortfolio?.startingCapital || 150, 0)}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Current Value</p>
-                  <p className="text-xl font-bold font-mono text-cyan-400" data-testid="portfolio-current-value">${(lottoPortfolio?.totalValue || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold font-mono text-cyan-400" data-testid="portfolio-current-value">${safeToFixed(lottoPortfolio?.totalValue || 0, 2)}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash Balance</p>
-                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-cash-balance">${(lottoPortfolio?.cashBalance || 0).toFixed(2)}</p>
+                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-cash-balance">${safeToFixed(lottoPortfolio?.cashBalance || 0, 2)}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Unrealized P&L</p>
@@ -1119,7 +1119,7 @@ export function AutoLottoDashboard() {
                     "text-xl font-bold font-mono",
                     (lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
                   )} data-testid="portfolio-unrealized-pnl">
-                    {(lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "+" : ""}${(lottoPortfolio?.unrealizedPnL || 0).toFixed(2)}
+                    {(lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "+" : ""}${safeToFixed(lottoPortfolio?.unrealizedPnL || 0, 2)}
                   </p>
                 </div>
               </div>
@@ -1185,13 +1185,13 @@ export function AutoLottoDashboard() {
               </DialogTitle>
               <DialogDescription className="flex items-center gap-4 pt-2">
                 <span className="text-slate-400">
-                  Balance: <span className="font-mono text-white">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
+                  Balance: <span className="font-mono text-white">${safeToFixed(selectedInfo?.portfolio?.totalValue, 2)}</span>
                 </span>
                 <span className={cn(
                   "font-mono font-medium",
                   portfolioTotalPnL >= 0 ? "text-green-400" : "text-red-400"
                 )} data-testid="text-modal-pnl">
-                  Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${portfolioTotalPnL.toFixed(2)}
+                  Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${safeToFixed(portfolioTotalPnL, 2)}
                 </span>
               </DialogDescription>
             </DialogHeader>

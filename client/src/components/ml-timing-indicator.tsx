@@ -9,7 +9,7 @@ import { Clock, TrendingUp, TrendingDown, Zap, AlertTriangle, Target, Shield } f
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface MLTimingIndicatorProps {
   entryPrice: number;
@@ -97,7 +97,7 @@ export function MLTimingIndicator({
         <Tooltip>
           <TooltipTrigger>
             <Badge variant="outline" className={cn("font-mono", getMomentumBg(momentumScore))}>
-              {momentumScore.toFixed(0)}%
+              {safeToFixed(momentumScore, 0)}%
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
@@ -114,7 +114,7 @@ export function MLTimingIndicator({
             Progress to Target
           </span>
           <span className={cn("font-mono font-medium", currentProgress > 0 ? 'text-green-400' : 'text-muted-foreground')}>
-            {currentProgress.toFixed(1)}%
+            {safeToFixed(currentProgress, 1)}%
           </span>
         </div>
         <Progress
@@ -122,8 +122,8 @@ export function MLTimingIndicator({
           className="h-2"
         />
         <div className="flex justify-between text-xs text-muted-foreground font-mono">
-          <span>${entryPrice.toFixed(2)}</span>
-          <span className="text-green-400">${targetPrice.toFixed(2)}</span>
+          <span>${safeToFixed(entryPrice, 2)}</span>
+          <span className="text-green-400">${safeToFixed(targetPrice, 2)}</span>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export function MLTimingIndicator({
             "bg-amber-500/20 text-amber-400"
           )}
         >
-          1:{riskRewardRatio.toFixed(1)}
+          1:{safeToFixed(riskRewardRatio, 1)}
         </Badge>
       </div>
 
@@ -166,18 +166,18 @@ export function MLTimingIndicator({
       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
         <div className="text-center">
           <div className="text-xs text-red-400 mb-1">Stop Loss</div>
-          <div className="text-xs font-mono font-medium">${stopLoss.toFixed(2)}</div>
-          <div className="text-xs text-muted-foreground">-{stopDistance.toFixed(1)}%</div>
+          <div className="text-xs font-mono font-medium">${safeToFixed(stopLoss, 2)}</div>
+          <div className="text-xs text-muted-foreground">-{safeToFixed(stopDistance, 1)}%</div>
         </div>
         <div className="text-center border-x border-slate-800">
           <div className="text-xs text-muted-foreground mb-1">Entry</div>
-          <div className="text-xs font-mono font-medium text-cyan-400">${entryPrice.toFixed(2)}</div>
+          <div className="text-xs font-mono font-medium text-cyan-400">${safeToFixed(entryPrice, 2)}</div>
           <div className="text-xs text-muted-foreground">Base</div>
         </div>
         <div className="text-center">
           <div className="text-xs text-green-400 mb-1">Target</div>
-          <div className="text-xs font-mono font-medium">${targetPrice.toFixed(2)}</div>
-          <div className="text-xs text-muted-foreground">+{targetDistance.toFixed(1)}%</div>
+          <div className="text-xs font-mono font-medium">${safeToFixed(targetPrice, 2)}</div>
+          <div className="text-xs text-muted-foreground">+{safeToFixed(targetDistance, 1)}%</div>
         </div>
       </div>
     </div>

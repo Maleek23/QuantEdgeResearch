@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Link } from "wouter";
 import { 
   Search, ArrowLeft, BarChart3, Brain, Calculator, TrendingUp, 
@@ -286,12 +286,12 @@ export default function AnalysisPage() {
                   </div>
                   <div className="h-10 w-px bg-border" />
                   <div>
-                    <div className="text-2xl font-bold font-mono">${quoteData.price?.toFixed(2) || '--'}</div>
+                    <div className="text-2xl font-bold font-mono">${safeToFixed(quoteData.price, 2, '--')}</div>
                     <div className={cn(
                       "text-sm font-mono",
                       (quoteData.changePercent || 0) >= 0 ? "text-green-400" : "text-red-400"
                     )}>
-                      {(quoteData.changePercent || 0) >= 0 ? '+' : ''}{quoteData.changePercent?.toFixed(2) || 0}%
+                      {(quoteData.changePercent || 0) >= 0 ? '+' : ''}{safeToFixed(quoteData.changePercent, 2, '0')}%
                     </div>
                   </div>
                 </div>

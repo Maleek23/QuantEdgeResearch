@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { 
   Brain, BarChart3, Cpu, History, Building2, 
   TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
@@ -313,10 +313,10 @@ export function MultiDimensionalAnalysis({
       signal: getSignalFromScore(quantScore),
       confidence: Math.min(100, quantScore + 10),
       factors: [
-        `RSI: ${rsi.toFixed(0)} (${rsi < 30 ? 'Oversold' : rsi > 70 ? 'Overbought' : 'Neutral'})`,
+        `RSI: ${safeToFixed(rsi, 0, '0')} (${rsi < 30 ? 'Oversold' : rsi > 70 ? 'Overbought' : 'Neutral'})`,
         `MACD: ${macdHistogram >= 0 ? 'Bullish' : 'Bearish'} momentum`,
         `Trend: ${trendStrength}% strength`,
-        `Volume: ${volumeRatio.toFixed(1)}x average`
+        `Volume: ${safeToFixed(volumeRatio, 1)}x average`
       ],
       color: 'bg-cyan-500/20'
     },
@@ -340,7 +340,7 @@ export function MultiDimensionalAnalysis({
       signal: getSignalFromScore(mlScore),
       confidence: Math.min(100, targetHitProbability + 10),
       factors: [
-        `Target probability: ${targetHitProbability.toFixed(0)}%`,
+        `Target probability: ${safeToFixed(targetHitProbability, 0, '0')}%`,
         `Direction confidence: ${mlScore}%`,
         'XGBoost ensemble model'
       ],

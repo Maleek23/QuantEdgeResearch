@@ -9,7 +9,7 @@ import { format, subDays, subMonths, startOfDay } from 'date-fns';
 import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -128,7 +128,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Overall Win Rate</p>
           <p className={cn("text-3xl font-bold font-mono", getWinRateColor(overall.winRate))} data-testid="stat-win-rate">
-            {overall.winRate.toFixed(1)}%
+            {safeToFixed(overall.winRate, 1)}%
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {overall.wins}W / {overall.losses}L ({overall.decided} trades)
@@ -144,13 +144,13 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
             <div className="flex justify-between items-center">
               <span className="text-xs">Equities</span>
               <span className={cn("font-mono font-bold", getWinRateColor(equities.winRate))}>
-                {equities.winRate.toFixed(0)}%
+                {safeToFixed(equities.winRate, 0)}%
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-xs">Options</span>
               <span className={cn("font-mono font-bold", getWinRateColor(options.winRate))}>
-                {options.winRate.toFixed(0)}%
+                {safeToFixed(options.winRate, 0)}%
               </span>
             </div>
           </div>
@@ -165,7 +165,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Bot P&L</p>
           <p className={cn("text-3xl font-bold font-mono", botPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="stat-pnl">
-            {botPnL >= 0 ? '+' : ''}${botPnL.toFixed(0)}
+            {botPnL >= 0 ? '+' : ''}${safeToFixed(botPnL, 0)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Realized gains</p>
         </CardContent>
@@ -220,7 +220,7 @@ function EngineGrid({ engineHealthData, isLoading }: { engineHealthData?: Engine
               </div>
               <div className="flex items-baseline gap-2">
                 <span className={cn("text-2xl font-bold font-mono", getWinRateColor(winRate))}>
-                  {winRate !== null ? `${winRate.toFixed(0)}%` : '—'}
+                  {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {metrics?.tradesWon ?? 0}W/{metrics?.tradesLost ?? 0}L
@@ -363,7 +363,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                       <td className={cn("py-1.5 px-2 text-right font-mono",
                         getPnlColor(trade.outcomeStatus, trade.percentGain)
                       )}>
-                        {trade.percentGain !== null ? `${trade.percentGain.toFixed(1)}%` : '—'}
+                        {trade.percentGain !== null ? `${safeToFixed(trade.percentGain, 1)}%` : '—'}
                       </td>
                       <td className="py-1.5 px-2 text-center">
                         {trade.isWin ? (
@@ -396,7 +396,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
             </div>
             <div>
               <p className="text-muted-foreground">Win Rate</p>
-              <p className="font-mono font-bold">{stats.segmentedWinRates.overall.winRate.toFixed(1)}%</p>
+              <p className="font-mono font-bold">{safeToFixed(stats.segmentedWinRates.overall.winRate, 1)}%</p>
             </div>
           </div>
         </div>
@@ -432,7 +432,7 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
           <div>
             <p className="text-xs text-muted-foreground">Win Rate</p>
             <p className={cn("font-mono font-bold", getWinRateColor(data.overall.winRate))}>
-              {data.overall.winRate.toFixed(0)}%
+              {safeToFixed(data.overall.winRate, 0)}%
             </p>
           </div>
           <div>
@@ -446,7 +446,7 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
           <div>
             <p className="text-xs text-muted-foreground">P&L</p>
             <p className={cn("font-mono font-bold", data.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400")}>
-              {data.overall.totalPnL >= 0 ? '+' : ''}${data.overall.totalPnL.toFixed(0)}
+              {data.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(data.overall.totalPnL, 0)}
             </p>
           </div>
         </div>

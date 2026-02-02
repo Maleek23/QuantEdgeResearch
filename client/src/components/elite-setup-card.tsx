@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Target, Clock, FileText, 
   Calendar, Zap, BarChart3, Activity, AlertTriangle, Minus
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed } from '@/lib/utils';
 import type { WatchlistItem } from '@shared/schema';
 
 interface EliteSetupCardProps {
@@ -107,8 +107,8 @@ export default function EliteSetupCard({
   
   const daysWatched = getDaysWatched(item.addedAt);
   const scoreChange = getScoreChange(item.initialScore, item.gradeScore);
-  const winRate = item.timesTraded && item.timesTraded > 0 
-    ? ((item.timesWon || 0) / item.timesTraded * 100).toFixed(0) 
+  const winRate = item.timesTraded && item.timesTraded > 0
+    ? safeToFixed((item.timesWon || 0) / item.timesTraded * 100, 0)
     : null;
 
   if (compact) {
@@ -137,7 +137,7 @@ export default function EliteSetupCard({
               </div>
             </div>
             <div className="text-right">
-              <span className="font-mono text-sm font-medium">{item.gradeScore?.toFixed(0) || 50}/100</span>
+              <span className="font-mono text-sm font-medium">{safeToFixed(item.gradeScore, 0, '50')}/100</span>
               {scoreChange !== 0 && (
                 <Badge variant="outline" className={cn(
                   "ml-1 text-xs",
@@ -184,13 +184,13 @@ export default function EliteSetupCard({
           <div className="text-right">
             <div className="flex items-center gap-1">
               <span className="text-xl font-bold font-mono tabular-nums" data-testid={`score-${item.symbol}`}>
-                {item.gradeScore?.toFixed(0) || 50}/100
+                {safeToFixed(item.gradeScore, 0, '50')}/100
               </span>
               {item.personalEdgeBoost && item.personalEdgeBoost > 0 && (
                 <Tooltip>
                   <TooltipTrigger>
                     <Badge variant="outline" className="text-xs border-cyan-500/40 text-cyan-400">
-                      +{item.personalEdgeBoost.toFixed(0)}
+                      +{safeToFixed(item.personalEdgeBoost, 0)}
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>Personal edge boost from your win rate</TooltipContent>
@@ -202,7 +202,7 @@ export default function EliteSetupCard({
                 "text-sm font-mono",
                 scoreChange > 0 ? "text-green-400" : "text-red-400"
               )}>
-                ({scoreChange > 0 ? '↑' : '↓'} {scoreChange > 0 ? '+' : ''}{scoreChange} from {item.initialScore?.toFixed(0) || '?'})
+                ({scoreChange > 0 ? '↑' : '↓'} {scoreChange > 0 ? '+' : ''}{scoreChange} from {safeToFixed(item.initialScore, 0, '?')})
               </p>
             )}
           </div>
@@ -221,7 +221,7 @@ export default function EliteSetupCard({
                 "font-semibold",
                 item.priceSinceAdded >= 0 ? "text-green-400" : "text-red-400"
               )}>
-                {item.priceSinceAdded >= 0 ? '+' : ''}{item.priceSinceAdded.toFixed(1)}%
+                {item.priceSinceAdded >= 0 ? '+' : ''}{safeToFixed(item.priceSinceAdded, 1)}%
               </span>
             </div>
             {item.ytdPerformance !== null && item.ytdPerformance !== undefined && (
@@ -231,7 +231,7 @@ export default function EliteSetupCard({
                   "font-semibold",
                   item.ytdPerformance >= 0 ? "text-green-400" : "text-red-400"
                 )}>
-                  {item.ytdPerformance >= 0 ? '+' : ''}{item.ytdPerformance.toFixed(1)}%
+                  {item.ytdPerformance >= 0 ? '+' : ''}{safeToFixed(item.ytdPerformance, 1)}%
                 </span>
               </div>
             )}

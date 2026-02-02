@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
 import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch, Hourglass, Minus, Octagon, Skull, Coins, Send } from "lucide-react";
@@ -205,7 +205,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         return { 
           status: 'caution', 
           label: 'Entry Missed', 
-          tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${entryDeviation.toFixed(1)}%`, 
+          tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${safeToFixed(entryDeviation, 1)}%`, 
           color: 'text-amber-400' 
         };
       }
@@ -218,7 +218,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
         
         if (progressToTarget >= 80) {
-          return { status: 'valid', label: 'Near Target', tooltip: `${progressToTarget.toFixed(0)}% to target`, color: 'text-green-400' };
+          return { status: 'valid', label: 'Near Target', tooltip: `${safeToFixed(progressToTarget, 0)}% to target`, color: 'text-green-400' };
         }
       }
     }
@@ -563,14 +563,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         "text-base font-bold font-mono",
                         priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
                       )}>
-                        {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(1)}%
+                        {priceChangePercent >= 0 ? '+' : ''}{safeToFixed(priceChangePercent, 1)}%
                       </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Current Profit/Loss</p>
                     <p className="text-xs text-muted-foreground">
-                      Entry: ${idea.entryPrice.toFixed(2)} → Now: ${currentPrice.toFixed(2)}
+                      Entry: ${safeToFixed(idea.entryPrice, 2)} → Now: ${safeToFixed(currentPrice, 2)}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -587,7 +587,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       idea.riskRewardRatio >= 1.5 ? "text-cyan-400" :
                       "text-amber-400"
                     )}>
-                      {idea.riskRewardRatio?.toFixed(1) || '—'}
+                      {safeToFixed(idea.riskRewardRatio, 1) || '—'}
                     </span>
                   </Badge>
                 </TooltipTrigger>
@@ -684,11 +684,11 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           )}
                           data-testid={`badge-vix-${idea.symbol}`}
                         >
-                          VIX: {macroData.vixRegime.regime.replace('_', ' ')} ({macroData.vixRegime.level.toFixed(1)})
+                          VIX: {macroData.vixRegime.regime.replace('_', ' ')} ({safeToFixed(macroData.vixRegime.level, 1)})
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="font-medium">VIX Regime: {macroData.vixRegime.level.toFixed(2)}</p>
+                        <p className="font-medium">VIX Regime: {safeToFixed(macroData.vixRegime.level, 2)}</p>
                         <p className="text-xs text-muted-foreground">{macroData.vixRegime.tradingImplication}</p>
                       </TooltipContent>
                     </Tooltip>
@@ -875,7 +875,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                               "font-mono",
                               idea.missedEntryTheoreticalGain > 0 ? 'text-green-400' : 'text-red-400'
                             )}>
-                              ({idea.missedEntryTheoreticalGain > 0 ? '+' : ''}{idea.missedEntryTheoreticalGain.toFixed(1)}%)
+                              ({idea.missedEntryTheoreticalGain > 0 ? '+' : ''}{safeToFixed(idea.missedEntryTheoreticalGain, 1)}%)
                             </span>
                           )}
                         </div>
@@ -885,12 +885,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     {/* Exit details */}
                     {idea.exitPrice && (
                       <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                        <span>Exit: <span className="font-mono text-foreground">${idea.exitPrice.toFixed(2)}</span></span>
+                        <span>Exit: <span className="font-mono text-foreground">${safeToFixed(idea.exitPrice, 2)}</span></span>
                         {idea.percentGain !== null && idea.percentGain !== undefined && (
                           <span>P/L: <span className={cn(
                             "font-mono",
                             getPnlColor(idea.outcomeStatus, idea.percentGain)
-                          )}>{idea.percentGain > 0 ? '+' : ''}{idea.percentGain.toFixed(1)}%</span></span>
+                          )}>{idea.percentGain > 0 ? '+' : ''}{safeToFixed(idea.percentGain, 1)}%</span></span>
                         )}
                         {idea.actualHoldingTimeMinutes && (
                           <span>Held: <span className="text-foreground">
@@ -1054,7 +1054,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           patternData.indicators.rsi.value > 70 ? "text-red-400" :
                           "text-foreground"
                         )}>
-                          {patternData.indicators.rsi.value.toFixed(1)}
+                          {safeToFixed(patternData.indicators.rsi.value, 1)}
                         </span>
                       </div>
                     )}
@@ -1062,7 +1062,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       <div className="text-center p-2 rounded bg-muted/30">
                         <div className="text-[9px] text-muted-foreground mb-0.5">ADX</div>
                         <span className="font-mono font-bold">
-                          {patternData.indicators.adx.value.toFixed(1)}
+                          {safeToFixed(patternData.indicators.adx.value, 1)}
                         </span>
                       </div>
                     )}
@@ -1114,14 +1114,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                                   "bg-red-500/10 text-red-400 border-red-500/30"
                                 )}
                               >
-                                {h.name} {h.completionPercent.toFixed(0)}%
+                                {h.name} {safeToFixed(h.completionPercent, 0)}%
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p className="font-medium">{h.name} Pattern ({h.type})</p>
-                              <p className="text-xs text-muted-foreground">{h.completionPercent.toFixed(0)}% complete</p>
+                              <p className="text-xs text-muted-foreground">{safeToFixed(h.completionPercent, 0)}% complete</p>
                               {h.potentialReversalZone && (
-                                <p className="text-xs text-cyan-400">PRZ: ${h.potentialReversalZone.low.toFixed(2)} - ${h.potentialReversalZone.high.toFixed(2)}</p>
+                                <p className="text-xs text-cyan-400">PRZ: ${safeToFixed(h.potentialReversalZone.low, 2)} - ${safeToFixed(h.potentialReversalZone.high, 2)}</p>
                               )}
                             </TooltipContent>
                           </Tooltip>
@@ -1145,7 +1145,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           Wave {patternData.elliottWave.currentWave} ({patternData.elliottWave.wavePhase})
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">
-                          {patternData.elliottWave.completionPercent.toFixed(0)}% complete
+                          {safeToFixed(patternData.elliottWave.completionPercent, 0)}% complete
                         </span>
                       </div>
                     </div>
@@ -1226,8 +1226,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <span>Lotto Potential:</span>
                   </span>
                   <span className="text-lg">
-                    {((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0)}% 
-                    <span className="text-xs ml-1">({(idea.targetPrice / idea.entryPrice).toFixed(0)}x)</span>
+                    {safeToFixed((safeNumber(idea.targetPrice) - safeNumber(idea.entryPrice)) / safeNumber(idea.entryPrice, 1) * 100, 0)}%
+                    <span className="text-xs ml-1">({safeToFixed(safeNumber(idea.targetPrice) / safeNumber(idea.entryPrice, 1), 0)}x)</span>
                   </span>
                 </div>
               </div>
@@ -1300,7 +1300,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       <div className="p-4 rounded-lg bg-accent/20 border border-border">
                         <h3 className="font-bold text-cyan-400 mb-2">Where Does the Entry Premium Come From?</h3>
                         <p className="text-muted-foreground text-sm">
-                          The Entry Premium of ${idea.entryPrice.toFixed(2)} comes from live market data
+                          The Entry Premium of ${safeToFixed(idea.entryPrice, 2)} comes from live market data
                           {idea.dataSourceUsed && <span className="text-cyan-400"> ({idea.dataSourceUsed})</span>}.
                           This is the actual market price traders pay for this option contract.
                         </p>

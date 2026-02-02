@@ -139,35 +139,72 @@ export function getNextTradingWeekStart(): Date {
 }
 
 export function formatCurrency(value: number): string {
-  // Handle very small crypto prices (< $0.01)
-  if (value < 0.01 && value > 0) {
-    // Count leading zeros after decimal
-    const str = value.toFixed(10);
-    const match = str.match(/0\.0*[1-9]/);
-    if (match) {
-      const significantDigits = match[0].length - 2; // -2 for "0."
-      return `$${value.toFixed(Math.min(significantDigits + 2, 8))}`;
+  try {
+    // Handle null/undefined/NaN - convert first for safety
+    if (value === null || value === undefined) {
+      return '$0.00';
     }
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num) || !isFinite(num)) {
+      return '$0.00';
+    }
+
+    // Handle very small crypto prices (< $0.01)
+    if (num < 0.01 && num > 0) {
+      // Count leading zeros after decimal
+      const str = num.toFixed(10);
+      const match = str.match(/0\.0*[1-9]/);
+      if (match) {
+        const significantDigits = match[0].length - 2; // -2 for "0."
+        return `$${num.toFixed(Math.min(significantDigits + 2, 8))}`;
+      }
+    }
+
+    // Normal formatting for values >= $0.01
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    return '$0.00';
   }
-  
-  // Normal formatting for values >= $0.01
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 export function formatPercent(value: number, decimals: number = 2): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;
+  try {
+    // Handle null/undefined/NaN - convert first for safety
+    if (value === null || value === undefined) {
+      return '+0.00%';
+    }
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num) || !isFinite(num)) {
+      return '+0.00%';
+    }
+    return `${num >= 0 ? '+' : ''}${num.toFixed(decimals)}%`;
+  } catch {
+    return '+0.00%';
+  }
 }
 
 export function formatVolume(volume: number): string {
-  if (volume >= 1_000_000_000) return `${(volume / 1_000_000_000).toFixed(2)}B`;
-  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(2)}M`;
-  if (volume >= 1_000) return `${(volume / 1_000).toFixed(2)}K`;
-  return volume.toFixed(0);
+  try {
+    // Handle null/undefined/NaN - convert first for safety
+    if (volume === null || volume === undefined) {
+      return '0';
+    }
+    const num = typeof volume === 'number' ? volume : Number(volume);
+    if (isNaN(num) || !isFinite(num)) {
+      return '0';
+    }
+    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+    if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`;
+    return num.toFixed(0);
+  } catch {
+    return '0';
+  }
 }
 
 export function calculatePositionSize(
@@ -342,38 +379,57 @@ export function calculateDynamicSignal(
 // ============================================
 
 /**
- * Safely converts a value to a number, returning a fallback if null/undefined/NaN
+ * Safely converts a value to a number, returning a fallback if null/undefined/NaN/Infinity
  */
 export function safeNumber(value: any, fallback: number = 0): number {
   if (value === null || value === undefined) return fallback;
   const num = Number(value);
-  return isNaN(num) ? fallback : num;
+  if (isNaN(num) || !isFinite(num)) return fallback;
+  return num;
 }
 
 /**
  * Safely formats a number with toFixed, returning fallback string if value is invalid
+ * Wrapped in try-catch for bulletproof safety
  */
 export function safeToFixed(value: any, decimals: number = 2, fallback: string = '0.00'): string {
-  const num = safeNumber(value);
-  if (num === 0 && (value === null || value === undefined)) return fallback;
-  return num.toFixed(decimals);
+  try {
+    if (value === null || value === undefined) return fallback;
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num) || !isFinite(num)) return fallback;
+    return num.toFixed(decimals);
+  } catch {
+    return fallback;
+  }
 }
 
 /**
  * Safely formats a price with dollar sign
  */
 export function safePrice(value: any, decimals: number = 2): string {
-  const num = safeNumber(value);
-  return `$${num.toFixed(decimals)}`;
+  try {
+    if (value === null || value === undefined) return '$0.00';
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num) || !isFinite(num)) return '$0.00';
+    return `$${num.toFixed(decimals)}`;
+  } catch {
+    return '$0.00';
+  }
 }
 
 /**
  * Safely formats a percentage with sign
  */
 export function safePercent(value: any, decimals: number = 2, showSign: boolean = true): string {
-  const num = safeNumber(value);
-  const sign = showSign && num >= 0 ? '+' : '';
-  return `${sign}${num.toFixed(decimals)}%`;
+  try {
+    if (value === null || value === undefined) return '+0.00%';
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num) || !isFinite(num)) return '+0.00%';
+    const sign = showSign && num >= 0 ? '+' : '';
+    return `${sign}${num.toFixed(decimals)}%`;
+  } catch {
+    return '+0.00%';
+  }
 }
 
 /**

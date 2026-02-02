@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,7 +82,7 @@ export function StrategyCard({
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Win Rate</span>
                 <span className="text-sm font-semibold text-emerald-500">
-                  {performance.winRate.toFixed(1)}%
+                  {safeToFixed(performance.winRate, 1)}%
                 </span>
               </div>
             )}
@@ -90,7 +90,7 @@ export function StrategyCard({
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Ann. Return</span>
                 <span className="text-sm font-semibold text-emerald-500">
-                  +{performance.annualizedReturn.toFixed(0)}%
+                  +{safeToFixed(performance.annualizedReturn, 0)}%
                 </span>
               </div>
             )}
@@ -98,7 +98,7 @@ export function StrategyCard({
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Sharpe</span>
                 <span className="text-sm font-semibold">
-                  {performance.sharpeRatio.toFixed(2)}
+                  {safeToFixed(performance.sharpeRatio, 2)}
                 </span>
               </div>
             )}

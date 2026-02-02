@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { safeToFixed } from '@/lib/utils';
 import {
   Activity,
   TrendingUp,
@@ -123,7 +124,7 @@ function SentimentGauge({ value, label }: SentimentGaugeProps) {
         >
           {getSentimentLabel(normalizedValue)}
         </motion.p>
-        <p className="text-sm text-gray-400">{normalizedValue.toFixed(0)}%</p>
+        <p className="text-sm text-gray-400">{safeToFixed(normalizedValue, 0)}%</p>
       </div>
     </div>
   );
@@ -154,7 +155,7 @@ function MiniMetric({
           }`}
         >
           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {isPositive ? '+' : ''}{change.toFixed(2)}%
+          {isPositive ? '+' : ''}{safeToFixed(change, 2)}%
         </span>
       </div>
     </motion.div>
@@ -268,7 +269,7 @@ export function MarketPulseWidget() {
               <Gauge className="w-5 h-5 text-gray-400" />
               <div>
                 <p className="text-xs text-gray-500">VIX (Fear Index)</p>
-                <p className="text-xl font-bold text-white">{vix.value.toFixed(2)}</p>
+                <p className="text-xl font-bold text-white">{safeToFixed(vix.value, 2)}</p>
               </div>
             </div>
             <div className="flex flex-col items-end">
@@ -281,7 +282,7 @@ export function MarketPulseWidget() {
                   vix.change >= 0 ? 'text-red-400' : 'text-emerald-400'
                 }`}
               >
-                {vix.change >= 0 ? '+' : ''}{vix.change.toFixed(2)}%
+                {vix.change >= 0 ? '+' : ''}{safeToFixed(vix.change, 2)}%
               </span>
             </div>
           </div>
@@ -291,13 +292,13 @@ export function MarketPulseWidget() {
         <div className="grid grid-cols-2 gap-3">
           <MiniMetric
             label="Put/Call Ratio"
-            value={parseFloat(putCall.value.toFixed(2))}
+            value={parseFloat(safeToFixed(putCall.value, 2))}
             change={putCall.change}
             icon={<BarChart3 className="w-4 h-4" />}
           />
           <MiniMetric
             label="Volume Ratio"
-            value={parseFloat(volumeRatio.toFixed(2))}
+            value={parseFloat(safeToFixed(volumeRatio, 2))}
             change={(volumeRatio - 1) * 100}
             icon={<Activity className="w-4 h-4" />}
           />

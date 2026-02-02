@@ -12,7 +12,7 @@ import {
   BarChart3,
   Zap
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface MarketContextData {
   regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
@@ -156,7 +156,7 @@ export function MarketOverviewWidget() {
           <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
             <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">VIX</div>
             <div className={cn("text-2xl font-bold font-mono tabular-nums", getVixColor(context.vixLevel))}>
-              {context.vixLevel?.toFixed(1) || '--'}
+              {context.vixLevel ? safeToFixed(context.vixLevel, 1) : '--'}
             </div>
             <div className="text-xs text-slate-500 mt-1">Fear Index</div>
           </div>
@@ -166,13 +166,13 @@ export function MarketOverviewWidget() {
             {context.spyData ? (
               <>
                 <div className="text-lg font-bold font-mono tabular-nums text-slate-100">
-                  ${context.spyData.price.toFixed(2)}
+                  ${safeToFixed(context.spyData.price, 2)}
                 </div>
                 <div className={cn(
                   "text-xs font-medium font-mono",
                   context.spyData.change >= 0 ? 'text-green-400' : 'text-red-400'
                 )}>
-                  {context.spyData.change >= 0 ? '+' : ''}{context.spyData.change.toFixed(2)}%
+                  {context.spyData.change >= 0 ? '+' : ''}{safeToFixed(context.spyData.change, 2)}%
                 </div>
               </>
             ) : (
@@ -190,7 +190,7 @@ export function MarketOverviewWidget() {
               context.spyData.relativeVolume > 1.3 ? 'text-green-400' : 
               context.spyData.relativeVolume < 0.7 ? 'text-red-400' : 'text-slate-300'
             )}>
-              {context.spyData.relativeVolume.toFixed(2)}x avg
+              {safeToFixed(context.spyData.relativeVolume, 2)}x avg
             </span>
           </div>
         )}

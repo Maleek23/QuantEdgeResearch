@@ -42,7 +42,7 @@ import {
   Scale,
   Info,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 
 interface EngineResult {
   engine: string;
@@ -234,7 +234,7 @@ export function ShouldIBuy({
             <div className="text-right">
               <p className="text-xs text-muted-foreground">AI Confidence</p>
               <p className="text-lg font-bold text-white">
-                {data.overallConfidence.toFixed(0)}%
+                {safeToFixed(data.overallConfidence, 0)}%
               </p>
             </div>
           </div>
@@ -271,7 +271,7 @@ export function ShouldIBuy({
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">AI Confidence</span>
             <span className="text-lg font-bold text-white">
-              {data.overallConfidence.toFixed(0)}%
+              {safeToFixed(data.overallConfidence, 0)}%
             </span>
           </div>
           <Progress
@@ -340,19 +340,19 @@ export function ShouldIBuy({
               <div>
                 <p className="text-xs text-muted-foreground">Entry</p>
                 <p className="text-sm font-bold text-white">
-                  ${data.tradeIdea.entry.toFixed(2)}
+                  ${safeToFixed(data.tradeIdea?.entry, 2)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Target</p>
                 <p className="text-sm font-bold text-emerald-400">
-                  ${data.tradeIdea.target.toFixed(2)}
+                  ${safeToFixed(data.tradeIdea?.target, 2)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Stop Loss</p>
                 <p className="text-sm font-bold text-red-400">
-                  ${data.tradeIdea.stopLoss.toFixed(2)}
+                  ${safeToFixed(data.tradeIdea?.stopLoss, 2)}
                 </p>
               </div>
             </div>

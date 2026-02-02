@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { cn, formatCTTime } from "@/lib/utils";
+import { cn, formatCTTime, safeToFixed } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -103,10 +103,10 @@ const getScoreColor = (score: number) => {
 };
 
 const formatContractAmount = (amount: number) => {
-  if (amount >= 1e9) return `$${(amount / 1e9).toFixed(2)}B`;
-  if (amount >= 1e6) return `$${(amount / 1e6).toFixed(2)}M`;
-  if (amount >= 1e3) return `$${(amount / 1e3).toFixed(0)}K`;
-  return `$${amount.toFixed(0)}`;
+  if (amount >= 1e9) return `$${safeToFixed(amount / 1e9, 2)}B`;
+  if (amount >= 1e6) return `$${safeToFixed(amount / 1e6, 2)}M`;
+  if (amount >= 1e3) return `$${safeToFixed(amount / 1e3, 0)}K`;
+  return `$${safeToFixed(amount, 0)}`;
 };
 
 export function CatalystIntelligencePanel({ symbol, compact = false }: CatalystIntelligencePanelProps) {

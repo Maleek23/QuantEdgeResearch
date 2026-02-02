@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, TrendingDown, Activity, Minus, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 
 interface VolatilityAnalysis {
   symbol: string;
@@ -40,7 +40,7 @@ function IVRankBar({ value, label }: { value: number; label: string }) {
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="text-slate-500">{label}</span>
-        <span className="font-mono font-medium text-slate-300">{value.toFixed(0)}%</span>
+        <span className="font-mono font-medium text-slate-300">{safeToFixed(value, 0)}%</span>
       </div>
       <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
         <div 
@@ -124,11 +124,11 @@ function SymbolVolCard({ symbol }: { symbol: string }) {
       <div className="flex items-center justify-between text-xs">
         <div>
           <span className="text-slate-500">IV: </span>
-          <span className="font-mono text-slate-300">{data.currentIV.toFixed(1)}%</span>
+          <span className="font-mono text-slate-300">{safeToFixed(data.currentIV, 1)}%</span>
         </div>
         <div>
           <span className="text-slate-500">RV: </span>
-          <span className="font-mono text-slate-300">{data.realizedVol20.toFixed(1)}%</span>
+          <span className="font-mono text-slate-300">{safeToFixed(data.realizedVol20, 1)}%</span>
         </div>
         <div className={cn("font-medium", getIVvsRVColor())}>
           {data.ivVsRv === 'expensive' ? 'Expensive' : 

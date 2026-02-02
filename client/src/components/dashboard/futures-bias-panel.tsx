@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import { LineChart, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 type TrendDirection = "bullish" | "bearish" | "neutral";
@@ -88,7 +88,7 @@ export function FuturesBiasPanel({ futures, className }: FuturesBiasPanelProps) 
                   future.changePercent >= 0 ? "text-green-400" : "text-red-400"
                 )}
               >
-                {future.changePercent >= 0 ? "+" : ""}{future.changePercent.toFixed(2)}%
+                {future.changePercent >= 0 ? "+" : ""}{safeToFixed(future.changePercent, 2)}%
               </span>
             </div>
 

@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { calculatePositionSize, calculateRiskReward, formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { calculatePositionSize, calculateRiskReward, formatCurrency, formatPercent, cn, safeToFixed } from "@/lib/utils";
 import { Calculator, TrendingUp, Shield, DollarSign, Zap, Clock, Activity, AlertTriangle, Info } from "lucide-react";
 
 interface ExecutionQualityMetrics {
@@ -264,7 +264,7 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <span className="text-sm font-medium">Risk/Reward Ratio</span>
                 <Badge variant="default" className="text-base font-bold px-3" data-testid="badge-risk-reward">
-                  1:{result.riskReward.toFixed(2)}
+                  1:{safeToFixed(result.riskReward, 2)}
                 </Badge>
               </div>
 

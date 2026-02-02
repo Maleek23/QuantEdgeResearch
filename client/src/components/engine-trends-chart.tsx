@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { safeToFixed } from "@/lib/utils";
 
 interface WeekData {
   week: string;
@@ -59,7 +60,7 @@ export default function EngineTrendsChart() {
             {payload.map((entry: any) => (
               <p key={entry.name} style={{ color: entry.color }}>
                 <span className="font-semibold">{entry.name.toUpperCase()}:</span>{' '}
-                <span className="font-mono">{entry.value.toFixed(1)}%</span>
+                <span className="font-mono">{safeToFixed(entry.value, 1)}%</span>
               </p>
             ))}
           </div>

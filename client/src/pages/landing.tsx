@@ -192,15 +192,15 @@ function LiveTradeCard({ idea, index }: { idea: any; index: number }) {
           <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="p-2 rounded-lg bg-slate-800/50 text-center">
               <div className="text-[10px] text-slate-500 mb-0.5">Entry</div>
-              <div className="text-sm font-mono font-bold text-white">${idea.entryPrice?.toFixed(2) || '185.50'}</div>
+              <div className="text-sm font-mono font-bold text-white">${safeToFixed(idea.entryPrice, 2, '185.50')}</div>
             </div>
             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
               <div className="text-[10px] text-slate-500 mb-0.5">Target</div>
-              <div className="text-sm font-mono font-bold text-emerald-400">${idea.targetPrice?.toFixed(2) || '198.00'}</div>
+              <div className="text-sm font-mono font-bold text-emerald-400">${safeToFixed(idea.targetPrice, 2, '198.00')}</div>
             </div>
             <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
               <div className="text-[10px] text-slate-500 mb-0.5">Stop</div>
-              <div className="text-sm font-mono font-bold text-red-400">${idea.stopLoss?.toFixed(2) || '178.50'}</div>
+              <div className="text-sm font-mono font-bold text-red-400">${safeToFixed(idea.stopLoss, 2, '178.50')}</div>
             </div>
           </div>
 

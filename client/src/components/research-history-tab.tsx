@@ -20,7 +20,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeToFixed, safeNumber } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface ResearchHistoryRecord {
@@ -180,7 +180,7 @@ export default function ResearchHistoryTab({ year = new Date().getFullYear() }: 
           <span className="text-red-400">Losses: {stats.losses}</span>
           {(stats.wins + stats.losses) > 0 && (
             <span className="font-mono">
-              WR: {((stats.wins / (stats.wins + stats.losses)) * 100).toFixed(0)}%
+              WR: {safeToFixed((stats.wins / (stats.wins + stats.losses)) * 100, 0)}%
             </span>
           )}
         </div>
@@ -252,7 +252,7 @@ export default function ResearchHistoryTab({ year = new Date().getFullYear() }: 
                   )}
                   {record.signalPrice && (
                     <span className="font-mono text-sm text-slate-400">
-                      ${record.signalPrice.toFixed(2)}
+                      ${safeToFixed(record.signalPrice, 2)}
                     </span>
                   )}
                   <Badge variant="outline" className={cn(
@@ -278,7 +278,7 @@ export default function ResearchHistoryTab({ year = new Date().getFullYear() }: 
                           "font-mono text-sm ml-1",
                           record.outcomeReturn >= 0 ? 'text-green-400' : 'text-red-400'
                         )}>
-                          {record.outcomeReturn >= 0 ? '+' : ''}{record.outcomeReturn.toFixed(1)}%
+                          {record.outcomeReturn >= 0 ? '+' : ''}{safeToFixed(record.outcomeReturn, 1)}%
                         </span>
                       )}
                     </div>
