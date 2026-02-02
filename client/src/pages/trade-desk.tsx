@@ -3193,11 +3193,12 @@ export default function TradeDeskRedesigned() {
       return true;
     });
 
-    // Group by symbol ONLY - one idea per symbol regardless of direction
-    // This prevents confusing users with conflicting signals
+    // Group by symbol+assetType - one idea per symbol/type combo
+    // This allows SNDK stock AND SNDK option to both appear
     const groups = new Map<string, TradeIdea[]>();
     for (const idea of nonExpired) {
-      const key = idea.symbol;
+      const assetType = idea.assetType || 'stock';
+      const key = `${idea.symbol}:${assetType}`;
       if (!groups.has(key)) {
         groups.set(key, []);
       }
