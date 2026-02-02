@@ -319,6 +319,8 @@ export function getSectorTickers(sector: string): string[] {
 
 // High-priority tickers for Best Setups & Premium Alerts
 export const PREMIUM_WATCHLIST = [
+  // Index ETFs (SPX lottos - crazy moves)
+  'SPY', 'QQQ', 'IWM', 'DIA', 'TQQQ', 'SQQQ', 'UPRO', 'SPXU',
   // Nuclear plays (high conviction)
   'NNE', 'OKLO', 'SMR', 'LEU', 'CCJ', 'UEC', 'UUUU',
   // Quantum plays
