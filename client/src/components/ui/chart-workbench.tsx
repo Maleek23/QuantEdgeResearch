@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, IChartApi, ISeriesApi, CandlestickSeries, LineSeries, CandlestickData, LineData, UTCTimestamp } from "lightweight-charts";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { CandlestickChart, LineChart, ZoomIn, ZoomOut, Maximize2, RotateCcw } from "lucide-react";
@@ -137,6 +137,9 @@ export function ChartWorkbench({
 
     let series: ISeriesApi<"Candlestick"> | ISeriesApi<"Line">;
 
+    // Filter valid data points first
+    const validData = data.filter((d) => d && d.time != null);
+
     if (chartType === "candlestick") {
       series = chart.addSeries(CandlestickSeries, {
         upColor: colors.upColor,
@@ -147,15 +150,15 @@ export function ChartWorkbench({
         wickDownColor: colors.downColor,
       });
 
-      const candleData: CandlestickData[] = data.map((d) => ({
+      const candleData: CandlestickData[] = validData.map((d) => ({
         time: (typeof d.time === "string" ? new Date(d.time).getTime() / 1000 : d.time) as UTCTimestamp,
-        open: d.open ?? d.value ?? 0,
-        high: d.high ?? d.value ?? 0,
-        low: d.low ?? d.value ?? 0,
-        close: d.close ?? d.value ?? 0,
+        open: safeNumber(d.open ?? d.value, 100),
+        high: safeNumber(d.high ?? d.value, 100),
+        low: safeNumber(d.low ?? d.value, 100),
+        close: safeNumber(d.close ?? d.value, 100),
       }));
 
-      series.setData(candleData);
+      if (candleData.length > 0) series.setData(candleData);
     } else {
       series = chart.addSeries(LineSeries, {
         color: colors.lineColor,
@@ -166,12 +169,12 @@ export function ChartWorkbench({
         crosshairMarkerBackgroundColor: colors.backgroundColor,
       });
 
-      const lineData: LineData[] = data.map((d) => ({
+      const lineData: LineData[] = validData.map((d) => ({
         time: (typeof d.time === "string" ? new Date(d.time).getTime() / 1000 : d.time) as UTCTimestamp,
-        value: d.close ?? d.value ?? 0,
+        value: safeNumber(d.close ?? d.value, 100),
       }));
 
-      series.setData(lineData);
+      if (lineData.length > 0) series.setData(lineData);
     }
 
     seriesRef.current = series;
@@ -187,11 +190,11 @@ export function ChartWorkbench({
       });
     });
 
-    if (data.length > 0) {
-      const lastPoint = data[data.length - 1];
-      const firstPoint = data[0];
-      const price = lastPoint.close ?? lastPoint.value ?? 0;
-      const startPrice = firstPoint.close ?? firstPoint.value ?? 0;
+    if (validData.length > 0) {
+      const lastPoint = validData[validData.length - 1];
+      const firstPoint = validData[0];
+      const price = safeNumber(lastPoint?.close ?? lastPoint?.value);
+      const startPrice = safeNumber(firstPoint?.close ?? firstPoint?.value);
       setCurrentPrice(price);
       setPriceChange(startPrice > 0 ? ((price - startPrice) / startPrice) * 100 : 0);
     }

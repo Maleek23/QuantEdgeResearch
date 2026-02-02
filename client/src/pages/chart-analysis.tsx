@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time, CandlestickSeries, LineSeries, createSeriesMarkers } from "lightweight-charts";
 
 interface PatternData {
@@ -1143,14 +1143,16 @@ function PatternSearchTab() {
         wickDownColor: "#ef4444",
       });
       
-      const candleData: CandlestickData[] = patternData.candles.map((c) => ({
-        time: c.time as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-      candleSeries.setData(candleData);
+      const candleData: CandlestickData[] = patternData.candles
+        .filter((c) => c && c.time != null)
+        .map((c) => ({
+          time: c.time as Time,
+          open: safeNumber(c.open, 100),
+          high: safeNumber(c.high, 100),
+          low: safeNumber(c.low, 100),
+          close: safeNumber(c.close, 100),
+        }));
+      if (candleData.length > 0) candleSeries.setData(candleData);
       mainSeries = candleSeries;
     } else {
       const lineSeries = chart.addSeries(LineSeries, {
@@ -1159,12 +1161,14 @@ function PatternSearchTab() {
         priceLineVisible: true,
         lastValueVisible: true,
       });
-      
-      const lineData: LineData[] = patternData.candles.map((c) => ({
-        time: c.time as Time,
-        value: c.close,
-      }));
-      lineSeries.setData(lineData);
+
+      const lineData: LineData[] = patternData.candles
+        .filter((c) => c && c.time != null && c.close != null)
+        .map((c) => ({
+          time: c.time as Time,
+          value: safeNumber(c.close, 100),
+        }));
+      if (lineData.length > 0) lineSeries.setData(lineData);
       mainSeries = lineSeries;
     }
     
@@ -1193,22 +1197,23 @@ function PatternSearchTab() {
         lastValueVisible: false,
       });
       
-      const upperData: LineData[] = patternData.bbSeries.map((b) => ({
+      const validBBData = patternData.bbSeries.filter((b) => b && b.time != null);
+      const upperData: LineData[] = validBBData.map((b) => ({
         time: b.time as Time,
-        value: b.upper,
+        value: safeNumber(b.upper, 100),
       }));
-      const middleData: LineData[] = patternData.bbSeries.map((b) => ({
+      const middleData: LineData[] = validBBData.map((b) => ({
         time: b.time as Time,
-        value: b.middle,
+        value: safeNumber(b.middle, 100),
       }));
-      const lowerData: LineData[] = patternData.bbSeries.map((b) => ({
+      const lowerData: LineData[] = validBBData.map((b) => ({
         time: b.time as Time,
-        value: b.lower,
+        value: safeNumber(b.lower, 100),
       }));
-      
-      bbUpper.setData(upperData);
-      bbMiddle.setData(middleData);
-      bbLower.setData(lowerData);
+
+      if (upperData.length > 0) bbUpper.setData(upperData);
+      if (middleData.length > 0) bbMiddle.setData(middleData);
+      if (lowerData.length > 0) bbLower.setData(lowerData);
     }
     
     if (patternData.patterns.length > 0 && chartType === 'candlestick') {
@@ -1298,11 +1303,13 @@ function PatternSearchTab() {
       lastValueVisible: false,
     });
     
-    const rsiData: LineData[] = patternData.rsiSeries.map((r) => ({
-      time: r.time as Time,
-      value: r.value,
-    }));
-    rsiSeries.setData(rsiData);
+    const rsiData: LineData[] = patternData.rsiSeries
+      .filter((r) => r && r.time != null && r.value != null)
+      .map((r) => ({
+        time: r.time as Time,
+        value: safeNumber(r.value, 50),
+      }));
+    if (rsiData.length > 0) rsiSeries.setData(rsiData);
     
     const firstTime = patternData.rsiSeries[0]?.time;
     const lastTime = patternData.rsiSeries[patternData.rsiSeries.length - 1]?.time;
@@ -3065,14 +3072,16 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
         wickDownColor: "#ef4444",
       });
       
-      const candleData: CandlestickData[] = chartData.candles.map((c) => ({
-        time: c.time as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-      candleSeries.setData(candleData);
+      const candleData: CandlestickData[] = chartData.candles
+        .filter((c) => c && c.time != null)
+        .map((c) => ({
+          time: c.time as Time,
+          open: safeNumber(c.open, 100),
+          high: safeNumber(c.high, 100),
+          low: safeNumber(c.low, 100),
+          close: safeNumber(c.close, 100),
+        }));
+      if (candleData.length > 0) candleSeries.setData(candleData);
     } else {
       const lineSeries = chart.addSeries(LineSeries, {
         color: "#22d3ee",
@@ -3080,12 +3089,14 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
         priceLineVisible: true,
         lastValueVisible: true,
       });
-      
-      const lineData: LineData[] = chartData.candles.map((c) => ({
-        time: c.time as Time,
-        value: c.close,
-      }));
-      lineSeries.setData(lineData);
+
+      const lineData: LineData[] = chartData.candles
+        .filter((c) => c && c.time != null && c.close != null)
+        .map((c) => ({
+          time: c.time as Time,
+          value: safeNumber(c.close, 100),
+        }));
+      if (lineData.length > 0) lineSeries.setData(lineData);
     }
     
     chart.timeScale().fitContent();

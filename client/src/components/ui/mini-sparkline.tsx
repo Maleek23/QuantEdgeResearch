@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo } from "react";
 import { createChart, IChartApi, LineSeries, LineData, UTCTimestamp } from "lightweight-charts";
-import { cn } from "@/lib/utils";
+import { cn, safeNumber } from "@/lib/utils";
 
 interface MiniSparklineProps {
   data: { time: string | number; value: number }[];
@@ -25,8 +25,8 @@ export function MiniSparkline({
   const lineColor = useMemo(() => {
     if (color) return color;
     if (data.length < 2) return "rgb(148, 163, 184)";
-    const firstValue = data[0].value;
-    const lastValue = data[data.length - 1].value;
+    const firstValue = safeNumber(data[0]?.value);
+    const lastValue = safeNumber(data[data.length - 1]?.value);
     return lastValue >= firstValue ? "rgb(16, 185, 129)" : "rgb(239, 68, 68)";
   }, [data, color]);
 
@@ -63,11 +63,15 @@ export function MiniSparkline({
       crosshairMarkerVisible: false,
     });
 
-    const lineData: LineData[] = data.map((d) => ({
-      time: (typeof d.time === "string" ? new Date(d.time).getTime() / 1000 : d.time) as UTCTimestamp,
-      value: d.value,
-    }));
+    // Filter out invalid data points and ensure values are safe numbers
+    const lineData: LineData[] = data
+      .filter((d) => d && d.time != null && d.value != null)
+      .map((d) => ({
+        time: (typeof d.time === "string" ? new Date(d.time).getTime() / 1000 : d.time) as UTCTimestamp,
+        value: safeNumber(d.value),
+      }));
 
+    if (lineData.length === 0) return;
     series.setData(lineData);
     chart.timeScale().fitContent();
 
