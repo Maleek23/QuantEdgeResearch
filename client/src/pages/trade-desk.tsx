@@ -59,6 +59,7 @@ import { getLetterGrade, getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
+import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 
 // ============================================
 // MARKET PULSE HEADER
@@ -2438,10 +2439,11 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
 // ============================================
 // COMPACT TRADE IDEA CARD (Landing Page Style)
 // ============================================
-function TradeIdeaCard({ idea, expanded, onToggle }: {
+function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
   idea: TradeIdea;
   expanded: boolean;
   onToggle: () => void;
+  onViewDetails?: (idea: TradeIdea) => void;
 }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -2726,8 +2728,20 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-2">
+            {onViewDetails && (
+              <Button
+                size="sm"
+                className="flex-1 h-8 bg-teal-600 hover:bg-teal-500 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails(idea);
+                }}
+              >
+                <Sparkles className="w-3 h-3 mr-1" /> Quick View
+              </Button>
+            )}
             <Link href={`/stock/${idea.symbol}`} className="flex-1">
-              <Button size="sm" className="w-full h-8 bg-cyan-600 hover:bg-cyan-500 text-xs">
+              <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 text-xs">
                 <Eye className="w-3 h-3 mr-1" /> Full Analysis
               </Button>
             </Link>
@@ -2905,7 +2919,7 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
 // ============================================
 // TRADE IDEAS LIST (Full Page View with 2-Column Grid)
 // ============================================
-function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }) {
+function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], title?: string, onViewDetails?: (idea: TradeIdea) => void }) {
   const [search, setSearch] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all"); // Show all grades by default
@@ -3181,6 +3195,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
               idea={idea}
               expanded={expandedId === (idea.id || `${idea.symbol}-${idea.timestamp}`)}
               onToggle={() => toggleExpand(idea.id || `${idea.symbol}-${idea.timestamp}`)}
+              onViewDetails={onViewDetails}
             />
           ))}
         </div>
@@ -3220,6 +3235,9 @@ export default function TradeDeskRedesigned() {
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
   const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock'>('all');
+  // Trade idea detail modal state
+  const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
+  const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
   // Note: Filters (statusFilter, dateFilter, gradeFilter, directionFilter) are handled inside TradeIdeasList component
 
   // AI Generation mutation - triggers the 6 engines
@@ -3655,7 +3673,14 @@ export default function TradeDeskRedesigned() {
             <StatsOverview ideas={filteredIdeas} />
 
             {/* All Trade Ideas List */}
-            <TradeIdeasList ideas={filteredIdeas} title={`${assetFilter === 'all' ? 'All' : assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Trade Ideas`} />
+            <TradeIdeasList
+              ideas={filteredIdeas}
+              title={`${assetFilter === 'all' ? 'All' : assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Trade Ideas`}
+              onViewDetails={(idea) => {
+                setSelectedTradeIdea(idea);
+                setTradeIdeaModalOpen(true);
+              }}
+            />
           </TabsContent>
 
           {/* SIGNALS TAB - Movers, Surges, Convergence, Hot (combined view) */}
@@ -3733,6 +3758,13 @@ export default function TradeDeskRedesigned() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Trade Idea Detail Modal */}
+      <TradeIdeaDetailModal
+        idea={selectedTradeIdea}
+        open={tradeIdeaModalOpen}
+        onOpenChange={setTradeIdeaModalOpen}
+      />
     </div>
   );
 }

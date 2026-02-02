@@ -50,6 +50,7 @@ import { StockChart } from "@/components/stock-chart";
 import { ShouldIBuy } from "@/components/should-i-buy";
 import { WSBTrendingCard } from "@/components/wsb-trending-card";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
+import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import type { TradeIdea } from "@shared/schema";
 
 // AI Summary Card with typewriter animation - Full Report Style
@@ -304,6 +305,7 @@ export default function StockDetailPage() {
   const [chartType, setChartType] = useState<'area' | 'candlestick'>('area');
   const [chartExpanded, setChartExpanded] = useState(false);
   const [expandedEngine, setExpandedEngine] = useState<string | null>(null);
+  const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
 
   const { data: analysisData, isLoading } = useQuery({
     queryKey: [`/api/analyze/${symbol}`],
@@ -454,22 +456,23 @@ export default function StockDetailPage() {
     enabled: !!symbol,
   });
 
-  // Fetch all trade ideas for this symbol (for deep analysis display)
+  // Fetch trade ideas for this symbol with optimized caching
   // Uses public best-setups endpoint so it works for non-authenticated users
   const { data: symbolTradeIdeas } = useQuery<TradeIdea[]>({
-    queryKey: [`/api/trade-ideas/best-setups`, symbol, 'all'],
+    queryKey: [`/api/trade-ideas/best-setups`, symbol],
     queryFn: async () => {
       if (!symbol) return [];
-      // Use public best-setups endpoint (no auth required)
-      const res = await fetch(`/api/trade-ideas/best-setups?limit=100`);
+      // Use public best-setups endpoint with symbol filter
+      const res = await fetch(`/api/trade-ideas/best-setups?limit=50&symbol=${symbol}`);
       if (!res.ok) return [];
       const data = await res.json();
       const ideas = data.setups || [];
-      return ideas.filter((idea: any) =>
-        idea.symbol === symbol
-      ).slice(0, 5);
+      // Filter for this symbol if server doesn't filter
+      return ideas.filter((idea: any) => idea.symbol === symbol).slice(0, 5);
     },
     enabled: !!symbol,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   // Get the best trade idea with deep analysis
@@ -1185,8 +1188,11 @@ export default function StockDetailPage() {
                       </Link>
                     </div>
 
-                    {/* Trade Idea Quick Info */}
-                    <Card className="p-4 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-[#222]">
+                    {/* Trade Idea Quick Info - Clickable for full analysis */}
+                    <Card
+                      className="p-4 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-[#222] cursor-pointer hover:border-teal-500/50 transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/10"
+                      onClick={() => setTradeIdeaModalOpen(true)}
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Badge className={cn(
@@ -1200,11 +1206,16 @@ export default function StockDetailPage() {
                             <span className="text-xs text-slate-500">{bestTradeIdea.confidenceScore}% confidence</span>
                           )}
                         </div>
-                        {bestTradeIdea.timestamp && (
-                          <span className="text-[10px] text-slate-600">
-                            {new Date(bestTradeIdea.timestamp).toLocaleDateString()}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {bestTradeIdea.timestamp && (
+                            <span className="text-[10px] text-slate-600">
+                              {new Date(bestTradeIdea.timestamp).toLocaleDateString()}
+                            </span>
+                          )}
+                          <Badge variant="outline" className="text-[10px] text-teal-400 border-teal-500/30">
+                            Click for details
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-3 mb-3">
@@ -2327,6 +2338,14 @@ export default function StockDetailPage() {
             </Tabs>
         </div>
       </div>
+
+      {/* Trade Idea Detail Modal */}
+      <TradeIdeaDetailModal
+        idea={bestTradeIdea}
+        currentPrice={price}
+        open={tradeIdeaModalOpen}
+        onOpenChange={setTradeIdeaModalOpen}
+      />
     </div>
   );
 }

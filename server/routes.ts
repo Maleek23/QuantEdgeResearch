@@ -5923,6 +5923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = Math.min(parseInt(req.query.limit as string) || 5, 2000); // Allow up to 2000 ideas
       const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'hit_stop', 'expired'
       const dateFilter = req.query.date as string; // Optional: 'YYYY-MM-DD' for specific day
+      const symbolFilter = req.query.symbol as string; // Optional: filter by specific symbol
 
       // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
       // Expand time window if viewing closed trades or specific date
@@ -5957,6 +5958,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return ideaDate >= filterDateStart && ideaDate <= filterDateEnd;
         });
         logger.info(`[BEST-SETUPS] After date filter (${dateFilter}): ${filteredIdeas.length} ideas`);
+      }
+
+      // Apply symbol filter if specified (for single stock lookups)
+      if (symbolFilter) {
+        filteredIdeas = filteredIdeas.filter(i => i.symbol?.toUpperCase() === symbolFilter.toUpperCase());
+        logger.info(`[BEST-SETUPS] After symbol filter (${symbolFilter}): ${filteredIdeas.length} ideas`);
       }
 
       // Filter to ideas with complete price data

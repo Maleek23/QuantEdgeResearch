@@ -99,11 +99,24 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes default - data considered fresh
+      gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
+      retry: 1, // One retry for transient failures
+      retryDelay: 1000,
+      networkMode: 'offlineFirst', // Use cache while offline
     },
     mutations: {
       retry: false,
     },
   },
 });
+
+// Cache duration constants for consistent use across app
+export const CACHE_TIMES = {
+  REALTIME: 10 * 1000, // 10 seconds for live prices
+  FAST: 30 * 1000, // 30 seconds for frequently changing data
+  MEDIUM: 2 * 60 * 1000, // 2 minutes for market data
+  SLOW: 5 * 60 * 1000, // 5 minutes for analysis data
+  STABLE: 15 * 60 * 1000, // 15 minutes for rarely changing data
+  STATIC: 60 * 60 * 1000, // 1 hour for static data
+};
