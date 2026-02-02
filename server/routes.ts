@@ -5920,7 +5920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/trade-ideas/best-setups", async (req: any, res) => {
     try {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
-      const limit = Math.min(parseInt(req.query.limit as string) || 5, 100);
+      const limit = Math.min(parseInt(req.query.limit as string) || 5, 200); // Increased from 100 to show more options
       const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'stopped_out', 'expired'
       const dateFilter = req.query.date as string; // Optional: 'YYYY-MM-DD' for specific day
 
@@ -6106,14 +6106,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Signal confluence bonus (more signals = higher conviction)
         convictionScore += signalCount * 5;
 
-        // 🎯 ASSET TYPE BONUS - Prioritize STOCKS over OPTIONS
-        // Options are confusing in the UI (entry price = premium, not stock price)
-        // Users want to see actual stock trades as the primary content
+        // 🎯 ASSET TYPE - Give OPTIONS a SLIGHT boost for visibility
+        // Options require timely action due to expiration, show them prominently
         const assetType = idea.assetType || '';
         if (assetType === 'stock') {
-          convictionScore += 20; // Boost stocks significantly
+          convictionScore += 5; // Small boost for stocks
         } else if (assetType === 'option') {
-          convictionScore -= 10; // Deprioritize options (still show them, just lower)
+          convictionScore += 10; // Options get priority - they expire!
         }
 
         // Risk/Reward bonus (capped at 3:1 for max bonus)
