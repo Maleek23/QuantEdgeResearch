@@ -2957,7 +2957,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
     if (tradeTypeFilter !== 'all') {
       filtered = filtered.filter(i => {
         // Calculate DTE from expiry date
-        const expiry = i.expiryDate || i.expiration;
+        const expiry = i.expiryDate || (i as any).expiration;
         if (!expiry) {
           // No expiry = stock/crypto, treat as swing
           return tradeTypeFilter === 'swing';
@@ -3234,42 +3234,37 @@ export default function TradeDeskRedesigned() {
   // ============================================
   // DEDUPLICATION ONLY - No filtering here!
   // TradeIdeasList handles ALL filtering (status, date, grade, direction)
-  // This just groups by symbol and returns best idea per symbol
+  // Groups by symbol+assetType+optionType to show BOTH calls AND puts per symbol
   // ============================================
   const deduplicateOnly = (ideas: TradeIdea[]): TradeIdea[] => {
-    // Only filter out ideas with no timestamp
     const nonExpired = ideas.filter(idea => idea.timestamp);
 
-    // Group by symbol+assetType - one idea per symbol/type combo
-    // This allows SNDK stock AND SNDK option to both appear
+    // Group by symbol+assetType+optionType - allows both CALLs and PUTs per symbol
     const groups = new Map<string, TradeIdea[]>();
     for (const idea of nonExpired) {
       const assetType = idea.assetType || 'stock';
-      const key = `${idea.symbol}:${assetType}`;
+      const optionType = idea.optionType || '';
+      const key = `${idea.symbol}:${assetType}:${optionType}`;
       if (!groups.has(key)) {
         groups.set(key, []);
       }
       groups.get(key)!.push(idea);
     }
 
-    // For each symbol, take ONLY the best idea (highest confidence)
+    // For each group, take best idea (highest confidence, most recent)
     const result: TradeIdea[] = [];
     Array.from(groups.values()).forEach((groupIdeas) => {
-      // Sort by timestamp (most recent first), then by confidence
       groupIdeas.sort((a: TradeIdea, b: TradeIdea) => {
         const timeA = new Date(a.timestamp || 0).getTime();
         const timeB = new Date(b.timestamp || 0).getTime();
-        // Prefer recent ideas, then higher confidence
-        if (Math.abs(timeB - timeA) > 6 * 60 * 60 * 1000) { // More than 6 hours difference
-          return timeB - timeA; // Prefer newer
+        if (Math.abs(timeB - timeA) > 6 * 60 * 60 * 1000) {
+          return timeB - timeA;
         }
         return (b.confidenceScore || 0) - (a.confidenceScore || 0);
       });
-      // Take only the SINGLE best idea per symbol
       result.push(groupIdeas[0]);
     });
 
-    // Re-sort final result by confidence
     result.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
 
     return result;
