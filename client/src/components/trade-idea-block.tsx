@@ -136,11 +136,17 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   }, [currentPrice]);
 
   const isLong = idea.direction === 'long';
+
+  // Safe price values to prevent null/undefined errors
+  const safeEntryPrice = safeNumber(idea.entryPrice, 100);
+  const safeTargetPrice = safeNumber(idea.targetPrice, safeEntryPrice * 1.05);
+  const safeStopLoss = safeNumber(idea.stopLoss, safeEntryPrice * 0.95);
+
   // Price change calculation that respects trade direction
-  const priceChangePercent = currentPrice 
+  const priceChangePercent = (currentPrice && safeEntryPrice > 0)
     ? isLong
-      ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
-      : ((idea.entryPrice - currentPrice) / idea.entryPrice) * 100
+      ? ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100
+      : ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100
     : 0;
 
   // Helper: Get quick timing status for collapsed view
@@ -192,31 +198,31 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     }
     
     // Check price proximity to entry (for non-options only)
-    if (currentPrice && idea.assetType !== 'option') {
-      const entryDeviation = Math.abs((currentPrice - idea.entryPrice) / idea.entryPrice) * 100;
-      
+    if (currentPrice && idea.assetType !== 'option' && safeEntryPrice > 0) {
+      const entryDeviation = Math.abs((currentPrice - safeEntryPrice) / safeEntryPrice) * 100;
+
       // For LONG: price should be at or below entry, For SHORT: price should be at or above entry
-      const priceDirection = isLong 
-        ? (currentPrice <= idea.entryPrice * 1.02) // Allow 2% above entry for longs
-        : (currentPrice >= idea.entryPrice * 0.98); // Allow 2% below entry for shorts
-      
+      const priceDirection = isLong
+        ? (currentPrice <= safeEntryPrice * 1.02) // Allow 2% above entry for longs
+        : (currentPrice >= safeEntryPrice * 0.98); // Allow 2% below entry for shorts
+
       if (!priceDirection && entryDeviation > 3) {
         // Price moved significantly away from entry in wrong direction
-        return { 
-          status: 'caution', 
-          label: 'Entry Missed', 
-          tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${safeToFixed(entryDeviation, 1)}%`, 
-          color: 'text-amber-400' 
+        return {
+          status: 'caution',
+          label: 'Entry Missed',
+          tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${safeToFixed(entryDeviation, 1)}%`,
+          color: 'text-amber-400'
         };
       }
-      
+
       // Check if near target or stop (guard against division by zero)
-      const targetDistance = Math.abs(idea.targetPrice - currentPrice);
-      const entryDistance = Math.abs(idea.targetPrice - idea.entryPrice);
-      
+      const targetDistance = Math.abs(safeTargetPrice - currentPrice);
+      const entryDistance = Math.abs(safeTargetPrice - safeEntryPrice);
+
       if (entryDistance > 0) {
         const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
-        
+
         if (progressToTarget >= 80) {
           return { status: 'valid', label: 'Near Target', tooltip: `${safeToFixed(progressToTarget, 0)}% to target`, color: 'text-green-400' };
         }
