@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 import {
   TrendingUp,
   TrendingDown,
@@ -2421,14 +2422,10 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   // Get actual drivers from idea data
   const ideaDrivers = useMemo(() => getIdeaDrivers(idea), [idea]);
 
-  // Discord share mutation
+  // Discord share mutation - uses apiRequest for CSRF token
   const shareToDiscord = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/trade-ideas/${idea.id}/share-discord`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to share to Discord');
+      const res = await apiRequest('POST', `/api/trade-ideas/${idea.id}/share-discord`);
       return res.json();
     },
     onSuccess: () => {
