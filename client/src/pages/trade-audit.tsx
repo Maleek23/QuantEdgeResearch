@@ -29,7 +29,7 @@ import {
 import { SiDiscord } from "react-icons/si";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
@@ -611,13 +611,13 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
   const isResolved = idea.outcomeStatus && idea.outcomeStatus !== "open";
   if (!isResolved) return null;
   
-  const entryPrice = Number(idea.entryPrice);
-  const targetPrice = Number(idea.targetPrice);
-  const stopLoss = Number(idea.stopLoss);
-  const exitPrice = Number(idea.exitPrice || 0);
-  
-  const targetPct = ((targetPrice - entryPrice) / entryPrice) * 100;
-  const stopPct = ((stopLoss - entryPrice) / entryPrice) * 100;
+  const entryPrice = safeNumber(idea.entryPrice, 1);
+  const targetPrice = safeNumber(idea.targetPrice, entryPrice * 1.05);
+  const stopLoss = safeNumber(idea.stopLoss, entryPrice * 0.95);
+  const exitPrice = safeNumber(idea.exitPrice, 0);
+
+  const targetPct = entryPrice > 0 ? ((targetPrice - entryPrice) / entryPrice) * 100 : 0;
+  const stopPct = entryPrice > 0 ? ((stopLoss - entryPrice) / entryPrice) * 100 : 0;
   const actualPct = Number(idea.percentGain || 0);
   
   return (

@@ -9,7 +9,7 @@ import { Clock, TrendingUp, TrendingDown, Zap, AlertTriangle, Target, Shield } f
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 
 interface MLTimingIndicatorProps {
   entryPrice: number;
@@ -33,24 +33,34 @@ export function MLTimingIndicator({
   confidence = 70
 }: MLTimingIndicatorProps) {
   const isLong = direction === 'long';
-  const price = currentPrice || entryPrice;
 
-  // Calculate progress to target and stop loss
-  const targetDistance = isLong
-    ? ((targetPrice - entryPrice) / entryPrice) * 100
-    : ((entryPrice - targetPrice) / entryPrice) * 100;
+  // Safe values to prevent division by zero and null errors
+  const safeEntry = safeNumber(entryPrice, 1);
+  const safeTarget = safeNumber(targetPrice, safeEntry * 1.05);
+  const safeStop = safeNumber(stopLoss, safeEntry * 0.95);
+  const price = currentPrice || safeEntry;
 
-  const stopDistance = isLong
-    ? ((entryPrice - stopLoss) / entryPrice) * 100
-    : ((stopLoss - entryPrice) / entryPrice) * 100;
-
-  const currentProgress = currentPrice
+  // Calculate progress to target and stop loss with safety checks
+  const targetDistance = safeEntry > 0
     ? (isLong
-        ? ((currentPrice - entryPrice) / (targetPrice - entryPrice)) * 100
-        : ((entryPrice - currentPrice) / (entryPrice - targetPrice)) * 100)
+      ? ((safeTarget - safeEntry) / safeEntry) * 100
+      : ((safeEntry - safeTarget) / safeEntry) * 100)
     : 0;
 
-  const riskRewardRatio = Math.abs(targetDistance / stopDistance);
+  const stopDistance = safeEntry > 0
+    ? (isLong
+      ? ((safeEntry - safeStop) / safeEntry) * 100
+      : ((safeStop - safeEntry) / safeEntry) * 100)
+    : 1; // Avoid division by zero
+
+  const targetEntryDiff = isLong ? (safeTarget - safeEntry) : (safeEntry - safeTarget);
+  const currentProgress = currentPrice && targetEntryDiff !== 0
+    ? (isLong
+        ? ((currentPrice - safeEntry) / targetEntryDiff) * 100
+        : ((safeEntry - currentPrice) / targetEntryDiff) * 100)
+    : 0;
+
+  const riskRewardRatio = stopDistance !== 0 ? Math.abs(targetDistance / stopDistance) : 0;
 
   // Calculate time decay for options
   const timeDecay = expiryDate && assetType === 'option'

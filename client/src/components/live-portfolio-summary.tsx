@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Activity, Target, Award, BarChart3 } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
@@ -43,9 +43,10 @@ export function LivePortfolioSummary() {
     .map(trade => {
       const currentPrice = priceMap[trade.symbol];
       const isLong = trade.direction === 'long';
+      const safeEntryPrice = safeNumber(trade.entryPrice, 1);
       const plPercent = isLong
-        ? ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
-        : ((trade.entryPrice - currentPrice) / trade.entryPrice) * 100;
+        ? ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100
+        : ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100;
 
       return { ...trade, currentPrice, plPercent };
     });

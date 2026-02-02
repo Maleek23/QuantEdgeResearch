@@ -1,4 +1,4 @@
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { Activity, Clock, CheckCircle2, XCircle, Circle } from "lucide-react";
 
 type LifecycleStage = "new" | "active" | "resolved" | "expired";
@@ -102,7 +102,8 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
         {recentIdeas.map((idea) => {
           const config = stageConfig[idea.stage];
           const Icon = config.icon;
-          const pnl = idea.pnlPercent ?? ((idea.currentPrice - idea.entryPrice) / idea.entryPrice * 100);
+          const safeEntry = safeNumber(idea.entryPrice, 1);
+          const pnl = idea.pnlPercent ?? (safeEntry > 0 ? ((safeNumber(idea.currentPrice) - safeEntry) / safeEntry * 100) : 0);
           
           return (
             <div

@@ -42,15 +42,19 @@ interface TradeIdeaCardProps {
 const generateChartData = (isLong: boolean, entryPrice: number, targetPrice: number, stopLoss: number) => {
   const dataPoints = 24;
   const data = [];
-  const range = Math.abs(targetPrice - entryPrice);
+  // Safe values to prevent NaN
+  const safeEntry = safeNumber(entryPrice, 100);
+  const safeTarget = safeNumber(targetPrice, safeEntry * 1.05);
+  const safeStop = safeNumber(stopLoss, safeEntry * 0.95);
+  const range = Math.abs(safeTarget - safeEntry) || 1;
 
   for (let i = 0; i < dataPoints; i++) {
     const progress = i / (dataPoints - 1);
     // Create a realistic price movement pattern
     const trend = isLong ? progress : 1 - progress;
-    const baseValue = entryPrice + (isLong ? 1 : -1) * range * trend * 0.7;
+    const baseValue = safeEntry + (isLong ? 1 : -1) * range * trend * 0.7;
     const noise = (Math.random() - 0.5) * range * 0.15;
-    const value = Math.max(stopLoss * 0.98, Math.min(targetPrice * 1.02, baseValue + noise));
+    const value = Math.max(safeStop * 0.98, Math.min(safeTarget * 1.02, baseValue + noise));
 
     data.push({
       time: i,
@@ -408,7 +412,12 @@ export function TradeIdeaRow({
   className,
 }: Omit<TradeIdeaCardProps, "catalyst" | "companyName" | "tier" | "riskReward" | "strike" | "expiry" | "buyZone" | "sellZone">) {
   const isLong = direction.toLowerCase() === "long";
-  const rrRatio = Math.abs((targetPrice - entryPrice) / (entryPrice - stopLoss));
+  // Safe values to prevent division by zero
+  const safeEntry = safeNumber(entryPrice, 100);
+  const safeTarget = safeNumber(targetPrice, safeEntry * 1.05);
+  const safeStop = safeNumber(stopLoss, safeEntry * 0.95);
+  const entryStopDiff = Math.abs(safeEntry - safeStop) || 1;
+  const rrRatio = Math.abs((safeTarget - safeEntry) / entryStopDiff);
   const assetInfo = getAssetTypeInfo(assetType, optionType);
   const bullishCount = engineSignals.filter(e => e.signal === "bullish").length;
 

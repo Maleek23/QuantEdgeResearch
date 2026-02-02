@@ -145,9 +145,10 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
           const isOption = idea.assetType === 'option' || idea.optionType;
           const confidence = idea.confidenceScore || 50;
 
-          // Calculate potential profit
+          // Calculate potential profit with null safety
+          const safeEntry = safeNumber(idea.entryPrice, 1);
           const potentialProfit = idea.targetPrice && idea.entryPrice
-            ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100)
+            ? ((safeNumber(idea.targetPrice) - safeEntry) / safeEntry * 100)
             : 0;
 
           return (

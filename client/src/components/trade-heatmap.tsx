@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 
@@ -31,10 +31,11 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
       const currentPrice = trade.assetType === 'option' ? undefined : priceMap[trade.symbol];
       const isLong = trade.direction === 'long';
 
+      const safeEntryPrice = safeNumber(trade.entryPrice, 1);
       const priceChangePercent = currentPrice
         ? isLong
-          ? ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
-          : ((trade.entryPrice - currentPrice) / trade.entryPrice) * 100
+          ? ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100
+          : ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100
         : 0;
 
       return {
