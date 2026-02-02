@@ -86,25 +86,25 @@ function AIInsightCard({
     const volumeProfile = flowGrade.startsWith('A') ? 'elevated institutional participation' : flowGrade.startsWith('B') ? 'normal trading activity' : 'below-average volume';
 
     // Safe price fallback for calculations (avoid division by zero)
-    const safePrice = price > 0 ? price : 100;
-    const support = (safePrice * 0.95).toFixed(2);
-    const resistance = (safePrice * 1.08).toFixed(2);
-    const target1 = (safePrice * 1.05).toFixed(2);
-    const target2 = (safePrice * 1.12).toFixed(2);
-    const stopLoss = (safePrice * 0.93).toFixed(2);
+    const safePriceVal = price > 0 ? price : 100;
+    const support = safeToFixed(safePriceVal * 0.95, 2);
+    const resistance = safeToFixed(safePriceVal * 1.08, 2);
+    const target1 = safeToFixed(safePriceVal * 1.05, 2);
+    const target2 = safeToFixed(safePriceVal * 1.12, 2);
+    const stopLoss = safeToFixed(safePriceVal * 0.93, 2);
 
     // Calculate risk/reward ratio safely
     const riskRewardRatio = (() => {
       const targetVal = parseFloat(target1);
       const stopVal = parseFloat(stopLoss);
-      const reward = targetVal - safePrice;
-      const risk = safePrice - stopVal;
+      const reward = targetVal - safePriceVal;
+      const risk = safePriceVal - stopVal;
       if (risk <= 0) return '1.6';
-      return (reward / risk).toFixed(1);
+      return safeToFixed(reward / risk, 1);
     })();
 
     // Paragraph 1: Overview & Current State
-    const para1 = `${symbol} is currently trading at $${safePrice.toFixed(2)}, ${priceAction} ${Math.abs(changePercent || 0).toFixed(1)}% in today's session. Our multi-engine analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, machine learning predictions, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
+    const para1 = `${symbol} is currently trading at $${safeToFixed(safePriceVal, 2)}, ${priceAction} ${safeToFixed(Math.abs(changePercent || 0), 1)}% in today's session. Our multi-engine analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, machine learning predictions, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
 
     // Paragraph 2: Technical Analysis
     const techDesc = techGrade.startsWith('A')
@@ -123,7 +123,7 @@ function AIInsightCard({
 
     // Paragraph 5: Trade Setup & Recommendation
     const recommendation = tier === 'S' || tier.startsWith('A')
-      ? `TRADE SETUP: Consider initiating ${(changePercent || 0) >= 0 ? 'long' : 'short'} positions with entries near $${safePrice.toFixed(2)}-$${(safePrice * 0.98).toFixed(2)}. Initial target at $${target1}, extended target at $${target2}. Place protective stops below $${stopLoss} to limit downside risk. The risk/reward profile is favorable with ${riskRewardRatio}:1 ratio. Position size according to your risk tolerance.`
+      ? `TRADE SETUP: Consider initiating ${(changePercent || 0) >= 0 ? 'long' : 'short'} positions with entries near $${safeToFixed(safePriceVal, 2)}-$${safeToFixed(safePriceVal * 0.98, 2)}. Initial target at $${target1}, extended target at $${target2}. Place protective stops below $${stopLoss} to limit downside risk. The risk/reward profile is favorable with ${riskRewardRatio}:1 ratio. Position size according to your risk tolerance.`
       : tier.startsWith('B')
         ? `TRADE SETUP: This presents a moderate opportunity requiring patience. Wait for confirmation via volume expansion or a clear break of the $${resistance} resistance level before committing capital. If entering, use smaller position sizes with stops at $${stopLoss}. Target $${target1} initially with potential for $${target2} on momentum continuation.`
         : `CAUTION ADVISED: Current signals do not support aggressive positioning. If holding existing positions, consider tightening stops to $${stopLoss}. New entries should wait for improved technical structure or fundamental catalyst. Monitor for changes in institutional flow patterns that could signal regime shift.`;
@@ -343,9 +343,10 @@ export default function StockDetailPage() {
           return data;
         }
         // Convert area data to candlestick format using close as all OHLC
+        // Use safeNumber to prevent null/undefined values from causing errors
         const candleData = data.data.map((d: any, i: number, arr: any[]) => {
-          const prevClose = i > 0 ? (arr[i-1].value || arr[i-1].close) : d.value || d.close;
-          const close = d.value || d.close;
+          const prevClose = safeNumber(i > 0 ? (arr[i-1].value || arr[i-1].close) : (d.value || d.close), 100);
+          const close = safeNumber(d.value || d.close, 100);
           return {
             time: d.time,
             open: prevClose,
@@ -497,11 +498,12 @@ export default function StockDetailPage() {
   const companyName = quoteData?.name || analysisData?.name || '';
   const tier = analysisData?.overall?.tier || analysisData?.overall?.grade || 'C';
 
-  const formatVolume = (vol: number) => {
-    if (vol >= 1e9) return `${(vol / 1e9).toFixed(1)}B`;
-    if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
-    if (vol >= 1e3) return `${(vol / 1e3).toFixed(1)}K`;
-    return vol.toFixed(0);
+  const formatVolume = (vol: number | null | undefined) => {
+    const v = safeNumber(vol);
+    if (v >= 1e9) return `${safeToFixed(v / 1e9, 1)}B`;
+    if (v >= 1e6) return `${safeToFixed(v / 1e6, 1)}M`;
+    if (v >= 1e3) return `${safeToFixed(v / 1e3, 1)}K`;
+    return safeToFixed(v, 0);
   };
 
   const formatDate = (dateStr: string) => {
@@ -577,7 +579,7 @@ export default function StockDetailPage() {
         <div className="mb-6 flex items-end gap-6">
           <div>
             <div className="text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
-              {price > 0 ? `$${price.toFixed(2)}` : '—'}
+              {price > 0 ? `$${safeToFixed(price, 2)}` : '—'}
             </div>
             {price > 0 && (
               <div className={cn(
@@ -599,11 +601,11 @@ export default function StockDetailPage() {
             </div>
             <div>
               <span className="text-slate-500">High</span>
-              <span className="ml-2 text-emerald-400 font-medium">{quoteData?.high ? `$${quoteData.high.toFixed(2)}` : '—'}</span>
+              <span className="ml-2 text-emerald-400 font-medium">{quoteData?.high ? `$${safeToFixed(quoteData.high, 2)}` : '—'}</span>
             </div>
             <div>
               <span className="text-slate-500">Low</span>
-              <span className="ml-2 text-red-400 font-medium">{quoteData?.low ? `$${quoteData.low.toFixed(2)}` : '—'}</span>
+              <span className="ml-2 text-red-400 font-medium">{quoteData?.low ? `$${safeToFixed(quoteData.low, 2)}` : '—'}</span>
             </div>
             <div>
               <span className="text-slate-500">Prev Close</span>
@@ -629,19 +631,19 @@ export default function StockDetailPage() {
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Market Cap</div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</div>
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">P/E Ratio</div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.pe?.toFixed(1) || '—'}</div>
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{safeToFixed(quoteData?.pe, 1, '—')}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W High</div>
-            <div className="text-sm font-bold text-emerald-400">${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (safePrice * 1.3).toFixed(2)}</div>
+            <div className="text-sm font-bold text-emerald-400">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(safePrice * 1.3, 2)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
-            <div className="text-sm font-bold text-red-400">${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (safePrice * 0.7).toFixed(2)}</div>
+            <div className="text-sm font-bold text-red-400">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(safePrice * 0.7, 2)}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
@@ -704,15 +706,15 @@ export default function StockDetailPage() {
                       <div className="flex-1 grid grid-cols-4 gap-3">
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
                           <div className="text-xs text-slate-500">Entry Zone</div>
-                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${(safePrice * 0.98).toFixed(2)} - ${safePrice.toFixed(2)}</div>
+                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${safeToFixed(safePrice * 0.98, 2)} - ${safeToFixed(safePrice, 2)}</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
                           <div className="text-xs text-slate-500">Target</div>
-                          <div className="text-sm font-mono font-bold text-teal-400">${(safePrice * 1.08).toFixed(2)} (+8%)</div>
+                          <div className="text-sm font-mono font-bold text-teal-400">${safeToFixed(safePrice * 1.08, 2)} (+8%)</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
                           <div className="text-xs text-slate-500">Stop Loss</div>
-                          <div className="text-sm font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)} (-5%)</div>
+                          <div className="text-sm font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)} (-5%)</div>
                         </div>
                         <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                           <div className="text-xs text-slate-500">Risk/Reward</div>
@@ -907,7 +909,7 @@ export default function StockDetailPage() {
                               grade: analysisData?.components?.technical?.grade || 'B-',
                               color: 'cyan',
                               calculations: [
-                                { label: 'RSI (14)', value: analysisData?.components?.technical?.rsi?.toFixed(0) || '45', status: (analysisData?.components?.technical?.rsi || 45) > 70 ? 'bearish' : (analysisData?.components?.technical?.rsi || 45) < 30 ? 'bullish' : 'neutral' },
+                                { label: 'RSI (14)', value: safeToFixed(analysisData?.components?.technical?.rsi, 0, '45'), status: safeNumber(analysisData?.components?.technical?.rsi, 45) > 70 ? 'bearish' : safeNumber(analysisData?.components?.technical?.rsi, 45) < 30 ? 'bullish' : 'neutral' },
                                 { label: 'MACD Signal', value: analysisData?.components?.technical?.macdSignal?.toUpperCase() || 'NEUTRAL', status: analysisData?.components?.technical?.macdSignal === 'bullish' ? 'bullish' : 'bearish' },
                                 { label: '50 DMA Position', value: 'Above', status: 'bullish' },
                                 { label: 'Volume Profile', value: 'Normal', status: 'neutral' },
@@ -918,10 +920,10 @@ export default function StockDetailPage() {
                               grade: analysisData?.components?.fundamental?.grade || 'C-',
                               color: 'emerald',
                               calculations: [
-                                { label: 'P/E Ratio', value: `${analysisData?.components?.fundamental?.pe?.toFixed(1) || '24.5'}x`, status: 'neutral' },
-                                { label: 'Revenue Growth', value: `${analysisData?.components?.fundamental?.revenueGrowth?.toFixed(1) || '8.2'}%`, status: 'bullish' },
-                                { label: 'Profit Margin', value: `${analysisData?.components?.fundamental?.profitMargin?.toFixed(1) || '15.3'}%`, status: 'neutral' },
-                                { label: 'ROE', value: `${analysisData?.components?.fundamental?.roe?.toFixed(1) || '18.5'}%`, status: 'bullish' },
+                                { label: 'P/E Ratio', value: `${safeToFixed(analysisData?.components?.fundamental?.pe, 1, '24.5')}x`, status: 'neutral' },
+                                { label: 'Revenue Growth', value: `${safeToFixed(analysisData?.components?.fundamental?.revenueGrowth, 1, '8.2')}%`, status: 'bullish' },
+                                { label: 'Profit Margin', value: `${safeToFixed(analysisData?.components?.fundamental?.profitMargin, 1, '15.3')}%`, status: 'neutral' },
+                                { label: 'ROE', value: `${safeToFixed(analysisData?.components?.fundamental?.roe, 1, '18.5')}%`, status: 'bullish' },
                               ],
                               reasoning: 'Fundamental metrics evaluate financial health, growth trajectory, and valuation.'
                             },
@@ -929,10 +931,10 @@ export default function StockDetailPage() {
                               grade: analysisData?.components?.quant?.grade || 'B-',
                               color: 'amber',
                               calculations: [
-                                { label: 'Volatility (30d)', value: `${analysisData?.quant?.volatility?.toFixed(0) || '25'}%`, status: 'neutral' },
-                                { label: 'Sharpe Ratio', value: analysisData?.quant?.sharpe?.toFixed(2) || '1.24', status: 'bullish' },
-                                { label: 'Max Drawdown', value: `-${analysisData?.quant?.maxDrawdown?.toFixed(0) || '19'}%`, status: 'neutral' },
-                                { label: 'Win Rate', value: `${analysisData?.quant?.winRate?.toFixed(0) || '54'}%`, status: 'neutral' },
+                                { label: 'Volatility (30d)', value: `${safeToFixed(analysisData?.quant?.volatility, 0, '25')}%`, status: 'neutral' },
+                                { label: 'Sharpe Ratio', value: safeToFixed(analysisData?.quant?.sharpe, 2, '1.24'), status: 'bullish' },
+                                { label: 'Max Drawdown', value: `-${safeToFixed(analysisData?.quant?.maxDrawdown, 0, '19')}%`, status: 'neutral' },
+                                { label: 'Win Rate', value: `${safeToFixed(analysisData?.quant?.winRate, 0, '54')}%`, status: 'neutral' },
                               ],
                               reasoning: 'Quantitative metrics assess risk-adjusted returns and statistical edge.'
                             },
@@ -1121,24 +1123,24 @@ export default function StockDetailPage() {
                 <div className="grid grid-cols-4 gap-3">
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Support Level</div>
-                    <div className="text-lg font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)}</div>
+                    <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)}</div>
                     <div className="text-[10px] text-slate-600">-5% from current</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Resistance</div>
-                    <div className="text-lg font-mono font-bold text-teal-400">${(safePrice * 1.05).toFixed(2)}</div>
+                    <div className="text-lg font-mono font-bold text-teal-400">${safeToFixed(safePrice * 1.05, 2)}</div>
                     <div className="text-[10px] text-slate-600">+5% from current</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Volatility (30d)</div>
                     <div className={cn("text-lg font-bold",
-                      (analysisData?.quant?.volatility || 25) > 35 ? "text-red-400" : "text-white"
-                    )}>{analysisData?.quant?.volatility?.toFixed(0) || '25'}%</div>
-                    <div className="text-[10px] text-slate-600">{(analysisData?.quant?.volatility || 25) > 35 ? 'High Risk' : 'Moderate'}</div>
+                      safeNumber(analysisData?.quant?.volatility, 25) > 35 ? "text-red-400" : "text-white"
+                    )}>{safeToFixed(analysisData?.quant?.volatility, 0, '25')}%</div>
+                    <div className="text-[10px] text-slate-600">{safeNumber(analysisData?.quant?.volatility, 25) > 35 ? 'High Risk' : 'Moderate'}</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Inst. Ownership</div>
-                    <div className="text-lg font-bold text-purple-400">{institutionData?.breakdown?.institutionsPercent?.toFixed(0) || '65'}%</div>
+                    <div className="text-lg font-bold text-purple-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                     <div className="text-[10px] text-slate-600">{institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}+ funds</div>
                   </Card>
                 </div>
@@ -1203,15 +1205,15 @@ export default function StockDetailPage() {
                       <div className="grid grid-cols-3 gap-3 mb-3">
                         <div className="p-2 rounded bg-slate-800/50">
                           <div className="text-[10px] text-slate-500">Entry</div>
-                          <div className="text-sm font-mono text-white">${bestTradeIdea.entryPrice?.toFixed(2) || safePrice.toFixed(2)}</div>
+                          <div className="text-sm font-mono text-white">${safeToFixed(bestTradeIdea.entryPrice, 2) || safeToFixed(safePrice, 2)}</div>
                         </div>
                         <div className="p-2 rounded bg-emerald-500/10">
                           <div className="text-[10px] text-slate-500">Target</div>
-                          <div className="text-sm font-mono text-emerald-400">${bestTradeIdea.targetPrice?.toFixed(2) || (safePrice * 1.08).toFixed(2)}</div>
+                          <div className="text-sm font-mono text-emerald-400">${safeToFixed(bestTradeIdea.targetPrice, 2) || safeToFixed(safePrice * 1.08, 2)}</div>
                         </div>
                         <div className="p-2 rounded bg-red-500/10">
                           <div className="text-[10px] text-slate-500">Stop</div>
-                          <div className="text-sm font-mono text-red-400">${bestTradeIdea.stopLoss?.toFixed(2) || (safePrice * 0.95).toFixed(2)}</div>
+                          <div className="text-sm font-mono text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2) || safeToFixed(safePrice * 0.95, 2)}</div>
                         </div>
                       </div>
 
@@ -1356,15 +1358,15 @@ export default function StockDetailPage() {
                         <div className="flex items-center gap-4 text-xs">
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">H:</span>
-                            <span className="text-emerald-400 font-mono font-medium">${quoteData?.high?.toFixed(2) || '—'}</span>
+                            <span className="text-emerald-400 font-mono font-medium">${safeToFixed(quoteData?.high, 2, '—')}</span>
                           </div>
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">L:</span>
-                            <span className="text-red-400 font-mono font-medium">${quoteData?.low?.toFixed(2) || '—'}</span>
+                            <span className="text-red-400 font-mono font-medium">${safeToFixed(quoteData?.low, 2, '—')}</span>
                           </div>
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <span className="text-slate-500">O:</span>
-                            <span className="text-slate-300 font-mono font-medium">${quoteData?.open?.toFixed(2) || safeToFixed(price - change, 2)}</span>
+                            <span className="text-slate-300 font-mono font-medium">${safeToFixed(quoteData?.open, 2) || safeToFixed(price - change, 2)}</span>
                           </div>
                           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
                             <Volume2 className="w-3 h-3 text-slate-500" />
@@ -1377,12 +1379,12 @@ export default function StockDetailPage() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          (analysisData?.components?.technical?.rsi || 50) > 70 ? "bg-red-500/20 text-red-400" :
-                          (analysisData?.components?.technical?.rsi || 50) < 30 ? "bg-emerald-500/20 text-emerald-400" :
+                          safeNumber(analysisData?.components?.technical?.rsi, 50) > 70 ? "bg-red-500/20 text-red-400" :
+                          safeNumber(analysisData?.components?.technical?.rsi, 50) < 30 ? "bg-emerald-500/20 text-emerald-400" :
                           "bg-gray-200 dark:bg-slate-700/50 text-slate-300"
                         )}>
                           <span className="text-slate-500">RSI</span>
-                          <span>{analysisData?.components?.technical?.rsi?.toFixed(0) || '50'}</span>
+                          <span>{safeToFixed(analysisData?.components?.technical?.rsi, 0, '50')}</span>
                         </div>
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
@@ -1438,18 +1440,18 @@ export default function StockDetailPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500" />
                           <span className="text-xs text-slate-400">Support</span>
-                          <span className="text-xs font-mono font-bold text-red-400">${(safePrice * 0.95).toFixed(2)}</span>
+                          <span className="text-xs font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500" />
                           <span className="text-xs text-slate-400">Resistance</span>
-                          <span className="text-xs font-mono font-bold text-emerald-400">${(safePrice * 1.05).toFixed(2)}</span>
+                          <span className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(safePrice * 1.05, 2)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500" />
                           <span className="text-xs text-slate-400">52W Range</span>
                           <span className="text-xs font-mono text-slate-300">
-                            ${quoteData?.fiftyTwoWeekLow?.toFixed(2) || (safePrice * 0.7).toFixed(2)} - ${quoteData?.fiftyTwoWeekHigh?.toFixed(2) || (safePrice * 1.3).toFixed(2)}
+                            ${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(safePrice * 0.7, 2)} - ${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(safePrice * 1.3, 2)}
                           </span>
                         </div>
                       </div>
@@ -1492,8 +1494,8 @@ export default function StockDetailPage() {
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-[10px]">
-                      <span className="text-red-400 font-mono">${quoteData?.low?.toFixed(2) || '—'}</span>
-                      <span className="text-emerald-400 font-mono">${quoteData?.high?.toFixed(2) || '—'}</span>
+                      <span className="text-red-400 font-mono">${safeToFixed(quoteData?.low, 2, '—')}</span>
+                      <span className="text-emerald-400 font-mono">${safeToFixed(quoteData?.high, 2, '—')}</span>
                     </div>
                   </Card>
 
@@ -1504,7 +1506,7 @@ export default function StockDetailPage() {
                       </div>
                       <span className="text-xs text-slate-500">Market Cap</span>
                     </div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${(quoteData.marketCap / 1e9).toFixed(1)}B` : '—'}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</p>
                     <p className="text-[10px] text-slate-600 mt-1">Enterprise Value</p>
                   </Card>
 
@@ -1526,7 +1528,7 @@ export default function StockDetailPage() {
                       </div>
                       <span className="text-xs text-slate-500">P/E Ratio</span>
                     </div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.pe?.toFixed(1) || analysisData?.components?.fundamental?.pe?.toFixed(1) || '—'}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">{safeToFixed(quoteData?.pe, 1) || safeToFixed(analysisData?.components?.fundamental?.pe, 1, '—')}</p>
                     <p className="text-[10px] text-slate-600 mt-1">TTM earnings</p>
                   </Card>
                 </div>
@@ -1559,7 +1561,7 @@ export default function StockDetailPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           {flow.volume && <span className="text-xs text-slate-400">{formatVolume(flow.volume)} vol</span>}
-                          <span className="font-mono text-sm text-gray-700 dark:text-slate-200">${flow.entryPrice?.toFixed(2)}</span>
+                          <span className="font-mono text-sm text-gray-700 dark:text-slate-200">${safeToFixed(flow.entryPrice, 2)}</span>
                           <Badge variant="outline" className={cn(
                             "text-xs",
                             flow.confidenceScore >= 80 ? "text-emerald-400 border-emerald-500/40" :
@@ -1621,9 +1623,9 @@ export default function StockDetailPage() {
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
                               <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
-                              <span className="font-mono text-emerald-400 w-14 text-right">{opt.bid?.toFixed(2) || '—'}</span>
-                              <span className="font-mono text-emerald-400 w-14 text-right">{opt.ask?.toFixed(2) || '—'}</span>
-                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${(opt.iv * 100).toFixed(0)}%` : '—'}</span>
+                              <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
+                              <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
+                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
                             </div>
                           ))}
                         </div>
@@ -1652,9 +1654,9 @@ export default function StockDetailPage() {
                             )}>
                               <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
                               <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-gray-700 dark:text-slate-200")}>${opt.strike}</span>
-                              <span className="font-mono text-red-400 w-14 text-right">{opt.bid?.toFixed(2) || '—'}</span>
-                              <span className="font-mono text-red-400 w-14 text-right">{opt.ask?.toFixed(2) || '—'}</span>
-                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${(opt.iv * 100).toFixed(0)}%` : '—'}</span>
+                              <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
+                              <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
+                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
                             </div>
                           ))}
                         </div>
@@ -1811,12 +1813,12 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Avg Price Target</span>
                       </div>
                       <div className="text-2xl font-bold text-teal-400">
-                        ${analystData?.priceTarget?.average?.toFixed(2) || (safePrice * 1.15).toFixed(2)}
+                        ${safeToFixed(analystData?.priceTarget?.average, 2) || safeToFixed(safePrice * 1.15, 2)}
                       </div>
                       <div className={cn("text-xs mt-1",
-                        (analystData?.priceTarget?.average || price * 1.15) > price ? "text-emerald-400" : "text-red-400"
+                        safeNumber(analystData?.priceTarget?.average, price * 1.15) > price ? "text-emerald-400" : "text-red-400"
                       )}>
-                        {((((analystData?.priceTarget?.average || safePrice * 1.15) - safePrice) / safePrice) * 100).toFixed(1)}% upside
+                        {safeToFixed(((safeNumber(analystData?.priceTarget?.average, safePrice * 1.15) - safePrice) / safePrice) * 100, 1)}% upside
                       </div>
                     </div>
                   </Card>
@@ -1831,9 +1833,9 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Target Range</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-red-400">${analystData?.priceTarget?.low?.toFixed(2) || (safePrice * 0.85).toFixed(2)}</span>
+                        <span className="text-sm text-red-400">${safeToFixed(analystData?.priceTarget?.low, 2) || safeToFixed(safePrice * 0.85, 2)}</span>
                         <span className="text-xs text-slate-600">-</span>
-                        <span className="text-sm text-emerald-400">${analystData?.priceTarget?.high?.toFixed(2) || (safePrice * 1.35).toFixed(2)}</span>
+                        <span className="text-sm text-emerald-400">${safeToFixed(analystData?.priceTarget?.high, 2) || safeToFixed(safePrice * 1.35, 2)}</span>
                       </div>
                       <div className="text-xs text-slate-500 mt-1">Low - High estimates</div>
                     </div>
@@ -1914,7 +1916,7 @@ export default function StockDetailPage() {
                                 <div className={cn("text-[10px]",
                                   rating.priceTarget > price ? "text-emerald-400" : "text-red-400"
                                 )}>
-                                  {safePrice > 0 ? ((rating.priceTarget - safePrice) / safePrice * 100).toFixed(1) : '0.0'}%
+                                  {safePrice > 0 ? safeToFixed((safeNumber(rating.priceTarget) - safePrice) / safePrice * 100, 1) : '0.0'}%
                                 </div>
                               </div>
                             )}
@@ -2128,7 +2130,7 @@ export default function StockDetailPage() {
                             <span className="text-xs text-slate-500">Institutional</span>
                           </div>
                           <div className="text-3xl font-bold text-teal-400">
-                            {institutionData?.breakdown?.institutionsPercent?.toFixed(1) || '65.0'}%
+                            {safeToFixed(institutionData?.breakdown?.institutionsPercent, 1, '65.0')}%
                           </div>
                           <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-teal-500 rounded-full" style={{ width: `${institutionData?.breakdown?.institutionsPercent || 65}%` }} />
@@ -2146,7 +2148,7 @@ export default function StockDetailPage() {
                             <span className="text-xs text-slate-500">Insiders</span>
                           </div>
                           <div className="text-3xl font-bold text-purple-400">
-                            {institutionData?.breakdown?.insidersPercent?.toFixed(2) || '0.50'}%
+                            {safeToFixed(institutionData?.breakdown?.insidersPercent, 2, '0.50')}%
                           </div>
                           <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((institutionData?.breakdown?.insidersPercent || 0.5) * 10, 100)}%` }} />
@@ -2164,7 +2166,7 @@ export default function StockDetailPage() {
                             <span className="text-xs text-slate-500">Float</span>
                           </div>
                           <div className="text-3xl font-bold text-emerald-400">
-                            {institutionData?.breakdown?.floatPercent?.toFixed(1) || '85.0'}%
+                            {safeToFixed(institutionData?.breakdown?.floatPercent, 1, '85.0')}%
                           </div>
                           <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${institutionData?.breakdown?.floatPercent || 85}%` }} />
@@ -2203,11 +2205,11 @@ export default function StockDetailPage() {
                           <div className="flex justify-between mt-3">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-sm bg-teal-500" />
-                              <span className="text-xs text-slate-400">Institutions ({institutionData?.breakdown?.institutionsPercent?.toFixed(1) || 65}%)</span>
+                              <span className="text-xs text-slate-400">Institutions ({safeToFixed(institutionData?.breakdown?.institutionsPercent, 1, '65')}%)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-sm bg-purple-500" />
-                              <span className="text-xs text-slate-400">Insiders ({institutionData?.breakdown?.insidersPercent?.toFixed(2) || 0.5}%)</span>
+                              <span className="text-xs text-slate-400">Insiders ({safeToFixed(institutionData?.breakdown?.insidersPercent, 2, '0.5')}%)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-sm bg-emerald-500" />
@@ -2247,7 +2249,7 @@ export default function StockDetailPage() {
                                     <p className="text-sm font-medium text-white">{holder.name || holder.holder}</p>
                                     <div className="flex items-center gap-3 mt-1 text-xs">
                                       <span className="text-slate-500">{formatVolume(holder.shares)} shares</span>
-                                      <span className="text-teal-400 font-medium">{holder.percentOwnership?.toFixed(2) || holder.percentage?.toFixed(2)}% ownership</span>
+                                      <span className="text-teal-400 font-medium">{safeToFixed(holder.percentOwnership, 2) || safeToFixed(holder.percentage, 2)}% ownership</span>
                                     </div>
                                   </div>
                                 </div>
@@ -2306,7 +2308,7 @@ export default function StockDetailPage() {
                               </div>
                               <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Institutional Est.</div>
-                                <div className="text-lg font-bold text-teal-400">{institutionData?.breakdown?.institutionsPercent?.toFixed(0) || '65'}%</div>
+                                <div className="text-lg font-bold text-teal-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                               </div>
                             </div>
                             <p className="text-[10px] text-slate-500 mt-3 text-center">Based on QuantEdge 6-engine analysis</p>
