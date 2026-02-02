@@ -5728,10 +5728,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return [...dedupedOpen, ...closedIdeas];
       })();
       
-      logger.info(`[TRADE-IDEAS] Returning ${deduplicatedIdeas.length} ideas (after dedup from ${ideasWithPrices.length})`);
+      logger.info(`[TRADE-IDEAS] After dedup: ${deduplicatedIdeas.length} ideas (from ${ideasWithPrices.length})`);
+      
+      // 🛡️ MEMORY SAFETY: Global limit to prevent heap exhaustion
+      // With 91k+ ideas in DB, returning all would crash the server
+      const GLOBAL_MAX_IDEAS = 2000;
+      let finalIdeas = deduplicatedIdeas;
+      if (deduplicatedIdeas.length > GLOBAL_MAX_IDEAS) {
+        // Sort by confidence and recency to keep best ideas
+        finalIdeas = [...deduplicatedIdeas]
+          .sort((a, b) => {
+            // Prioritize open ideas over closed
+            const aOpen = a.outcomeStatus === 'open' || !a.outcomeStatus;
+            const bOpen = b.outcomeStatus === 'open' || !b.outcomeStatus;
+            if (aOpen !== bOpen) return aOpen ? -1 : 1;
+            // Then by confidence
+            const confDiff = (b.confidenceScore || 0) - (a.confidenceScore || 0);
+            if (confDiff !== 0) return confDiff;
+            // Then by recency
+            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+          })
+          .slice(0, GLOBAL_MAX_IDEAS);
+        logger.info(`[TRADE-IDEAS] Applied global limit: ${deduplicatedIdeas.length} -> ${GLOBAL_MAX_IDEAS} ideas`);
+      }
+      
+      logger.info(`[TRADE-IDEAS] Returning ${finalIdeas.length} ideas`);
 
       // 🛡️ FINAL SANITIZATION: Cap confidence at 94% and fix any insane targets for all returned ideas
-      const sanitizedIdeas = deduplicatedIdeas.map(idea => {
+      const sanitizedIdeas = finalIdeas.map(idea => {
         let sanitized = { ...idea };
 
         // Cap confidence at 94%
