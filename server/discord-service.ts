@@ -527,10 +527,17 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     return;
   }
   
-  // QUANTFLOOR restricted to announcements only - trade ideas go to dedicated channels
-  const webhookUrl = idea.assetType === 'option' 
-    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
-    : process.env.DISCORD_WEBHOOK_URL;
+  // Route to appropriate Discord channel based on asset type
+  let webhookUrl: string | undefined;
+  const assetTypeStr = String(idea.assetType || 'stock');
+  if (assetTypeStr === 'option') {
+    webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
+  } else if (assetTypeStr === 'future' || assetTypeStr === 'futures') {
+    webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
+  } else {
+    // Stocks, crypto, and other assets go to quant-floor
+    webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+  }
   if (!webhookUrl) {
     logger.warn(`[DISCORD] No webhook URL configured for ${idea.symbol} (${idea.assetType})`);
     return;
