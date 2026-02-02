@@ -92,175 +92,21 @@ interface IndexData {
   volumeProfile: 'above_avg' | 'below_avg' | 'average';
 }
 
-// Simulated data - In production this would come from the API
+// Fetch real lotto plays from API
 function useIndexLottoScanner() {
-  return useQuery({
+  return useQuery<{ indexData: IndexData[]; lottoPlays: LottoPlay[] }>({
     queryKey: ['/api/scanner/index-lotto'],
     queryFn: async () => {
-      // In production, this would fetch from API
-      // For now, generate sample data based on market structure
-      const indexData: IndexData[] = [
-        {
-          symbol: 'SPX',
-          name: 'S&P 500 Index',
-          price: 6042.12,
-          change: 28.45,
-          changePercent: 0.47,
-          dayRange: { low: 6008.32, high: 6055.89 },
-          pivotPoints: { s1: 5980, s2: 5920, pivot: 6020, r1: 6080, r2: 6140 },
-          rsi: 58,
-          macdSignal: 'bullish',
-          volumeProfile: 'above_avg',
-        },
-        {
-          symbol: 'SPY',
-          name: 'SPDR S&P 500 ETF',
-          price: 603.45,
-          change: 2.84,
-          changePercent: 0.47,
-          dayRange: { low: 600.12, high: 605.21 },
-          pivotPoints: { s1: 598, s2: 592, pivot: 602, r1: 608, r2: 614 },
-          rsi: 57,
-          macdSignal: 'bullish',
-          volumeProfile: 'average',
-        },
-        {
-          symbol: 'QQQ',
-          name: 'Invesco QQQ Trust',
-          price: 521.78,
-          change: 4.23,
-          changePercent: 0.82,
-          dayRange: { low: 516.45, high: 523.12 },
-          pivotPoints: { s1: 512, s2: 504, pivot: 518, r1: 526, r2: 534 },
-          rsi: 62,
-          macdSignal: 'bullish',
-          volumeProfile: 'above_avg',
-        },
-        {
-          symbol: 'IWM',
-          name: 'iShares Russell 2000 ETF',
-          price: 224.56,
-          change: -1.23,
-          changePercent: -0.54,
-          dayRange: { low: 222.34, high: 226.89 },
-          pivotPoints: { s1: 220, s2: 216, pivot: 224, r1: 228, r2: 232 },
-          rsi: 45,
-          macdSignal: 'bearish',
-          volumeProfile: 'below_avg',
-        },
-      ];
-
-      const lottoPlays: LottoPlay[] = [
-        {
-          symbol: 'SPX 6080C 0DTE',
-          underlying: 'SPX',
-          underlyingPrice: 6042.12,
-          strike: 6080,
-          expiry: 'Today',
-          type: 'call',
-          currentPrice: 0.45,
-          estimatedTarget: 2.50,
-          potentialReturn: 455,
-          setups: [
-            { type: 'pin_bar', timeframe: '1h', strength: 78, description: '1H pin bar at 0.5 fib level' },
-            { type: 'rsi_divergence', timeframe: '15m', strength: 65, description: 'Bullish RSI divergence on 15m' },
-          ],
-          overallScore: 72,
-          suggestedEntry: 0.40,
-          stopLoss: 0.15,
-          target1: 1.20,
-          target2: 2.50,
-          riskReward: '1:5',
-          keyLevel: 6020,
-          levelType: 'support',
-          gammaExposure: 'negative',
-          thesis: 'Looking for continuation above R1 with negative gamma flip providing fuel. Entry on any pullback to pivot.',
-          confidence: 'medium',
-        },
-        {
-          symbol: 'SPY 608C Weekly',
-          underlying: 'SPY',
-          underlyingPrice: 603.45,
-          strike: 608,
-          expiry: 'Fri',
-          type: 'call',
-          currentPrice: 1.25,
-          estimatedTarget: 4.00,
-          potentialReturn: 220,
-          setups: [
-            { type: 'bollinger_squeeze', timeframe: '4h', strength: 82, description: 'Bollinger squeeze on 4H about to expand' },
-            { type: 'support_bounce', timeframe: '1h', strength: 70, description: 'Clean bounce off 20 EMA' },
-          ],
-          overallScore: 76,
-          suggestedEntry: 1.10,
-          stopLoss: 0.50,
-          target1: 2.50,
-          target2: 4.00,
-          riskReward: '1:4',
-          keyLevel: 602,
-          levelType: 'pivot',
-          gammaExposure: 'positive',
-          thesis: 'Volatility compression setup. Expecting expansion move through R1. Weekly expiry gives time for thesis to play out.',
-          confidence: 'high',
-        },
-        {
-          symbol: 'QQQ 530C Weekly',
-          underlying: 'QQQ',
-          underlyingPrice: 521.78,
-          strike: 530,
-          expiry: 'Fri',
-          type: 'call',
-          currentPrice: 0.85,
-          estimatedTarget: 3.50,
-          potentialReturn: 312,
-          setups: [
-            { type: 'gamma_flip', timeframe: '1h', strength: 75, description: 'Gamma flipping positive at 520' },
-            { type: 'rsi_divergence', timeframe: '1h', strength: 68, description: 'Hidden bullish divergence' },
-          ],
-          overallScore: 71,
-          suggestedEntry: 0.75,
-          stopLoss: 0.30,
-          target1: 1.80,
-          target2: 3.50,
-          riskReward: '1:4',
-          keyLevel: 520,
-          levelType: 'support',
-          gammaExposure: 'neutral',
-          thesis: 'Tech leading today. QQQ showing relative strength. Gamma flip at 520 could accelerate move.',
-          confidence: 'medium',
-        },
-        {
-          symbol: 'IWM 220P 0DTE',
-          underlying: 'IWM',
-          underlyingPrice: 224.56,
-          strike: 220,
-          expiry: 'Today',
-          type: 'put',
-          currentPrice: 0.18,
-          estimatedTarget: 1.00,
-          potentialReturn: 455,
-          setups: [
-            { type: 'resistance_rejection', timeframe: '15m', strength: 72, description: 'Clean rejection at R1' },
-            { type: 'rsi_divergence', timeframe: '15m', strength: 64, description: 'Bearish divergence forming' },
-          ],
-          overallScore: 68,
-          suggestedEntry: 0.15,
-          stopLoss: 0.05,
-          target1: 0.50,
-          target2: 1.00,
-          riskReward: '1:6',
-          keyLevel: 226,
-          levelType: 'resistance',
-          gammaExposure: 'negative',
-          thesis: 'Small caps lagging. Clear rejection at R1 with bearish MACD. Looking for breakdown to S1.',
-          confidence: 'medium',
-        },
-      ];
-
-      return { indexData, lottoPlays };
+      const res = await fetch('/api/scanner/index-lotto');
+      if (!res.ok) {
+        throw new Error('Failed to fetch index lotto data');
+      }
+      return res.json();
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds - fresh data for live trading
+    gcTime: 2 * 60 * 1000, // 2 minutes cache
+    refetchInterval: 60 * 1000, // Refresh every minute
+    retry: 2,
   });
 }
 

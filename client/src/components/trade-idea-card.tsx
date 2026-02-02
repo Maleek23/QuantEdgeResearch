@@ -6,22 +6,40 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal, safeToFixed, safeNumber } from "@/lib/utils";
 import { formatDateOnly } from "@/lib/timezone";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity, Clock, Zap } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity, Clock, Zap, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { CompactAnalysisBadges, MultiDimensionalAnalysis } from "./multi-dimensional-analysis";
 
-function getDteCategory(expiryDate: string | null | undefined): { label: string; color: string } | null {
+function getDteCategory(expiryDate: string | null | undefined): { label: string; color: string; isExpired: boolean } | null {
   if (!expiryDate) return null;
-  
+
   const now = new Date();
   const expiry = new Date(expiryDate);
   const diffMs = expiry.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays <= 0) return { label: '0DTE', color: 'bg-red-500/20 text-red-300 border-red-500/40' };
-  if (diffDays <= 2) return { label: '1-2 DTE', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
-  if (diffDays <= 7) return { label: '3-7 DTE', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
-  if (diffDays <= 30) return { label: 'MONTHLY', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
-  return { label: 'LEAPS', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40' };
+
+  if (diffDays < 0) return { label: 'EXPIRED', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', isExpired: true };
+  if (diffDays === 0) return { label: '0DTE', color: 'bg-red-500/20 text-red-300 border-red-500/40', isExpired: false };
+  if (diffDays <= 2) return { label: '1-2 DTE', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40', isExpired: false };
+  if (diffDays <= 7) return { label: '3-7 DTE', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40', isExpired: false };
+  if (diffDays <= 30) return { label: 'MONTHLY', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40', isExpired: false };
+  return { label: 'LEAPS', color: 'bg-purple-500/20 text-purple-300 border-purple-500/40', isExpired: false };
+}
+
+function getOutcomeStatus(outcomeStatus: string | null | undefined): { label: string; color: string; icon: 'win' | 'loss' | 'neutral' } | null {
+  if (!outcomeStatus || outcomeStatus === 'open') return null;
+
+  switch (outcomeStatus) {
+    case 'hit_target':
+      return { label: 'HIT TARGET', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', icon: 'win' };
+    case 'hit_stop':
+      return { label: 'STOPPED OUT', color: 'bg-red-500/20 text-red-300 border-red-500/40', icon: 'loss' };
+    case 'expired':
+      return { label: 'EXPIRED', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', icon: 'neutral' };
+    case 'manual_exit':
+      return { label: 'CLOSED', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40', icon: 'neutral' };
+    default:
+      return { label: outcomeStatus.toUpperCase(), color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', icon: 'neutral' };
+  }
 }
 
 interface TradeIdeaCardProps {
@@ -92,11 +110,28 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                   DRAFT
                 </Badge>
               )}
-              {isRecent && (
+              {isRecent && !getOutcomeStatus(idea.outcomeStatus) && (
                 <Badge variant="default" className="bg-primary text-primary-foreground font-bold text-xs animate-pulse" data-testid={`badge-fresh-${idea.symbol}`}>
                   FRESH
                 </Badge>
               )}
+              {(() => {
+                const outcome = getOutcomeStatus(idea.outcomeStatus);
+                if (!outcome) return null;
+                return (
+                  <Badge variant="outline" className={cn("text-xs font-bold gap-1", outcome.color)} data-testid={`badge-outcome-${idea.symbol}`}>
+                    {outcome.icon === 'win' && <CheckCircle2 className="h-3 w-3" />}
+                    {outcome.icon === 'loss' && <XCircle className="h-3 w-3" />}
+                    {outcome.icon === 'neutral' && <MinusCircle className="h-3 w-3" />}
+                    {outcome.label}
+                    {idea.percentGain != null && (
+                      <span className={outcome.icon === 'win' ? 'text-emerald-400' : 'text-red-400'}>
+                        ({idea.percentGain >= 0 ? '+' : ''}{safeToFixed(idea.percentGain, 1)}%)
+                      </span>
+                    )}
+                  </Badge>
+                );
+              })()}
               {idea.source && (
                 <Badge 
                   variant="outline"

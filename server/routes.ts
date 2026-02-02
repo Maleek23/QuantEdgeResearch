@@ -7811,6 +7811,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================
+  // COMPREHENSIVE TRADE AUDIT ENDPOINT
+  // Returns detailed breakdown of all trades with win/loss status
+  // ============================================================
+  app.get("/api/performance/trade-audit", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const limit = Math.min(parseInt(req.query.limit as string) || 500, 2000);
+      const includeOptions = req.query.includeOptions === 'true';
+      const outcomeFilter = req.query.outcome as string; // 'win', 'loss', 'neutral', 'all'
+
+      // Import classifiers from shared constants
+      const { isRealWin, isRealLoss, classifyTrade } = await import('@shared/constants');
+
+      // Filter and classify trades
+      let auditableIdeas = allIdeas
+        .filter(idea => !idea.excludeFromTraining)
+        .filter(idea => includeOptions || idea.assetType !== 'option')
+        .filter(idea => idea.outcomeStatus !== 'open');
+
+      // Apply outcome filter if specified
+      if (outcomeFilter && outcomeFilter !== 'all') {
+        auditableIdeas = auditableIdeas.filter(idea => {
+          const classification = classifyTrade(idea);
+          return classification === outcomeFilter;
+        });
+      }
+
+      // Sort by timestamp (most recent first)
+      auditableIdeas.sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      // Calculate summary stats
+      const allClassified = auditableIdeas.map(idea => ({
+        ...idea,
+        classification: classifyTrade(idea),
+      }));
+
+      const wins = allClassified.filter(i => i.classification === 'win');
+      const losses = allClassified.filter(i => i.classification === 'loss');
+      const neutral = allClassified.filter(i => i.classification === 'neutral');
+
+      // Calculate P&L stats
+      const totalWinPnL = wins.reduce((sum, i) => sum + (i.percentGain || 0), 0);
+      const totalLossPnL = losses.reduce((sum, i) => sum + (i.percentGain || 0), 0);
+      const avgWinPnL = wins.length > 0 ? totalWinPnL / wins.length : 0;
+      const avgLossPnL = losses.length > 0 ? Math.abs(totalLossPnL / losses.length) : 0;
+
+      // Decided trades (wins + losses)
+      const decided = wins.length + losses.length;
+      const winRate = decided > 0 ? (wins.length / decided) * 100 : 0;
+
+      // Expectancy calculation
+      const winProb = decided > 0 ? wins.length / decided : 0;
+      const lossProb = decided > 0 ? losses.length / decided : 0;
+      const expectancy = (winProb * avgWinPnL) - (lossProb * avgLossPnL);
+
+      // Return limited trades with audit details
+      const auditedTrades = allClassified.slice(0, limit).map(idea => ({
+        id: idea.id,
+        symbol: idea.symbol,
+        assetType: idea.assetType,
+        direction: idea.direction,
+        optionType: idea.optionType || null,
+        strikePrice: idea.strikePrice || null,
+        expiryDate: idea.expiryDate || null,
+        source: idea.source,
+        entryPrice: idea.entryPrice,
+        targetPrice: idea.targetPrice,
+        stopLoss: idea.stopLoss,
+        outcomeStatus: idea.outcomeStatus,
+        percentGain: idea.percentGain,
+        realizedPnL: idea.realizedPnL || null,
+        timestamp: idea.timestamp,
+        exitDate: idea.exitDate || null,
+        classification: idea.classification,
+        confidenceScore: idea.confidenceScore,
+        probabilityBand: idea.probabilityBand,
+        holdingPeriod: idea.holdingPeriod,
+      }));
+
+      res.json({
+        success: true,
+        summary: {
+          totalTrades: allClassified.length,
+          wins: wins.length,
+          losses: losses.length,
+          neutral: neutral.length,
+          decided,
+          winRate: Math.round(winRate * 10) / 10,
+          avgWinPercent: Math.round(avgWinPnL * 10) / 10,
+          avgLossPercent: Math.round(avgLossPnL * 10) / 10,
+          expectancy: Math.round(expectancy * 100) / 100,
+          profitFactor: avgLossPnL > 0 ? Math.round((avgWinPnL / avgLossPnL) * 100) / 100 : 0,
+        },
+        byAssetType: {
+          stock: {
+            wins: wins.filter(i => i.assetType === 'stock').length,
+            losses: losses.filter(i => i.assetType === 'stock').length,
+          },
+          option: {
+            wins: wins.filter(i => i.assetType === 'option').length,
+            losses: losses.filter(i => i.assetType === 'option').length,
+          },
+          crypto: {
+            wins: wins.filter(i => i.assetType === 'crypto').length,
+            losses: losses.filter(i => i.assetType === 'crypto').length,
+          },
+        },
+        bySource: Object.fromEntries(
+          Array.from(new Set(allClassified.map(i => i.source || 'unknown')))
+            .map(source => [
+              source,
+              {
+                wins: wins.filter(i => i.source === source).length,
+                losses: losses.filter(i => i.source === source).length,
+                total: allClassified.filter(i => i.source === source).length,
+              }
+            ])
+        ),
+        topWinners: wins.slice(0, 10).map(i => ({
+          symbol: i.symbol,
+          percentGain: i.percentGain,
+          source: i.source,
+          timestamp: i.timestamp,
+        })),
+        topLosers: losses.sort((a, b) => (a.percentGain || 0) - (b.percentGain || 0)).slice(0, 10).map(i => ({
+          symbol: i.symbol,
+          percentGain: i.percentGain,
+          source: i.source,
+          timestamp: i.timestamp,
+        })),
+        trades: auditedTrades,
+        _meta: {
+          endpoint: '/api/performance/trade-audit',
+          description: 'Comprehensive trade audit with win/loss breakdown',
+          timestamp: new Date().toISOString(),
+          filters: {
+            includeOptions,
+            outcomeFilter: outcomeFilter || 'all',
+            limit,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error("Trade audit error:", error);
+      res.status(500).json({ error: "Failed to generate trade audit" });
+    }
+  });
+
   // Engine Performance Breakdown cache (5-minute TTL)
   let engineBreakdownCache: { data: any; timestamp: number } | null = null;
   const ENGINE_BREAKDOWN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes

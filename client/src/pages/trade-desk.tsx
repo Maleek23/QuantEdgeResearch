@@ -60,6 +60,7 @@ import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
+import { TradePerformanceStats } from "@/components/trade-performance-stats";
 
 // ============================================
 // MARKET PULSE HEADER
@@ -3668,6 +3669,9 @@ export default function TradeDeskRedesigned() {
           <TabsContent value="ideas" className="space-y-6 mt-6">
             {/* TOP CONVICTION - A/A+ Plays Only */}
             <TopConvictionSection ideas={filteredIdeas} />
+
+            {/* Performance Audit Stats */}
+            <TradePerformanceStats />
 
             {/* Stats Cards */}
             <StatsOverview ideas={filteredIdeas} />
