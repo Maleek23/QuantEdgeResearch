@@ -34,14 +34,28 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
   useEffect(() => {
     if (!chartContainerRef.current || !data || data.length === 0) return;
 
-    const firstDataPoint = data[0];
-    const lastDataPoint = data[data.length - 1];
+    // Pre-validate and filter data to remove any invalid entries
+    const validData = data.filter((d: any) => {
+      if (!d || d.time === null || d.time === undefined) return false;
+      if (isCandle(d)) {
+        return d.open != null && d.high != null && d.low != null && d.close != null;
+      }
+      return d.value != null;
+    });
+
+    if (validData.length === 0) return;
+
+    const firstDataPoint = validData[0];
+    const lastDataPoint = validData[validData.length - 1];
     // Use safeNumber to prevent null/undefined from causing errors
     const firstPrice = safeNumber(isCandle(firstDataPoint) ? firstDataPoint.close : firstDataPoint.value, 100);
     const lastPrice = safeNumber(isCandle(lastDataPoint) ? lastDataPoint.close : lastDataPoint.value, 100);
 
+    let chart: ReturnType<typeof createChart> | null = null;
+
+    try {
     // Create chart with interactive styling
-    const chart = createChart(chartContainerRef.current, {
+    chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#64748b',
@@ -97,7 +111,7 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
 
     let series: any;
 
-    if (chartType === 'candlestick' && data.length > 0 && isCandle(data[0])) {
+    if (chartType === 'candlestick' && validData.length > 0 && isCandle(validData[0])) {
       // Candlestick chart with better colors
       series = chart.addSeries(CandlestickSeries, {
         upColor: '#22c55e',
@@ -108,7 +122,7 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
         wickDownColor: '#ef4444',
       });
 
-      const candleData = (data as CandleDataPoint[]).map(d => ({
+      const candleData = (validData as CandleDataPoint[]).map(d => ({
         time: d.time as Time,
         open: safeNumber(d.open, 100),
         high: safeNumber(d.high, 100),
@@ -133,7 +147,7 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
       });
 
       // Handle both area and candle data formats - use safeNumber to prevent null errors
-      const areaData = data.map(d => ({
+      const areaData = validData.map(d => ({
         time: d.time as Time,
         value: safeNumber('value' in d ? d.value : (d as CandleDataPoint).close, 100),
       }));
@@ -163,11 +177,16 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
     });
 
     chart.timeScale().fitContent();
+    } catch (err) {
+      console.error('Chart creation error:', err);
+      return; // Exit early if chart creation fails
+    }
 
-    // Handle resize
+    // Handle resize - chart is now guaranteed to be non-null here
+    const chartRef = chart;
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
+      if (chartContainerRef.current && chartRef) {
+        chartRef.applyOptions({
           width: chartContainerRef.current.clientWidth,
         });
       }
@@ -177,7 +196,13 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      if (chartRef) {
+        try {
+          chartRef.remove();
+        } catch (e) {
+          console.error('Chart cleanup error:', e);
+        }
+      }
     };
   }, [data, height, chartType, onPriceChange]);
 
