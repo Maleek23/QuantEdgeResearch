@@ -56,28 +56,33 @@ export function TradeIdeaDetailModal({
   onOpenChange,
   onAddToWatchlist 
 }: TradeIdeaDetailModalProps) {
+  // Safe price values to prevent null/undefined errors
+  const safeEntryPrice = safeNumber(idea?.entryPrice, 100);
+  const safeTargetPrice = safeNumber(idea?.targetPrice, safeEntryPrice * 1.05);
+  const safeStopLoss = safeNumber(idea?.stopLoss, safeEntryPrice * 0.95);
+
   const chartData = useMemo(() => {
     if (!idea) return [];
-    return generateTradeChartData(idea.entryPrice, 30);
-  }, [idea?.id, idea?.entryPrice]);
+    return generateTradeChartData(safeEntryPrice, 30);
+  }, [idea?.id, safeEntryPrice]);
 
   const priceLevels = useMemo(() => {
     if (!idea) return [];
     return [
-      { price: idea.entryPrice, label: "Entry", color: "rgb(6, 182, 212)" },
-      { price: idea.targetPrice, label: "Target", color: "rgb(16, 185, 129)" },
-      { price: idea.stopLoss, label: "Stop", color: "rgb(239, 68, 68)" },
+      { price: safeEntryPrice, label: "Entry", color: "rgb(6, 182, 212)" },
+      { price: safeTargetPrice, label: "Target", color: "rgb(16, 185, 129)" },
+      { price: safeStopLoss, label: "Stop", color: "rgb(239, 68, 68)" },
     ];
-  }, [idea?.id, idea?.entryPrice, idea?.targetPrice, idea?.stopLoss]);
+  }, [idea?.id, safeEntryPrice, safeTargetPrice, safeStopLoss]);
 
   if (!idea) return null;
 
   const isLong = idea.direction === 'long';
   // Price change calculation that respects trade direction
-  const priceChangePercent = currentPrice 
+  const priceChangePercent = (currentPrice && safeEntryPrice > 0)
     ? isLong
-      ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: price up = profit
-      : ((idea.entryPrice - currentPrice) / idea.entryPrice) * 100   // Short: price down = profit (inverted)
+      ? ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100  // Long: price up = profit
+      : ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100   // Short: price down = profit (inverted)
     : 0;
 
   const getLetterGrade = (score: number): string => {

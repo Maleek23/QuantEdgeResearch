@@ -127,14 +127,21 @@ export function TradeIdeaCard({
 }: TradeIdeaCardProps) {
   const isLong = direction.toLowerCase() === "long";
   const isOption = assetType === "option" || optionType;
-  const rrRatio = riskReward || Math.abs((targetPrice - entryPrice) / (entryPrice - stopLoss));
-  const assetInfo = getAssetTypeInfo(assetType, optionType);
-  const percentChange = ((targetPrice - entryPrice) / entryPrice) * 100;
 
-  // Memoize chart data
+  // Safe values to prevent division by zero and null errors
+  const safeEntryPrice = safeNumber(entryPrice, 100);
+  const safeTargetPrice = safeNumber(targetPrice, safeEntryPrice * 1.05);
+  const safeStopLoss = safeNumber(stopLoss, safeEntryPrice * 0.95);
+  const entryStopDiff = Math.abs(safeEntryPrice - safeStopLoss) || 1; // Prevent division by zero
+
+  const rrRatio = riskReward || Math.abs((safeTargetPrice - safeEntryPrice) / entryStopDiff);
+  const assetInfo = getAssetTypeInfo(assetType, optionType);
+  const percentChange = safeEntryPrice > 0 ? ((safeTargetPrice - safeEntryPrice) / safeEntryPrice) * 100 : 0;
+
+  // Memoize chart data with safe values
   const chartData = React.useMemo(
-    () => generateChartData(isLong, entryPrice, targetPrice, stopLoss),
-    [isLong, entryPrice, targetPrice, stopLoss]
+    () => generateChartData(isLong, safeEntryPrice, safeTargetPrice, safeStopLoss),
+    [isLong, safeEntryPrice, safeTargetPrice, safeStopLoss]
   );
 
   // Count bullish signals

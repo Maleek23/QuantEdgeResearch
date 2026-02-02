@@ -34,20 +34,29 @@ interface TradeIdeaCardProps {
 
 export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails, onAddToWatchlist }: TradeIdeaCardProps) {
   const isLong = idea.direction === 'long';
-  
+
+  // Safe price values with fallbacks
+  const entryPrice = safeNumber(idea.entryPrice, 100);
+  const stopLoss = safeNumber(idea.stopLoss, entryPrice * 0.95);
+  const targetPrice = safeNumber(idea.targetPrice, entryPrice * 1.05);
+
   // Calculate percentages respecting trade direction
   // For LONG: target above entry = positive, stop below = negative
   // For SHORT: target below entry = positive (shown as gain), stop above = negative (shown as risk)
-  const stopLossPercent = isLong
-    ? ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100  // Long: stop below entry = negative
-    : ((idea.entryPrice - idea.stopLoss) / idea.entryPrice) * 100; // Short: stop above entry = negative (inverted)
-  
-  const targetPercent = isLong
-    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: target above entry = positive
-    : ((idea.entryPrice - idea.targetPrice) / idea.entryPrice) * 100; // Short: target below entry = positive (inverted)
-  
-  const riskDollars = Math.abs(idea.stopLoss - idea.entryPrice);
-  const rewardDollars = Math.abs(idea.targetPrice - idea.entryPrice);
+  const stopLossPercent = entryPrice > 0
+    ? (isLong
+        ? ((stopLoss - entryPrice) / entryPrice) * 100  // Long: stop below entry = negative
+        : ((entryPrice - stopLoss) / entryPrice) * 100) // Short: stop above entry = negative (inverted)
+    : 0;
+
+  const targetPercent = entryPrice > 0
+    ? (isLong
+        ? ((targetPrice - entryPrice) / entryPrice) * 100  // Long: target above entry = positive
+        : ((entryPrice - targetPrice) / entryPrice) * 100) // Short: target below entry = positive (inverted)
+    : 0;
+
+  const riskDollars = Math.abs(stopLoss - entryPrice);
+  const rewardDollars = Math.abs(targetPrice - entryPrice);
 
   // Check if idea is fresh (from today)
   const ideaDate = new Date(idea.timestamp);
@@ -286,7 +295,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 <span>Entry Price</span>
               </div>
               <div className="text-xl font-bold font-mono" data-testid={`text-entry-${idea.symbol}`}>
-                {formatCurrency(idea.entryPrice)}
+                {formatCurrency(entryPrice)}
               </div>
             </div>
 
@@ -297,7 +306,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               </div>
               <div className="space-y-0.5">
                 <div className="text-xl font-bold font-mono text-bullish" data-testid={`text-target-${idea.symbol}`}>
-                  {formatCurrency(idea.targetPrice)}
+                  {formatCurrency(targetPrice)}
                 </div>
                 <div className="text-sm font-mono text-bullish font-semibold">
                   {formatPercent(targetPercent)} gain
@@ -312,7 +321,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               </div>
               <div className="space-y-0.5">
                 <div className="text-xl font-bold font-mono text-bearish" data-testid={`text-stoploss-${idea.symbol}`}>
-                  {formatCurrency(idea.stopLoss)}
+                  {formatCurrency(stopLoss)}
                 </div>
                 <div className="text-sm font-mono text-bearish font-semibold">
                   {formatPercent(stopLossPercent)} risk
