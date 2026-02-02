@@ -2815,12 +2815,14 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Generate date options for last 7 days
+  // Generate date options with week/month ranges plus individual days
   const dateOptions = useMemo(() => {
     const options = [
       { value: 'all', label: 'All Dates' },
       { value: 'today', label: 'Today' },
       { value: 'yesterday', label: 'Yesterday' },
+      { value: 'week', label: 'Past Week' },
+      { value: 'month', label: 'Past Month' },
     ];
     const today = new Date();
     for (let i = 2; i <= 6; i++) {
@@ -3138,60 +3140,50 @@ export default function TradeDeskRedesigned() {
   });
 
   // ============================================
-  // DEDUPLICATION & EXPIRY FILTER LOGIC
-  // Max 1 idea per symbol - only show the BEST idea for each symbol
-  // AGGRESSIVE time filtering to keep ideas fresh
+  // DEDUPLICATION LOGIC - Respects User Filters
+  // Max 1 idea per symbol+type - shows best for each
+  // Date/status filtering controlled by user selections
   // ============================================
   const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 1): TradeIdea[] => {
-    const now = new Date();
+    // Apply user's status filter
+    let filtered = ideas;
+    if (statusFilter !== 'all') {
+      filtered = ideas.filter(i => {
+        if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        return i.outcomeStatus === statusFilter;
+      });
+    }
 
-    // First, filter out expired/stale ideas - AGGRESSIVE filtering
-    const nonExpired = ideas.filter(idea => {
-      // Must have a timestamp - reject ideas with no date
-      if (!idea.timestamp) return false;
+    // Apply user's date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(i => {
+        if (!i.timestamp) return false;
+        const ideaDate = new Date(i.timestamp);
+        let startDate: Date;
+        let endDate: Date = now;
 
-      const ideaTime = new Date(idea.timestamp);
-      const hoursSince = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
-      const daysSince = hoursSince / 24;
+        if (dateFilter === 'today') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        } else if (dateFilter === 'yesterday') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        } else if (dateFilter === 'week') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+        } else if (dateFilter === 'month') {
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        } else {
+          // Specific date
+          startDate = new Date(dateFilter);
+          endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+        }
+        return ideaDate >= startDate && ideaDate <= endDate;
+      });
+    }
 
-      // If it has an expiry date (options) and it's in the past, filter it out
-      if (idea.expiryDate) {
-        const expiryDate = new Date(idea.expiryDate);
-        if (expiryDate < now) return false;
-      }
-      // If entry window has closed, filter it out
-      if (idea.entryValidUntil) {
-        const entryExpiry = new Date(idea.entryValidUntil);
-        if (entryExpiry < now) return false;
-      }
-      // If exitBy has passed, the trade is closed/expired
-      if (idea.exitBy) {
-        const exitTime = new Date(idea.exitBy);
-        if (exitTime < now) return false;
-      }
-      // Filter out closed/resolved trades
-      if (idea.outcomeStatus && idea.outcomeStatus !== 'open') return false;
-
-      // AGGRESSIVE TIME FILTERS - keep ideas FRESH
-      // Day trades: filter out if older than 6 hours
-      if (idea.holdingPeriod === 'day') {
-        if (hoursSince > 6) return false;
-      }
-      // Swing trades: filter out if older than 2 days (was 5)
-      else if (idea.holdingPeriod === 'swing' || !idea.holdingPeriod) {
-        if (daysSince > 2) return false;
-      }
-      // Position trades: filter out if older than 7 days (was 14)
-      else if (idea.holdingPeriod === 'position') {
-        if (daysSince > 7) return false;
-      }
-      // Catch-all: anything older than 3 days is stale
-      else {
-        if (daysSince > 3) return false;
-      }
-
-      return true;
-    });
+    // Only filter out ideas with no timestamp
+    const nonExpired = filtered.filter(idea => idea.timestamp);
 
     // Group by symbol+assetType - one idea per symbol/type combo
     // This allows SNDK stock AND SNDK option to both appear
