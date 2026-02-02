@@ -3,7 +3,8 @@
  * Clean architecture with dedicated sections for different trading views
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import html2canvas from "html2canvas";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -51,6 +52,7 @@ import {
   Layers,
   PieChart,
   Gem,
+  Download,
 } from "lucide-react";
 import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
 import { getLetterGrade, getGradeStyle } from "@shared/grading";
@@ -2407,6 +2409,7 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
 }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const cardRef = useRef<HTMLDivElement>(null);
   const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
   const style = getGradeStyle(grade);
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
@@ -2414,9 +2417,35 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   const isCall = idea.optionType === 'call';
   const confidence = idea.confidenceScore || 50;
 
+  // Format expiry date
+  const expiryFormatted = useMemo(() => {
+    if (!idea.expiryDate) return null;
+    const date = new Date(idea.expiryDate);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }, [idea.expiryDate]);
+
   // Navigate to full analysis page
   const handleNavigate = () => {
     setLocation(`/stock/${idea.symbol}`);
+  };
+
+  // Download card as image
+  const downloadCard = async () => {
+    if (!cardRef.current) return;
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+      });
+      const link = document.createElement('a');
+      const optionSuffix = isOption ? `_${idea.optionType?.toUpperCase()}_${idea.strikePrice}` : '';
+      link.download = `${idea.symbol}${optionSuffix}_${idea.direction}_trade.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast({ title: "Downloaded!", description: `Trade card saved as image` });
+    } catch (e) {
+      toast({ title: "Download failed", variant: "destructive" });
+    }
   };
 
   // Get actual drivers from idea data
@@ -2459,13 +2488,13 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   }, [idea]);
 
   return (
-    <Card className={cn(
+    <Card ref={cardRef} className={cn(
       "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50 overflow-hidden transition-all",
       expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600"
     )}>
       {/* Compact Card Content - Click navigates to full analysis */}
       <div className="p-4 cursor-pointer" onClick={handleNavigate}>
-        {/* Header Row: Symbol + Direction Badge + Confidence */}
+        {/* Header Row: Symbol + Direction Badge + Option Details + Confidence */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className={cn(
@@ -2476,17 +2505,27 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
               {idea.symbol.slice(0, 2)}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-white">{idea.symbol}</span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                  isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                )}>
-                  {isLong ? 'BULLISH' : 'BEARISH'}
-                </span>
                 {isOption && (
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded font-semibold",
+                    isCall ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  )}>
+                    {idea.optionType?.toUpperCase()} ${safeToFixed(idea.strikePrice, 0)}
+                  </span>
+                )}
+                {isOption && expiryFormatted && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-                    {idea.optionType?.toUpperCase()}
+                    {expiryFormatted}
+                  </span>
+                )}
+                {!isOption && (
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                    isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  )}>
+                    {isLong ? 'LONG' : 'SHORT'}
                   </span>
                 )}
               </div>
@@ -2650,8 +2689,21 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
                 shareToDiscord.mutate();
               }}
               disabled={shareToDiscord.isPending}
+              data-testid="button-share-discord"
             >
               <SiDiscord className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 bg-slate-600/20 border-slate-500/40 hover:bg-slate-600/30 text-slate-400 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadCard();
+              }}
+              data-testid="button-download-card"
+            >
+              <Download className="w-3 h-3" />
             </Button>
           </div>
         </div>
@@ -2839,7 +2891,7 @@ function TradeIdeasList({ ideas, title }: { ideas: TradeIdea[], title?: string }
     if (statusFilter !== 'all') {
       filtered = filtered.filter(i => {
         if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
-        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop' || i.outcomeStatus === 'expired';
         return i.outcomeStatus === statusFilter;
       });
     }
@@ -3075,6 +3127,8 @@ export default function TradeDeskRedesigned() {
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
   const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock'>('all');
+  const [statusFilter, setStatusFilter] = useState<string>("open");
+  const [dateFilter, setDateFilter] = useState<string>("all");
 
   // AI Generation mutation - triggers the 6 engines
   const generateIdeas = useMutation({
@@ -3147,7 +3201,7 @@ export default function TradeDeskRedesigned() {
     if (statusFilter !== 'all') {
       filtered = ideas.filter(i => {
         if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
-        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop' || i.outcomeStatus === 'expired';
         return i.outcomeStatus === statusFilter;
       });
     }
