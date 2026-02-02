@@ -162,7 +162,7 @@ function toast({ ...props }: Toast) {
     },
   })
 
-  // Auto-dismiss after 6 seconds
+  // Auto-dismiss after 1.5 seconds
   setTimeout(() => {
     dismiss()
   }, AUTO_DISMISS_DELAY)

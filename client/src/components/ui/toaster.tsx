@@ -12,7 +12,7 @@ export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider swipeDirection="right" swipeThreshold={50}>
+    <ToastProvider duration={1500} swipeDirection="right" swipeThreshold={50}>
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props} data-testid="toast-notification">
