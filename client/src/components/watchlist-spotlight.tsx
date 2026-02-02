@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Eye, TrendingUp, TrendingDown, AlertTriangle, Plus, BarChart3, Target, ShieldAlert, Clock, ExternalLink } from "lucide-react";
-import { formatCurrency, cn, safeToFixed } from "@/lib/utils";
+import { formatCurrency, cn, safeToFixed, safeNumber } from "@/lib/utils";
 import type { WatchlistItem, MarketData, TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 
@@ -104,12 +104,15 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
               const isUp = changePercent && changePercent > 0;
               const isDown = changePercent && changePercent < 0;
               
-              const nearTarget = item.targetPrice && currentPrice && 
-                Math.abs((currentPrice - item.targetPrice) / item.targetPrice) < 0.05;
-              const nearEntry = item.entryAlertPrice && currentPrice &&
-                Math.abs((currentPrice - item.entryAlertPrice) / item.entryAlertPrice) < 0.03;
-              const nearStop = item.stopAlertPrice && currentPrice &&
-                Math.abs((currentPrice - item.stopAlertPrice) / item.stopAlertPrice) < 0.03;
+              const safeTargetPrice = safeNumber(item.targetPrice, 1);
+              const safeEntryAlert = safeNumber(item.entryAlertPrice, 1);
+              const safeStopAlert = safeNumber(item.stopAlertPrice, 1);
+              const nearTarget = item.targetPrice && currentPrice && safeTargetPrice > 0 &&
+                Math.abs((currentPrice - safeTargetPrice) / safeTargetPrice) < 0.05;
+              const nearEntry = item.entryAlertPrice && currentPrice && safeEntryAlert > 0 &&
+                Math.abs((currentPrice - safeEntryAlert) / safeEntryAlert) < 0.03;
+              const nearStop = item.stopAlertPrice && currentPrice && safeStopAlert > 0 &&
+                Math.abs((currentPrice - safeStopAlert) / safeStopAlert) < 0.03;
 
               return (
                 <div 
