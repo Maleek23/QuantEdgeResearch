@@ -1,4 +1,9 @@
 import "dotenv/config";
+import { runStartupCheck } from "./startup-check";
+
+// Run environment check immediately after loading .env
+runStartupCheck();
+
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import compression from "compression";
