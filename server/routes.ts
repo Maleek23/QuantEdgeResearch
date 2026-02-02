@@ -5920,8 +5920,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/trade-ideas/best-setups", async (req: any, res) => {
     try {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
-      const limit = Math.min(parseInt(req.query.limit as string) || 5, 200); // Increased from 100 to show more options
-      const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'stopped_out', 'expired'
+      const limit = Math.min(parseInt(req.query.limit as string) || 5, 2000); // Allow up to 2000 ideas
+      const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'hit_stop', 'expired'
       const dateFilter = req.query.date as string; // Optional: 'YYYY-MM-DD' for specific day
 
       // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
@@ -5941,7 +5941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let filteredIdeas = allIdeas.filter(i => {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
-        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired';
+        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop' || i.outcomeStatus === 'expired';
         return i.outcomeStatus === statusFilter;
       });
 
