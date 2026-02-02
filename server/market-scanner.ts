@@ -6,6 +6,47 @@ import { recordSymbolAttention } from './attention-tracking-service';
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_SCREENER_API = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved";
 
+// ===============================================
+// SCAN CONCURRENCY LIMITER - Prevents memory overload
+// ===============================================
+const MAX_CONCURRENT_SCANS = 2; // Maximum simultaneous scan operations
+const SCAN_BATCH_SIZE = 5; // Reduced from 10/20 to prevent memory spikes
+const BATCH_DELAY_MS = 150; // Delay between batches to allow GC
+
+let activeScanCount = 0;
+const scanQueue: Array<{ resolve: () => void; name: string }> = [];
+
+async function acquireScanSlot(scanName: string): Promise<void> {
+  if (activeScanCount < MAX_CONCURRENT_SCANS) {
+    activeScanCount++;
+    logger.debug(`[SCAN-LIMITER] Acquired slot for ${scanName} (${activeScanCount}/${MAX_CONCURRENT_SCANS} active)`);
+    return;
+  }
+
+  logger.info(`[SCAN-LIMITER] Queuing ${scanName} (${scanQueue.length + 1} waiting, ${activeScanCount} active)`);
+  return new Promise((resolve) => {
+    scanQueue.push({ resolve, name: scanName });
+  });
+}
+
+function releaseScanSlot(scanName: string): void {
+  activeScanCount = Math.max(0, activeScanCount - 1);
+
+  if (scanQueue.length > 0) {
+    const next = scanQueue.shift()!;
+    activeScanCount++;
+    logger.debug(`[SCAN-LIMITER] Released ${scanName}, starting queued ${next.name}`);
+    next.resolve();
+  } else {
+    logger.debug(`[SCAN-LIMITER] Released ${scanName} (${activeScanCount}/${MAX_CONCURRENT_SCANS} active)`);
+  }
+}
+
+// Get current scan status for monitoring
+export function getScanStatus(): { active: number; queued: number; max: number } {
+  return { active: activeScanCount, queued: scanQueue.length, max: MAX_CONCURRENT_SCANS };
+}
+
 export interface StockPerformance {
   symbol: string;
   name: string;
@@ -253,66 +294,74 @@ export async function scanStockPerformance(
   includeHistorical: boolean = false
 ): Promise<StockPerformance[]> {
   const cacheKey = `scan_${symbols.slice(0, 10).join('_')}_${symbols.length}_${includeHistorical}`;
-  
+
   const cached = scannerCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     logger.debug(`[SCANNER] Using cached data for ${symbols.length} symbols`);
     return cached.data;
   }
 
-  logger.info(`[SCANNER] Scanning ${symbols.length} symbols...`);
-  const results: StockPerformance[] = [];
-  
-  const batchSize = 10;
-  for (let i = 0; i < symbols.length; i += batchSize) {
-    const batch = symbols.slice(i, i + batchSize);
-    
-    const batchPromises = batch.map(async (symbol) => {
-      const quote = await fetchYahooQuote(symbol);
-      if (!quote) return null;
+  // Acquire scan slot to prevent memory overload
+  await acquireScanSlot(`scanStockPerformance(${symbols.length})`);
 
-      let historical = null;
-      if (includeHistorical) {
-        historical = await fetchYahooHistoricalPerformance(symbol);
+  try {
+    logger.info(`[SCANNER] Scanning ${symbols.length} symbols...`);
+    const results: StockPerformance[] = [];
+
+    // Use smaller batch size to reduce memory pressure
+    for (let i = 0; i < symbols.length; i += SCAN_BATCH_SIZE) {
+      const batch = symbols.slice(i, i + SCAN_BATCH_SIZE);
+
+      const batchPromises = batch.map(async (symbol) => {
+        const quote = await fetchYahooQuote(symbol);
+        if (!quote) return null;
+
+        let historical = null;
+        if (includeHistorical) {
+          historical = await fetchYahooHistoricalPerformance(symbol);
+        }
+
+        return {
+          symbol: quote.symbol,
+          name: quote.longName || quote.shortName || symbol,
+          currentPrice: quote.regularMarketPrice,
+          previousClose: quote.regularMarketPreviousClose,
+          dayChange: quote.regularMarketChange,
+          dayChangePercent: quote.regularMarketChangePercent,
+          weekChange: historical?.weekChange,
+          weekChangePercent: historical?.weekChange,
+          monthChange: historical?.monthChange,
+          monthChangePercent: historical?.monthChange,
+          ytdChange: historical?.ytdChange,
+          ytdChangePercent: historical?.ytdChange,
+          yearChange: historical?.yearChange,
+          yearChangePercent: historical?.yearChange,
+          volume: quote.regularMarketVolume,
+          avgVolume: quote.averageDailyVolume10Day,
+          marketCap: quote.marketCap,
+          peRatio: quote.trailingPE,
+          week52High: quote.fiftyTwoWeekHigh,
+          week52Low: quote.fiftyTwoWeekLow,
+          lastUpdated: new Date(),
+        } as StockPerformance;
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults.filter((r): r is StockPerformance => r !== null));
+
+      // Longer delay between batches to allow GC
+      if (i + SCAN_BATCH_SIZE < symbols.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
-
-      return {
-        symbol: quote.symbol,
-        name: quote.longName || quote.shortName || symbol,
-        currentPrice: quote.regularMarketPrice,
-        previousClose: quote.regularMarketPreviousClose,
-        dayChange: quote.regularMarketChange,
-        dayChangePercent: quote.regularMarketChangePercent,
-        weekChange: historical?.weekChange,
-        weekChangePercent: historical?.weekChange,
-        monthChange: historical?.monthChange,
-        monthChangePercent: historical?.monthChange,
-        ytdChange: historical?.ytdChange,
-        ytdChangePercent: historical?.ytdChange,
-        yearChange: historical?.yearChange,
-        yearChangePercent: historical?.yearChange,
-        volume: quote.regularMarketVolume,
-        avgVolume: quote.averageDailyVolume10Day,
-        marketCap: quote.marketCap,
-        peRatio: quote.trailingPE,
-        week52High: quote.fiftyTwoWeekHigh,
-        week52Low: quote.fiftyTwoWeekLow,
-        lastUpdated: new Date(),
-      } as StockPerformance;
-    });
-
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults.filter((r): r is StockPerformance => r !== null));
-    
-    if (i + batchSize < symbols.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
-  }
 
-  scannerCache.set(cacheKey, { data: results, timestamp: Date.now() });
-  
-  logger.info(`[SCANNER] Completed scan: ${results.length}/${symbols.length} symbols fetched`);
-  return results;
+    scannerCache.set(cacheKey, { data: results, timestamp: Date.now() });
+
+    logger.info(`[SCANNER] Completed scan: ${results.length}/${symbols.length} symbols fetched`);
+    return results;
+  } finally {
+    releaseScanSlot(`scanStockPerformance(${symbols.length})`);
+  }
 }
 
 export async function getTopMovers(
@@ -475,73 +524,83 @@ export async function scanForSurges(forceRefresh: boolean = false): Promise<Surg
     return surgeCache.data;
   }
 
-  logger.info('[SURGE-SCANNER] Starting real-time surge detection...');
-  
-  const surges: SurgeSignal[] = [];
-  const universe = getExpandedUniverse(); // 800+ tickers including discovered movers
-  
-  // Batch scan in parallel for speed
-  const batchSize = 20;
-  for (let i = 0; i < universe.length; i += batchSize) {
-    const batch = universe.slice(i, i + batchSize);
-    
-    const batchResults = await Promise.allSettled(
-      batch.map(async (symbol) => {
-        try {
-          const quote = await fetchYahooQuote(symbol);
-          if (!quote || !quote.regularMarketPrice) return null;
-          
-          const price = quote.regularMarketPrice;
-          const change = quote.regularMarketChange || 0;
-          const changePercent = quote.regularMarketChangePercent || 0;
-          const volume = quote.regularMarketVolume || 0;
-          const avgVolume = quote.averageDailyVolume10Day || volume;
-          const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
-          
-          // Detect surge patterns
-          const surge = detectSurgePattern(
-            symbol,
-            quote.longName || quote.shortName || symbol,
-            price,
-            change,
-            changePercent,
-            volume,
-            avgVolume,
-            volumeRatio,
-            quote.fiftyTwoWeekHigh,
-            quote.fiftyTwoWeekLow,
-            quote.marketCap
-          );
-          
-          return surge;
-        } catch (error) {
-          return null;
+  // Acquire scan slot to prevent memory overload
+  await acquireScanSlot('scanForSurges');
+
+  try {
+    logger.info('[SURGE-SCANNER] Starting real-time surge detection...');
+
+    const surges: SurgeSignal[] = [];
+    const universe = getExpandedUniverse(); // 800+ tickers including discovered movers
+
+    // Limit universe size to prevent memory issues (scan top 400 most relevant)
+    const limitedUniverse = universe.slice(0, 400);
+    logger.info(`[SURGE-SCANNER] Scanning ${limitedUniverse.length} symbols (limited from ${universe.length})`);
+
+    // Use smaller batch size to reduce memory pressure
+    for (let i = 0; i < limitedUniverse.length; i += SCAN_BATCH_SIZE) {
+      const batch = limitedUniverse.slice(i, i + SCAN_BATCH_SIZE);
+
+      const batchResults = await Promise.allSettled(
+        batch.map(async (symbol) => {
+          try {
+            const quote = await fetchYahooQuote(symbol);
+            if (!quote || !quote.regularMarketPrice) return null;
+
+            const price = quote.regularMarketPrice;
+            const change = quote.regularMarketChange || 0;
+            const changePercent = quote.regularMarketChangePercent || 0;
+            const volume = quote.regularMarketVolume || 0;
+            const avgVolume = quote.averageDailyVolume10Day || volume;
+            const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+
+            // Detect surge patterns
+            const surge = detectSurgePattern(
+              symbol,
+              quote.longName || quote.shortName || symbol,
+              price,
+              change,
+              changePercent,
+              volume,
+              avgVolume,
+              volumeRatio,
+              quote.fiftyTwoWeekHigh,
+              quote.fiftyTwoWeekLow,
+              quote.marketCap
+            );
+
+            return surge;
+          } catch (error) {
+            return null;
+          }
+        })
+      );
+
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          surges.push(result.value);
         }
-      })
-    );
-    
-    for (const result of batchResults) {
-      if (result.status === 'fulfilled' && result.value) {
-        surges.push(result.value);
+      }
+
+      // Longer delay between batches to allow GC and avoid rate limiting
+      if (i + SCAN_BATCH_SIZE < limitedUniverse.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
       }
     }
-    
-    // Small delay between batches to avoid rate limiting
-    if (i + batchSize < universe.length) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+
+    // Sort by score (highest first)
+    const sortedSurges = surges.sort((a, b) => b.score - a.score);
+
+    // Update cache
+    surgeCache.data = sortedSurges;
+    surgeCache.timestamp = Date.now();
+
+    logger.info(`[SURGE-SCANNER] Detected ${sortedSurges.length} surge signals (${sortedSurges.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH').length} high priority)`);
+
+    return sortedSurges;
+  } finally {
+    releaseScanSlot('scanForSurges');
   }
-  
-  // Sort by score (highest first)
-  const sortedSurges = surges.sort((a, b) => b.score - a.score);
-  
-  // Update cache
-  surgeCache.data = sortedSurges;
-  surgeCache.timestamp = Date.now();
-  
-  logger.info(`[SURGE-SCANNER] Detected ${sortedSurges.length} surge signals (${sortedSurges.filter(s => s.severity === 'CRITICAL' || s.severity === 'HIGH').length} high priority)`);
-  
-  return sortedSurges;
 }
 
 /**
@@ -901,20 +960,24 @@ export async function generateSmartWatchlist(
   limit: number = 15
 ): Promise<SmartWatchlistPick[]> {
   const cacheKey = `smart_${timeframe}_${limit}`;
-  
+
   const cached = watchlistCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < WATCHLIST_CACHE_TTL) {
     logger.debug(`[SCANNER] Using cached smart watchlist for ${timeframe}`);
     return cached.data;
   }
-  
-  logger.info(`[SCANNER] Generating smart watchlist for ${timeframe}...`);
-  
-  // Get top movers from all categories for broader coverage
-  const { gainers, losers } = await getTopMovers(timeframe, 'all', 50);
-  
-  // Combine and score all candidates
-  const candidates: SmartWatchlistPick[] = [];
+
+  // Acquire scan slot to prevent memory overload
+  await acquireScanSlot(`generateSmartWatchlist(${timeframe})`);
+
+  try {
+    logger.info(`[SCANNER] Generating smart watchlist for ${timeframe}...`);
+
+    // Get top movers - reduced limit to lower memory usage
+    const { gainers, losers } = await getTopMovers(timeframe, 'all', 30);
+
+    // Combine and score all candidates
+    const candidates: SmartWatchlistPick[] = [];
   
   // Process gainers (long opportunities)
   for (const stock of gainers) {
@@ -1009,10 +1072,13 @@ export async function generateSmartWatchlist(
     );
   }
   
-  watchlistCache.set(cacheKey, { data: sortedPicks, timestamp: Date.now() });
-  logger.info(`[SCANNER] Generated ${sortedPicks.length} smart watchlist picks for ${timeframe}`);
-  
-  return sortedPicks;
+    watchlistCache.set(cacheKey, { data: sortedPicks, timestamp: Date.now() });
+    logger.info(`[SCANNER] Generated ${sortedPicks.length} smart watchlist picks for ${timeframe}`);
+
+    return sortedPicks;
+  } finally {
+    releaseScanSlot(`generateSmartWatchlist(${timeframe})`);
+  }
 }
 
 /**
