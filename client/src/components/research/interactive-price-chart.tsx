@@ -63,13 +63,13 @@ export function InteractivePriceChart({
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data?: any } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  // Get latest price and change
+  // Get latest price and change with null safety
   const latestData = data[data.length - 1];
   const previousData = data[data.length - 2];
-  const priceChange = latestData ? latestData.close - previousData?.close : 0;
-  const priceChangePercent = previousData
-    ? ((priceChange / previousData.close) * 100)
-    : 0;
+  const latestClose = safeNumber(latestData?.close);
+  const prevClose = safeNumber(previousData?.close);
+  const priceChange = latestClose - prevClose;
+  const priceChangePercent = prevClose > 0 ? (priceChange / prevClose) * 100 : 0;
   const isPositive = priceChange >= 0;
 
   const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"] as const;
