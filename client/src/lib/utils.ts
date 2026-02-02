@@ -213,12 +213,15 @@ export function calculatePositionSize(
   capitalAllocated: number,
   maxRiskPercent: number
 ): { shares: number; riskAmount: number; riskPercent: number } {
-  const stopLossPercent = Math.abs((stopLoss - entryPrice) / entryPrice) * 100;
+  // Protect against division by zero
+  const safeEntryPrice = entryPrice || 1;
+  const entryStopDiff = Math.abs(safeEntryPrice - stopLoss) || 0.01;
+  const stopLossPercent = Math.abs((stopLoss - safeEntryPrice) / safeEntryPrice) * 100;
   const maxRiskAmount = capitalAllocated * (maxRiskPercent / 100);
-  const shares = Math.floor(maxRiskAmount / Math.abs(entryPrice - stopLoss));
-  const actualRiskAmount = shares * Math.abs(entryPrice - stopLoss);
-  const actualRiskPercent = (actualRiskAmount / capitalAllocated) * 100;
-  
+  const shares = Math.floor(maxRiskAmount / entryStopDiff);
+  const actualRiskAmount = shares * entryStopDiff;
+  const actualRiskPercent = capitalAllocated > 0 ? (actualRiskAmount / capitalAllocated) * 100 : 0;
+
   return {
     shares,
     riskAmount: actualRiskAmount,
@@ -231,7 +234,7 @@ export function calculateRiskReward(
   stopLoss: number,
   targetPrice: number
 ): number {
-  const risk = Math.abs(entryPrice - stopLoss);
+  const risk = Math.abs(entryPrice - stopLoss) || 0.01; // Protect against division by zero
   const reward = Math.abs(targetPrice - entryPrice);
   return reward / risk;
 }
