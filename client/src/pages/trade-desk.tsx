@@ -2524,12 +2524,17 @@ function TradeIdeaCard({ idea, expanded, onToggle }: {
   }, [idea]);
 
   return (
-    <Card ref={cardRef} className={cn(
-      "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50 overflow-hidden transition-all",
-      expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600"
-    )}>
+    <Card 
+      ref={cardRef} 
+      className={cn(
+        "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50 overflow-hidden transition-all cursor-pointer",
+        expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600 hover:-translate-y-0.5"
+      )}
+      onClick={handleNavigate}
+      data-testid={`trade-card-${idea.symbol}`}
+    >
       {/* Compact Card Content - Click navigates to full analysis */}
-      <div className="p-4 cursor-pointer" onClick={handleNavigate}>
+      <div className="p-4">
         {/* Header Row: Symbol + Direction Badge + Option Details + Confidence */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">

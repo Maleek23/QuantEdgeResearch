@@ -102,13 +102,15 @@ function LiveTradeCard({ idea, index }: { idea: any; index: number }) {
   const grade = idea.probabilityBand || (confidence >= 90 ? 'A+' : confidence >= 80 ? 'A' : 'B+');
 
   return (
-    <div
+    <Link 
+      href={`/stock/${idea.symbol || 'AAPL'}`}
       className={cn(
-        "relative group",
+        "relative group block cursor-pointer",
         "transform transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1",
         index === 0 && "lg:col-span-2 lg:row-span-2"
       )}
       style={{ animationDelay: `${index * 100}ms` }}
+      data-testid={`trade-card-${idea.symbol}`}
     >
       {/* Glow effect */}
       <div className={cn(
@@ -215,7 +217,7 @@ function LiveTradeCard({ idea, index }: { idea: any; index: number }) {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </Link>
   );
 }
 
