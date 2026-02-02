@@ -21,7 +21,6 @@ import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
-import { BotNotificationPopup } from "@/components/bot-notification-popup";
 import { HighConvictionAlertProvider } from "@/components/high-conviction-alert";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
@@ -446,7 +445,6 @@ function App() {
                     </SidebarProvider>
                   )}
                   <AIChatbotPopup />
-                  <BotNotificationPopup />
                   <HighConvictionAlertProvider />
                   <Toaster />
                 </ContentDensityProvider>
