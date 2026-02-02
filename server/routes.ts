@@ -5977,12 +5977,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const deconflictedIdeas: typeof openIdeas = [];
       for (const [symbol, symbolIdeas] of symbolGroups) {
-        const hasLong = symbolIdeas.some(i => i.direction === 'LONG' || i.optionType === 'call');
-        const hasShort = symbolIdeas.some(i => i.direction === 'SHORT' || i.optionType === 'put');
+        const isLongIdea = (i: any) => (i.direction || '').toLowerCase() === 'long' || i.optionType === 'call';
+        const isShortIdea = (i: any) => (i.direction || '').toLowerCase() === 'short' || i.optionType === 'put';
+        const hasLong = symbolIdeas.some(isLongIdea);
+        const hasShort = symbolIdeas.some(isShortIdea);
         
         if (hasLong && hasShort) {
-          const longIdeas = symbolIdeas.filter(i => i.direction === 'LONG' || i.optionType === 'call');
-          const shortIdeas = symbolIdeas.filter(i => i.direction === 'SHORT' || i.optionType === 'put');
+          const longIdeas = symbolIdeas.filter(isLongIdea);
+          const shortIdeas = symbolIdeas.filter(isShortIdea);
           const maxLongConf = Math.max(...longIdeas.map(i => i.confidenceScore || 0));
           const maxShortConf = Math.max(...shortIdeas.map(i => i.confidenceScore || 0));
           
@@ -5990,8 +5992,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             deconflictedIdeas.push(...longIdeas);
           } else if (maxShortConf >= maxLongConf + 10) {
             deconflictedIdeas.push(...shortIdeas);
+          } else {
+            // Keep the BEST of each direction instead of dropping both
+            const bestLong = longIdeas.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))[0];
+            const bestShort = shortIdeas.sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))[0];
+            if (bestLong) deconflictedIdeas.push(bestLong);
+            if (bestShort) deconflictedIdeas.push(bestShort);
           }
-          // Drop both if no clear edge
         } else {
           deconflictedIdeas.push(...symbolIdeas);
         }
@@ -6155,12 +6162,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by conviction score descending
       scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
       
-      // 🎯 CRITICAL: Deduplicate by symbol+assetType - keep BEST setup per symbol/type combo
-      // This allows showing SNDK stock AND SNDK option as separate entries
+      // 🎯 CRITICAL: Deduplicate by symbol+assetType+optionType - keep BEST setup per unique combo
+      // This allows showing DIS CALL and DIS PUT as separate entries
       const symbolBestMap = new Map<string, typeof scoredIdeas[0]>();
       for (const idea of scoredIdeas) {
         const assetType = idea.assetType || 'stock';
-        const key = `${idea.symbol}:${assetType}`;
+        const optionType = idea.optionType || '';  // Include call/put distinction
+        const key = `${idea.symbol}:${assetType}:${optionType}`;
         const existing = symbolBestMap.get(key);
         // Keep the one with higher conviction (first one wins since already sorted)
         if (!existing) {
