@@ -3127,9 +3127,7 @@ export default function TradeDeskRedesigned() {
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
   const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock'>('all');
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [showAllIdeas, setShowAllIdeas] = useState<boolean>(false); // Toggle for deduplication
+  // Note: Filters (statusFilter, dateFilter, gradeFilter, directionFilter) are handled inside TradeIdeasList component
 
   // AI Generation mutation - triggers the 6 engines
   const generateIdeas = useMutation({
@@ -3192,58 +3190,13 @@ export default function TradeDeskRedesigned() {
   });
 
   // ============================================
-  // DEDUPLICATION LOGIC - Respects User Filters
-  // When showAllIdeas is true, shows multiple per symbol
-  // Date/status filtering controlled by user selections
+  // DEDUPLICATION ONLY - No filtering here!
+  // TradeIdeasList handles ALL filtering (status, date, grade, direction)
+  // This just groups by symbol and returns best idea per symbol
   // ============================================
-  const deduplicateAndLimit = (ideas: TradeIdea[], maxPerGroup: number = 1): TradeIdea[] => {
-    // Apply user's status filter
-    let filtered = ideas;
-    if (statusFilter !== 'all') {
-      filtered = ideas.filter(i => {
-        if (statusFilter === 'open') return i.outcomeStatus === 'open' || !i.outcomeStatus;
-        if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop' || i.outcomeStatus === 'expired';
-        return i.outcomeStatus === statusFilter;
-      });
-    }
-    
-    // If showing all ideas, skip deduplication - just filter and sort
-    if (showAllIdeas) {
-      return filtered
-        .filter(idea => idea.timestamp)
-        .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
-        .slice(0, 100); // Cap at 100 for performance
-    }
-
-    // Apply user's date filter
-    if (dateFilter !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(i => {
-        if (!i.timestamp) return false;
-        const ideaDate = new Date(i.timestamp);
-        let startDate: Date;
-        let endDate: Date = now;
-
-        if (dateFilter === 'today') {
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        } else if (dateFilter === 'yesterday') {
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        } else if (dateFilter === 'week') {
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-        } else if (dateFilter === 'month') {
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        } else {
-          // Specific date
-          startDate = new Date(dateFilter);
-          endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-        }
-        return ideaDate >= startDate && ideaDate <= endDate;
-      });
-    }
-
+  const deduplicateOnly = (ideas: TradeIdea[]): TradeIdea[] => {
     // Only filter out ideas with no timestamp
-    const nonExpired = filtered.filter(idea => idea.timestamp);
+    const nonExpired = ideas.filter(idea => idea.timestamp);
 
     // Group by symbol+assetType - one idea per symbol/type combo
     // This allows SNDK stock AND SNDK option to both appear
@@ -3280,39 +3233,39 @@ export default function TradeDeskRedesigned() {
     return result;
   };
 
-  // Filter helpers for tabs - with deduplication
-  // Dependencies include filter states since deduplicateAndLimit uses them
+  // Filter helpers for tabs - with deduplication only (no filtering here)
+  // TradeIdeasList handles all user-facing filters
   const stockIdeas = useMemo(() => {
     const filtered = tradeIdeas.filter(i =>
       i.assetType === 'stock' || (!i.assetType && !i.optionType)
     );
-    return deduplicateAndLimit(filtered, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
 
   const optionIdeas = useMemo(() => {
     const filtered = tradeIdeas.filter(i => i.assetType === 'option' || i.optionType);
-    return deduplicateAndLimit(filtered, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
 
   const cryptoIdeas = useMemo(() => {
     const filtered = tradeIdeas.filter(i => i.assetType === 'crypto');
-    return deduplicateAndLimit(filtered, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
 
   const futuresIdeas = useMemo(() => {
     const filtered = tradeIdeas.filter(i => i.assetType === 'future');
-    return deduplicateAndLimit(filtered, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
 
   const pennyIdeas = useMemo(() => {
     const filtered = tradeIdeas.filter(i => i.assetType === 'penny_stock');
-    return deduplicateAndLimit(filtered, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
 
   // All ideas - deduplicated (for "All Ideas" tab)
   const allIdeasDeduplicated = useMemo(() => {
-    return deduplicateAndLimit(tradeIdeas, 2);
-  }, [tradeIdeas, statusFilter, dateFilter, showAllIdeas]);
+    return deduplicateOnly(tradeIdeas);
+  }, [tradeIdeas]);
 
   // Filtered ideas based on asset type selector
   const filteredIdeas = useMemo(() => {
