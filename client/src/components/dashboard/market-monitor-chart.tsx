@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { ChevronRight, Activity, TrendingUp, TrendingDown } from "lucide-react";
 import { useRealtimePrices } from "@/context/realtime-prices-context";
 import { Link } from "wouter";
@@ -281,7 +281,8 @@ function generateInitialData(basePrice: number, points: number = 50): DataPoint[
     
     const change = (Math.random() - 0.48) * 1.5;
     price = price + change;
-    const changePercent = ((price - basePrice) / basePrice) * 100;
+    const safeBase = safeNumber(basePrice, 1);
+    const changePercent = safeBase > 0 ? ((price - safeBase) / safeBase) * 100 : 0;
     
     data.push({ time, price, change: changePercent });
   }
@@ -310,7 +311,8 @@ export function MarketMonitorSection() {
     if (spyPrice?.price && basePrice && initialized) {
       const now = new Date();
       const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const changePercent = ((spyPrice.price - basePrice) / basePrice) * 100;
+      const safeBase = safeNumber(basePrice, 1);
+      const changePercent = safeBase > 0 ? ((spyPrice.price - safeBase) / safeBase) * 100 : 0;
       
       setPriceHistory(prev => {
         const newHistory = [...prev, { time, price: spyPrice.price, change: changePercent }];

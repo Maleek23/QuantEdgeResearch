@@ -6,7 +6,7 @@ import {
   TrendingUp, TrendingDown, Calendar, Target, AlertCircle,
   MessageSquare, DollarSign, ArrowUpDown
 } from "lucide-react";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import {
   LineChart,
   Line,
@@ -179,8 +179,9 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
   const lastRecord = sortedHistory[sortedHistory.length - 1];
   
   const gradeChange = (lastRecord.gradeScore || 0) - (firstRecord.gradeScore || 0);
-  const priceChange = firstRecord.price 
-    ? ((lastRecord.price - firstRecord.price) / firstRecord.price) * 100 
+  const firstPrice = safeNumber(firstRecord.price, 1);
+  const priceChange = firstPrice > 0
+    ? ((safeNumber(lastRecord.price) - firstPrice) / firstPrice) * 100
     : 0;
 
   const tradeDays = history.filter(h => h.hasTrade).length;

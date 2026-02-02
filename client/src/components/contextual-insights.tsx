@@ -72,8 +72,9 @@ export function ConfluenceInsights({
   const volStatus = atrPercent <= 1 ? { text: 'Low Vol', color: 'text-green-400', pts: 8 } :
     atrPercent <= 2 ? { text: 'Moderate', color: 'text-amber-400', pts: 0 } :
     { text: 'High Vol', color: 'text-red-400', pts: -5 };
-  
-  const priceToResistance = ((resistance - currentPrice) / currentPrice) * 100;
+
+  const safeCurrentPrice = safeNumber(currentPrice, 1);
+  const priceToResistance = safeCurrentPrice > 0 ? ((safeNumber(resistance) - safeCurrentPrice) / safeCurrentPrice) * 100 : 0;
   const levelStatus = priceToResistance <= 2 ? { text: 'Near Resistance', color: 'text-amber-400', pts: -2 } :
     priceToResistance >= 10 ? { text: 'Room to Run', color: 'text-green-400', pts: 5 } :
     { text: 'Mid-Range', color: 'text-slate-300', pts: 0 };
@@ -215,8 +216,9 @@ export function TechnicalInsights({
   symbol
 }: TechnicalInsightsProps) {
   const rsiCondition = rsi >= 70 ? 'overbought' : rsi <= 30 ? 'oversold' : 'neutral';
-  const priceToResistance = ((resistance - currentPrice) / currentPrice) * 100;
-  const priceToSupport = ((currentPrice - support) / currentPrice) * 100;
+  const safePrice = safeNumber(currentPrice, 1);
+  const priceToResistance = safePrice > 0 ? ((safeNumber(resistance) - safePrice) / safePrice) * 100 : 0;
+  const priceToSupport = safePrice > 0 ? ((safePrice - safeNumber(support)) / safePrice) * 100 : 0;
   
   const breakoutEntry = resistance * 1.002;
   const breakoutStop = resistance * 0.99;
@@ -350,19 +352,21 @@ export function PositionSizeCalculator({
   const [riskPercent, setRiskPercent] = useState(2);
   
   const calculations = useMemo(() => {
-    const riskPerShare = Math.abs(entryPrice - stopPrice);
-    const riskPercentTrade = (riskPerShare / entryPrice) * 100;
+    const safeEntry = safeNumber(entryPrice, 1);
+    const safeStop = safeNumber(stopPrice, safeEntry * 0.95);
+    const riskPerShare = Math.abs(safeEntry - safeStop) || 0.01; // Prevent division by zero
+    const riskPercentTrade = safeEntry > 0 ? (riskPerShare / safeEntry) * 100 : 0;
     const dollarRisk = accountSize * (riskPercent / 100);
-    const shares = Math.floor(dollarRisk / riskPerShare);
-    const positionValue = shares * entryPrice;
-    const positionPercent = (positionValue / accountSize) * 100;
-    
+    const shares = riskPerShare > 0 ? Math.floor(dollarRisk / riskPerShare) : 0;
+    const positionValue = shares * safeEntry;
+    const positionPercent = accountSize > 0 ? (positionValue / accountSize) * 100 : 0;
+
     const stopLoss = shares * riskPerShare * -1;
-    const target1Gain = targets[0] ? shares * (targets[0].price - entryPrice) : 0;
-    const target2Gain = targets[1] ? shares * (targets[1].price - entryPrice) : 0;
-    const target3Gain = targets[2] ? shares * (targets[2].price - entryPrice) : 0;
-    
-    const riskReward = targets[0] ? (targets[0].price - entryPrice) / riskPerShare : 0;
+    const target1Gain = targets[0] ? shares * (safeNumber(targets[0].price) - safeEntry) : 0;
+    const target2Gain = targets[1] ? shares * (safeNumber(targets[1].price) - safeEntry) : 0;
+    const target3Gain = targets[2] ? shares * (safeNumber(targets[2].price) - safeEntry) : 0;
+
+    const riskReward = targets[0] && riskPerShare > 0 ? (safeNumber(targets[0].price) - safeEntry) / riskPerShare : 0;
     
     return {
       riskPerShare,

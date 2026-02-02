@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn, safeToFixed } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 import { 
   Activity, 
   TrendingUp, 
@@ -147,36 +147,41 @@ export function GlobalMarketPulse() {
     const list: AssetData[] = [];
     
     if (spyPrice?.price) {
-      const change = marketContext?.spyData?.change ?? (spyPrice.previousPrice 
-        ? ((spyPrice.price - spyPrice.previousPrice) / spyPrice.previousPrice) * 100 
+      const prevPrice = safeNumber(spyPrice.previousPrice, 1);
+      const change = marketContext?.spyData?.change ?? (prevPrice > 0
+        ? ((spyPrice.price - prevPrice) / prevPrice) * 100
         : 0);
       list.push({ symbol: "SPY", name: "S&P 500", price: spyPrice.price, change, type: "equity" });
     }
-    
+
     if (qqqPrice?.price) {
-      const change = qqqPrice.previousPrice 
-        ? ((qqqPrice.price - qqqPrice.previousPrice) / qqqPrice.previousPrice) * 100 
+      const prevPrice = safeNumber(qqqPrice.previousPrice, 1);
+      const change = prevPrice > 0
+        ? ((qqqPrice.price - prevPrice) / prevPrice) * 100
         : 0;
       list.push({ symbol: "QQQ", name: "Nasdaq 100", price: qqqPrice.price, change, type: "equity" });
     }
-    
+
     if (diaPrice?.price) {
-      const change = diaPrice.previousPrice 
-        ? ((diaPrice.price - diaPrice.previousPrice) / diaPrice.previousPrice) * 100 
+      const prevPrice = safeNumber(diaPrice.previousPrice, 1);
+      const change = prevPrice > 0
+        ? ((diaPrice.price - prevPrice) / prevPrice) * 100
         : 0;
       list.push({ symbol: "DIA", name: "Dow Jones", price: diaPrice.price, change, type: "equity" });
     }
-    
+
     if (btcPrice?.price) {
-      const change = btcPrice.previousPrice 
-        ? ((btcPrice.price - btcPrice.previousPrice) / btcPrice.previousPrice) * 100 
+      const prevPrice = safeNumber(btcPrice.previousPrice, 1);
+      const change = prevPrice > 0
+        ? ((btcPrice.price - prevPrice) / prevPrice) * 100
         : 0;
       list.push({ symbol: "BTC", name: "Bitcoin", price: btcPrice.price, change, type: "crypto" });
     }
-    
+
     if (ethPrice?.price) {
-      const change = ethPrice.previousPrice 
-        ? ((ethPrice.price - ethPrice.previousPrice) / ethPrice.previousPrice) * 100 
+      const prevPrice = safeNumber(ethPrice.previousPrice, 1);
+      const change = prevPrice > 0
+        ? ((ethPrice.price - prevPrice) / prevPrice) * 100
         : 0;
       list.push({ symbol: "ETH", name: "Ethereum", price: ethPrice.price, change, type: "crypto" });
     }

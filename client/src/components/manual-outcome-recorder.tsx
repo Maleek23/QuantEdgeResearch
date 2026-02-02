@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { safeToFixed } from "@/lib/utils";
+import { safeToFixed, safeNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -88,12 +88,15 @@ export function ManualOutcomeRecorder({
       return;
     }
 
-    // Calculate percent gain
+    // Calculate percent gain with null safety
     let percentGain = 0;
-    if (direction === 'long') {
-      percentGain = ((exitPriceNum - entryPrice) / entryPrice) * 100;
-    } else {
-      percentGain = ((entryPrice - exitPriceNum) / entryPrice) * 100;
+    const safeEntry = safeNumber(entryPrice, 1);
+    if (safeEntry > 0) {
+      if (direction === 'long') {
+        percentGain = ((exitPriceNum - safeEntry) / safeEntry) * 100;
+      } else {
+        percentGain = ((safeEntry - exitPriceNum) / safeEntry) * 100;
+      }
     }
 
     // Determine outcome status and resolution reason

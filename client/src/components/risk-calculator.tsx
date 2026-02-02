@@ -105,8 +105,9 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
       const positionSize = calculatePositionSize(entryPrice, stopLoss, capitalAllocated, maxRiskPercent);
       const riskReward = calculateRiskReward(entryPrice, stopLoss, targetPrice);
       const potentialProfit = positionSize.shares * (targetPrice - entryPrice);
-      const stopLossPercent = ((stopLoss - entryPrice) / entryPrice) * 100;
-      const targetPercent = ((targetPrice - entryPrice) / entryPrice) * 100;
+      // Safe percentage calculations to prevent division by zero
+      const stopLossPercent = entryPrice > 0 ? ((stopLoss - entryPrice) / entryPrice) * 100 : 0;
+      const targetPercent = entryPrice > 0 ? ((targetPrice - entryPrice) / entryPrice) * 100 : 0;
 
       setResult({
         ...positionSize,
