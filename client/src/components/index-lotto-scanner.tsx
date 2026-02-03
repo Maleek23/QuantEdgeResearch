@@ -38,6 +38,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { SPXSessionTimer } from "./spx-session-timer";
 
 // Types
 interface TechnicalSetup {
@@ -330,6 +331,14 @@ export function IndexLottoScanner({ className }: { className?: string }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* SPX Session Timer - Critical for 0DTE trading */}
+        <SPXSessionTimer
+          vix={18} // TODO: Hook up to real VIX data
+          spxPrice={data.indexData.find(i => i.symbol === 'SPX')?.price}
+          gammaFlip={data.indexData.find(i => i.symbol === 'SPX')?.pivotPoints?.pivot}
+          className="mb-2"
+        />
+
         {/* Index Overview */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {data.indexData.map((index) => (
