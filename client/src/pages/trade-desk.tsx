@@ -2963,24 +2963,25 @@ function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], t
       });
     }
 
-    // Date filter
+    // Date filter - use UTC to match server timestamps
     if (dateFilter !== 'all') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Get today's date in UTC (YYYY-MM-DD format)
+      const now = new Date();
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
       let startDate: Date;
       let endDate: Date;
 
       if (dateFilter === 'today') {
-        startDate = today;
-        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        startDate = todayUTC;
+        endDate = new Date(todayUTC.getTime() + 24 * 60 * 60 * 1000);
       } else if (dateFilter === 'yesterday') {
-        startDate = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-        endDate = today;
+        startDate = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
+        endDate = todayUTC;
       } else {
-        // Specific date (YYYY-MM-DD format)
-        startDate = new Date(dateFilter);
-        startDate.setHours(0, 0, 0, 0);
+        // Specific date (YYYY-MM-DD format) - parse as UTC
+        const [year, month, day] = dateFilter.split('-').map(Number);
+        startDate = new Date(Date.UTC(year, month - 1, day));
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
       }
 
