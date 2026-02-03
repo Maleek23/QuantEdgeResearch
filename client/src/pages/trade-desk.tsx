@@ -2925,7 +2925,7 @@ function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], t
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all"); // Show all grades by default
   const [statusFilter, setStatusFilter] = useState<string>("all"); // Show all statuses by default
-  const [dateFilter, setDateFilter] = useState<string>("all"); // Show all dates by default
+  const [dateFilter, setDateFilter] = useState<string>("today"); // Default to today's ideas
   const [tradeTypeFilter, setTradeTypeFilter] = useState<string>("all"); // Day Trade, Swings, LEAPs
   const [sortBy, setSortBy] = useState<string>("confidence");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
