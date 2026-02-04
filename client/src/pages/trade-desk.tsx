@@ -2963,25 +2963,32 @@ function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], t
       });
     }
 
-    // Date filter - use UTC to match server timestamps
+    // Date filter - use local date for "today/yesterday" to match user's timezone
     if (dateFilter !== 'all') {
-      // Get today's date in UTC (YYYY-MM-DD format)
       const now = new Date();
-      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+      // For "today"/"yesterday", use local date so user sees their local day's ideas
+      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       let startDate: Date;
       let endDate: Date;
 
       if (dateFilter === 'today') {
-        startDate = todayUTC;
-        endDate = new Date(todayUTC.getTime() + 24 * 60 * 60 * 1000);
+        startDate = todayLocal;
+        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
       } else if (dateFilter === 'yesterday') {
-        startDate = new Date(todayUTC.getTime() - 24 * 60 * 60 * 1000);
-        endDate = todayUTC;
+        startDate = new Date(todayLocal.getTime() - 24 * 60 * 60 * 1000);
+        endDate = todayLocal;
+      } else if (dateFilter === 'week') {
+        startDate = new Date(todayLocal.getTime() - 7 * 24 * 60 * 60 * 1000);
+        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
+      } else if (dateFilter === 'month') {
+        startDate = new Date(todayLocal.getTime() - 30 * 24 * 60 * 60 * 1000);
+        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
       } else {
-        // Specific date (YYYY-MM-DD format) - parse as UTC
+        // Specific date (YYYY-MM-DD format) - parse as local
         const [year, month, day] = dateFilter.split('-').map(Number);
-        startDate = new Date(Date.UTC(year, month - 1, day));
+        startDate = new Date(year, month - 1, day);
         endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
       }
 
