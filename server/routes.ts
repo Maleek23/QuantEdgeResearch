@@ -17010,6 +17010,20 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     try {
       const { runORBScan } = await import("./spx-orb-scanner");
       const result = await runORBScan();
+
+      // Auto-send SMS alerts for high-confidence ORB breakouts
+      try {
+        const { sendORBAlert } = await import("./sms-notification-service");
+        for (const breakout of result.breakouts) {
+          if (breakout.confidence >= 65) {
+            await sendORBAlert(breakout);
+          }
+        }
+      } catch (smsError) {
+        // Don't fail the scan if SMS fails
+        logger.warn(`[ORB-SCANNER] SMS alert error:`, smsError);
+      }
+
       res.json(result);
     } catch (error: any) {
       logger.error(`[ORB-SCANNER] Scan error:`, error);
@@ -17072,6 +17086,186 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     } catch (error: any) {
       logger.error(`[ORB-SCANNER] Control error:`, error);
       res.status(500).json({ error: error?.message || "Scanner control failed" });
+    }
+  });
+
+  // =============================================
+  // SPX SESSION SCANNER - All Day Strategies
+  // =============================================
+
+  // Run full session scan - VWAP, HOD/LOD, Gamma, Power Hour, etc.
+  app.get("/api/scanner/session", async (_req, res) => {
+    try {
+      const { runSessionScan } = await import("./spx-session-scanner");
+      const result = await runSessionScan();
+
+      // Auto-send SMS alerts for high-confidence signals
+      try {
+        const { sendSPXAlert } = await import("./sms-notification-service");
+        for (const signal of result.signals) {
+          if (signal.confidence >= 65 && signal.urgency === 'HIGH') {
+            await sendSPXAlert(signal);
+          }
+        }
+      } catch (smsError) {
+        // Don't fail the scan if SMS fails
+        logger.warn(`[SESSION-SCANNER] SMS alert error:`, smsError);
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[SESSION-SCANNER] Scan error:`, error);
+      res.status(500).json({ error: error?.message || "Session scan failed" });
+    }
+  });
+
+  // Get active session signals only
+  app.get("/api/scanner/session/signals", async (_req, res) => {
+    try {
+      const { getActiveSignals } = await import("./spx-session-scanner");
+      const signals = getActiveSignals();
+      res.json({ signals, count: signals.length });
+    } catch (error: any) {
+      logger.error(`[SESSION-SCANNER] Signals error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get signals" });
+    }
+  });
+
+  // Get signals by strategy type
+  app.get("/api/scanner/session/strategy/:strategy", async (req, res) => {
+    try {
+      const { strategy } = req.params;
+      const { getSignalsByStrategy } = await import("./spx-session-scanner");
+      const signals = getSignalsByStrategy(strategy as any);
+      res.json({ signals, strategy, count: signals.length });
+    } catch (error: any) {
+      logger.error(`[SESSION-SCANNER] Strategy filter error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get strategy signals" });
+    }
+  });
+
+  // Get day levels (VWAP, HOD, LOD, Gamma)
+  app.get("/api/scanner/session/levels", async (_req, res) => {
+    try {
+      const { getLevels } = await import("./spx-session-scanner");
+      const levels = getLevels();
+      res.json({ levels, count: levels.length });
+    } catch (error: any) {
+      logger.error(`[SESSION-SCANNER] Levels error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get levels" });
+    }
+  });
+
+  // Start/stop session scanner (admin only)
+  app.post("/api/scanner/session/control", requireAdminJWT, async (req, res) => {
+    try {
+      const { action } = req.body;
+      const { startSessionScanner, stopSessionScanner } = await import("./spx-session-scanner");
+
+      if (action === 'start') {
+        const intervalMs = req.body.intervalMs || 30000; // Default 30 seconds
+        startSessionScanner(intervalMs);
+        res.json({ success: true, message: `Session scanner started with ${intervalMs}ms interval` });
+      } else if (action === 'stop') {
+        stopSessionScanner();
+        res.json({ success: true, message: 'Session scanner stopped' });
+      } else {
+        res.status(400).json({ error: 'Invalid action. Use "start" or "stop"' });
+      }
+    } catch (error: any) {
+      logger.error(`[SESSION-SCANNER] Control error:`, error);
+      res.status(500).json({ error: error?.message || "Scanner control failed" });
+    }
+  });
+
+  // =============================================
+  // SMS NOTIFICATIONS - Phone Alerts
+  // =============================================
+
+  // Get SMS configuration (masked)
+  app.get("/api/notifications/sms/config", async (_req, res) => {
+    try {
+      const { getSMSConfig } = await import("./sms-notification-service");
+      const config = getSMSConfig();
+      res.json(config);
+    } catch (error: any) {
+      logger.error(`[SMS] Config error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get SMS config" });
+    }
+  });
+
+  // Update SMS configuration
+  app.post("/api/notifications/sms/config", requireAdminJWT, async (req, res) => {
+    try {
+      const { configureSMS, getSMSConfig } = await import("./sms-notification-service");
+      configureSMS(req.body);
+      res.json({ success: true, config: getSMSConfig() });
+    } catch (error: any) {
+      logger.error(`[SMS] Config update error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to update SMS config" });
+    }
+  });
+
+  // Test SMS notification
+  app.post("/api/notifications/sms/test", requireAdminJWT, async (req, res) => {
+    try {
+      const { testSMS } = await import("./sms-notification-service");
+      const result = await testSMS();
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[SMS] Test error:`, error);
+      res.status(500).json({ error: error?.message || "SMS test failed" });
+    }
+  });
+
+  // Get SMS alert statistics
+  app.get("/api/notifications/sms/stats", async (_req, res) => {
+    try {
+      const { getAlertStats } = await import("./sms-notification-service");
+      const stats = getAlertStats();
+      res.json(stats);
+    } catch (error: any) {
+      logger.error(`[SMS] Stats error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get SMS stats" });
+    }
+  });
+
+  // Send custom SMS alert (admin only)
+  app.post("/api/notifications/sms/send", requireAdminJWT, async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      const { sendCustomAlert } = await import("./sms-notification-service");
+      const sent = await sendCustomAlert(message);
+      res.json({ success: sent, message: sent ? "SMS sent" : "SMS not sent (check config)" });
+    } catch (error: any) {
+      logger.error(`[SMS] Send error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to send SMS" });
+    }
+  });
+
+  // Set user phone number for alerts
+  app.post("/api/notifications/sms/phone", async (req, res) => {
+    try {
+      const { phoneNumber, enabled } = req.body;
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+      // Validate phone format (basic E.164 check)
+      if (!/^\+?[1-9]\d{1,14}$/.test(phoneNumber.replace(/[\s\-\(\)]/g, ''))) {
+        return res.status(400).json({ error: "Invalid phone number format" });
+      }
+      const { configureSMS } = await import("./sms-notification-service");
+      configureSMS({
+        userPhoneNumber: phoneNumber.replace(/[\s\-\(\)]/g, ''),
+        enabled: enabled !== false
+      });
+      res.json({ success: true, message: "Phone number configured" });
+    } catch (error: any) {
+      logger.error(`[SMS] Phone config error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to set phone number" });
     }
   });
 
