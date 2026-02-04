@@ -17001,6 +17001,80 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // ============================================
+  // SPX ORB (Opening Range Breakout) Scanner
+  // ============================================
+
+  // Run full ORB scan - returns ranges, breakouts, and pending setups
+  app.get("/api/scanner/orb", async (_req, res) => {
+    try {
+      const { runORBScan } = await import("./spx-orb-scanner");
+      const result = await runORBScan();
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[ORB-SCANNER] Scan error:`, error);
+      res.status(500).json({ error: error?.message || "ORB scan failed" });
+    }
+  });
+
+  // Get ORB scanner status
+  app.get("/api/scanner/orb/status", async (_req, res) => {
+    try {
+      const { getORBStatus } = await import("./spx-orb-scanner");
+      const status = await getORBStatus();
+      res.json(status);
+    } catch (error: any) {
+      logger.error(`[ORB-SCANNER] Status error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get ORB status" });
+    }
+  });
+
+  // Get active ORB breakouts only
+  app.get("/api/scanner/orb/breakouts", async (_req, res) => {
+    try {
+      const { getActiveBreakouts } = await import("./spx-orb-scanner");
+      const breakouts = getActiveBreakouts();
+      res.json({ breakouts, count: breakouts.length });
+    } catch (error: any) {
+      logger.error(`[ORB-SCANNER] Breakouts error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get breakouts" });
+    }
+  });
+
+  // Get current opening ranges
+  app.get("/api/scanner/orb/ranges", async (_req, res) => {
+    try {
+      const { getRanges } = await import("./spx-orb-scanner");
+      const ranges = getRanges();
+      res.json({ ranges, count: ranges.length });
+    } catch (error: any) {
+      logger.error(`[ORB-SCANNER] Ranges error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get ranges" });
+    }
+  });
+
+  // Start/stop ORB scanner (admin only)
+  app.post("/api/scanner/orb/control", requireAdminJWT, async (req, res) => {
+    try {
+      const { action } = req.body;
+      const { startORBScanner, stopORBScanner } = await import("./spx-orb-scanner");
+
+      if (action === 'start') {
+        const intervalMs = req.body.intervalMs || 60000; // Default 1 minute
+        startORBScanner(intervalMs);
+        res.json({ success: true, message: `ORB scanner started with ${intervalMs}ms interval` });
+      } else if (action === 'stop') {
+        stopORBScanner();
+        res.json({ success: true, message: 'ORB scanner stopped' });
+      } else {
+        res.status(400).json({ error: 'Invalid action. Use "start" or "stop"' });
+      }
+    } catch (error: any) {
+      logger.error(`[ORB-SCANNER] Control error:`, error);
+      res.status(500).json({ error: error?.message || "Scanner control failed" });
+    }
+  });
+
   // Smart Position Advisor - Get exit/rebuy signals for a position
   app.post("/api/smart-advisor/analyze", async (req, res) => {
     try {
