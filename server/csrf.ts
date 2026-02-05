@@ -61,6 +61,16 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
   if (req.method === 'PATCH' && /^\/api\/tracking\/pageview\/[a-f0-9-]+$/.test(req.path)) {
     return next();
   }
+
+  // Exempt executor and Alpaca trading routes (internal auto-trading system)
+  if (req.path.startsWith('/api/executor/') || req.path.startsWith('/api/alpaca/')) {
+    return next();
+  }
+
+  // Exempt portfolio routes (internal monitoring system)
+  if (req.path.startsWith('/api/portfolio/')) {
+    return next();
+  }
   
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string;

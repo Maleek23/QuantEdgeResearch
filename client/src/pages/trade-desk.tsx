@@ -2993,39 +2993,42 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
       });
     }
 
-    // Date filter - use local date for "today/yesterday" to match user's timezone
+    // Date filter - use ET timezone to match server filtering
     if (dateFilter !== 'all') {
-      const now = new Date();
+      // Get today's date in ET timezone (matches server)
+      const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const todayStrET = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
 
-      // For "today"/"yesterday", use local date so user sees their local day's ideas
-      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      let startDate: Date;
-      let endDate: Date;
-
-      if (dateFilter === 'today') {
-        startDate = todayLocal;
-        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
-      } else if (dateFilter === 'yesterday') {
-        startDate = new Date(todayLocal.getTime() - 24 * 60 * 60 * 1000);
-        endDate = todayLocal;
-      } else if (dateFilter === 'week') {
-        startDate = new Date(todayLocal.getTime() - 7 * 24 * 60 * 60 * 1000);
-        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
-      } else if (dateFilter === 'month') {
-        startDate = new Date(todayLocal.getTime() - 30 * 24 * 60 * 60 * 1000);
-        endDate = new Date(todayLocal.getTime() + 24 * 60 * 60 * 1000);
-      } else {
-        // Specific date (YYYY-MM-DD format) - parse as local
-        const [year, month, day] = dateFilter.split('-').map(Number);
-        startDate = new Date(year, month - 1, day);
-        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-      }
+      // Calculate date strings for comparison
+      const yesterdayET = new Date(nowET);
+      yesterdayET.setDate(yesterdayET.getDate() - 1);
+      const yesterdayStrET = `${yesterdayET.getFullYear()}-${String(yesterdayET.getMonth() + 1).padStart(2, '0')}-${String(yesterdayET.getDate()).padStart(2, '0')}`;
 
       filtered = filtered.filter(i => {
         if (!i.timestamp) return false;
-        const ideaDate = new Date(i.timestamp);
-        return ideaDate >= startDate && ideaDate < endDate;
+
+        // Convert idea timestamp to ET date string for comparison
+        const ideaDateUTC = new Date(i.timestamp);
+        const ideaDateStrET = ideaDateUTC.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD format
+
+        if (dateFilter === 'today') {
+          return ideaDateStrET === todayStrET;
+        } else if (dateFilter === 'yesterday') {
+          return ideaDateStrET === yesterdayStrET;
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(nowET);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          const weekAgoStr = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
+          return ideaDateStrET >= weekAgoStr && ideaDateStrET <= todayStrET;
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(nowET);
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          const monthAgoStr = `${monthAgo.getFullYear()}-${String(monthAgo.getMonth() + 1).padStart(2, '0')}-${String(monthAgo.getDate()).padStart(2, '0')}`;
+          return ideaDateStrET >= monthAgoStr && ideaDateStrET <= todayStrET;
+        } else {
+          // Specific date (YYYY-MM-DD format)
+          return ideaDateStrET === dateFilter;
+        }
       });
     }
 
