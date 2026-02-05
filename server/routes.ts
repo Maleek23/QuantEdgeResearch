@@ -17550,6 +17550,142 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // =============================================
+  // ALPACA AUTO-TRADING - Trade Desk Executor
+  // =============================================
+
+  // Get Alpaca account info
+  app.get("/api/alpaca/account", async (_req, res) => {
+    try {
+      const { getAccount, isAlpacaConfigured } = await import("./alpaca-trading");
+
+      if (!isAlpacaConfigured()) {
+        return res.status(400).json({ error: "Alpaca not configured", configured: false });
+      }
+
+      const account = await getAccount();
+      if (!account) {
+        return res.status(500).json({ error: "Failed to connect to Alpaca" });
+      }
+
+      res.json({
+        configured: true,
+        account: {
+          id: account.account_number,
+          status: account.status,
+          buyingPower: parseFloat(account.buying_power),
+          cash: parseFloat(account.cash),
+          portfolioValue: parseFloat(account.portfolio_value),
+          equity: parseFloat(account.equity),
+          daytrading: account.pattern_day_trader,
+        },
+      });
+    } catch (error: any) {
+      logger.error(`[ALPACA] Account error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get account" });
+    }
+  });
+
+  // Get Alpaca positions
+  app.get("/api/alpaca/positions", async (_req, res) => {
+    try {
+      const { getPositions, isAlpacaConfigured } = await import("./alpaca-trading");
+
+      if (!isAlpacaConfigured()) {
+        return res.status(400).json({ error: "Alpaca not configured" });
+      }
+
+      const positions = await getPositions();
+      res.json({
+        positions: positions.map(p => ({
+          symbol: p.symbol,
+          qty: parseInt(p.qty),
+          avgEntry: parseFloat(p.avg_entry_price),
+          currentPrice: parseFloat(p.current_price),
+          marketValue: parseFloat(p.market_value),
+          unrealizedPL: parseFloat(p.unrealized_pl),
+          unrealizedPLPercent: parseFloat(p.unrealized_plpc) * 100,
+        })),
+        count: positions.length,
+      });
+    } catch (error: any) {
+      logger.error(`[ALPACA] Positions error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get positions" });
+    }
+  });
+
+  // Get executor status and rules
+  app.get("/api/executor/status", async (_req, res) => {
+    try {
+      const { isExecutorActive, getExecutorRules, getExecutedTrades } = await import("./trade-desk-executor");
+      const { isAlpacaConfigured, getAlpacaConfig } = await import("./alpaca-trading");
+
+      res.json({
+        alpacaConfigured: isAlpacaConfigured(),
+        alpacaMode: getAlpacaConfig().isPaper ? "paper" : "live",
+        executorActive: isExecutorActive(),
+        rules: getExecutorRules(),
+        executedTrades: getExecutedTrades(),
+      });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Status error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get executor status" });
+    }
+  });
+
+  // Start the executor
+  app.post("/api/executor/start", async (_req, res) => {
+    try {
+      const { startTradeExecutor, isExecutorActive } = await import("./trade-desk-executor");
+
+      if (isExecutorActive()) {
+        return res.json({ success: true, message: "Executor already running" });
+      }
+
+      const started = await startTradeExecutor();
+      res.json({ success: started, message: started ? "Executor started" : "Failed to start executor" });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Start error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to start executor" });
+    }
+  });
+
+  // Stop the executor
+  app.post("/api/executor/stop", async (_req, res) => {
+    try {
+      const { stopTradeExecutor } = await import("./trade-desk-executor");
+      stopTradeExecutor();
+      res.json({ success: true, message: "Executor stopped" });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Stop error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to stop executor" });
+    }
+  });
+
+  // Update executor rules
+  app.post("/api/executor/rules", async (req, res) => {
+    try {
+      const { updateExecutorRules, getExecutorRules } = await import("./trade-desk-executor");
+      updateExecutorRules(req.body);
+      res.json({ success: true, rules: getExecutorRules() });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Rules update error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to update rules" });
+    }
+  });
+
+  // Manual execute a specific signal
+  app.post("/api/executor/execute/:signalId", async (req, res) => {
+    try {
+      const { manualExecute } = await import("./trade-desk-executor");
+      const success = await manualExecute(req.params.signalId);
+      res.json({ success, signalId: req.params.signalId });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Manual execute error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to execute signal" });
+    }
+  });
+
   // Smart Position Advisor - Get exit/rebuy signals for a position
   app.post("/api/smart-advisor/analyze", async (req, res) => {
     try {
