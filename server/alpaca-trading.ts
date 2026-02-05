@@ -7,14 +7,23 @@
 
 import { logger } from './logger';
 
-// Alpaca API Configuration
-const ALPACA_CONFIG = {
+// Alpaca API Configuration - use getters to read env at runtime (after dotenv loads)
+function getAlpacaApiKey(): string {
+  return process.env.ALPACA_API_KEY || '';
+}
+
+function getAlpacaSecretKey(): string {
+  return process.env.ALPACA_SECRET_KEY || '';
+}
+
+function isPaperMode(): boolean {
+  return process.env.ALPACA_PAPER !== 'false';
+}
+
+const ALPACA_URLS = {
   paperBaseUrl: 'https://paper-api.alpaca.markets',
   liveBaseUrl: 'https://api.alpaca.markets',
   dataBaseUrl: 'https://data.alpaca.markets',
-  apiKey: process.env.ALPACA_API_KEY || '',
-  secretKey: process.env.ALPACA_SECRET_KEY || '',
-  isPaper: process.env.ALPACA_PAPER !== 'false', // Default to paper trading
 };
 
 // Types
@@ -100,18 +109,25 @@ async function alpacaRequest<T>(
   method: 'GET' | 'POST' | 'DELETE' | 'PATCH' = 'GET',
   body?: any
 ): Promise<T | null> {
-  const baseUrl = ALPACA_CONFIG.isPaper
-    ? ALPACA_CONFIG.paperBaseUrl
-    : ALPACA_CONFIG.liveBaseUrl;
+  const baseUrl = isPaperMode()
+    ? ALPACA_URLS.paperBaseUrl
+    : ALPACA_URLS.liveBaseUrl;
 
   const url = `${baseUrl}${endpoint}`;
+  const apiKey = getAlpacaApiKey();
+  const secretKey = getAlpacaSecretKey();
+
+  if (!apiKey || !secretKey) {
+    logger.error('[ALPACA] API keys not configured');
+    return null;
+  }
 
   try {
     const response = await fetch(url, {
       method,
       headers: {
-        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
-        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey,
+        'APCA-API-KEY-ID': apiKey,
+        'APCA-API-SECRET-KEY': secretKey,
         'Content-Type': 'application/json',
       },
       body: body ? JSON.stringify(body) : undefined,
@@ -254,10 +270,10 @@ export async function submitBracketOrder(request: BracketOrderRequest): Promise<
 
 export async function getLatestQuote(symbol: string): Promise<{ ask: number; bid: number; last: number } | null> {
   try {
-    const response = await fetch(`${ALPACA_CONFIG.dataBaseUrl}/v2/stocks/${symbol}/quotes/latest`, {
+    const response = await fetch(`${ALPACA_URLS.dataBaseUrl}/v2/stocks/${symbol}/quotes/latest`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
-        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey,
+        'APCA-API-KEY-ID': getAlpacaApiKey(),
+        'APCA-API-SECRET-KEY': getAlpacaSecretKey(),
       },
     });
 
@@ -281,10 +297,10 @@ export async function getLatestQuote(symbol: string): Promise<{ ask: number; bid
 
 export async function isMarketOpen(): Promise<boolean> {
   try {
-    const response = await fetch(`${ALPACA_CONFIG.paperBaseUrl}/v2/clock`, {
+    const response = await fetch(`${ALPACA_URLS.paperBaseUrl}/v2/clock`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
-        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey,
+        'APCA-API-KEY-ID': getAlpacaApiKey(),
+        'APCA-API-SECRET-KEY': getAlpacaSecretKey(),
       },
     });
 
@@ -303,10 +319,10 @@ export async function getTradingStatus(): Promise<{
   nextClose: string;
 } | null> {
   try {
-    const response = await fetch(`${ALPACA_CONFIG.paperBaseUrl}/v2/clock`, {
+    const response = await fetch(`${ALPACA_URLS.paperBaseUrl}/v2/clock`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_CONFIG.apiKey,
-        'APCA-API-SECRET-KEY': ALPACA_CONFIG.secretKey,
+        'APCA-API-KEY-ID': getAlpacaApiKey(),
+        'APCA-API-SECRET-KEY': getAlpacaSecretKey(),
       },
     });
 
@@ -328,12 +344,16 @@ export async function getTradingStatus(): Promise<{
 // ============================================
 
 export function isAlpacaConfigured(): boolean {
-  return !!(ALPACA_CONFIG.apiKey && ALPACA_CONFIG.secretKey);
+  const apiKey = getAlpacaApiKey();
+  const secretKey = getAlpacaSecretKey();
+  return !!(apiKey && secretKey);
 }
 
 export async function initializeAlpaca(): Promise<boolean> {
   if (!isAlpacaConfigured()) {
     logger.warn('[ALPACA] API keys not configured');
+    logger.warn(`[ALPACA] ALPACA_API_KEY: ${getAlpacaApiKey() ? 'set' : 'NOT SET'}`);
+    logger.warn(`[ALPACA] ALPACA_SECRET_KEY: ${getAlpacaSecretKey() ? 'set' : 'NOT SET'}`);
     return false;
   }
 
@@ -343,7 +363,7 @@ export async function initializeAlpaca(): Promise<boolean> {
     return false;
   }
 
-  logger.info(`[ALPACA] ✅ Connected to Alpaca ${ALPACA_CONFIG.isPaper ? '(PAPER)' : '(LIVE)'}`);
+  logger.info(`[ALPACA] ✅ Connected to Alpaca ${isPaperMode() ? '(PAPER)' : '(LIVE)'}`);
   logger.info(`[ALPACA]    Account: ${account.account_number}`);
   logger.info(`[ALPACA]    Buying Power: $${parseFloat(account.buying_power).toFixed(2)}`);
   logger.info(`[ALPACA]    Portfolio Value: $${parseFloat(account.portfolio_value).toFixed(2)}`);
@@ -354,7 +374,7 @@ export async function initializeAlpaca(): Promise<boolean> {
 // Export config for other modules
 export function getAlpacaConfig() {
   return {
-    isPaper: ALPACA_CONFIG.isPaper,
+    isPaper: isPaperMode(),
     isConfigured: isAlpacaConfigured(),
   };
 }
