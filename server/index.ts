@@ -220,6 +220,21 @@ app.use((req, res, next) => {
     selfLearning.start();
     log('🧠 Self-Learning Service started - engines will adapt based on trade outcomes');
 
+    // Start Trade Desk Executor (auto-trades high-confidence signals via Alpaca)
+    const { startTradeExecutor, isExecutorActive } = await import('./trade-desk-executor');
+    const { isAlpacaConfigured, initializeAlpaca } = await import('./alpaca-trading');
+    if (isAlpacaConfigured()) {
+      const alpacaReady = await initializeAlpaca();
+      if (alpacaReady) {
+        await startTradeExecutor();
+        log('🤖 Trade Desk Executor started - auto-executing Band B signals (75%+ confidence, 3+ signals)');
+      } else {
+        log('⚠️ Alpaca connection failed - Trade Desk Executor not started');
+      }
+    } else {
+      log('⚠️ Alpaca not configured - Trade Desk Executor not started (set ALPACA_API_KEY and ALPACA_SECRET_KEY)');
+    }
+
     // Start Convergence Engine (multi-source signal correlation for pre-move detection)
     const { startConvergenceEngine } = await import('./convergence-engine');
     startConvergenceEngine();
