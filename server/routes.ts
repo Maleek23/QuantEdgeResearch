@@ -17674,6 +17674,39 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
+  // Get executed trades history
+  app.get("/api/executor/trades", async (_req, res) => {
+    try {
+      const { getExecutedTrades } = await import("./trade-desk-executor");
+      const { getPositions } = await import("./alpaca-trading");
+
+      const trades = getExecutedTrades();
+      const positions = await getPositions();
+
+      // Enrich trades with current position data
+      const enrichedTrades = trades.map(trade => {
+        const position = positions.find(p => p.symbol === trade.symbol);
+        return {
+          ...trade,
+          currentPrice: position ? parseFloat(position.current_price) : null,
+          currentPL: position ? parseFloat(position.unrealized_pl) : null,
+          currentPLPercent: position ? parseFloat(position.unrealized_plpc) * 100 : null,
+          stillOpen: !!position,
+        };
+      });
+
+      res.json({
+        trades: enrichedTrades,
+        totalTrades: trades.length,
+        openTrades: enrichedTrades.filter(t => t.stillOpen).length,
+        closedTrades: enrichedTrades.filter(t => !t.stillOpen).length,
+      });
+    } catch (error: any) {
+      logger.error(`[EXECUTOR] Trades fetch error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get trades" });
+    }
+  });
+
   // Manual execute a specific signal
   app.post("/api/executor/execute/:signalId", async (req, res) => {
     try {
