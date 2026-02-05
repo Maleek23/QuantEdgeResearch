@@ -15,6 +15,7 @@
 
 import { logger } from './logger';
 import { fetchStockPrice, fetchYahooFinancePrice } from './market-api';
+import { storage } from './storage';
 
 // ============================================
 // MARKET DATA HELPERS
@@ -634,6 +635,64 @@ async function generateBreakoutSignal(
   };
 }
 
+/**
+ * Save ORB breakout as a Trade Idea for Trade Desk display
+ */
+async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
+  try {
+    // Check if we already have this idea saved recently
+    const allIdeas = await storage.getAllTradeIdeas();
+    const recentDuplicate = allIdeas.find(
+      (idea: any) =>
+        idea.symbol === breakout.symbol &&
+        idea.source === 'orb_scanner' &&
+        idea.direction.toLowerCase() === breakout.direction.toLowerCase() &&
+        new Date().getTime() - new Date(idea.timestamp).getTime() < 60 * 60 * 1000 // Within 1 hour
+    );
+
+    if (recentDuplicate) {
+      logger.debug(`[ORB] Skipping duplicate trade idea for ${breakout.symbol}`);
+      return;
+    }
+
+    // Convert ORB breakout to trade idea format
+    const tradeIdea = {
+      symbol: breakout.symbol,
+      assetType: 'option' as const,
+      direction: breakout.direction.toLowerCase(),
+      entryPrice: breakout.entry,
+      targetPrice: breakout.target1,
+      stopLoss: breakout.stop,
+      riskRewardRatio: breakout.riskReward,
+      catalyst: `ORB ${breakout.timeframe} ${breakout.direction} breakout`,
+      analysis: breakout.thesis,
+      sessionContext: `${breakout.sessionPhase} - ${breakout.breakoutType} trade`,
+      source: 'orb_scanner',
+      dataSourceUsed: `ORB_${breakout.timeframe}_${breakout.breakoutType}`,
+      timestamp: breakout.timestamp.toISOString(),
+      outcomeStatus: 'open' as const,
+      confidenceScore: breakout.confidence,
+      holdingPeriod: breakout.breakoutType === '0DTE' ? 'day' as const : 'swing' as const,
+
+      // Option details
+      optionType: breakout.optionType,
+      strikePrice: breakout.suggestedStrike,
+      expiryDate: breakout.suggestedExpiry,
+
+      // Quality signals
+      qualitySignals: breakout.signals,
+
+      // Meta
+      isLottoPlay: breakout.breakoutType === '0DTE' && breakout.confidence >= 65,
+    };
+
+    await storage.createTradeIdea(tradeIdea);
+    logger.info(`[ORB] ✅ Saved trade idea: ${breakout.symbol} ${breakout.direction} ${breakout.timeframe}`);
+  } catch (error) {
+    logger.error(`[ORB] Failed to save trade idea for ${breakout.symbol}:`, error);
+  }
+}
+
 // ============================================
 // MAIN SCANNER
 // ============================================
@@ -720,6 +779,11 @@ export async function runORBScan(): Promise<ORBScanResult> {
                 breakouts.push(signal);
                 dailyState.breakouts.push(signal);
                 logger.info(`[ORB] 🎯 BREAKOUT: ${symbol} ${signal.direction} ${tf} - Confidence: ${signal.confidence}%`);
+
+                // Save to Trade Ideas database for Trade Desk display
+                saveBreakoutAsTradeIdea(signal).catch(e =>
+                  logger.error(`[ORB] Failed to save trade idea:`, e)
+                );
               }
             }
           } else {

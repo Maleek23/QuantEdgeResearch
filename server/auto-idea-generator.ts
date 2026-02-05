@@ -26,6 +26,15 @@ const SEMI_STORAGE_TICKERS = [
   'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX'
 ];
 
+// INDEX ETFs - ALWAYS include these for 0DTE and swing plays
+const INDEX_TICKERS = [
+  'SPY',  // S&P 500 ETF - most liquid options market
+  'QQQ',  // Nasdaq 100 ETF - tech-heavy
+  'IWM',  // Russell 2000 ETF - small caps
+  'SPX',  // S&P 500 Index - 0DTE options
+  'DIA',  // Dow Jones ETF
+];
+
 // Tech Correlation Matrix - Tracks stocks influenced by heavyweights
 const TECH_CORRELATION_MAP = {
   'NVDA': ['AMD', 'SMCI', 'TSM', 'ASML', 'ARM', 'MU', 'AVGO'],
@@ -203,29 +212,33 @@ class AutoIdeaGenerator {
 
       // Build market context - add penny stock emphasis for evening sessions
       const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
+      const indexTickers = INDEX_TICKERS.join(', ');
       const correlationContext = Object.entries(TECH_CORRELATION_MAP)
         .map(([leader, followers]) => `${leader} influences ${followers.join(', ')}`)
         .join('; ');
 
-      let marketContext = `Current market conditions with focus on stocks, options, and crypto. 
+      let marketContext = `Current market conditions with focus on stocks, options, and crypto.
+      🎯 PRIORITY: ALWAYS generate ideas for INDEX ETFs (${indexTickers}) - these are the most important for 0DTE and swing trading.
       Pay special attention to Semiconductors and Memory/Storage sectors (AI Infrastructure): ${semiTickers}.
-      CORRELATION TRACKING: ${correlationContext}. 
+      CORRELATION TRACKING: ${correlationContext}.
       When analyzing a heavyweight, look for spillover or divergence in its influence group.`;
       
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
-        marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities. 
-Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks. 
-Priority tickers to analyze: ${semiTickers}, ${pennyTickers}.
+        marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities.
+🎯 TOP PRIORITY: ALWAYS generate ideas for INDEX ETFs (${indexTickers}) - SPY, QQQ, IWM are essential for 0DTE trading!
+Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks.
+Priority tickers to analyze: ${indexTickers}, ${semiTickers}, ${pennyTickers}.
 CORRELATION TRACKING: ${correlationContext}. Analyze how NVDA price action is influencing the broader semi/AI sector today.
-Look for: 
-1. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
-2. Tech Spillover: If NVDA is strong, look for laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}.
-3. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-4. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-5. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-6. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
-7. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
+Look for:
+1. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly option plays based on support/resistance levels
+2. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
+3. Tech Spillover: If NVDA is strong, look for laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}.
+4. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+5. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+6. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+7. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+8. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
 Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
@@ -567,17 +580,20 @@ Generate swing trade and lotto option ideas with asymmetric risk/reward. Include
 
       // Build market context for tomorrow's watchlist
       const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
+      const indexTickers = INDEX_TICKERS.join(', ');
       const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
       const marketContext = `🌙 TOMORROW'S WATCHLIST - Evening research session for next-day trading opportunities.
 This is a relaxed evening scan to identify interesting setups for tomorrow's trading day.
+🎯 TOP PRIORITY: ALWAYS generate ideas for INDEX ETFs (${indexTickers}) - SPY, QQQ, IWM are essential for 0DTE trading!
 Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks.
-Priority tickers to analyze: ${semiTickers}, ${pennyTickers}.
+Priority tickers to analyze: ${indexTickers}, ${semiTickers}, ${pennyTickers}.
 Look for:
-1. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
-2. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-3. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-4. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-5. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+1. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX, DIA) - 0DTE and weekly option plays based on support/resistance levels
+2. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
+3. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+4. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+5. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+6. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
 Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.
 This is a WATCHLIST scan - be more inclusive of speculative setups.`;
 

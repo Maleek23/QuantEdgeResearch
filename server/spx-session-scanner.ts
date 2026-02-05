@@ -13,6 +13,7 @@
 
 import { logger } from './logger';
 import { fetchStockPrice } from './market-api';
+import { storage } from './storage';
 
 // ============================================
 // TYPES
@@ -764,6 +765,70 @@ function createSignal(params: SignalParams): SPXSignal {
   };
 }
 
+/**
+ * Save SPX Session signal as a Trade Idea for Trade Desk display
+ */
+async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
+  logger.info(`[SPX-SESSION] 💾 Attempting to save trade idea for ${signal.symbol} ${signal.strategy}...`);
+  try {
+    // Check if we already have this idea saved recently (within 30 min)
+    const allIdeas = await storage.getAllTradeIdeas();
+    const recentDuplicate = allIdeas.find(
+      (idea: any) =>
+        idea.symbol === signal.symbol &&
+        idea.source === 'spx_session' &&
+        idea.direction.toLowerCase() === signal.direction.toLowerCase() &&
+        new Date().getTime() - new Date(idea.timestamp).getTime() < 30 * 60 * 1000
+    );
+
+    if (recentDuplicate) {
+      logger.debug(`[SPX-SESSION] Skipping duplicate trade idea for ${signal.symbol}`);
+      return;
+    }
+
+    // Calculate risk/reward ratio
+    const risk = Math.abs(signal.entry - signal.stop);
+    const reward = Math.abs(signal.target1 - signal.entry);
+    const riskRewardRatio = risk > 0 ? reward / risk : 2.0;
+
+    // Convert SPX signal to trade idea format
+    const tradeIdea = {
+      symbol: signal.symbol,
+      assetType: 'option' as const,
+      direction: signal.direction.toLowerCase(),
+      entryPrice: signal.entry,
+      targetPrice: signal.target1,
+      stopLoss: signal.stop,
+      riskRewardRatio,
+      catalyst: `${signal.strategy} signal on ${signal.symbol}`,
+      analysis: signal.thesis,
+      sessionContext: `${signal.sessionPhase} - ${signal.timeRemaining} to close`,
+      source: 'spx_session',
+      dataSourceUsed: `SPX_${signal.strategy}`,
+      timestamp: signal.timestamp.toISOString(),
+      outcomeStatus: 'open' as const,
+      confidenceScore: signal.confidence,
+      holdingPeriod: 'day' as const,
+
+      // Option details
+      optionType: signal.optionType,
+      strikePrice: signal.suggestedStrike,
+      expiryDate: signal.suggestedExpiry,
+
+      // Quality signals
+      qualitySignals: signal.signals,
+
+      // Meta
+      isLottoPlay: signal.urgency === 'HIGH' && signal.confidence >= 65,
+    };
+
+    await storage.createTradeIdea(tradeIdea);
+    logger.info(`[SPX-SESSION] ✅ Saved trade idea: ${signal.symbol} ${signal.strategy} ${signal.direction}`);
+  } catch (error) {
+    logger.error(`[SPX-SESSION] Failed to save trade idea for ${signal.symbol}:`, error);
+  }
+}
+
 // ============================================
 // MAIN SCANNER
 // ============================================
@@ -829,6 +894,11 @@ export async function runSessionScan(): Promise<SessionScanResult> {
             newSignals.push(signal);
             state.signals.push(signal);
             logger.info(`[SPX-SESSION] 🎯 NEW SIGNAL: ${signal.symbol} ${signal.strategy} ${signal.direction} - Confidence: ${signal.confidence}%`);
+
+            // Save to Trade Ideas database for Trade Desk display
+            saveSignalAsTradeIdea(signal).catch(e =>
+              logger.error(`[SPX-SESSION] Failed to save trade idea:`, e)
+            );
           }
         }
       }

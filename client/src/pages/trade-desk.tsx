@@ -283,15 +283,26 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 // ============================================
 // STATS OVERVIEW CARDS
 // ============================================
-function StatsOverview({ ideas }: { ideas: TradeIdea[] }) {
+interface StatsOverviewProps {
+  ideas: TradeIdea[];
+  dateFilter?: 'today' | 'week' | 'all';
+}
+
+function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
   const stats = useMemo(() => {
     const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+
+    // Use ET timezone for "today" calculation (matches server filter)
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const todayStrET = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
+
+    // Count ideas with today's date (ET timezone)
     const todayIdeas = openIdeas.filter(i => {
-      const ts = i.timestamp ? new Date(i.timestamp) : null;
-      return ts && ts >= today;
+      if (!i.timestamp) return false;
+      // Timestamp format: "2026-02-04T10:30:00.000Z" - check if starts with today's date
+      return i.timestamp.startsWith(todayStrET);
     });
+
     const qualityIdeas = openIdeas.filter(i => {
       const grade = i.probabilityBand || '';
       return ['A+', 'A', 'A-', 'B+', 'B'].includes(grade);
@@ -308,14 +319,17 @@ function StatsOverview({ ideas }: { ideas: TradeIdea[] }) {
     };
   }, [ideas]);
 
+  // Label changes based on active filter
+  const totalLabel = dateFilter === 'today' ? "Today's Ideas" : dateFilter === 'week' ? "This Week" : "Total Ideas";
+
   return (
     <div className="grid grid-cols-4 gap-4">
       <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">Total Ideas</div>
+        <div className="text-xs text-slate-500 mb-1">{totalLabel}</div>
         <div className="text-2xl font-bold text-white">{stats.total}</div>
       </Card>
       <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">Today's Ideas</div>
+        <div className="text-xs text-slate-500 mb-1">Today (ET)</div>
         <div className="text-2xl font-bold text-teal-400">{stats.today}</div>
       </Card>
       <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
@@ -334,15 +348,17 @@ function StatsOverview({ ideas }: { ideas: TradeIdea[] }) {
 // BEST SETUPS CARD (Quick View)
 // ============================================
 function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
+  // Always filter to today's ideas only with cache-busting
+  const todayKey = new Date().toISOString().split('T')[0];
   const { data, isLoading } = useQuery({
-    queryKey: ['/api/trade-ideas/best-setups', 'daily'],
+    queryKey: ['/api/trade-ideas/best-setups', 'daily', 'today', todayKey],
     queryFn: async () => {
-      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=5');
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=5&date=today&_t=${Date.now()}`);
       if (!res.ok) return { setups: [] };
       return res.json();
     },
-    staleTime: 2 * 60 * 1000, // Data fresh for 2 minutes
-    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    staleTime: 0,             // Always fetch fresh
+    gcTime: 60 * 1000,        // 1 minute cache
     refetchInterval: 60000,   // Refresh every minute
   });
 
@@ -827,14 +843,17 @@ function TomorrowSurgersSubPage() {
 // BEST SETUPS SUB-PAGE (Full AI Stock Picker View)
 // ============================================
 function BestSetupsSubPage() {
+  // Always filter to today's ideas only with cache-busting
+  const todayKey = new Date().toISOString().split('T')[0];
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['/api/trade-ideas/best-setups', 'subpage'],
+    queryKey: ['/api/trade-ideas/best-setups', 'subpage', 'today', todayKey],
     queryFn: async () => {
-      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=50');
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=50&date=today&_t=${Date.now()}`);
       if (!res.ok) return { setups: [] };
       return res.json();
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,             // Always fetch fresh
+    gcTime: 60 * 1000,        // 1 minute cache
     refetchInterval: 60000,
   });
 
@@ -2920,12 +2939,23 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
 // ============================================
 // TRADE IDEAS LIST (Full Page View with 2-Column Grid)
 // ============================================
-function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], title?: string, onViewDetails?: (idea: TradeIdea) => void }) {
+interface TradeIdeasListProps {
+  ideas: TradeIdea[];
+  title?: string;
+  onViewDetails?: (idea: TradeIdea) => void;
+  // Server-side date filter control (for syncing with parent state)
+  serverDateFilter?: 'today' | 'week' | 'all';
+  onServerDateFilterChange?: (filter: 'today' | 'week' | 'all') => void;
+}
+
+function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today', onServerDateFilterChange }: TradeIdeasListProps) {
   const [search, setSearch] = useState("");
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all"); // Show all grades by default
   const [statusFilter, setStatusFilter] = useState<string>("all"); // Show all statuses by default
-  const [dateFilter, setDateFilter] = useState<string>("today"); // Default to today's ideas
+  // 🗓️ NOTE: Date filter now controlled by serverDateFilter (server-side filtering)
+  // Local dateFilter for additional client-side granularity (yesterday, specific days)
+  const [dateFilter, setDateFilter] = useState<string>("all"); // "all" since server already filters
   const [tradeTypeFilter, setTradeTypeFilter] = useState<string>("all"); // Day Trade, Swings, LEAPs
   const [sortBy, setSortBy] = useState<string>("confidence");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -3138,16 +3168,33 @@ function TradeIdeasList({ ideas, title, onViewDetails }: { ideas: TradeIdea[], t
           </SelectContent>
         </Select>
 
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
-            <SelectValue placeholder="Date" />
-          </SelectTrigger>
-          <SelectContent>
-            {dateOptions.map(opt => (
-              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Server-side Date Filter (controls API call) */}
+        {onServerDateFilterChange ? (
+          <Select
+            value={serverDateFilter || 'today'}
+            onValueChange={(v) => onServerDateFilterChange(v as 'today' | 'week' | 'all')}
+          >
+            <SelectTrigger className="w-[140px] bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+              <SelectValue placeholder="Date Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">🗓️ Today Only</SelectItem>
+              <SelectItem value="week">📅 Past Week</SelectItem>
+              <SelectItem value="all">🗃️ All Ideas</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+              <SelectValue placeholder="Date" />
+            </SelectTrigger>
+            <SelectContent>
+              {dateOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Select value={gradeFilter} onValueChange={setGradeFilter}>
           <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
@@ -3292,22 +3339,36 @@ export default function TradeDeskRedesigned() {
     },
   });
 
-  // Fetch trade ideas with ALL statuses to support filtering
-  // Client-side filtering handles status, date, direction, etc.
-  const { data: tradeIdeas = [], isLoading, error } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas/best-setups', 'all-statuses'],
+  // 🗓️ DATE FILTER STATE: Controls which ideas are fetched/displayed
+  // Default to "today" so users see fresh ideas when they wake up
+  const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>('today');
+
+  // 🔄 Cache buster: Use today's date as part of cache key to force fresh data each day
+  const todayDateKey = new Date().toISOString().split('T')[0]; // e.g. "2026-02-04"
+
+  // Fetch trade ideas with server-side date filtering for performance
+  // Only fetch the date range we need instead of loading everything
+  const { data: tradeIdeas = [], isLoading, error, refetch: refetchIdeas } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas/best-setups', serverDateFilter, todayDateKey],
     queryFn: async () => {
-      // Fetch with status=all to get both open and closed trades
-      // Increased limit to 1000 for better coverage
-      const res = await fetch('/api/trade-ideas/best-setups?period=monthly&limit=1000&status=all');
+      // Fetch with date filter applied server-side
+      // status=all gets both open and closed for historical analysis
+      // Add cache-busting timestamp to URL to prevent stale browser cache
+      const dateParam = serverDateFilter !== 'all' ? `&date=${serverDateFilter}` : '';
+      const cacheBust = `&_t=${Date.now()}`;
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=500&status=all${dateParam}${cacheBust}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.setups || [];
     },
-    staleTime: 30 * 1000,     // Data fresh for 30 seconds
-    gcTime: 5 * 60 * 1000,    // Keep in cache for 5 minutes
+    staleTime: 0,             // Always consider data stale to force refetch
+    gcTime: 60 * 1000,        // Keep in cache for 1 minute only
     refetchInterval: 30000,   // Refresh every 30 seconds for fresh ideas
   });
+
+  // 🚨 EMPTY STATE HANDLER: If "today" shows 0 ideas, offer to expand range
+  const hasTodayIdeas = tradeIdeas.length > 0;
+  const showEmptyTodayMessage = serverDateFilter === 'today' && !isLoading && !hasTodayIdeas;
 
   // ============================================
   // DEDUPLICATION ONLY - No filtering here!
@@ -3682,7 +3743,38 @@ export default function TradeDeskRedesigned() {
             <TradePerformanceStats />
 
             {/* Stats Cards */}
-            <StatsOverview ideas={filteredIdeas} />
+            <StatsOverview ideas={filteredIdeas} dateFilter={serverDateFilter} />
+
+            {/* Empty State: No ideas for today - offer to expand date range */}
+            {showEmptyTodayMessage && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 text-center">
+                <div className="text-amber-400 text-lg font-semibold mb-2">📭 No ideas generated today yet</div>
+                <p className="text-slate-400 text-sm mb-4">
+                  The AI hasn't generated any trade ideas for today. Ideas are typically generated at 9:30 AM, 11:00 AM, 1:30 PM, and 8:30 PM CT.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setServerDateFilter('week')}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-white transition-colors"
+                  >
+                    Show Past Week
+                  </button>
+                  <button
+                    onClick={() => setServerDateFilter('all')}
+                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm text-white transition-colors"
+                  >
+                    Show All Ideas
+                  </button>
+                  <button
+                    onClick={() => generateIdeas.mutate({ engine: 'quant' })}
+                    disabled={generatingEngine !== null}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm text-white transition-colors"
+                  >
+                    {generatingEngine ? 'Generating...' : 'Generate Now'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* All Trade Ideas List */}
             <TradeIdeasList
@@ -3692,6 +3784,8 @@ export default function TradeDeskRedesigned() {
                 setSelectedTradeIdea(idea);
                 setTradeIdeaModalOpen(true);
               }}
+              serverDateFilter={serverDateFilter}
+              onServerDateFilterChange={setServerDateFilter}
             />
           </TabsContent>
 

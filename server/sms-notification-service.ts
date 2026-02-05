@@ -420,12 +420,64 @@ export function initSMSService(): void {
   }
 }
 
+// ============================================
+// POSITION ALERTS (Stop Loss / Take Profit)
+// ============================================
+
+export interface PositionAlertData {
+  type: 'stop_loss' | 'profit_target' | 'bag_hold' | 'expiry_warning';
+  symbol: string;
+  underlying: string;
+  plPercent: number;
+  currentPrice: number;
+  avgCost: number;
+  quantity: number;
+  message: string;
+}
+
+/**
+ * Send alert for position events (stop loss, take profit, bag hold)
+ */
+export async function sendPositionAlert(data: PositionAlertData): Promise<boolean> {
+  if (!config.enabled) return false;
+
+  // Position alerts bypass quiet hours for stop loss and bag hold
+  const isCritical = data.type === 'stop_loss' || data.type === 'bag_hold';
+  if (!isCritical && isQuietHours()) return false;
+
+  // Format message with emoji based on type
+  let emoji = '';
+  switch (data.type) {
+    case 'stop_loss': emoji = '🚨'; break;
+    case 'profit_target': emoji = '💰'; break;
+    case 'bag_hold': emoji = '💀'; break;
+    case 'expiry_warning': emoji = '⏰'; break;
+  }
+
+  const fullMessage = `${emoji} POSITION ALERT
+
+${data.message}
+
+Symbol: ${data.underlying}
+P/L: ${data.plPercent >= 0 ? '+' : ''}${data.plPercent.toFixed(1)}%
+Current: $${data.currentPrice.toFixed(2)}
+Avg Cost: $${data.avgCost.toFixed(2)}
+Qty: ${data.quantity}
+
+${data.type === 'stop_loss' ? '⚠️ CUT THE LOSS NOW' : ''}
+${data.type === 'profit_target' ? '✅ Consider taking profits' : ''}`;
+
+  logger.info(`[SMS] Sending ${data.type} alert for ${data.symbol}`);
+  return sendTwilioSMS(fullMessage);
+}
+
 export default {
   configureSMS,
   getSMSConfig,
   sendSPXAlert,
   sendORBAlert,
   sendCustomAlert,
+  sendPositionAlert,
   testSMS,
   getAlertStats,
   initSMSService,

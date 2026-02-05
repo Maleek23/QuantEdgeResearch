@@ -5423,15 +5423,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Quality filter: ?quality=high filters to 70%+ confidence AND 4+ signals
       const qualityFilter = req.query.quality as string;
-      
+
+      // 🗓️ DATE FILTER: ?date=today (default), ?date=all, ?date=YYYY-MM-DD
+      // This ensures users see ONLY today's fresh ideas by default
+      const dateFilter = req.query.date as string || 'today';
+
       // Admin sees recent ideas (24h), logged-in users see system-generated ideas + their own
       // System-generated ideas have user_id = NULL and should be visible to all users
       // Use getRecentTradeIdeas() to filter out expired/closed trades and reduce memory usage
       let ideas = isAdmin
-        ? await storage.getRecentTradeIdeas(24, 1000) // Last 24h, max 1000 trades
+        ? await storage.getRecentTradeIdeas(72, 2000) // Last 72h for admin (to see patterns), max 2000 trades
         : userId
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
+
+      // 🗓️ APPLY DATE FILTER - Filter to specific date(s) server-side
+      // This prevents stale ideas from prior days polluting "today" view
+      if (dateFilter !== 'all') {
+        const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const todayStr = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
+
+        const beforeDateFilter = ideas.length;
+
+        if (dateFilter === 'today') {
+          // Only ideas with timestamp starting with today's date (YYYY-MM-DD)
+          ideas = ideas.filter(i => i.timestamp && i.timestamp.startsWith(todayStr));
+        } else if (dateFilter === 'week') {
+          // Ideas from last 7 days
+          const weekAgo = new Date(nowET.getTime() - 7 * 24 * 60 * 60 * 1000);
+          ideas = ideas.filter(i => i.timestamp && new Date(i.timestamp) >= weekAgo);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+          // Specific date (YYYY-MM-DD format)
+          ideas = ideas.filter(i => i.timestamp && i.timestamp.startsWith(dateFilter));
+        }
+
+        logger.info(`[TRADE-IDEAS] Date filter '${dateFilter}' applied: ${beforeDateFilter} -> ${ideas.length} ideas`);
+      }
       
       // 🎯 RELIABILITY FILTER: Remove conflicting directional signals
       // If we have both CALL and PUT for same symbol, keep only the higher conviction one
@@ -5922,8 +5949,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
       const limit = Math.min(parseInt(req.query.limit as string) || 5, 2000); // Allow up to 2000 ideas
       const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'hit_stop', 'expired'
-      const dateFilter = req.query.date as string; // Optional: 'YYYY-MM-DD' for specific day
+      const dateFilter = req.query.date as string; // 'today', 'week', or 'YYYY-MM-DD'
       const symbolFilter = req.query.symbol as string; // Optional: filter by specific symbol
+
+      // 🔍 DEBUG: Log incoming request params
+      logger.info(`[BEST-SETUPS] 📥 REQUEST - date: '${dateFilter}', status: '${statusFilter}', limit: ${limit}`);
 
       // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
       // Expand time window if viewing closed trades or specific date
@@ -5946,18 +5976,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return i.outcomeStatus === statusFilter;
       });
 
-      // Apply date filter if specified
+      // Apply date filter if specified (supports 'today', 'week', or 'YYYY-MM-DD')
       if (dateFilter) {
-        const filterDate = new Date(dateFilter);
-        const filterDateStart = new Date(filterDate.setHours(0, 0, 0, 0));
-        const filterDateEnd = new Date(filterDate.setHours(23, 59, 59, 999));
+        // Get today's date in ET timezone
+        const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const todayStr = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
 
-        filteredIdeas = filteredIdeas.filter(i => {
-          if (!i.timestamp) return false;
-          const ideaDate = new Date(i.timestamp);
-          return ideaDate >= filterDateStart && ideaDate <= filterDateEnd;
-        });
-        logger.info(`[BEST-SETUPS] After date filter (${dateFilter}): ${filteredIdeas.length} ideas`);
+        logger.info(`[BEST-SETUPS] Date filter requested: '${dateFilter}', today in ET: '${todayStr}'`);
+
+        const beforeFilter = filteredIdeas.length;
+
+        if (dateFilter === 'today') {
+          // Only today's ideas - properly convert UTC timestamps to ET for comparison
+          logger.info(`[BEST-SETUPS] 🔍 TODAY FILTER ACTIVE - filtering ${filteredIdeas.length} ideas`);
+
+          if (filteredIdeas.length > 0) {
+            // Log sample timestamps with their ET conversions
+            const samples = filteredIdeas.slice(0, 5).map(i => {
+              const utc = new Date(i.timestamp || '');
+              const etDate = utc.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+              return `${i.symbol}: ${i.timestamp} -> ET: ${etDate}`;
+            });
+            logger.info(`[BEST-SETUPS] Sample conversions:\n${samples.join('\n')}`);
+          }
+
+          // Convert each idea's UTC timestamp to ET date and compare
+          const beforeCount = filteredIdeas.length;
+          filteredIdeas = filteredIdeas.filter(i => {
+            if (!i.timestamp) {
+              logger.debug(`[BEST-SETUPS] Idea ${i.symbol} has no timestamp - excluding`);
+              return false;
+            }
+            try {
+              // Parse UTC timestamp and convert to ET
+              const ideaDateUTC = new Date(i.timestamp);
+              // Get the date string in ET timezone
+              const ideaDateStrET = ideaDateUTC.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // 'en-CA' gives YYYY-MM-DD format
+              const matches = ideaDateStrET === todayStr;
+              if (!matches) {
+                logger.debug(`[BEST-SETUPS] EXCLUDING ${i.symbol}: date ${ideaDateStrET} != today ${todayStr}`);
+              }
+              return matches;
+            } catch (err) {
+              logger.error(`[BEST-SETUPS] Error parsing timestamp for ${i.symbol}: ${err}`);
+              return false;
+            }
+          });
+
+          logger.info(`[BEST-SETUPS] Today filter result: ${beforeCount} -> ${filteredIdeas.length} ideas (comparing against '${todayStr}' ET)`);
+        } else if (dateFilter === 'week') {
+          // Last 7 days
+          const weekAgo = new Date(nowET.getTime() - 7 * 24 * 60 * 60 * 1000);
+          filteredIdeas = filteredIdeas.filter(i => i.timestamp && new Date(i.timestamp) >= weekAgo);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+          // Specific date (YYYY-MM-DD format)
+          filteredIdeas = filteredIdeas.filter(i => i.timestamp && i.timestamp.startsWith(dateFilter));
+        }
+
+        logger.info(`[BEST-SETUPS] After date filter '${dateFilter}': ${beforeFilter} -> ${filteredIdeas.length} ideas`);
+
+        // 🚀 AUTO-GENERATE: If "today" filter returns 0 ideas during market hours, trigger background generation
+        // This ensures fresh ideas are always available even if scheduled windows were missed
+        if (dateFilter === 'today' && filteredIdeas.length === 0) {
+          const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          const etHour = nowET.getHours();
+          const dayOfWeek = nowET.getDay(); // 0=Sun, 6=Sat
+
+          // Only auto-generate during weekdays (Mon-Fri) between 8am-9pm ET
+          const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+          const isDuringTradingHours = etHour >= 8 && etHour <= 21;
+
+          if (isWeekday && isDuringTradingHours) {
+            logger.info(`[BEST-SETUPS] No ideas for today - triggering background generation...`);
+            // Don't await - generate in background so response isn't delayed
+            autoIdeaGenerator.forceGenerate(false, false).catch(err => {
+              logger.error('[BEST-SETUPS] Background generation failed:', err);
+            });
+          }
+        }
       }
 
       // Apply symbol filter if specified (for single stock lookups)
@@ -6038,35 +6134,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Apply time filter based on period using multiple timestamp sources
+      // SKIP if date filter already applied (date filter is more precise than rolling windows)
       // Priority: timestamp > entryValidUntil > exitBy (fallback to showing all open if no dates)
       const getIdeaDate = (idea: any): Date | null => {
         if (idea.timestamp) return new Date(idea.timestamp);
         if (idea.createdAt) return new Date(idea.createdAt);
         return null;
       };
-      
-      if (period === 'daily') {
-        // Ideas from last 24 hours - STRICT filtering, no date = no show
-        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        openIdeas = openIdeas.filter(i => {
-          const ideaDate = getIdeaDate(i);
-          // MUST have a timestamp - don't show ideas with no date
-          if (!ideaDate) return false;
-          const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
-          // Include if: recent creation/timestamp OR entry still valid
-          return ideaDate >= oneDayAgo || (entryValidUntil && entryValidUntil >= now);
-        });
-      } else if (period === 'weekly') {
-        // Ideas from last 3 days (tightened from 7) - keep it fresh
-        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-        openIdeas = openIdeas.filter(i => {
-          const ideaDate = getIdeaDate(i);
-          // MUST have a timestamp - don't show ideas with no date
-          if (!ideaDate) return false;
-          const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
-          // Include if: recent OR entry still valid
-          return ideaDate >= threeDaysAgo || (entryValidUntil && entryValidUntil >= now);
-        });
+
+      // Only apply period filter if NO date filter was specified
+      // Date filter (today/week/specific date) takes precedence over rolling period windows
+      if (!dateFilter) {
+        if (period === 'daily') {
+          // Ideas from last 24 hours - STRICT filtering, no date = no show
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          openIdeas = openIdeas.filter(i => {
+            const ideaDate = getIdeaDate(i);
+            // MUST have a timestamp - don't show ideas with no date
+            if (!ideaDate) return false;
+            const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
+            // Include if: recent creation/timestamp OR entry still valid
+            return ideaDate >= oneDayAgo || (entryValidUntil && entryValidUntil >= now);
+          });
+        } else if (period === 'weekly') {
+          // Ideas from last 3 days (tightened from 7) - keep it fresh
+          const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+          openIdeas = openIdeas.filter(i => {
+            const ideaDate = getIdeaDate(i);
+            // MUST have a timestamp - don't show ideas with no date
+            if (!ideaDate) return false;
+            const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
+            // Include if: recent OR entry still valid
+            return ideaDate >= threeDaysAgo || (entryValidUntil && entryValidUntil >= now);
+          });
+        }
+      } else {
+        logger.info(`[BEST-SETUPS] Skipping period filter - date filter '${dateFilter}' already applied`);
       }
       
       // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-grade ideas
@@ -6213,10 +6316,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       uniqueBySymbol.sort((a, b) => b.convictionScore - a.convictionScore);
       
       // Take top N unique symbols
-      const topSetups = uniqueBySymbol.slice(0, limit);
-      
+      let topSetups = uniqueBySymbol.slice(0, limit);
+
+      // 🛡️ FINAL SAFETY CHECK: If date filter is 'today', do one last verification
+      // This catches any ideas that might have slipped through earlier filters
+      if (dateFilter === 'today') {
+        const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const todayStrFinal = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
+
+        const beforeFinalFilter = topSetups.length;
+        topSetups = topSetups.filter(s => {
+          if (!s.timestamp) return false;
+          const ideaDateET = new Date(s.timestamp).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+          return ideaDateET === todayStrFinal;
+        });
+
+        if (beforeFinalFilter !== topSetups.length) {
+          logger.warn(`[BEST-SETUPS] ⚠️ FINAL SAFETY: Removed ${beforeFinalFilter - topSetups.length} non-today ideas that slipped through!`);
+        }
+      }
+
       logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, ML+Breakout+WinRate enhanced)`);
-      
+
+      // 🔍 DEBUG: Log the dates of returned setups to verify filtering
+      if (topSetups.length > 0) {
+        const setupDates = topSetups.slice(0, 10).map(s => {
+          const ts = s.timestamp;
+          if (!ts) return `${s.symbol}: NO_TIMESTAMP`;
+          const utc = new Date(ts);
+          const etDate = utc.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+          return `${s.symbol}: ${etDate}`;
+        });
+        logger.info(`[BEST-SETUPS] 📤 RESPONSE dates (first 10): ${setupDates.join(', ')}`);
+      }
+
       res.json({
         period,
         count: topSetups.length,
@@ -17266,6 +17399,154 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     } catch (error: any) {
       logger.error(`[SMS] Phone config error:`, error);
       res.status(500).json({ error: error?.message || "Failed to set phone number" });
+    }
+  });
+
+  // =============================================
+  // PERSONAL PORTFOLIO TRACKER - Position Monitoring & Alerts
+  // =============================================
+
+  // Import positions from Webull CSV
+  app.post("/api/portfolio/import/webull", async (req, res) => {
+    try {
+      const { csvContent } = req.body;
+      if (!csvContent) {
+        return res.status(400).json({ error: "CSV content is required" });
+      }
+
+      const { parseWebullOptionsCSV, importPositions, getPositions } = await import("./personal-portfolio-tracker");
+      const positions = parseWebullOptionsCSV(csvContent);
+      importPositions(positions);
+
+      logger.info(`[PORTFOLIO] Imported ${positions.length} positions from Webull CSV`);
+      res.json({
+        success: true,
+        imported: positions.length,
+        positions: getPositions(),
+      });
+    } catch (error: any) {
+      logger.error(`[PORTFOLIO] Import error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to import positions" });
+    }
+  });
+
+  // Get current tracked positions
+  app.get("/api/portfolio/positions", async (_req, res) => {
+    try {
+      const { getPositions, updatePositions } = await import("./personal-portfolio-tracker");
+
+      // Update prices first
+      const summary = await updatePositions();
+
+      res.json({
+        positions: getPositions(),
+        summary,
+      });
+    } catch (error: any) {
+      logger.error(`[PORTFOLIO] Get positions error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get positions" });
+    }
+  });
+
+  // Clear all tracked positions
+  app.post("/api/portfolio/clear", async (_req, res) => {
+    try {
+      const { clearPositions } = await import("./personal-portfolio-tracker");
+      clearPositions();
+      res.json({ success: true, message: "All positions cleared" });
+    } catch (error: any) {
+      logger.error(`[PORTFOLIO] Clear error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to clear positions" });
+    }
+  });
+
+  // Start/stop position monitoring
+  app.post("/api/portfolio/monitor", async (req, res) => {
+    try {
+      const { action, intervalMs = 60000 } = req.body;
+      const { startMonitoring, stopMonitoring } = await import("./personal-portfolio-tracker");
+
+      if (action === 'start') {
+        startMonitoring(intervalMs);
+        res.json({ success: true, message: `Position monitoring started (${intervalMs}ms interval)` });
+      } else if (action === 'stop') {
+        stopMonitoring();
+        res.json({ success: true, message: "Position monitoring stopped" });
+      } else {
+        res.status(400).json({ error: "Invalid action. Use 'start' or 'stop'" });
+      }
+    } catch (error: any) {
+      logger.error(`[PORTFOLIO] Monitor error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to control monitoring" });
+    }
+  });
+
+  // Validate a potential trade against your rules
+  app.post("/api/portfolio/validate-trade", async (req, res) => {
+    try {
+      const { underlying, strike, currentPrice, optionType, accountSize = 700 } = req.body;
+
+      if (!underlying || !strike || !currentPrice || !optionType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const { validateStrike } = await import("./personal-portfolio-tracker");
+      const validation = validateStrike(underlying, strike, currentPrice, optionType, accountSize);
+
+      res.json(validation);
+    } catch (error: any) {
+      logger.error(`[PORTFOLIO] Validate error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to validate trade" });
+    }
+  });
+
+  // =============================================
+  // PERSONALIZED TRADE PICKS - Daily Picks for Your Account
+  // =============================================
+
+  // Get today's personalized picks
+  app.get("/api/picks/today", async (_req, res) => {
+    try {
+      const { generatePersonalizedPicks, generateIndexScalpPicks, getPicksConfig } = await import("./personalized-trade-picker");
+
+      const [personalizedPicks, indexPicks] = await Promise.all([
+        generatePersonalizedPicks(),
+        generateIndexScalpPicks(),
+      ]);
+
+      res.json({
+        config: getPicksConfig(),
+        personalizedPicks,
+        indexScalpPicks: indexPicks,
+        totalPicks: personalizedPicks.length + indexPicks.length,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error(`[PICKS] Generate error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to generate picks" });
+    }
+  });
+
+  // Get picks configuration
+  app.get("/api/picks/config", async (_req, res) => {
+    try {
+      const { getPicksConfig } = await import("./personalized-trade-picker");
+      res.json(getPicksConfig());
+    } catch (error: any) {
+      logger.error(`[PICKS] Config error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to get picks config" });
+    }
+  });
+
+  // Update picks configuration
+  app.post("/api/picks/config", async (req, res) => {
+    try {
+      const { updatePicksConfig, getPicksConfig } = await import("./personalized-trade-picker");
+      updatePicksConfig(req.body);
+      res.json({ success: true, config: getPicksConfig() });
+    } catch (error: any) {
+      logger.error(`[PICKS] Config update error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to update picks config" });
     }
   });
 
