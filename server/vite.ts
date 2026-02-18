@@ -76,10 +76,29 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Hashed assets (JS/CSS chunks with content hashes) — cache aggressively (1 year).
+  // When content changes, Vite generates new filenames, so stale caches are never served.
+  app.use(
+    "/assets",
+    express.static(path.resolve(distPath, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    })
+  );
 
-  // fall through to index.html if the file doesn't exist
+  // Everything else (index.html, favicon, etc.) — no cache so users always get latest HTML.
+  // This ensures new deploys are picked up immediately without chunk hash mismatches.
+  app.use(
+    express.static(distPath, {
+      maxAge: 0,
+      etag: true,
+      lastModified: true,
+    })
+  );
+
+  // fall through to index.html if the file doesn't exist (SPA routing)
   app.use("*", (_req, res) => {
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

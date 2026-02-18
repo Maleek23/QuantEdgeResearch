@@ -38,13 +38,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- Preconnect for Performance -->
+    <!-- Preconnect for Performance — must come before font request -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
 
-    <!-- Fonts - Clean, Minimalistic -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <!-- Fonts — use display=swap so text renders immediately with fallback, then swaps when fonts arrive -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    </noscript>
 
     <!-- Schema.org Structured Data -->
     <script type="application/ld+json">
@@ -80,8 +83,29 @@
       ]
     }
     </script>
+
+    <!-- Inline critical CSS for instant loading state (no FOUC) -->
+    <style>
+      #app-loader {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: #0f172a; color: #94a3b8; font-family: system-ui, sans-serif;
+      }
+      #app-loader .spinner {
+        width: 40px; height: 40px; border: 3px solid #1e293b;
+        border-top-color: #22d3ee; border-radius: 50%;
+        animation: spin .8s linear infinite;
+      }
+      #app-loader p { margin-top: 16px; font-size: 13px; letter-spacing: 0.05em; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
+    <!-- Instant loading indicator — removed by React once the app mounts -->
+    <div id="app-loader">
+      <div class="spinner"></div>
+      <p>QUANT EDGE</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

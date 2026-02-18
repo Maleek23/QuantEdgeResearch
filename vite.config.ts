@@ -27,10 +27,73 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Target modern browsers for smaller output
+    target: "es2020",
+    // Increase chunk size warning limit (we're splitting intelligently below)
+    chunkSizeWarningLimit: 600,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Minify with esbuild (faster than terser, good compression)
+    minify: "esbuild",
     rollupOptions: {
       output: {
-        // Ensure consistent chunk naming to avoid cache issues
-        manualChunks: undefined,
+        // Split vendor libraries into stable chunks that cache well across deploys.
+        // Page chunks change often (new features), but vendor chunks rarely change —
+        // so returning users only re-download what actually changed.
+        manualChunks(id) {
+          // React core — changes rarely, cached long-term
+          if (id.includes("node_modules/react/") ||
+              id.includes("node_modules/react-dom/") ||
+              id.includes("node_modules/scheduler/")) {
+            return "vendor-react";
+          }
+          // TanStack Query — data fetching layer
+          if (id.includes("node_modules/@tanstack/")) {
+            return "vendor-query";
+          }
+          // Radix UI primitives (used by shadcn/ui)
+          if (id.includes("node_modules/@radix-ui/")) {
+            return "vendor-radix";
+          }
+          // Framer Motion — animation library (large)
+          if (id.includes("node_modules/framer-motion/")) {
+            return "vendor-framer";
+          }
+          // Recharts + D3 — charting (large)
+          if (id.includes("node_modules/recharts/") ||
+              id.includes("node_modules/d3-")) {
+            return "vendor-charts";
+          }
+          // Lucide icons
+          if (id.includes("node_modules/lucide-react/")) {
+            return "vendor-icons";
+          }
+          // 3D / Spline / React Three Fiber — only used on landing/specific pages
+          if (id.includes("node_modules/@react-three/") ||
+              id.includes("node_modules/three/") ||
+              id.includes("node_modules/@splinetool/") ||
+              id.includes("node_modules/@mediapipe/") ||
+              id.includes("node_modules/@dimforge/")) {
+            return "vendor-3d";
+          }
+          // React Spring — animation (used in specific components)
+          if (id.includes("node_modules/@react-spring/")) {
+            return "vendor-spring";
+          }
+          // Remotion — video rendering (heavy, rarely loaded)
+          if (id.includes("node_modules/@remotion/") ||
+              id.includes("node_modules/remotion/")) {
+            return "vendor-remotion";
+          }
+          // Drizzle ORM (shared schema types)
+          if (id.includes("node_modules/drizzle-")) {
+            return "vendor-drizzle";
+          }
+          // All other node_modules in one chunk
+          if (id.includes("node_modules/")) {
+            return "vendor-misc";
+          }
+        },
       },
     },
   },

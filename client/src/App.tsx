@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, ComponentType } from "react";
+import { Suspense, useState, useEffect, ComponentType } from "react";
 import { getMarketStatus } from "@/lib/market-hours";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -29,73 +29,96 @@ import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar"
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
+import { lazyWithRetry } from "@/lib/lazy-import";
 
-const Landing = lazy(() => import("@/pages/landing"));
-const Login = lazy(() => import("@/pages/login"));
-const Signup = lazy(() => import("@/pages/signup"));
-const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
-const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
-const StockDetailPage = lazy(() => import("@/pages/stock-detail"));
-const MarketPage = lazy(() => import("@/pages/market"));
-const PerformancePage = lazy(() => import("@/pages/performance"));
-const SettingsPage = lazy(() => import("@/pages/settings"));
-const AdminOverview = lazy(() => import("@/pages/admin/overview"));
-const AdminUsers = lazy(() => import("@/pages/admin/users"));
-const AdminInvites = lazy(() => import("@/pages/admin/invites"));
-const AdminWaitlist = lazy(() => import("@/pages/admin/waitlist"));
-const AdminSystem = lazy(() => import("@/pages/admin/system"));
-const AdminReports = lazy(() => import("@/pages/admin/reports"));
-const AdminSecurity = lazy(() => import("@/pages/admin/security"));
-const AdminWinLoss = lazy(() => import("@/pages/admin/win-loss"));
-const AdminCredits = lazy(() => import("@/pages/admin/credits"));
-const AdminBetaInvites = lazy(() => import("@/pages/admin/beta-invites"));
-const AdminBlog = lazy(() => import("@/pages/admin/blog"));
-const AdminTradeIdeas = lazy(() => import("@/pages/admin/trade-ideas"));
-const About = lazy(() => import("@/pages/about"));
-const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
-const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
-const SuccessStories = lazy(() => import("@/pages/success-stories"));
-const ChartDatabase = lazy(() => import("@/pages/chart-database"));
-const Academy = lazy(() => import("@/pages/academy"));
-const Blog = lazy(() => import("@/pages/blog"));
-const TradingRules = lazy(() => import("@/pages/trading-rules"));
-const BlogPost = lazy(() => import("@/pages/blog-post"));
-const Pricing = lazy(() => import("@/pages/pricing"));
-const PaperTrading = lazy(() => import("@/pages/paper-trading"));
-const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
-const CTTracker = lazy(() => import("@/pages/ct-tracker"));
-const TradeAudit = lazy(() => import("@/pages/trade-audit"));
-const AutomationsPage = lazy(() => import("@/pages/automations"));
-const Features = lazy(() => import("@/pages/features"));
-const BacktestPage = lazy(() => import("@/pages/backtest"));
-const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
-const MarketScanner = lazy(() => import("@/pages/market-scanner"));
-const BullishTrends = lazy(() => import("@/pages/bullish-trends"));
-const Dashboard = lazy(() => import("@/pages/dashboard"));
-const UnifiedWatchlist = lazy(() => import("@/pages/unified-watchlist"));
-const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
-const HomePage = lazy(() => import("@/pages/home"));
-const StrategyPlaybooks = lazy(() => import("@/pages/strategy-playbooks"));
-const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
-const AnalysisPage = lazy(() => import("@/pages/analysis"));
-const NotFound = lazy(() => import("@/pages/not-found"));
-const JoinBeta = lazy(() => import("@/pages/join-beta"));
-const InviteWelcome = lazy(() => import("@/pages/invite-welcome"));
-const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
-const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
-const ResetPassword = lazy(() => import("@/pages/reset-password"));
-const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
-const DiscoverPage = lazy(() => import("@/pages/discover"));
-const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
-const HistoryPage = lazy(() => import("@/pages/history"));
-const DesignSystemTest = lazy(() => import("@/pages/design-system-test"));
-const SPXCommandCenter = lazy(() => import("@/pages/spx-command-center"));
+// All page imports use lazyWithRetry for automatic chunk-load error recovery.
+// If a deployment changes chunk hashes, stale cached HTML won't crash —
+// the app retries and auto-reloads to pick up the new chunks.
+const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
+const Login = lazyWithRetry(() => import("@/pages/login"), "login");
+const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
+const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
+const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
+const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
+const MarketPage = lazyWithRetry(() => import("@/pages/market"), "market");
+const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
+const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
+const AdminOverview = lazyWithRetry(() => import("@/pages/admin/overview"), "admin-overview");
+const AdminUsers = lazyWithRetry(() => import("@/pages/admin/users"), "admin-users");
+const AdminInvites = lazyWithRetry(() => import("@/pages/admin/invites"), "admin-invites");
+const AdminWaitlist = lazyWithRetry(() => import("@/pages/admin/waitlist"), "admin-waitlist");
+const AdminSystem = lazyWithRetry(() => import("@/pages/admin/system"), "admin-system");
+const AdminReports = lazyWithRetry(() => import("@/pages/admin/reports"), "admin-reports");
+const AdminSecurity = lazyWithRetry(() => import("@/pages/admin/security"), "admin-security");
+const AdminWinLoss = lazyWithRetry(() => import("@/pages/admin/win-loss"), "admin-win-loss");
+const AdminCredits = lazyWithRetry(() => import("@/pages/admin/credits"), "admin-credits");
+const AdminBetaInvites = lazyWithRetry(() => import("@/pages/admin/beta-invites"), "admin-beta-invites");
+const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog");
+const AdminTradeIdeas = lazyWithRetry(() => import("@/pages/admin/trade-ideas"), "admin-trade-ideas");
+const About = lazyWithRetry(() => import("@/pages/about"), "about");
+const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
+const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
+const SuccessStories = lazyWithRetry(() => import("@/pages/success-stories"), "success-stories");
+const ChartDatabase = lazyWithRetry(() => import("@/pages/chart-database"), "chart-database");
+const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
+const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
+const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
+const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
+const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
+const PaperTrading = lazyWithRetry(() => import("@/pages/paper-trading"), "paper-trading");
+const WalletTracker = lazyWithRetry(() => import("@/pages/wallet-tracker"), "wallet-tracker");
+const CTTracker = lazyWithRetry(() => import("@/pages/ct-tracker"), "ct-tracker");
+const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
+const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
+const Features = lazyWithRetry(() => import("@/pages/features"), "features");
+const BacktestPage = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
+const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
+const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "market-scanner");
+const BullishTrends = lazyWithRetry(() => import("@/pages/bullish-trends"), "bullish-trends");
+const Dashboard = lazyWithRetry(() => import("@/pages/dashboard"), "dashboard");
+const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
+const TradingEnginePage = lazyWithRetry(() => import("@/pages/trading-engine"), "trading-engine");
+const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
+const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
+const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
+const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis");
+const NotFound = lazyWithRetry(() => import("@/pages/not-found"), "not-found");
+const JoinBeta = lazyWithRetry(() => import("@/pages/join-beta"), "join-beta");
+const InviteWelcome = lazyWithRetry(() => import("@/pages/invite-welcome"), "invite-welcome");
+const OptionsAnalyzer = lazyWithRetry(() => import("@/pages/options-analyzer"), "options-analyzer");
+const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "forgot-password");
+const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
+const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard"), "learning-dashboard");
+const DiscoverPage = lazyWithRetry(() => import("@/pages/discover"), "discover");
+const SmartMoneyPage = lazyWithRetry(() => import("@/pages/smart-money"), "smart-money");
+const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
+const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
+const SPXCommandCenter = lazyWithRetry(() => import("@/pages/spx-command-center"), "spx-command-center");
+
+// Preload critical routes after initial render (during idle time).
+// This warms the chunk cache so navigation feels instant.
+function preloadCriticalRoutes() {
+  // Use requestIdleCallback (or setTimeout fallback) to avoid blocking initial paint
+  const schedule = typeof requestIdleCallback !== "undefined" ? requestIdleCallback : (fn: () => void) => setTimeout(fn, 2000);
+  schedule(() => {
+    // Preload the most-visited authenticated pages
+    import("@/pages/home").catch(() => {});
+    import("@/pages/trade-desk").catch(() => {});
+    import("@/pages/market").catch(() => {});
+  });
+  // Defer heavier pages a bit more
+  setTimeout(() => {
+    import("@/pages/smart-money").catch(() => {});
+    import("@/pages/stock-detail").catch(() => {});
+    import("@/pages/discover").catch(() => {});
+  }, 4000);
+}
 
 function PageLoader() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen w-full fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
       <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
-      <p className="mt-4 text-sm text-slate-400 font-medium animate-pulse">Initializing Quant Edge...</p>
+      <p className="mt-4 text-sm text-slate-400 font-medium animate-pulse">Loading...</p>
     </div>
   );
 }
@@ -386,7 +409,12 @@ function AuthHeader() {
 
 function App() {
   const [location] = useLocation();
-  
+
+  // Preload critical routes once after first render
+  useEffect(() => {
+    preloadCriticalRoutes();
+  }, []);
+
   const style = {
     "--sidebar-width": "14rem",
     "--sidebar-width-icon": "3rem",

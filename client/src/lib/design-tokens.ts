@@ -247,6 +247,7 @@ export const backgrounds = {
 
 export const zIndex = {
   base: 0,
+  behind: -1,
   dropdown: 10,
   sticky: 20,
   fixed: 30,
@@ -255,4 +256,47 @@ export const zIndex = {
   popover: 60,
   tooltip: 70,
   toast: 80,
+} as const;
+
+// =============================================================================
+// WORKSPACE PRESETS — Layout configurations for resizable panel grids
+// =============================================================================
+
+export const workspacePresets = {
+  single: {
+    cols: 1,
+    rows: 1,
+    template: "1fr",
+    label: "Single",
+  },
+  split: {
+    cols: 2,
+    rows: 1,
+    template: "1fr 1fr",
+    label: "Split",
+  },
+  tripleSplit: {
+    cols: 3,
+    rows: 1,
+    template: "1fr 1fr 1fr",
+    label: "Triple",
+  },
+  sidebar: {
+    cols: 2,
+    rows: 1,
+    template: "320px 1fr",
+    label: "Sidebar",
+  },
+  tradeDesk: {
+    cols: 2,
+    rows: 2,
+    template: "1.5fr 1fr",
+    label: "Trade Desk",
+  },
+  quad: {
+    cols: 2,
+    rows: 2,
+    template: "1fr 1fr",
+    label: "Quad",
+  },
 } as const;

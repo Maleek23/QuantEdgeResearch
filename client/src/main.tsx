@@ -21,6 +21,14 @@ window.onunhandledrejection = function(event) {
   console.error('===================================');
 };
 
+// Remove the inline HTML loading indicator once React takes over
+const appLoader = document.getElementById("app-loader");
+if (appLoader) {
+  appLoader.style.transition = "opacity 0.3s ease-out";
+  appLoader.style.opacity = "0";
+  setTimeout(() => appLoader.remove(), 300);
+}
+
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <App />
