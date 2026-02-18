@@ -41,7 +41,13 @@ echo "🔨 Building..."
 npm run build
 
 echo "🔄 Restarting server..."
-pm2 restart all 2>/dev/null || (npm run start &)
+# Delete old process and start fresh with proper memory (2GB heap + 2.5GB restart limit)
+pm2 delete quantedge 2>/dev/null || true
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/index.js \
+  --name quantedge \
+  --max-memory-restart 2500M \
+  --exp-backoff-restart-delay=100
+pm2 save
 
 echo ""
 echo "✅ Deploy complete! Server now at commit: \$REMOTE_COMMIT"
