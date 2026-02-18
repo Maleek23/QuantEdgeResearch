@@ -4388,7 +4388,7 @@ export async function monitorLottoPositions(): Promise<void> {
               exitPrice,
               quantity: pos.quantity,
               realizedPnL: pnl,
-              exitReason: `🧠 EXIT INTEL: ${exitIntelligence.exitReason} (${exitIntelligence.exitProbability}% confidence)`,
+              exitReason: `🧠 SMART EXIT: ${exitIntelligence.exitReason} (${exitIntelligence.exitProbability}% confidence)`,
               portfolio: portfolioType,
               isSmallAccount: portfolioType === 'small_account',
               source: portfolioType === 'small_account' ? 'small_account' : 'quant',

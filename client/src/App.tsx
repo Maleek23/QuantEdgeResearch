@@ -88,6 +88,8 @@ const LearningDashboard = lazy(() => import("@/pages/learning-dashboard"));
 const DiscoverPage = lazy(() => import("@/pages/discover"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const HistoryPage = lazy(() => import("@/pages/history"));
+const DesignSystemTest = lazy(() => import("@/pages/design-system-test"));
+const SPXCommandCenter = lazy(() => import("@/pages/spx-command-center"));
 
 function PageLoader() {
   return (
@@ -307,6 +309,12 @@ function Router() {
       <Route path="/learning" component={NotFound} />
       <Route path="/risk" component={NotFound} />
       
+      {/* SPX Command Center - 0DTE Trading Hub */}
+      <Route path="/spx" component={withBetaProtection(SPXCommandCenter)} />
+
+      {/* Design System Test */}
+      <Route path="/design-system" component={DesignSystemTest} />
+
       {/* 404 Fallback */}
       <Route component={NotFound} />
       </Switch>

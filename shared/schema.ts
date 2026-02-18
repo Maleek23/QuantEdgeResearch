@@ -3403,3 +3403,28 @@ export const insertAnalysisAuditSchema = createInsertSchema(analysisAuditLog).om
 });
 export type InsertAnalysisAudit = z.infer<typeof insertAnalysisAuditSchema>;
 export type WhaleFlow = typeof whaleFlows.$inferSelect;
+
+// ============================================
+// IV SNAPSHOTS — Daily ATM IV storage for real IV Rank
+// ============================================
+export const ivSnapshots = pgTable("iv_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),         // YYYY-MM-DD
+  atmIv: doublePrecision("atm_iv").notNull(),               // ATM IV as percentage
+  rv20: doublePrecision("rv20"),                             // 20-day realized volatility
+  rv10: doublePrecision("rv10"),                             // 10-day realized volatility
+  spotPrice: doublePrecision("spot_price"),                  // SPY price at snapshot
+  pcr: doublePrecision("pcr"),                               // Put/call ratio at close
+  vix: doublePrecision("vix"),                               // VIX level at close
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_iv_snapshots_symbol_date").on(table.symbol, table.date),
+]);
+
+export const insertIvSnapshotSchema = createInsertSchema(ivSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIvSnapshot = z.infer<typeof insertIvSnapshotSchema>;
+export type IvSnapshot = typeof ivSnapshots.$inferSelect;

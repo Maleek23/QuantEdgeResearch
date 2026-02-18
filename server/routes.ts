@@ -17312,6 +17312,101 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // =============================================
+  // SPX COMMAND CENTER - Aggregated Dashboard
+  // =============================================
+
+  app.get("/api/spx/dashboard", async (_req, res) => {
+    try {
+      // Gather all SPX data in parallel
+      const [orbModule, sessionModule, lottoModule] = await Promise.all([
+        import("./spx-orb-scanner"),
+        import("./spx-session-scanner"),
+        import("./index-lotto-scanner"),
+      ]);
+
+      const [orbStatus, activeBreakouts, ranges, sessionSignals, sessionLevels, lottoResult] =
+        await Promise.all([
+          orbModule.getORBStatus(),
+          orbModule.getActiveBreakouts(),
+          orbModule.getRanges(),
+          sessionModule.getActiveSignals(),
+          sessionModule.getLevels(),
+          lottoModule.scanIndexLottoPlays().catch(() => ({ indexData: [], lottoPlays: [] })),
+        ]);
+
+      // Get today's SPX trade ideas from DB
+      const allIdeas = await storage.getAllTradeIdeas();
+      const now = new Date();
+      const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const todayStrET = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
+
+      const spxIdeas = allIdeas.filter((idea: any) => {
+        const ideaTime = new Date(idea.timestamp);
+        const ideaDateStrET = ideaTime.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        if (ideaDateStrET !== todayStrET) return false;
+        return (
+          idea.source === 'orb_scanner' ||
+          idea.source === 'spx_session' ||
+          ['SPX', 'SPY', 'QQQ', 'IWM'].includes(idea.symbol)
+        );
+      }).slice(0, 50); // Limit to 50 most recent
+
+      res.json({
+        timestamp: new Date().toISOString(),
+        orbScanner: {
+          ...orbStatus,
+          breakouts: activeBreakouts,
+          ranges,
+        },
+        sessionScanner: {
+          signals: sessionSignals,
+          levels: sessionLevels,
+        },
+        indexData: lottoResult.indexData || [],
+        lottoPlays: lottoResult.lottoPlays || [],
+        todayIdeas: spxIdeas,
+        todayIdeasCount: spxIdeas.length,
+      });
+    } catch (error: any) {
+      logger.error('[SPX-DASHBOARD] Error:', error);
+      res.status(500).json({ error: error?.message || "SPX dashboard failed" });
+    }
+  });
+
+  // =============================================
+  // SPX INSTITUTIONAL INTELLIGENCE
+  // =============================================
+
+  app.get("/api/spx/intelligence", async (_req, res) => {
+    try {
+      const { getSPXIntelligence, refreshSPXIntelligence } = await import("./spx-intelligence-service");
+
+      // Return cached data if available, otherwise compute fresh
+      let data = getSPXIntelligence();
+      if (!data) {
+        data = await refreshSPXIntelligence();
+      }
+
+      res.json(data);
+    } catch (error: any) {
+      logger.error('[SPX-INTEL] API error:', error);
+      res.status(500).json({ error: error?.message || "Intelligence service failed" });
+    }
+  });
+
+  // Force refresh intelligence data (admin only)
+  app.post("/api/spx/intelligence/refresh", requireAdminJWT, async (_req, res) => {
+    try {
+      const { refreshSPXIntelligence } = await import("./spx-intelligence-service");
+      const data = await refreshSPXIntelligence();
+      res.json(data);
+    } catch (error: any) {
+      logger.error('[SPX-INTEL] Refresh error:', error);
+      res.status(500).json({ error: error?.message || "Intelligence refresh failed" });
+    }
+  });
+
+  // =============================================
   // SMS NOTIFICATIONS - Phone Alerts
   // =============================================
 

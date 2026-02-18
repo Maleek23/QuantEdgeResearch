@@ -49,7 +49,8 @@ export type ConvergenceSignalSource =
   | 'iv_expansion'
   | 'analyst_upgrade'
   | 'defense_contract'
-  | 'earnings_whisper';
+  | 'earnings_whisper'
+  | 'spx_scanner';
 
 // Signal with metadata for convergence
 export interface ConvergenceSignal {
@@ -618,6 +619,67 @@ export async function integratePreMoveSignals(): Promise<void> {
 }
 
 // ============================================
+// SPX SCANNER INTEGRATION
+// ============================================
+
+/**
+ * Convert SPX scanner signals (ORB + Session) into convergence signals.
+ * When SPY/SPX shows up in both flow scanner AND SPX scanners,
+ * this triggers convergence detection for the underlying.
+ */
+export async function integrateSPXScannerSignals(): Promise<void> {
+  try {
+    // Import dynamically to avoid circular deps
+    const { getActiveSignals } = await import('./spx-session-scanner');
+    const { getActiveBreakouts } = await import('./spx-orb-scanner');
+
+    // Session scanner signals → convergence
+    // SPXSignal.direction is 'LONG' | 'SHORT', thesis has the description
+    const sessionSignals = getActiveSignals?.() || [];
+    for (const sig of sessionSignals) {
+      if (sig.confidence >= 65) {
+        const signal: ConvergenceSignal = {
+          symbol: 'SPY', // Map SPX signals to SPY for convergence (tradeable)
+          source: 'spx_scanner',
+          direction: sig.direction === 'LONG' ? 'bullish' : 'bearish',
+          confidence: sig.confidence,
+          details: `SPX Session: ${sig.strategy} - ${sig.thesis || 'Signal detected'}`,
+          magnitude: Math.min(8, Math.floor(sig.confidence / 12)),
+          timestamp: new Date(sig.timestamp || Date.now()),
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h for intraday
+          metadata: { strategy: sig.strategy, urgency: sig.urgency, source: 'spx_session' },
+        };
+        registerSignal(signal);
+      }
+    }
+
+    // ORB breakout signals → convergence
+    // ORBBreakout.direction is 'LONG' | 'SHORT', confidence is always present
+    const orbBreakouts = getActiveBreakouts?.() || [];
+    for (const brk of orbBreakouts) {
+      if (brk.confidence >= 65) {
+        const signal: ConvergenceSignal = {
+          symbol: (brk.symbol || 'SPY').replace('SPX', 'SPY'),
+          source: 'spx_scanner',
+          direction: brk.direction === 'LONG' ? 'bullish' : 'bearish',
+          confidence: brk.confidence,
+          details: `ORB Breakout: ${brk.symbol || 'SPY'} ${brk.direction} (${brk.timeframe})`,
+          magnitude: 7,
+          timestamp: new Date(brk.timestamp || Date.now()),
+          expiresAt: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1h for ORB
+          metadata: { source: 'orb_scanner', timeframe: brk.timeframe },
+        };
+        registerSignal(signal);
+      }
+    }
+
+    logger.debug(`[CONVERGENCE] Integrated ${sessionSignals.length} session + ${orbBreakouts.length} ORB signals`);
+  } catch (err) {
+    logger.debug(`[CONVERGENCE] SPX scanner integration skipped: ${(err as Error).message}`);
+  }
+}
+
+// ============================================
 // GET CURRENT CONVERGENCE STATE
 // ============================================
 
@@ -683,6 +745,9 @@ export function startConvergenceEngine(): void {
       // Integrate pre-move signals
       await integratePreMoveSignals();
 
+      // Integrate SPX scanner signals (ORB + Session)
+      await integrateSPXScannerSignals();
+
       // Check sector momentum
       await detectSectorMomentum();
 
@@ -700,6 +765,7 @@ export function startConvergenceEngine(): void {
   // Initial run
   setTimeout(async () => {
     await integratePreMoveSignals();
+    await integrateSPXScannerSignals();
     await detectSectorMomentum();
   }, 5000);
 

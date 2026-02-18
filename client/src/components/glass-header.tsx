@@ -24,6 +24,7 @@ import {
   Newspaper,
   GraduationCap,
   History,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ const mainTabs: NavTab[] = [
   { label: "Markets", href: "/market", icon: BarChart3 },
   { label: "Charts", href: "/chart-analysis", icon: LineChart },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
+  { label: "SPX", href: "/spx", icon: Crosshair },
   { label: "Watchlist", href: "/watchlist", icon: Star },
 ];
 

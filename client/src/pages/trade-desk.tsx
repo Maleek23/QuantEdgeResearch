@@ -2955,7 +2955,8 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
   const [statusFilter, setStatusFilter] = useState<string>("all"); // Show all statuses by default
   // 🗓️ NOTE: Date filter now controlled by serverDateFilter (server-side filtering)
   // Local dateFilter for additional client-side granularity (yesterday, specific days)
-  const [dateFilter, setDateFilter] = useState<string>("all"); // "all" since server already filters
+  // DEFAULT TO 'today' as extra safeguard against showing old trades
+  const [dateFilter, setDateFilter] = useState<string>("today");
   const [tradeTypeFilter, setTradeTypeFilter] = useState<string>("all"); // Day Trade, Swings, LEAPs
   const [sortBy, setSortBy] = useState<string>("confidence");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -3346,8 +3347,10 @@ export default function TradeDeskRedesigned() {
   // Default to "today" so users see fresh ideas when they wake up
   const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>('today');
 
-  // 🔄 Cache buster: Use today's date as part of cache key to force fresh data each day
-  const todayDateKey = new Date().toISOString().split('T')[0]; // e.g. "2026-02-04"
+  // 🔄 Cache buster: Use today's date in ET timezone as cache key to force fresh data each day
+  // Using ET timezone ensures cache key matches server-side date filtering
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const todayDateKey = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
 
   // Fetch trade ideas with server-side date filtering for performance
   // Only fetch the date range we need instead of loading everything
@@ -3379,7 +3382,19 @@ export default function TradeDeskRedesigned() {
   // Groups by symbol+assetType+optionType to show BOTH calls AND puts per symbol
   // ============================================
   const deduplicateOnly = (ideas: TradeIdea[]): TradeIdea[] => {
-    const nonExpired = ideas.filter(idea => idea.timestamp);
+    // STRICT TODAY FILTER: If server filter is 'today', enforce it client-side too
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const todayStrET = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
+
+    const nonExpired = ideas.filter(idea => {
+      if (!idea.timestamp) return false;
+      // If viewing 'today', strictly filter to today's date only
+      if (serverDateFilter === 'today') {
+        const ideaDateET = new Date(idea.timestamp).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+        return ideaDateET === todayStrET;
+      }
+      return true;
+    });
 
     // Group by symbol+assetType+optionType - allows both CALLs and PUTs per symbol
     const groups = new Map<string, TradeIdea[]>();

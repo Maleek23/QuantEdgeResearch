@@ -228,12 +228,55 @@ app.use((req, res, next) => {
       if (alpacaReady) {
         await startTradeExecutor();
         log('🤖 Trade Desk Executor started - auto-executing Band B signals (75%+ confidence, 3+ signals)');
+
+        // Start Intelligent Position Manager (autonomous trading intuition)
+        const { startIntelligentMonitoring } = await import('./position-manager');
+        await startIntelligentMonitoring();
+        log('🧠 Intelligent Position Manager started - analyzing positions with trader intuition every 60s');
       } else {
         log('⚠️ Alpaca connection failed - Trade Desk Executor not started');
       }
     } else {
       log('⚠️ Alpaca not configured - Trade Desk Executor not started (set ALPACA_API_KEY and ALPACA_SECRET_KEY)');
     }
+
+    // Auto-start SPX ORB Scanner (Opening Range Breakout) during market hours
+    const { startORBScanner } = await import('./spx-orb-scanner');
+    const { startSessionScanner } = await import('./spx-session-scanner');
+    const nowETBoot = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const bootHour = nowETBoot.getHours();
+    const bootDay = nowETBoot.getDay();
+    const isMarketDay = bootDay >= 1 && bootDay <= 5;
+    const isMarketTime = bootHour >= 9 && bootHour < 16;
+
+    if (isMarketDay && isMarketTime) {
+      startORBScanner(60000); // Every 60s during market hours
+      log('📊 SPX ORB Scanner auto-started (market is open)');
+      startSessionScanner(30000); // Every 30s during market hours
+      log('📊 SPX Session Scanner auto-started (market is open)');
+    } else {
+      log('⏰ SPX Scanners NOT started (market closed) - will auto-start via cron at market open');
+    }
+
+    // Cron to auto-start/stop SPX scanners at market open/close
+    const cronModule = await import('node-cron');
+    // Start at 9:30 AM ET on weekdays
+    cronModule.default.schedule('30 9 * * 1-5', () => {
+      startORBScanner(60000);
+      startSessionScanner(30000);
+      logger.info('[SPX] Auto-started ORB + Session scanners at market open');
+    }, { timezone: 'America/New_York' });
+    // Stop at 4:05 PM ET on weekdays (5 min after close for cleanup)
+    cronModule.default.schedule('5 16 * * 1-5', () => {
+      import('./spx-orb-scanner').then(m => m.stopORBScanner());
+      import('./spx-session-scanner').then(m => m.stopSessionScanner());
+      logger.info('[SPX] Auto-stopped ORB + Session scanners at market close');
+    }, { timezone: 'America/New_York' });
+
+    // Start SPX Institutional Intelligence Service (computes every 60s during market hours)
+    const { startSPXIntelligenceService } = await import('./spx-intelligence-service');
+    startSPXIntelligenceService();
+    log('🧠 SPX Intelligence Service started - institutional signals computed every 60s during market hours');
 
     // Start Convergence Engine (multi-source signal correlation for pre-move detection)
     const { startConvergenceEngine } = await import('./convergence-engine');

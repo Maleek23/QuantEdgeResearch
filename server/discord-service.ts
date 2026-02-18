@@ -93,10 +93,10 @@ const MIN_CONFIDENCE_REQUIRED = 70;
 // Maximum option premium cost
 const MAX_PREMIUM_COST = 1000;
 
-// Valid grades for Discord alerts - A-tier only (A+, A, A-)
-export const VALID_DISCORD_GRADES = ['A+', 'A', 'A-'];
+// Valid grades for Discord alerts - A and B tier (A+, A, A-, B+, B)
+export const VALID_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+', 'B'];
 // Secondary tier for less critical channels
-export const SECONDARY_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+'];
+export const SECONDARY_DISCORD_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
 
 // Color codes for Discord embeds
 const COLORS = {
@@ -273,44 +273,21 @@ export async function sendBotTradeEntryToDiscord(trade: {
   // Lotto branding only for actual lotto plays, NOT for small account portfolio
   const isLotto = (trade.isLotto || trade.source === 'lotto') && !isSmallAccount;
 
-  let webhookUrls: string[] = [];
+  // SINGLE CHANNEL ROUTING - No duplication
+  // QuantBot = Alpaca paper trading bot entries/exits ONLY
+  let webhookUrl: string | undefined;
   const source = trade.source || (trade.assetType === 'future' ? 'futures' : 'quant');
 
-  // MULTI-CHANNEL ROUTING: Send to ALL applicable channels
-  // User request: Trades applicable to multiple channels should go to all of them
-  
   if (source === 'futures' || trade.assetType === 'future') {
-    // Futures go to #future-trades channel ONLY (User request: stop sending futures to quant ai bot)
-    const fw = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
-    if (fw) webhookUrls.push(fw);
-    // Removed quantbot from futures routing
-  } else if (isSmallAccount) {
-    // Small Account entries go to #quantbot (bot activity)
-    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (qw) webhookUrls.push(qw);
-    // If it's also a lotto-style play, send to #lotto too
-    if (trade.isLotto || source === 'lotto') {
-      const lw = process.env.DISCORD_WEBHOOK_LOTTO;
-      if (lw && lw !== qw) webhookUrls.push(lw);
-    }
-  } else if (source === 'lotto' || trade.isLotto) {
-    // Lotto plays go to BOTH #lotto AND #quantbot (for bot visibility)
-    const lw = process.env.DISCORD_WEBHOOK_LOTTO;
-    if (lw) webhookUrls.push(lw);
-    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (qw && qw !== lw) webhookUrls.push(qw);
+    // Futures go to #future-trades ONLY
+    webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
   } else {
-    // All other options/quant entries go to #quantbot
-    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (qw) webhookUrls.push(qw);
+    // ALL bot entries (options, small account, etc) go to #quantbot ONLY
+    // QuantBot = Alpaca paper trading channel
+    webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT;
   }
 
-  if (webhookUrls.length === 0) {
-    const fb = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
-    if (fb) webhookUrls.push(fb);
-  }
-
-  if (webhookUrls.length === 0) return;
+  if (!webhookUrl) return;
 
   try {
     const isCall = trade.optionType === 'call';
@@ -366,13 +343,11 @@ export async function sendBotTradeEntryToDiscord(trade: {
       embeds: [embed]
     };
 
-    await Promise.allSettled(webhookUrls.map(url => 
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(message),
-      })
-    ));
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
     
     // Mark as sent to prevent duplicate alerts (including option type and strike)
     markTradeIdeaSent(trade.symbol, direction, assetType, trade.optionType, trade.strikePrice);
@@ -509,10 +484,14 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   }
   
   // STRICT GRADE FILTER: Only A/A+ trades go to Discord (skip if force bypass for manual shares)
+  // SPX scanner signals use relaxed grade filter (B- and above) since scanners already pre-filter
   if (!forceBypass) {
     const grade = (idea as any).grade || getLetterGrade((idea as any).confidenceScore || 0);
-    if (!VALID_DISCORD_GRADES.includes(grade)) {
-      logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in A/A+ tier`);
+    const source = (idea as any).source || '';
+    const isSPXSource = source === 'orb_scanner' || source === 'spx_session';
+    const allowedGrades = isSPXSource ? SECONDARY_DISCORD_GRADES : VALID_DISCORD_GRADES;
+    if (!allowedGrades.includes(grade)) {
+      logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in ${isSPXSource ? 'SPX' : 'A/A+'} tier`);
       return;
     }
   }
@@ -530,7 +509,14 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   // Route to appropriate Discord channel based on asset type
   let webhookUrl: string | undefined;
   const assetTypeStr = String(idea.assetType || 'stock');
-  if (assetTypeStr === 'option') {
+  const ideaSource = (idea as any).source || '';
+  const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
+    (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
+
+  if (isSPXPlay && process.env.DISCORD_WEBHOOK_SPX) {
+    // SPX/0DTE plays go to dedicated SPX channel
+    webhookUrl = process.env.DISCORD_WEBHOOK_SPX;
+  } else if (assetTypeStr === 'option') {
     webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
   } else if (assetTypeStr === 'future' || assetTypeStr === 'futures') {
     webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
@@ -630,15 +616,9 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
-  // MULTI-CHANNEL: Send lottos to BOTH #lotto AND #quantbot channels
-  const webhookUrls: string[] = [];
-  const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
-  const quantbotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
-  
-  if (lottoWebhook) webhookUrls.push(lottoWebhook);
-  if (quantbotWebhook && quantbotWebhook !== lottoWebhook) webhookUrls.push(quantbotWebhook);
-  
-  if (webhookUrls.length === 0) return;
+  // SINGLE CHANNEL: Lottos go to #lotto ONLY (no duplication)
+  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO;
+  if (!webhookUrl) return;
   
   try {
     // Build title with option details if available
@@ -668,14 +648,12 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
       timestamp: new Date().toISOString()
     };
     
-    // Send to all applicable channels
-    await Promise.all(webhookUrls.map(url => 
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ embeds: [embed] }),
-      }).catch(e => logger.warn(`[DISCORD] Failed to send to webhook: ${e.message}`))
-    ));
+    // Send to lotto channel only
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
     
     // Mark as sent to prevent duplicate alerts
     markTradeIdeaSent(idea.symbol, direction, assetType);
@@ -733,10 +711,10 @@ export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: s
   } catch (e) {}
 }
 
-// Send generic Discord alert - QUANTFLOOR restricted to announcements only
+// Send generic Discord alert to QUANTFLOOR (main channel)
 export async function sendDiscordAlert(content: string, type: 'info' | 'warn' | 'error' = 'info'): Promise<void> {
   if (DISCORD_DISABLED) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   if (!webhookUrl) return;
 
   try {
@@ -760,9 +738,152 @@ export async function sendWatchlistToQuantBot(items: any[]): Promise<any> {
   return { success: true };
 }
 
-export async function sendWeeklyWatchlistToDiscord(items: any[]): Promise<void> {}
-export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Promise<void> {}
-export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {}
+export async function sendWeeklyWatchlistToDiscord(items: any[]): Promise<void> {
+  if (DISCORD_DISABLED || !items || items.length === 0) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS;
+  if (!webhookUrl) return;
+
+  try {
+    const bullish = items.filter((i: any) => i.sentiment === 'bullish' || i.direction === 'long');
+    const bearish = items.filter((i: any) => i.sentiment === 'bearish' || i.direction === 'short');
+
+    const formatItem = (item: any) => {
+      const grade = item.grade || '';
+      const conf = item.confidence ? `${item.confidence}%` : '';
+      const price = item.price ? `$${item.price.toFixed(2)}` : '';
+      return `**${item.symbol}** ${grade} ${conf} ${price}`.trim();
+    };
+
+    const fields: { name: string; value: string; inline?: boolean }[] = [];
+
+    if (bullish.length > 0) {
+      fields.push({
+        name: '🟢 BULLISH WATCHLIST',
+        value: bullish.slice(0, 10).map(formatItem).join('\n') || 'None',
+        inline: false
+      });
+    }
+
+    if (bearish.length > 0) {
+      fields.push({
+        name: '🔴 BEARISH WATCHLIST',
+        value: bearish.slice(0, 10).map(formatItem).join('\n') || 'None',
+        inline: false
+      });
+    }
+
+    const embed: DiscordEmbed = {
+      title: `📋 WEEKLY WATCHLIST - ${items.length} Stocks`,
+      description: `Top picks for the week ahead. B grade or higher.`,
+      color: COLORS.QUANT,
+      fields,
+      footer: { text: 'Quant Edge Labs Weekly Watchlist' },
+      timestamp: new Date().toISOString()
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+
+    logger.info(`[DISCORD] Sent weekly watchlist: ${items.length} items`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send weekly watchlist: ${e}`);
+  }
+}
+
+export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Promise<void> {
+  if (DISCORD_DISABLED || !picks || picks.length === 0) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS;
+  if (!webhookUrl) return;
+
+  try {
+    const description = picks.slice(0, 15).map((p: any) => {
+      const emoji = p.direction === 'long' ? '🟢' : '🔴';
+      const grade = p.grade ? `[${p.grade}]` : '';
+      const price = p.entryPrice ? `@ $${p.entryPrice.toFixed(2)}` : '';
+      return `${emoji} **${p.symbol}** ${grade} ${price}`;
+    }).join('\n');
+
+    const embed: DiscordEmbed = {
+      title: `🎯 NEXT WEEK PICKS - ${range?.start || ''} to ${range?.end || ''}`,
+      description: description || 'No picks available',
+      color: COLORS.QUANT,
+      fields: [
+        { name: 'Total Picks', value: `${picks.length}`, inline: true },
+        { name: 'Bullish', value: `${picks.filter((p: any) => p.direction === 'long').length}`, inline: true },
+        { name: 'Bearish', value: `${picks.filter((p: any) => p.direction === 'short').length}`, inline: true }
+      ],
+      footer: { text: 'Quant Edge Labs Weekly Picks' },
+      timestamp: new Date().toISOString()
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+
+    logger.info(`[DISCORD] Sent next week picks: ${picks.length} picks`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send next week picks: ${e}`);
+  }
+}
+
+export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {
+  // Daily summaries go to QUANTFLOOR
+  if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+  if (!webhookUrl) return;
+
+  try {
+    const topIdeas = ideas
+      .filter((i: any) => VALID_DISCORD_GRADES.includes(i.grade))
+      .slice(0, 10);
+
+    if (topIdeas.length === 0) return;
+
+    const description = topIdeas.map((i: any) => {
+      const emoji = i.direction === 'long' ? '🟢' : '🔴';
+      const optionType = i.optionType ? i.optionType.toUpperCase() : '';
+      const strike = i.strikePrice ? `$${i.strikePrice}` : '';
+      const price = i.entryPrice ? `@ $${i.entryPrice.toFixed(2)}` : '';
+      const grade = i.grade ? `[${i.grade}]` : '';
+
+      if (i.assetType === 'option' && optionType && strike) {
+        return `${emoji} **${i.symbol}** ${optionType} ${strike} ${price} ${grade}`;
+      }
+      return `${emoji} **${i.symbol}** ${price} ${grade}`;
+    }).join('\n');
+
+    const embed: DiscordEmbed = {
+      title: `☀️ DAILY PREVIEW - ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`,
+      description,
+      color: COLORS.QUANT,
+      fields: [
+        { name: 'Total Ideas', value: `${ideas.length}`, inline: true },
+        { name: 'B+ Grade', value: `${ideas.filter((i: any) => ['A+', 'A', 'A-', 'B+'].includes(i.grade)).length}`, inline: true },
+        { name: 'Options', value: `${ideas.filter((i: any) => i.assetType === 'option').length}`, inline: true }
+      ],
+      footer: { text: 'Quant Edge Labs • Daily Preview at 8:00 AM ET' },
+      timestamp: new Date().toISOString()
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: '☀️ **GOOD MORNING!** Here are today\'s top trade ideas:',
+        embeds: [embed]
+      }),
+    });
+
+    logger.info(`[DISCORD] Sent daily summary: ${topIdeas.length} ideas to QuantFloor`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send daily summary: ${e}`);
+  }
+}
 export async function sendAnnualBreakoutsToDiscord(items: any[]): Promise<any> { return { success: true }; }
 export async function sendCryptoBotTradeToDiscord(trade: any): Promise<void> {}
 export async function sendReportNotificationToDiscord(report: any): Promise<void> {
@@ -1021,9 +1142,9 @@ let lastQuantDailyReset = 0;
 
 export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
   // In strict mode, batch summaries are disabled - only premium trades go through
-  // QUANTFLOOR restricted - batch summaries go to general URL only
+  // Batch summaries go to QUANTFLOOR (main channel)
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !ideas || ideas.length === 0) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   if (!webhookUrl) return;
   try {
     const now = Date.now();
@@ -1049,12 +1170,12 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       }
     });
     
-    // Filter for quality: A/A+ grade only (stricter), confidence >= 90
+    // Filter for quality: B grade or higher (70%+ confidence)
     const qualityIdeas = ideas.filter((i: any) => {
       const grade = i.grade || '';
       const confidence = i.confidence || 0;
-      // Only A/A+ grades with 90%+ confidence
-      return ['A+', 'A'].includes(grade) && confidence >= 90;
+      // B grade and above with 70%+ confidence
+      return VALID_DISCORD_GRADES.includes(grade) && confidence >= 70;
     });
     
     // Don't send if no quality ideas
@@ -1132,9 +1253,9 @@ const FLOW_GLOBAL_COOLDOWN_MS = 10 * 60 * 1000;
 
 export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   // In strict mode, flow alerts are disabled - only premium trades go through
-  // QUANTFLOOR restricted - flow alerts go to general URL only
+  // Flow alerts go to QUANTFLOOR (main channel)
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   if (!webhookUrl) return;
   
   // Skip alerts with missing data (N/A spam prevention)
@@ -1152,10 +1273,10 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
   const lastAlert = flowAlertCooldown.get(flow.symbol);
   if (lastAlert && now - lastAlert < FLOW_ALERT_COOLDOWN_MS) return;
   
-  // Only alert for B+ or higher grades  
+  // Only alert for B grade or higher (VALID_DISCORD_GRADES includes B/B+)
   if (flow.grade && !VALID_DISCORD_GRADES.includes(flow.grade)) return;
-  
-  // Require minimum confidence of 85%
+
+  // Require minimum confidence of 70%
   if (flow.confidence && flow.confidence < MIN_CONFIDENCE_REQUIRED) return;
   
   try {
@@ -1238,9 +1359,9 @@ export async function sendMarketMoversAlertToDiscord(movers: {
   confidence?: number;
 }[]): Promise<void> {
   // In strict mode, market movers are disabled - only premium trades go through
-  // QUANTFLOOR restricted - market movers go to general URL only
+  // Market movers go to QUANTFLOOR (main channel)
   if (DISCORD_DISABLED || STRICT_PREMIUM_ONLY || !movers || movers.length === 0) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   if (!webhookUrl) return;
   
   try {
@@ -1267,14 +1388,14 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       }
     });
     
-    // Filter to only >10% moves AND are A/A+ grade AND not alerted today
+    // Filter to only >10% moves AND are B grade or higher AND not alerted today
     const filteredMovers = movers.filter(m => {
       const absChange = Math.abs(m.changePercent);
       // Require at least 10% move (was 5%)
       if (absChange < 10) return false;
-      
-      // Only send A/A+ ratings to Discord (stricter than B+)
-      if (!m.grade || !['A+', 'A'].includes(m.grade)) return false;
+
+      // Send B grade and above to Discord
+      if (!m.grade || !VALID_DISCORD_GRADES.includes(m.grade)) return false;
       
       // Skip if already alerted this symbol TODAY
       if (dailyAlertedSymbols.has(m.symbol)) return false;
@@ -1368,13 +1489,13 @@ export async function sendPreMoveAlertToDiscord(signal: {
   };
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
-  
-  // QUANTFLOOR restricted - pre-move signals go to general URL only
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+
+  // Pre-move signals go to QUANTFLOOR (main channel)
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
   if (!webhookUrl) return;
   
-  // Only alert for B+ and above confidence (75%+)
-  if (signal.confidence < 75) return;
+  // Only alert for B grade and above (70%+ confidence)
+  if (signal.confidence < 70) return;
   
   try {
     const grade = getLetterGrade(signal.confidence);
@@ -1449,7 +1570,7 @@ export async function sendPreMoveAlertToDiscord(signal: {
   }
 }
 
-// PREMIUM A/A+ OPTIONS ALERT - Premium template for high-conviction options trades
+// PREMIUM OPTIONS ALERT - Premium template for B grade and above options trades
 export async function sendPremiumOptionsAlertToDiscord(trade: {
   symbol: string;
   optionType: 'call' | 'put';
@@ -1485,9 +1606,9 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
     return;
   }
   
-  // Only send A+ and A grades with this premium format
-  if (!['A+', 'A'].includes(trade.grade)) {
-    logger.debug(`[DISCORD] Skipping premium format for ${trade.symbol} - grade ${trade.grade} not A/A+`);
+  // Only send B grade and above with this premium format
+  if (!VALID_DISCORD_GRADES.includes(trade.grade)) {
+    logger.debug(`[DISCORD] Skipping premium format for ${trade.symbol} - grade ${trade.grade} below B`);
     return;
   }
   
@@ -1832,7 +1953,7 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
           inline: false
         }
       ],
-      footer: { text: 'Quant Edge Labs • Quality over quantity • A/A+ alerts only' },
+      footer: { text: 'Quant Edge Labs • Quality over quantity • B grade and above alerts' },
       timestamp: new Date().toISOString()
     };
     
