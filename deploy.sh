@@ -40,15 +40,31 @@ npm install --production=false
 echo "🔨 Building..."
 npm run build
 
-echo "🔄 Restarting server..."
-# Delete old process and start fresh with proper memory (2GB heap + 2.5GB restart limit)
+echo "🔄 Restarting server (2-process architecture)..."
+
+# Remove old processes
 pm2 delete quantedge 2>/dev/null || true
-NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/index.js \
-  --name quantedge \
+pm2 delete quantedge-web 2>/dev/null || true
+pm2 delete quantedge-worker 2>/dev/null || true
+
+# Process 1: Web (lightweight HTTP + WebSocket + SPX scanners) — must stay alive
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1024' pm2 start dist/web.js \
+  --name quantedge-web \
+  --max-memory-restart 1200M \
+  --exp-backoff-restart-delay=100
+echo "✅ quantedge-web started"
+
+# Process 2: Worker (heavy background services) — can restart freely
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/worker.js \
+  --name quantedge-worker \
   --max-memory-restart 2500M \
   --exp-backoff-restart-delay=100
+echo "✅ quantedge-worker started"
+
 pm2 save
 
+echo ""
+pm2 list
 echo ""
 echo "✅ Deploy complete! Server now at commit: \$REMOTE_COMMIT"
 ENDSSH
