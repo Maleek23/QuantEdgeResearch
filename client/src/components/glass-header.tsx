@@ -126,8 +126,8 @@ export function GlassHeader() {
             <div className="h-6 w-px bg-slate-700/50 mx-2 hidden lg:block" />
 
             {/* Browser-Style Tabs */}
-            <nav className="hidden lg:flex items-center flex-1">
-              <div className="flex items-end">
+            <nav className="hidden lg:flex items-center flex-1 min-w-0">
+              <div className="flex items-end overflow-x-auto no-scrollbar">
                 {mainTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = location === tab.href;
@@ -136,14 +136,14 @@ export function GlassHeader() {
                     <Link key={tab.href} href={tab.href}>
                       <div
                         className={cn(
-                          "relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all cursor-pointer",
+                          "relative flex items-center gap-1 px-2.5 py-2 text-sm font-medium transition-all cursor-pointer whitespace-nowrap",
                           // Browser tab styling
                           isActive
                             ? "bg-slate-800 text-white rounded-t-lg -mb-px border-t border-x border-slate-600/50"
                             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg mx-0.5"
                         )}
                       >
-                        <Icon className="h-3.5 w-3.5" />
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
                         <span>{tab.label}</span>
                         {isActive && (
                           <motion.div
@@ -162,7 +162,7 @@ export function GlassHeader() {
                   <button
                     onClick={() => setDiscoverOpen(!discoverOpen)}
                     className={cn(
-                      "flex items-center gap-1 px-3 py-2 text-sm font-medium transition-all cursor-pointer rounded-lg mx-0.5",
+                      "flex items-center gap-1 px-2.5 py-2 text-sm font-medium transition-all cursor-pointer rounded-lg mx-0.5 whitespace-nowrap",
                       discoverOpen
                         ? "bg-slate-800 text-white"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
