@@ -122,17 +122,32 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
 
     // ========================================================================
-    // STAGGERED SERVICE STARTUP
-    // Services are started in waves with delays between them to prevent
-    // CPU/memory spikes that block the event loop and make the site unresponsive.
-    // The HTTP server is ready IMMEDIATELY — background services start gradually.
+    // MARKET-HOURS-AWARE SERVICE MANAGEMENT
+    // Problem: 20+ background services consume 2.2GB RAM + 118% CPU, blocking
+    // the event loop so HTTP requests time out (site shows loading spinner).
+    // Fix: Only start heavy services during market hours. Off-hours, only
+    // essential services run (HTTP server, realtime prices, cron schedulers).
     // ========================================================================
     const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+    // Helper: Check if US stock market is currently open (or within 30min pre/post)
+    function isMarketCurrentlyOpen(): boolean {
+      const now = new Date();
+      const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const hour = et.getHours();
+      const minute = et.getMinutes();
+      const day = et.getDay(); // 0=Sun, 6=Sat
+      const isWeekday = day >= 1 && day <= 5;
+      // Extended window: 9:00 AM - 4:30 PM ET (30 min buffer each side)
+      const timeInMinutes = hour * 60 + minute;
+      const isExtendedHours = timeInMinutes >= 540 && timeInMinutes <= 990; // 9:00 AM - 4:30 PM
+      return isWeekday && isExtendedHours;
+    }
 
     // Validate Tradier API on startup
     await validateTradierAPI();
 
-    // ── Wave 1 (immediate): Essential services only ──────────────────────
+    // ── Essential services (ALWAYS run, market open or closed) ───────────
     // Real-time price feeds (needed for all pages)
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized');
@@ -141,175 +156,154 @@ app.use((req, res, next) => {
     initializeBotNotificationService(server);
     log('🤖 Bot notification service initialized');
 
-    // ── Wave 2 (after 5s): Watchlist & grading ───────────────────────────
-    await delay(5000);
-
+    // Watchlist monitor (lightweight, just checks price alerts)
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started');
 
-    startWatchlistGradingScheduler();
-    log('📊 Watchlist Grading Scheduler started');
+    // ── Heavy services: ONLY during market hours ─────────────────────────
+    // These 20+ services consume massive CPU/memory. They are pointless when
+    // the market is closed (no price movement, no volume, no flow).
+    let heavyServicesStarted = false;
 
-    // ── Wave 3 (after 10s): Scheduled generators ────────────────────────
-    await delay(5000);
+    async function startHeavyServices() {
+      if (heavyServicesStarted) return;
+      heavyServicesStarted = true;
+      log('🚀 Starting heavy services (market is open)...');
 
-    const { autoIdeaGenerator } = await import('./auto-idea-generator');
-    autoIdeaGenerator.start();
-    log('🤖 Auto Idea Generator started');
+      try {
+        startWatchlistGradingScheduler();
+        log('📊 Watchlist Grading Scheduler started');
 
-    const { performanceValidationService } = await import('./performance-validation-service');
-    performanceValidationService.start();
+        await delay(2000);
 
-    const { pennyScanner } = await import('./penny-scanner');
-    pennyScanner.start();
-    log('🚀 Penny Moonshot Scanner started');
+        const { autoIdeaGenerator } = await import('./auto-idea-generator');
+        autoIdeaGenerator.start();
+        log('🤖 Auto Idea Generator started');
 
-    // ── Wave 4 (after 15s): Market scanners ─────────────────────────────
-    await delay(5000);
+        const { performanceValidationService } = await import('./performance-validation-service');
+        performanceValidationService.start();
 
-    const { startBullishTrendScanner } = await import('./bullish-trend-scanner');
-    startBullishTrendScanner();
-    log('📈 Bullish Trend Scanner started');
+        const { pennyScanner } = await import('./penny-scanner');
+        pennyScanner.start();
+        log('🚀 Penny Moonshot Scanner started');
 
-    const { startMorningPreviewScheduler } = await import('./morning-preview-service');
-    startMorningPreviewScheduler();
-    log('☀️ Morning Preview Scheduler started');
+        await delay(3000);
 
-    const { startAttentionTrackingService } = await import('./attention-tracking-service');
-    startAttentionTrackingService();
-    log('🔥 Symbol Attention Tracker started');
+        const { startBullishTrendScanner } = await import('./bullish-trend-scanner');
+        startBullishTrendScanner();
+        log('📈 Bullish Trend Scanner started');
 
-    // ── Wave 5 (after 20s): Detection engines ───────────────────────────
-    await delay(5000);
+        const { startMorningPreviewScheduler } = await import('./morning-preview-service');
+        startMorningPreviewScheduler();
+        log('☀️ Morning Preview Scheduler started');
 
-    const { startDetectionEngine } = await import('./surge-detection-engine');
-    startDetectionEngine(60000);
-    log('🎯 Surge Detection Engine started');
+        const { startAttentionTrackingService } = await import('./attention-tracking-service');
+        startAttentionTrackingService();
+        log('🔥 Symbol Attention Tracker started');
 
-    const { startPreMarketSurgeDetector } = await import('./pre-market-surge-detector');
-    startPreMarketSurgeDetector();
-    log('🌅 Pre-Market Surge Detector started');
+        await delay(3000);
 
-    // ── Wave 6 (after 30s): Heavy intelligence services ─────────────────
-    await delay(10000);
+        const { startDetectionEngine } = await import('./surge-detection-engine');
+        startDetectionEngine(60000);
+        log('🎯 Surge Detection Engine started');
 
-    // Options Flow Scanner — schedule only, don't run immediately on boot
-    const { scanOptionsFlow } = await import('./options-flow-scanner');
-    setInterval(async () => {
-      const now = new Date();
-      const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      const hour = nowET.getHours();
-      const dayOfWeek = nowET.getDay();
-      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-      const isMarketHours = hour >= 9 && hour < 16;
-      if (isWeekday && isMarketHours) {
-        logger.info('[OPTIONS-FLOW] Starting scheduled scan...');
-        await scanOptionsFlow().catch(err => logger.error('[OPTIONS-FLOW] Scheduled scan failed:', err));
+        const { startPreMarketSurgeDetector } = await import('./pre-market-surge-detector');
+        startPreMarketSurgeDetector();
+        log('🌅 Pre-Market Surge Detector started');
+
+        await delay(5000);
+
+        const { startCatalystPolling } = await import('./catalyst-intelligence-service');
+        startCatalystPolling(30);
+        log('📋 Catalyst Intelligence polling started');
+
+        const { startPreMoveScanner } = await import('./pre-move-detection-service');
+        startPreMoveScanner();
+        log('🔮 Pre-Move Detection Scanner started');
+
+        await delay(5000);
+
+        const { selfLearning } = await import('./self-learning-service');
+        selfLearning.start();
+        log('🧠 Self-Learning Service started');
+
+        // Trade Desk Executor (Alpaca auto-trading)
+        const { startTradeExecutor, isExecutorActive } = await import('./trade-desk-executor');
+        const { isAlpacaConfigured, initializeAlpaca } = await import('./alpaca-trading');
+        if (isAlpacaConfigured()) {
+          const alpacaReady = await initializeAlpaca();
+          if (alpacaReady) {
+            await startTradeExecutor();
+            log('🤖 Trade Desk Executor started');
+            const { startIntelligentMonitoring } = await import('./position-manager');
+            await startIntelligentMonitoring();
+            log('🧠 Intelligent Position Manager started');
+          }
+        }
+
+        await delay(5000);
+
+        // SPX scanners
+        const { startORBScanner } = await import('./spx-orb-scanner');
+        const { startSessionScanner } = await import('./spx-session-scanner');
+        startORBScanner(60000);
+        startSessionScanner(30000);
+        log('📊 SPX ORB + Session scanners started');
+
+        const { startSPXIntelligenceService } = await import('./spx-intelligence-service');
+        startSPXIntelligenceService();
+        log('🧠 SPX Intelligence Service started');
+
+        const { startConvergenceEngine } = await import('./convergence-engine');
+        startConvergenceEngine();
+        log('🎯 Convergence Engine started');
+
+        await delay(5000);
+
+        const { startNewsOptionsPipeline } = await import('./news-options-pipeline');
+        startNewsOptionsPipeline();
+        log('📰 News→Options Pipeline started');
+
+        const { startPopularTickersScanner } = await import('./popular-tickers-scanner');
+        startPopularTickersScanner();
+        log('🌟 Popular Tickers Scanner started');
+
+        log('✅ All heavy services started (staggered over ~30s)');
+      } catch (err) {
+        logger.error('❌ Error starting heavy services:', err);
       }
-    }, 30 * 60 * 1000);
-    log('📊 Options Flow Scanner scheduled');
-
-    const { startCatalystPolling } = await import('./catalyst-intelligence-service');
-    startCatalystPolling(30);
-    log('📋 Catalyst Intelligence polling started');
-
-    const { startPreMoveScanner } = await import('./pre-move-detection-service');
-    startPreMoveScanner();
-    log('🔮 Pre-Move Detection Scanner started');
-
-    // ── Wave 7 (after 40s): Learning & execution ────────────────────────
-    await delay(10000);
-
-    const { selfLearning } = await import('./self-learning-service');
-    selfLearning.start();
-    log('🧠 Self-Learning Service started');
-
-    // Trade Desk Executor (Alpaca auto-trading)
-    const { startTradeExecutor, isExecutorActive } = await import('./trade-desk-executor');
-    const { isAlpacaConfigured, initializeAlpaca } = await import('./alpaca-trading');
-    if (isAlpacaConfigured()) {
-      const alpacaReady = await initializeAlpaca();
-      if (alpacaReady) {
-        await startTradeExecutor();
-        log('🤖 Trade Desk Executor started');
-        const { startIntelligentMonitoring } = await import('./position-manager');
-        await startIntelligentMonitoring();
-        log('🧠 Intelligent Position Manager started');
-      } else {
-        log('⚠️ Alpaca connection failed - Trade Desk Executor not started');
-      }
-    } else {
-      log('⚠️ Alpaca not configured - Trade Desk Executor not started');
     }
 
-    // ── Wave 8 (after 50s): SPX scanners & intelligence ─────────────────
-    await delay(10000);
-
-    const { startORBScanner } = await import('./spx-orb-scanner');
-    const { startSessionScanner } = await import('./spx-session-scanner');
-    const nowETBoot = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const bootHour = nowETBoot.getHours();
-    const bootDay = nowETBoot.getDay();
-    const isMarketDay = bootDay >= 1 && bootDay <= 5;
-    const isMarketTime = bootHour >= 9 && bootHour < 16;
-
-    if (isMarketDay && isMarketTime) {
-      startORBScanner(60000);
-      startSessionScanner(30000);
-      log('📊 SPX ORB + Session scanners auto-started (market open)');
+    // Check if market is currently open — if so, start heavy services after a 10s delay
+    if (isMarketCurrentlyOpen()) {
+      log('📈 Market is OPEN — starting heavy services in 10s...');
+      setTimeout(() => startHeavyServices(), 10000);
     } else {
-      log('⏰ SPX Scanners NOT started (market closed)');
+      log('🌙 Market is CLOSED — running in lightweight mode (HTTP + prices only)');
+      log('🌙 Heavy services will auto-start at 9:25 AM ET on next market day');
     }
 
-    // Cron to auto-start/stop SPX scanners at market open/close
-    const cronModule = await import('node-cron');
-    cronModule.default.schedule('30 9 * * 1-5', () => {
-      startORBScanner(60000);
-      startSessionScanner(30000);
-      logger.info('[SPX] Auto-started ORB + Session scanners at market open');
-    }, { timezone: 'America/New_York' });
-    cronModule.default.schedule('5 16 * * 1-5', () => {
-      import('./spx-orb-scanner').then(m => m.stopORBScanner());
-      import('./spx-session-scanner').then(m => m.stopSessionScanner());
-      logger.info('[SPX] Auto-stopped ORB + Session scanners at market close');
+    // ── Cron: Start heavy services at market open (9:25 AM ET weekdays) ──
+    const cron = await import('node-cron');
+    cron.default.schedule('25 9 * * 1-5', () => {
+      log('⏰ Market open cron triggered — starting heavy services...');
+      startHeavyServices();
     }, { timezone: 'America/New_York' });
 
-    const { startSPXIntelligenceService } = await import('./spx-intelligence-service');
-    startSPXIntelligenceService();
-    log('🧠 SPX Intelligence Service started');
-
-    const { startConvergenceEngine } = await import('./convergence-engine');
-    startConvergenceEngine();
-    log('🎯 Convergence Engine started');
-
-    // ── Wave 9 (after 60s): Remaining pipelines ─────────────────────────
-    await delay(10000);
-
-    const { startNewsOptionsPipeline } = await import('./news-options-pipeline');
-    startNewsOptionsPipeline();
-    log('📰 News→Options Pipeline started');
-
-    const { startPopularTickersScanner } = await import('./popular-tickers-scanner');
-    startPopularTickersScanner();
-    log('🌟 Popular Tickers Scanner started');
-
-    // Dynamic Mover Options — schedule only, don't run immediately
-    const { generateOptionsForMovers } = await import('./mover-discovery');
-    setInterval(async () => {
-      const now = new Date();
-      const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-      const hour = nowET.getHours();
-      const dayOfWeek = nowET.getDay();
-      const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-      const isMarketHours = hour >= 9 && hour < 16;
-      if (isWeekday && isMarketHours) {
-        logger.info('[MOVER-OPTIONS] Starting scheduled mover options scan...');
-        await generateOptionsForMovers().catch(err => logger.error('[MOVER-OPTIONS] Scheduled run failed:', err));
-      }
-    }, 90 * 60 * 1000);
-    log('🔥 Dynamic Mover Options scheduled');
-
-    log('✅ All services started (staggered over 60s)');
+    // ── Cron: Restart process at market close to free all memory ──────────
+    // At 4:10 PM ET, we gracefully exit. PM2 auto-restarts the process,
+    // which comes back up in lightweight mode (no heavy services).
+    cron.default.schedule('10 16 * * 1-5', () => {
+      log('🌙 Market closed — restarting process to free memory...');
+      // Stop SPX scanners gracefully first
+      import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});
+      import('./spx-session-scanner').then(m => m.stopSessionScanner()).catch(() => {});
+      // Give 5s for graceful shutdown, then exit (PM2 will restart)
+      setTimeout(() => {
+        log('🔄 Exiting for PM2 restart (lightweight mode)...');
+        process.exit(0);
+      }, 5000);
+    }, { timezone: 'America/New_York' });
 
     // Start ML Retraining Service (self-improving models)
     // TODO: Implement ML retraining service
@@ -317,41 +311,13 @@ app.use((req, res, next) => {
     // startMLRetrainingService();
     // log('🧠 ML Retraining Service started - auto-improving models at 3 AM daily, weight updates every 4 hours');
     
-    // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
-    (async () => {
-      try {
-        const now = new Date();
-        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-        const hourCT = nowCT.getHours();
-        const dayOfWeek = nowCT.getDay(); // 0 = Sunday, 6 = Saturday
-        
-        // Check if current time is between 6:00 PM (18:00) and 11:59 PM (23:59) CT
-        // Also skip weekends - penny stock generation is for weekday trading
-        const isEveningHours = hourCT >= 18 && hourCT <= 23;
-        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
-        
-        if (isEveningHours && isWeekday) {
-          logger.info(`🌙 [EVENING STARTUP] Running Tomorrow's Playbook generation...`);
-          logger.info(`🌙 [EVENING STARTUP] Current CT time: ${nowCT.toLocaleTimeString('en-US')} (${hourCT}:00 hour)`);
-          
-          // Call forceGenerate with focusPennyStocks=true and relaxedFilters=true
-          const generatedCount = await autoIdeaGenerator.forceGenerate(true, true);
-          
-          if (generatedCount > 0) {
-            logger.info(`🌙 [EVENING STARTUP] Successfully generated ${generatedCount} tomorrow's watchlist ideas`);
-          } else {
-            logger.info(`🌙 [EVENING STARTUP] No evening ideas generated (may be duplicates or AI unavailable)`);
-          }
-        } else {
-          logger.info(`⏰ [STARTUP] Not evening hours (CT hour: ${hourCT}, day: ${dayOfWeek}) - skipping evening penny stock generation`);
-        }
-      } catch (error) {
-        logger.error('🌙 [EVENING STARTUP] Failed to run evening generation:', error);
-      }
-    })();
+    // 🌙 EVENING STARTUP: Moved to cron-only (no immediate execution on boot)
+    // Tomorrow's Playbook generation happens via the autoIdeaGenerator cron schedule
+    // Immediate startup generation was consuming too much CPU/memory on boot
+    log('🌙 Evening playbook generation deferred to cron schedule (not run on boot)');
     
     // Start automated hybrid idea generation (9:45 AM CT on weekdays - 15 min after AI/Quant)
-    const cron = await import('node-cron');
+    // (cron already imported above)
     let lastHybridRunDate: string | null = null;
     let isHybridGenerating = false;
     
@@ -1832,24 +1798,10 @@ app.use((req, res, next) => {
     // Runs every 30 minutes during market hours + initial scan on startup
     // ============================================================================
     
-    // Initial scan on startup (delayed by 30 seconds to let server stabilize)
-    setTimeout(async () => {
-      try {
-        logger.info('📈 [BULLISH-TRENDS] Running initial bullish trend scan...');
-        const { scanBullishTrends, ingestBullishTrendsToTradeDesk } = await import('./bullish-trend-scanner');
-        const results = await scanBullishTrends();
-        logger.info(`📈 [BULLISH-TRENDS] Initial scan complete: ${results.length} stocks analyzed`);
-        
-        // Ingest strong trends to Trade Desk
-        logger.info('📈 [BULLISH-TRENDS] Running initial Trade Desk ingestion...');
-        const ingestionResult = await ingestBullishTrendsToTradeDesk();
-        logger.info(`📈 [BULLISH-TRENDS] Ingested ${ingestionResult.ingested} ideas to Trade Desk (${ingestionResult.skipped} skipped)`);
-      } catch (error: any) {
-        logger.error('📈 [BULLISH-TRENDS] Initial scan failed:', error);
-      }
-    }, 30000);
-    
-    // Schedule regular scans every 30 minutes
+    // Initial scan REMOVED — heavy services handle this during market hours
+    // via startBullishTrendScanner() in startHeavyServices()
+
+    // Schedule regular scans every 30 minutes (only runs during market hours)
     cron.default.schedule('*/30 * * * *', async () => {
       try {
         const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
