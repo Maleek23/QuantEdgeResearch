@@ -5,10 +5,8 @@ import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions, symbolBehaviorProfiles, confidenceCalibration, historicalIntelligenceSummary } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
-import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
-import { generateQuantIdeas } from "./quant-ideas-generator";
-import { generateFuturesIdeas } from "./quantitative-engine";
-import { scanUnusualOptionsFlow } from "./flow-scanner";
+// LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
+// These are imported via await import() inside route handlers to reduce startup memory
 import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructureLog, validateTrade as validateTradeStructure } from "./trade-validation";
 import { deriveTimingWindows, verifyTimingUniqueness, recalculateExitTime } from "./timing-intelligence";
@@ -38,7 +36,7 @@ import {
   passwordResetLimiter,
   trackingLimiter,
 } from "./rate-limiter";
-import { autoIdeaGenerator } from "./auto-idea-generator";
+// LAZY-LOADED: auto-idea-generator — imported via await import() in handlers
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
@@ -46,12 +44,10 @@ import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPasswor
 import { randomBytes } from "crypto";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
-import * as paperTradingService from "./paper-trading-service";
-import { registerExitCallback } from "./paper-trading-service";
+// LAZY-LOADED: paper-trading-service — imported via await import() in handlers
 import { getAutoLottoExitIntelligence, getPortfolioExitIntelligence } from "./position-monitor-service";
 import { telemetryService } from "./telemetry-service";
-import { analyzeLoss, analyzeAllLosses, getLossSummary } from "./loss-analyzer";
-import { calculateSignalAttribution, getSignalPerformanceFromCache } from "./signal-attribution";
+// LAZY-LOADED: loss-analyzer, signal-attribution — imported via await import() in handlers
 import { getReliabilityGrade, getLetterGrade } from "./grading";
 import { 
   insertPaperPortfolioSchema, 
@@ -72,12 +68,7 @@ import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './re
 import { creditService } from './creditService';
 import { featureCreditService } from './featureCreditService';
 import { generateInviteToken, sendBetaInviteEmail, sendWelcomeEmail, isEmailServiceConfigured } from './emailService';
-import { 
-  getCalibratedConfidence as getCalibrationScore, 
-  generateAdaptiveExitStrategy, 
-  refreshCalibrationCache, 
-  formatExitStrategyDisplay 
-} from './confidence-calibration';
+// LAZY-LOADED: confidence-calibration — imported via await import() in handlers
 import {
   logAdminAction,
   getAuditLogs,
@@ -87,18 +78,11 @@ import {
   recordFailedLogin,
   recordSuccessfulLogin,
 } from './audit-logger';
-import { 
-  generateComprehensiveAnalysis, 
-  formatAnalysisForDisplay,
-  assessMarketRegime,
-  getCompanyContext,
-} from './multi-factor-analysis';
-import { getMarketContext, getTradingSession } from './market-context-service';
-import { historicalIntelligenceService } from './historical-intelligence-service';
+// LAZY-LOADED: multi-factor-analysis, market-context-service, historical-intelligence-service
 import { WinRateService } from './win-rate-service';
 import { CANONICAL_WIN_THRESHOLD } from '@shared/constants';
-import { analyzeVolatility, batchVolatilityAnalysis, quickIVCheck, selectStrategy } from './volatility-analysis-service';
-import { runTradingEngine, scanSymbols, analyzeFundamentals, analyzeTechnicals, validateConfluence, type AssetClass } from './trading-engine';
+// LAZY-LOADED: volatility-analysis-service, trading-engine
+type AssetClass = 'stocks' | 'options' | 'crypto' | 'futures';
 import { cachePresets, getCacheStats, invalidateCache } from './cache-middleware';
 import { marketDataStatus } from './market-data-status';
 
@@ -535,9 +519,28 @@ async function requireBetaAccess(req: Request, res: Response, next: NextFunction
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // ── Lazy-loaded module caches (reduce startup memory by ~500MB) ──────────
+  let _aiService: any = null;
+  const getAiService = async () => _aiService || (_aiService = await import('./ai-service'));
+  let _autoIdeaGen: any = null;
+  const getAutoIdeaGenerator = async () => {
+    if (!_autoIdeaGen) _autoIdeaGen = await import('./auto-idea-generator');
+    return _autoIdeaGen.autoIdeaGenerator;
+  };
+  let _paperTrading: any = null;
+  const getPaperTradingService = async () => _paperTrading || (_paperTrading = await import('./paper-trading-service'));
+  let _historicalIntel: any = null;
+  const getHistoricalIntelligenceService = async () => {
+    if (!_historicalIntel) _historicalIntel = await import('./historical-intelligence-service');
+    return _historicalIntel.historicalIntelligenceService;
+  };
+  let _marketContext: any = null;
+  const getMarketContextService = async () => _marketContext || (_marketContext = await import('./market-context-service'));
+
   // 🛡️ REGISTER EXIT COOLDOWN CALLBACK - CRITICAL for preventing repeated trades
   try {
     const { recordExitCooldown } = await import("./auto-lotto-trader");
+    const { registerExitCallback } = await import("./paper-trading-service");
     registerExitCallback((symbol, optionType, strike, wasWin) => {
       recordExitCooldown(symbol, optionType, strike, wasWin ?? true);
       logger.info(`🛡️ [EXIT-HOOK] Cooldown triggered: ${symbol} ${optionType} ${strike} (win=${wasWin})`);
@@ -2299,8 +2302,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/trigger-auto-gen", requireAdminJWT, async (_req, res) => {
     try {
       const { autoIdeaGenerator } = await import('./auto-idea-generator');
-      await autoIdeaGenerator.manualGenerate();
-      const status = autoIdeaGenerator.getStatus();
+      await (await getAutoIdeaGenerator()).manualGenerate();
+      const status = (await getAutoIdeaGenerator()).getStatus();
       res.json({ 
         success: true, 
         message: 'AI auto-generation triggered manually',
@@ -2322,6 +2325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const catalysts = await storage.getAllCatalysts();
       
       // Generate with skipTimeCheck=true for manual triggers
+      const { generateQuantIdeas } = await import('./quant-ideas-generator');
       const quantIdeas = await generateQuantIdeas(marketData, catalysts, 8, storage, true);
       
       const savedIdeas = [];
@@ -2389,6 +2393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/trigger-flow", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('📊 [FLOW-MANUAL] Manual flow scan triggered');
+      const { scanUnusualOptionsFlow } = await import('./flow-scanner');
       const flowIdeas = await scanUnusualOptionsFlow(undefined, true);
       
       res.json({ 
@@ -6049,7 +6054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (isWeekday && isDuringTradingHours) {
             logger.info(`[BEST-SETUPS] No ideas for today - triggering background generation...`);
             // Don't await - generate in background so response isn't delayed
-            autoIdeaGenerator.forceGenerate(false, false).catch(err => {
+            (await getAutoIdeaGenerator()).forceGenerate(false, false).catch(err => {
               logger.error('[BEST-SETUPS] Background generation failed:', err);
             });
           }
@@ -6491,7 +6496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`🚀 [API] On-demand idea generation requested by user ${userId} (penny focus: ${focusPennyStocks})`);
       
       // Check if generation is already in progress
-      const status = autoIdeaGenerator.getStatus();
+      const status = (await getAutoIdeaGenerator()).getStatus();
       if (status.isGenerating) {
         return res.status(409).json({ 
           error: "Generation already in progress",
@@ -6500,7 +6505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Trigger immediate generation
-      const ideasGenerated = await autoIdeaGenerator.forceGenerate(focusPennyStocks);
+      const ideasGenerated = await (await getAutoIdeaGenerator()).forceGenerate(focusPennyStocks);
       
       logger.info(`🚀 [API] On-demand generation complete: ${ideasGenerated} ideas generated for user ${userId}`);
       
@@ -6523,7 +6528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 📊 Get auto-generator status
   app.get("/api/ideas/generator-status", isAuthenticated, async (req, res) => {
     try {
-      const status = autoIdeaGenerator.getStatus();
+      const status = (await getAutoIdeaGenerator()).getStatus();
       res.json(status);
     } catch (error: any) {
       logger.error('[API] Failed to get generator status:', error);
@@ -9454,6 +9459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get loss summary with patterns and insights
   app.get("/api/loss-analysis/summary", requireTier('canAccessLossAnalysis'), async (req, res) => {
     try {
+      const { getLossSummary } = await import('./loss-analyzer');
       const summary = await getLossSummary();
       res.json(summary);
     } catch (error) {
@@ -9487,6 +9493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze all unanalyzed losses (admin trigger)
   app.post("/api/loss-analysis/analyze-all", requireAdminJWT, async (req, res) => {
     try {
+      const { analyzeAllLosses } = await import('./loss-analyzer');
       const count = await analyzeAllLosses();
       res.json({ 
         success: true, 
@@ -10093,7 +10100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get cached signal performance data (fast)
   app.get("/api/signal-attribution", async (req, res) => {
     try {
-      const signals = await getSignalPerformanceFromCache();
+      const signals = await (await import('./signal-attribution')).getSignalPerformanceFromCache();
       
       if (signals.length === 0) {
         return res.json({
@@ -10133,6 +10140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Recalculate signal performance (admin only, slower)
   app.post("/api/signal-attribution/recalculate", requireAdminJWT, async (req, res) => {
     try {
+      const { calculateSignalAttribution } = await import('./signal-attribution');
       const result = await calculateSignalAttribution();
       res.json({
         success: true,
@@ -10149,7 +10157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/signal-attribution/top", async (req, res) => {
     try {
       const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
-      const signals = await getSignalPerformanceFromCache();
+      const signals = await (await import('./signal-attribution')).getSignalPerformanceFromCache();
       
       const qualified = signals
         .filter(s => s.totalTrades >= 10 && s.winRate >= 50)
@@ -10600,7 +10608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get comprehensive historical performance stats (beta/admin only)
   app.get("/api/historical-intelligence/stats", requireBetaAccess, async (_req, res) => {
     try {
-      const stats = await historicalIntelligenceService.calculatePerformanceStats();
+      const stats = await (await getHistoricalIntelligenceService()).calculatePerformanceStats();
       res.json(stats);
     } catch (error) {
       logger.error("[HIST-INTEL] Error fetching stats:", error);
@@ -10612,7 +10620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/historical-intelligence/symbol/:symbol", requireBetaAccess, async (req, res) => {
     try {
       const { symbol } = req.params;
-      const intelligence = await historicalIntelligenceService.getSymbolIntelligence(symbol.toUpperCase());
+      const intelligence = await (await getHistoricalIntelligenceService()).getSymbolIntelligence(symbol.toUpperCase());
       res.json(intelligence);
     } catch (error) {
       logger.error("[HIST-INTEL] Error fetching symbol intelligence:", error);
@@ -10687,7 +10695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Use defaults for catalyst and direction if not provided
-      const adjustment = await historicalIntelligenceService.getConfidenceAdjustment(
+      const adjustment = await (await getHistoricalIntelligenceService()).getConfidenceAdjustment(
         symbol.toUpperCase(),
         catalyst || '',
         direction || 'long'
@@ -10703,7 +10711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/historical-intelligence/refresh", requireAdminJWT, async (_req, res) => {
     try {
       logger.info("[HIST-INTEL] Starting full intelligence refresh...");
-      const result = await historicalIntelligenceService.fullRefresh();
+      const result = await (await getHistoricalIntelligenceService()).fullRefresh();
       res.json({
         success: true,
         message: `Refreshed ${result.profilesUpdated} symbol profiles`,
@@ -10719,7 +10727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/historical-intelligence/symbol/:symbol/refresh", requireAdminJWT, async (req, res) => {
     try {
       const { symbol } = req.params;
-      const profile = await historicalIntelligenceService.updateSymbolProfile(symbol.toUpperCase());
+      const profile = await (await getHistoricalIntelligenceService()).updateSymbolProfile(symbol.toUpperCase());
       if (profile) {
         res.json({ success: true, profile });
       } else {
@@ -10766,7 +10774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get catalyst performance breakdown (beta/admin only)
   app.get("/api/historical-intelligence/catalyst-performance", requireBetaAccess, async (_req, res) => {
     try {
-      const stats = await historicalIntelligenceService.calculatePerformanceStats();
+      const stats = await (await getHistoricalIntelligenceService()).calculatePerformanceStats();
       res.json({
         catalysts: stats.byCatalyst,
         topCatalysts: stats.byCatalyst.slice(0, 5),
@@ -13458,6 +13466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid symbol" });
       }
       
+      const { generateComprehensiveAnalysis } = await import('./multi-factor-analysis');
       const analysis = await generateComprehensiveAnalysis(symbol.toUpperCase());
       
       if (!analysis) {
@@ -13474,6 +13483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Multi-Factor Analysis - Get market regime context
   app.get("/api/market-regime", async (_req, res) => {
     try {
+      const { assessMarketRegime } = await import('./multi-factor-analysis');
       const regime = await assessMarketRegime();
       res.json(regime);
     } catch (error) {
@@ -13486,6 +13496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/market-movers", async (_req, res) => {
     try {
       const { getTopMovers } = await import('./market-scanner');
+      const { getTradingSession } = await getMarketContextService();
       const session = getTradingSession();
       
       // Expanded stock universe - 100+ symbols including after-hours movers
@@ -13750,8 +13761,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Market Context - Full market overview with VIX, SPY, trading session
   app.get("/api/market-context", async (_req, res) => {
     try {
-      const context = await getMarketContext(true); // Force refresh for latest data
-      const session = getTradingSession();
+      const mcs = await getMarketContextService();
+      const context = await mcs.getMarketContext(true); // Force refresh for latest data
+      const session = mcs.getTradingSession();
       res.json({
         ...context,
         tradingSession: session,
@@ -13771,14 +13783,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid symbol" });
       }
 
-      const analysis = await analyzeVolatility(symbol.toUpperCase());
+      const vas = await import('./volatility-analysis-service');
+      const analysis = await vas.analyzeVolatility(symbol.toUpperCase());
       if (!analysis) {
         return res.status(404).json({ error: `Unable to analyze volatility for ${symbol}` });
       }
 
       // Get market context for strategy selection
-      const marketContext = await getMarketContext();
-      const strategyRec = selectStrategy(marketContext.regime, analysis, 'stock');
+      const marketContext = await (await getMarketContextService()).getMarketContext();
+      const strategyRec = vas.selectStrategy(marketContext.regime, analysis, 'stock');
 
       res.json({
         ...analysis,
@@ -13799,6 +13812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid symbol" });
       }
 
+      const { quickIVCheck } = await import('./volatility-analysis-service');
       const result = await quickIVCheck(symbol.toUpperCase());
       if (!result) {
         return res.status(404).json({ error: `Unable to check IV for ${symbol}` });
@@ -13821,6 +13835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Limit batch size
       const limitedSymbols = symbols.slice(0, 10).map((s: string) => s.toUpperCase());
+      const { batchVolatilityAnalysis } = await import('./volatility-analysis-service');
       const results = await batchVolatilityAnalysis(limitedSymbols);
 
       // Convert Map to object for JSON
@@ -13856,6 +13871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid asset class. Use: stock, options, futures, crypto" });
       }
 
+      const { runTradingEngine } = await import('./trading-engine');
       const result = await runTradingEngine(symbol.toUpperCase(), assetClass, accountSize);
       res.json(result);
     } catch (error) {
@@ -13896,6 +13912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      const { scanSymbols } = await import('./trading-engine');
       const results = await scanSymbols(symbols, assetClass as AssetClass);
       res.json({
         assetClass,
@@ -13919,6 +13936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Symbol required" });
       }
 
+      const { analyzeFundamentals } = await import('./trading-engine');
       const result = await analyzeFundamentals(symbol.toUpperCase(), assetClass);
       res.json(result);
     } catch (error) {
@@ -13936,6 +13954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Symbol required" });
       }
 
+      const { analyzeTechnicals } = await import('./trading-engine');
       const result = await analyzeTechnicals(symbol.toUpperCase());
       res.json(result);
     } catch (error) {
@@ -14052,6 +14071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Symbol is required" });
       }
       
+      const { getCompanyContext } = await import('./multi-factor-analysis');
       const context = await getCompanyContext(symbol.toUpperCase());
       res.json(context);
     } catch (error) {
@@ -15256,6 +15276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate quantitative ideas with deduplication
       // Manual generation: skip time check (user can generate anytime)
+      const { generateQuantIdeas } = await import('./quant-ideas-generator');
       const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage, true, targetHoldingPeriod);
       
       // Save ideas to storage with validation and send Discord alerts
@@ -15282,7 +15303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
-        const validation = validateTradeRisk({
+        const validation = (await getAiService()).validateTradeRisk({
           symbol: idea.symbol,
           assetType: idea.assetType as 'stock' | 'option' | 'crypto',
           direction: idea.direction as 'long' | 'short',
@@ -15347,6 +15368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info('🔮 [FUTURES] Manual futures generation triggered');
       
       // Generate futures ideas (NQ and GC) - force=true for manual generation
+      const { generateFuturesIdeas } = await import('./quantitative-engine');
       const futuresIdeas = await generateFuturesIdeas(true);
       
       // Save ideas to storage
@@ -15397,6 +15419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`📊 [FLOW] Manual flow scan triggered${holdingPeriod ? ` (holding period: ${holdingPeriod})` : ''}`);
       
       // Scan for unusual options activity (filtered by holding period if specified)
+      const { scanUnusualOptionsFlow } = await import('./flow-scanner');
       const flowIdeas = await scanUnusualOptionsFlow(holdingPeriod, true);
       
       // Save ideas to storage with validation and send Discord alerts
@@ -15424,7 +15447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 1.5:1 R:R, price sanity)
-        const validation = validateTradeRisk({
+        const validation = (await getAiService()).validateTradeRisk({
           symbol: idea.symbol,
           assetType: idea.assetType as 'stock' | 'option' | 'crypto',
           direction: idea.direction as 'long' | 'short',
@@ -15544,7 +15567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .map((idea: any) => idea.symbol.toUpperCase())
       );
       
-      const aiIdeas = await generateTradeIdeas(marketContext);
+      const aiIdeas = await (await getAiService()).generateTradeIdeas(marketContext);
       
       // 🛡️ Apply strict risk validation to all AI-generated ideas
       const savedIdeas = [];
@@ -15625,7 +15648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min R:R based on catalyst type, price sanity)
-        const validation = validateTradeRisk(aiIdea, isNewsCatalyst);
+        const validation = (await getAiService()).validateTradeRisk(aiIdea, isNewsCatalyst);
         
         if (!validation.isValid) {
           logger.warn(`🚫 AI: REJECTED ${aiIdea.symbol} - ${validation.reason}`);
@@ -15869,7 +15892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 2: Risk guardrails (inherits from quant but adds AI safety layer)
-        const validation = validateTradeRisk(hybridIdea);
+        const validation = (await getAiService()).validateTradeRisk(hybridIdea);
         
         if (!validation.isValid) {
           logger.warn(`🚫 Hybrid: REJECTED ${hybridIdea.symbol} - ${validation.reason}`);
@@ -16016,7 +16039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       // Get AI response
-      const aiResponse = await chatWithQuantAI(message, conversationHistory);
+      const aiResponse = await (await getAiService()).chatWithQuantAI(message, conversationHistory);
       
       // Save user message and AI response
       await storage.addChatMessage({ role: 'user', content: message });
@@ -16798,7 +16821,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       
       // 🛡️ LAYER 2: Risk validation - RELAXED for chart analysis (user-driven trades)
       // Chart analysis uses 1.5:1 R:R minimum instead of 2:1 since user chose the setup
-      const riskValidation = validateTradeRisk({
+      const riskValidation = (await getAiService()).validateTradeRisk({
         symbol: validated.symbol,
         assetType: assetType as 'stock' | 'option' | 'crypto',
         direction: direction as 'long' | 'short',
@@ -18036,6 +18059,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const params = parseResult.data;
       
       // Get calibrated confidence
+      const { getCalibratedConfidence: getCalibrationScore, generateAdaptiveExitStrategy, formatExitStrategyDisplay } = await import('./confidence-calibration');
       const confidence = await getCalibrationScore({
         assetType: params.assetType,
         direction: params.direction,
@@ -18086,6 +18110,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   // Refresh calibration cache (admin only)
   app.post("/api/confidence/refresh-cache", requireAdminJWT, async (_req, res) => {
     try {
+      const { refreshCalibrationCache } = await import('./confidence-calibration');
       await refreshCalibrationCache();
       res.json({ success: true, message: "Calibration cache refreshed" });
     } catch (error: any) {
@@ -18911,7 +18936,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       }
       
       const positions = await storage.getPaperPositionsByPortfolio(id);
-      const portfolioValue = await paperTradingService.calculatePortfolioValue(id);
+      const portfolioValue = await (await getPaperTradingService()).calculatePortfolioValue(id);
       
       res.json({
         ...portfolio,
@@ -19025,7 +19050,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         return res.status(404).json({ error: "Trade idea not found" });
       }
       
-      const result = await paperTradingService.executeTradeIdea(portfolioId, tradeIdea);
+      const result = await (await getPaperTradingService()).executeTradeIdea(portfolioId, tradeIdea);
       
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -19115,7 +19140,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const result = await paperTradingService.closePosition(positionId, exitPrice, 'manual');
+      const result = await (await getPaperTradingService()).closePosition(positionId, exitPrice, 'manual');
       
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -19143,12 +19168,12 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      await paperTradingService.updatePositionPrices(portfolioId);
+      await (await getPaperTradingService()).updatePositionPrices(portfolioId);
       
-      const closedPositions = await paperTradingService.checkStopsAndTargets(portfolioId);
+      const closedPositions = await (await getPaperTradingService()).checkStopsAndTargets(portfolioId);
       
       const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
-      const portfolioValue = await paperTradingService.calculatePortfolioValue(portfolioId);
+      const portfolioValue = await (await getPaperTradingService()).calculatePortfolioValue(portfolioId);
       
       res.json({
         positions,
@@ -19205,7 +19230,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         return res.status(401).json({ error: "Unauthorized" });
       }
       
-      const success = await paperTradingService.recordEquitySnapshot(portfolioId);
+      const success = await (await getPaperTradingService()).recordEquitySnapshot(portfolioId);
       
       if (!success) {
         return res.status(500).json({ error: "Failed to record snapshot" });
