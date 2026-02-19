@@ -169,11 +169,6 @@ app.use((req, res, next) => {
         const { startSPXIntelligenceService } = await import('./spx-intelligence-service');
         startSPXIntelligenceService();
         log('🧠 SPX Intelligence Service started');
-
-        // Also start surge detection — it powers SPX scanner validations
-        const { startDetectionEngine } = await import('./surge-detection-engine');
-        startDetectionEngine(60000);
-        log('🎯 Surge Detection Engine started');
       } catch (err) {
         logger.error('❌ Error starting SPX scanners:', err);
       }
