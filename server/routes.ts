@@ -7,9 +7,9 @@ import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPosit
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
-import { generateDiagnosticExport } from "./diagnostic-export";
+// LAZY-LOADED: diagnostic-export — imported via await import() in handlers
 import { validateAndLog as validateTradeStructureLog, validateTrade as validateTradeStructure } from "./trade-validation";
-import { deriveTimingWindows, verifyTimingUniqueness, recalculateExitTime } from "./timing-intelligence";
+// LAZY-LOADED: timing-intelligence — imported via await import() in handlers
 import { formatInTimeZone } from "date-fns-tz";
 import multer from "multer";
 import {
@@ -43,7 +43,7 @@ import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser, getUserByEmail, hashPassword } from "./userAuth";
 import { randomBytes } from "crypto";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
-import { syncDocumentationToNotion } from "./notion-sync";
+// LAZY-LOADED: notion-sync — imported via await import() in handlers
 // LAZY-LOADED: paper-trading-service — imported via await import() in handlers
 import { getAutoLottoExitIntelligence, getPortfolioExitIntelligence } from "./position-monitor-service";
 import { telemetryService } from "./telemetry-service";
@@ -56,18 +56,12 @@ import {
   insertWalletAlertSchema,
   insertCTSourceSchema,
 } from "@shared/schema";
-import {
-  createCheckoutSession,
-  createPortalSession,
-  handleWebhookEvent,
-  constructWebhookEvent,
-  PRICING_PLANS,
-} from "./stripe-service";
+// LAZY-LOADED: stripe-service — imported via await import() in handlers
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
 import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './realtime-price-service';
 import { creditService } from './creditService';
 import { featureCreditService } from './featureCreditService';
-import { generateInviteToken, sendBetaInviteEmail, sendWelcomeEmail, isEmailServiceConfigured } from './emailService';
+// LAZY-LOADED: emailService — imported via await import() in handlers
 // LAZY-LOADED: confidence-calibration — imported via await import() in handlers
 import {
   logAdminAction,
@@ -536,6 +530,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   let _marketContext: any = null;
   const getMarketContextService = async () => _marketContext || (_marketContext = await import('./market-context-service'));
+  let _emailService: any = null;
+  const getEmailService = async () => _emailService || (_emailService = await import('./emailService'));
+  let _timingIntel: any = null;
+  const getTimingIntelligence = async () => _timingIntel || (_timingIntel = await import('./timing-intelligence'));
 
   // 🛡️ REGISTER EXIT COOLDOWN CALLBACK - CRITICAL for preventing repeated trades
   try {
@@ -1518,7 +1516,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // BILLING ROUTES - Stripe Integration
   // ============================================================================
 
-  app.get("/api/billing/plans", (_req, res) => {
+  app.get("/api/billing/plans", async (_req, res) => {
+    const { PRICING_PLANS } = await import("./stripe-service");
     res.json(PRICING_PLANS);
   });
 
@@ -1541,6 +1540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const { createCheckoutSession } = await import("./stripe-service");
       const result = await createCheckoutSession(
         userId,
         user.email,
@@ -1565,6 +1565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session?.userId;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
 
+      const { createPortalSession } = await import("./stripe-service");
       const result = await createPortalSession(userId, `${baseUrl}/settings`);
 
       if (result.error) {
@@ -1589,6 +1590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const { constructWebhookEvent, handleWebhookEvent } = await import("./stripe-service");
       const event = constructWebhookEvent(
         req.body,
         signature,
@@ -2552,7 +2554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check email service status
   app.get("/api/admin/email-status", requireAdminJWT, (_req, res) => {
     res.json({
-      configured: isEmailServiceConfigured(),
+      configured: !!(process.env.RESEND_API_KEY),
       provider: 'resend',
       fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.net',
     });
@@ -2578,7 +2580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate unique invite token
-      const token = generateInviteToken();
+      const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
 
@@ -2592,7 +2594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Send email
-      const emailResult = await sendBetaInviteEmail(entry.email, token, {
+      const emailResult = await (await getEmailService()).sendBetaInviteEmail(entry.email, token, {
         tierOverride,
         personalMessage,
       });
@@ -2627,7 +2629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generate unique invite token
-      const token = generateInviteToken();
+      const token = randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -2642,7 +2644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Optionally send email
       if (sendEmail !== false) {
-        const emailResult = await sendBetaInviteEmail(email, token, {
+        const emailResult = await (await getEmailService()).sendBetaInviteEmail(email, token, {
           tierOverride,
           personalMessage,
         });
@@ -2699,7 +2701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invite was revoked" });
       }
 
-      const emailResult = await sendBetaInviteEmail(invite.email, invite.token, {
+      const emailResult = await (await getEmailService()).sendBetaInviteEmail(invite.email, invite.token, {
         tierOverride: invite.tierOverride || undefined,
       });
 
@@ -2734,7 +2736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invite was revoked" });
       }
 
-      const emailResult = await sendBetaInviteEmail(invite.email, invite.token, {
+      const emailResult = await (await getEmailService()).sendBetaInviteEmail(invite.email, invite.token, {
         tierOverride: invite.tierOverride || undefined,
       });
 
@@ -2773,7 +2775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        const token = generateInviteToken();
+        const token = randomBytes(32).toString('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -2784,7 +2786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiresAt,
         });
 
-        const emailResult = await sendBetaInviteEmail(entry.email, token, { tierOverride });
+        const emailResult = await (await getEmailService()).sendBetaInviteEmail(entry.email, token, { tierOverride });
 
         if (emailResult.success) {
           await storage.markBetaInviteSent(invite.id);
@@ -2883,7 +2885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        const token = generateInviteToken();
+        const token = randomBytes(32).toString('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -2895,7 +2897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         console.log('[INVITE] ✅ Created invite record for:', entry.email, 'ID:', invite.id);
 
-        const emailResult = await sendBetaInviteEmail(entry.email, token, { tierOverride });
+        const emailResult = await (await getEmailService()).sendBetaInviteEmail(entry.email, token, { tierOverride });
         console.log('[INVITE] Email result for', entry.email, ':', emailResult);
 
         if (emailResult.success) {
@@ -2944,7 +2946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Resend the email
-      const emailResult = await sendBetaInviteEmail(entry.email, invite.token);
+      const emailResult = await (await getEmailService()).sendBetaInviteEmail(entry.email, invite.token);
       
       if (emailResult.success) {
         await storage.markBetaInviteSent(invite.id);
@@ -3456,6 +3458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/sync-notion", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('Starting Notion documentation sync');
+      const { syncDocumentationToNotion } = await import("./notion-sync");
       const result = await syncDocumentationToNotion();
       
       if (result.success) {
@@ -5670,14 +5673,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : [];
       
       // Add current prices and dynamically recalculated exit times to response
+      const timingMod = await getTimingIntelligence();
       const ideasWithPrices = updatedIdeas.map(idea => {
         const currentPrice = idea.assetType === 'option' ? null : (priceMap.get(idea.symbol) || null);
-        
+
         // 🔄 DYNAMIC EXIT TIME: Recalculate for open trades with exitBy set
         let adjustedExitBy = idea.exitBy;
         if (idea.outcomeStatus === 'open' && idea.exitBy) {
           try {
-            const recalcResult = recalculateExitTime({
+            const recalcResult = timingMod.recalculateExitTime({
               symbol: idea.symbol,
               assetType: idea.assetType as any,
               entryPrice: idea.entryPrice,
@@ -15470,7 +15474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
         const riskRewardRatio = (idea.targetPrice - idea.entryPrice) / (idea.entryPrice - idea.stopLoss);
         const confidenceScore = idea.confidenceScore ?? 50; // Use existing or default
-        const timingWindows = deriveTimingWindows({
+        const timingWindows = (await getTimingIntelligence()).deriveTimingWindows({
           symbol: idea.symbol,
           assetType: idea.assetType as 'stock' | 'option' | 'crypto',
           direction: idea.direction as 'long' | 'short',
@@ -15508,7 +15512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
       if (savedIdeas.length > 0) {
-        verifyTimingUniqueness(savedIdeas.map(idea => ({
+        (await getTimingIntelligence()).verifyTimingUniqueness(savedIdeas.map(idea => ({
           symbol: idea.symbol,
           entryValidUntil: idea.entryValidUntil || '',
           exitBy: idea.exitBy || ''
@@ -15674,7 +15678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const generationTimestamp = new Date().toISOString();
         
         // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
-        const timingWindows = deriveTimingWindows({
+        const timingWindows = (await getTimingIntelligence()).deriveTimingWindows({
           symbol: aiIdea.symbol,
           assetType: aiIdea.assetType,
           direction: aiIdea.direction,
@@ -15732,7 +15736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
       if (savedIdeas.length > 0) {
-        verifyTimingUniqueness(savedIdeas.map(idea => ({
+        (await getTimingIntelligence()).verifyTimingUniqueness(savedIdeas.map(idea => ({
           symbol: idea.symbol,
           entryValidUntil: idea.entryValidUntil || '',
           exitBy: idea.exitBy || ''
@@ -15923,7 +15927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const generationTimestamp = new Date().toISOString();
         
         // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
-        const timingWindows = deriveTimingWindows({
+        const timingWindows = (await getTimingIntelligence()).deriveTimingWindows({
           symbol: hybridIdea.symbol,
           assetType: hybridIdea.assetType,
           direction: hybridIdea.direction,
@@ -15977,7 +15981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
       if (savedIdeas.length > 0) {
-        verifyTimingUniqueness(savedIdeas.map(idea => ({
+        (await getTimingIntelligence()).verifyTimingUniqueness(savedIdeas.map(idea => ({
           symbol: idea.symbol,
           entryValidUntil: idea.entryValidUntil || '',
           exitBy: idea.exitBy || ''
@@ -18869,6 +18873,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       
       logger.info(`📊 Generating diagnostic export (${daysBack} days, rawData: ${includeRawData})`);
       
+      const { generateDiagnosticExport } = await import("./diagnostic-export");
       const diagnosticData = await generateDiagnosticExport(daysBack, includeRawData);
       
       // Set headers for file download
