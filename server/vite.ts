@@ -103,7 +103,15 @@ export function serveStatic(app: Express) {
   );
 
   // fall through to index.html if the file doesn't exist (SPA routing)
-  app.use("*", (_req, res) => {
+  app.use("*", (req, res) => {
+    // Never serve HTML for missing static assets — return 404 so the browser
+    // knows the file is gone and doesn't silently try to parse HTML as JS/CSS.
+    // Without this, stale cached HTML requesting old chunk hashes (e.g.
+    // /assets/index-OLD.js) gets index.html back with 200, the browser tries
+    // to parse HTML as JavaScript, fails silently, and the app never mounts.
+    if (req.originalUrl.startsWith('/assets/')) {
+      return res.status(404).type('text').send('Asset not found');
+    }
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.resolve(distPath, "index.html"));
   });

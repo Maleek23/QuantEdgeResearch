@@ -108,5 +108,19 @@
     </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Safety net: if React hasn't mounted within 10s, the JS bundle likely failed
+      // (e.g. stale cached HTML referencing old chunk hashes that no longer exist).
+      // Show a reload link instead of an infinite spinner.
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        var loader = document.getElementById('app-loader');
+        if (loader && (!root || !root.hasChildNodes())) {
+          loader.querySelector('.spinner').style.display = 'none';
+          loader.querySelector('p').innerHTML =
+            'Update available — <a href="javascript:location.reload(true)" style="color:#22d3ee;text-decoration:underline">tap to reload</a>';
+        }
+      }, 10000);
+    </script>
   </body>
 </html>
