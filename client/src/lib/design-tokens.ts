@@ -203,6 +203,13 @@ export const componentStyles = {
     success: 'px-2 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-400',
     warning: 'px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-xs text-amber-400',
     error: 'px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-xs text-red-400',
+    // Panel header badge variants (used by QEPanelHeader)
+    cyan: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#00d4ff]/10 border border-[#00d4ff]/25 text-[#00d4ff]',
+    bullish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400',
+    bearish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-red-500/10 border border-red-500/25 text-red-400',
+    gold: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/10 border border-amber-500/25 text-amber-400',
+    ai: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-500/10 border border-violet-500/25 text-violet-400',
+    live: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#b6ff33]/10 border border-[#b6ff33]/25 text-[#b6ff33]',
   },
 
   // Input styles
@@ -221,6 +228,40 @@ export const componentStyles = {
     default: 'max-w-7xl mx-auto px-6 md:px-8',
     narrow: 'max-w-4xl mx-auto px-6 md:px-8',
     wide: 'max-w-[1600px] mx-auto px-6 md:px-8',
+  },
+
+  // Panel variants (used by QEPanel system)
+  panel: {
+    default: 'rounded-lg bg-[#0c1219]/80 border border-white/[0.08] backdrop-blur-md',
+    glass: 'rounded-lg bg-[#0c1219]/60 border border-white/[0.10] backdrop-blur-xl',
+    nested: 'rounded-md bg-white/[0.03] border border-white/[0.05]',
+    interactive: 'rounded-lg bg-[#0c1219]/80 border border-white/[0.08] backdrop-blur-md hover:border-[#00d4ff]/20 hover:shadow-[0_0_24px_rgba(0,212,255,0.08)] transition-all duration-200 cursor-pointer',
+    stat: 'rounded-lg bg-white/[0.03] border border-white/[0.06]',
+    layer: 'rounded-lg border border-dashed border-white/[0.10] bg-transparent',
+  },
+
+  // Text utility classes
+  text: {
+    sectionMarker: 'text-[10px] font-mono font-medium text-slate-500 uppercase tracking-widest mb-0.5',
+    statLabel: 'text-[11px] font-medium text-slate-500 uppercase tracking-wide',
+  },
+
+  // Status indicator dots
+  status: {
+    online: 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]',
+    warning: 'w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]',
+    error: 'w-2 h-2 rounded-full bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.5)]',
+    live: 'w-2 h-2 rounded-full bg-[#b6ff33] shadow-[0_0_6px_rgba(182,255,51,0.5)] animate-pulse',
+  },
+
+  // Grade letter badges
+  grade: {
+    S: 'bg-[#00d4ff]/15 border border-[#00d4ff]/30 text-[#00d4ff]',
+    A: 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400',
+    B: 'bg-white/[0.04] border border-white/[0.08] text-slate-400',
+    C: 'bg-amber-500/10 border border-amber-500/25 text-amber-400',
+    D: 'bg-red-500/10 border border-red-500/25 text-red-400',
+    F: 'bg-red-500/15 border border-red-500/35 text-red-500',
   },
 } as const;
 

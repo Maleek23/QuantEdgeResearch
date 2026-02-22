@@ -160,9 +160,11 @@ function SmartLanding() {
 
 function Router() {
   usePageTracking();
-  
+  const [location] = useLocation();
+
   return (
     <Suspense fallback={<PageLoader />}>
+      <div key={location} className="animate-page-in">
       <Switch>
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
@@ -341,6 +343,7 @@ function Router() {
       {/* 404 Fallback */}
       <Route component={NotFound} />
       </Switch>
+      </div>
     </Suspense>
   );
 }

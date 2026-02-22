@@ -37,6 +37,7 @@ import {
 import { GlobalSearch } from "@/components/global-search";
 import { WSBTrendingCard } from "@/components/wsb-trending-card";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { SkeletonCard } from "@/components/ui/skeleton";
 
 interface MarketQuote {
   regularMarketPrice: number;
@@ -347,10 +348,7 @@ function BreakingNews() {
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="p-3 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] animate-pulse">
-                  <div className="h-4 bg-gray-200 dark:bg-[#222] rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-gray-100 dark:bg-[#1a1a1a] rounded w-1/4" />
-                </div>
+                <SkeletonCard key={i} />
               ))}
             </div>
           ) : news.length > 0 ? (
@@ -458,10 +456,7 @@ function EarningsCalendar() {
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="p-2.5 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] animate-pulse">
-                  <div className="h-4 bg-gray-200 dark:bg-[#222] rounded w-1/3 mb-2" />
-                  <div className="h-3 bg-gray-100 dark:bg-[#1a1a1a] rounded w-1/2" />
-                </div>
+                <SkeletonCard key={i} />
               ))}
             </div>
           ) : earnings.length > 0 ? (
