@@ -50,7 +50,7 @@ pm2 delete quantedge-worker 2>/dev/null || true
 # Process 1: Web (HTTP + WebSocket + SPX scanners) — must stay alive
 NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/web.js \
   --name quantedge-web \
-  --max-memory-restart 1800M \
+  --max-memory-restart 2200M \
   --exp-backoff-restart-delay=100
 echo "✅ quantedge-web started"
 

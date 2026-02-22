@@ -93,6 +93,12 @@ export function serveStatic(app: Express) {
       maxAge: 0,
       etag: true,
       lastModified: true,
+      setHeaders: (res, filePath) => {
+        // HTML must never be cached — stale HTML references old chunk hashes
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      },
     })
   );
 

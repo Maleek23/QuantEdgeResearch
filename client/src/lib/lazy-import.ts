@@ -84,8 +84,10 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       console.warn("[LazyLoad] All retries failed. Reloading page to fetch updated chunks...");
       sessionStorage.setItem(reloadKey, "1");
       window.location.reload();
-      // Return a never-resolving promise to prevent flash of error state during reload
-      return new Promise<{ default: T }>(() => {});
+      // Wait briefly for the reload to take effect, then reject so Suspense doesn't hang forever
+      return new Promise<{ default: T }>((_, reject) => {
+        setTimeout(() => reject(new Error('Reloading to fetch updated code...')), 8000);
+      });
     }
 
     // Already reloaded once and still failing — clear flag and show error
