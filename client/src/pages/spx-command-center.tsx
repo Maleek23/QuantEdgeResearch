@@ -798,16 +798,18 @@ function VIXCard({ vix }: { vix: IntelVIX | null }) {
   );
 }
 
-function GEXCard({ gex }: { gex: IntelGEX | null }) {
+function GEXCard({ gex, symbol }: { gex: IntelGEX | null; symbol?: string }) {
   if (!gex) return <IntelSkeletonCard />;
 
   const aboveFlip = gex.flipPoint && gex.spotPrice > gex.flipPoint;
+  const isProxy = symbol === 'SPX';
 
   return (
     <Card className="bg-slate-900/60 border-slate-800/50">
       <CardHeader className="pb-1 px-4 pt-3">
         <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Target className="w-3.5 h-3.5" /> GEX Flip
+          {isProxy && <span className="text-[9px] text-slate-600 normal-case font-normal">(via SPY)</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-2">
@@ -852,39 +854,63 @@ function GEXCard({ gex }: { gex: IntelGEX | null }) {
   );
 }
 
-function PCRCard({ pcr }: { pcr: IntelPCR | null }) {
+function PCRCard({ pcr, symbol }: { pcr: IntelPCR | null; symbol?: string }) {
   if (!pcr) return <IntelSkeletonCard />;
 
   const pcrColor = pcr.interpretation === 'bullish' ? 'text-emerald-400' : pcr.interpretation === 'bearish' ? 'text-red-400' : 'text-slate-300';
+  const hasVolume = pcr.totalCallVolume > 0 || pcr.totalPutVolume > 0;
+  const isProxy = symbol === 'SPX';
 
   return (
     <Card className="bg-slate-900/60 border-slate-800/50">
       <CardHeader className="pb-1 px-4 pt-3">
         <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Scale className="w-3.5 h-3.5" /> Put/Call Ratio
+          {isProxy && <span className="text-[9px] text-slate-600 normal-case font-normal">(via SPY)</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className={cn("text-3xl font-black font-mono", pcrColor)}>{safeToFixed(pcr.overallPCR, 2)}</div>
+          <div className={cn("text-3xl font-black font-mono", pcrColor)}>
+            {hasVolume ? safeToFixed(pcr.overallPCR, 2) : safeToFixed(pcr.oiWeightedPCR, 2)}
+          </div>
           <div className="space-y-0.5">
             <Badge variant="outline" className={cn("text-[10px] font-bold", pcrColor)}>
               {pcr.interpretation.toUpperCase()}
             </Badge>
             <div className="text-[10px] text-slate-500">
-              OI-Weighted: <span className="text-white font-mono">{safeToFixed(pcr.oiWeightedPCR, 2)}</span>
+              {hasVolume ? (
+                <>OI-Weighted: <span className="text-white font-mono">{safeToFixed(pcr.oiWeightedPCR, 2)}</span></>
+              ) : (
+                <>Based on OI <span className="text-slate-600">(mkt closed)</span></>
+              )}
             </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-2 text-[10px]">
-          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded px-2 py-1">
-            <div className="text-slate-500">Call Vol</div>
-            <div className="font-mono font-bold text-emerald-400">{(pcr.totalCallVolume / 1000).toFixed(0)}K</div>
-          </div>
-          <div className="bg-red-500/5 border border-red-500/10 rounded px-2 py-1">
-            <div className="text-slate-500">Put Vol</div>
-            <div className="font-mono font-bold text-red-400">{(pcr.totalPutVolume / 1000).toFixed(0)}K</div>
-          </div>
+          {hasVolume ? (
+            <>
+              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded px-2 py-1">
+                <div className="text-slate-500">Call Vol</div>
+                <div className="font-mono font-bold text-emerald-400">{(pcr.totalCallVolume / 1000).toFixed(0)}K</div>
+              </div>
+              <div className="bg-red-500/5 border border-red-500/10 rounded px-2 py-1">
+                <div className="text-slate-500">Put Vol</div>
+                <div className="font-mono font-bold text-red-400">{(pcr.totalPutVolume / 1000).toFixed(0)}K</div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-emerald-500/5 border border-emerald-500/10 rounded px-2 py-1">
+                <div className="text-slate-500">Call OI</div>
+                <div className="font-mono font-bold text-emerald-400">{(pcr.totalCallOI / 1000).toFixed(0)}K</div>
+              </div>
+              <div className="bg-red-500/5 border border-red-500/10 rounded px-2 py-1">
+                <div className="text-slate-500">Put OI</div>
+                <div className="font-mono font-bold text-red-400">{(pcr.totalPutOI / 1000).toFixed(0)}K</div>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -1276,13 +1302,14 @@ function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
       {/* Row 2: Secondary Signal Cards (4 across) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <VIXCard vix={intel.vixRegime} />
-        <GEXCard gex={intel.gex} />
-        <PCRCard pcr={intel.pcr} />
+        <GEXCard gex={intel.gex} symbol={symbol} />
+        <PCRCard pcr={intel.pcr} symbol={symbol} />
         {intel.ivSkew && (
           <Card className="bg-slate-900/60 border-slate-800/50">
             <CardHeader className="pb-1 px-4 pt-3">
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <LineChart className="w-3.5 h-3.5" /> IV Skew
+                {symbol === 'SPX' && <span className="text-[9px] text-slate-600 normal-case font-normal">(via SPY)</span>}
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3">

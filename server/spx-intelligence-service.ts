@@ -253,9 +253,13 @@ async function computePCR(symbol: string = 'SPY'): Promise<PCRData | null> {
     const oiWeightedPCR = totalCallOI > 0 ? totalPutOI / totalCallOI : 1;
 
     // PCR > 1.2 = bearish crowd (contrarian bullish), PCR < 0.7 = bullish crowd (contrarian bearish)
+    // When volume is 0 (weekends/after-hours), fall back to OI-weighted PCR for interpretation
+    const effectivePCR = totalCallVol === 0 && totalCallOI > 0
+      ? (totalCallOI > 0 ? totalPutOI / totalCallOI : 1)
+      : overallPCR;
     const interpretation: PCRData['interpretation'] =
-      overallPCR > 1.2 ? 'bullish' :    // Contrarian: lots of puts = bullish
-      overallPCR < 0.7 ? 'bearish' :     // Contrarian: lots of calls = bearish
+      effectivePCR > 1.2 ? 'bullish' :    // Contrarian: lots of puts = bullish
+      effectivePCR < 0.7 ? 'bearish' :     // Contrarian: lots of calls = bearish
       'neutral';
 
     return {
@@ -1130,9 +1134,12 @@ async function computeAllSignals(symbol: string = 'SPY'): Promise<SPXIntelligenc
             gex.flipPoint = Math.round(gex.flipPoint * ratio);
           }
           gex.maxGammaStrike = Math.round(gex.maxGammaStrike * ratio);
+          // Scale net gamma by ratio (SPX notional ~10x SPY)
+          gex.totalNetGEX = Math.round(gex.totalNetGEX * ratio * 1000) / 1000;
           gex.topLevels = gex.topLevels.map(l => ({
             ...l,
             strike: Math.round(l.strike * ratio),
+            netGEX: Math.round(l.netGEX * ratio * 1000) / 1000,
           }));
           // Scale IV skew ATM strike too
           if (ivSkew) {
