@@ -76,8 +76,9 @@ async function getIntradayPrices(symbol: string, interval: string = '5min'): Pro
     // Map interval to Yahoo Finance format
     const yahooInterval = interval === '5min' ? '5m' : interval === '15min' ? '15m' : '5m';
 
+    const yahooSymbol = getYahooSymbol(symbol);
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${yahooInterval}&range=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${yahooInterval}&range=1d`,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -287,6 +288,11 @@ function getTodayDateString(): string {
 
 function generateId(): string {
   return `orb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Map symbol to Yahoo Finance ticker (SPX cash index = ^GSPC)
+function getYahooSymbol(symbol: string): string {
+  return symbol === 'SPX' ? '%5EGSPC' : symbol;
 }
 
 // Round strike to nearest 5 for SPX, nearest 1 for others

@@ -300,11 +300,13 @@ interface SPXIntelligenceData {
 
 // ── Data Hooks ──────────────────────────────────────────────────────────
 
-function useSPXIntelligence() {
+type IndexSymbol = 'SPY' | 'QQQ' | 'IWM' | 'SPX';
+
+function useSPXIntelligence(symbol: IndexSymbol = 'SPY') {
   return useQuery<SPXIntelligenceData>({
-    queryKey: ['/api/spx/intelligence'],
+    queryKey: ['/api/spx/intelligence', symbol],
     queryFn: async () => {
-      const res = await fetch('/api/spx/intelligence', { credentials: 'include' });
+      const res = await fetch(`/api/spx/intelligence?symbol=${symbol}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch intelligence data');
       return res.json();
     },
@@ -314,11 +316,12 @@ function useSPXIntelligence() {
   });
 }
 
-function useSPXDashboard() {
+function useSPXDashboard(symbol: IndexSymbol | '' = '') {
   return useQuery<SPXDashboardData>({
-    queryKey: ['/api/spx/dashboard'],
+    queryKey: ['/api/spx/dashboard', symbol],
     queryFn: async () => {
-      const res = await fetch('/api/spx/dashboard', { credentials: 'include' });
+      const url = symbol ? `/api/spx/dashboard?symbol=${symbol}` : '/api/spx/dashboard';
+      const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch SPX dashboard');
       return res.json();
     },
@@ -1240,8 +1243,8 @@ function VolumeDeltaPanel({ volumeDelta }: { volumeDelta: IntelVolumeDelta | nul
   );
 }
 
-function IntelligenceTab() {
-  const { data: intel, isLoading } = useSPXIntelligence();
+function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
+  const { data: intel, isLoading } = useSPXIntelligence(symbol);
 
   if (isLoading || !intel) {
     return (
@@ -1352,11 +1355,19 @@ function IntelligenceTab() {
 // MAIN PAGE
 // ════════════════════════════════════════════════════════════════════════
 
+const SYMBOL_COLORS: Record<IndexSymbol, { active: string; ring: string; bg: string }> = {
+  SPY: { active: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', ring: 'ring-cyan-500/30', bg: 'bg-cyan-500' },
+  QQQ: { active: 'bg-violet-500/15 text-violet-400 border-violet-500/30', ring: 'ring-violet-500/30', bg: 'bg-violet-500' },
+  IWM: { active: 'bg-amber-500/15 text-amber-400 border-amber-500/30', ring: 'ring-amber-500/30', bg: 'bg-amber-500' },
+  SPX: { active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', ring: 'ring-emerald-500/30', bg: 'bg-emerald-500' },
+};
+
 export default function SPXCommandCenter() {
-  const { data, isLoading, error } = useSPXDashboard();
-  const { data: intelData } = useSPXIntelligence();
+  const [activeSymbol, setActiveSymbol] = useState<IndexSymbol>('SPY');
+  const { data, isLoading, error } = useSPXDashboard(activeSymbol);
+  const { data: intelData } = useSPXIntelligence(activeSymbol);
   const [orbTimeframe, setOrbTimeframe] = useState<string>('all');
-  const [lottoFilter, setLottoFilter] = useState<string>('all');
+  // lottoFilter removed — top-level symbol selector filters dashboard data
 
   // Default to Intelligence tab when market is closed (scanners have no data)
   const marketOpen = intelData?.marketOpen ?? false;
@@ -1371,14 +1382,14 @@ export default function SPXCommandCenter() {
     }
   }, [marketOpen]);
 
-  const spxData = data?.indexData?.find((d: IndexData) => d.symbol === 'SPX');
-  const spyData = data?.indexData?.find((d: IndexData) => d.symbol === 'SPY');
-  // Use SPY as the primary index (all intel data is SPY-based)
-  const primaryIndex = spyData || spxData;
+  // Find matching index data for header display
+  const symbolData = data?.indexData?.find((d: IndexData) => d.symbol === activeSymbol);
+  const spyFallback = data?.indexData?.find((d: IndexData) => d.symbol === 'SPY');
+  const primaryIndex = symbolData || spyFallback;
   // Use real VIX from intelligence data, fall back to breakout data, then default
   const vix = intelData?.vixRegime?.vix ?? data?.orbScanner?.breakouts?.[0]?.vix ?? 0;
-  // SPY spot from intelligence GEX, or from index data
-  const spySpot = intelData?.gex?.spotPrice ?? primaryIndex?.price;
+  // Spot price from intelligence GEX, or from index data
+  const spotPrice = intelData?.gex?.spotPrice ?? primaryIndex?.price;
   const gammaFlip = intelData?.gex?.flipPoint ?? primaryIndex?.pivotPoints?.pivot;
 
   // Filter ORB breakouts by timeframe
@@ -1386,10 +1397,8 @@ export default function SPXCommandCenter() {
     (b: ORBBreakout) => orbTimeframe === 'all' || b.timeframe === orbTimeframe
   ) || [];
 
-  // Filter lotto plays
-  const filteredLottos = data?.lottoPlays?.filter(
-    (p: LottoPlay) => lottoFilter === 'all' || p.underlying === lottoFilter
-  ) || [];
+  // Lotto plays — already filtered by symbol from API
+  const filteredLottos = data?.lottoPlays || [];
 
   // Group session signals by strategy
   const sessionSignals = data?.sessionScanner?.signals || [];
@@ -1414,7 +1423,7 @@ export default function SPXCommandCenter() {
             <ScannerStatusDot active={(sessionSignals.length > 0)} label="Session" />
             <div className="h-4 w-px bg-slate-800" />
             <StatBox label="VIX" value={vix > 0 ? safeToFixed(vix, 1) : '--'} color={vix >= 25 ? "text-red-400" : vix >= 18 ? "text-amber-400" : "text-emerald-400"} />
-            <StatBox label="SPY" value={spySpot ? `$${safeToFixed(spySpot, 2)}` : (primaryIndex ? `$${safeToFixed(primaryIndex.price, 2)}` : '--')} sub={primaryIndex ? `${primaryIndex.changePercent >= 0 ? '+' : ''}${safeToFixed(primaryIndex.changePercent, 2)}%` : undefined} />
+            <StatBox label={activeSymbol} value={spotPrice ? `$${safeToFixed(spotPrice, 2)}` : (primaryIndex ? `$${safeToFixed(primaryIndex.price, 2)}` : '--')} sub={primaryIndex ? `${primaryIndex.changePercent >= 0 ? '+' : ''}${safeToFixed(primaryIndex.changePercent, 2)}%` : undefined} />
             <StatBox label="Signals" value={String(data?.todayIdeasCount || 0)} color="text-cyan-400" />
           </div>
         </div>
@@ -1422,9 +1431,34 @@ export default function SPXCommandCenter() {
         {/* ── Session Timer ──────────────────────────────────────── */}
         <SPXSessionTimer
           vix={vix}
-          spxPrice={spySpot ?? primaryIndex?.price}
+          spxPrice={spotPrice ?? primaryIndex?.price}
           gammaFlip={gammaFlip}
         />
+
+        {/* ── Symbol Selector ────────────────────────────────────── */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">INDEX</span>
+          <div className="flex gap-1">
+            {(['SPY', 'QQQ', 'IWM', 'SPX'] as IndexSymbol[]).map((sym) => {
+              const isActive = activeSymbol === sym;
+              const colors = SYMBOL_COLORS[sym];
+              return (
+                <button
+                  key={sym}
+                  onClick={() => setActiveSymbol(sym)}
+                  className={cn(
+                    "text-xs font-bold px-3 py-1.5 rounded-lg border transition-all duration-200",
+                    isActive
+                      ? colors.active
+                      : "border-slate-800/50 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                  )}
+                >
+                  {sym}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── Tab Navigation ─────────────────────────────────────── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -1571,27 +1605,12 @@ export default function SPXCommandCenter() {
 
             <Card className="bg-slate-900/40 border-slate-800/50">
               <CardHeader className="pb-2 px-4 pt-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                    <Flame className="w-4 h-4 text-orange-400" /> Lotto Plays
-                  </CardTitle>
-                  <div className="flex gap-1">
-                    {['all', 'SPX', 'SPY', 'QQQ', 'IWM'].map((sym) => (
-                      <button
-                        key={sym}
-                        onClick={() => setLottoFilter(sym)}
-                        className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors",
-                          lottoFilter === sym
-                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                            : "text-slate-500 hover:text-white"
-                        )}
-                      >
-                        {sym === 'all' ? 'ALL' : sym}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+                  <Flame className="w-4 h-4 text-orange-400" /> Lotto Plays
+                  <Badge variant="outline" className={cn("text-[10px] font-bold", SYMBOL_COLORS[activeSymbol].active)}>
+                    {activeSymbol}
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent className="px-3 pb-3 space-y-2">
                 {filteredLottos.length === 0 ? (
@@ -1628,7 +1647,7 @@ export default function SPXCommandCenter() {
 
           {/* ── Intelligence Tab ────────────────────────────────────── */}
           <TabsContent value="intelligence" className="mt-4">
-            <IntelligenceTab />
+            <IntelligenceTab symbol={activeSymbol} />
           </TabsContent>
 
         </Tabs>

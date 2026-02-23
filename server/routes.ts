@@ -17342,9 +17342,13 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   // SPX COMMAND CENTER - Aggregated Dashboard
   // =============================================
 
-  app.get("/api/spx/dashboard", async (_req, res) => {
+  app.get("/api/spx/dashboard", async (req, res) => {
     try {
-      // Gather all SPX data in parallel
+      const validSymbols = ['SPY', 'QQQ', 'IWM', 'SPX'];
+      const symbolParam = ((req.query.symbol as string) || '').toUpperCase();
+      const activeSymbol = validSymbols.includes(symbolParam) ? symbolParam : '';
+
+      // Gather all index data in parallel
       const [orbModule, sessionModule, lottoModule] = await Promise.all([
         import("./spx-orb-scanner"),
         import("./spx-session-scanner"),
@@ -17361,7 +17365,35 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           lottoModule.scanIndexLottoPlays().catch(() => ({ indexData: [], lottoPlays: [] })),
         ]);
 
-      // Get today's SPX trade ideas from DB
+      // Filter by symbol if specified
+      const matchSymbol = (s: string) =>
+        !activeSymbol || s === activeSymbol || (activeSymbol === 'SPX' && s === 'SPY');
+
+      const filteredBreakouts = activeSymbol
+        ? activeBreakouts.filter((b: any) => matchSymbol(b.symbol))
+        : activeBreakouts;
+
+      const filteredRanges = activeSymbol
+        ? ranges.filter((r: any) => matchSymbol(r.symbol))
+        : ranges;
+
+      const filteredSignals = activeSymbol
+        ? sessionSignals.filter((s: any) => matchSymbol(s.symbol))
+        : sessionSignals;
+
+      const filteredLevels = activeSymbol
+        ? sessionLevels.filter((l: any) => matchSymbol(l.symbol))
+        : sessionLevels;
+
+      const filteredLottos = activeSymbol
+        ? (lottoResult.lottoPlays || []).filter((p: any) => matchSymbol(p.underlying))
+        : (lottoResult.lottoPlays || []);
+
+      const filteredIndexData = activeSymbol
+        ? (lottoResult.indexData || []).filter((d: any) => matchSymbol(d.symbol))
+        : (lottoResult.indexData || []);
+
+      // Get today's trade ideas from DB
       const allIdeas = await storage.getAllTradeIdeas();
       const now = new Date();
       const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -17371,26 +17403,27 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         const ideaTime = new Date(idea.timestamp);
         const ideaDateStrET = ideaTime.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         if (ideaDateStrET !== todayStrET) return false;
-        return (
-          idea.source === 'orb_scanner' ||
+        const isIndexIdea = idea.source === 'orb_scanner' ||
           idea.source === 'spx_session' ||
-          ['SPX', 'SPY', 'QQQ', 'IWM'].includes(idea.symbol)
-        );
-      }).slice(0, 50); // Limit to 50 most recent
+          ['SPX', 'SPY', 'QQQ', 'IWM'].includes(idea.symbol);
+        if (!isIndexIdea) return false;
+        return activeSymbol ? matchSymbol(idea.symbol) : true;
+      }).slice(0, 50);
 
       res.json({
         timestamp: new Date().toISOString(),
+        symbol: activeSymbol || 'ALL',
         orbScanner: {
           ...orbStatus,
-          breakouts: activeBreakouts,
-          ranges,
+          breakouts: filteredBreakouts,
+          ranges: filteredRanges,
         },
         sessionScanner: {
-          signals: sessionSignals,
-          levels: sessionLevels,
+          signals: filteredSignals,
+          levels: filteredLevels,
         },
-        indexData: lottoResult.indexData || [],
-        lottoPlays: lottoResult.lottoPlays || [],
+        indexData: filteredIndexData,
+        lottoPlays: filteredLottos,
         todayIdeas: spxIdeas,
         todayIdeasCount: spxIdeas.length,
       });
@@ -17404,14 +17437,18 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   // SPX INSTITUTIONAL INTELLIGENCE
   // =============================================
 
-  app.get("/api/spx/intelligence", async (_req, res) => {
+  app.get("/api/spx/intelligence", async (req, res) => {
     try {
+      const validSymbols = ['SPY', 'QQQ', 'IWM', 'SPX'];
+      const symbolParam = ((req.query.symbol as string) || 'SPY').toUpperCase();
+      const symbol = validSymbols.includes(symbolParam) ? symbolParam : 'SPY';
+
       const { getSPXIntelligence, refreshSPXIntelligence } = await import("./spx-intelligence-service");
 
-      // Return cached data if available, otherwise compute fresh
-      let data = getSPXIntelligence();
+      // Return cached data if available, otherwise compute on-demand
+      let data = getSPXIntelligence(symbol);
       if (!data) {
-        data = await refreshSPXIntelligence();
+        data = await refreshSPXIntelligence(symbol);
       }
 
       res.json(data);
@@ -17422,10 +17459,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // Force refresh intelligence data (admin only)
-  app.post("/api/spx/intelligence/refresh", requireAdminJWT, async (_req, res) => {
+  app.post("/api/spx/intelligence/refresh", requireAdminJWT, async (req, res) => {
     try {
+      const symbol = ((req.query.symbol as string) || 'SPY').toUpperCase();
       const { refreshSPXIntelligence } = await import("./spx-intelligence-service");
-      const data = await refreshSPXIntelligence();
+      const data = await refreshSPXIntelligence(symbol);
       res.json(data);
     } catch (error: any) {
       logger.error('[SPX-INTEL] Refresh error:', error);

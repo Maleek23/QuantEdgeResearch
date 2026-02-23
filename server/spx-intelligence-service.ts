@@ -157,14 +157,29 @@ export interface SPXIntelligence {
 }
 
 // ============================================
-// CACHE
+// CACHE (per-symbol)
 // ============================================
 
-let cachedIntelligence: SPXIntelligence | null = null;
-let lastComputeTime = 0;
+const cachedIntelligence = new Map<string, SPXIntelligence>();
+const lastComputeTimeBySymbol = new Map<string, number>();
 const CACHE_TTL_MS = 55_000; // 55 seconds (compute every 60s)
 let computeInterval: ReturnType<typeof setInterval> | null = null;
 let lastSnapshotDate: string | null = null; // Track daily IV snapshot to prevent duplicates
+
+// Shared caches for symbol-independent data (VIX + Macro)
+let cachedVIXRegime: VIXData | null = null;
+let cachedMacro: MacroCorrelation | null = null;
+let lastVIXComputeTime = 0;
+let lastMacroComputeTime = 0;
+
+// Symbol mapping helpers
+function getYahooSymbol(symbol: string): string {
+  return symbol === 'SPX' ? '%5EGSPC' : symbol;
+}
+function getTradierSymbol(symbol: string): string {
+  // SPX cash index doesn't have accessible options on Tradier — use SPY as proxy
+  return symbol === 'SPX' ? 'SPY' : symbol;
+}
 
 // ============================================
 // SIGNAL COMPUTATIONS
@@ -174,14 +189,14 @@ let lastSnapshotDate: string | null = null; // Track daily IV snapshot to preven
  * A) Put/Call Ratio by Strike
  * Source: Tradier options chain — real OI + volume per strike
  */
-async function computePCR(): Promise<PCRData | null> {
+async function computePCR(symbol: string = 'SPY'): Promise<PCRData | null> {
   try {
-    // Get SPY options for nearest 3 expirations
+    const tradierSym = getTradierSymbol(symbol);
     const key = process.env.TRADIER_API_KEY;
     if (!key) return null;
 
     const baseUrl = 'https://api.tradier.com/v1';
-    const expRes = await fetch(`${baseUrl}/markets/options/expirations?symbol=SPY`, {
+    const expRes = await fetch(`${baseUrl}/markets/options/expirations?symbol=${tradierSym}`, {
       headers: { 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
     });
 
@@ -193,7 +208,7 @@ async function computePCR(): Promise<PCRData | null> {
 
     // Fetch chains for each expiration in parallel
     const chains = await Promise.all(
-      expirations.map(exp => getTradierOptionsChain('SPY', exp))
+      expirations.map(exp => getTradierOptionsChain(tradierSym, exp))
     );
 
     const allOptions = chains.flat();
@@ -263,9 +278,10 @@ async function computePCR(): Promise<PCRData | null> {
  * B) GEX Key Levels
  * Source: gamma-exposure.ts — real OI + gamma from Tradier
  */
-async function computeGEX(): Promise<GEXData | null> {
+async function computeGEX(symbol: string = 'SPY'): Promise<GEXData | null> {
   try {
-    const result = await calculateGammaExposure('SPY');
+    const tradierSym = getTradierSymbol(symbol);
+    const result = await calculateGammaExposure(tradierSym);
     if (!result) return null;
 
     // Find top 5 levels by absolute GEX
@@ -296,13 +312,14 @@ async function computeGEX(): Promise<GEXData | null> {
  * C) IV Skew
  * Source: Tradier chain — per-strike mid_iv from greeks (real data)
  */
-async function computeIVSkew(): Promise<IVSkewData | null> {
+async function computeIVSkew(symbol: string = 'SPY'): Promise<IVSkewData | null> {
   try {
-    const quote = await getTradierQuote('SPY');
+    const tradierSym = getTradierSymbol(symbol);
+    const quote = await getTradierQuote(tradierSym);
     if (!quote || !quote.last) return null;
     const spot = quote.last;
 
-    const chain = await getTradierOptionsChain('SPY');
+    const chain = await getTradierOptionsChain(tradierSym);
     if (chain.length === 0) return null;
 
     // Find ATM option (closest strike to spot)
@@ -528,11 +545,11 @@ async function computeMacroCorrelation(): Promise<MacroCorrelation | null> {
  * F) VWAP + Bands (Intraday)
  * Source: Yahoo Finance 5-min bars (free, no API key needed)
  */
-async function computeVWAP(): Promise<VWAPData | null> {
+async function computeVWAP(symbol: string = 'SPY'): Promise<VWAPData | null> {
   try {
-    // Fetch today's 5-min bars from Yahoo Finance
+    const yahooSym = getYahooSymbol(symbol);
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=5m&range=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=5m&range=1d`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
 
@@ -610,10 +627,11 @@ async function computeVWAP(): Promise<VWAPData | null> {
  * Source: Yahoo Finance 5-min bars (same data as VWAP)
  * Note: This is an approximation — real delta needs tick-level data
  */
-async function computeVolumeDelta(): Promise<VolumeDeltaData | null> {
+async function computeVolumeDelta(symbol: string = 'SPY'): Promise<VolumeDeltaData | null> {
   try {
+    const yahooSym = getYahooSymbol(symbol);
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=5m&range=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=5m&range=1d`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
 
@@ -700,11 +718,10 @@ function computeExpectedMove(ivSkew: IVSkewData | null, spotPrice: number): Expe
  * Uses RSI, EMA alignment, and price slope from daily closes
  * Source: Tradier daily quote history (free, already used elsewhere)
  */
-async function computeMomentumClassifier(vwapData: VWAPData | null): Promise<MomentumClassifier | null> {
+async function computeMomentumClassifier(vwapData: VWAPData | null, symbol: string = 'SPY'): Promise<MomentumClassifier | null> {
   try {
-    // Fetch SPY daily closes for RSI/EMA calculation
-    // Use Yahoo Finance for daily OHLCV (avoids Tradier rate limits on historical)
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1d&range=60d`;
+    const yahooSym = getYahooSymbol(symbol);
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=1d&range=60d`;
     const response = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
     });
@@ -1047,7 +1064,7 @@ function computeUnifiedScore(
 // MAIN COMPUTATION LOOP
 // ============================================
 
-async function computeAllSignals(): Promise<SPXIntelligence> {
+async function computeAllSignals(symbol: string = 'SPY'): Promise<SPXIntelligence> {
   const start = Date.now();
 
   // Check if market is open (rough check)
@@ -1058,20 +1075,34 @@ async function computeAllSignals(): Promise<SPXIntelligence> {
   const day = etNow.getDay();
   const marketOpen = day >= 1 && day <= 5 && (hour > 9 || (hour === 9 && minute >= 30)) && hour < 16;
 
-  // Compute all signals in parallel
+  // VIX and Macro are market-wide — use shared cache to avoid redundant API calls
+  async function getVIXCached(): Promise<VIXData | null> {
+    if (cachedVIXRegime && Date.now() - lastVIXComputeTime < CACHE_TTL_MS) return cachedVIXRegime;
+    cachedVIXRegime = await computeVIXRegime();
+    lastVIXComputeTime = Date.now();
+    return cachedVIXRegime;
+  }
+  async function getMacroCached(): Promise<MacroCorrelation | null> {
+    if (cachedMacro && Date.now() - lastMacroComputeTime < CACHE_TTL_MS) return cachedMacro;
+    cachedMacro = await computeMacroCorrelation();
+    lastMacroComputeTime = Date.now();
+    return cachedMacro;
+  }
+
+  // Compute all signals in parallel — symbol-specific + shared
   const [pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentum] = await Promise.all([
-    computePCR(),
-    computeGEX(),
-    computeIVSkew(),
-    computeVIXRegime(),
-    computeMacroCorrelation(),
-    marketOpen ? computeVWAP() : Promise.resolve(null),           // VWAP only during market hours
-    marketOpen ? computeVolumeDelta() : Promise.resolve(null),     // Delta only during market hours
-    computeMomentumClassifier(null),                                // Passes null for VWAP initially
+    computePCR(symbol),
+    computeGEX(symbol),
+    computeIVSkew(symbol),
+    getVIXCached(),                                                // Shared (market-wide)
+    getMacroCached(),                                              // Shared (market-wide)
+    marketOpen ? computeVWAP(symbol) : Promise.resolve(null),
+    marketOpen ? computeVolumeDelta(symbol) : Promise.resolve(null),
+    computeMomentumClassifier(null, symbol),
   ]);
 
   // Recompute momentum with VWAP data if available (for mean-reversion detection)
-  const momentumFinal = vwap ? await computeMomentumClassifier(vwap) : momentum;
+  const momentumFinal = vwap ? await computeMomentumClassifier(vwap, symbol) : momentum;
 
   // Expected move from IV — pure math, no API call
   const spotPrice = gex?.spotPrice || vwap?.currentPrice || 0;
@@ -1080,7 +1111,7 @@ async function computeAllSignals(): Promise<SPXIntelligence> {
   const unifiedScore = computeUnifiedScore(pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal);
 
   const elapsed = Date.now() - start;
-  logger.info(`[SPX-INTEL] Computed ${[pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal, expectedMove].filter(Boolean).length}/9 signals in ${elapsed}ms | Score: ${unifiedScore.score} ${unifiedScore.direction}`);
+  logger.info(`[SPX-INTEL] Computed ${[pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal, expectedMove].filter(Boolean).length}/9 signals for ${symbol} in ${elapsed}ms | Score: ${unifiedScore.score} ${unifiedScore.direction}`);
 
   // Try daily IV snapshot (checks time internally, no-op most of the time)
   snapshotDailyIV().catch(() => {}); // Fire-and-forget, don't block
@@ -1106,48 +1137,57 @@ async function computeAllSignals(): Promise<SPXIntelligence> {
 // ============================================
 
 /**
- * Get cached intelligence data (fast — returns in <1ms)
+ * Get cached intelligence data for a specific symbol (fast — returns in <1ms)
  */
-export function getSPXIntelligence(): SPXIntelligence | null {
-  return cachedIntelligence;
+export function getSPXIntelligence(symbol: string = 'SPY'): SPXIntelligence | null {
+  const cached = cachedIntelligence.get(symbol);
+  if (!cached) return null;
+  // Check if cache is still fresh
+  const lastTime = lastComputeTimeBySymbol.get(symbol) || 0;
+  if (Date.now() - lastTime > CACHE_TTL_MS) return null;
+  return cached;
 }
 
 /**
- * Force recompute (for testing or admin refresh)
+ * Force recompute for a specific symbol (on-demand or admin refresh)
  */
-export async function refreshSPXIntelligence(): Promise<SPXIntelligence> {
-  cachedIntelligence = await computeAllSignals();
-  lastComputeTime = Date.now();
-  return cachedIntelligence;
+export async function refreshSPXIntelligence(symbol: string = 'SPY'): Promise<SPXIntelligence> {
+  const data = await computeAllSignals(symbol);
+  cachedIntelligence.set(symbol, data);
+  lastComputeTimeBySymbol.set(symbol, Date.now());
+  return data;
 }
 
 /**
- * Start the intelligence service — computes every 60s during market hours
+ * Start the intelligence service — computes SPY every 60s (primary symbol)
+ * Other symbols are computed on-demand when requested via getSPXIntelligence/refreshSPXIntelligence
  */
 export function startSPXIntelligenceService(): void {
-  logger.info('[SPX-INTEL] Starting SPX Intelligence Service...');
+  logger.info('[SPX-INTEL] Starting Index Intelligence Service (SPY primary, others on-demand)...');
 
   // Initial compute after 10s (let other services initialize)
   setTimeout(async () => {
     try {
-      cachedIntelligence = await computeAllSignals();
-      lastComputeTime = Date.now();
+      const data = await computeAllSignals('SPY');
+      cachedIntelligence.set('SPY', data);
+      lastComputeTimeBySymbol.set('SPY', Date.now());
     } catch (err) {
       logger.error('[SPX-INTEL] Initial computation failed:', err);
     }
   }, 10_000);
 
-  // Run every 60 seconds
+  // Run every 60 seconds — only SPY (primary). Other symbols on-demand.
   computeInterval = setInterval(async () => {
     try {
-      cachedIntelligence = await computeAllSignals();
-      lastComputeTime = Date.now();
+      const data = await computeAllSignals('SPY');
+      cachedIntelligence.set('SPY', data);
+      lastComputeTimeBySymbol.set('SPY', Date.now());
     } catch (err) {
       logger.error('[SPX-INTEL] Computation cycle failed:', err);
     }
   }, 60_000);
 
-  logger.info('[SPX-INTEL] SPX Intelligence Service started, computing every 60s');
+  logger.info('[SPX-INTEL] Index Intelligence Service started, SPY every 60s');
 }
 
 /**
