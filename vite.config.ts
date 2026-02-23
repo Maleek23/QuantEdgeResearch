@@ -59,10 +59,9 @@ export default defineConfig({
           if (id.includes("node_modules/framer-motion/")) {
             return "vendor-framer";
           }
-          // Recharts + D3 — charting (large)
-          if (id.includes("node_modules/recharts/") ||
-              id.includes("node_modules/d3-")) {
-            return "vendor-charts";
+          // Recharts — charting library (d3 stays in vendor-misc to avoid circular TDZ errors)
+          if (id.includes("node_modules/recharts/")) {
+            return "vendor-recharts";
           }
           // Lucide icons
           if (id.includes("node_modules/lucide-react/")) {
