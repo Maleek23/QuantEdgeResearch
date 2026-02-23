@@ -3,6 +3,9 @@ import App from "./App";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 
+// Signal to diagnostic script that the module loaded successfully
+(window as any).__QE_LOADED = true;
+
 // Global error handler to catch ALL errors including those not caught by React
 window.onerror = function(message, source, lineno, colno, error) {
   console.error('=== GLOBAL ERROR ===');

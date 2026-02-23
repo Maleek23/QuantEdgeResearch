@@ -109,36 +109,45 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Catch ALL errors (including module load failures) and show them
+      // Track if main module loaded
+      window.__QE_LOADED = false;
+      window.__QE_ERRORS = [];
+
+      // Catch ALL errors
       window.addEventListener('error', function(e) {
-        var loader = document.getElementById('app-loader');
-        if (loader) {
-          loader.querySelector('.spinner').style.display = 'none';
-          loader.querySelector('p').innerHTML =
-            '<span style="color:#ef4444">Error: ' + (e.message || 'Unknown') + '</span><br>' +
-            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
-        }
-      });
+        window.__QE_ERRORS.push('ERR: ' + (e.message || '') + ' ' + (e.filename || '') + ':' + (e.lineno || ''));
+      }, true); // capture phase to catch script load errors too
       window.addEventListener('unhandledrejection', function(e) {
-        var loader = document.getElementById('app-loader');
-        if (loader) {
-          loader.querySelector('.spinner').style.display = 'none';
-          loader.querySelector('p').innerHTML =
-            '<span style="color:#ef4444">Error: ' + (e.reason && e.reason.message || 'Promise rejected') + '</span><br>' +
-            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
-        }
+        window.__QE_ERRORS.push('REJ: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
       });
-      // Safety net: if React hasn't mounted within 8s, show reload link
+
+      // Check at 5s and show diagnostic
       setTimeout(function() {
         var root = document.getElementById('root');
         var loader = document.getElementById('app-loader');
-        if (loader && (!root || !root.hasChildNodes())) {
-          loader.querySelector('.spinner').style.display = 'none';
-          loader.querySelector('p').innerHTML =
-            'Loading took too long.<br>' +
-            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
-        }
-      }, 8000);
+        if (!loader) return; // React already took over
+
+        var hasChildren = root && root.hasChildNodes();
+        if (hasChildren) return; // App mounted fine
+
+        // Gather diagnostic info
+        var diag = [];
+        diag.push('Module loaded: ' + (window.__QE_LOADED ? 'YES' : 'NO'));
+        diag.push('Errors: ' + (window.__QE_ERRORS.length ? window.__QE_ERRORS.join(' | ') : 'none'));
+
+        // Check what scripts actually loaded
+        var scripts = document.querySelectorAll('script[type="module"]');
+        scripts.forEach(function(s) { diag.push('Script: ' + (s.src || 'inline')); });
+
+        loader.querySelector('.spinner').style.display = 'none';
+        loader.querySelector('p').style.fontSize = '11px';
+        loader.querySelector('p').style.maxWidth = '90vw';
+        loader.querySelector('p').style.wordBreak = 'break-all';
+        loader.querySelector('p').innerHTML =
+          '<span style="color:#ef4444;font-size:14px">App failed to load</span><br><br>' +
+          '<span style="color:#64748b;font-size:10px">' + diag.join('<br>') + '</span><br><br>' +
+          '<a href="javascript:sessionStorage.clear();caches&&caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})});location.reload(true)" style="color:#22d3ee;text-decoration:underline;font-size:13px">Clear everything & reload</a>';
+      }, 5000);
     </script>
   </body>
 </html>
