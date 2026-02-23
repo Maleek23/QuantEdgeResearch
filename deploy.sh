@@ -48,15 +48,16 @@ pm2 delete quantedge-web 2>/dev/null || true
 pm2 delete quantedge-worker 2>/dev/null || true
 
 # Process 1: Web (HTTP + WebSocket + SPX scanners) — must stay alive
-# Heap 1.2GB + PM2 limit 1.5GB keeps both processes within 3.8GB server RAM
-NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1228' pm2 start dist/web.js \
+# routes.ts eagerly imports 40+ modules → 1.7-2.1GB peak at startup, settles ~1.5GB after GC.
+# Server: 3.8GB RAM + 2GB swap. Worker uses ~150MB. Set limit high enough to survive init.
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1800' pm2 start dist/web.js \
   --name quantedge-web \
-  --max-memory-restart 1500M \
+  --max-memory-restart 2500M \
   --exp-backoff-restart-delay=100
 echo "✅ quantedge-web started"
 
 # Process 2: Worker (heavy background services) — can restart freely
-NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1228' pm2 start dist/worker.js \
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1024' pm2 start dist/worker.js \
   --name quantedge-worker \
   --max-memory-restart 1500M \
   --exp-backoff-restart-delay=100
