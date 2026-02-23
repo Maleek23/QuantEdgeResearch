@@ -48,16 +48,17 @@ pm2 delete quantedge-web 2>/dev/null || true
 pm2 delete quantedge-worker 2>/dev/null || true
 
 # Process 1: Web (HTTP + WebSocket + SPX scanners) — must stay alive
-NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/web.js \
+# Heap 1.2GB + PM2 limit 1.5GB keeps both processes within 3.8GB server RAM
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1228' pm2 start dist/web.js \
   --name quantedge-web \
-  --max-memory-restart 2200M \
+  --max-memory-restart 1500M \
   --exp-backoff-restart-delay=100
 echo "✅ quantedge-web started"
 
 # Process 2: Worker (heavy background services) — can restart freely
-NODE_ENV=production NODE_OPTIONS='--max-old-space-size=2048' pm2 start dist/worker.js \
+NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1228' pm2 start dist/worker.js \
   --name quantedge-worker \
-  --max-memory-restart 2000M \
+  --max-memory-restart 1500M \
   --exp-backoff-restart-delay=100
 echo "✅ quantedge-worker started"
 

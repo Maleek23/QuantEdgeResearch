@@ -27,7 +27,9 @@ export async function getYahooFinance() {
   initPromise = (async () => {
     try {
       const { default: YahooFinance } = await import('yahoo-finance2');
-      yahooFinanceInstance = new YahooFinance();
+      yahooFinanceInstance = new YahooFinance({
+        suppressNotices: ['ripHistorical', 'yahooSurvey'],
+      });
       logger.info('[YAHOO] Yahoo Finance v3 instance initialized');
       return yahooFinanceInstance;
     } catch (error: any) {

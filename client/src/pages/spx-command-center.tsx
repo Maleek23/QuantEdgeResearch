@@ -7,7 +7,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -1365,13 +1365,27 @@ function IntelligenceTab() {
 
 export default function SPXCommandCenter() {
   const { data, isLoading, error } = useSPXDashboard();
+  const { data: intelData } = useSPXIntelligence();
   const [orbTimeframe, setOrbTimeframe] = useState<string>('all');
   const [lottoFilter, setLottoFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<string>('scanners');
+
+  // Default to Intelligence tab when market is closed (scanners have no data)
+  const marketOpen = intelData?.marketOpen ?? false;
+  const [activeTab, setActiveTab] = useState<string>('intelligence');
+  const hasAutoSwitched = useRef(false);
+
+  // Auto-switch to scanners tab once we confirm market is open
+  useEffect(() => {
+    if (marketOpen && !hasAutoSwitched.current) {
+      hasAutoSwitched.current = true;
+      setActiveTab('scanners');
+    }
+  }, [marketOpen]);
 
   const spxData = data?.indexData?.find((d: IndexData) => d.symbol === 'SPX');
-  const vix = data?.orbScanner?.breakouts?.[0]?.vix || 18;
-  const gammaFlip = spxData?.pivotPoints?.pivot;
+  // Use real VIX from intelligence data, fall back to breakout data, then default
+  const vix = intelData?.vixRegime?.vix ?? data?.orbScanner?.breakouts?.[0]?.vix ?? 0;
+  const gammaFlip = intelData?.gex?.flipPoint ?? spxData?.pivotPoints?.pivot;
 
   // Filter ORB breakouts by timeframe
   const filteredBreakouts = data?.orbScanner?.breakouts?.filter(
@@ -1404,7 +1418,7 @@ export default function SPXCommandCenter() {
             <ScannerStatusDot active={data?.orbScanner?.isActive || false} label="ORB" />
             <ScannerStatusDot active={(sessionSignals.length > 0)} label="Session" />
             <div className="h-4 w-px bg-slate-800" />
-            <StatBox label="VIX" value={safeToFixed(vix, 1)} color={vix >= 25 ? "text-red-400" : vix >= 18 ? "text-amber-400" : "text-emerald-400"} />
+            <StatBox label="VIX" value={vix > 0 ? safeToFixed(vix, 1) : '--'} color={vix >= 25 ? "text-red-400" : vix >= 18 ? "text-amber-400" : "text-emerald-400"} />
             <StatBox label="SPX" value={spxData ? `$${safeToFixed(spxData.price, 2)}` : '--'} sub={spxData ? `${spxData.changePercent >= 0 ? '+' : ''}${safeToFixed(spxData.changePercent, 2)}%` : undefined} />
             <StatBox label="Signals" value={String(data?.todayIdeasCount || 0)} color="text-cyan-400" />
           </div>
@@ -1436,6 +1450,22 @@ export default function SPXCommandCenter() {
 
           {/* ── Scanners Tab ───────────────────────────────────────── */}
           <TabsContent value="scanners" className="mt-4">
+
+        {/* Market closed banner */}
+        {!marketOpen && !isLoading && (
+          <div className="mb-4 rounded-lg border border-slate-800/50 bg-slate-900/40 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span className="text-sm text-slate-300">Market is closed — scanners activate at <span className="font-mono font-bold text-white">9:25 AM ET</span> on trading days</span>
+            </div>
+            <button
+              onClick={() => setActiveTab('intelligence')}
+              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+            >
+              View Intelligence <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        )}
 
         {/* ── Main 3-Column Content ──────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
