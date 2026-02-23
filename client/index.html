@@ -109,18 +109,36 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Safety net: if React hasn't mounted within 10s, the JS bundle likely failed
-      // (e.g. stale cached HTML referencing old chunk hashes that no longer exist).
-      // Show a reload link instead of an infinite spinner.
+      // Catch ALL errors (including module load failures) and show them
+      window.addEventListener('error', function(e) {
+        var loader = document.getElementById('app-loader');
+        if (loader) {
+          loader.querySelector('.spinner').style.display = 'none';
+          loader.querySelector('p').innerHTML =
+            '<span style="color:#ef4444">Error: ' + (e.message || 'Unknown') + '</span><br>' +
+            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var loader = document.getElementById('app-loader');
+        if (loader) {
+          loader.querySelector('.spinner').style.display = 'none';
+          loader.querySelector('p').innerHTML =
+            '<span style="color:#ef4444">Error: ' + (e.reason && e.reason.message || 'Promise rejected') + '</span><br>' +
+            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
+        }
+      });
+      // Safety net: if React hasn't mounted within 8s, show reload link
       setTimeout(function() {
         var root = document.getElementById('root');
         var loader = document.getElementById('app-loader');
         if (loader && (!root || !root.hasChildNodes())) {
           loader.querySelector('.spinner').style.display = 'none';
           loader.querySelector('p').innerHTML =
-            'Update available — <a href="javascript:location.reload(true)" style="color:#22d3ee;text-decoration:underline">tap to reload</a>';
+            'Loading took too long.<br>' +
+            '<a href="javascript:sessionStorage.clear();location.reload(true)" style="color:#22d3ee;text-decoration:underline;margin-top:8px;display:inline-block">Clear cache & reload</a>';
         }
-      }, 10000);
+      }, 8000);
     </script>
   </body>
 </html>
