@@ -813,7 +813,8 @@ async function computeMomentumClassifier(vwapData: VWAPData | null, symbol: stri
  * Stores ATM IV to DB for real IV Rank over time
  */
 async function snapshotDailyIV(): Promise<void> {
-  if (!cachedIntelligence) return;
+  const intel = cachedIntelligence.get('SPY');
+  if (!intel) return;
 
   const now = new Date();
   const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -831,7 +832,6 @@ async function snapshotDailyIV(): Promise<void> {
   const day = etNow.getDay();
   if (day === 0 || day === 6) return;
 
-  const intel = cachedIntelligence;
   if (!intel.ivSkew?.atmIV) {
     logger.warn('[SPX-INTEL] No ATM IV data for daily snapshot');
     return;
@@ -904,6 +904,7 @@ function computeUnifiedScore(
   vwapData: VWAPData | null,
   volumeDelta: VolumeDeltaData | null,
   momentum: MomentumClassifier | null,
+  symbol: string = 'SPY',
 ): UnifiedScore {
   let bullishPoints = 0;
   let bearishPoints = 0;
@@ -1054,7 +1055,7 @@ function computeUnifiedScore(
 
   // Generate thesis
   const signalCount = [pcr, gex, ivSkew, vixRegime, macro, vwapData, volumeDelta, momentum].filter(Boolean).length;
-  const thesis = `SPX ${direction.toUpperCase()} bias (${score}/100) from ${signalCount} signals. ` +
+  const thesis = `${symbol} ${direction.toUpperCase()} bias (${score}/100) from ${signalCount} signals. ` +
     topSignals.slice(0, 3).join('. ') + '.';
 
   return { score, direction, confidence, topSignals: topSignals.slice(0, 5), thesis };
@@ -1104,11 +1105,57 @@ async function computeAllSignals(symbol: string = 'SPY'): Promise<SPXIntelligenc
   // Recompute momentum with VWAP data if available (for mean-reversion detection)
   const momentumFinal = vwap ? await computeMomentumClassifier(vwap, symbol) : momentum;
 
-  // Expected move from IV — pure math, no API call
-  const spotPrice = gex?.spotPrice || vwap?.currentPrice || 0;
-  const expectedMove = computeExpectedMove(ivSkew, spotPrice);
+  // ── SPX price scaling ──────────────────────────────────────────────
+  // SPX uses SPY as proxy for options data. We need the real ^GSPC price
+  // so spotPrice, expected move, and GEX levels display at SPX scale (~6000+).
+  let realSpotPrice = gex?.spotPrice || vwap?.currentPrice || 0;
 
-  const unifiedScore = computeUnifiedScore(pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal);
+  if (symbol === 'SPX' && gex) {
+    // Fetch real SPX (^GSPC) price from Yahoo
+    try {
+      const spxRes = await fetch(
+        'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=1d',
+        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      if (spxRes.ok) {
+        const spxData = await spxRes.json();
+        const closes = spxData.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+        const spxPrice = closes?.filter((c: number | null) => c != null).pop();
+        if (spxPrice && spxPrice > 1000) { // Sanity check — SPX should be 4000+
+          const ratio = spxPrice / (gex.spotPrice || 1);
+          realSpotPrice = Math.round(spxPrice * 100) / 100;
+          // Scale GEX levels to SPX price range
+          gex.spotPrice = realSpotPrice;
+          if (gex.flipPoint) {
+            gex.flipPoint = Math.round(gex.flipPoint * ratio);
+          }
+          gex.maxGammaStrike = Math.round(gex.maxGammaStrike * ratio);
+          gex.topLevels = gex.topLevels.map(l => ({
+            ...l,
+            strike: Math.round(l.strike * ratio),
+          }));
+          // Scale IV skew ATM strike too
+          if (ivSkew) {
+            ivSkew.atmStrike = Math.round(ivSkew.atmStrike * ratio);
+          }
+          // Scale PCR by-strike data to SPX price range
+          if (pcr && pcr.byStrike) {
+            pcr.byStrike = pcr.byStrike.map(s => ({
+              ...s,
+              strike: Math.round(s.strike * ratio),
+            }));
+          }
+        }
+      }
+    } catch {
+      logger.debug('[SPX-INTEL] Failed to fetch ^GSPC price for SPX scaling');
+    }
+  }
+
+  // Expected move from IV — pure math, no API call
+  const expectedMove = computeExpectedMove(ivSkew, realSpotPrice);
+
+  const unifiedScore = computeUnifiedScore(pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal, symbol);
 
   const elapsed = Date.now() - start;
   logger.info(`[SPX-INTEL] Computed ${[pcr, gex, ivSkew, vixRegime, macro, vwap, volumeDelta, momentumFinal, expectedMove].filter(Boolean).length}/9 signals for ${symbol} in ${elapsed}ms | Score: ${unifiedScore.score} ${unifiedScore.direction}`);
