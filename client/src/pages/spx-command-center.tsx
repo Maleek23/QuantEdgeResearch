@@ -42,6 +42,7 @@ import {
   Scale,
 } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { SPXSessionTimer } from "@/components/spx-session-timer";
 import { useLocation } from "wouter";
 
@@ -630,7 +631,7 @@ function TodayIdeasSection({ ideas }: { ideas: any[] }) {
   if (!ideas || ideas.length === 0) {
     return (
       <div className="text-center py-6 text-slate-500 text-sm">
-        No SPX ideas generated today yet. Scanners produce signals during market hours.
+        No trade ideas generated today yet. Scanners produce signals during market hours.
       </div>
     );
   }
@@ -693,11 +694,7 @@ function TodayIdeasSection({ ideas }: { ideas: any[] }) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function UnifiedScoreCard({ score }: { score: IntelUnifiedScore | null }) {
-  if (!score) return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Computing score...</CardContent>
-    </Card>
-  );
+  if (!score) return <IntelSkeletonCard />;
 
   const scoreColor = score.direction === 'bullish' ? 'text-emerald-400' : score.direction === 'bearish' ? 'text-red-400' : 'text-slate-300';
   const bgGlow = score.direction === 'bullish' ? 'shadow-emerald-500/5' : score.direction === 'bearish' ? 'shadow-red-500/5' : '';
@@ -746,12 +743,23 @@ function UnifiedScoreCard({ score }: { score: IntelUnifiedScore | null }) {
   );
 }
 
-function VIXCard({ vix }: { vix: IntelVIX | null }) {
-  if (!vix) return (
+function IntelSkeletonCard() {
+  return (
     <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Loading VIX...</CardContent>
+      <CardContent className="p-4 space-y-3">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-7 w-16" />
+        <div className="flex gap-2">
+          <Skeleton className="h-2.5 w-14" />
+          <Skeleton className="h-2.5 w-10" />
+        </div>
+      </CardContent>
     </Card>
   );
+}
+
+function VIXCard({ vix }: { vix: IntelVIX | null }) {
+  if (!vix) return <IntelSkeletonCard />;
 
   const vixColor = vix.vix >= 30 ? 'text-red-400' : vix.vix >= 20 ? 'text-amber-400' : vix.vix >= 15 ? 'text-slate-300' : 'text-emerald-400';
   const termColor = vix.termStructure === 'backwardation' ? 'text-red-400' : vix.termStructure === 'contango' ? 'text-emerald-400' : 'text-slate-400';
@@ -788,11 +796,7 @@ function VIXCard({ vix }: { vix: IntelVIX | null }) {
 }
 
 function GEXCard({ gex }: { gex: IntelGEX | null }) {
-  if (!gex) return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Loading GEX...</CardContent>
-    </Card>
-  );
+  if (!gex) return <IntelSkeletonCard />;
 
   const aboveFlip = gex.flipPoint && gex.spotPrice > gex.flipPoint;
 
@@ -846,11 +850,7 @@ function GEXCard({ gex }: { gex: IntelGEX | null }) {
 }
 
 function PCRCard({ pcr }: { pcr: IntelPCR | null }) {
-  if (!pcr) return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Loading PCR...</CardContent>
-    </Card>
-  );
+  if (!pcr) return <IntelSkeletonCard />;
 
   const pcrColor = pcr.interpretation === 'bullish' ? 'text-emerald-400' : pcr.interpretation === 'bearish' ? 'text-red-400' : 'text-slate-300';
 
@@ -889,11 +889,7 @@ function PCRCard({ pcr }: { pcr: IntelPCR | null }) {
 }
 
 function ExpectedMoveCard({ expectedMove }: { expectedMove: IntelExpectedMove | null }) {
-  if (!expectedMove) return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Loading Expected Move...</CardContent>
-    </Card>
-  );
+  if (!expectedMove) return <IntelSkeletonCard />;
 
   return (
     <Card className="bg-slate-900/60 border-slate-800/50">
@@ -930,11 +926,7 @@ function ExpectedMoveCard({ expectedMove }: { expectedMove: IntelExpectedMove | 
 }
 
 function MomentumCard({ momentum }: { momentum: IntelMomentum | null }) {
-  if (!momentum) return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
-      <CardContent className="p-4 text-center text-slate-500 text-sm">Loading Momentum...</CardContent>
-    </Card>
-  );
+  if (!momentum) return <IntelSkeletonCard />;
 
   const regimeColors: Record<string, string> = {
     'momentum_bullish': 'text-emerald-400',
@@ -1251,23 +1243,20 @@ function VolumeDeltaPanel({ volumeDelta }: { volumeDelta: IntelVolumeDelta | nul
 function IntelligenceTab() {
   const { data: intel, isLoading } = useSPXIntelligence();
 
-  if (isLoading) {
+  if (isLoading || !intel) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center space-y-3">
-          <Brain className="w-10 h-10 text-cyan-500/50 mx-auto animate-pulse" />
-          <div className="text-sm text-slate-400">Computing institutional signals...</div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <IntelSkeletonCard />
+          <IntelSkeletonCard />
+          <IntelSkeletonCard />
         </div>
-      </div>
-    );
-  }
-
-  if (!intel) {
-    return (
-      <div className="text-center py-16 space-y-2">
-        <Brain className="w-10 h-10 text-slate-700 mx-auto" />
-        <div className="text-sm text-slate-500">Intelligence service warming up</div>
-        <div className="text-[10px] text-slate-600">Signals computed every 60 seconds during market hours</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <IntelSkeletonCard />
+          <IntelSkeletonCard />
+          <IntelSkeletonCard />
+          <IntelSkeletonCard />
+        </div>
       </div>
     );
   }
@@ -1383,9 +1372,14 @@ export default function SPXCommandCenter() {
   }, [marketOpen]);
 
   const spxData = data?.indexData?.find((d: IndexData) => d.symbol === 'SPX');
+  const spyData = data?.indexData?.find((d: IndexData) => d.symbol === 'SPY');
+  // Use SPY as the primary index (all intel data is SPY-based)
+  const primaryIndex = spyData || spxData;
   // Use real VIX from intelligence data, fall back to breakout data, then default
   const vix = intelData?.vixRegime?.vix ?? data?.orbScanner?.breakouts?.[0]?.vix ?? 0;
-  const gammaFlip = intelData?.gex?.flipPoint ?? spxData?.pivotPoints?.pivot;
+  // SPY spot from intelligence GEX, or from index data
+  const spySpot = intelData?.gex?.spotPrice ?? primaryIndex?.price;
+  const gammaFlip = intelData?.gex?.flipPoint ?? primaryIndex?.pivotPoints?.pivot;
 
   // Filter ORB breakouts by timeframe
   const filteredBreakouts = data?.orbScanner?.breakouts?.filter(
@@ -1412,14 +1406,15 @@ export default function SPXCommandCenter() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 font-mono">0DTE // LIVE</div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">SPX Command Center</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Index Command Center</h1>
+            <div className="text-[10px] text-slate-500 mt-0.5">SPY &middot; QQQ &middot; IWM &middot; SPX</div>
           </div>
           <div className="flex items-center gap-4">
             <ScannerStatusDot active={data?.orbScanner?.isActive || false} label="ORB" />
             <ScannerStatusDot active={(sessionSignals.length > 0)} label="Session" />
             <div className="h-4 w-px bg-slate-800" />
             <StatBox label="VIX" value={vix > 0 ? safeToFixed(vix, 1) : '--'} color={vix >= 25 ? "text-red-400" : vix >= 18 ? "text-amber-400" : "text-emerald-400"} />
-            <StatBox label="SPX" value={spxData ? `$${safeToFixed(spxData.price, 2)}` : '--'} sub={spxData ? `${spxData.changePercent >= 0 ? '+' : ''}${safeToFixed(spxData.changePercent, 2)}%` : undefined} />
+            <StatBox label="SPY" value={spySpot ? `$${safeToFixed(spySpot, 2)}` : (primaryIndex ? `$${safeToFixed(primaryIndex.price, 2)}` : '--')} sub={primaryIndex ? `${primaryIndex.changePercent >= 0 ? '+' : ''}${safeToFixed(primaryIndex.changePercent, 2)}%` : undefined} />
             <StatBox label="Signals" value={String(data?.todayIdeasCount || 0)} color="text-cyan-400" />
           </div>
         </div>
@@ -1427,7 +1422,7 @@ export default function SPXCommandCenter() {
         {/* ── Session Timer ──────────────────────────────────────── */}
         <SPXSessionTimer
           vix={vix}
-          spxPrice={spxData?.price}
+          spxPrice={spySpot ?? primaryIndex?.price}
           gammaFlip={gammaFlip}
         />
 
@@ -1503,7 +1498,10 @@ export default function SPXCommandCenter() {
               </CardHeader>
               <CardContent className="px-3 pb-3 space-y-2">
                 {isLoading ? (
-                  <div className="text-center py-8 text-slate-500 text-sm animate-pulse">Loading ORB data...</div>
+                  <div className="space-y-2">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                  </div>
                 ) : filteredBreakouts.length === 0 ? (
                   <div className="text-center py-8">
                     <Crosshair className="w-8 h-8 text-slate-700 mx-auto mb-2" />
@@ -1550,7 +1548,10 @@ export default function SPXCommandCenter() {
               </CardHeader>
               <CardContent className="px-3 pb-3 space-y-2">
                 {isLoading ? (
-                  <div className="text-center py-8 text-slate-500 text-sm animate-pulse">Loading signals...</div>
+                  <div className="space-y-2">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                  </div>
                 ) : sortedSignals.length === 0 ? (
                   <div className="text-center py-8">
                     <Radio className="w-8 h-8 text-slate-700 mx-auto mb-2" />
@@ -1566,7 +1567,7 @@ export default function SPXCommandCenter() {
 
           {/* RIGHT: Levels + Lotto (3 cols) */}
           <div className="lg:col-span-3 space-y-3">
-            <KeyLevelsPanel levels={data?.sessionScanner?.levels || null} spxPrice={spxData?.price} />
+            <KeyLevelsPanel levels={data?.sessionScanner?.levels || null} spxPrice={spySpot ?? primaryIndex?.price} />
 
             <Card className="bg-slate-900/40 border-slate-800/50">
               <CardHeader className="pb-2 px-4 pt-3">
@@ -1608,7 +1609,7 @@ export default function SPXCommandCenter() {
           <CardHeader className="pb-2 px-4 pt-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                <Brain className="w-4 h-4 text-violet-400" /> Today's SPX Ideas
+                <Brain className="w-4 h-4 text-violet-400" /> Today's Ideas
                 <Badge className="text-[10px] bg-violet-500/10 text-violet-400 border border-violet-500/20">
                   {data?.todayIdeasCount || 0}
                 </Badge>
