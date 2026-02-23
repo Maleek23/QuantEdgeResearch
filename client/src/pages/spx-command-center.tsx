@@ -1601,7 +1601,7 @@ export default function SPXCommandCenter() {
 
           {/* RIGHT: Levels + Lotto (3 cols) */}
           <div className="lg:col-span-3 space-y-3">
-            <KeyLevelsPanel levels={data?.sessionScanner?.levels || null} spxPrice={spySpot ?? primaryIndex?.price} />
+            <KeyLevelsPanel levels={data?.sessionScanner?.levels || null} spxPrice={spotPrice ?? primaryIndex?.price} />
 
             <Card className="bg-slate-900/40 border-slate-800/50">
               <CardHeader className="pb-2 px-4 pt-3">
