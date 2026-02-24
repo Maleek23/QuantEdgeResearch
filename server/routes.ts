@@ -6230,7 +6230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // 🔥 SOURCE PRIORITY BONUS - Prioritize momentum/surge over generic options flow
         // This ensures we show IREN/ONDS/RDW surges instead of random options flow on slow stocks
-        const source = idea.dataSourceUsed || idea.source || '';
+        const dataSource = idea.dataSourceUsed || '';
+        const ideaSource = idea.source || '';
         const sourcePriority: Record<string, number> = {
           'surge_detection': 25,       // Highest priority - real-time momentum
           'spx_session': 22,           // Index session scanner - real-time intraday signals
@@ -6243,7 +6244,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'options_flow': 8,           // Options flow - lower priority (can be noise)
           'social_sentiment': 5,       // Social - speculative
         };
-        const sourceBonus = sourcePriority[source] || 10;
+        // Check both source fields — idea.source (e.g. 'spx_session') and dataSourceUsed (e.g. 'surge_detection')
+        const sourceBonus = Math.max(
+          sourcePriority[ideaSource] || 0,
+          sourcePriority[dataSource] || 0,
+          10  // minimum default
+        );
         convictionScore += sourceBonus;
 
         // Signal confluence bonus (more signals = higher conviction)
@@ -6290,7 +6296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           historicalSampleSize: sampleSize,
           winRateBonus,
           sourceBonus,  // Track source priority bonus for debugging
-          source,       // Include source for transparency
+          source: ideaSource || dataSource,  // Include source for transparency
           confidence
         };
       });
