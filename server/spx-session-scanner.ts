@@ -164,9 +164,25 @@ let state: DailyState = {
 // HELPERS
 // ============================================
 
+/**
+ * Get current ET time as a Date.
+ * WARNING: This returns a Date whose .getHours() etc. reflect ET,
+ * but whose internal timestamp (.getTime()) is NOT real UTC.
+ * Only use for display / hour extraction. Never use .getTime() for expiry math.
+ */
 function getETTime(): Date {
   const now = new Date();
   return new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+}
+
+/**
+ * Get the UTC offset between real UTC and the fake-ET Date.
+ * realUTC = fakeET.getTime() + getETOffset()
+ */
+function getETOffset(): number {
+  const now = new Date();
+  const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return now.getTime() - et.getTime();
 }
 
 function getETHours(date: Date): number {
@@ -175,6 +191,13 @@ function getETHours(date: Date): number {
 
 function getTodayDateString(): string {
   return getETTime().toISOString().split('T')[0];
+}
+
+/**
+ * Map symbol to Yahoo Finance ticker (SPX cash index = ^GSPC)
+ */
+function getYahooSymbol(symbol: string): string {
+  return symbol === 'SPX' ? '%5EGSPC' : symbol;
 }
 
 function generateId(): string {
@@ -237,8 +260,9 @@ interface IntradayBar {
 
 async function getIntradayBars(symbol: string): Promise<IntradayBar[]> {
   try {
+    const yahooSym = getYahooSymbol(symbol);
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=1d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSym}?interval=5m&range=1d`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
 
@@ -734,7 +758,9 @@ function createSignal(params: SignalParams): SPXSignal {
     : `${mins}m`;
 
   // Expiry window (signal valid for 15 minutes)
-  const expiresAt = new Date(et.getTime() + 15 * 60 * 1000);
+  // IMPORTANT: Use real UTC time for expiry so getActiveSignals() comparison works
+  const now = new Date(); // real UTC
+  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000);
 
   return {
     id: generateId(),
@@ -760,7 +786,7 @@ function createSignal(params: SignalParams): SPXSignal {
     signals,
     keyLevel,
     keyLevelName,
-    timestamp: et,
+    timestamp: now, // Use real UTC, not fake-ET
     expiresAt,
   };
 }
@@ -772,17 +798,19 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
   logger.info(`[SPX-SESSION] 💾 Attempting to save trade idea for ${signal.symbol} ${signal.strategy}...`);
   try {
     // Check if we already have this idea saved recently (within 30 min)
+    // Match on symbol + source + strategy + direction to prevent duplicates
     const allIdeas = await storage.getAllTradeIdeas();
     const recentDuplicate = allIdeas.find(
       (idea: any) =>
         idea.symbol === signal.symbol &&
         idea.source === 'spx_session' &&
+        idea.dataSourceUsed === `SPX_${signal.strategy}` &&
         idea.direction.toLowerCase() === signal.direction.toLowerCase() &&
         new Date().getTime() - new Date(idea.timestamp).getTime() < 30 * 60 * 1000
     );
 
     if (recentDuplicate) {
-      logger.debug(`[SPX-SESSION] Skipping duplicate trade idea for ${signal.symbol}`);
+      logger.debug(`[SPX-SESSION] Skipping duplicate trade idea for ${signal.symbol} ${signal.strategy}`);
       return;
     }
 

@@ -343,19 +343,27 @@ async function calculateOpeningRange(
       case '60min': rangeEndMinutes = 60; break;
     }
 
-    // Filter prices to opening range window (9:30 to range end)
-    const rangeStartTime = new Date(et);
+    // Filter prices to opening range window (9:30 ET to range end)
+    // Yahoo timestamps are in real UTC, so we must build range bounds in UTC too
+    // ET is UTC-5 (EST) or UTC-4 (EDT). Detect by comparing getETTime offset.
+    const now = new Date();
+    const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const utcOffsetMs = now.getTime() - etNow.getTime(); // positive = ET is behind UTC
+    // Build 9:30 AM ET as a real UTC timestamp
+    const rangeStartTime = new Date(etNow);
     rangeStartTime.setHours(9, 30, 0, 0);
+    // Convert back to real UTC by adding the offset
+    const rangeStartUTC = new Date(rangeStartTime.getTime() + utcOffsetMs);
 
-    const rangeEndTime = new Date(rangeStartTime);
-    rangeEndTime.setMinutes(rangeEndTime.getMinutes() + rangeEndMinutes);
+    const rangeEndUTC = new Date(rangeStartUTC.getTime() + rangeEndMinutes * 60 * 1000);
 
     const rangePrices = prices.filter(p => {
       const priceTime = new Date(p.date);
-      return priceTime >= rangeStartTime && priceTime <= rangeEndTime;
+      return priceTime >= rangeStartUTC && priceTime <= rangeEndUTC;
     });
 
     if (rangePrices.length === 0) {
+      logger.debug(`[ORB] ${symbol} ${timeframe}: 0 bars in range (start=${rangeStartUTC.toISOString()}, end=${rangeEndUTC.toISOString()}, firstBar=${prices[0]?.date})`);
       return null;
     }
 
@@ -383,7 +391,7 @@ async function calculateOpeningRange(
       rangeWidth,
       rangeWidthPct,
       volume,
-      formedAt: rangeEndTime,
+      formedAt: rangeEndUTC,
       isValid,
     };
   } catch (error) {
@@ -635,7 +643,7 @@ async function generateBreakoutSignal(
     sessionPhase: getSessionPhase(getETHours(et)),
     gammaZone,
 
-    timestamp: et,
+    timestamp: new Date(), // Use real UTC, not fake-ET
     signals,
     thesis,
   };
