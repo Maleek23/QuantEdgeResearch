@@ -6230,9 +6230,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // 🔥 SOURCE PRIORITY BONUS - Prioritize momentum/surge over generic options flow
         // This ensures we show IREN/ONDS/RDW surges instead of random options flow on slow stocks
-        const source = idea.dataSourceUsed || '';
+        const source = idea.dataSourceUsed || idea.source || '';
         const sourcePriority: Record<string, number> = {
           'surge_detection': 25,       // Highest priority - real-time momentum
+          'spx_session': 22,           // Index session scanner - real-time intraday signals
+          'orb_scanner': 22,           // ORB breakout scanner - time-critical
           'market_scanner': 20,        // Market movers (top gainers)
           'bullish_trend': 18,         // Confirmed trends
           'breakout_discovery': 18,    // Breakout patterns
@@ -6298,14 +6300,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🎯 CRITICAL: Deduplicate by symbol+assetType+optionType - keep BEST setup per unique combo
       // This allows showing DIS CALL and DIS PUT as separate entries
+      // Scanner sources (spx_session, orb_scanner) get their own slot so they don't compete with flow ideas
+      const INDEX_SCANNER_SOURCES = new Set(['spx_session', 'orb_scanner']);
       const symbolBestMap = new Map<string, typeof scoredIdeas[0]>();
-      
+
       for (const idea of scoredIdeas) {
         const assetType = idea.assetType || 'stock';
         const optionType = idea.optionType || '';  // Include call/put distinction
-        const key = `${idea.symbol}:${assetType}:${optionType}`;
+        const ideaSource = idea.source || idea.dataSourceUsed || '';
+        // Index scanner ideas get their own dedup slot so they surface alongside flow ideas
+        const sourceTag = INDEX_SCANNER_SOURCES.has(ideaSource) ? `:${ideaSource}` : '';
+        const key = `${idea.symbol}:${assetType}:${optionType}${sourceTag}`;
         const existing = symbolBestMap.get(key);
-        
+
         // Keep the one with higher conviction (first one wins since already sorted)
         if (!existing) {
           symbolBestMap.set(key, idea);
