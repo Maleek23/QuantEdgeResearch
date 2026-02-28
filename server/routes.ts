@@ -5340,23 +5340,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/market-brief", async (_req, res) => {
     try {
-      // Generate a simple market brief
       const now = new Date();
-      const hour = now.getHours();
-      
+      const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const hour = nyTime.getHours();
+
       let marketPhase = 'pre-market';
       if (hour >= 9 && hour < 16) marketPhase = 'market hours';
       else if (hour >= 16 && hour < 20) marketPhase = 'after-hours';
-      
-      const brief = `Markets are in ${marketPhase}. Key focus areas: Tech sector momentum, earnings season positioning, and macro data releases. Monitor VIX levels for volatility signals. Crypto markets showing strength with BTC holding key support levels.`;
-      
+      else marketPhase = 'overnight';
+
+      // Pull real data for dynamic brief
+      let regime = 'neutral';
+      let riskLevel = 'moderate';
+      let topSectors: string[] = [];
+      try {
+        const { getMarketContext } = await import('./market-context-service');
+        const ctx = await getMarketContext();
+        regime = ctx?.regime || 'neutral';
+        riskLevel = ctx?.riskLevel || 'moderate';
+      } catch {}
+      try {
+        const { getSectorPerformance } = await import('./market-scanner');
+        const sectors = await getSectorPerformance();
+        if (sectors?.length) {
+          const sorted = [...sectors].sort((a: any, b: any) => (b.changePercent || 0) - (a.changePercent || 0));
+          topSectors = sorted.slice(0, 3).map((s: any) => `${s.symbol} (${s.changePercent > 0 ? '+' : ''}${(s.changePercent || 0).toFixed(1)}%)`);
+        }
+      } catch {}
+
+      const recentIdeas = await storage.getRecentTradeIdeas(6, 10);
+      const ideaCount = recentIdeas.length;
+
+      const sectorText = topSectors.length > 0 ? `Leading sectors: ${topSectors.join(', ')}.` : '';
+      const brief = `Markets are in ${marketPhase}. Regime: ${regime} (${riskLevel} risk). ${sectorText} ${ideaCount} fresh trade ideas in the last 6 hours. Monitor VIX for volatility signals.`;
+
       res.json({
         brief,
+        regime,
+        riskLevel,
+        marketPhase,
+        leadingSectors: topSectors,
+        activeIdeas: ideaCount,
         timestamp: now.toLocaleString('en-US', { timeZone: 'America/Chicago' })
       });
     } catch (error) {
       console.error("Market brief error:", error);
       res.status(500).json({ error: "Failed to generate market brief" });
+    }
+  });
+
+  // Morning Briefing - AI-generated market preview with watchlist and catalysts
+  let morningBriefingCache: { data: any; timestamp: number } | null = null;
+  const BRIEFING_CACHE_TTL = 30 * 60 * 1000; // 30 min cache
+
+  app.get("/api/morning-briefing", async (_req, res) => {
+    try {
+      // Return cached if fresh
+      if (morningBriefingCache && (Date.now() - morningBriefingCache.timestamp) < BRIEFING_CACHE_TTL) {
+        return res.json(morningBriefingCache.data);
+      }
+
+      const { generateMorningPreview } = await import('./morning-preview-service');
+      const preview = await generateMorningPreview();
+      morningBriefingCache = { data: preview, timestamp: Date.now() };
+      res.json(preview);
+    } catch (error: any) {
+      logger.error("[MORNING-BRIEFING] Error:", error);
+      // Return a minimal fallback so frontend doesn't break
+      res.json({
+        marketOutlook: 'neutral',
+        keyLevels: { spy: 0, qqq: 0, vix: 0 },
+        topWatchlist: [],
+        catalysts: [],
+        tradingPlan: 'Morning briefing unavailable. Check back soon.',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Economic Calendar - Upcoming macro events
+  app.get("/api/economic-calendar", async (req, res) => {
+    try {
+      const { getUpcomingEvents, getTodayEvents, getMonthEvents } = await import('./economic-calendar');
+      const days = parseInt(req.query?.days as string) || 14;
+      const month = req.query?.month as string; // format: YYYY-MM
+
+      if (month) {
+        const [year, m] = month.split('-').map(Number);
+        const events = getMonthEvents(year, m);
+        return res.json({ events, month });
+      }
+
+      const upcoming = getUpcomingEvents(days);
+      const today = getTodayEvents();
+      res.json({ upcoming, today, totalUpcoming: upcoming.length });
+    } catch (error: any) {
+      logger.error("[ECON-CAL] API error:", error);
+      res.json({ upcoming: [], today: [], totalUpcoming: 0 });
     }
   });
 
@@ -13701,7 +13781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let catalystNews: any[] = [];
       try {
         const { fetchAlphaVantageNews } = await import('./news-service');
-        const newsData = await fetchAlphaVantageNews(10, topSymbols.join(','));
+        const newsData = await fetchAlphaVantageNews(topSymbols.join(','), undefined, undefined, 10);
         catalystNews = newsData.slice(0, 5).map((n: any) => ({
           title: n.title,
           summary: n.summary?.substring(0, 150),

@@ -35,6 +35,18 @@ const INDEX_TICKERS = [
   'DIA',  // Dow Jones ETF
 ];
 
+// Sector ETFs - track sector rotation and relative strength
+const SECTOR_ETFS = ['XLE', 'XLF', 'XLK', 'XLV', 'XLI', 'XLU', 'XLP', 'XLY', 'XLB', 'XLRE', 'XLC'];
+
+// Commodity ETFs - oil, gold, silver, natural gas
+const COMMODITY_ETFS = ['USO', 'GLD', 'SLV', 'UNG', 'OIH'];
+
+// Bond/Treasury ETFs - rate-sensitive plays
+const BOND_ETFS = ['TLT', 'TBT', 'BND', 'IEF', 'HYG', 'LQD'];
+
+// Defense & Aerospace tickers
+const DEFENSE_TICKERS = ['LMT', 'RTX', 'NOC', 'GD', 'BA'];
+
 // Tech Correlation Matrix - Tracks stocks influenced by heavyweights
 const TECH_CORRELATION_MAP = {
   'NVDA': ['AMD', 'SMCI', 'TSM', 'ASML', 'ARM', 'MU', 'AVGO'],
@@ -218,29 +230,53 @@ class AutoIdeaGenerator {
         .map(([leader, followers]) => `${leader} influences ${followers.join(', ')}`)
         .join('; ');
 
-      let marketContext = `Current market conditions with focus on stocks, options, and crypto.
-      🎯 PRIORITY: ALWAYS generate ideas for INDEX ETFs (${indexTickers}) - these are the most important for 0DTE and swing trading.
-      Pay special attention to Semiconductors and Memory/Storage sectors (AI Infrastructure): ${semiTickers}.
+      const sectorTickers = SECTOR_ETFS.join(', ');
+      const commodityTickers = COMMODITY_ETFS.join(', ');
+      const bondTickers = BOND_ETFS.join(', ');
+      const defenseTickers = DEFENSE_TICKERS.join(', ');
+
+      // Check economic calendar for upcoming events
+      let macroContext = '';
+      try {
+        const { getUpcomingEvents } = await import('./economic-calendar');
+        const events = getUpcomingEvents(7);
+        if (events.length > 0) {
+          const eventList = events.slice(0, 3).map(e => `${e.name} (${e.date}, ${e.importance})`).join('; ');
+          macroContext = `\n🗓️ UPCOMING MACRO EVENTS: ${eventList}. Consider event-driven trades, hedges, and volatility plays around these dates.`;
+        }
+      } catch {}
+
+      let marketContext = `Current market conditions — UNIVERSAL coverage across all asset classes.
+      🎯 TOP PRIORITY: INDEX ETFs (${indexTickers}) for 0DTE and swing trading.
+      📊 SECTOR ROTATION: Analyze sector ETFs (${sectorTickers}) for relative strength. Which sectors are leading/lagging?
+      🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG) — trade macro themes.
+      📈 BONDS/RATES: Treasury ETFs (${bondTickers}) — rising/falling rates create directional plays on TLT, TBT, HYG.
+      🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts and government spending.
+      🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}) — compute demand.
       CORRELATION TRACKING: ${correlationContext}.
-      When analyzing a heavyweight, look for spillover or divergence in its influence group.`;
+      Generate ideas across ALL asset classes — stocks, sector ETFs, commodity ETFs, bond ETFs, defense, and options on any of these.${macroContext}`;
       
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
         marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities.
-🎯 TOP PRIORITY: ALWAYS generate ideas for INDEX ETFs (${indexTickers}) - SPY, QQQ, IWM are essential for 0DTE trading!
-Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks.
-Priority tickers to analyze: ${indexTickers}, ${semiTickers}, ${pennyTickers}.
-CORRELATION TRACKING: ${correlationContext}. Analyze how NVDA price action is influencing the broader semi/AI sector today.
+🎯 TOP PRIORITY: INDEX ETFs (${indexTickers}) - SPY, QQQ, IWM for 0DTE and swing trading!
+📊 SECTOR ROTATION: Analyze sectors (${sectorTickers}) - identify leading/lagging sectors for tomorrow.
+🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG) — macro-driven swing trades.
+📈 BONDS: Treasury ETFs (${bondTickers}) — rate direction creates TLT/TBT plays.
+🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts.
+🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}).
+CORRELATION TRACKING: ${correlationContext}.
+Priority tickers: ${indexTickers}, ${sectorTickers}, ${commodityTickers}, ${bondTickers}, ${defenseTickers}, ${semiTickers}, ${pennyTickers}.${macroContext}
 Look for:
-1. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly option plays based on support/resistance levels
-2. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
-3. Tech Spillover: If NVDA is strong, look for laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}.
-4. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-5. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-6. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-7. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
-8. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
-Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.`;
+1. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly options based on support/resistance
+2. 🛢️ COMMODITY SWINGS - Oil/gold/gas moves based on macro data or geopolitics
+3. 📈 BOND PLAYS - TLT/TBT direction from rate expectations
+4. 🛡️ DEFENSE - LMT/RTX/NOC on spending catalysts
+5. 🔬 AI Infrastructure (NVDA, MU, WDC, LRCX) - compute demand
+6. Tech Spillover: NVDA laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}
+7. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition
+8. High-vol penny stocks for 5-10x asymmetric returns
+Generate swing trade and option ideas across ALL asset classes. Include sector ETFs, commodity ETFs, and bond plays.`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
 

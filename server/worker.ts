@@ -414,7 +414,35 @@ function isMarketCurrentlyOpen(): boolean {
       const status = getNewsServiceStatus();
       if (!status.isHealthy || status.quotaRemaining < 10) return;
 
-      const breakingNews = await fetchBreakingNews(undefined, undefined, 20);
+      // Rotate through sector-specific tickers on each scan cycle
+      const SECTOR_NEWS_GROUPS = [
+        { label: 'Energy', tickers: 'XLE,USO,OIH,CVX,XOM' },
+        { label: 'Bonds/Rates', tickers: 'TLT,BND,IEF' },
+        { label: 'Metals', tickers: 'GLD,SLV,NEM,GOLD' },
+        { label: 'Defense', tickers: 'LMT,RTX,NOC,GD' },
+        { label: 'Tech/Semis', tickers: 'NVDA,AMD,SMCI,TSM' },
+      ];
+      const scanCycleIndex = Math.floor(Date.now() / (15 * 60 * 1000)) % SECTOR_NEWS_GROUPS.length;
+      const sectorGroup = SECTOR_NEWS_GROUPS[scanCycleIndex];
+
+      // Fetch broad market news + sector-specific news in parallel
+      const [broadNews, sectorNews] = await Promise.all([
+        fetchBreakingNews(undefined, undefined, 15),
+        fetchBreakingNews(sectorGroup.tickers, undefined, 5).catch(() => []),
+      ]);
+
+      if (sectorNews.length > 0) {
+        logger.info(`📰 [NEWS-CRON] Sector scan: ${sectorGroup.label} (${sectorGroup.tickers}) — ${sectorNews.length} articles`);
+      }
+
+      // Merge and deduplicate by URL
+      const seenUrls = new Set<string>();
+      const breakingNews = [...broadNews, ...sectorNews].filter(article => {
+        if (seenUrls.has(article.url)) return false;
+        seenUrls.add(article.url);
+        return true;
+      }).slice(0, 20);
+
       if (breakingNews.length === 0) return;
 
       const existingOpenSymbols = new Set<string>();

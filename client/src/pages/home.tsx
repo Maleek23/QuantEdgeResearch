@@ -33,11 +33,352 @@ import {
   Play,
   Flame,
   DollarSign,
+  Sun,
+  Shield,
+  Fuel,
+  CircleDot,
+  Landmark,
 } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
 import { WSBTrendingCard } from "@/components/wsb-trending-card";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { SkeletonCard } from "@/components/ui/skeleton";
+
+// ── Asset class classification for badge display ──
+const SECTOR_ETFS = new Set(['XLE', 'XLF', 'XLK', 'XLV', 'XLI', 'XLU', 'XLP', 'XLY', 'XLB', 'XLRE', 'XLC']);
+const COMMODITY_SYMBOLS = new Set(['USO', 'GLD', 'SLV', 'UNG', 'OIH', 'WEAT', 'DBA']);
+const BOND_SYMBOLS = new Set(['TLT', 'TBT', 'BND', 'IEF', 'HYG', 'LQD', 'SHY', 'AGG']);
+const INDEX_SYMBOLS = new Set(['SPY', 'QQQ', 'IWM', 'DIA', 'SPX', 'VIX']);
+const DEFENSE_SYMBOLS = new Set(['LMT', 'RTX', 'NOC', 'GD', 'BA']);
+
+function getAssetClass(symbol: string): { label: string; color: string } {
+  const s = symbol.toUpperCase();
+  if (INDEX_SYMBOLS.has(s)) return { label: 'INDEX', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
+  if (SECTOR_ETFS.has(s)) return { label: 'SECTOR', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+  if (COMMODITY_SYMBOLS.has(s)) return { label: 'COMMODITY', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+  if (BOND_SYMBOLS.has(s)) return { label: 'BOND', color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' };
+  if (DEFENSE_SYMBOLS.has(s)) return { label: 'DEFENSE', color: 'bg-red-500/10 text-red-500 border-red-500/20' };
+  return { label: 'STOCK', color: 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700' };
+}
+
+// ── Morning Briefing Component ──
+function MorningBriefing() {
+  const { data, isLoading } = useQuery<{
+    marketOutlook?: string;
+    keyLevels?: { spy?: number; qqq?: number; vix?: number };
+    topWatchlist?: Array<{ symbol: string; reason?: string }>;
+    catalysts?: string[];
+    tradingPlan?: string;
+    timestamp?: string;
+  }>({
+    queryKey: ["/api/morning-briefing"],
+    refetchInterval: 300000, // 5 min
+    retry: 1,
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+        <CardContent className="p-5">
+          <div className="animate-pulse space-y-3">
+            <div className="h-5 w-48 bg-gray-200 dark:bg-slate-800 rounded" />
+            <div className="h-4 w-full bg-gray-200 dark:bg-slate-800 rounded" />
+            <div className="h-4 w-3/4 bg-gray-200 dark:bg-slate-800 rounded" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || !data.tradingPlan) return null;
+
+  const outlookBadge = (outlook?: string) => {
+    if (!outlook) return { icon: '⚪', color: 'bg-gray-100 dark:bg-slate-800 text-gray-500', label: 'Neutral' };
+    const lower = outlook.toLowerCase();
+    if (lower.includes('bullish') || lower.includes('positive')) return { icon: '🟢', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'Bullish' };
+    if (lower.includes('bearish') || lower.includes('negative')) return { icon: '🔴', color: 'bg-red-500/10 text-red-600 dark:text-red-400', label: 'Bearish' };
+    return { icon: '🟡', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Cautious' };
+  };
+
+  const badge = outlookBadge(data.marketOutlook);
+
+  return (
+    <Card className="bg-gradient-to-r from-white via-white to-emerald-50/50 dark:from-[#111] dark:via-[#111] dark:to-emerald-950/20 border-gray-200 dark:border-[#222]">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
+              <Sun className="w-4 h-4 text-emerald-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Morning Briefing</h3>
+          </div>
+          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium border", badge.color)}>
+            {badge.icon} {badge.label}
+          </span>
+        </div>
+
+        {/* Key Levels */}
+        {data.keyLevels && (data.keyLevels.spy || data.keyLevels.qqq || data.keyLevels.vix) && (
+          <div className="flex gap-4 mb-3">
+            {data.keyLevels.spy ? (
+              <div className="text-xs">
+                <span className="text-gray-500 dark:text-slate-500">SPY</span>{' '}
+                <span className="font-mono font-medium text-gray-900 dark:text-white">${safeToFixed(data.keyLevels.spy, 0)}</span>
+              </div>
+            ) : null}
+            {data.keyLevels.qqq ? (
+              <div className="text-xs">
+                <span className="text-gray-500 dark:text-slate-500">QQQ</span>{' '}
+                <span className="font-mono font-medium text-gray-900 dark:text-white">${safeToFixed(data.keyLevels.qqq, 0)}</span>
+              </div>
+            ) : null}
+            {data.keyLevels.vix ? (
+              <div className="text-xs">
+                <span className="text-gray-500 dark:text-slate-500">VIX</span>{' '}
+                <span className="font-mono font-medium text-gray-900 dark:text-white">{safeToFixed(data.keyLevels.vix, 1)}</span>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Trading Plan Summary */}
+        <p className="text-sm text-gray-600 dark:text-slate-400 line-clamp-3 mb-3">
+          {data.tradingPlan}
+        </p>
+
+        {/* Watchlist */}
+        {data.topWatchlist && data.topWatchlist.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-[10px] text-gray-500 dark:text-slate-500 self-center">Watch:</span>
+            {data.topWatchlist.slice(0, 5).map((item) => (
+              <Link key={item.symbol} href={`/stock/${item.symbol}`}>
+                <Badge variant="outline" className="cursor-pointer text-[10px] hover:bg-emerald-500/10 hover:border-emerald-500/50 hover:text-emerald-500 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-slate-400 transition-colors">
+                  {item.symbol}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Catalysts */}
+        {data.catalysts && data.catalysts.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {data.catalysts.slice(0, 3).map((catalyst, i) => (
+              <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {catalyst.length > 50 ? catalyst.slice(0, 50) + '...' : catalyst}
+              </span>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Cross-Asset Overview Component ──
+function CrossAssetOverview() {
+  const { data: marketData } = useQuery<{ quotes: Record<string, MarketQuote> }>({
+    queryKey: ["/api/market-data/batch/SPY,QQQ,IWM,USO,GLD,UNG,TLT,HYG,BTC-USD,VIX"],
+    refetchInterval: 30000,
+  });
+
+  const assetGroups = [
+    {
+      label: 'Indices',
+      icon: BarChart3,
+      color: 'text-blue-500',
+      assets: [
+        { symbol: 'SPY', name: 'S&P 500' },
+        { symbol: 'QQQ', name: 'Nasdaq' },
+        { symbol: 'IWM', name: 'Russell' },
+      ],
+    },
+    {
+      label: 'Commodities',
+      icon: Fuel,
+      color: 'text-amber-500',
+      assets: [
+        { symbol: 'USO', name: 'Oil' },
+        { symbol: 'GLD', name: 'Gold' },
+        { symbol: 'UNG', name: 'Nat Gas' },
+      ],
+    },
+    {
+      label: 'Bonds',
+      icon: Landmark,
+      color: 'text-cyan-500',
+      assets: [
+        { symbol: 'TLT', name: '20Y Treasury' },
+        { symbol: 'HYG', name: 'High Yield' },
+      ],
+    },
+    {
+      label: 'Fear',
+      icon: Activity,
+      color: 'text-red-500',
+      assets: [
+        { symbol: 'VIX', name: 'Volatility' },
+        { symbol: 'BTC-USD', name: 'Bitcoin' },
+      ],
+    },
+  ];
+
+  return (
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+            <Globe className="w-4 h-4 text-blue-500" />
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-white">Cross-Asset Overview</h3>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {assetGroups.map((group) => (
+            <div key={group.label} className="space-y-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <group.icon className={cn("w-3.5 h-3.5", group.color)} />
+                <span className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">{group.label}</span>
+              </div>
+              {group.assets.map((asset) => {
+                const quote = marketData?.quotes?.[asset.symbol];
+                const change = safeNumber(quote?.regularMarketChangePercent);
+                const price = safeNumber(quote?.regularMarketPrice);
+                return (
+                  <Link key={asset.symbol} href={`/stock/${asset.symbol}`}>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors cursor-pointer">
+                      <div>
+                        <span className="text-xs font-semibold text-gray-900 dark:text-white">{asset.symbol}</span>
+                        <div className="text-[10px] text-gray-500 dark:text-slate-500">{asset.name}</div>
+                      </div>
+                      <div className="text-right">
+                        {price > 0 && (
+                          <div className="text-[10px] font-mono text-gray-500 dark:text-slate-400">
+                            ${price < 100 ? safeToFixed(price, 2) : safeToFixed(price, 0)}
+                          </div>
+                        )}
+                        <span className={cn(
+                          "text-xs font-mono font-bold",
+                          change >= 0 ? "text-emerald-500" : "text-red-500"
+                        )}>
+                          {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Economic Calendar Widget ──
+function EconomicCalendarWidget() {
+  const { data, isLoading } = useQuery<{
+    upcoming: Array<{
+      name: string;
+      date: string;
+      time: string;
+      importance: 'high' | 'medium' | 'low';
+      description: string;
+      tradingImpact?: string;
+    }>;
+    today: Array<{
+      name: string;
+      date: string;
+      time: string;
+      importance: 'high' | 'medium' | 'low';
+      description: string;
+    }>;
+  }>({
+    queryKey: ["/api/economic-calendar?days=7"],
+    refetchInterval: 600000, // 10 min
+  });
+
+  const events = data?.upcoming?.slice(0, 6) || [];
+
+  const importanceColor = (imp: string) => {
+    if (imp === 'high') return 'bg-red-500/10 text-red-500 border-red-500/20';
+    if (imp === 'medium') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    return 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700';
+  };
+
+  const formatEventDate = (date: string) => {
+    const d = new Date(date + 'T00:00:00');
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
+              <Calendar className="w-4 h-4 text-red-500" />
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Economic Calendar</h3>
+          </div>
+          <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">
+            {data?.today && data.today.length > 0 ? `${data.today.length} today` : 'Macro'}
+          </Badge>
+        </div>
+        <div className="space-y-1.5">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : events.length > 0 ? (
+            events.map((event, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1a1a1a]"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full flex-shrink-0",
+                    event.importance === 'high' ? 'bg-red-500' :
+                    event.importance === 'medium' ? 'bg-amber-500' : 'bg-gray-400'
+                  )} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{event.name}</span>
+                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0", importanceColor(event.importance))}>
+                        {event.importance.toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 dark:text-slate-500 truncate block">
+                      {event.description.slice(0, 60)}{event.description.length > 60 ? '...' : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 ml-2">
+                  <div className="text-xs font-medium text-gray-900 dark:text-white">{formatEventDate(event.date)}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-slate-500">{event.time}</div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-gray-500 dark:text-slate-500 text-center py-8 bg-gray-50 dark:bg-[#0a0a0a] rounded-lg flex flex-col items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              No upcoming economic events
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface MarketQuote {
   regularMarketPrice: number;
@@ -219,19 +560,30 @@ function ResearchTools() {
   );
 }
 
-// Latest AI Ideas
+// Latest AI Ideas with asset class badges
 function LatestIdeas() {
   const { data } = useQuery<{ setups: Array<{
     symbol: string;
     direction: string;
     confidenceScore: number;
     source: string;
+    timestamp?: string;
   }> }>({
-    queryKey: ["/api/trade-ideas/best-setups?limit=5"],
+    queryKey: ["/api/trade-ideas/best-setups?limit=8"],
     refetchInterval: 60000,
   });
 
-  const ideas = data?.setups?.slice(0, 5) || [];
+  const ideas = data?.setups?.slice(0, 8) || [];
+
+  const getRelativeTime = (ts?: string) => {
+    if (!ts) return '';
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
 
   return (
     <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
@@ -241,7 +593,7 @@ function LatestIdeas() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
               <Brain className="w-4 h-4 text-emerald-500" />
             </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">AI Trade Ideas</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white">Today's Ideas</h3>
           </div>
           <Link href="/trade-desk">
             <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
@@ -252,6 +604,7 @@ function LatestIdeas() {
         <div className="space-y-2">
           {ideas.length > 0 ? ideas.map((idea, i) => {
             const isLong = idea.direction === "bullish" || idea.direction === "LONG" || idea.direction === "long";
+            const asset = getAssetClass(idea.symbol);
             return (
               <Link key={i} href={`/stock/${idea.symbol}`}>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors cursor-pointer">
@@ -263,13 +616,21 @@ function LatestIdeas() {
                       {idea.symbol.slice(0, 2)}
                     </div>
                     <div>
-                      <span className="font-semibold text-gray-900 dark:text-white text-sm">{idea.symbol}</span>
-                      <span className={cn(
-                        "ml-2 text-[10px] px-1.5 py-0.5 rounded font-medium",
-                        isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
-                      )}>
-                        {isLong ? "LONG" : "SHORT"}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-gray-900 dark:text-white text-sm">{idea.symbol}</span>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                          isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                        )}>
+                          {isLong ? "LONG" : "SHORT"}
+                        </span>
+                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded border font-medium", asset.color)}>
+                          {asset.label}
+                        </span>
+                      </div>
+                      {idea.timestamp && (
+                        <span className="text-[10px] text-gray-400 dark:text-slate-600">{getRelativeTime(idea.timestamp)}</span>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className={cn(
@@ -508,8 +869,8 @@ function EarningsCalendar() {
 // Market Movers
 function TopMovers() {
   const { data } = useQuery<{
-    topGainers: Array<{ symbol: string; name?: string; percentChange: number; price?: number }>;
-    topLosers: Array<{ symbol: string; name?: string; percentChange: number; price?: number }>;
+    topGainers: Array<{ symbol: string; name?: string; changePercent: number; percentChange?: number; price?: number }>;
+    topLosers: Array<{ symbol: string; name?: string; changePercent: number; percentChange?: number; price?: number }>;
   }>({
     queryKey: ["/api/market-movers"],
     refetchInterval: 60000,
@@ -544,7 +905,7 @@ function TopMovers() {
                 <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 transition-colors cursor-pointer">
                     <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
-                    <span className="text-xs font-bold text-emerald-500">+{safeToFixed(stock.percentChange, 1)}%</span>
+                    <span className="text-xs font-bold text-emerald-500">+{safeToFixed(stock.changePercent ?? stock.percentChange, 1)}%</span>
                   </div>
                 </Link>
               ))}
@@ -560,7 +921,7 @@ function TopMovers() {
                 <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 transition-colors cursor-pointer">
                     <span className="text-xs font-semibold text-gray-900 dark:text-white">{stock.symbol}</span>
-                    <span className="text-xs font-bold text-red-500">{safeToFixed(stock.percentChange, 1)}%</span>
+                    <span className="text-xs font-bold text-red-500">{safeToFixed(stock.changePercent ?? stock.percentChange, 1)}%</span>
                   </div>
                 </Link>
               ))}
@@ -639,6 +1000,16 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        {/* Morning Briefing — Top priority daily intelligence */}
+        <section className="mb-6">
+          <MorningBriefing />
+        </section>
+
+        {/* Cross-Asset Overview — Indices, Commodities, Bonds, Fear */}
+        <section className="mb-8">
+          <CrossAssetOverview />
+        </section>
+
         {/* Hero Section */}
         <section className="text-center mb-12">
           {/* Social Proof - Clean stats only */}
@@ -912,22 +1283,21 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Live Data Grid - News, Ideas, Earnings, Movers */}
+        {/* Live Data Grid - News, Ideas, Earnings, Economic Cal, Movers */}
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Data Feed</h2>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             <BreakingNews />
-            <EarningsCalendar />
+            <LatestIdeas />
           </div>
-        </section>
-
-        {/* Trading Intelligence */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <LatestIdeas />
-          <TopMovers />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <EarningsCalendar />
+            <EconomicCalendarWidget />
+            <TopMovers />
+          </div>
         </section>
 
         {/* CTA */}
