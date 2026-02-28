@@ -131,12 +131,14 @@ interface SessionSignal {
   id: string;
   symbol: string;
   strategy: string;
-  direction: 'long' | 'short';
+  direction: 'LONG' | 'SHORT' | 'long' | 'short';
   confidence: number;
   urgency: 'HIGH' | 'MEDIUM' | 'LOW';
   entry: number;
   stop: number;
-  target: number;
+  target?: number;
+  target1?: number;
+  target2?: number;
   optionType: 'call' | 'put';
   suggestedStrike: number;
   suggestedExpiry: string;
@@ -148,8 +150,11 @@ interface SessionLevels {
   vwap: number;
   hod: number;
   lod: number;
-  gammaStrikes: number[];
-  pivotPoint: number;
+  gammaLevels?: number[];
+  gammaStrikes?: number[];
+  pivotHigh?: number;
+  pivotLow?: number;
+  pivotPoint?: number;
 }
 
 interface SPXDashboardData {
@@ -448,7 +453,7 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
 // ── Session Signal Card ─────────────────────────────────────────────────
 
 function SessionSignalCard({ signal }: { signal: SessionSignal }) {
-  const isLong = signal.direction === 'long';
+  const isLong = signal.direction?.toUpperCase() === 'LONG';
   const urgencyColors = {
     HIGH: 'border-red-500/30 text-red-400 bg-red-500/5',
     MEDIUM: 'border-amber-500/30 text-amber-400 bg-amber-500/5',
@@ -513,7 +518,7 @@ function SessionSignalCard({ signal }: { signal: SessionSignal }) {
           </div>
           <div>
             <div className="text-slate-500">TARGET</div>
-            <div className="font-mono font-bold text-emerald-400">${safeToFixed(signal.target, 2)}</div>
+            <div className="font-mono font-bold text-emerald-400">${safeToFixed(signal.target1 || signal.target || 0, 2)}</div>
           </div>
         </div>
 
@@ -542,7 +547,7 @@ function KeyLevelsPanel({ levels, spxPrice }: { levels: SessionLevels | null; sp
     { label: 'VWAP', value: levels.vwap, color: 'text-cyan-400' },
     { label: 'HOD', value: levels.hod, color: 'text-emerald-400' },
     { label: 'LOD', value: levels.lod, color: 'text-red-400' },
-    { label: 'PIVOT', value: levels.pivotPoint, color: 'text-amber-400' },
+    { label: 'PIVOT', value: levels.pivotHigh || levels.pivotPoint, color: 'text-amber-400' },
   ];
 
   return (
@@ -561,18 +566,18 @@ function KeyLevelsPanel({ levels, spxPrice }: { levels: SessionLevels | null; sp
             </span>
           </div>
         ))}
-        {levels.gammaStrikes?.length > 0 && (
+        {(levels.gammaLevels || levels.gammaStrikes)?.length ? (
           <div className="pt-1">
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">GAMMA STRIKES</div>
             <div className="flex flex-wrap gap-1">
-              {levels.gammaStrikes.slice(0, 6).map((strike: number) => (
+              {(levels.gammaLevels || levels.gammaStrikes || []).slice(0, 6).map((strike: number) => (
                 <span key={strike} className="text-[10px] font-mono font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded">
                   {strike}
                 </span>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -650,11 +655,11 @@ function TodayIdeasSection({ ideas }: { ideas: any[] }) {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className={cn(
               "text-[10px] font-bold min-w-[40px] justify-center",
-              idea.direction === 'long' || idea.direction === 'bullish'
+              idea.direction?.toUpperCase() === 'LONG' || idea.direction?.toLowerCase() === 'bullish'
                 ? "border-emerald-500/30 text-emerald-400"
                 : "border-red-500/30 text-red-400"
             )}>
-              {idea.direction === 'long' || idea.direction === 'bullish' ? 'LONG' : 'SHORT'}
+              {idea.direction?.toUpperCase() === 'LONG' || idea.direction?.toLowerCase() === 'bullish' ? 'LONG' : 'SHORT'}
             </Badge>
             <span className="text-sm font-bold font-mono text-white">{idea.symbol}</span>
             {idea.optionType && (
@@ -664,7 +669,14 @@ function TodayIdeasSection({ ideas }: { ideas: any[] }) {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-mono text-slate-500">{idea.source}</span>
+            <span className="text-[10px] font-mono text-slate-500">
+              {idea.timestamp ? (() => {
+                const mins = Math.floor((Date.now() - new Date(idea.timestamp).getTime()) / 60000);
+                if (mins < 1) return 'now';
+                if (mins < 60) return `${mins}m`;
+                return `${Math.floor(mins / 60)}h`;
+              })() : ''} {idea.source}
+            </span>
             <div className="flex items-center gap-1">
               <div className="w-12 h-1 bg-slate-800 rounded-full overflow-hidden">
                 <div
@@ -1628,7 +1640,7 @@ export default function SPXCommandCenter() {
 
           {/* RIGHT: Levels + Lotto (3 cols) */}
           <div className="lg:col-span-3 space-y-3">
-            <KeyLevelsPanel levels={data?.sessionScanner?.levels || null} spxPrice={spotPrice ?? primaryIndex?.price} />
+            <KeyLevelsPanel levels={Array.isArray(data?.sessionScanner?.levels) ? data?.sessionScanner?.levels?.[0] ?? null : data?.sessionScanner?.levels || null} spxPrice={spotPrice ?? primaryIndex?.price} />
 
             <Card className="bg-slate-900/40 border-slate-800/50">
               <CardHeader className="pb-2 px-4 pt-3">

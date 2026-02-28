@@ -143,6 +143,7 @@ class AutoIdeaGenerator {
       { hour: 9, minStart: 30, minEnd: 35, label: '9:30 AM', isEvening: false },   // 9:30-9:35 AM CT - Market open
       { hour: 11, minStart: 0, minEnd: 5, label: '11:00 AM', isEvening: false },    // 11:00-11:05 AM CT - Mid-morning
       { hour: 13, minStart: 30, minEnd: 35, label: '1:30 PM', isEvening: false },  // 1:30-1:35 PM CT - Afternoon
+      { hour: 15, minStart: 30, minEnd: 35, label: '3:30 PM', isEvening: false },  // 3:30-3:35 PM CT - Power Hour
       { hour: 20, minStart: 30, minEnd: 35, label: '8:30 PM', isEvening: true },   // 8:30-8:35 PM CT - Tomorrow's Playbook
     ];
     

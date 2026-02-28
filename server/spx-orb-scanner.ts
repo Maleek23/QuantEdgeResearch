@@ -789,7 +789,7 @@ export async function runORBScan(): Promise<ORBScanResult> {
               );
 
               // Only add if confidence is acceptable
-              if (signal.confidence >= 55) {
+              if (signal.confidence >= 65) {
                 breakouts.push(signal);
                 dailyState.breakouts.push(signal);
                 logger.info(`[ORB] 🎯 BREAKOUT: ${symbol} ${signal.direction} ${tf} - Confidence: ${signal.confidence}%`);

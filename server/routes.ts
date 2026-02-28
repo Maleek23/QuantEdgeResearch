@@ -6132,14 +6132,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       openIdeas = deconflictedIdeas;
       
-      // 🎯 RELIABILITY FILTER: Minimum confidence for options trades
-      // Lowered from 70% to 55% to show more trade ideas
-      const MIN_OPTIONS_CONFIDENCE_BEST = 55;
+      // 🎯 RELIABILITY FILTER: Minimum confidence for all trade ideas
+      const MIN_OPTIONS_CONFIDENCE_BEST = 65;
+      const MIN_STOCK_CONFIDENCE_BEST = 60;
       openIdeas = openIdeas.filter(idea => {
+        const score = idea.confidenceScore || 0;
         if (idea.assetType === 'option' || idea.optionType) {
-          return (idea.confidenceScore || 0) >= MIN_OPTIONS_CONFIDENCE_BEST;
+          return score >= MIN_OPTIONS_CONFIDENCE_BEST;
         }
-        return true;
+        return score >= MIN_STOCK_CONFIDENCE_BEST;
       });
       
       // Apply time filter based on period using multiple timestamp sources
@@ -6282,7 +6283,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           else if (winRate < 40) winRateBonus = -10;
         }
         convictionScore += winRateBonus;
-        
+
+        // Freshness scoring — newer ideas rank higher
+        const ideaTimestamp = idea.timestamp ? new Date(idea.timestamp).getTime() : Date.now();
+        const ideaAgeHours = (Date.now() - ideaTimestamp) / (1000 * 60 * 60);
+        let freshnessBonus = 0;
+        if (ideaAgeHours < 1) freshnessBonus = 10;
+        else if (ideaAgeHours < 3) freshnessBonus = 5;
+        else if (ideaAgeHours > 6) freshnessBonus = -15;
+        else if (ideaAgeHours > 12) freshnessBonus = -25;
+        convictionScore += freshnessBonus;
+
         return {
           ...idea,
           convictionScore: Math.round(Math.max(convictionScore, 0)),
@@ -6295,6 +6306,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           historicalWinRate: winRate,
           historicalSampleSize: sampleSize,
           winRateBonus,
+          freshnessBonus,
+          ideaAgeHours: Math.round(ideaAgeHours * 10) / 10,
           sourceBonus,  // Track source priority bonus for debugging
           source: ideaSource || dataSource,  // Include source for transparency
           confidence
@@ -17412,7 +17425,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
       const todayStrET = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
 
-      const spxIdeas = allIdeas.filter((idea: any) => {
+      const spxIdeasRaw = allIdeas.filter((idea: any) => {
         const ideaTime = new Date(idea.timestamp);
         const ideaDateStrET = ideaTime.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         if (ideaDateStrET !== todayStrET) return false;
@@ -17421,7 +17434,14 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           ['SPX', 'SPY', 'QQQ', 'IWM'].includes(idea.symbol);
         if (!isIndexIdea) return false;
         return activeSymbol ? matchSymbol(idea.symbol) : true;
-      }).slice(0, 50);
+      });
+      // Dedup by symbol:direction:source — keep most recent
+      const dedupMap = new Map<string, any>();
+      for (const idea of spxIdeasRaw.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())) {
+        const key = `${idea.symbol}:${idea.direction}:${idea.dataSourceUsed || idea.source || ''}`;
+        if (!dedupMap.has(key)) dedupMap.set(key, idea);
+      }
+      const spxIdeas = Array.from(dedupMap.values()).slice(0, 25);
 
       res.json({
         timestamp: new Date().toISOString(),

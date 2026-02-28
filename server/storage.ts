@@ -352,6 +352,7 @@ export interface IStorage {
   createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
+  cleanupStaleTradeIdeas(): Promise<number>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined>;
   updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain'>>): Promise<TradeIdea | undefined>;
   getOpenTradeIdeas(): Promise<TradeIdea[]>;
@@ -2425,6 +2426,58 @@ export class DatabaseStorage implements IStorage {
   async deleteTradeIdea(id: string): Promise<boolean> {
     const result = await db.delete(tradeIdeas).where(eq(tradeIdeas.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // AUTO-CLEANUP: Remove stale trades from database
+  async cleanupStaleTradeIdeas(): Promise<number> {
+    const RETENTION_DAYS = 7;
+    const STALE_HOURS = 48;
+    const cutoffClosed = new Date();
+    cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
+    const cutoffStale = new Date();
+    cutoffStale.setHours(cutoffStale.getHours() - STALE_HOURS);
+
+    let expiredCount = 0;
+    let deletedCount = 0;
+
+    try {
+      const result = await db
+        .update(tradeIdeas)
+        .set({ outcomeStatus: 'expired' })
+        .where(sql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
+      expiredCount = result.length;
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to expire stale trades in database:', err);
+    }
+
+    try {
+      const result = await db
+        .delete(tradeIdeas)
+        .where(sql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
+      deletedCount = result.length;
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to delete old trades from database:', err);
+    }
+
+    try {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      const result = await db
+        .delete(tradeIdeas)
+        .where(sql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .returning({ id: tradeIdeas.id });
+      deletedCount += result.length;
+    } catch (err) {
+      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+    }
+
+    const totalAffected = expiredCount + deletedCount;
+    if (totalAffected > 0) {
+      logger.info(`[CLEANUP] Expired ${expiredCount} stale trades, deleted ${deletedCount} old trades from database`);
+    }
+    return totalAffected;
   }
 
   async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined> {

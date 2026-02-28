@@ -496,8 +496,8 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   }
 
   // 🎯 AUTO-GENERATE TRADE IDEAS from options flow
-  // LOWERED THRESHOLDS: score >= 60, premium >= $15k to catch more plays
-  const highQualityFlows = unusualFlows.filter(f => f.unusualScore >= 60 && f.premium >= 15000);
+  // HIGH-CONVICTION ONLY: score >= 70, premium >= $25k
+  const highQualityFlows = unusualFlows.filter(f => f.unusualScore >= 70 && f.premium >= 25000);
   if (highQualityFlows.length > 0) {
     logger.info(`[OPTIONS-FLOW] 🎯 Converting ${highQualityFlows.length} high-quality flows to trade ideas...`);
 

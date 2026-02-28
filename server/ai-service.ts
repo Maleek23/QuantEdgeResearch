@@ -36,10 +36,14 @@ function getAnthropic(): Anthropic {
 
 function getGemini(): GoogleGenAI {
   if (!gemini) {
-    // The newest Gemini model series is "gemini-2.5-flash" or "gemini-2.5-pro"
-    gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
+    gemini = new GoogleGenAI({ apiKey });
   }
   return gemini;
+}
+
+function hasGeminiKey(): boolean {
+  return !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
 }
 
 export interface AITradeIdea {
@@ -238,8 +242,12 @@ If no clear trade ideas are found, return empty array.`;
       return [];
     } catch (anthropicError) {
       logger.info("Anthropic parsing failed, trying Gemini...", anthropicError);
-      
-      // Fallback to Gemini
+
+      // Fallback to Gemini — skip if no key
+      if (!hasGeminiKey()) {
+        logger.error("All AI providers failed to parse trade ideas (Gemini skipped - no key)");
+        return [];
+      }
       try {
         const geminiResponse = await getGemini().models.generateContent({
           model: "gemini-2.5-flash",
@@ -251,7 +259,7 @@ If no clear trade ideas are found, return empty array.`;
 
         const content = geminiResponse.text || '{"ideas":[]}';
         const parsed = JSON.parse(content);
-        
+
         if (Array.isArray(parsed)) {
           return parsed;
         } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
@@ -416,33 +424,42 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
     }
   };
 
-  // Try Gemini first (FREE tier - 25 requests/day)
-  try {
-    const startTime = Date.now();
-    logger.info("🆓 Trying Gemini (FREE tier - 25 requests/day)...");
-    
-    const geminiResponse = await getGemini().models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-      },
-      contents: userPrompt,
-    });
+  // Try Gemini first (FREE tier - 25 requests/day) — skip if no key configured
+  let geminiError: any = null;
+  if (hasGeminiKey()) {
+    try {
+      const startTime = Date.now();
+      logger.info("🆓 Trying Gemini (FREE tier - 25 requests/day)...");
 
-    logAPISuccess('Gemini (Free)', 'generateContent', Date.now() - startTime);
+      const geminiResponse = await getGemini().models.generateContent({
+        model: "gemini-2.5-flash",
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+        },
+        contents: userPrompt,
+      });
 
-    const geminiText = geminiResponse.text || '';
-    const geminiIdeas = parseIdeas(geminiText, 'Gemini');
+      logAPISuccess('Gemini (Free)', 'generateContent', Date.now() - startTime);
 
-    if (geminiIdeas.length === 0) {
-      throw new Error('Gemini returned zero ideas');
+      const geminiText = geminiResponse.text || '';
+      const geminiIdeas = parseIdeas(geminiText, 'Gemini');
+
+      if (geminiIdeas.length === 0) {
+        throw new Error('Gemini returned zero ideas');
+      }
+
+      logger.info(`✅ Generated ${geminiIdeas.length} ideas using Gemini`);
+      return geminiIdeas.slice(0, 10);
+    } catch (err: any) {
+      geminiError = err;
+      logger.warn(`Gemini failed (${err?.status || 'unknown'}), trying Anthropic...`);
     }
-
-    logger.info(`✅ Generated ${geminiIdeas.length} ideas using Gemini`);
-    return geminiIdeas.slice(0, 10);
-  } catch (geminiError: any) {
-    logger.warn(`Gemini failed (${geminiError?.status || 'unknown'}), trying Anthropic...`);
+  } else {
+    geminiError = new Error('No Gemini API key configured');
+    logger.info("⏭️  Skipping Gemini (no API key), trying Anthropic...");
+  }
+  {
     
     // Try Anthropic as fallback
     try {
@@ -830,7 +847,7 @@ Return valid JSON object with structure: {"ideas": [array of trade ideas]}`;
     return parsed.ideas || [];
 
   } else if (provider === 'gemini') {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!hasGeminiKey()) {
       throw new Error('Gemini API key not configured');
     }
 

@@ -62,6 +62,25 @@ import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
 
+// Relative time helper for freshness display
+function getRelativeTime(timestamp: string | Date): string {
+  const now = Date.now();
+  const then = new Date(timestamp).getTime();
+  const diffMs = now - then;
+  if (diffMs < 0) return 'just now';
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function isStale(timestamp: string | Date, hoursThreshold = 4): boolean {
+  return (Date.now() - new Date(timestamp).getTime()) > hoursThreshold * 60 * 60 * 1000;
+}
+
 // ============================================
 // MARKET PULSE HEADER
 // ============================================
@@ -163,7 +182,8 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                 "bg-gradient-to-br from-amber-500/5 via-slate-900/80 to-slate-900/90",
                 "border-amber-500/30 hover:border-amber-400/60",
                 "hover:shadow-lg hover:shadow-amber-500/10",
-                "hover:-translate-y-1"
+                "hover:-translate-y-1",
+                idea.timestamp && isStale(idea.timestamp) && "opacity-70"
               )}>
                 {/* Glow effect for elite plays */}
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-50" />
@@ -248,18 +268,14 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                     </div>
                   )}
                   
-                  {/* Generated timestamp and source - use firstGeneratedAt for when signal first appeared */}
-                  <div className="mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50 flex items-center justify-between text-[9px] text-slate-500">
+                  {/* Generated timestamp with relative time */}
+                  <div className={cn(
+                    "mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50 flex items-center justify-between text-[9px] text-slate-500",
+                    idea.timestamp && isStale(idea.timestamp) && "opacity-60"
+                  )}>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {((idea as any).firstGeneratedAt || idea.timestamp) ? new Date((idea as any).firstGeneratedAt || idea.timestamp).toLocaleString('en-US', { 
-                        timeZone: 'America/Chicago',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                      }) + ' CT' : '—'}
+                      {idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}
                     </span>
                     <span className="text-cyan-500/70 font-medium">
                       {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
@@ -936,18 +952,14 @@ function BestSetupsSubPage() {
               </p>
             )}
             
-            {/* Generated timestamp and source - use firstGeneratedAt for when signal first appeared */}
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-[#222] flex items-center justify-between text-[9px] text-slate-500">
+            {/* Generated timestamp with relative time */}
+            <div className={cn(
+              "mt-2 pt-2 border-t border-gray-200 dark:border-[#222] flex items-center justify-between text-[9px] text-slate-500",
+              setup.timestamp && isStale(setup.timestamp) && "opacity-60"
+            )}>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {(setup.firstGeneratedAt || setup.timestamp) ? new Date(setup.firstGeneratedAt || setup.timestamp).toLocaleString('en-US', { 
-                  timeZone: 'America/Chicago',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                }) + ' CT' : '—'}
+                {setup.timestamp ? getRelativeTime(setup.timestamp) : '—'}
               </span>
               <span className="text-cyan-500/70 font-medium">
                 {setup.dataSourceUsed?.replace(/_/g, ' ') || setup.source?.replace(/_/g, ' ') || 'scanner'}
@@ -2721,16 +2733,9 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             <span className="font-medium text-cyan-400">
               {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
             </span>
-            {((idea as any).firstGeneratedAt || idea.timestamp) && (
+            {idea.timestamp && (
               <span className="text-slate-400">
-                @ {new Date((idea as any).firstGeneratedAt || idea.timestamp).toLocaleString('en-US', { 
-                  timeZone: 'America/Chicago',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })} CT
+                {getRelativeTime(idea.timestamp)}
               </span>
             )}
           </div>

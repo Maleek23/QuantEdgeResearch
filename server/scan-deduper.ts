@@ -7,7 +7,7 @@ interface ScanEntry {
   lastChangePercent?: number;
 }
 
-const SCAN_TTL_MS = 45 * 60 * 1000; // 45 minutes default TTL
+const SCAN_TTL_MS = 60 * 60 * 1000; // 60 minutes default TTL
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Clean every 10 minutes
 const PRICE_CHANGE_OVERRIDE_THRESHOLD = 8; // If price moves 8%+ from last scan, allow rescan
 
