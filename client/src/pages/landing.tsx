@@ -42,6 +42,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+import { CrossAssetOverview, EconomicCalendarWidget, LatestNewsPreview, LatestIdeasPreview } from "@/components/market-intelligence";
 import { cn, safeNumber, safeToFixed } from "@/lib/utils";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
@@ -666,6 +667,34 @@ export default function Landing() {
             <FeatureCard icon={Newspaper} title="Sentiment Analysis" description="Real-time news and social media sentiment scoring." color="#ec4899" />
             <FeatureCard icon={Radar} title="Market Scanner" description="Find breakouts, momentum plays, and emerging trends." color="#3b82f6" />
           </div>
+        </section>
+
+        {/* Live Market Intelligence — Real data preview for all visitors */}
+        <section className="px-6 py-20 max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-medium text-emerald-400">Live Data</span>
+            </div>
+            <h2 className="text-3xl font-black text-white mb-4">Real-Time Market Intelligence</h2>
+            <p className="text-slate-400 max-w-2xl mx-auto">
+              Live cross-asset data, economic calendar, breaking news, and AI-generated trade ideas — powering our engines right now.
+            </p>
+          </div>
+
+          {/* Cross-Asset Overview */}
+          <div className="mb-6">
+            <CrossAssetOverview variant="landing" />
+          </div>
+
+          {/* Economic Calendar + Breaking News side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <EconomicCalendarWidget variant="landing" />
+            <LatestNewsPreview variant="landing" />
+          </div>
+
+          {/* AI Trade Ideas */}
+          <LatestIdeasPreview variant="landing" limit={4} />
         </section>
 
         {/* CTA Section */}
