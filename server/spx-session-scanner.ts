@@ -706,6 +706,125 @@ async function scanPowerHour(symbol: string, levels: DayLevels): Promise<SPXSign
   }
 }
 
+/**
+ * Close Imbalance Strategy (3:45-4:00 PM)
+ * Detects late-day directional pressure from institutional order flow imbalance.
+ * Uses volume delta, VWAP position, and proximity to HOD/LOD to detect EOD fades or rips.
+ */
+async function scanCloseImbalance(symbol: string, levels: DayLevels): Promise<SPXSignal | null> {
+  const et = getETTime();
+  const etHours = getETHours(et);
+
+  if (etHours < SESSION.CLOSE_IMBALANCE || etHours >= SESSION.MARKET_CLOSE) {
+    return null;
+  }
+
+  try {
+    const quote = await fetchStockPrice(symbol);
+    if (!quote) return null;
+
+    const price = quote.currentPrice;
+    const vix = await getVIX();
+    const rangeWidth = levels.hod - levels.lod;
+    if (rangeWidth <= 0) return null;
+
+    // Get intraday bars to analyze late-day volume pattern
+    const bars = await getIntradayBars(symbol);
+    if (bars.length < 6) return null; // Need enough data
+
+    // Analyze last 3 bars (~15 min) vs earlier session average
+    const recentBars = bars.slice(-3);
+    const earlierBars = bars.slice(0, -3);
+
+    const recentAvgVolume = recentBars.reduce((sum, b) => sum + b.volume, 0) / recentBars.length;
+    const earlierAvgVolume = earlierBars.length > 0
+      ? earlierBars.reduce((sum, b) => sum + b.volume, 0) / earlierBars.length
+      : recentAvgVolume;
+
+    // Volume surge into close (>1.5x average = institutional activity)
+    const volumeSurge = recentAvgVolume / (earlierAvgVolume || 1);
+    if (volumeSurge < 1.2) return null; // No meaningful volume pickup
+
+    // Recent price direction (close of last 3 bars)
+    const recentClose = recentBars[recentBars.length - 1].close;
+    const recentOpen = recentBars[0].open;
+    const recentMove = ((recentClose - recentOpen) / recentOpen) * 100;
+
+    // Day's move from open
+    const dayMove = ((price - levels.openPrice) / levels.openPrice) * 100;
+
+    // Position relative to key levels
+    const nearHOD = (levels.hod - price) / rangeWidth < 0.15; // Top 15% of range
+    const nearLOD = (price - levels.lod) / rangeWidth < 0.15; // Bottom 15% of range
+    const belowVWAP = price < levels.vwap;
+    const aboveVWAP = price > levels.vwap;
+
+    let direction: 'LONG' | 'SHORT' | null = null;
+    let keyLevel: number;
+    let keyLevelName: string;
+    let confidence = 65;
+    const signals: string[] = [];
+
+    // SHORT setup: Price near HOD but selling into close
+    if (nearHOD && recentMove < -0.05 && belowVWAP) {
+      direction = 'SHORT';
+      keyLevel = levels.hod;
+      keyLevelName = 'HOD';
+      signals.push('Price rejected from HOD into close');
+      signals.push('Dropped below VWAP in final 15 min');
+      if (volumeSurge > 2) { signals.push('Heavy sell volume surge'); confidence += 5; }
+    }
+    // SHORT setup: Day was up but fading hard with volume
+    else if (dayMove > 0.2 && recentMove < -0.15 && volumeSurge > 1.5) {
+      direction = 'SHORT';
+      keyLevel = levels.vwap;
+      keyLevelName = 'VWAP';
+      signals.push(`Fading from +${dayMove.toFixed(2)}% day`);
+      signals.push(`${volumeSurge.toFixed(1)}x volume surge into close`);
+      if (belowVWAP) { signals.push('Lost VWAP support'); confidence += 5; }
+    }
+    // LONG setup: Price near LOD but buying into close
+    else if (nearLOD && recentMove > 0.05 && aboveVWAP) {
+      direction = 'LONG';
+      keyLevel = levels.lod;
+      keyLevelName = 'LOD';
+      signals.push('Price bouncing off LOD into close');
+      signals.push('Reclaimed VWAP in final 15 min');
+      if (volumeSurge > 2) { signals.push('Heavy buy volume surge'); confidence += 5; }
+    }
+    // LONG setup: Day was down but recovering hard with volume
+    else if (dayMove < -0.2 && recentMove > 0.15 && volumeSurge > 1.5) {
+      direction = 'LONG';
+      keyLevel = levels.vwap;
+      keyLevelName = 'VWAP';
+      signals.push(`Recovering from ${dayMove.toFixed(2)}% day`);
+      signals.push(`${volumeSurge.toFixed(1)}x volume surge into close`);
+      if (aboveVWAP) { signals.push('Reclaimed VWAP'); confidence += 5; }
+    }
+
+    if (!direction) return null;
+
+    const mins = minutesToClose(etHours);
+
+    return createSignal({
+      symbol,
+      strategy: 'CLOSE_IMBALANCE',
+      direction,
+      price,
+      keyLevel: keyLevel!,
+      keyLevelName: keyLevelName!,
+      rangeWidth,
+      vix,
+      confidence,
+      urgency: 'HIGH',
+      thesis: `${symbol} close imbalance ${direction}: ${signals.join('. ')}. ${mins}m to close. Institutional flow driving EOD move.`,
+    });
+  } catch (error) {
+    logger.error(`[SPX-SESSION] Close imbalance scan error for ${symbol}:`, error);
+    return null;
+  }
+}
+
 // ============================================
 // SIGNAL CREATION
 // ============================================
@@ -904,6 +1023,7 @@ export async function runSessionScan(): Promise<SessionScanResult> {
         scanGammaPin(symbol, levels),
         scanThetaDecay(symbol, levels),
         scanPowerHour(symbol, levels),
+        scanCloseImbalance(symbol, levels),
       ];
 
       const results = await Promise.all(strategies);
@@ -949,6 +1069,7 @@ export async function runSessionScan(): Promise<SessionScanResult> {
     { name: 'GAMMA_PIN', isActive: etHours >= SESSION.DECAY_START, reason: etHours < SESSION.DECAY_START ? 'Before 2:00 PM' : undefined },
     { name: 'THETA_DECAY', isActive: etHours >= SESSION.DECAY_START, reason: etHours < SESSION.DECAY_START ? 'Before 2:00 PM' : undefined },
     { name: 'POWER_HOUR', isActive: etHours >= SESSION.POWER_HOUR, reason: etHours < SESSION.POWER_HOUR ? 'Before 3:00 PM' : undefined },
+    { name: 'CLOSE_IMBALANCE', isActive: etHours >= SESSION.CLOSE_IMBALANCE, reason: etHours < SESSION.CLOSE_IMBALANCE ? 'Before 3:45 PM' : undefined },
   ];
 
   return {

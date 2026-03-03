@@ -169,6 +169,10 @@ app.use((req, res, next) => {
         const { startSPXIntelligenceService } = await import('./spx-intelligence-service');
         startSPXIntelligenceService();
         log('🧠 SPX Intelligence Service started');
+
+        const { startSwingCatcher } = await import('./spx-swing-catcher');
+        startSwingCatcher(120000); // 2-min interval
+        log('🎯 SPX Swing Catcher started');
       } catch (err) {
         logger.error('❌ Error starting SPX scanners:', err);
       }
@@ -194,6 +198,7 @@ app.use((req, res, next) => {
       log('🌙 Market closed — stopping SPX scanners...');
       import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});
       import('./spx-session-scanner').then(m => m.stopSessionScanner()).catch(() => {});
+      import('./spx-swing-catcher').then(m => m.stopSwingCatcher()).catch(() => {});
       spxStarted = false;
     }, { timezone: 'America/New_York' });
 

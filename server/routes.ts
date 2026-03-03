@@ -17455,13 +17455,14 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const activeSymbol = validSymbols.includes(symbolParam) ? symbolParam : '';
 
       // Gather all index data in parallel
-      const [orbModule, sessionModule, lottoModule] = await Promise.all([
+      const [orbModule, sessionModule, lottoModule, swingModule] = await Promise.all([
         import("./spx-orb-scanner"),
         import("./spx-session-scanner"),
         import("./index-lotto-scanner"),
+        import("./spx-swing-catcher"),
       ]);
 
-      const [orbStatus, activeBreakouts, ranges, sessionSignals, sessionLevels, lottoResult] =
+      const [orbStatus, activeBreakouts, ranges, sessionSignals, sessionLevels, lottoResult, swingAlerts, swingStatus] =
         await Promise.all([
           orbModule.getORBStatus(),
           orbModule.getActiveBreakouts(),
@@ -17469,6 +17470,8 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           sessionModule.getActiveSignals(),
           sessionModule.getLevels(),
           lottoModule.scanIndexLottoPlays().catch(() => ({ indexData: [], lottoPlays: [] })),
+          Promise.resolve(swingModule.getActiveSwingAlerts()),
+          Promise.resolve(swingModule.getSwingCatcherStatus()),
         ]);
 
       // Filter by symbol if specified
@@ -17511,6 +17514,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         if (ideaDateStrET !== todayStrET) return false;
         const isIndexIdea = idea.source === 'orb_scanner' ||
           idea.source === 'spx_session' ||
+          idea.source === 'swing_catcher' ||
           ['SPX', 'SPY', 'QQQ', 'IWM'].includes(idea.symbol);
         if (!isIndexIdea) return false;
         return activeSymbol ? matchSymbol(idea.symbol) : true;
@@ -17534,6 +17538,10 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         sessionScanner: {
           signals: filteredSignals,
           levels: filteredLevels,
+        },
+        swingCatcher: {
+          ...swingStatus,
+          alerts: swingAlerts,
         },
         indexData: filteredIndexData,
         lottoPlays: filteredLottos,
@@ -17581,6 +17589,22 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     } catch (error: any) {
       logger.error('[SPX-INTEL] Refresh error:', error);
       res.status(500).json({ error: error?.message || "Intelligence refresh failed" });
+    }
+  });
+
+  // =============================================
+  // SPX SWING CATCHER
+  // =============================================
+
+  app.get("/api/spx/swing-catcher", async (_req, res) => {
+    try {
+      const { getActiveSwingAlerts, getSwingCatcherStatus } = await import("./spx-swing-catcher");
+      const alerts = getActiveSwingAlerts();
+      const status = getSwingCatcherStatus();
+      res.json({ ...status, alerts });
+    } catch (error: any) {
+      logger.error('[SWING-CATCHER] API error:', error);
+      res.status(500).json({ error: error?.message || "Swing catcher failed" });
     }
   });
 

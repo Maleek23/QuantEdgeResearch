@@ -157,6 +157,39 @@ interface SessionLevels {
   pivotPoint?: number;
 }
 
+interface SwingSignalDetail {
+  name: string;
+  triggered: boolean;
+  detail: string;
+  direction: 'PUT' | 'CALL' | 'NEUTRAL';
+}
+
+interface SwingAlert {
+  id: string;
+  symbol: string;
+  direction: 'PUT' | 'CALL';
+  score: number;
+  scoreLabel: 'FIRE' | 'STRONG' | 'WATCH';
+  level: number;
+  levelName: string;
+  signals: SwingSignalDetail[];
+  suggestedStrike: number;
+  suggestedExpiry: string;
+  estimatedCost: string;
+  targetLevel: number;
+  stopLevel: number;
+  currentPrice: number;
+  timestamp: string;
+  expiresAt: string;
+}
+
+interface SwingCatcherData {
+  isActive: boolean;
+  lastScan: string | null;
+  alertCount: number;
+  alerts: SwingAlert[];
+}
+
 interface SPXDashboardData {
   timestamp: string;
   orbScanner: {
@@ -169,6 +202,7 @@ interface SPXDashboardData {
     signals: SessionSignal[];
     levels: SessionLevels | null;
   };
+  swingCatcher?: SwingCatcherData;
   indexData: IndexData[];
   lottoPlays: LottoPlay[];
   todayIdeas: any[];
@@ -1446,6 +1480,10 @@ export default function SPXCommandCenter() {
     return (urgencyOrder[a.urgency] || 2) - (urgencyOrder[b.urgency] || 2);
   });
 
+  // Swing Catcher alerts
+  const swingCatcher = data?.swingCatcher;
+  const swingAlerts = swingCatcher?.alerts || [];
+
   return (
     <div className="min-h-screen bg-background text-white">
       <div className="max-w-[1600px] mx-auto px-4 py-4 space-y-4">
@@ -1532,6 +1570,103 @@ export default function SPXCommandCenter() {
             >
               View Intelligence <ChevronRight className="w-3 h-3" />
             </button>
+          </div>
+        )}
+
+        {/* ── Swing Catcher Panel ────────────────────────────────── */}
+        {swingAlerts.length > 0 ? (
+          swingAlerts.map((alert: SwingAlert) => (
+            <div
+              key={alert.id}
+              className={cn(
+                "mb-4 rounded-lg border p-4",
+                alert.scoreLabel === 'FIRE'
+                  ? "border-red-500/60 bg-red-950/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                  : alert.scoreLabel === 'STRONG'
+                    ? "border-cyan-500/60 bg-cyan-950/20 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+                    : "border-amber-500/40 bg-amber-950/10"
+              )}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {alert.scoreLabel === 'FIRE' && <Flame className="w-5 h-5 text-red-400 animate-pulse" />}
+                  {alert.scoreLabel === 'STRONG' && <Target className="w-5 h-5 text-cyan-400" />}
+                  {alert.scoreLabel === 'WATCH' && <Eye className="w-5 h-5 text-amber-400" />}
+                  <span className="text-sm font-bold">SPX SWING {alert.scoreLabel}</span>
+                  <Badge className={cn(
+                    "text-[10px] font-bold",
+                    alert.direction === 'PUT'
+                      ? "bg-red-500/10 text-red-400 border-red-500/20"
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  )}>
+                    {alert.direction}
+                  </Badge>
+                  <span className={cn(
+                    "text-lg font-mono font-bold",
+                    alert.score >= 6 ? "text-red-400" : alert.score >= 5 ? "text-cyan-400" : "text-amber-400"
+                  )}>
+                    {alert.score}/6
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">
+                  {new Date(alert.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} ET
+                </div>
+              </div>
+
+              {/* Signal checklist */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 mb-3">
+                {alert.signals.map((sig: SwingSignalDetail, i: number) => (
+                  <div key={i} className={cn(
+                    "flex items-center gap-1.5 text-[11px] px-2 py-1 rounded",
+                    sig.triggered ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-800/40 text-slate-500"
+                  )}>
+                    <span>{sig.triggered ? '✓' : '✕'}</span>
+                    <span className="font-bold">{sig.name.replace('_', ' ')}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Trade setup */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[11px]">
+                <div>
+                  <span className="text-slate-500">Strike</span>
+                  <div className="font-mono font-bold text-white">${alert.suggestedStrike} {alert.direction === 'PUT' ? 'P' : 'C'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Cost</span>
+                  <div className="font-mono font-bold text-white">{alert.estimatedCost}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Target</span>
+                  <div className="font-mono font-bold text-emerald-400">{alert.targetLevel}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500">Stop</span>
+                  <div className="font-mono font-bold text-red-400">{alert.stopLevel}</div>
+                </div>
+              </div>
+
+              {/* Signal details (collapsible) */}
+              <div className="mt-2 pt-2 border-t border-slate-800/30 space-y-0.5">
+                {alert.signals.filter((s: SwingSignalDetail) => s.triggered).map((sig: SwingSignalDetail, i: number) => (
+                  <div key={i} className="text-[10px] text-slate-400">
+                    <span className="text-emerald-400 font-bold">{sig.name.replace('_', ' ')}:</span> {sig.detail}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="mb-4 rounded-lg border border-slate-800/30 bg-slate-900/20 px-4 py-2.5 flex items-center gap-2">
+            <Crosshair className="w-4 h-4 text-slate-500" />
+            <span className="text-xs text-slate-500">
+              Swing Catcher monitoring... <span className="font-mono">0/6</span> signals aligned
+            </span>
+            {swingCatcher?.lastScan && (
+              <span className="text-[10px] text-slate-600 ml-auto font-mono">
+                Last scan: {new Date(swingCatcher.lastScan).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/New_York' })}
+              </span>
+            )}
           </div>
         )}
 
