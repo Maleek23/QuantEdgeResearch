@@ -621,11 +621,6 @@ async function runSwingCatcherScan(): Promise<SwingAlert[]> {
   const etHours = getETHours(et);
   const today = et.toISOString().split('T')[0];
 
-  // Market hours gate
-  if (etHours < SESSION.MARKET_OPEN || etHours >= SESSION.MARKET_CLOSE) {
-    return state.alerts.filter(a => a.expiresAt > new Date());
-  }
-
   logger.info(`[SWING-CATCHER] Running scan at ${et.toLocaleTimeString()}`);
 
   // Reset state on new day
@@ -856,11 +851,7 @@ export function startSwingCatcher(intervalMs: number = 120000): void {
 
   // Then on interval
   scanInterval = setInterval(() => {
-    const et = getETTime();
-    const etHours = getETHours(et);
-    if (etHours >= SESSION.MARKET_OPEN && etHours < SESSION.MARKET_CLOSE) {
-      runSwingCatcherScan().catch(e => logger.error('[SWING-CATCHER] Scan error:', e));
-    }
+    runSwingCatcherScan().catch(e => logger.error('[SWING-CATCHER] Scan error:', e));
   }, intervalMs);
 }
 

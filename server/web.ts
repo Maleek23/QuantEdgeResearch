@@ -178,13 +178,9 @@ app.use((req, res, next) => {
       }
     }
 
-    // Start SPX scanners if market is open
-    if (isMarketCurrentlyOpen()) {
-      log('📈 Market is OPEN — starting SPX scanners in 5s...');
-      setTimeout(() => startSPXScanners(), 5000);
-    } else {
-      log('🌙 Market is CLOSED — SPX scanners will start at 9:25 AM ET');
-    }
+    // Always start SPX scanners (swing catcher runs 24/7)
+    log('📈 Starting SPX scanners in 5s...');
+    setTimeout(() => startSPXScanners(), 5000);
 
     // Cron: Start SPX scanners at market open
     const cron = await import('node-cron');
@@ -198,7 +194,7 @@ app.use((req, res, next) => {
       log('🌙 Market closed — stopping SPX scanners...');
       import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});
       import('./spx-session-scanner').then(m => m.stopSessionScanner()).catch(() => {});
-      import('./spx-swing-catcher').then(m => m.stopSwingCatcher()).catch(() => {});
+      // Swing catcher stays running 24/7
       spxStarted = false;
     }, { timezone: 'America/New_York' });
 
