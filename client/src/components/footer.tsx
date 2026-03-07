@@ -107,9 +107,9 @@ function LiveStatsBar() {
   return (
     <div className="flex items-center gap-4 text-xs">
       <div className="flex items-center gap-1.5" data-testid="stat-bots">
-        <Bot className="h-3.5 w-3.5 text-cyan-400" />
+        <Bot className="h-3.5 w-3.5 text-emerald-400" />
         <span className="text-muted-foreground">Bots:</span>
-        <span className="text-cyan-400 font-medium">{activeBots}</span>
+        <span className="text-emerald-400 font-medium">{activeBots}</span>
       </div>
       
       <div className="h-3 w-px bg-slate-700" />
@@ -139,14 +139,14 @@ function DataFeedIndicator() {
   return (
     <div className="flex items-center gap-2" data-testid="data-feed">
       <div className="flex items-center gap-1">
-        <Radio className="h-3 w-3 text-green-400 animate-pulse" />
+        <Radio className="h-3 w-3 text-green-400" />
         <span className="text-[10px] text-green-400 font-mono">LIVE</span>
       </div>
       <div className="flex gap-0.5 items-end">
         {barHeights.map((height, i) => (
           <div
             key={i}
-            className="w-0.5 bg-green-400/80 rounded-full animate-pulse"
+            className="w-0.5 bg-green-400/80 rounded-full"
             style={{
               height: `${height}px`,
               animationDelay: `${i * 150}ms`,
@@ -172,10 +172,10 @@ export function Footer() {
           </div>
           
           <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
-            <Link href="/privacy" className="hover:text-cyan-400 transition-colors" data-testid="footer-link-privacy">
+            <Link href="/privacy" className="hover:text-emerald-400 transition-colors" data-testid="footer-link-privacy">
               Privacy
             </Link>
-            <Link href="/terms" className="hover:text-cyan-400 transition-colors" data-testid="footer-link-terms">
+            <Link href="/terms" className="hover:text-emerald-400 transition-colors" data-testid="footer-link-terms">
               Terms
             </Link>
           </div>

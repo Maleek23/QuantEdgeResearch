@@ -34,9 +34,9 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         return {
           icon: Eye,
           title: 'BOT SCANNING',
-          bgClass: 'bg-amber-500/20 border-amber-500/50',
-          iconClass: 'text-amber-400',
-          titleClass: 'text-amber-400',
+          bgClass: 'bg-slate-800/90 border-slate-700/50',
+          iconClass: 'text-slate-400',
+          titleClass: 'text-slate-400',
         };
       case 'entry':
         return {
@@ -75,9 +75,9 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         return {
           icon: Eye,
           title: 'BOT ACTIVITY',
-          bgClass: 'bg-cyan-500/20 border-cyan-500/50',
-          iconClass: 'text-cyan-400',
-          titleClass: 'text-cyan-400',
+          bgClass: 'bg-emerald-500/20 border-emerald-500/50',
+          iconClass: 'text-emerald-400',
+          titleClass: 'text-emerald-400',
         };
     }
   };
@@ -129,7 +129,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
           )}
           {notification.confidence && notification.confidence >= 90 && (
             <span 
-              className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/30 text-cyan-300 font-medium"
+              className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-medium"
               data-testid="badge-a-plus"
             >
               A+
@@ -177,7 +177,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
 
 export function BotNotificationPopup() {
   const { notifications, isConnected, dismissNotification } = useBotNotifications({
-    maxNotifications: 5,
+    maxNotifications: 3,
     autoConnect: true
   });
 
@@ -187,19 +187,14 @@ export function BotNotificationPopup() {
 
   return (
     <div className="fixed top-14 right-4 z-40 flex flex-col gap-3 w-96 max-w-[calc(100vw-2rem)]">
-      <div className="flex items-center justify-end gap-2 text-xs">
-        {isConnected ? (
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400">
-            <Wifi className="h-3 w-3" />
-            <span>Bot Connected</span>
-          </div>
-        ) : (
+      {!isConnected && (
+        <div className="flex items-center justify-end gap-2 text-xs mb-1">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-500/10 border border-slate-500/20 text-slate-400">
             <WifiOff className="h-3 w-3" />
             <span>Reconnecting...</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       
       {visibleNotifications.map((notification) => (
         <NotificationCard

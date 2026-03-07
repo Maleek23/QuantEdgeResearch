@@ -455,7 +455,7 @@ function App() {
                     <AuroraLayoutProvider>
                       <div className="flex flex-col h-screen w-full">
                         <GlassHeader />
-                        <div className="flex-1 overflow-auto bg-background pt-16">
+                        <div className="flex-1 overflow-auto bg-background pt-16 emerald-grid">
                           <main className="min-h-full px-4 pb-6 max-w-[1800px] mx-auto">
                             <ErrorBoundary>
                               <Suspense fallback={<PageLoader />}>

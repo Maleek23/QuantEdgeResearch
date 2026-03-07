@@ -288,7 +288,7 @@ export function WatchlistTracker() {
                           {recentFlows.length > 0 && megaWhales.length === 0 && (
                             <Tooltip>
                               <TooltipTrigger>
-                                <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-xs">
+                                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
                                   WHALE {recentFlows.length}
                                 </Badge>
                               </TooltipTrigger>

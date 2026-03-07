@@ -166,20 +166,19 @@ export function HighConvictionAlertProvider({
           <Card
             key={idea.id || idx}
             className={cn(
-              "p-4 border-2 shadow-2xl animate-in slide-in-from-right-5 duration-300",
-              "bg-gradient-to-br from-amber-500/10 via-black to-amber-900/10",
-              "border-amber-500/50"
+              "p-3 border-2 shadow-2xl animate-in slide-in-from-right-5 duration-300",
+              "bg-[#111] border-emerald-500/50",
             )}
           >
             {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-amber-500/20">
-                  <Zap className="w-4 h-4 text-amber-400" />
+                <div className="p-1.5 rounded-lg bg-emerald-500/20">
+                  <Zap className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide">
                       High Conviction Alert
                     </span>
                     {idea.probabilityBand && (
@@ -266,7 +265,7 @@ export function HighConvictionAlertProvider({
 
             {/* Action Button */}
             <Button
-              className="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
               onClick={() => goToTradeDesk(idea)}
             >
               View in Trade Desk

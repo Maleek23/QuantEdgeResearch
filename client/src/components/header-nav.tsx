@@ -63,7 +63,7 @@ export function HeaderNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 dark:border-cyan-900/30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl transition-colors shadow-sm dark:shadow-cyan-500/5">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 dark:border-emerald-900/30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm transition-colors shadow-sm dark:shadow-emerald-500/5">
       {/* Main Header Row */}
       <div className="flex items-center justify-between h-14 px-4 max-w-[1800px] mx-auto">
         {/* Left: Logo */}
@@ -98,7 +98,7 @@ export function HeaderNav() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800"
             data-testid="button-notifications"
           >
             <Bell className="w-4 h-4" />
@@ -112,7 +112,7 @@ export function HeaderNav() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <User className="w-4 h-4" />
                 </Button>
@@ -133,7 +133,7 @@ export function HeaderNav() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400"
+                  className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
                 >
                   Log in
                 </Button>
@@ -141,7 +141,7 @@ export function HeaderNav() {
               <Link href="/signup">
                 <Button
                   size="sm"
-                  className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-medium shadow-lg shadow-cyan-500/20"
+                  className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:from-emerald-600 hover:to-purple-600 text-white font-medium shadow-lg shadow-emerald-500/20"
                   data-testid="button-signup"
                 >
                   Sign Up
@@ -162,14 +162,14 @@ export function HeaderNav() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive(item.href)
-                    ? "bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-500 dark:text-cyan-400 border border-cyan-500/20 shadow-sm shadow-cyan-500/10"
-                    : "text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                    ? "bg-gradient-to-r from-emerald-500/15 to-purple-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10"
+                    : "text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
                 )}
                 data-testid={`nav-${item.id}`}
               >
                 <item.icon className={cn(
                   "w-4 h-4",
-                  isActive(item.href) && "text-cyan-500 dark:text-cyan-400"
+                  isActive(item.href) && "text-emerald-500 dark:text-emerald-400"
                 )} />
                 <span className="hidden sm:inline">{item.label}</span>
               </button>
@@ -180,7 +180,7 @@ export function HeaderNav() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all duration-200"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all duration-200"
                 data-testid="nav-more"
               >
                 <span className="hidden sm:inline">More</span>
@@ -189,20 +189,20 @@ export function HeaderNav() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
               {moreItems.map((item) => (
-                <DropdownMenuItem key={item.id} asChild className="hover:bg-cyan-50 dark:hover:bg-cyan-500/10 focus:bg-cyan-50 dark:focus:bg-cyan-500/10">
+                <DropdownMenuItem key={item.id} asChild className="hover:bg-emerald-50 dark:hover:bg-emerald-500/10 focus:bg-emerald-50 dark:focus:bg-emerald-500/10">
                   <Link href={item.href}>
                     <div
                       className={cn(
                         "flex items-center gap-2 w-full cursor-pointer transition-colors",
                         isActive(item.href)
-                          ? "text-cyan-600 dark:text-cyan-400"
-                          : "text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
                       )}
                       data-testid={`nav-${item.id}`}
                     >
                       <item.icon className={cn(
                         "w-4 h-4",
-                        isActive(item.href) && "text-cyan-500"
+                        isActive(item.href) && "text-emerald-500"
                       )} />
                       {item.label}
                     </div>

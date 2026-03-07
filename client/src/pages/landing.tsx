@@ -17,7 +17,7 @@ import {
   Newspaper,
   Radar,
 } from "lucide-react";
-import { useEffect, useState as useReactState } from "react";
+import { useEffect, useState as useReactState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -77,7 +77,8 @@ function EngineConvergence() {
       {/* Center convergence point */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
         <div className="relative w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center">
-          <Zap className="w-8 h-8 text-white" />
+          <div className="absolute inset-[-8px] rounded-full border border-emerald-500/30" style={{ animation: 'pulse-ring 3s ease-in-out infinite' }} />
+          <Zap className="w-8 h-8 text-white relative z-10" />
         </div>
       </div>
 
@@ -103,6 +104,9 @@ function EngineConvergence() {
             <div className="text-center">
               <div className="text-sm font-bold text-white mb-0.5">{engine.id}</div>
               <div className="text-[10px] text-slate-500 leading-tight">{engine.desc}</div>
+              <div className="text-[10px] font-mono text-emerald-500/50 mt-1">
+                {(0.82 + (i * 0.03)).toFixed(2)} conf
+              </div>
             </div>
           </div>
         ))}
@@ -187,16 +191,34 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any; title: str
   );
 }
 
-// Terminal Mockup — hardcoded example trades
+// Terminal Mockup — staggered reveal animation
 function TerminalMockup() {
+  const [isVisible, setIsVisible] = useReactState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+      { threshold: 0.3 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const trades = [
+    { symbol: 'NVDA', dir: 'LONG', engines: '6/6', entry: '$875.20', target: '$920.00', stop: '$855.00', grade: 'A+', bullish: true },
+    { symbol: 'AAPL', dir: 'LONG', engines: '5/6', entry: '$188.50', target: '$198.00', stop: '$182.00', grade: 'A', bullish: true },
+    { symbol: 'COIN', dir: 'SHORT', engines: '4/6', entry: '$245.00', target: '$220.00', stop: '$258.00', grade: 'B+', bullish: false },
+  ];
+
   return (
-    <section className="px-6 py-16 max-w-5xl mx-auto">
+    <section className="px-6 py-16 max-w-5xl mx-auto" ref={ref}>
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">See it in action</h2>
         <p className="text-sm text-slate-500">Real-time convergence signals from 6 independent engines</p>
       </div>
       <div className="rounded-lg border border-[#222] overflow-hidden bg-[#0a0a0a]">
-        {/* Terminal header bar with traffic light dots */}
         <div className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border-b border-[#222]">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-[#ff5f57]/60" />
@@ -205,15 +227,22 @@ function TerminalMockup() {
           </div>
           <span className="text-[11px] font-mono text-slate-600 ml-2">quantedge — trade-desk</span>
         </div>
-        {/* Mock content */}
         <div className="p-4 font-mono text-xs space-y-2">
-          <div className="text-emerald-500/60 mb-3">// HIGH-CONVICTION SIGNALS</div>
-          {[
-            { symbol: 'NVDA', dir: 'LONG', engines: '6/6', entry: '$875.20', target: '$920.00', stop: '$855.00', grade: 'A+', bullish: true },
-            { symbol: 'AAPL', dir: 'LONG', engines: '5/6', entry: '$188.50', target: '$198.00', stop: '$182.00', grade: 'A', bullish: true },
-            { symbol: 'COIN', dir: 'SHORT', engines: '4/6', entry: '$245.00', target: '$220.00', stop: '$258.00', grade: 'B+', bullish: false },
-          ].map((t) => (
-            <div key={t.symbol} className="flex items-center justify-between p-3 rounded border border-[#222] bg-[#111]/50">
+          <div className={cn(
+            "text-emerald-500/60 mb-3 transition-all duration-500",
+            isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
+          )}>
+            // HIGH-CONVICTION SIGNALS
+          </div>
+          {trades.map((t, i) => (
+            <div
+              key={t.symbol}
+              className={cn(
+                "flex items-center justify-between p-3 rounded border border-[#222] bg-[#111]/50 transition-all duration-500",
+                isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
+              )}
+              style={{ transitionDelay: isVisible ? `${(i + 1) * 200}ms` : '0ms' }}
+            >
               <div className="flex items-center gap-3">
                 <span className="text-white font-bold">{t.symbol}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 border rounded ${t.bullish ? 'text-emerald-500 border-emerald-500/30' : 'text-red-500 border-red-500/30'}`}>{t.dir}</span>
@@ -224,14 +253,66 @@ function TerminalMockup() {
                 <span>entry {t.entry}</span>
                 <span className="text-emerald-500">target {t.target}</span>
                 <span className="text-red-500">stop {t.stop}</span>
-                <span className={`font-bold ${t.bullish ? 'text-emerald-400' : 'text-cyan-400'}`}>{t.grade}</span>
+                <span className={`font-bold ${t.bullish ? 'text-emerald-400' : 'text-red-400'}`}>{t.grade}</span>
               </div>
             </div>
           ))}
-          <div className="text-slate-700 mt-3">// updated {new Date().toISOString().split('T')[0]} | 6-engine convergence analysis</div>
+          <div className={cn(
+            "text-slate-700 mt-3 flex items-center gap-1 transition-all duration-500",
+            isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
+          )} style={{ transitionDelay: isVisible ? '800ms' : '0ms' }}>
+            // updated {new Date().toISOString().split('T')[0]} | 6-engine convergence analysis
+            <span className="inline-block w-2 h-4 bg-emerald-500/50 cursor-blink ml-1" />
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+// Animated counter that counts up when scrolled into view
+function AnimatedCounter({ target, suffix = '', prefix = '' }: { target: number; suffix?: string; prefix?: string }) {
+  const [count, setCount] = useReactState(0);
+  const [hasAnimated, setHasAnimated] = useReactState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current || hasAnimated) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          const duration = 1500;
+          const startTime = performance.now();
+
+          const animate = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setCount(Math.floor(eased * target));
+
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            } else {
+              setCount(target);
+            }
+          };
+          requestAnimationFrame(animate);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target, hasAnimated]);
+
+  return (
+    <div ref={ref} className="text-4xl md:text-5xl font-mono font-bold text-white">
+      {prefix}{count.toLocaleString()}{suffix}
+    </div>
   );
 }
 
@@ -317,24 +398,31 @@ export default function Landing() {
       <main className="pt-28 relative">
         {/* Hero Section */}
         <section className="px-6 py-16 md:py-24 max-w-7xl mx-auto text-center relative">
+          {/* Emerald grid pattern */}
+          <div className="absolute inset-0 emerald-grid opacity-30 pointer-events-none" />
+          {/* Radial gradient glow */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.05) 0%, transparent 70%)'
+          }} />
+
           {/* Simple badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-500/70 text-xs font-mono mb-6">
+          <div className="relative z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-500/70 text-xs font-mono mb-6">
             AI-Powered Trading Intelligence
           </div>
 
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+          <h1 className="relative z-10 text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
             Trade Smarter with
             <br />
             <span className="text-emerald-500">6-Engine Convergence</span>
           </h1>
 
-          <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
+          <p className="relative z-10 text-xl text-slate-400 max-w-2xl mx-auto mb-8">
             When Machine Learning, AI, Quant, Flow, Sentiment, and Technical all agree —
             <span className="text-white font-medium"> that's when we signal.</span>
           </p>
 
           {/* Search Bar */}
-          <div className="max-w-xl mx-auto mb-12">
+          <div className="relative z-10 max-w-xl mx-auto mb-12">
             <div className="relative flex items-center bg-[#111] border border-[#222] rounded-lg overflow-hidden focus-within:border-emerald-500/50 transition-colors">
               <Search className="w-5 h-5 text-slate-500 ml-4 flex-shrink-0" />
               <input
@@ -361,18 +449,18 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Stats — static, mono numbers */}
-          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto mb-16">
+          {/* Stats — animated counters */}
+          <div className="relative z-10 grid grid-cols-3 gap-8 max-w-3xl mx-auto mb-16">
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-mono font-bold text-white">6</div>
+              <AnimatedCounter target={6} />
               <div className="text-sm text-slate-500 mt-1">Analysis Engines</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-mono font-bold text-white">2,500+</div>
+              <AnimatedCounter target={2500} suffix="+" />
               <div className="text-sm text-slate-500 mt-1">Stocks Scanned Daily</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl md:text-5xl font-mono font-bold text-white">94%</div>
+              <AnimatedCounter target={94} suffix="%" />
               <div className="text-sm text-slate-500 mt-1">Avg. Accuracy</div>
             </div>
           </div>

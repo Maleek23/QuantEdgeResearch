@@ -110,7 +110,7 @@ export const TradingMatrix = ({
             left: `${column.x}%`,
             color: column.isPriceColumn
               ? "rgba(34, 197, 94, 0.6)" // Green for price columns
-              : "rgba(6, 182, 212, 0.6)", // Cyan for general columns
+              : "rgba(16, 185, 129, 0.6)", // Cyan for general columns
             transform: "translate3d(0, 0, 0)" // Enable GPU acceleration
           }}
           initial={{ y: `-${column.offset}%` }}
@@ -155,7 +155,7 @@ export const TradingMatrix = ({
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(6, 182, 212, 0.03) 2px, rgba(6, 182, 212, 0.03) 4px)"
+          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(16, 185, 129, 0.03) 2px, rgba(16, 185, 129, 0.03) 4px)"
         }}
       />
     </div>

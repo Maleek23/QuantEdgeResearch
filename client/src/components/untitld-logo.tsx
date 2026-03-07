@@ -16,7 +16,7 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
       {/* Contained portal badge when collapsed - 52px circle */}
       {collapsed && (
         <div 
-          className="absolute inset-0 rounded-full animate-pulse"
+          className="absolute inset-0 rounded-full"
           style={{
             background: 'radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 100%)',
             boxShadow: '0 0 25px rgba(59, 130, 246, 0.3), 0 0 15px rgba(139, 92, 246, 0.2)',
@@ -68,7 +68,7 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
           {collapsed && (
             <>
               <span
-                className="absolute inset-0 animate-pulse"
+                className="absolute inset-0"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
                   WebkitBackgroundClip: "text",

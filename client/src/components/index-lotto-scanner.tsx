@@ -233,7 +233,7 @@ function IndexOverviewCard({ index }: { index: IndexData }) {
           <div className="text-slate-400">Volume</div>
           <div className={cn(
             "font-medium",
-            index.volumeProfile === 'above_avg' ? "text-cyan-400" : "text-slate-300"
+            index.volumeProfile === 'above_avg' ? "text-emerald-400" : "text-slate-300"
           )}>{index.volumeProfile === 'above_avg' ? 'High' : index.volumeProfile === 'below_avg' ? 'Low' : 'Avg'}</div>
         </div>
       </div>
@@ -258,7 +258,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
   }[play.confidence];
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 hover:border-cyan-500/30 transition-all cursor-pointer" onClick={onSelect}>
+    <Card className="bg-slate-900/50 border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer" onClick={onSelect}>
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
@@ -283,7 +283,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs mb-1">
             <span className="text-slate-400">Setup Score</span>
-            <span className="font-medium text-cyan-400">{play.overallScore}/100</span>
+            <span className="font-medium text-emerald-400">{play.overallScore}/100</span>
           </div>
           <Progress value={play.overallScore} className="h-1.5" />
         </div>
@@ -291,7 +291,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
         {/* Technical Setups */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {play.setups.map((setup, i) => (
-            <Badge key={i} variant="outline" className="text-[10px] text-cyan-400 border-cyan-500/30 bg-cyan-500/5">
+            <Badge key={i} variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/5">
               {setup.type.replace('_', ' ')} ({setup.timeframe})
             </Badge>
           ))}
@@ -331,7 +331,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
             </Badge>
             <span className="text-xs text-slate-400">R:R {play.riskReward}</span>
           </div>
-          <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300 h-7 px-2">
+          <Button variant="ghost" size="sm" className="text-emerald-400 hover:text-emerald-300 h-7 px-2">
             Details <ChevronRight className="h-3 w-3 ml-1" />
           </Button>
         </div>
@@ -448,8 +448,8 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
         </div>
 
         {/* Option Suggestion */}
-        <div className="flex items-center justify-between p-2 bg-cyan-500/10 border border-cyan-500/20 rounded mb-2">
-          <span className="text-xs text-cyan-300">Suggested:</span>
+        <div className="flex items-center justify-between p-2 bg-emerald-500/10 border border-emerald-500/20 rounded mb-2">
+          <span className="text-xs text-emerald-300">Suggested:</span>
           <span className="text-xs font-medium text-white">
             ${breakout.suggestedStrike} {breakout.optionType.toUpperCase()} {breakout.suggestedExpiry}
           </span>
@@ -461,7 +461,7 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
         {/* Signals */}
         <div className="flex flex-wrap gap-1">
           {breakout.signals.slice(0, 3).map((signal, i) => (
-            <Badge key={i} variant="outline" className="text-[9px] text-cyan-400 border-cyan-500/30">
+            <Badge key={i} variant="outline" className="text-[9px] text-emerald-400 border-emerald-500/30">
               {signal}
             </Badge>
           ))}
@@ -633,13 +633,13 @@ export function IndexLottoScanner({ className }: { className?: string }) {
             className={cn(
               "flex-1",
               activeTab === 'lotto'
-                ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50 hover:bg-cyan-500/30"
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/30"
                 : "text-slate-400 border-slate-600"
             )}
           >
             <Flame className="h-4 w-4 mr-2" />
             Lotto Plays
-            <Badge className="ml-2 bg-cyan-500/30 text-cyan-300 text-[10px]">
+            <Badge className="ml-2 bg-emerald-500/30 text-emerald-300 text-[10px]">
               {filteredPlays.length}
             </Badge>
           </Button>

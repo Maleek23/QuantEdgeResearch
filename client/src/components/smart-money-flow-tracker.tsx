@@ -175,7 +175,7 @@ export function SmartMoneyFlowTracker() {
       block: isMegaWhale ? 'bg-purple-600/30 text-purple-300 border-purple-500/50' : 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       sweep: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
       dark_pool: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-      unusual_volume: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      unusual_volume: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     };
     return variants[type] || 'bg-muted text-muted-foreground';
   };
@@ -198,7 +198,7 @@ export function SmartMoneyFlowTracker() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-cyan-400" />
+            <Eye className="h-5 w-5 text-emerald-400" />
             <CardTitle className="text-lg">Smart Money Flow</CardTitle>
             {flowStatus?.isActive && (
               <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
@@ -336,7 +336,7 @@ export function SmartMoneyFlowTracker() {
                       <div className="flex items-center gap-2">
                         <Link 
                           href={`/chart-analysis?symbol=${flow.symbol}`}
-                          className="font-semibold hover:text-cyan-400 transition-colors"
+                          className="font-semibold hover:text-emerald-400 transition-colors"
                           data-testid={`link-flow-chart-${flow.symbol}`}
                         >
                           {flow.symbol}
@@ -362,7 +362,7 @@ export function SmartMoneyFlowTracker() {
                         <TooltipTrigger>
                           <Badge 
                             variant="outline" 
-                            className={flow.unusualScore >= 80 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'}
+                            className={flow.unusualScore >= 80 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}
                           >
                             <Zap className="h-3 w-3 mr-1" />
                             {flow.unusualScore}

@@ -204,7 +204,7 @@ export function TradingEngineWidget() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Target className="h-4 w-4 text-cyan-400" />
+            <Target className="h-4 w-4 text-emerald-400" />
             Trading Engine
           </CardTitle>
           <div className="flex items-center gap-2">

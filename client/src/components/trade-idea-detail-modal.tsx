@@ -69,7 +69,7 @@ export function TradeIdeaDetailModal({
   const priceLevels = useMemo(() => {
     if (!idea) return [];
     return [
-      { price: safeEntryPrice, label: "Entry", color: "rgb(6, 182, 212)" },
+      { price: safeEntryPrice, label: "Entry", color: "rgb(16, 185, 129)" },
       { price: safeTargetPrice, label: "Target", color: "rgb(16, 185, 129)" },
       { price: safeStopLoss, label: "Stop", color: "rgb(239, 68, 68)" },
     ];
@@ -110,17 +110,17 @@ export function TradeIdeaDetailModal({
       'Acceptable R:R (1.2:1+)': {
         points: 8,
         description: 'Risk/reward ratio of 1.2:1 or better. Meets minimum threshold for day trading setups.',
-        color: 'bg-cyan-400'
+        color: 'bg-emerald-400'
       },
       'Confirmed Volume': {
         points: 18,
         description: 'Volume is 1.5x+ average, confirming institutional interest and reducing liquidity risk.',
-        color: 'bg-cyan-500'
+        color: 'bg-emerald-500'
       },
       'Strong Volume': {
         points: 12,
         description: 'Volume is above average, providing adequate liquidity for entry and exit.',
-        color: 'bg-cyan-400'
+        color: 'bg-emerald-400'
       },
       'Strong Signal': {
         points: 25,
@@ -150,7 +150,7 @@ export function TradeIdeaDetailModal({
       'High Liquidity': {
         points: 5,
         description: 'Asset has high trading volume, ensuring you can enter and exit positions easily.',
-        color: 'bg-cyan-500'
+        color: 'bg-emerald-500'
       },
       'Catalyst Present': {
         points: 10,
@@ -281,7 +281,7 @@ export function TradeIdeaDetailModal({
               />
               <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-cyan-500 inline-block" /> Entry: {formatCurrency(idea.entryPrice)}
+                  <span className="w-2 h-0.5 bg-emerald-500 inline-block" /> Entry: {formatCurrency(idea.entryPrice)}
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-0.5 bg-green-500 inline-block" /> Target: {formatCurrency(idea.targetPrice)}
@@ -294,10 +294,10 @@ export function TradeIdeaDetailModal({
 
             {/* Entry Time Display (Open Trades Only) */}
             {idea.outcomeStatus === 'open' && (
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5">
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-emerald-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-cyan-400" />
-                  <span className="text-cyan-400">Trade Entry Information</span>
+                  <Clock className="h-4 w-4 text-emerald-400" />
+                  <span className="text-emerald-400">Trade Entry Information</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -363,8 +363,8 @@ export function TradeIdeaDetailModal({
                 
                 {/* Timing Analytics - Data-Backed Probabilities */}
                 {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
-                  <div className="p-3 rounded-lg border bg-gradient-to-br from-cyan-500/5 to-purple-500/5">
-                    <div className="text-xs font-semibold text-cyan-400 mb-2">Quantitative Backing</div>
+                  <div className="p-3 rounded-lg border bg-gradient-to-br from-emerald-500/5 to-purple-500/5">
+                    <div className="text-xs font-semibold text-emerald-400 mb-2">Quantitative Backing</div>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       {idea.targetHitProbability && (
                         <div>
@@ -377,7 +377,7 @@ export function TradeIdeaDetailModal({
                       {idea.timingConfidence && (
                         <div>
                           <span className="text-muted-foreground">Timing Confidence:</span>
-                          <div className="font-semibold text-cyan-400 mt-0.5">
+                          <div className="font-semibold text-emerald-400 mt-0.5">
                             {safeToFixed(idea.timingConfidence, 0)}%
                           </div>
                         </div>
@@ -406,10 +406,10 @@ export function TradeIdeaDetailModal({
 
             {/* Entry/Exit Timing Analysis (Closed Trades Only) */}
             {idea.outcomeStatus !== 'open' && (
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5">
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-emerald-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-cyan-400" />
-                  <span className="text-cyan-400">Trade Timing Analysis</span>
+                  <Clock className="h-4 w-4 text-emerald-400" />
+                  <span className="text-emerald-400">Trade Timing Analysis</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -567,7 +567,7 @@ export function TradeIdeaDetailModal({
                     <div className="font-bold">A+ / A</div>
                     <div>90-100</div>
                   </div>
-                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-cyan-500/20 text-cyan-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-emerald-500/20 text-emerald-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
                     <div className="font-bold">B+ / B</div>
                     <div>80-89</div>
                   </div>
