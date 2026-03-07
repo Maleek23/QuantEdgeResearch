@@ -363,7 +363,7 @@ export function LossPatternsDashboard() {
 
         {/* Educational Disclaimer */}
         <div className="p-3 rounded-lg bg-muted/30 border border-muted text-xs text-muted-foreground">
-          <strong>📚 Educational Note:</strong> Understanding why trades fail is as important as knowing why they succeed. 
+          <strong>Educational Note:</strong> Understanding why trades fail is as important as knowing why they succeed.
           This analysis helps identify patterns in losses to improve future trade selection and risk management.
         </div>
       </CardContent>

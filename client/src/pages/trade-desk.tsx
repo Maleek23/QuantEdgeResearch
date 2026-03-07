@@ -53,7 +53,13 @@ import {
   PieChart,
   Gem,
   Download,
+  Radar,
+  MessageCircle,
+  Lock,
+  Microscope,
+  Newspaper,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
 import { getLetterGrade, getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
@@ -624,7 +630,7 @@ function TomorrowSurgersSubPage() {
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {topSignals.map((signal: any, sIdx: number) => (
                   <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-slate-300">
-                    {signal.icon || '📊'} {signal.name || signal}
+                    <BarChart3 className="w-3 h-3" /> {signal.name || signal}
                   </span>
                 ))}
                 {signals.length > 4 && (
@@ -1117,7 +1123,7 @@ function MarketMoversSubPage() {
                 {/* Catalyst indicator dot */}
                 {stock.hasCatalyst && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
-                    {stock.catalyst?.icon || '⚡'}
+                    {stock.catalyst?.icon || '!'}
                   </span>
                 )}
               </div>
@@ -1301,7 +1307,7 @@ function SurgeDetectionSubPage() {
                 {/* Catalyst indicator dot */}
                 {stock.hasCatalyst && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
-                    {stock.catalyst?.icon || '⚡'}
+                    {stock.catalyst?.icon || '!'}
                   </span>
                 )}
               </div>
@@ -1370,7 +1376,7 @@ function SurgeDetectionSubPage() {
                 {/* Catalyst indicator dot */}
                 {pred.hasCatalyst && (
                   <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center text-[8px]">
-                    {pred.catalyst?.icon || '⚡'}
+                    {pred.catalyst?.icon || '!'}
                   </span>
                 )}
               </div>
@@ -2404,7 +2410,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
 interface IdeaDriver {
   type: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   bgColor: string;
 }
@@ -2417,20 +2423,20 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
 
   // Primary driver based on source
   const sourceDriverMap: Record<string, IdeaDriver> = {
-    'ai_analysis': { type: 'ai', label: 'AI', icon: '🤖', color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
-    'ai': { type: 'ai', label: 'AI', icon: '🤖', color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
-    'quant_signal': { type: 'quant', label: 'Quant', icon: '📊', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
-    'quant': { type: 'quant', label: 'Quant', icon: '📊', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
-    'chart_analysis': { type: 'technical', label: 'Chart', icon: '📈', color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
-    'surge_detection': { type: 'momentum', label: 'Surge', icon: '🔥', color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
-    'market_scanner': { type: 'momentum', label: 'Mover', icon: '📡', color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
-    'flow': { type: 'flow', label: 'Flow', icon: '💰', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    'options_flow': { type: 'flow', label: 'Options', icon: '💰', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    'social_sentiment': { type: 'sentiment', label: 'Social', icon: '💬', color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
-    'convergence': { type: 'multi', label: 'Multi-Signal', icon: '🎯', color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
-    'bot_screener': { type: 'screener', label: 'Screener', icon: '🔍', color: 'text-teal-400', bgColor: 'bg-teal-500/20' },
-    'watchlist': { type: 'watchlist', label: 'Watchlist', icon: '⭐', color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
-    'earnings_play': { type: 'catalyst', label: 'Earnings', icon: '📅', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
+    'ai_analysis': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'ai': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+    'quant_signal': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'quant': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'chart_analysis': { type: 'technical', label: 'Chart', icon: LineChart, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    'surge_detection': { type: 'momentum', label: 'Surge', icon: Zap, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
+    'market_scanner': { type: 'momentum', label: 'Mover', icon: Radar, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
+    'flow': { type: 'flow', label: 'Flow', icon: Activity, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'options_flow': { type: 'flow', label: 'Options', icon: Activity, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'social_sentiment': { type: 'sentiment', label: 'Social', icon: MessageCircle, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
+    'convergence': { type: 'multi', label: 'Multi-Signal', icon: Target, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
+    'bot_screener': { type: 'screener', label: 'Screener', icon: Search, color: 'text-teal-400', bgColor: 'bg-teal-500/20' },
+    'watchlist': { type: 'watchlist', label: 'Watchlist', icon: Star, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+    'earnings_play': { type: 'catalyst', label: 'Earnings', icon: Calendar, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
   };
 
   // Add primary source driver
@@ -2441,30 +2447,30 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
 
   // Check for news catalyst
   if (idea.isNewsCatalyst || catalyst.includes('news') || catalyst.includes('announcement') || catalyst.includes('breaking')) {
-    drivers.push({ type: 'news', label: 'News', icon: '📰', color: 'text-rose-400', bgColor: 'bg-rose-500/20' });
+    drivers.push({ type: 'news', label: 'News', icon: Newspaper, color: 'text-rose-400', bgColor: 'bg-rose-500/20' });
   }
 
   // Check for earnings catalyst
   if (idea.earningsBeat !== null || catalyst.includes('earning') || catalyst.includes('eps') || catalyst.includes('revenue')) {
     const beatMiss = idea.earningsBeat ? 'Beat' : idea.earningsBeat === false ? 'Miss' : 'Earnings';
-    drivers.push({ type: 'earnings', label: beatMiss, icon: '📊', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' });
+    drivers.push({ type: 'earnings', label: beatMiss, icon: BarChart3, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' });
   }
 
   // Check signals for technical patterns
   const technicalPatterns = ['rsi', 'macd', 'breakout', 'support', 'resistance', 'volume', 'momentum', 'trend'];
   const hasTechnical = signals.some(s => technicalPatterns.some(p => s.toLowerCase().includes(p)));
   if (hasTechnical && !drivers.find(d => d.type === 'technical')) {
-    drivers.push({ type: 'technical', label: 'Technical', icon: '📈', color: 'text-blue-400', bgColor: 'bg-blue-500/20' });
+    drivers.push({ type: 'technical', label: 'Technical', icon: LineChart, color: 'text-blue-400', bgColor: 'bg-blue-500/20' });
   }
 
   // Check for insider/pre-market indicators
   if (catalyst.includes('insider') || catalyst.includes('pre-market') || catalyst.includes('premarket')) {
-    drivers.push({ type: 'insider', label: 'Insider', icon: '🔐', color: 'text-amber-400', bgColor: 'bg-amber-500/20' });
+    drivers.push({ type: 'insider', label: 'Insider', icon: Lock, color: 'text-amber-400', bgColor: 'bg-amber-500/20' });
   }
 
   // Default if no drivers found
   if (drivers.length === 0) {
-    drivers.push({ type: 'analysis', label: 'Analysis', icon: '🔬', color: 'text-slate-400', bgColor: 'bg-slate-500/20' });
+    drivers.push({ type: 'analysis', label: 'Analysis', icon: Microscope, color: 'text-slate-400', bgColor: 'bg-slate-500/20' });
   }
 
   return drivers.slice(0, 3); // Max 3 driver tags
@@ -2627,7 +2633,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
               "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium",
               driver.bgColor, driver.color
             )}>
-              <span>{driver.icon}</span>
+              <driver.icon className="w-3 h-3" />
               <span>{driver.label}</span>
             </span>
           ))}
@@ -2960,7 +2966,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all"); // Show all grades by default
   const [statusFilter, setStatusFilter] = useState<string>("all"); // Show all statuses by default
-  // 🗓️ NOTE: Date filter now controlled by serverDateFilter (server-side filtering)
+  // NOTE: Date filter now controlled by serverDateFilter (server-side filtering)
   // Local dateFilter for additional client-side granularity (yesterday, specific days)
   // DEFAULT TO 'today' as extra safeguard against showing old trades
   const [dateFilter, setDateFilter] = useState<string>("today");
@@ -3189,9 +3195,9 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">🗓️ Today Only</SelectItem>
-              <SelectItem value="week">📅 Past Week</SelectItem>
-              <SelectItem value="all">🗃️ All Ideas</SelectItem>
+              <SelectItem value="today">Today Only</SelectItem>
+              <SelectItem value="week">Past Week</SelectItem>
+              <SelectItem value="all">All Ideas</SelectItem>
             </SelectContent>
           </Select>
         ) : (
@@ -3350,11 +3356,11 @@ export default function TradeDeskRedesigned() {
     },
   });
 
-  // 🗓️ DATE FILTER STATE: Controls which ideas are fetched/displayed
+  // DATE FILTER STATE: Controls which ideas are fetched/displayed
   // Default to "today" so users see fresh ideas when they wake up
   const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>('today');
 
-  // 🔄 Cache buster: Use today's date in ET timezone as cache key to force fresh data each day
+  // Cache buster: Use today's date in ET timezone as cache key to force fresh data each day
   // Using ET timezone ensures cache key matches server-side date filtering
   const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const todayDateKey = `${nowET.getFullYear()}-${String(nowET.getMonth() + 1).padStart(2, '0')}-${String(nowET.getDate()).padStart(2, '0')}`;
@@ -3379,7 +3385,7 @@ export default function TradeDeskRedesigned() {
     refetchInterval: 30000,   // Refresh every 30 seconds for fresh ideas
   });
 
-  // 🚨 EMPTY STATE HANDLER: If "today" shows 0 ideas, offer to expand range
+  // EMPTY STATE HANDLER: If "today" shows 0 ideas, offer to expand range
   const hasTodayIdeas = tradeIdeas.length > 0;
   const showEmptyTodayMessage = serverDateFilter === 'today' && !isLoading && !hasTodayIdeas;
 

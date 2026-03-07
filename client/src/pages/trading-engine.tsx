@@ -1214,7 +1214,7 @@ export default function TradingEnginePage() {
               </span>
             </div>
             <Link href="/trade-desk">
-              <Button className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-6 h-11 shadow-lg shadow-cyan-500/20" data-testid="link-trade-desk">
+              <Button className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white font-bold px-6 h-11 shadow-lg" data-testid="link-trade-desk">
                 Trade Desk
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
@@ -1295,7 +1295,7 @@ export default function TradingEnginePage() {
                   <Button 
                     onClick={handleSearch}
                     disabled={!searchInput.trim()}
-                    className="h-12 px-8 font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white shadow-lg shadow-cyan-500/20"
+                    className="h-12 px-8 font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white shadow-lg"
                     data-testid="button-analyze"
                   >
                     Analyze

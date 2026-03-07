@@ -8,7 +8,7 @@ const TRADING_CHARS = [
   "NVDA", "AMD", "TSLA", "AAPL", "META", "MSFT", "GOOG", "AMZN",
   "SPY", "QQQ", "IWM", "DIA",
   // Price indicators
-  "$", "↑", "↓", "△", "▽", "⚡", "●", "○",
+  "$", "↑", "↓", "△", "▽", "+", "●", "○",
   // Numbers
   ..."0123456789".split(""),
   // Greek letters (for options)

@@ -120,7 +120,7 @@ export default function DesignSystemTest() {
         <QEPanelStat>
           <QEPanelHeader title="Stat Panel" badge="METRIC" badgeColor="gold" />
           <QEPanelContent>
-            <div className="text-3xl font-black font-mono text-white tracking-tighter">$5,847.23</div>
+            <div className="text-3xl font-bold font-mono text-white tracking-tighter">$5,847.23</div>
             <div className="text-xs text-emerald-400 font-medium">+12.4% today</div>
           </QEPanelContent>
         </QEPanelStat>

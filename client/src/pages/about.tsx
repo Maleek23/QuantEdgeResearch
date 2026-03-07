@@ -129,7 +129,7 @@ export default function About() {
             About QuantEdge Labs
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-bold">
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="text-emerald-400">
               Multi-Engine Intelligence
             </span>
             <br />
@@ -147,7 +147,7 @@ export default function About() {
           {stats.map((stat, i) => (
             <Card key={i} className="glass-card text-center">
               <CardContent className="p-6">
-                <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                <div className="text-3xl font-bold text-emerald-400">
                   {stat.value}{stat.suffix}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>

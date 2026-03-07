@@ -190,7 +190,7 @@ export default function JoinBeta() {
           <p className="text-neutral-400 mb-6">Your account is active. Redirecting to dashboard...</p>
           <Button 
             onClick={() => navigate("/automations")} 
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20"
+            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg"
             data-testid="button-go-automations"
           >
             Go to Dashboard
@@ -208,7 +208,7 @@ export default function JoinBeta() {
       <div className="w-full max-w-lg relative z-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg">
               <span className="text-lg font-bold text-white">Q</span>
             </div>
             <div>
@@ -226,11 +226,11 @@ export default function JoinBeta() {
         </div>
 
         <div className="flex justify-center items-center gap-3 mb-8">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/30" : "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"}`}>
             {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
           </div>
           <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-cyan-500" : "bg-neutral-800"}`} />
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-cyan-500 text-black shadow-lg shadow-cyan-500/30" : "bg-neutral-900 border border-neutral-800 text-neutral-600"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-cyan-500 text-black shadow-lg" : "bg-neutral-900 border border-neutral-800 text-neutral-600"}`}>
             2
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function JoinBeta() {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-2"
+                  className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
                   disabled={verifyMutation.isPending}
                   data-testid="button-verify-code"
                 >
@@ -538,7 +538,7 @@ export default function JoinBeta() {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30 mt-2"
+                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
                     disabled={onboardMutation.isPending}
                     data-testid="button-complete-profile"
                   >

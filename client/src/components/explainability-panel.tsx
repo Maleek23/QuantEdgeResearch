@@ -264,7 +264,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
         {idea.dataSourceUsed && (
           <div className="pt-2 border-t">
             <p className="text-xs text-muted-foreground">
-              📊 Data Source: <span className="font-medium capitalize">{idea.dataSourceUsed}</span>
+              Data Source: <span className="font-medium capitalize">{idea.dataSourceUsed}</span>
               {idea.dataSourceUsed === 'estimated' && ' (Tradier API needed for real options data)'}
             </p>
           </div>

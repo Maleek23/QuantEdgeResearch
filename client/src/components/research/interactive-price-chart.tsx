@@ -152,7 +152,7 @@ export function InteractivePriceChart({
               !isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-slate-500 hover:text-slate-300"
             )}
           >
-            👆 Select
+            Select
           </button>
           <button
             onClick={() => setIsDrawing(true)}
@@ -161,18 +161,18 @@ export function InteractivePriceChart({
               isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-slate-500 hover:text-slate-300"
             )}
           >
-            ✏️ Draw
+            Draw
           </button>
         </div>
         <div className="flex-1" />
         <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
-          📏 Measure
+          Measure
         </button>
         <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
-          🔍 Zoom
+          Zoom
         </button>
         <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
-          🔄 Reset
+          Reset
         </button>
       </div>
 

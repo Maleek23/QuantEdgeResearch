@@ -123,7 +123,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
                 {data.longestWinStreak}
               </span>
               {isRecordWinStreak && data.longestWinStreak > 0 && (
-                <span className="text-2xl animate-bounce">🎉</span>
+                <span className="text-2xl text-emerald-400 font-bold">NEW RECORD</span>
               )}
             </div>
             {data.longestWinStreak === 0 && (

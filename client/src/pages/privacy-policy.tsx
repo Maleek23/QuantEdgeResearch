@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
             Legal
           </p>
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>

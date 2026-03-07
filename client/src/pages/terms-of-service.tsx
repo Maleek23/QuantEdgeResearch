@@ -11,7 +11,7 @@ export default function TermsOfService() {
             Legal
           </p>
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
               <FileText className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -28,7 +28,7 @@ export default function TermsOfService() {
       <Card className="glass-card border-amber-500/30 bg-amber-500/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-amber-500">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg">
               <AlertTriangle className="h-5 w-5 text-white" />
             </div>
             Educational Research Platform Only
@@ -51,7 +51,7 @@ export default function TermsOfService() {
       <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
               <Scale className="h-5 w-5 text-white" />
             </div>
             Acceptance of Terms
@@ -156,7 +156,7 @@ export default function TermsOfService() {
       <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
               <Shield className="h-5 w-5 text-white" />
             </div>
             Intellectual Property

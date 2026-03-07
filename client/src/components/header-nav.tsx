@@ -75,7 +75,7 @@ export function HeaderNav() {
                 alt="Quant Edge"
                 className="h-8 w-8 object-contain"
               />
-              <span className="hidden md:inline font-semibold text-lg bg-gradient-to-r from-cyan-500 to-purple-500 dark:from-cyan-400 dark:to-purple-400 bg-clip-text text-transparent group-hover:from-cyan-400 group-hover:to-purple-400 transition-all">
+              <span className="hidden md:inline font-semibold text-lg text-white transition-all">
                 Quant Edge
               </span>
             </div>

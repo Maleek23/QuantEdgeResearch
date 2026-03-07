@@ -366,7 +366,7 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
                 "text-[10px]",
                 isLong ? "text-emerald-400 border-emerald-500/30" : "text-red-400 border-red-500/30"
               )}>
-                {isLong ? '📈 CALL' : '📉 PUT'}
+                {isLong ? 'CALL' : 'PUT'}
               </Badge>
               <span className="text-xs text-slate-400">{breakout.breakoutType}</span>
             </div>

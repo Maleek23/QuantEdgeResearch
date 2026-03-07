@@ -161,12 +161,12 @@ export function SmartMoneyFlowTracker() {
   });
 
   const getFlowTypeIcon = (type: string, isMegaWhale?: boolean) => {
-    if (type === 'block') return isMegaWhale ? '🐋🐋' : '🐋'; // Double whale for mega whales
+    if (type === 'block') return isMegaWhale ? 'MEGA' : 'BLK';
     switch (type) {
-      case 'sweep': return '🧹';
-      case 'dark_pool': return '🌑';
-      case 'unusual_volume': return '📈';
-      default: return '📊';
+      case 'sweep': return 'SWP';
+      case 'dark_pool': return 'DP';
+      case 'unusual_volume': return 'VOL';
+      default: return 'FLW';
     }
   };
 

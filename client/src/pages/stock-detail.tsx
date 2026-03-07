@@ -1117,11 +1117,11 @@ export default function StockDetailPage() {
 
                       {/* Sentiment Sources */}
                       <div className="flex items-center justify-center gap-4 text-[10px] text-slate-500">
-                        <span>📊 {analystData?.analysts?.length || 25}+ Analysts</span>
+                        <span>{analystData?.analysts?.length || 25}+ Analysts</span>
                         <span>•</span>
-                        <span>📰 News Sentiment</span>
+                        <span>News Sentiment</span>
                         <span>•</span>
-                        <span>🐦 Social Signals</span>
+                        <span>Social Signals</span>
                       </div>
                     </div>
                   </Card>
@@ -1304,7 +1304,7 @@ export default function StockDetailPage() {
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'area'
-                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/20"
+                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
                                 : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
                             )}
                           >
@@ -1316,7 +1316,7 @@ export default function StockDetailPage() {
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'candlestick'
-                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-500/20"
+                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
                                 : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
                             )}
                           >
@@ -1363,10 +1363,7 @@ export default function StockDetailPage() {
                       <div className="flex items-center gap-4">
                         {/* Live Indicator */}
                         <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                            <div className="absolute inset-0 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                          </div>
+                          <div className="w-2 h-2 bg-emerald-500 rounded-full" />
                           <span className="text-xs text-emerald-400 font-medium">Live</span>
                         </div>
 
@@ -1472,7 +1469,7 @@ export default function StockDetailPage() {
                         </div>
                       </div>
                       <Link href={`/chart-analysis?symbol=${symbol}`}>
-                        <Button className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-lg shadow-teal-500/20">
+                        <Button className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-lg">
                           <BarChart2 className="w-4 h-4 mr-2" />
                           Deep Chart Analysis
                           <ArrowUpRight className="w-4 h-4 ml-2" />
@@ -1702,10 +1699,7 @@ export default function StockDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30">
-                        <div className="relative">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          <div className="absolute inset-0 w-2 h-2 bg-blue-500 rounded-full animate-ping" />
-                        </div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full" />
                         <span className="text-xs text-blue-400 font-medium">Live</span>
                       </div>
                       <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">

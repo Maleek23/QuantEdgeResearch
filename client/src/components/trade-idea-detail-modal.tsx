@@ -364,7 +364,7 @@ export function TradeIdeaDetailModal({
                 {/* Timing Analytics - Data-Backed Probabilities */}
                 {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
                   <div className="p-3 rounded-lg border bg-gradient-to-br from-cyan-500/5 to-purple-500/5">
-                    <div className="text-xs font-semibold text-cyan-400 mb-2">📊 Quantitative Backing</div>
+                    <div className="text-xs font-semibold text-cyan-400 mb-2">Quantitative Backing</div>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       {idea.targetHitProbability && (
                         <div>

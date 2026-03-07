@@ -109,7 +109,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Long Call',
     description: 'Bullish — unlimited upside',
-    icon: '📈',
+    icon: 'C+',
     buildLegs: (spot, expiry) => [
       { optionType: 'call', strike: Math.round(spot / 5) * 5, expiry, quantity: 1, premium: 0 }
     ],
@@ -117,7 +117,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Long Put',
     description: 'Bearish — profit on decline',
-    icon: '📉',
+    icon: 'P+',
     buildLegs: (spot, expiry) => [
       { optionType: 'put', strike: Math.round(spot / 5) * 5, expiry, quantity: 1, premium: 0 }
     ],
@@ -125,7 +125,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Bull Call Spread',
     description: 'Moderate bullish — defined risk',
-    icon: '🐂',
+    icon: 'B+',
     buildLegs: (spot, expiry) => {
       const atm = Math.round(spot / 5) * 5;
       return [
@@ -137,7 +137,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Bear Put Spread',
     description: 'Moderate bearish — defined risk',
-    icon: '🐻',
+    icon: 'B-',
     buildLegs: (spot, expiry) => {
       const atm = Math.round(spot / 5) * 5;
       return [
@@ -149,7 +149,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Straddle',
     description: 'Big move either direction',
-    icon: '⚡',
+    icon: 'S',
     buildLegs: (spot, expiry) => {
       const atm = Math.round(spot / 5) * 5;
       return [
@@ -161,7 +161,7 @@ const STRATEGY_PRESETS: StrategyPreset[] = [
   {
     name: 'Iron Condor',
     description: 'Range-bound — collect premium',
-    icon: '🦅',
+    icon: 'IC',
     buildLegs: (spot, expiry) => {
       const atm = Math.round(spot / 5) * 5;
       return [

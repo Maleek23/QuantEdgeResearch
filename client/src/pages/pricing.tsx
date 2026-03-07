@@ -167,7 +167,7 @@ export default function Pricing() {
           <Link href="/">
             <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" />
           </Link>
-          <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-500 bg-clip-text text-transparent italic">
+          <h2 className="text-xl font-bold text-white italic">
             Quant Edge Labs
           </h2>
         </div>

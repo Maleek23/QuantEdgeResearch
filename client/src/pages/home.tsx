@@ -73,11 +73,11 @@ function MorningBriefing() {
   if (!data || !data.tradingPlan) return null;
 
   const outlookBadge = (outlook?: string) => {
-    if (!outlook) return { icon: '⚪', color: 'bg-gray-100 dark:bg-slate-800 text-gray-500', label: 'Neutral' };
+    if (!outlook) return { dotColor: 'bg-zinc-500', color: 'bg-gray-100 dark:bg-slate-800 text-gray-500', label: 'Neutral' };
     const lower = outlook.toLowerCase();
-    if (lower.includes('bullish') || lower.includes('positive')) return { icon: '🟢', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'Bullish' };
-    if (lower.includes('bearish') || lower.includes('negative')) return { icon: '🔴', color: 'bg-red-500/10 text-red-600 dark:text-red-400', label: 'Bearish' };
-    return { icon: '🟡', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Cautious' };
+    if (lower.includes('bullish') || lower.includes('positive')) return { dotColor: 'bg-emerald-500', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: 'Bullish' };
+    if (lower.includes('bearish') || lower.includes('negative')) return { dotColor: 'bg-red-500', color: 'bg-red-500/10 text-red-600 dark:text-red-400', label: 'Bearish' };
+    return { dotColor: 'bg-amber-500', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', label: 'Cautious' };
   };
 
   const badge = outlookBadge(data.marketOutlook);
@@ -87,13 +87,14 @@ function MorningBriefing() {
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
               <Sun className="w-4 h-4 text-emerald-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Morning Briefing</h3>
           </div>
-          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium border", badge.color)}>
-            {badge.icon} {badge.label}
+          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium border inline-flex items-center gap-1.5", badge.color)}>
+            <span className={cn("w-2 h-2 rounded-full inline-block", badge.dotColor)} />
+            {badge.label}
           </span>
         </div>
 
@@ -248,11 +249,11 @@ function MarketTicker() {
 // Multi-Engine Visualization (matching landing page)
 const tradingEngines = [
   { id: "ML", name: "Machine Learning", desc: "Pattern recognition", color: "#10b981", icon: Cpu },
-  { id: "AI", name: "AI Analysis", desc: "Multi-layer AI", color: "#8b5cf6", icon: Brain },
-  { id: "QNT", name: "Quantitative", desc: "Statistical signals", color: "#3b82f6", icon: BarChart3 },
-  { id: "FLW", name: "Order Flow", desc: "Dark pools & institutions", color: "#f59e0b", icon: Activity },
-  { id: "SNT", name: "Sentiment", desc: "News & social", color: "#ec4899", icon: Eye },
-  { id: "TCH", name: "Technical", desc: "Chart patterns", color: "#06b6d4", icon: LineChart },
+  { id: "AI", name: "AI Analysis", desc: "Multi-layer AI", color: "#10b981", icon: Brain },
+  { id: "QNT", name: "Quantitative", desc: "Statistical signals", color: "#10b981", icon: BarChart3 },
+  { id: "FLW", name: "Order Flow", desc: "Dark pools & institutions", color: "#10b981", icon: Activity },
+  { id: "SNT", name: "Sentiment", desc: "News & social", color: "#10b981", icon: Eye },
+  { id: "TCH", name: "Technical", desc: "Chart patterns", color: "#10b981", icon: LineChart },
 ];
 
 // Research Tools Grid
@@ -367,7 +368,7 @@ function LatestIdeas() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
               <Brain className="w-4 h-4 text-emerald-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Today's Ideas</h3>
@@ -472,13 +473,13 @@ function BreakingNews() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
               <Newspaper className="w-4 h-4 text-orange-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Breaking News</h3>
           </div>
           <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse mr-1.5" />
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5" />
             Live
           </Badge>
         </div>
@@ -579,7 +580,7 @@ function EarningsCalendar() {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
               <Calendar className="w-4 h-4 text-blue-500" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-white">Earnings Calendar</h3>
@@ -604,7 +605,7 @@ function EarningsCalendar() {
                 <Link key={i} href={`/stock/${earning.symbol}`}>
                   <div className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border border-gray-100 dark:border-[#1a1a1a] transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center text-xs font-bold text-blue-500">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-xs font-bold text-blue-500">
                         {earning.symbol.slice(0, 2)}
                       </div>
                       <div>
@@ -667,7 +668,7 @@ function TopMovers() {
             <h3 className="font-semibold text-gray-900 dark:text-white">Market Movers</h3>
           </div>
           <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1.5" />
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
             Live
           </Badge>
         </div>
@@ -816,7 +817,7 @@ export default function HomePage() {
           {/* Headline */}
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
             Your AI Trading<br />
-            <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">Research Hub</span>
+            <span className="text-emerald-500">Research Hub</span>
           </h1>
           <p className="text-gray-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
             Multi-engine convergence analysis for every stock. Get institutional-grade research in seconds.
@@ -1063,7 +1064,7 @@ export default function HomePage() {
         {/* Live Data Grid - News, Ideas, Earnings, Economic Cal, Movers */}
         <section className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Live Data Feed</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">

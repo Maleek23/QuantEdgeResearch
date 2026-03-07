@@ -9,7 +9,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { AuroraBackground } from "@/components/aurora-background";
 import { CommandRail } from "@/components/command-rail";
 import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
 import { GlassHeader } from "@/components/glass-header";
@@ -19,7 +18,6 @@ import { usePageTracking } from "@/hooks/use-analytics";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
-import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { HighConvictionAlertProvider } from "@/components/high-conviction-alert";
 import { cn } from "@/lib/utils";
@@ -432,8 +430,6 @@ function App() {
           <TooltipProvider>
             <RealtimePricesProvider>
               <StockContextProvider>
-                <AuroraBackground />
-                <ScrollParticles />
                 <Router />
                 <Toaster />
               </StockContextProvider>
@@ -455,7 +451,6 @@ function App() {
             <StockContextProvider>
               <PreferencesProvider>
                 <ContentDensityProvider>
-                  <AuroraBackground />
                   {enableAuroraLayout ? (
                     <AuroraLayoutProvider>
                       <div className="flex flex-col h-screen w-full">

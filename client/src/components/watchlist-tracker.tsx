@@ -277,7 +277,7 @@ export function WatchlistTracker() {
                             <Tooltip>
                               <TooltipTrigger>
                                 <Badge variant="outline" className="bg-purple-600/30 text-purple-300 border-purple-500/50 text-xs">
-                                  🐋🐋 {megaWhales.length}
+                                  MEGA {megaWhales.length}
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -289,7 +289,7 @@ export function WatchlistTracker() {
                             <Tooltip>
                               <TooltipTrigger>
                                 <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-xs">
-                                  🐋 {recentFlows.length}
+                                  WHALE {recentFlows.length}
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent>

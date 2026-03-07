@@ -43,7 +43,7 @@ export default function SuccessStories() {
           {/* Platform Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             <div className="glass-card rounded-lg p-5 text-center hover-elevate">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-green-500/20">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-foreground mb-1">
@@ -52,7 +52,7 @@ export default function SuccessStories() {
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Winning Trades</div>
             </div>
             <div className="glass-card rounded-lg p-5 text-center hover-elevate">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-cyan-500/20">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
                 <Target className="h-5 w-5 text-white" />
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-foreground mb-1">
@@ -63,7 +63,7 @@ export default function SuccessStories() {
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Avg Gain</div>
             </div>
             <div className="glass-card rounded-lg p-5 text-center hover-elevate">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/20">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-foreground mb-1">
@@ -74,7 +74,7 @@ export default function SuccessStories() {
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Biggest Win</div>
             </div>
             <div className="glass-card rounded-lg p-5 text-center hover-elevate">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-green-500/20">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-3 shadow-lg">
                 <CheckCircle2 className="h-5 w-5 text-white" />
               </div>
               <div className="text-2xl font-bold font-mono tabular-nums text-foreground mb-1">100%</div>

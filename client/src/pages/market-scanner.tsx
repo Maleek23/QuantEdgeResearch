@@ -1580,9 +1580,9 @@ export default function MarketScanner() {
                                 'bg-slate-500/20 text-slate-300'
                               }`}
                             >
-                              {event.time === 'bmo' ? '☀️ Pre-Market' :
-                               event.time === 'amc' ? '🌙 After-Hours' :
-                               '📅 TBD'}
+                              {event.time === 'bmo' ? 'Pre-Market' :
+                               event.time === 'amc' ? 'After-Hours' :
+                               'TBD'}
                             </Badge>
                           </div>
 
@@ -1646,15 +1646,15 @@ export default function MarketScanner() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-amber-500/20 text-amber-400">☀️ BMO</Badge>
+                      <Badge className="bg-amber-500/20 text-amber-400">BMO</Badge>
                       <span className="text-muted-foreground">Before Market Open</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-purple-500/20 text-purple-400">🌙 AMC</Badge>
+                      <Badge className="bg-purple-500/20 text-purple-400">AMC</Badge>
                       <span className="text-muted-foreground">After Market Close</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-slate-500/20 text-slate-300">📅 TBD</Badge>
+                      <Badge className="bg-slate-500/20 text-slate-300">TBD</Badge>
                       <span className="text-muted-foreground">Time Not Announced</span>
                     </div>
                   </div>

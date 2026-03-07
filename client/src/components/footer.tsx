@@ -65,7 +65,7 @@ function MarketStatusIndicator() {
       <div className="relative">
         <div className={cn("h-2 w-2 rounded-full", pulseColor)} />
         {status !== "CLOSED" && (
-          <div className={cn("absolute inset-0 h-2 w-2 rounded-full animate-ping", pulseColor, "opacity-75")} />
+          <div className={cn("absolute inset-0 h-2 w-2 rounded-full opacity-75", pulseColor)} />
         )}
       </div>
       <span className={cn("text-xs font-mono font-medium tracking-wider", statusColor)}>

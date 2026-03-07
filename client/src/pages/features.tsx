@@ -73,7 +73,7 @@ export default function Features() {
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
               <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
-              <span className="hidden sm:block text-lg font-semibold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
+              <span className="hidden sm:block text-lg font-semibold text-white">Quant Edge Labs</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -147,7 +147,7 @@ export default function Features() {
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-white">
               Everything You Get with{" "}
-              <span className="bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Quant Edge Labs</span>
+              <span className="text-emerald-400">Quant Edge Labs</span>
             </h1>
             <p className="text-lg text-slate-400 leading-relaxed mb-8">
               A comprehensive research platform combining AI analysis, quantitative signals,

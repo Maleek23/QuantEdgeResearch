@@ -1,5 +1,5 @@
 /**
- * 📊 IV Rank Widget
+ * IV Rank Widget
  * 
  * Displays volatility analysis for key symbols:
  * - IV Rank (where current IV sits in 52-week range)

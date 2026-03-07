@@ -1,5 +1,5 @@
 /**
- * 🎯 Trading Engine Widget
+ * Trading Engine Widget
  * 
  * Displays integrated fundamental + technical analysis with:
  * - Confluence validation scores

@@ -32,7 +32,7 @@
     <meta name="twitter:image" content="https://quantedgelabs.net/og-image.png" />
 
     <!-- Theme & Icons -->
-    <meta name="theme-color" content="#22d3ee" />
+    <meta name="theme-color" content="#10b981" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -93,10 +93,10 @@
       }
       #app-loader .spinner {
         width: 40px; height: 40px; border: 3px solid #1e293b;
-        border-top-color: #22d3ee; border-radius: 50%;
+        border-top-color: #10b981; border-radius: 50%;
         animation: spin .8s linear infinite;
       }
-      #app-loader p { margin-top: 16px; font-size: 13px; letter-spacing: 0.05em; }
+      #app-loader p { margin-top: 16px; font-size: 13px; letter-spacing: 0.05em; color: #6ee7b7; }
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
   </head>
@@ -146,7 +146,7 @@
         loader.querySelector('p').innerHTML =
           '<span style="color:#ef4444;font-size:14px">App failed to load</span><br><br>' +
           '<span style="color:#64748b;font-size:10px">' + diag.join('<br>') + '</span><br><br>' +
-          '<a href="javascript:sessionStorage.clear();caches&&caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})});location.reload(true)" style="color:#22d3ee;text-decoration:underline;font-size:13px">Clear everything & reload</a>';
+          '<a href="javascript:sessionStorage.clear();caches&&caches.keys().then(function(k){k.forEach(function(n){caches.delete(n)})});location.reload(true)" style="color:#10b981;text-decoration:underline;font-size:13px">Clear everything & reload</a>';
       }, 5000);
     </script>
   </body>

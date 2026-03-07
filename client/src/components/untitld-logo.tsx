@@ -80,7 +80,7 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
                 /
               </span>
               <span
-                className="absolute inset-0 animate-ping opacity-70"
+                className="absolute inset-0 opacity-70"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
                   WebkitBackgroundClip: "text",

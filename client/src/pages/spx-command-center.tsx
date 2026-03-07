@@ -758,7 +758,7 @@ function UnifiedScoreCard({ score }: { score: IntelUnifiedScore | null }) {
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className={cn("text-4xl font-black font-mono", scoreColor)}>{score.score}</div>
+          <div className={cn("text-4xl font-bold font-mono", scoreColor)}>{score.score}</div>
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-1.5">
               <DirIcon className={cn("w-4 h-4", scoreColor)} />
@@ -822,7 +822,7 @@ function VIXCard({ vix }: { vix: IntelVIX | null }) {
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className={cn("text-3xl font-black font-mono", vixColor)}>{safeToFixed(vix.vix, 1)}</div>
+          <div className={cn("text-3xl font-bold font-mono", vixColor)}>{safeToFixed(vix.vix, 1)}</div>
           <div className="space-y-0.5">
             <Badge variant="outline" className={cn("text-[10px] font-bold", vixColor)}>
               {vix.regime?.regime?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
@@ -862,7 +862,7 @@ function GEXCard({ gex, symbol }: { gex: IntelGEX | null; symbol?: string }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-[10px] text-slate-500">Flip Point</div>
-            <div className="text-xl font-black font-mono text-violet-400">
+            <div className="text-xl font-bold font-mono text-violet-400">
               {gex.flipPoint ? `$${safeToFixed(gex.flipPoint, 0)}` : 'N/A'}
             </div>
           </div>
@@ -917,7 +917,7 @@ function PCRCard({ pcr, symbol }: { pcr: IntelPCR | null; symbol?: string }) {
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className={cn("text-3xl font-black font-mono", pcrColor)}>
+          <div className={cn("text-3xl font-bold font-mono", pcrColor)}>
             {hasVolume ? safeToFixed(pcr.overallPCR, 2) : safeToFixed(pcr.oiWeightedPCR, 2)}
           </div>
           <div className="space-y-0.5">
@@ -975,7 +975,7 @@ function ExpectedMoveCard({ expectedMove }: { expectedMove: IntelExpectedMove | 
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className="text-2xl font-black font-mono text-amber-400">±${safeToFixed(expectedMove.dailyMove, 2)}</div>
+          <div className="text-2xl font-bold font-mono text-amber-400">±${safeToFixed(expectedMove.dailyMove, 2)}</div>
           <div className="space-y-0.5">
             <Badge variant="outline" className="text-[10px] font-bold border-amber-500/20 text-amber-300">
               {safeToFixed(expectedMove.dailyMovePct, 2)}% daily
@@ -1035,7 +1035,7 @@ function MomentumCard({ momentum }: { momentum: IntelMomentum | null }) {
       </CardHeader>
       <CardContent className="px-4 pb-3">
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className={cn("text-sm font-black px-3 py-1", color, bgColor)}>
+          <Badge variant="outline" className={cn("text-sm font-bold px-3 py-1", color, bgColor)}>
             {label}
           </Badge>
           <div className="text-[10px] text-slate-400">
@@ -1292,7 +1292,7 @@ function VolumeDeltaPanel({ volumeDelta }: { volumeDelta: IntelVolumeDelta | nul
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-2">
         <div className="flex items-center gap-3">
-          <div className={cn("text-2xl font-black font-mono", dirColor)}>
+          <div className={cn("text-2xl font-bold font-mono", dirColor)}>
             {volumeDelta.cumulativeDelta >= 0 ? '+' : ''}{(volumeDelta.cumulativeDelta / 1_000_000).toFixed(1)}M
           </div>
           <div className="space-y-0.5">
@@ -1360,7 +1360,7 @@ function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
             </CardHeader>
             <CardContent className="px-4 pb-3">
               <div className="flex items-center gap-3">
-                <div className={cn("text-2xl font-black font-mono", intel.ivSkew.skew > 5 ? 'text-red-400' : intel.ivSkew.skew < -2 ? 'text-amber-400' : 'text-slate-200')}>
+                <div className={cn("text-2xl font-bold font-mono", intel.ivSkew.skew > 5 ? 'text-red-400' : intel.ivSkew.skew < -2 ? 'text-amber-400' : 'text-slate-200')}>
                   {safeToFixed(intel.ivSkew.skew, 1)}
                 </div>
                 <div className="text-[10px] text-slate-400">skew pts</div>
@@ -1418,7 +1418,7 @@ function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
       {/* Data freshness indicator */}
       <div className="flex items-center justify-between text-[10px] text-slate-600 px-1">
         <span>Last computed: {new Date(intel.timestamp).toLocaleTimeString()}</span>
-        <span>Market: {intel.marketOpen ? '🟢 OPEN' : '🔴 CLOSED'}</span>
+        <span className="flex items-center gap-1">Market: {intel.marketOpen ? <><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> OPEN</> : <><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> CLOSED</>}</span>
       </div>
     </div>
   );

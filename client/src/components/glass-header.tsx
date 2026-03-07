@@ -105,18 +105,17 @@ export function GlassHeader() {
     >
       <div className="max-w-[1600px] mx-auto px-3">
         {/* Main Header Bar */}
-        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-xl">
+        <div className="bg-slate-900/90 border border-slate-700/50 rounded-xl">
           <div className="flex items-center h-12 px-2">
             {/* Logo */}
             <Link href="/home">
               <div className="flex items-center gap-2 px-3 cursor-pointer group shrink-0">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-md blur-sm opacity-75" />
-                  <div className="relative bg-gradient-to-br from-teal-400 to-cyan-500 p-1.5 rounded-md">
+                  <div className="relative bg-emerald-500 p-1.5 rounded-md">
                     <TrendingUp className="h-4 w-4 text-white" />
                   </div>
                 </div>
-                <span className="hidden xl:block text-lg font-bold bg-gradient-to-r from-teal-400 to-cyan-500 bg-clip-text text-transparent">
+                <span className="hidden xl:block text-lg text-white font-bold">
                   QuantEdge
                 </span>
               </div>
@@ -148,7 +147,7 @@ export function GlassHeader() {
                         {isActive && (
                           <motion.div
                             layoutId="activeTab"
-                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400"
+                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
                           />
                         )}
@@ -180,7 +179,7 @@ export function GlassHeader() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden z-50"
+                        className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 overflow-hidden z-50"
                       >
                         {discoverItems.map((item) => {
                           const Icon = item.icon;
@@ -192,7 +191,7 @@ export function GlassHeader() {
                                 className={cn(
                                   "flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all cursor-pointer",
                                   isActive
-                                    ? "bg-teal-500/20 text-teal-400"
+                                    ? "bg-emerald-500/20 text-emerald-500"
                                     : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
                                 )}
                               >
@@ -255,8 +254,8 @@ export function GlassHeader() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="cursor-pointer"
                 >
-                  <Avatar className="h-8 w-8 border border-teal-500/30 hover:border-teal-500/50 transition-colors">
-                    <AvatarFallback className="bg-gradient-to-br from-teal-500 to-cyan-500 text-white text-xs">
+                  <Avatar className="h-8 w-8 border border-emerald-500/30 hover:border-emerald-500/50 transition-colors">
+                    <AvatarFallback className="bg-emerald-500 text-white text-xs">
                       {userInitial}
                     </AvatarFallback>
                   </Avatar>
@@ -269,7 +268,7 @@ export function GlassHeader() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden z-50"
+                      className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 overflow-hidden z-50"
                     >
                       <div className="px-3 py-2 border-b border-slate-700/50">
                         <p className="text-sm font-medium text-white truncate">
@@ -341,7 +340,7 @@ export function GlassHeader() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-xl overflow-hidden"
+              className="lg:hidden mt-2 bg-slate-900/95 border border-slate-700/50 rounded-xl overflow-hidden"
             >
               {/* Mobile Search */}
               <div className="p-3 border-b border-slate-700/50">
@@ -360,7 +359,7 @@ export function GlassHeader() {
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
                           isActive
-                            ? "bg-teal-500/20 text-teal-400"
+                            ? "bg-emerald-500/20 text-emerald-500"
                             : "text-slate-300 hover:bg-slate-800/50"
                         )}
                       >
@@ -386,7 +385,7 @@ export function GlassHeader() {
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
                           isActive
-                            ? "bg-teal-500/20 text-teal-400"
+                            ? "bg-emerald-500/20 text-emerald-500"
                             : "text-slate-300 hover:bg-slate-800/50"
                         )}
                       >
