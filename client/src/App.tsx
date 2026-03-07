@@ -75,7 +75,7 @@ const BacktestPage = lazyWithRetry(() => import("@/pages/backtest"), "backtest")
 const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
 const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "market-scanner");
 const BullishTrends = lazyWithRetry(() => import("@/pages/bullish-trends"), "bullish-trends");
-const Dashboard = lazyWithRetry(() => import("@/pages/dashboard"), "dashboard");
+// Dashboard deleted — redirects to /home
 const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
 const TradingEnginePage = lazyWithRetry(() => import("@/pages/trading-engine"), "trading-engine");
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
@@ -334,8 +334,8 @@ function Router() {
       {/* SPX Command Center - 0DTE Trading Hub */}
       <Route path="/spx" component={withBetaProtection(SPXCommandCenter)} />
 
-      {/* Design System Test */}
-      <Route path="/design-system" component={DesignSystemTest} />
+      {/* Design System Test — admin only */}
+      <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
 
       {/* 404 Fallback */}
       <Route component={NotFound} />

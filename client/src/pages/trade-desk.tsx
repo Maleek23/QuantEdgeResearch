@@ -61,6 +61,8 @@ import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
+import { FlowLevelsPanel } from "@/components/flow-levels-panel";
+import { StrategyLab } from "@/components/strategy-lab";
 
 // Relative time helper for freshness display
 function getRelativeTime(timestamp: string | Date): string {
@@ -3289,12 +3291,12 @@ export default function TradeDeskRedesigned() {
   const { toast } = useToast();
   const [location] = useLocation();
 
-  // Detect sub-page from path (e.g., /trade-desk/best-setups)
+  // Detect sub-page from path
   const getInitialTab = () => {
-    if (location.includes("/best-setups")) return "discovery";
-    if (location.includes("/movers")) return "signals";
-    if (location.includes("/breakouts")) return "signals";
-    return "ideas"; // Default to ideas tab
+    if (location.includes("/flow") || location.includes("/levels") || location.includes("/gex")) return "flow";
+    if (location.includes("/strategy") || location.includes("/options")) return "strategy";
+    if (location.includes("/best-setups") || location.includes("/movers") || location.includes("/breakouts")) return "ideas";
+    return "ideas"; // Default to Today's Plays tab
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
@@ -3736,28 +3738,24 @@ export default function TradeDeskRedesigned() {
           </div>
         </div>
 
-        {/* Navigation Tabs - Consolidated (4 tabs instead of 9) */}
+        {/* Navigation Tabs - 3 Clean Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-[#111]/60 border border-[#222]/60 p-1 w-full grid grid-cols-4">
+          <TabsList className="bg-[#111]/60 border border-[#222]/60 p-1 w-full grid grid-cols-3">
             <TabsTrigger value="ideas" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white">
               <Layers className="w-4 h-4 mr-2" />
-              Ideas
+              Today's Plays
             </TabsTrigger>
-            <TabsTrigger value="signals" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-amber-600 data-[state=active]:text-white">
-              <Zap className="w-4 h-4 mr-2" />
-              Signals
+            <TabsTrigger value="flow" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-amber-600 data-[state=active]:text-white">
+              <Activity className="w-4 h-4 mr-2" />
+              Flow & Levels
             </TabsTrigger>
-            <TabsTrigger value="discovery" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Discovery
-            </TabsTrigger>
-            <TabsTrigger value="portfolio" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">
-              <PieChart className="w-4 h-4 mr-2" />
-              Portfolio
+            <TabsTrigger value="strategy" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+              <Target className="w-4 h-4 mr-2" />
+              Strategy Lab
             </TabsTrigger>
           </TabsList>
 
-          {/* IDEAS TAB - Top Conviction + All Ideas (filtered by asset type) */}
+          {/* TODAY'S PLAYS TAB - Top Conviction + Signals + All Ideas */}
           <TabsContent value="ideas" className="space-y-6 mt-6">
             {/* TOP CONVICTION - A/A+ Plays Only */}
             <TopConvictionSection ideas={filteredIdeas} />
@@ -3771,7 +3769,7 @@ export default function TradeDeskRedesigned() {
             {/* Empty State: No ideas for today - offer to expand date range */}
             {showEmptyTodayMessage && (
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 text-center">
-                <div className="text-amber-400 text-lg font-semibold mb-2">📭 No ideas generated today yet</div>
+                <div className="text-amber-400 text-lg font-semibold mb-2">No ideas generated today yet</div>
                 <p className="text-slate-400 text-sm mb-4">
                   The AI hasn't generated any trade ideas for today. Ideas are typically generated at 9:30 AM, 11:00 AM, 1:30 PM, and 8:30 PM CT.
                 </p>
@@ -3799,6 +3797,14 @@ export default function TradeDeskRedesigned() {
               </div>
             )}
 
+            {/* Quick Signal Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <MarketMoversCard />
+              <SurgeDetectionCard />
+              <ConvergenceSignalsCard />
+              <HotSymbolsCard />
+            </div>
+
             {/* All Trade Ideas List */}
             <TradeIdeasList
               ideas={filteredIdeas}
@@ -3810,80 +3816,19 @@ export default function TradeDeskRedesigned() {
               serverDateFilter={serverDateFilter}
               onServerDateFilterChange={setServerDateFilter}
             />
-          </TabsContent>
-
-          {/* SIGNALS TAB - Movers, Surges, Convergence, Hot (combined view) */}
-          <TabsContent value="signals" className="space-y-6 mt-6">
-            {/* Quick Signal Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <MarketMoversCard />
-              <SurgeDetectionCard />
-              <ConvergenceSignalsCard />
-              <HotSymbolsCard />
-            </div>
-
-            {/* Detailed Signal Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Flame className="w-5 h-5 text-orange-400" />
-                  <h3 className="font-semibold text-white">Market Movers</h3>
-                </div>
-                <MarketMoversSubPage />
-              </Card>
-              <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-semibold text-white">Surge Detection</h3>
-                </div>
-                <SurgeDetectionSubPage />
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Target className="w-5 h-5 text-purple-400" />
-                  <h3 className="font-semibold text-white">Convergence Signals</h3>
-                </div>
-                <ConvergenceSubPage />
-              </Card>
-              <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Flame className="w-5 h-5 text-red-400" />
-                  <h3 className="font-semibold text-white">Hot Attention</h3>
-                </div>
-                <HotAttentionSubPage />
-              </Card>
-            </div>
 
             {/* Index Lotto Scanner - High R:R plays on SPX/SPY/IWM/QQQ */}
             <IndexLottoScanner />
           </TabsContent>
 
-          {/* DISCOVERY TAB - Best Setups + Tomorrow Surgers */}
-          <TabsContent value="discovery" className="space-y-6 mt-6">
-            {/* Best Setups Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="w-5 h-5 text-amber-400" />
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Best Setups</h2>
-                <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-400 border-amber-500/40 text-[10px]">
-                  CONVERGENCE
-                </Badge>
-              </div>
-              <BestSetupsSubPage />
-            </div>
-
-            {/* Tomorrow's Surgers Section */}
-            <div className="mt-8">
-              <TomorrowSurgersSubPage />
-            </div>
+          {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
+          <TabsContent value="flow" className="space-y-6 mt-6">
+            <FlowLevelsPanel />
           </TabsContent>
 
-          {/* PORTFOLIO TAB - Broker Import */}
-          <TabsContent value="portfolio" className="mt-6">
-            <BrokerImport />
+          {/* STRATEGY LAB TAB - Options Builder (OptionStrat clone) */}
+          <TabsContent value="strategy" className="space-y-6 mt-6">
+            <StrategyLab />
           </TabsContent>
         </Tabs>
       </div>
