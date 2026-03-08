@@ -343,27 +343,29 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
     };
   }, [ideas]);
 
-  // Label changes based on active filter
-  const totalLabel = dateFilter === 'today' ? "Today's Ideas" : dateFilter === 'week' ? "This Week" : "Total Ideas";
+  const totalLabel = dateFilter === 'today' ? "Today" : dateFilter === 'week' ? "Week" : "Total";
 
   return (
-    <div className="grid grid-cols-4 gap-4">
-      <Card className="bg-[#111] border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">{totalLabel}</div>
-        <div className="text-2xl font-bold text-white">{stats.total}</div>
-      </Card>
-      <Card className="bg-[#111] border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">Today (ET)</div>
-        <div className="text-2xl font-bold text-emerald-400">{stats.today}</div>
-      </Card>
-      <Card className="bg-[#111] border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">Quality (A/B)</div>
-        <div className="text-2xl font-bold text-emerald-400">{stats.quality}</div>
-      </Card>
-      <Card className="bg-[#111] border-[#222] p-4">
-        <div className="text-xs text-slate-500 mb-1">Avg Confidence</div>
-        <div className="text-2xl font-bold text-white">{stats.avgConf}%</div>
-      </Card>
+    <div className="flex items-center gap-5 px-4 py-2.5 rounded-lg bg-[#0d0d0d] border border-[#1a1a1a]">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-600 uppercase tracking-wider">{totalLabel}</span>
+        <span className="text-base font-bold font-mono text-white">{stats.total}</span>
+      </div>
+      <div className="w-px h-4 bg-[#222]" />
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Today</span>
+        <span className="text-base font-bold font-mono text-emerald-400">{stats.today}</span>
+      </div>
+      <div className="w-px h-4 bg-[#222]" />
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Quality</span>
+        <span className="text-base font-bold font-mono text-emerald-400">{stats.quality}</span>
+      </div>
+      <div className="w-px h-4 bg-[#222]" />
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Confidence</span>
+        <span className="text-base font-bold font-mono text-white">{stats.avgConf}%</span>
+      </div>
     </div>
   );
 }
@@ -3514,98 +3516,36 @@ export default function TradeDeskRedesigned() {
   if (showInitialLoader || isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a]">
-        {/* Market Pulse Header Skeleton */}
-        <div className="flex items-center gap-6 px-4 py-2.5 bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#1a1a1a]">
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-[#0d0d0d] border-b border-[#1a1a1a]">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-medium text-emerald-500">LOADING</span>
           </div>
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="flex items-center gap-2">
-              <div className="h-3 w-8 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-              <div className="h-4 w-16 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
+              <div className="h-3 w-8 bg-slate-800 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-slate-800 rounded animate-pulse" />
             </div>
           ))}
         </div>
-
-        <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-          {/* Header Skeleton */}
-          <div className="flex items-center justify-between animate-in fade-in duration-300">
+        <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white dark:bg-[#111] border border-[#222]">
-                <Brain className="w-4 h-4 text-gray-400 dark:text-slate-600 animate-pulse" />
-              </div>
-              <div>
-                <div className="h-6 w-32 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-                <div className="h-3 w-48 bg-gray-200 dark:bg-slate-800 rounded mt-1 animate-pulse" />
-              </div>
+              <div className="h-5 w-24 bg-slate-800 rounded animate-pulse" />
+              <div className="h-3 w-20 bg-slate-800/50 rounded animate-pulse" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-[160px] bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-              <div className="h-7 w-24 bg-emerald-500/10 rounded-full animate-pulse" />
-            </div>
+            <div className="h-8 w-[140px] bg-slate-800 rounded animate-pulse" />
           </div>
-
-          {/* Tabs Skeleton */}
-          <div className="flex gap-2 animate-in fade-in duration-300 delay-100">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-9 w-24 bg-gray-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="flex gap-1.5">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="h-7 w-16 bg-slate-800/50 rounded-md animate-pulse" />
             ))}
           </div>
-
-          {/* Top Conviction Skeleton */}
-          <div className="animate-in fade-in duration-300 delay-150">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
-                <Star className="w-5 h-5 text-amber-400/50 animate-pulse" />
-              </div>
-              <div>
-                <div className="h-5 w-36 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-                <div className="h-3 w-48 bg-gray-200 dark:bg-slate-800 rounded mt-1 animate-pulse" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <Card key={i} className="p-4 bg-white dark:bg-[#111] border-gray-200 dark:border-[#1a1a1a] animate-pulse">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-6 w-16 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-5 w-10 bg-emerald-500/20 rounded" />
-                  </div>
-                  <div className="h-4 w-full bg-gray-200 dark:bg-slate-800 rounded mb-2" />
-                  <div className="h-4 w-2/3 bg-gray-200 dark:bg-slate-800 rounded mb-3" />
-                  <div className="flex gap-2">
-                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-8 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-
-          {/* Ideas Grid Skeleton */}
-          <div className="animate-in fade-in duration-300 delay-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-5 w-24 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-              <div className="h-5 w-16 bg-gray-200 dark:bg-slate-800 rounded animate-pulse" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <Card key={i} className="p-4 bg-white dark:bg-[#111] border-gray-200 dark:border-[#1a1a1a] animate-pulse">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-7 w-20 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-6 w-14 bg-gray-200 dark:bg-slate-800 rounded-full" />
-                  </div>
-                  <div className="h-4 w-full bg-gray-200 dark:bg-slate-800 rounded mb-2" />
-                  <div className="h-4 w-3/4 bg-gray-200 dark:bg-slate-800 rounded mb-4" />
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
-                    <div className="h-12 bg-gray-200 dark:bg-slate-800 rounded" />
-                  </div>
-                </Card>
-              ))}
-            </div>
+          <div className="h-10 bg-slate-800/30 rounded-lg animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="h-40 bg-[#111] border border-[#1a1a1a] rounded-lg animate-pulse" />
+            ))}
           </div>
         </div>
       </div>
@@ -3631,30 +3571,26 @@ export default function TradeDeskRedesigned() {
       <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-medium flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#111] border border-[#222]">
-                <Brain className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-white">Trade Desk</span>
-            </h1>
-            <p className="text-xs text-slate-500 mt-1 ml-11">Multi-engine convergence signals</p>
-          </div>
           <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-white tracking-tight">Trade Desk</h1>
+            <div className="w-1 h-1 rounded-full bg-emerald-500" />
+            <span className="text-xs text-slate-500 font-mono">MULTI-ENGINE</span>
+          </div>
+          <div className="flex items-center gap-2">
             {/* Generate Ideas Dropdown */}
             <Select
               onValueChange={(value) => generateIdeas.mutate(value as any)}
               disabled={generateIdeas.isPending}
             >
-              <SelectTrigger className="w-[160px] bg-emerald-600 text-white border-0 hover:bg-emerald-500 text-sm font-medium">
+              <SelectTrigger className="w-[140px] bg-transparent text-slate-400 border-[#222] hover:border-emerald-500/40 hover:text-white text-xs font-medium h-8">
                 {generatingEngine ? (
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <div className="flex items-center gap-1.5">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
                     <span>Generating...</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" />
                     <span>Generate</span>
                   </div>
                 )}
@@ -3662,101 +3598,88 @@ export default function TradeDeskRedesigned() {
               <SelectContent className="bg-[#111] border-[#222]">
                 <SelectItem value="all" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
                     <span>All Engines</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="ai" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                    <Brain className="w-3.5 h-3.5 text-purple-400" />
                     <span>AI Engine</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="quant" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                    <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Quant Engine</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="hybrid" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-emerald-400" />
+                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Hybrid AI+Quant</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="flow" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Options Flow</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-
-            {/* Status Badge */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-xs text-emerald-400 font-medium">Connected</span>
-            </div>
           </div>
         </div>
 
-        {/* Asset Type Filter - Segmented Control */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-[#111]/60 border border-[#222]/60">
-            {[
-              { value: 'all', label: 'All', icon: Layers },
-              { value: 'stock', label: 'Stocks', icon: TrendingUp },
-              { value: 'option', label: 'Options', icon: Target },
-              { value: 'crypto', label: 'Crypto', icon: Bitcoin },
-              { value: 'future', label: 'Futures', icon: BarChart3 },
-              { value: 'penny_stock', label: 'Penny', icon: Gem },
-            ].map(({ value, label, icon: Icon }) => (
+        {/* Asset Type Filter */}
+        <div className="flex items-center gap-1.5">
+          {[
+            { value: 'all', label: 'All' },
+            { value: 'stock', label: 'Stocks' },
+            { value: 'option', label: 'Options' },
+            { value: 'crypto', label: 'Crypto' },
+            { value: 'future', label: 'Futures' },
+            { value: 'penny_stock', label: 'Penny' },
+          ].map(({ value, label }) => {
+            const count = value === 'stock' ? stockIdeas.length :
+                          value === 'option' ? optionIdeas.length :
+                          value === 'crypto' ? cryptoIdeas.length :
+                          value === 'future' ? futuresIdeas.length :
+                          value === 'penny_stock' ? pennyIdeas.length : 0;
+            return (
               <button
                 key={value}
                 onClick={() => setAssetFilter(value as typeof assetFilter)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
                   assetFilter === value
-                    ? "bg-emerald-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white hover:bg-[#1a1a1a]"
+                    ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
+                    : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
                 )}
               >
-                <Icon className="w-4 h-4" />
                 {label}
                 {value !== 'all' && (
-                  <span className={cn(
-                    "text-[10px] px-1.5 py-0.5 rounded-full",
-                    assetFilter === value ? "bg-white/20" : "bg-slate-700/50"
-                  )}>
-                    {value === 'stock' ? stockIdeas.length :
-                     value === 'option' ? optionIdeas.length :
-                     value === 'crypto' ? cryptoIdeas.length :
-                     value === 'future' ? futuresIdeas.length :
-                     value === 'penny_stock' ? pennyIdeas.length : 0}
-                  </span>
+                  <span className="ml-1 opacity-50">{count}</span>
                 )}
               </button>
-            ))}
-          </div>
-          <div className="text-xs text-slate-500">
-            Showing {filteredIdeas.length} ideas
-          </div>
+            );
+          })}
+          <span className="ml-auto text-[11px] text-slate-600 font-mono">{filteredIdeas.length} ideas</span>
         </div>
 
-        {/* Navigation Tabs - 3 Clean Tabs */}
+        {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-[#0d0d0d] border border-[#222] p-1 w-full grid grid-cols-3 h-11">
-            <TabsTrigger value="ideas" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
-              <Layers className="w-4 h-4 mr-2" />
+          <TabsList className="bg-transparent border-b border-[#1a1a1a] w-full justify-start gap-0 h-auto p-0 rounded-none">
+            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+              <Layers className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Today's Plays
             </TabsTrigger>
-            <TabsTrigger value="flow" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
-              <Activity className="w-4 h-4 mr-2" />
+            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+              <Activity className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Flow & Levels
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
-              <Target className="w-4 h-4 mr-2" />
+            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+              <Target className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Strategy Lab
             </TabsTrigger>
           </TabsList>
