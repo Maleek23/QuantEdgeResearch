@@ -10,7 +10,7 @@ import {
   Search,
   Brain,
   LineChart,
-  Sparkles,
+  MoreHorizontal,
   Menu,
   X,
   TrendingUp,
@@ -39,32 +39,34 @@ interface NavTab {
   icon: any;
 }
 
-// Main navigation tabs - browser-style (core trading workflow)
+// Main navigation tabs - browser-style (4 core tools)
 const mainTabs: NavTab[] = [
   { label: "Trade Desk", href: "/trade-desk", icon: Brain },
-  { label: "AI Picks", href: "/trade-desk/best-setups", icon: Sparkles },
   { label: "Markets", href: "/market", icon: BarChart3 },
   { label: "Charts", href: "/chart-analysis", icon: LineChart },
-  { label: "Smart Money", href: "/smart-money", icon: Activity },
-  { label: "SPX", href: "/spx", icon: Crosshair },
-  { label: "Watchlist", href: "/watchlist", icon: Star },
+  { label: "Scanner", href: "/market-scanner", icon: Search },
 ];
 
-// Discover dropdown items (research & learning)
-const discoverItems: NavTab[] = [
+// "More" dropdown — trading tools + research
+const moreToolItems: NavTab[] = [
+  { label: "Smart Money", href: "/smart-money", icon: Activity },
+  { label: "SPX Command", href: "/spx", icon: Crosshair },
+  { label: "Watchlist", href: "/watchlist", icon: Star },
+];
+const moreResearchItems: NavTab[] = [
   { label: "Academy", href: "/academy", icon: GraduationCap },
   { label: "News & Social", href: "/discover", icon: Newspaper },
   { label: "Bullish Trends", href: "/bullish-trends", icon: TrendingUp },
-  { label: "Market Scanner", href: "/market-scanner", icon: Search },
 ];
+const allMoreItems = [...moreToolItems, ...moreResearchItems];
 
 export function GlassHeader() {
   const [location, setLocation] = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [discoverOpen, setDiscoverOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const discoverRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, logout, isAuthenticated } = useAuth();
 
@@ -76,8 +78,8 @@ export function GlassHeader() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (discoverRef.current && !discoverRef.current.contains(event.target as Node)) {
-        setDiscoverOpen(false);
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false);
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
@@ -156,24 +158,24 @@ export function GlassHeader() {
                   );
                 })}
 
-                {/* Discover Dropdown */}
-                <div className="relative" ref={discoverRef}>
+                {/* More Dropdown */}
+                <div className="relative" ref={moreRef}>
                   <button
-                    onClick={() => setDiscoverOpen(!discoverOpen)}
+                    onClick={() => setMoreOpen(!moreOpen)}
                     className={cn(
                       "flex items-center gap-1 px-2.5 py-2 text-sm font-medium transition-all cursor-pointer rounded-lg mx-0.5 whitespace-nowrap",
-                      discoverOpen
+                      moreOpen || allMoreItems.some(item => location === item.href)
                         ? "bg-slate-800 text-white"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                     )}
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Discover</span>
-                    <ChevronDown className={cn("h-3 w-3 transition-transform", discoverOpen && "rotate-180")} />
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                    <span>More</span>
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", moreOpen && "rotate-180")} />
                   </button>
 
                   <AnimatePresence>
-                    {discoverOpen && (
+                    {moreOpen && (
                       <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -181,15 +183,36 @@ export function GlassHeader() {
                         transition={{ duration: 0.15 }}
                         className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 overflow-hidden z-50"
                       >
-                        {discoverItems.map((item) => {
+                        {moreToolItems.map((item) => {
                           const Icon = item.icon;
                           const isActive = location === item.href;
                           return (
                             <Link key={item.href} href={item.href}>
                               <div
-                                onClick={() => setDiscoverOpen(false)}
+                                onClick={() => setMoreOpen(false)}
                                 className={cn(
-                                  "flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all cursor-pointer",
+                                  "flex items-center gap-2.5 px-3 py-2 text-sm transition-all cursor-pointer",
+                                  isActive
+                                    ? "bg-emerald-500/20 text-emerald-500"
+                                    : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
+                                )}
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span>{item.label}</span>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                        <div className="border-t border-slate-700/50 my-1" />
+                        {moreResearchItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = location === item.href;
+                          return (
+                            <Link key={item.href} href={item.href}>
+                              <div
+                                onClick={() => setMoreOpen(false)}
+                                className={cn(
+                                  "flex items-center gap-2.5 px-3 py-2 text-sm transition-all cursor-pointer",
                                   isActive
                                     ? "bg-emerald-500/20 text-emerald-500"
                                     : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
@@ -373,9 +396,33 @@ export function GlassHeader() {
                 {/* Divider */}
                 <div className="border-t border-slate-700/50 my-2" />
 
-                {/* Discover Items */}
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Discover</p>
-                {discoverItems.map((item) => {
+                {/* Trading Tools */}
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Trading</p>
+                {moreToolItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location === item.href;
+                  return (
+                    <Link key={item.href} href={item.href}>
+                      <div
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                          isActive
+                            ? "bg-emerald-500/20 text-emerald-500"
+                            : "text-slate-300 hover:bg-slate-800/50"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span>{item.label}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+
+                {/* Research */}
+                <div className="border-t border-slate-700/50 my-2" />
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Research</p>
+                {moreResearchItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
                   return (
