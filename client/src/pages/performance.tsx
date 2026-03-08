@@ -100,7 +100,7 @@ interface DataIntegrityCheck {
 }
 
 const ENGINE_CONFIG = {
-  flow: { label: "Flow", icon: Activity, color: "text-cyan-400", bg: "bg-cyan-500/10" },
+  flow: { label: "Flow", icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
   quant: { label: "Quant", icon: BarChart3, color: "text-blue-400", bg: "bg-blue-500/10" },
   ai: { label: "AI", icon: Brain, color: "text-purple-400", bg: "bg-purple-500/10" },
   lotto: { label: "Lotto", icon: Target, color: "text-amber-400", bg: "bg-amber-500/10" },
@@ -175,7 +175,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Ideas</p>
-          <p className="text-3xl font-bold font-mono text-cyan-400" data-testid="stat-total">
+          <p className="text-3xl font-bold font-mono text-emerald-400" data-testid="stat-total">
             {stats.overall.totalIdeas}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -268,7 +268,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-cyan-400" />
+            <Database className="h-5 w-5 text-emerald-400" />
             <CardTitle className="text-base">Data Integrity Audit</CardTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={() => refetch()} data-testid="button-refresh-audit">
@@ -279,7 +279,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       <CardContent className="space-y-4">
         {/* Methodology Definition */}
         <div className="p-3 rounded-lg bg-muted/30 text-sm space-y-2">
-          <p className="font-medium text-cyan-400">Win/Loss Methodology</p>
+          <p className="font-medium text-emerald-400">Win/Loss Methodology</p>
           <div className="grid gap-1 text-xs text-muted-foreground">
             <div className="flex gap-2">
               <CheckCircle className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
@@ -383,8 +383,8 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
         </div>
 
         {/* Reconciliation */}
-        <div className="p-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 text-xs">
-          <p className="font-medium text-cyan-400 mb-2">Reconciliation Check</p>
+        <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-xs">
+          <p className="font-medium text-emerald-400 mb-2">Reconciliation Check</p>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-muted-foreground">Reported Wins</p>
@@ -606,7 +606,7 @@ export default function PerformancePage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-cyan-400" />
+                      <TrendingUp className="h-4 w-4 text-emerald-400" />
                       <CardTitle className="text-sm">Weekly Trends</CardTitle>
                     </div>
                   </CardHeader>

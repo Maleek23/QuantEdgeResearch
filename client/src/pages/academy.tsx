@@ -165,7 +165,7 @@ export default function Academy() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-border/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-cyan-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(147,51,234,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(147,51,234,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
         <div className="container mx-auto max-w-7xl px-6 py-12 md:py-16 relative">
@@ -216,7 +216,7 @@ export default function Academy() {
           <Link href="/technical-guide">
             <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-technical-guide">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
                   <BookOpen className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -364,7 +364,7 @@ function ArticleCard({ article }: { article: Article }) {
       case 'risk': return 'text-green-400';
       case 'psychology': return 'text-orange-400';
       case 'options': return 'text-purple-400';
-      default: return 'text-cyan-400';
+      default: return 'text-emerald-400';
     }
   };
 

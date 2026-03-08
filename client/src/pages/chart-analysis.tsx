@@ -21,7 +21,6 @@ import {
   Filter, Eye, History, ArrowRight, TrendingUpDown, Radar, Flag, Triangle, Circle,
   ChevronUp, ChevronDown, Terminal, Cpu
 } from "lucide-react";
-import { AuroraBackground } from "@/components/aurora-background";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -796,10 +795,10 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
   };
   
   return (
-    <Card className="glass-card border-cyan-500/30">
+    <Card className="glass-card border-emerald-500/30">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          <Zap className="h-5 w-5 text-cyan-400" />
+          <Zap className="h-5 w-5 text-emerald-400" />
           Trade Setup Recommendations
           <Badge variant="outline" className="ml-2 text-xs">Predictive</Badge>
         </CardTitle>
@@ -822,7 +821,7 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-day-entry">
+                <p className="font-mono tabular-nums font-semibold text-emerald-400" data-testid="text-day-entry">
                   ${safeToFixed(dayTrade.entry, 2)}
                 </p>
               </div>
@@ -880,7 +879,7 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-2 rounded bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-swing-entry">
+                <p className="font-mono tabular-nums font-semibold text-emerald-400" data-testid="text-swing-entry">
                   ${safeToFixed(swingTrade.entry, 2)}
                 </p>
               </div>
@@ -1017,7 +1016,7 @@ function AnalysisTypeCard({
     <div 
       onClick={onClick}
       className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover-elevate ${
-        isActive ? 'ring-2 ring-cyan-400/50 bg-cyan-500/5' : ''
+        isActive ? 'ring-2 ring-cyan-400/50 bg-emerald-500/5' : ''
       }`}
       data-testid={`card-analysis-${title.toLowerCase().replace(/ /g, '-')}`}
     >
@@ -1036,7 +1035,7 @@ function AnalysisTypeCard({
       <h3 className="font-semibold text-sm mb-1">{title}</h3>
       <p className="text-xs text-muted-foreground mb-3">{description}</p>
       {stats && (
-        <p className="text-xs text-cyan-500">{stats}</p>
+        <p className="text-xs text-emerald-500">{stats}</p>
       )}
     </div>
   );
@@ -1469,7 +1468,7 @@ function PatternSearchTab() {
           <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2 flex flex-row items-center justify-between gap-4">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Target className="h-5 w-5 text-cyan-400" />
+                <Target className="h-5 w-5 text-emerald-400" />
                 Price Chart with Bollinger Bands
               </CardTitle>
               <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
@@ -1752,7 +1751,7 @@ function PatternSearchTab() {
                   {/* Momentum Layer */}
                   <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
                     <div className="flex items-center gap-2 mb-2">
-                      <Gauge className="h-4 w-4 text-cyan-400" />
+                      <Gauge className="h-4 w-4 text-emerald-400" />
                       <span className="text-sm font-medium">Momentum</span>
                     </div>
                     <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-layer-momentum">
@@ -1848,10 +1847,10 @@ function PatternSearchTab() {
           
           {/* EMA Bundle Analysis */}
           {patternData.indicators.ema && (
-            <Card className="glass-card border-cyan-500/30">
+            <Card className="glass-card border-emerald-500/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <LineChart className="h-5 w-5 text-cyan-400" />
+                  <LineChart className="h-5 w-5 text-emerald-400" />
                   Moving Average Confluence
                   <Badge 
                     className={cn(
@@ -2062,7 +2061,7 @@ function PatternSearchTab() {
                     <p className="text-xs text-muted-foreground mb-1">Relative Volume</p>
                     <p className={cn(
                       "text-xl font-bold font-mono tabular-nums",
-                      patternData.volumeAnalysis.relativeVolume > 1.5 ? "text-cyan-400" : "text-muted-foreground"
+                      patternData.volumeAnalysis.relativeVolume > 1.5 ? "text-emerald-400" : "text-muted-foreground"
                     )} data-testid="text-relative-volume">{safeToFixed(patternData.volumeAnalysis.relativeVolume, 2)}x</p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/20 text-center">
@@ -2358,13 +2357,13 @@ function PatternBacktestTab() {
                   
                   <div>
                     <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-cyan-400" />
+                      <Target className="h-4 w-4 text-emerald-400" />
                       Exit Rules
                     </h4>
                     <ul className="space-y-1.5">
                       {selectedPattern.exitRules.map((rule, i) => (
                         <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-cyan-400 mt-0.5 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0" />
                           {rule}
                         </li>
                       ))}
@@ -2449,7 +2448,7 @@ const PATTERN_ICONS: Record<string, typeof TrendingUp> = {
 const URGENCY_COLORS: Record<string, string> = {
   imminent: "text-red-400 bg-red-500/10 border-red-500/30",
   soon: "text-amber-400 bg-amber-500/10 border-amber-500/30",
-  developing: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+  developing: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -2569,7 +2568,7 @@ function PatternScannerTab() {
     <button
       onClick={() => handleSort(sortKeyName)}
       className={cn(
-        "flex items-center gap-1 font-mono text-xs text-slate-400 hover:text-cyan-400 transition-colors uppercase tracking-wider",
+        "flex items-center gap-1 font-mono text-xs text-slate-400 hover:text-emerald-400 transition-colors uppercase tracking-wider",
         className
       )}
       data-testid={`sort-${sortKeyName}`}
@@ -2594,7 +2593,7 @@ function PatternScannerTab() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Radar className="h-5 w-5 text-cyan-400" />
+            <Radar className="h-5 w-5 text-emerald-400" />
             Breakout Pattern Scanner
           </h2>
           <p className="text-xs text-muted-foreground font-mono">
@@ -2623,7 +2622,7 @@ function PatternScannerTab() {
                 <p className="text-xs text-muted-foreground font-mono uppercase">Total Patterns</p>
                 <p className="text-2xl font-bold">{data?.count || 0}</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-cyan-400/50" />
+              <BarChart3 className="h-8 w-8 text-emerald-400/50" />
             </div>
           </CardContent>
         </Card>
@@ -2669,7 +2668,7 @@ function PatternScannerTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <CardTitle className="text-base font-mono flex items-center gap-2">
-              <Filter className="h-4 w-4 text-cyan-400" />
+              <Filter className="h-4 w-4 text-emerald-400" />
               Active Patterns
             </CardTitle>
             
@@ -2782,7 +2781,7 @@ function PatternScannerTab() {
                         >
                           <td className="p-3">
                             <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-cyan-400">{signal.symbol}</span>
+                              <span className="font-mono font-bold text-emerald-400">{signal.symbol}</span>
                               <Badge 
                                 variant="outline" 
                                 className={cn("text-xs", STATUS_COLORS[signal.patternStatus])}
@@ -2803,7 +2802,7 @@ function PatternScannerTab() {
                               className={cn(
                                 "font-mono",
                                 signal.patternScore && signal.patternScore >= 80 ? "text-green-400 bg-green-500/10" :
-                                signal.patternScore && signal.patternScore >= 70 ? "text-cyan-400 bg-cyan-500/10" :
+                                signal.patternScore && signal.patternScore >= 70 ? "text-emerald-400 bg-emerald-500/10" :
                                 "text-amber-400 bg-amber-500/10"
                               )}
                             >
@@ -2900,7 +2899,7 @@ function PatternScannerTab() {
                       data-testid={`card-imminent-${signal.symbol}`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-mono font-bold text-cyan-400">{signal.symbol}</span>
+                        <span className="font-mono font-bold text-emerald-400">{signal.symbol}</span>
                         <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">
                           {signal.patternScore}
                         </Badge>
@@ -3229,9 +3228,9 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-mono flex items-center gap-2">
-              <Radar className="h-4 w-4 text-cyan-400" />
+              <Radar className="h-4 w-4 text-emerald-400" />
               Unified Pattern Analysis
-              <Badge className="ml-2 bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-xs">
+              <Badge className="ml-2 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
                 DUAL ENGINE
               </Badge>
             </CardTitle>
@@ -3295,7 +3294,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
             {/* Chart Upload */}
             <div className="lg:col-span-2">
               <Label className="text-xs font-mono text-slate-400 mb-1.5 block">CHART IMAGE (OPTIONAL)</Label>
-              <div className="border border-dashed border-slate-600 rounded-lg p-2 bg-slate-800/30 hover:border-cyan-500/50 transition-colors">
+              <div className="border border-dashed border-slate-600 rounded-lg p-2 bg-slate-800/30 hover:border-emerald-500/50 transition-colors">
                 <Input
                   id="unified-chart-upload"
                   type="file"
@@ -3342,7 +3341,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-base font-mono flex items-center gap-2">
-                  <LineChart className="h-4 w-4 text-cyan-400" />
+                  <LineChart className="h-4 w-4 text-emerald-400" />
                   {analysisSymbol} Price Chart
                 </CardTitle>
                 {chartData && (
@@ -3385,7 +3384,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
           <CardContent className="pt-4">
             {chartLoading ? (
               <div className="flex items-center justify-center h-[350px]">
-                <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
               </div>
             ) : chartData?.candles?.length ? (
               <div ref={chartContainerRef} className="w-full" data-testid="interactive-chart-container" />
@@ -3423,7 +3422,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
             <CardContent className="pt-4">
               {quantLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+                  <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
                 </div>
               ) : hasQuantData ? (
                 <div className="space-y-3">
@@ -3440,7 +3439,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <PatternIcon className="h-4 w-4 text-cyan-400" />
+                            <PatternIcon className="h-4 w-4 text-emerald-400" />
                             <span className="font-mono text-sm text-slate-200">{pattern.patternName}</span>
                           </div>
                           <div className="flex items-center gap-1">
@@ -3448,7 +3447,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                               "text-xs",
                               urgency === 'imminent' ? "bg-red-500/20 text-red-400 border-red-500/30" :
                               urgency === 'soon' ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
-                              "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                              "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                             )}>
                               {urgency.toUpperCase()}
                             </Badge>
@@ -3615,7 +3614,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                   {mathPatterns.hurst && (
                   <div className={cn(
                     "p-3 rounded-lg border",
-                    mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/10 border-cyan-500/30" :
+                    mathPatterns.hurst.interpretation === 'trending' ? "bg-emerald-500/10 border-emerald-500/30" :
                     mathPatterns.hurst.interpretation === 'mean_reverting' ? "bg-amber-500/10 border-amber-500/30" :
                     "bg-slate-500/10 border-slate-500/30"
                   )}>
@@ -3625,7 +3624,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                         <span className="text-lg font-mono font-bold">{safeToFixed(mathPatterns.hurst.exponent, 3)}</span>
                         <Badge className={cn(
                           "text-xs",
-                          mathPatterns.hurst.interpretation === 'trending' ? "bg-cyan-500/20 text-cyan-400" :
+                          mathPatterns.hurst.interpretation === 'trending' ? "bg-emerald-500/20 text-emerald-400" :
                           mathPatterns.hurst.interpretation === 'mean_reverting' ? "bg-amber-500/20 text-amber-400" :
                           "bg-slate-500/20 text-slate-400"
                         )}>
@@ -4235,7 +4234,6 @@ export default function ChartAnalysis() {
     <div className="min-h-screen bg-slate-950 relative overflow-x-hidden w-full">
       {/* Background */}
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
-      <AuroraBackground />
 
       <motion.div
         initial={{ opacity: 0 }}
@@ -4246,12 +4244,12 @@ export default function ChartAnalysis() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-cyan-500/20 p-6"
+        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-emerald-500/20 p-6"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex items-center gap-4">
-          <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-            <LineChart className="h-6 w-6 text-cyan-400" />
+          <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <LineChart className="h-6 w-6 text-emerald-400" />
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white">Chart Analysis</h1>
@@ -4261,7 +4259,7 @@ export default function ChartAnalysis() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-xs text-slate-300">
-              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <Cpu className="w-3.5 h-3.5 text-emerald-400" />
               <span>6 Engines</span>
             </div>
           </div>
@@ -4279,8 +4277,8 @@ export default function ChartAnalysis() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30">
-                    <BarChart3 className="h-5 w-5 text-cyan-400" />
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500/20 to-blue-500/20 border border-emerald-500/30">
+                    <BarChart3 className="h-5 w-5 text-emerald-400" />
                   </div>
                   <div>
                     <CardTitle className="text-lg text-slate-100">Universal Engine - Technical Analysis</CardTitle>
@@ -4291,13 +4289,13 @@ export default function ChartAnalysis() {
                 </div>
                 <div className="flex items-center gap-3">
                   {isUniversalLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-cyan-400" />
+                    <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
                   ) : universalTechnicalAnalysis ? (
                     <div className="text-right">
                       <div className={cn(
                         "text-3xl font-bold",
                         universalTechnicalAnalysis.components?.technical?.score >= 80 ? "text-emerald-400" :
-                        universalTechnicalAnalysis.components?.technical?.score >= 60 ? "text-cyan-400" :
+                        universalTechnicalAnalysis.components?.technical?.score >= 60 ? "text-emerald-400" :
                         universalTechnicalAnalysis.components?.technical?.score >= 40 ? "text-yellow-400" : "text-red-400"
                       )}>
                         {universalTechnicalAnalysis.components?.technical?.grade || 'N/A'}
@@ -4319,7 +4317,7 @@ export default function ChartAnalysis() {
                     <div key={idx} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-slate-400">{metric.category}</span>
-                        <span className="text-xs font-semibold text-cyan-400">{metric.value}</span>
+                        <span className="text-xs font-semibold text-emerald-400">{metric.value}</span>
                       </div>
                       <p className="text-xs text-slate-500">{metric.interpretation}</p>
                     </div>
@@ -4347,7 +4345,7 @@ export default function ChartAnalysis() {
       )}
 
       {sixEngineAnalysis && (
-        <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5" data-testid="card-trade-idea">
+        <Card className="border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 to-purple-500/5" data-testid="card-trade-idea">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -4425,7 +4423,7 @@ export default function ChartAnalysis() {
               </div>
               <div className="p-3 rounded-lg bg-card/50 border border-border/50">
                 <div className="text-xs text-muted-foreground mb-1">Risk/Reward</div>
-                <div className="text-2xl font-bold text-cyan-400" data-testid="text-risk-reward">
+                <div className="text-2xl font-bold text-emerald-400" data-testid="text-risk-reward">
                   {sixEngineAnalysis.tradeIdea.riskReward}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
@@ -4466,9 +4464,9 @@ export default function ChartAnalysis() {
       )}
 
       {isSixEngineLoading && symbol && (
-        <Card className="border border-cyan-500/30">
+        <Card className="border border-emerald-500/30">
           <CardContent className="p-6 flex items-center justify-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
             <span className="text-muted-foreground">Analyzing {symbol} with 6 engines...</span>
           </CardContent>
         </Card>
@@ -4574,8 +4572,8 @@ export default function ChartAnalysis() {
                         </div>
                       ) : (
                         <div className="py-8 space-y-3">
-                          <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center">
-                            <ImageIcon className="h-7 w-7 text-cyan-500" />
+                          <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/10 flex items-center justify-center">
+                            <ImageIcon className="h-7 w-7 text-emerald-500" />
                           </div>
                           <div>
                             <p className="font-medium text-sm">Drop chart here or click to upload</p>
@@ -4624,7 +4622,7 @@ export default function ChartAnalysis() {
                         type="button"
                         className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-colors ${
                           timeframe === tf.value 
-                            ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/50' 
+                            ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/50' 
                             : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                         }`}
                         onClick={() => setTimeframe(tf.value)}
@@ -4644,14 +4642,14 @@ export default function ChartAnalysis() {
                             : 'bg-red-500/10 border border-red-500/30'
                           : analysisResult?.sentiment === 'bearish' 
                             ? 'bg-red-500/10 border border-red-500/30'
-                            : 'bg-cyan-500/10 border border-cyan-500/30'
+                            : 'bg-emerald-500/10 border border-emerald-500/30'
                       }`}>
                         <div className="flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-cyan-500" />
+                          <Sparkles className="h-5 w-5 text-emerald-500" />
                           <span className={`text-lg font-bold ${
                             aiSuggestion.assetType === 'option'
                               ? aiSuggestion.optionType === 'call' ? 'text-green-500' : 'text-red-500'
-                              : analysisResult?.sentiment === 'bearish' ? 'text-red-500' : 'text-cyan-500'
+                              : analysisResult?.sentiment === 'bearish' ? 'text-red-500' : 'text-emerald-500'
                           }`}>
                             {aiSuggestion.assetType === 'option' 
                               ? `${aiSuggestion.optionType.toUpperCase()} Option` 
@@ -4861,9 +4859,9 @@ export default function ChartAnalysis() {
                           -{safeToFixed(calculateRiskPercent(), 1)}%
                         </p>
                       </div>
-                      <div className="text-center p-3 rounded-lg bg-cyan-500/10">
+                      <div className="text-center p-3 rounded-lg bg-emerald-500/10">
                         <p className="text-xs text-muted-foreground mb-1">R:R</p>
-                        <p className="text-lg font-bold font-mono text-cyan-500 tabular-nums" data-testid="text-risk-reward">
+                        <p className="text-lg font-bold font-mono text-emerald-500 tabular-nums" data-testid="text-risk-reward">
                           {safeToFixed(analysisResult.riskRewardRatio, 1)}:1
                         </p>
                       </div>
@@ -4919,7 +4917,7 @@ export default function ChartAnalysis() {
                               <Label className="text-xs text-muted-foreground mb-2 block text-center">Patterns Found</Label>
                               <div className="text-center" data-testid="patterns-indicator">
                                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                                  <Target className="h-4 w-4 text-cyan-500" />
+                                  <Target className="h-4 w-4 text-emerald-500" />
                                   <span className="text-lg font-bold text-foreground font-mono tabular-nums">
                                     {analysisResult.patterns.length}
                                   </span>

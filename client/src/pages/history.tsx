@@ -9,7 +9,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AuroraBackground } from "@/components/aurora-background";
 import {
   MessageSquare,
   FileText,
@@ -90,7 +89,6 @@ export default function History() {
 
   return (
     <>
-      <AuroraBackground />
       <div className="min-h-screen relative z-10 pb-20">
         <div className="max-w-5xl mx-auto">
         {/* Header */}
@@ -122,7 +120,7 @@ export default function History() {
             <TabsList className="bg-slate-800/50 mb-6">
               <TabsTrigger
                 value="chat"
-                className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 gap-2"
+                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-cyan-400 gap-2"
                 data-testid="tab-chat-history"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -130,7 +128,7 @@ export default function History() {
               </TabsTrigger>
               <TabsTrigger
                 value="research"
-                className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 gap-2"
+                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-cyan-400 gap-2"
                 data-testid="tab-research-history"
               >
                 <FileText className="w-4 h-4" />
@@ -159,7 +157,7 @@ export default function History() {
                         data-testid={`chat-history-${chat.id}`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
                             <MessageSquare className="w-5 h-5 text-cyan-400" />
                           </div>
                           <div>
@@ -218,7 +216,7 @@ export default function History() {
                           <div>
                             <div className="flex items-center gap-2">
                               <Link href={`/chart-analysis?symbol=${research.symbol}`}>
-                                <span className="font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer">
+                                <span className="font-semibold text-cyan-400 hover:text-emerald-300 cursor-pointer">
                                   {research.symbol}
                                 </span>
                               </Link>

@@ -216,7 +216,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover-elevate">
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 font-bold text-sm">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm">
               {index + 1}
             </div>
             <div className="text-left">
@@ -243,7 +243,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Score</p>
-              <p className="font-mono font-bold text-cyan-400">{pick.score}</p>
+              <p className="font-mono font-bold text-emerald-400">{pick.score}</p>
             </div>
           </div>
         </div>
@@ -261,7 +261,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Zap className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <Zap className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Entry Reason</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.entryReason}</p>
@@ -292,7 +292,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-cyan-400">{safeToFixed(pick.volumeRatio, 1)}x avg</p>
+                <p className="text-xs text-emerald-400">{safeToFixed(pick.volumeRatio, 1)}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -453,12 +453,12 @@ export default function MarketPage() {
         title="Market Overview"
         description="Track 500+ stocks across multiple sectors and timeframes"
         icon={BarChart2}
-        iconColor="text-cyan-400"
+        iconColor="text-emerald-400"
         actions={
           <div className="flex items-center gap-3 flex-wrap">
             <MarketSessionBadge session={currentSession} data-testid="badge-market-session" />
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4 text-cyan-400" />
+              <Clock className="h-4 w-4 text-emerald-400" />
               <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime} CT</span>
             </div>
           </div>
@@ -524,8 +524,8 @@ export default function MarketPage() {
             <Card className="glass-card p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Tracked Assets</p>
-                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-cyan-400" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-emerald-400" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-assets">{marketData.length}</p>
@@ -535,8 +535,8 @@ export default function MarketPage() {
             <Card className="glass-card p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Market Sentiment</p>
-                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-emerald-400" />
                 </div>
               </div>
               <p className={`text-2xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
@@ -548,8 +548,8 @@ export default function MarketPage() {
             <Card className="glass-card p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Volume</p>
-                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-cyan-400" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-emerald-400" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-volume">
@@ -561,8 +561,8 @@ export default function MarketPage() {
             <Card className="glass-card p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active Catalysts</p>
-                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-cyan-400" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-emerald-400" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-catalyst-count">{catalysts.length}</p>
@@ -655,8 +655,8 @@ export default function MarketPage() {
           <Card className="glass-card">
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-cyan-400" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Real-Time</p>
@@ -774,11 +774,11 @@ export default function MarketPage() {
               </TabsTrigger>
             </TabsList>
 
-            <Card className="mt-6 border-cyan-500/30 bg-cyan-500/5">
+            <Card className="mt-6 border-emerald-500/30 bg-emerald-500/5">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-cyan-400" data-testid="smart-watchlist-title">
+                    <CardTitle className="flex items-center gap-2 text-emerald-400" data-testid="smart-watchlist-title">
                       <Star className="w-5 h-5" />
                       Smart Watchlist - {timeframeLabels[scannerTimeframe]} Picks
                     </CardTitle>
@@ -787,7 +787,7 @@ export default function MarketPage() {
                     </CardDescription>
                   </div>
                   {watchlistQuery.data && (
-                    <Badge variant="outline" className="text-cyan-400 border-cyan-500/30">
+                    <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
                       {watchlistQuery.data.count} picks
                     </Badge>
                   )}
@@ -796,7 +796,7 @@ export default function MarketPage() {
               <CardContent>
                 {watchlistQuery.isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                     <span className="ml-3 text-muted-foreground">Analyzing stocks...</span>
                   </div>
                 ) : watchlistQuery.error ? (
@@ -844,7 +844,7 @@ export default function MarketPage() {
                       
                       {moversQuery.isLoading ? (
                         <div className="flex items-center justify-center py-12">
-                          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                         </div>
                       ) : moversQuery.error ? (
                         <div className="flex items-center justify-center py-12 text-red-400">
@@ -887,7 +887,7 @@ export default function MarketPage() {
                       
                       {moversQuery.isLoading ? (
                         <div className="flex items-center justify-center py-12">
-                          <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                         </div>
                       ) : moversQuery.error ? (
                         <div className="flex items-center justify-center py-12 text-red-400">
@@ -939,7 +939,7 @@ export default function MarketPage() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-cyan-400" />
+                  <BarChart3 className="w-5 h-5 text-emerald-400" />
                   Sector Analysis
                 </CardTitle>
                 <CardDescription>

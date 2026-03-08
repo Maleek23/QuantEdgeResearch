@@ -285,7 +285,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                       <Clock className="w-3 h-3" />
                       {idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}
                     </span>
-                    <span className="text-cyan-500/70 font-medium">
+                    <span className="text-emerald-500/70 font-medium">
                       {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
                     </span>
                   </div>
@@ -358,7 +358,7 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
       </Card>
       <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">Quality (A/B)</div>
-        <div className="text-2xl font-bold text-cyan-400">{stats.quality}</div>
+        <div className="text-2xl font-bold text-emerald-400">{stats.quality}</div>
       </Card>
       <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">Avg Confidence</div>
@@ -546,7 +546,7 @@ function TomorrowSurgersSubPage() {
       case 'HIGH_CONVICTION':
         return { bg: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/50', text: 'text-violet-400', badge: 'bg-violet-500/30 text-violet-300' };
       case 'STRONG_SETUP':
-        return { bg: 'from-cyan-500/20 to-teal-500/20', border: 'border-cyan-500/50', text: 'text-cyan-400', badge: 'bg-cyan-500/30 text-cyan-300' };
+        return { bg: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/50', text: 'text-emerald-400', badge: 'bg-cyan-500/30 text-emerald-300' };
       case 'WATCH_CLOSELY':
         return { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/50', text: 'text-amber-400', badge: 'bg-amber-500/30 text-amber-300' };
       default:
@@ -618,7 +618,7 @@ function TomorrowSurgersSubPage() {
                 </div>
                 <div className="text-center">
                   <div className="text-slate-500 text-[10px]">Potential</div>
-                  <div className="font-semibold text-cyan-400">
+                  <div className="font-semibold text-emerald-400">
                     +{safeToFixed(pred.prediction?.expectedMove, 0, '—')}%
                   </div>
                 </div>
@@ -742,12 +742,12 @@ function TomorrowSurgersSubPage() {
           </div>
           <div className="text-2xl font-bold text-violet-300">{highConviction.length}</div>
         </Card>
-        <Card className="bg-cyan-500/10 border-cyan-500/30 p-4">
+        <Card className="bg-emerald-500/10 border-emerald-500/30 p-4">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs text-cyan-400">Strong Setup</span>
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs text-emerald-400">Strong Setup</span>
           </div>
-          <div className="text-2xl font-bold text-cyan-300">{strongSetup.length}</div>
+          <div className="text-2xl font-bold text-emerald-300">{strongSetup.length}</div>
         </Card>
         <Card className="bg-amber-500/10 border-amber-500/30 p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -795,9 +795,9 @@ function TomorrowSurgersSubPage() {
           {strongSetup.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-4 h-4 text-cyan-400" />
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
                 <h3 className="text-sm font-semibold text-white">Strong Setups</h3>
-                <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px]">
+                <Badge className="bg-emerald-500/20 text-emerald-400 text-[10px]">
                   55-70% Probability
                 </Badge>
               </div>
@@ -902,7 +902,7 @@ function BestSetupsSubPage() {
         <Card className={cn(
           "relative overflow-hidden cursor-pointer transition-all duration-300",
           "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50",
-          "hover:border-cyan-500/50 hover:shadow-lg hover:-translate-y-1"
+          "hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-1"
         )}>
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -969,7 +969,7 @@ function BestSetupsSubPage() {
                 <Clock className="w-3 h-3" />
                 {setup.timestamp ? getRelativeTime(setup.timestamp) : '—'}
               </span>
-              <span className="text-cyan-500/70 font-medium">
+              <span className="text-emerald-500/70 font-medium">
                 {setup.dataSourceUsed?.replace(/_/g, ' ') || setup.source?.replace(/_/g, ' ') || 'scanner'}
               </span>
             </div>
@@ -1360,7 +1360,7 @@ function SurgeDetectionSubPage() {
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/10 border-violet-500/30 hover:border-violet-400/50" :
-        pred.prediction?.tier === 'STRONG_SETUP' ? "bg-cyan-500/10 border-cyan-500/30 hover:border-cyan-400/50" :
+        pred.prediction?.tier === 'STRONG_SETUP' ? "bg-emerald-500/10 border-emerald-500/30 hover:border-cyan-400/50" :
         "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50",
         // Highlight stocks with catalysts
         pred.hasCatalyst && "ring-1 ring-purple-500/40"
@@ -1370,7 +1370,7 @@ function SurgeDetectionSubPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
-                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-cyan-500/20 text-cyan-400"
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-emerald-500/20 text-emerald-400"
               )}>
                 {pred.symbol.slice(0, 2)}
                 {/* Catalyst indicator dot */}
@@ -1402,7 +1402,7 @@ function SurgeDetectionSubPage() {
             <div className="text-right">
               <div className={cn(
                 "text-xl font-bold",
-                pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-cyan-400"
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-emerald-400"
               )}>
                 {safeToFixed(pred.prediction?.probability, 0)}%
               </div>
@@ -1973,7 +1973,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
               <span className={cn(
                 "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
                 pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/30 text-violet-300" :
-                "bg-cyan-500/20 text-cyan-400"
+                "bg-emerald-500/20 text-emerald-400"
               )}>{idx + 1}</span>
               <div>
                 <div className="flex items-center gap-1">
@@ -2236,7 +2236,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
                 <span className="text-[10px] text-slate-600">Hot:</span>
                 {hotSymbols.map((s: any) => (
                   <Link key={s.symbol} href={`/stock/${s.symbol}`}>
-                    <span className="text-[10px] font-mono text-cyan-400 hover:underline cursor-pointer">
+                    <span className="text-[10px] font-mono text-emerald-400 hover:underline cursor-pointer">
                       {s.symbol}
                     </span>
                   </Link>
@@ -2425,8 +2425,8 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
   const sourceDriverMap: Record<string, IdeaDriver> = {
     'ai_analysis': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
     'ai': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
-    'quant_signal': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
-    'quant': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+    'quant_signal': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'quant': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
     'chart_analysis': { type: 'technical', label: 'Chart', icon: LineChart, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
     'surge_detection': { type: 'momentum', label: 'Surge', icon: Zap, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
     'market_scanner': { type: 'momentum', label: 'Mover', icon: Radar, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
@@ -2660,7 +2660,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           </div>
           <div className="text-center">
             <div className="text-slate-500 text-[10px]">R:R</div>
-            <div className="font-semibold text-cyan-400">1:{riskReward}</div>
+            <div className="font-semibold text-emerald-400">1:{riskReward}</div>
           </div>
         </div>
 
@@ -2738,7 +2738,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Clock className="w-3 h-3" />
             <span>First signal:</span>
-            <span className="font-medium text-cyan-400">
+            <span className="font-medium text-emerald-400">
               {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
             </span>
             {idea.timestamp && (
@@ -2774,7 +2774,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
               </Button>
             )}
             <Link href={`/stock/${idea.symbol}`} className="flex-1">
-              <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 text-xs">
+              <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-emerald-400 hover:bg-emerald-500/10 text-xs">
                 <Eye className="w-3 h-3 mr-1" /> Full Analysis
               </Button>
             </Link>
@@ -2874,7 +2874,7 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
               <div className="flex items-center gap-2">
                 <div className={cn(
                   "w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold",
-                  report.type === 'ai' ? "bg-purple-500/20 text-purple-400" : "bg-cyan-500/20 text-cyan-400"
+                  report.type === 'ai' ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"
                 )}>
                   {report.type === 'ai' ? 'AI' : 'Q'}
                 </div>
@@ -3674,7 +3674,7 @@ export default function TradeDeskRedesigned() {
                 </SelectItem>
                 <SelectItem value="quant" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+                    <BarChart3 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                     <span>Quant Engine</span>
                   </div>
                 </SelectItem>

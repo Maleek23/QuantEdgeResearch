@@ -58,7 +58,7 @@ import type { WatchlistItem, TradeIdea } from "@shared/schema";
 const TIER_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   S: { bg: "bg-purple-500/20", text: "text-purple-400", label: "S" },
   A: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "A" },
-  B: { bg: "bg-cyan-500/20", text: "text-cyan-400", label: "B" },
+  B: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "B" },
   C: { bg: "bg-amber-500/20", text: "text-amber-400", label: "C" },
   D: { bg: "bg-orange-500/20", text: "text-orange-400", label: "D" },
   F: { bg: "bg-red-500/20", text: "text-red-400", label: "F" },
@@ -236,10 +236,10 @@ export default function UnifiedWatchlist() {
         >
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-semibold text-slate-100 flex items-center gap-3">
-              <Star className="h-7 w-7 text-cyan-400" />
+              <Star className="h-7 w-7 text-emerald-400" />
               Watchlist
             </h1>
-            <Badge className="bg-cyan-500/20 text-cyan-400 border-0 font-mono">
+            <Badge className="bg-emerald-500/20 text-emerald-400 border-0 font-mono">
               {watchlistItems.length}
             </Badge>
           </div>
@@ -313,7 +313,7 @@ export default function UnifiedWatchlist() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-400">Default</span>
             <Select value={selectedWatchlist} onValueChange={setSelectedWatchlist}>
-              <SelectTrigger className="w-40 bg-cyan-500/10 border-cyan-500/30 text-cyan-400">
+              <SelectTrigger className="w-40 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -326,7 +326,7 @@ export default function UnifiedWatchlist() {
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="bg-slate-800/50">
-              <TabsTrigger value="default" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+              <TabsTrigger value="default" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
                 <Star className="w-4 h-4 mr-2" />
                 Overview
               </TabsTrigger>
@@ -369,7 +369,7 @@ export default function UnifiedWatchlist() {
           <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
             {watchlistLoading ? (
               <div className="p-12 text-center">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-cyan-400 mb-4" />
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-emerald-400 mb-4" />
                 <p className="text-slate-400">Loading watchlist...</p>
               </div>
             ) : sortedItems.length === 0 ? (
@@ -431,7 +431,7 @@ export default function UnifiedWatchlist() {
                           <TableCell>
                             <div>
                               <Link href={`/stock/${item.symbol}`}>
-                                <span className="font-semibold text-cyan-400 hover:text-cyan-300 cursor-pointer">
+                                <span className="font-semibold text-emerald-400 hover:text-emerald-300 cursor-pointer">
                                   {item.symbol}
                                 </span>
                               </Link>
@@ -499,7 +499,7 @@ export default function UnifiedWatchlist() {
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <Link href={`/stock/${item.symbol}`}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-cyan-400 hover:text-cyan-300">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-400 hover:text-emerald-300">
                                   <Eye className="w-4 h-4" />
                                 </Button>
                               </Link>
@@ -536,7 +536,7 @@ export default function UnifiedWatchlist() {
           <Card className="bg-slate-900/60 border-slate-800">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Bell className="w-5 h-5 text-cyan-400" />
+                <Bell className="w-5 h-5 text-emerald-400" />
                 <h3 className="font-semibold text-slate-100">Notifications & Alerts</h3>
               </div>
               <Button variant="ghost" size="sm" className="text-xs text-slate-400">
@@ -555,7 +555,7 @@ export default function UnifiedWatchlist() {
                   className={cn(
                     "whitespace-nowrap text-xs",
                     tab === "All"
-                      ? "bg-cyan-500/10 text-cyan-400"
+                      ? "bg-emerald-500/10 text-emerald-400"
                       : "text-slate-400 hover:text-slate-200"
                   )}
                 >

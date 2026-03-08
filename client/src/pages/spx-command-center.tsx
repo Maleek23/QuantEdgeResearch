@@ -401,7 +401,7 @@ function StatBox({ label, value, sub, color }: { label: string; value: string; s
 function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
   const isLong = breakout.direction === 'LONG';
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50 hover:border-cyan-500/20 transition-all">
+    <Card className="bg-slate-900/60 border-slate-800/50 hover:border-emerald-500/20 transition-all">
       <CardContent className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -461,7 +461,7 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
         <div className="grid grid-cols-3 gap-2 text-[10px] pt-1 border-t border-slate-800/50">
           <div>
             <div className="text-slate-500">ENTRY</div>
-            <div className="font-mono font-bold text-cyan-400">${safeToFixed(breakout.entry, 2)}</div>
+            <div className="font-mono font-bold text-emerald-400">${safeToFixed(breakout.entry, 2)}</div>
           </div>
           <div>
             <div className="text-slate-500">STOP</div>
@@ -506,7 +506,7 @@ function SessionSignalCard({ signal }: { signal: SessionSignal }) {
 
   return (
     <Card className={cn(
-      "bg-slate-900/60 border-slate-800/50 hover:border-cyan-500/20 transition-all",
+      "bg-slate-900/60 border-slate-800/50 hover:border-emerald-500/20 transition-all",
       signal.urgency === 'HIGH' && "border-red-500/15"
     )}>
       <CardContent className="p-3 space-y-2">
@@ -526,7 +526,7 @@ function SessionSignalCard({ signal }: { signal: SessionSignal }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] border-cyan-500/20 text-cyan-400">
+          <Badge variant="outline" className="text-[10px] border-emerald-500/20 text-emerald-400">
             {strategyLabels[signal.strategy] || signal.strategy}
           </Badge>
           <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -544,7 +544,7 @@ function SessionSignalCard({ signal }: { signal: SessionSignal }) {
         <div className="grid grid-cols-3 gap-2 text-[10px]">
           <div>
             <div className="text-slate-500">ENTRY</div>
-            <div className="font-mono font-bold text-cyan-400">${safeToFixed(signal.entry, 2)}</div>
+            <div className="font-mono font-bold text-emerald-400">${safeToFixed(signal.entry, 2)}</div>
           </div>
           <div>
             <div className="text-slate-500">STOP</div>
@@ -578,7 +578,7 @@ function KeyLevelsPanel({ levels, spxPrice }: { levels: SessionLevels | null; sp
   }
 
   const levelItems = [
-    { label: 'VWAP', value: levels.vwap, color: 'text-cyan-400' },
+    { label: 'VWAP', value: levels.vwap, color: 'text-emerald-400' },
     { label: 'HOD', value: levels.hod, color: 'text-emerald-400' },
     { label: 'LOD', value: levels.lod, color: 'text-red-400' },
     { label: 'PIVOT', value: levels.pivotHigh || levels.pivotPoint, color: 'text-amber-400' },
@@ -622,7 +622,7 @@ function KeyLevelsPanel({ levels, spxPrice }: { levels: SessionLevels | null; sp
 function LottoCard({ play }: { play: LottoPlay }) {
   const isCall = play.type === 'call';
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50 hover:border-cyan-500/20 transition-all">
+    <Card className="bg-slate-900/60 border-slate-800/50 hover:border-emerald-500/20 transition-all">
       <CardContent className="p-3 space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
@@ -637,7 +637,7 @@ function LottoCard({ play }: { play: LottoPlay }) {
           <Badge variant="outline" className={cn(
             "text-[10px] font-bold",
             play.confidence === 'high' ? "border-emerald-500/30 text-emerald-400"
-              : play.confidence === 'medium' ? "border-cyan-500/30 text-cyan-400"
+              : play.confidence === 'medium' ? "border-emerald-500/30 text-emerald-400"
               : "border-slate-600 text-slate-400"
           )}>
             {play.confidence.toUpperCase()}
@@ -650,7 +650,7 @@ function LottoCard({ play }: { play: LottoPlay }) {
         <div className="grid grid-cols-3 gap-2 text-[10px]">
           <div>
             <div className="text-slate-500">ENTRY</div>
-            <div className="font-mono font-bold text-cyan-400">${safeToFixed(play.suggestedEntry, 2)}</div>
+            <div className="font-mono font-bold text-emerald-400">${safeToFixed(play.suggestedEntry, 2)}</div>
           </div>
           <div>
             <div className="text-slate-500">STOP</div>
@@ -781,7 +781,7 @@ function UnifiedScoreCard({ score }: { score: IntelUnifiedScore | null }) {
         {score.topSignals && score.topSignals.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
             {score.topSignals.map((s, i) => (
-              <Badge key={i} variant="outline" className="text-[9px] border-cyan-500/20 text-cyan-400 bg-cyan-500/5">
+              <Badge key={i} variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400 bg-emerald-500/5">
                 {s}
               </Badge>
             ))}
@@ -1171,7 +1171,7 @@ function IVSkewPanel({ ivSkew }: { ivSkew: IntelIVSkew | null }) {
 function VWAPPanel({ vwap }: { vwap: IntelVWAP | null }) {
   if (!vwap) return null;
 
-  const posColor = vwap.position.includes('above') ? 'text-emerald-400' : vwap.position.includes('below') ? 'text-red-400' : 'text-cyan-400';
+  const posColor = vwap.position.includes('above') ? 'text-emerald-400' : vwap.position.includes('below') ? 'text-red-400' : 'text-emerald-400';
 
   return (
     <Card className="bg-slate-900/60 border-slate-800/50">
@@ -1186,7 +1186,7 @@ function VWAPPanel({ vwap }: { vwap: IntelVWAP | null }) {
           {[
             { label: '+2σ', value: vwap.upper2, color: 'text-red-400/60' },
             { label: '+1σ', value: vwap.upper1, color: 'text-amber-400/60' },
-            { label: 'VWAP', value: vwap.vwap, color: 'text-cyan-400' },
+            { label: 'VWAP', value: vwap.vwap, color: 'text-emerald-400' },
             { label: '-1σ', value: vwap.lower1, color: 'text-amber-400/60' },
             { label: '-2σ', value: vwap.lower2, color: 'text-red-400/60' },
           ].map((item) => (
@@ -1405,7 +1405,7 @@ function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
         <Card className="bg-slate-900/40 border-slate-800/50">
           <CardContent className="px-4 py-3">
             <div className="flex items-start gap-2">
-              <Brain className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+              <Brain className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Institutional Thesis</div>
                 <p className="text-sm text-slate-300 leading-relaxed">{intel.unifiedScore.thesis}</p>
@@ -1429,7 +1429,7 @@ function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
 // ════════════════════════════════════════════════════════════════════════
 
 const SYMBOL_COLORS: Record<IndexSymbol, { active: string; ring: string; bg: string }> = {
-  SPY: { active: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30', ring: 'ring-cyan-500/30', bg: 'bg-cyan-500' },
+  SPY: { active: 'bg-cyan-500/15 text-emerald-400 border-emerald-500/30', ring: 'ring-cyan-500/30', bg: 'bg-cyan-500' },
   QQQ: { active: 'bg-violet-500/15 text-violet-400 border-violet-500/30', ring: 'ring-violet-500/30', bg: 'bg-violet-500' },
   IWM: { active: 'bg-amber-500/15 text-amber-400 border-amber-500/30', ring: 'ring-amber-500/30', bg: 'bg-amber-500' },
   SPX: { active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', ring: 'ring-emerald-500/30', bg: 'bg-emerald-500' },
@@ -1501,7 +1501,7 @@ export default function SPXCommandCenter() {
             <div className="h-4 w-px bg-slate-800" />
             <StatBox label="VIX" value={vix > 0 ? safeToFixed(vix, 1) : '--'} color={vix >= 25 ? "text-red-400" : vix >= 18 ? "text-amber-400" : "text-emerald-400"} />
             <StatBox label={activeSymbol} value={spotPrice ? `$${safeToFixed(spotPrice, 2)}` : (primaryIndex ? `$${safeToFixed(primaryIndex.price, 2)}` : '--')} sub={primaryIndex ? `${primaryIndex.changePercent >= 0 ? '+' : ''}${safeToFixed(primaryIndex.changePercent, 2)}%` : undefined} />
-            <StatBox label="Signals" value={String(data?.todayIdeasCount || 0)} color="text-cyan-400" />
+            <StatBox label="Signals" value={String(data?.todayIdeasCount || 0)} color="text-emerald-400" />
           </div>
         </div>
 
@@ -1548,7 +1548,7 @@ export default function SPXCommandCenter() {
             </TabsTrigger>
             <TabsTrigger
               value="intelligence"
-              className="data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400 text-slate-400 text-xs font-bold gap-1.5"
+              className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 text-slate-400 text-xs font-bold gap-1.5"
             >
               <Brain className="w-3.5 h-3.5" /> Intelligence
             </TabsTrigger>
@@ -1566,7 +1566,7 @@ export default function SPXCommandCenter() {
             </div>
             <button
               onClick={() => setActiveTab('intelligence')}
-              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
             >
               View Intelligence <ChevronRight className="w-3 h-3" />
             </button>
@@ -1590,7 +1590,7 @@ export default function SPXCommandCenter() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   {alert.scoreLabel === 'FIRE' && <Flame className="w-5 h-5 text-red-400 animate-pulse" />}
-                  {alert.scoreLabel === 'STRONG' && <Target className="w-5 h-5 text-cyan-400" />}
+                  {alert.scoreLabel === 'STRONG' && <Target className="w-5 h-5 text-emerald-400" />}
                   {alert.scoreLabel === 'WATCH' && <Eye className="w-5 h-5 text-amber-400" />}
                   <span className="text-sm font-bold">SPX SWING {alert.scoreLabel}</span>
                   <Badge className={cn(
@@ -1603,7 +1603,7 @@ export default function SPXCommandCenter() {
                   </Badge>
                   <span className={cn(
                     "text-lg font-mono font-bold",
-                    alert.score >= 6 ? "text-red-400" : alert.score >= 5 ? "text-cyan-400" : "text-amber-400"
+                    alert.score >= 6 ? "text-red-400" : alert.score >= 5 ? "text-emerald-400" : "text-amber-400"
                   )}>
                     {alert.score}/6
                   </span>
@@ -1694,7 +1694,7 @@ export default function SPXCommandCenter() {
                         className={cn(
                           "text-[10px] font-bold px-2 py-0.5 rounded transition-colors",
                           orbTimeframe === tf
-                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             : "text-slate-500 hover:text-white"
                         )}
                       >
@@ -1746,9 +1746,9 @@ export default function SPXCommandCenter() {
             <Card className="bg-slate-900/40 border-slate-800/50">
               <CardHeader className="pb-2 px-4 pt-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                  <Activity className="w-4 h-4 text-cyan-400" /> Session Signals
+                  <Activity className="w-4 h-4 text-emerald-400" /> Session Signals
                   {sortedSignals.length > 0 && (
-                    <Badge className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                       {sortedSignals.length}
                     </Badge>
                   )}
@@ -1807,7 +1807,7 @@ export default function SPXCommandCenter() {
                   {data?.todayIdeasCount || 0}
                 </Badge>
               </CardTitle>
-              <a href="/trade-desk" className="text-[10px] text-cyan-400 hover:text-white transition-colors flex items-center gap-0.5">
+              <a href="/trade-desk" className="text-[10px] text-emerald-400 hover:text-white transition-colors flex items-center gap-0.5">
                 Trade Desk <ChevronRight className="w-3 h-3" />
               </a>
             </div>

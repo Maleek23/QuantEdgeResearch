@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AuroraBackground } from "@/components/aurora-background";
 import {
   Users,
   TrendingUp,
@@ -143,7 +142,6 @@ export default function SmartMoney() {
 
   return (
     <>
-      <AuroraBackground />
       <div className="min-h-screen relative z-10 pb-20">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -168,8 +166,8 @@ export default function SmartMoney() {
           >
             <Card className="p-5 bg-slate-900/60 border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
-                  <Users className="w-5 h-5 text-cyan-400" />
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <Users className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Insider Trades</p>
@@ -223,18 +221,18 @@ export default function SmartMoney() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
           >
             <Link href="/options-analyzer">
-              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-cyan-500/30 transition-all cursor-pointer group">
+              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-emerald-500/30 transition-all cursor-pointer group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-                      <BarChart3 className="w-6 h-6 text-cyan-400" />
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                      <BarChart3 className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-slate-100">Options Analyzer</h3>
                       <p className="text-sm text-slate-400">Deep options analysis</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
                 </div>
               </Card>
             </Link>
@@ -270,7 +268,7 @@ export default function SmartMoney() {
                   variant="ghost"
                   size="sm"
                   onClick={() => refetchInsider()}
-                  className="text-slate-400 hover:text-cyan-400"
+                  className="text-slate-400 hover:text-emerald-400"
                 >
                   <RefreshCw className={cn("w-4 h-4", insiderLoading && "animate-spin")} />
                 </Button>
@@ -313,7 +311,7 @@ export default function SmartMoney() {
                                     (e.target as HTMLImageElement).style.display = "none";
                                   }}
                                 />
-                                <span className="font-semibold text-cyan-400">{trade.symbol}</span>
+                                <span className="font-semibold text-emerald-400">{trade.symbol}</span>
                               </div>
                             </td>
                             <td className="p-4">
@@ -355,7 +353,7 @@ export default function SmartMoney() {
                             </td>
                             <td className="p-4 text-center">
                               <Link href={`/chart-analysis?symbol=${trade.symbol}`}>
-                                <Button variant="ghost" size="sm" className="text-cyan-400 hover:text-cyan-300">
+                                <Button variant="ghost" size="sm" className="text-emerald-400 hover:text-emerald-300">
                                   <Eye className="w-4 h-4 mr-1" />
                                   Analyze
                                 </Button>
@@ -405,7 +403,7 @@ export default function SmartMoney() {
                       <Link key={i} href={`/chart-analysis?symbol=${flow.symbol}`}>
                         <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer">
                           <div className="flex items-center gap-3">
-                            <span className="font-semibold text-cyan-400">{flow.symbol}</span>
+                            <span className="font-semibold text-emerald-400">{flow.symbol}</span>
                             <Badge
                               variant="outline"
                               className={cn(
@@ -472,7 +470,7 @@ export default function SmartMoney() {
                                     (e.target as HTMLImageElement).style.display = "none";
                                   }}
                                 />
-                                <span className="font-bold text-cyan-400">{stock.symbol}</span>
+                                <span className="font-bold text-emerald-400">{stock.symbol}</span>
                               </div>
                               <Badge className={cn(
                                 "text-xs",

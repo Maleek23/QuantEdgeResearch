@@ -445,7 +445,7 @@ export default function BacktestPage() {
           <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Target className="h-5 w-5 text-cyan-400" />
+                <Target className="h-5 w-5 text-emerald-400" />
                 Price Chart with Bollinger Bands
               </CardTitle>
             </CardHeader>

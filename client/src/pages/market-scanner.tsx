@@ -493,7 +493,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
         {/* Catalyst Events */}
         <div className="bg-card/50 border border-border/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-cyan-400" />
+            <FileText className="w-4 h-4 text-emerald-400" />
             <span className="text-sm font-medium">Catalyst Events</span>
           </div>
           
@@ -542,7 +542,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                     {event.title}
                   </span>
                   {event.isActive && (
-                    <Badge variant="secondary" className="text-[10px] bg-cyan-500/20 text-cyan-400">
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/20 text-emerald-400">
                       Active
                     </Badge>
                   )}
@@ -573,7 +573,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                   <p className="text-[10px] text-muted-foreground">Trades</p>
                 </div>
                 <div>
-                  <p className="text-lg font-mono font-bold text-cyan-400">+{historical.avgGain}%</p>
+                  <p className="text-lg font-mono font-bold text-emerald-400">+{historical.avgGain}%</p>
                   <p className="text-[10px] text-muted-foreground">Avg Gain</p>
                 </div>
               </div>
@@ -649,7 +649,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground">{stats.trades} trades</span>
                       <span className="text-green-400">{stats.trades > 0 ? safeToFixed((stats.wins / stats.trades) * 100, 0, '0') : 0}% win</span>
-                      <span className={`font-mono ${avgGainNum >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
+                      <span className={`font-mono ${avgGainNum >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {avgGainNum >= 0 ? '+' : ''}{safeToFixed(avgGainNum, 1, '0.0')}%
                       </span>
                     </div>
@@ -687,7 +687,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover-elevate">
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-400 font-bold text-sm">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm">
               {index + 1}
             </div>
             <div className="text-left">
@@ -714,7 +714,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Score</p>
-              <p className="font-mono font-bold text-cyan-400">{pick.score}</p>
+              <p className="font-mono font-bold text-emerald-400">{pick.score}</p>
             </div>
           </div>
         </div>
@@ -732,7 +732,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Zap className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <Zap className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Entry Reason</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.entryReason}</p>
@@ -763,7 +763,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-cyan-400">{safeToFixed(pick.volumeRatio, 1, '0.0')}x avg</p>
+                <p className="text-xs text-emerald-400">{safeToFixed(pick.volumeRatio, 1, '0.0')}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -988,7 +988,7 @@ export default function MarketScanner() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-3" data-testid="page-title">
-              <BarChart3 className="w-8 h-8 text-cyan-400" />
+              <BarChart3 className="w-8 h-8 text-emerald-400" />
               Market Scanner
             </h1>
             <p className="text-muted-foreground mt-1">
@@ -1112,7 +1112,7 @@ export default function MarketScanner() {
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
                       <span className="font-mono" data-testid={`text-price-${surge.symbol}`}>${safeToFixed(surge.currentPrice, 2)}</span>
-                      <span className="text-cyan-400" data-testid={`text-volume-${surge.symbol}`}>{safeToFixed(surge.volumeRatio, 1, '0.0')}x vol</span>
+                      <span className="text-emerald-400" data-testid={`text-volume-${surge.symbol}`}>{safeToFixed(surge.volumeRatio, 1, '0.0')}x vol</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       <Badge variant="outline" className="text-xs" data-testid={`badge-type-${surge.symbol}`}>
@@ -1208,11 +1208,11 @@ export default function MarketScanner() {
                   </TabsTrigger>
                 </TabsList>
 
-          <Card className="mt-6 border-cyan-500/30 bg-cyan-500/5">
+          <Card className="mt-6 border-emerald-500/30 bg-emerald-500/5">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-cyan-400" data-testid="smart-watchlist-title">
+                  <CardTitle className="flex items-center gap-2 text-emerald-400" data-testid="smart-watchlist-title">
                     <Star className="w-5 h-5" />
                     Smart Watchlist - {timeframeLabels[timeframe]} Picks
                   </CardTitle>
@@ -1221,7 +1221,7 @@ export default function MarketScanner() {
                   </CardDescription>
                 </div>
                 {watchlistQuery.data && (
-                <Badge variant="outline" className="text-cyan-400 border-cyan-500/30">
+                <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
                   {watchlistQuery.data.count} picks
                 </Badge>
               )}
@@ -1230,7 +1230,7 @@ export default function MarketScanner() {
             <CardContent>
               {watchlistQuery.isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                   <span className="ml-3 text-muted-foreground">Analyzing stocks...</span>
                 </div>
               ) : watchlistQuery.error ? (
@@ -1278,7 +1278,7 @@ export default function MarketScanner() {
                     
                     {moversQuery.isLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                       </div>
                     ) : moversQuery.error ? (
                       <div className="flex items-center justify-center py-12 text-red-400">
@@ -1321,7 +1321,7 @@ export default function MarketScanner() {
                     
                     {moversQuery.isLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                       </div>
                     ) : moversQuery.error ? (
                       <div className="flex items-center justify-center py-12 text-red-400">
@@ -1763,7 +1763,7 @@ export default function MarketScanner() {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">Volume Ratio</span>
                               <span className={`font-mono font-medium ${
-                                signal.volumeRatio >= 1.5 ? 'text-cyan-400' : 'text-slate-400'
+                                signal.volumeRatio >= 1.5 ? 'text-emerald-400' : 'text-slate-400'
                               }`}>
                                 {safeToFixed(signal.volumeRatio, 1, '0.0')}x
                               </span>
@@ -1957,19 +1957,19 @@ export default function MarketScanner() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div className="space-y-1">
-                      <div className="font-medium text-cyan-400">VWAP Strategy</div>
+                      <div className="font-medium text-emerald-400">VWAP Strategy</div>
                       <div className="text-muted-foreground">Price vs VWAP for direction bias</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-cyan-400">RSI(2) Extreme</div>
+                      <div className="font-medium text-emerald-400">RSI(2) Extreme</div>
                       <div className="text-muted-foreground">Oversold {"<"}20 or overbought {">"}80</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-cyan-400">Volume Spike</div>
+                      <div className="font-medium text-emerald-400">Volume Spike</div>
                       <div className="text-muted-foreground">1.5x+ average volume required</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-cyan-400">Hold Time</div>
+                      <div className="font-medium text-emerald-400">Hold Time</div>
                       <div className="text-muted-foreground">Same-day to next-day exits</div>
                     </div>
                   </div>

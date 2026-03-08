@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { AuroraBackground } from "@/components/aurora-background";
 import {
   TrendingUp,
   Star,
@@ -93,7 +92,6 @@ export default function Discover() {
 
   return (
     <>
-      <AuroraBackground />
       <div className="min-h-screen relative z-10 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -106,7 +104,7 @@ export default function Discover() {
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="border-slate-700 text-slate-400 hover:text-cyan-400"
+              className="border-slate-700 text-slate-400 hover:text-emerald-400"
             >
               <RefreshCw className={cn("w-4 h-4 mr-2", newsLoading && "animate-spin")} />
               Refresh
@@ -116,10 +114,10 @@ export default function Discover() {
           <div className="grid grid-cols-12 gap-8">
             {/* Left Sidebar - Categories */}
             <div className="col-span-2">
-              <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20">
-                <div className="mb-4 pb-3 border-b border-cyan-500/20">
+              <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20">
+                <div className="mb-4 pb-3 border-b border-emerald-500/20">
                   <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
                     Categories
                   </h3>
                 </div>
@@ -131,8 +129,8 @@ export default function Discover() {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-left",
                         activeCategory === cat.id
-                          ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-cyan-500/10 border border-transparent"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-emerald-500/10 border border-transparent"
                       )}
                     >
                       <cat.icon className="w-4 h-4" />
@@ -157,7 +155,7 @@ export default function Discover() {
                       {gainers.map((stock) => (
                         <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
                           <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 cursor-pointer">
-                            <span className="text-sm font-medium text-cyan-400">{stock.symbol}</span>
+                            <span className="text-sm font-medium text-emerald-400">{stock.symbol}</span>
                             <span className="text-xs text-emerald-400">
                               +{safeToFixed(stock.change, 1)}%
                             </span>
@@ -188,15 +186,15 @@ export default function Discover() {
                     rel="noopener noreferrer"
                     className="block"
                   >
-                    <Card className="overflow-hidden bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group shadow-xl">
+                    <Card className="overflow-hidden bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group shadow-xl">
                       <div className="aspect-[16/9] bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex items-center justify-center relative overflow-hidden">
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_50%)]" />
                         <div className="text-center relative z-10 p-6">
-                          <Newspaper className="w-16 h-16 text-cyan-500/30 mx-auto mb-4" />
+                          <Newspaper className="w-16 h-16 text-emerald-500/30 mx-auto mb-4" />
                           {article.tickers && article.tickers.length > 0 && (
                             <div className="flex gap-2 justify-center">
                               {article.tickers.slice(0, 3).map((ticker) => (
-                                <Badge key={ticker} className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                                <Badge key={ticker} className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                   {ticker}
                                 </Badge>
                               ))}
@@ -204,13 +202,13 @@ export default function Discover() {
                           )}
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
-                        <Badge className="absolute top-4 right-4 bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                        <Badge className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                           <Star className="w-3 h-3 mr-1" />
                           Featured
                         </Badge>
                       </div>
                       <div className="p-6">
-                        <h3 className="text-lg font-semibold text-slate-100 mb-3 group-hover:text-cyan-400 transition-colors leading-tight line-clamp-2">
+                        <h3 className="text-lg font-semibold text-slate-100 mb-3 group-hover:text-emerald-400 transition-colors leading-tight line-clamp-2">
                           {article.title}
                         </h3>
                         <div className="flex items-center justify-between">
@@ -222,7 +220,7 @@ export default function Discover() {
                               {formatTimeAgo(article.publishedAt)}
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
                             Read <ExternalLink className="w-3 h-3 ml-1" />
                           </Button>
                         </div>
@@ -258,14 +256,14 @@ export default function Discover() {
                         rel="noopener noreferrer"
                         className="block"
                       >
-                        <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group h-full">
+                        <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group h-full">
                           <div className="flex items-center gap-2 mb-2 text-xs text-slate-500">
-                            <Newspaper className="w-3 h-3 text-cyan-500/70" />
+                            <Newspaper className="w-3 h-3 text-emerald-500/70" />
                             <span>{article.source}</span>
                             <span>·</span>
                             <span>{formatTimeAgo(article.publishedAt)}</span>
                           </div>
-                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-cyan-400 transition-colors">
+                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-emerald-400 transition-colors">
                             {article.title}
                           </p>
                           {article.tickers && article.tickers.length > 0 && (
@@ -307,13 +305,13 @@ export default function Discover() {
                       rel="noopener noreferrer"
                       className="block"
                     >
-                      <Card className="flex gap-3 cursor-pointer group p-3 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-cyan-500/20 hover:border-cyan-500/40 transition-all">
+                      <Card className="flex gap-3 cursor-pointer group p-3 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20 hover:border-cyan-500/40 transition-all">
                         <div className="w-20 h-14 rounded-lg bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.15),transparent)]" />
                           <Newspaper className="w-6 h-6 text-slate-600 relative z-10" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-cyan-400 transition-colors mb-1">
+                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-emerald-400 transition-colors mb-1">
                             {article.title}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -332,7 +330,7 @@ export default function Discover() {
               {/* Upcoming Earnings */}
               <div className="mt-6">
                 <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-cyan-400" />
+                  <BarChart3 className="w-4 h-4 text-emerald-400" />
                   Upcoming Earnings
                 </h3>
                 <Card className="p-4 bg-slate-900/60 border-slate-800">
@@ -348,7 +346,7 @@ export default function Discover() {
                         <Link key={i} href={`/chart-analysis?symbol=${earning.symbol}`}>
                           <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 cursor-pointer">
                             <div className="flex items-center gap-3">
-                              <span className="font-semibold text-cyan-400">{earning.symbol}</span>
+                              <span className="font-semibold text-emerald-400">{earning.symbol}</span>
                               <span className="text-xs text-slate-500 truncate max-w-[100px]">
                                 {earning.companyName}
                               </span>

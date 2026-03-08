@@ -90,11 +90,11 @@ function DirectionBadge({ direction }: { direction: string }) {
 
 function AssetTypeBadge({ assetType }: { assetType: string }) {
   const variants: Record<string, string> = {
-    stock: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    stock: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     option: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     crypto: "bg-green-500/20 text-green-400 border-green-500/30",
     penny_stock: "bg-red-500/20 text-red-400 border-red-500/30",
-    future: "bg-cyan-600/20 text-cyan-300 border-cyan-400/30",
+    future: "bg-cyan-600/20 text-emerald-300 border-cyan-400/30",
   };
   return (
     <Badge variant="outline" className={cn("text-xs", variants[assetType] || "")}>
@@ -266,8 +266,8 @@ function OpenPositionsSection({
       <Card className="glass-card" data-testid="card-open-positions">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-              <Activity className="h-4 w-4 text-cyan-400" />
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+              <Activity className="h-4 w-4 text-emerald-400" />
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>
@@ -290,8 +290,8 @@ function OpenPositionsSection({
     <Card className="glass-card" data-testid="card-open-positions">
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-            <Activity className="h-4 w-4 text-cyan-400" />
+          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+            <Activity className="h-4 w-4 text-emerald-400" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>

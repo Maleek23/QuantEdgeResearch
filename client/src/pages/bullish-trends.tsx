@@ -197,7 +197,7 @@ export default function BullishTrends() {
 
   const getTrendPhaseColor = (phase: string) => {
     switch (phase) {
-      case 'breakout': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+      case 'breakout': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
       case 'momentum': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'accumulation': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
       default: return 'bg-red-500/20 text-red-400 border-red-500/30';
@@ -218,7 +218,7 @@ export default function BullishTrends() {
       'DEFENSE': { icon: Shield, color: 'text-blue-400 bg-blue-500/20 border-blue-500/30', label: 'Defense/Aerospace' },
       'SPACE': { icon: Satellite, color: 'text-purple-400 bg-purple-500/20 border-purple-500/30', label: 'Space/Satellites' },
       'CRYPTO': { icon: Bitcoin, color: 'text-orange-400 bg-orange-500/20 border-orange-500/30', label: 'Crypto/Mining' },
-      'SEMIS': { icon: Cpu, color: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30', label: 'Semiconductors' },
+      'SEMIS': { icon: Cpu, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30', label: 'Semiconductors' },
       'AI_QUANTUM': { icon: Brain, color: 'text-pink-400 bg-pink-500/20 border-pink-500/30', label: 'AI/Quantum' },
       'MEGA_TECH': { icon: Building2, color: 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30', label: 'Mega Tech' },
       'ETF_INDEX': { icon: Layers, color: 'text-slate-400 bg-slate-500/20 border-slate-500/30', label: 'ETF/Index' },
@@ -272,11 +272,11 @@ export default function BullishTrends() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
       <div className="container max-w-7xl mx-auto py-8 px-4 space-y-6">
         
-        <div className="rounded-xl bg-gradient-to-r from-cyan-500/10 via-slate-900/80 to-purple-500/10 border border-cyan-500/20 p-6" data-testid="header-panel">
+        <div className="rounded-xl bg-gradient-to-r from-emerald-500/10 via-slate-900/80 to-purple-500/10 border border-emerald-500/20 p-6" data-testid="header-panel">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-cyan-500/20 border-2 border-cyan-500/40">
-                <TrendingUp className="h-8 w-8 text-cyan-400" />
+              <div className="p-3 rounded-xl bg-emerald-500/20 border-2 border-cyan-500/40">
+                <TrendingUp className="h-8 w-8 text-emerald-400" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Bullish Trend Tracker</h1>
@@ -309,7 +309,7 @@ export default function BullishTrends() {
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                className="border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
+                className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400"
                 data-testid="button-refresh"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -331,14 +331,14 @@ export default function BullishTrends() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border-cyan-500/20 bg-slate-900/50">
+          <Card className="border-emerald-500/20 bg-slate-900/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Active Breakouts</p>
-                  <p className="text-3xl font-bold font-mono text-cyan-400" data-testid="text-breakout-count">{breakoutCount}</p>
+                  <p className="text-3xl font-bold font-mono text-emerald-400" data-testid="text-breakout-count">{breakoutCount}</p>
                 </div>
-                <Zap className="h-8 w-8 text-cyan-400/50" />
+                <Zap className="h-8 w-8 text-emerald-400/50" />
               </div>
             </CardContent>
           </Card>
@@ -502,7 +502,7 @@ export default function BullishTrends() {
             <Card className="border-slate-700/50 bg-slate-900/40">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-cyan-400" />
+                  <Activity className="h-5 w-5 text-emerald-400" />
                   {activeTab === 'all' ? 'All Bullish Stocks' : activeTab === 'breakouts' ? 'Breakout Alerts' : 'Top Momentum Plays'}
                 </CardTitle>
                 <CardDescription>
@@ -520,7 +520,7 @@ export default function BullishTrends() {
                     {displayTrends.map((trend) => (
                       <div
                         key={trend.id}
-                        className="flex items-center justify-between p-4 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-cyan-500/30 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
                         data-testid={`trend-row-${trend.symbol}`}
                       >
                         <div className="flex items-center gap-4">
@@ -537,7 +537,7 @@ export default function BullishTrends() {
                               {trend.trendPhase}
                             </Badge>
                             {trend.isBreakout && (
-                              <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
+                              <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                 <Zap className="h-3 w-3 mr-1" />
                                 Breakout
                               </Badge>
@@ -586,7 +586,7 @@ export default function BullishTrends() {
                                 size="icon"
                                 onClick={() => addToWatchlist.mutate(trend)}
                                 disabled={addToWatchlist.isPending}
-                                className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                                className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
                                 data-testid={`button-watchlist-${trend.symbol}`}
                               >
                                 <BookmarkPlus className="h-4 w-4" />

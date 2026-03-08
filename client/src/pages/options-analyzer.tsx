@@ -459,7 +459,7 @@ export default function OptionsAnalyzer() {
 
   const getGradeColor = (grade: string) => {
     if (grade.startsWith('A')) return 'text-green-400';
-    if (grade.startsWith('B')) return 'text-cyan-400';
+    if (grade.startsWith('B')) return 'text-emerald-400';
     if (grade.startsWith('C')) return 'text-amber-400';
     if (grade.startsWith('D')) return 'text-orange-400';
     return 'text-red-400';
@@ -471,7 +471,7 @@ export default function OptionsAnalyzer() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-              <Activity className="h-6 w-6 text-cyan-500" />
+              <Activity className="h-6 w-6 text-emerald-500" />
               Options Analyzer
             </h1>
             <p className="text-sm text-muted-foreground">Analyze options chains, greeks, and volatility metrics</p>
@@ -546,7 +546,7 @@ export default function OptionsAnalyzer() {
         {searchedSymbol && loadingChain && !chainData && !chainError && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Loader2 className="h-12 w-12 mx-auto text-cyan-500 animate-spin mb-4" />
+              <Loader2 className="h-12 w-12 mx-auto text-emerald-500 animate-spin mb-4" />
               <p className="text-muted-foreground">Loading options chain for {searchedSymbol}...</p>
             </CardContent>
           </Card>
@@ -666,7 +666,7 @@ export default function OptionsAnalyzer() {
         {!searchedSymbol && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Activity className="h-16 w-16 mx-auto text-cyan-500/50 mb-6" />
+              <Activity className="h-16 w-16 mx-auto text-emerald-500/50 mb-6" />
               <h2 className="text-xl font-semibold mb-3">Enter a Symbol to Start</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 Search for any optionable stock to view the options chain, run deep analysis on specific strikes, 
@@ -784,7 +784,7 @@ function OptionsChainTable({
                 key={opt.symbol || idx}
                 className={cn(
                   "border-b border-border/50 hover-elevate cursor-pointer",
-                  isSelected && "bg-cyan-500/10",
+                  isSelected && "bg-emerald-500/10",
                   isITM && "bg-muted/30",
                   isATM && "bg-amber-500/5 border-l-2 border-l-amber-500"
                 )}
@@ -892,7 +892,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4 text-cyan-500" />
+            <Activity className="h-4 w-4 text-emerald-500" />
             Greeks
           </CardTitle>
         </CardHeader>
@@ -983,12 +983,12 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
                 ${safeToFixed(analysis.scenarios.targetPrices.doubler, 2)}
               </span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded bg-cyan-500/10">
+            <div className="flex items-center justify-between p-2 rounded bg-emerald-500/10">
               <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-cyan-500" />
+                <Star className="h-4 w-4 text-emerald-500" />
                 <span className="text-sm font-medium">3x (Tripler)</span>
               </div>
-              <span className="font-mono font-bold text-cyan-500" data-testid="text-target-3x">
+              <span className="font-mono font-bold text-emerald-500" data-testid="text-target-3x">
                 ${safeToFixed(analysis.scenarios.targetPrices.tripler, 2)}
               </span>
             </div>
@@ -1102,7 +1102,7 @@ function getVerdictBadgeColor(verdict: string): string {
 
 function getGradeTextColor(grade: string): string {
   if (grade.startsWith('A')) return 'text-green-400';
-  if (grade.startsWith('B')) return 'text-cyan-400';
+  if (grade.startsWith('B')) return 'text-emerald-400';
   if (grade.startsWith('C')) return 'text-amber-400';
   if (grade.startsWith('D')) return 'text-orange-400';
   return 'text-red-400';
@@ -1137,7 +1137,7 @@ function VolatilitySurfacePanel({
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <Loader2 className="h-12 w-12 mx-auto text-cyan-500 animate-spin mb-4" />
+          <Loader2 className="h-12 w-12 mx-auto text-emerald-500 animate-spin mb-4" />
           <p className="text-muted-foreground">Loading volatility surface for {symbol}...</p>
         </CardContent>
       </Card>
@@ -1167,7 +1167,7 @@ function VolatilitySurfacePanel({
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-cyan-500" />
+                <BarChart3 className="h-5 w-5 text-emerald-500" />
                 Volatility Surface - {symbol}
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={onRefresh} data-testid="button-refresh-surface">
@@ -1233,7 +1233,7 @@ function VolatilitySurfacePanel({
                     <span className="text-xs text-muted-foreground w-16">{exp}d</span>
                     <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-emerald-500 to-purple-500 rounded-full"
                         style={{ width: `${Math.min(100, iv * 100)}%` }}
                       />
                     </div>
@@ -1283,7 +1283,7 @@ function VolatilitySurfacePanel({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+              <Info className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
               <div className="text-xs text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Interpreting Skew</p>
                 <p>Positive put/call skew indicates demand for downside protection (bearish sentiment). Steep term structure suggests near-term uncertainty.</p>
@@ -1322,7 +1322,7 @@ function PricingLabPanel({
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-cyan-500" />
+            <Calculator className="h-5 w-5 text-emerald-500" />
             Black-Scholes Pricing
           </CardTitle>
         </CardHeader>
@@ -1418,7 +1418,7 @@ function PricingLabPanel({
               <CardTitle className="text-sm">Theoretical Price</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <div className="text-3xl font-bold font-mono text-cyan-400" data-testid="text-bs-price">
+              <div className="text-3xl font-bold font-mono text-emerald-400" data-testid="text-bs-price">
                 ${safeToFixed(bsResult.theoreticalPrice, 4)}
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3 text-sm">

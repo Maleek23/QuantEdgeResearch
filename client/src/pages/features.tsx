@@ -45,7 +45,6 @@ import {
   Play
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/q_1767502987714.png";
-import { AuroraBackground } from "@/components/aurora-background";
 import { ParticleBackground } from "@/components/particle-background";
 
 export default function Features() {
@@ -61,7 +60,6 @@ export default function Features() {
       />
 
       {/* Consistent Background with Homepage */}
-      <AuroraBackground />
       <div className="fixed inset-0 pointer-events-none z-[1]">
         <ParticleBackground />
       </div>
