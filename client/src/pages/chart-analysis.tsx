@@ -2996,7 +2996,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
 
   const chartDataQueryFn = useCallback(async (symbol: string) => {
     if (!symbol) return null;
-    const res = await apiRequest("GET", `/api/patterns?symbol=${encodeURIComponent(symbol)}`);
+    const res = await apiRequest("GET", `/api/patterns/${encodeURIComponent(symbol)}`);
     const data = await res.json();
     return data as PatternResponse;
   }, []);
@@ -3018,7 +3018,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
   // Fetch Mathematical Pattern Prediction (Hurst, Harmonics, Elliott Wave)
   const mathPatternQueryFn = useCallback(async (symbol: string) => {
     if (!symbol) return null;
-    const res = await apiRequest("GET", `/api/patterns/${symbol}`);
+    const res = await apiRequest("GET", `/api/pattern-prediction/${encodeURIComponent(symbol)}`);
     const data = await res.json();
     return data as MathPatternPrediction;
   }, []);
