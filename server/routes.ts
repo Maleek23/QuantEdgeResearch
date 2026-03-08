@@ -22859,8 +22859,8 @@ Use this checklist before entering any trade:
     }
   });
 
-  // Pattern Prediction API - Mathematical pattern analysis
-  app.get("/api/patterns/:symbol", isAuthenticated, async (req, res) => {
+  // Pattern Prediction API - Mathematical pattern analysis (Hurst, Harmonics, Elliott Wave)
+  app.get("/api/pattern-prediction/:symbol", isAuthenticated, async (req, res) => {
     try {
       const { symbol } = req.params;
       const { PatternPredictor } = await import("./pattern-predictor");
