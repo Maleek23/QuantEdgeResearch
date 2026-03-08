@@ -10,7 +10,6 @@ import {
   Search,
   Brain,
   LineChart,
-  MoreHorizontal,
   Menu,
   X,
   TrendingUp,
@@ -169,7 +168,6 @@ export function GlassHeader() {
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
                     )}
                   >
-                    <MoreHorizontal className="h-3.5 w-3.5" />
                     <span>More</span>
                     <ChevronDown className={cn("h-3 w-3 transition-transform", moreOpen && "rotate-180")} />
                   </button>
