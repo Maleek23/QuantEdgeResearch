@@ -113,15 +113,15 @@ function MarketPulseHeader() {
   ];
 
   return (
-    <div className="flex items-center gap-6 px-4 py-2.5 bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#1a1a1a] overflow-x-auto transition-colors">
+    <div className="flex items-center gap-6 px-4 py-2.5 bg-[#0d0d0d] border-b border-[#1a1a1a] overflow-x-auto">
       <div className="flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
         <span className="text-[10px] font-medium text-emerald-500">LIVE</span>
       </div>
       {tickers.map((t) => (
         <div key={t.symbol} className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] text-gray-500 dark:text-slate-600 font-mono">{t.symbol}</span>
-          <span className="text-xs font-mono text-gray-900 dark:text-white">
+          <span className="text-[10px] text-slate-600 font-mono">{t.symbol}</span>
+          <span className="text-xs font-mono text-white">
             {t.price ? `${t.prefix || ''}${t.price.toLocaleString()}` : '—'}
           </span>
         </div>
@@ -236,7 +236,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 
                   {/* Confidence + Target */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
+                    <div className="text-center p-2 rounded-lg bg-[#1a1a1a]">
                       <div className="text-[10px] text-slate-500 uppercase">Confidence</div>
                       <div className={cn(
                         "text-xl font-bold",
@@ -245,7 +245,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                         {confidence}%
                       </div>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
+                    <div className="text-center p-2 rounded-lg bg-[#1a1a1a]">
                       <div className="text-[10px] text-slate-500 uppercase">Target</div>
                       <div className="text-xl font-bold text-emerald-400">
                         +{safeToFixed(potentialProfit, 0)}%
@@ -268,7 +268,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 
                   {/* Catalyst hint if available */}
                   {idea.catalyst && (
-                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50">
+                    <div className="mt-2 pt-2 border-t border-[#222]/50">
                       <p className="text-[10px] text-amber-400/80 truncate flex items-center gap-1">
                         <Zap className="w-3 h-3" />
                         {idea.catalyst.slice(0, 50)}...
@@ -278,7 +278,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                   
                   {/* Generated timestamp with relative time */}
                   <div className={cn(
-                    "mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50 flex items-center justify-between text-[9px] text-slate-500",
+                    "mt-2 pt-2 border-t border-[#222]/50 flex items-center justify-between text-[9px] text-slate-500",
                     idea.timestamp && isStale(idea.timestamp) && "opacity-60"
                   )}>
                     <span className="flex items-center gap-1">
@@ -348,19 +348,19 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
 
   return (
     <div className="grid grid-cols-4 gap-4">
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">{totalLabel}</div>
         <div className="text-2xl font-bold text-white">{stats.total}</div>
       </Card>
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">Today (ET)</div>
-        <div className="text-2xl font-bold text-teal-400">{stats.today}</div>
+        <div className="text-2xl font-bold text-emerald-400">{stats.today}</div>
       </Card>
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">Quality (A/B)</div>
         <div className="text-2xl font-bold text-emerald-400">{stats.quality}</div>
       </Card>
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="text-xs text-slate-500 mb-1">Avg Confidence</div>
         <div className="text-2xl font-bold text-white">{stats.avgConf}%</div>
       </Card>
@@ -390,7 +390,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4 cursor-pointer hover:border-amber-500/50 transition-all group"
+      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-amber-500/50 transition-all group"
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
       }}
@@ -407,7 +407,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
             ))}
           </div>
         ) : setups.length === 0 ? (
@@ -418,7 +418,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
             const style = getGradeStyle(grade);
             return (
               <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222] transition-colors cursor-pointer">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-white">{setup.symbol}</span>
                     <Badge className={cn("text-xs", style.bgClass, style.textClass)}>{grade}</Badge>
@@ -464,7 +464,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4 cursor-pointer hover:border-emerald-500/50 transition-all group"
+      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-emerald-500/50 transition-all group"
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
       }}
@@ -481,7 +481,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
             ))}
           </div>
         ) : gainers.length === 0 ? (
@@ -489,7 +489,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
         ) : (
           gainers.map((stock: any) => (
             <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222] transition-colors cursor-pointer">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer">
                 <span className="font-mono font-bold text-white">{stock.symbol}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-mono text-emerald-400">+{safeToFixed(stock.changePercent, 1)}%</span>
@@ -546,7 +546,7 @@ function TomorrowSurgersSubPage() {
       case 'HIGH_CONVICTION':
         return { bg: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/50', text: 'text-violet-400', badge: 'bg-violet-500/30 text-violet-300' };
       case 'STRONG_SETUP':
-        return { bg: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/50', text: 'text-emerald-400', badge: 'bg-cyan-500/30 text-emerald-300' };
+        return { bg: 'from-emerald-500/20 to-emerald-500/20', border: 'border-emerald-500/50', text: 'text-emerald-400', badge: 'bg-emerald-500/30 text-emerald-300' };
       case 'WATCH_CLOSELY':
         return { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/50', text: 'text-amber-400', badge: 'bg-amber-500/30 text-amber-300' };
       default:
@@ -629,7 +629,7 @@ function TomorrowSurgersSubPage() {
             {topSignals.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {topSignals.map((signal: any, sIdx: number) => (
-                  <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-slate-300">
+                  <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-[#1a1a1a] text-gray-600 dark:text-slate-300">
                     <BarChart3 className="w-3 h-3" /> {signal.name || signal}
                   </span>
                 ))}
@@ -674,7 +674,7 @@ function TomorrowSurgersSubPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-48 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-48 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -717,7 +717,7 @@ function TomorrowSurgersSubPage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 bg-gray-100 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#222]/50"
+            className="h-8 bg-[#1a1a1a] border-[#222]/50"
             onClick={() => {
               setForceRefresh(true);
               refetch();
@@ -842,7 +842,7 @@ function TomorrowSurgersSubPage() {
       )}
 
       {/* Info Footer */}
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-violet-500/10">
             <Brain className="w-4 h-4 text-violet-400" />
@@ -901,7 +901,7 @@ function BestSetupsSubPage() {
       <Link key={setup.id || `${setup.symbol}-${setup.timestamp}`} href={`/stock/${setup.symbol}`}>
         <Card className={cn(
           "relative overflow-hidden cursor-pointer transition-all duration-300",
-          "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50",
+          "bg-[#111]/60 border-[#222]/50",
           "hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-1"
         )}>
           <div className="p-4">
@@ -962,7 +962,7 @@ function BestSetupsSubPage() {
             
             {/* Generated timestamp with relative time */}
             <div className={cn(
-              "mt-2 pt-2 border-t border-gray-200 dark:border-[#222] flex items-center justify-between text-[9px] text-slate-500",
+              "mt-2 pt-2 border-t border-[#222] flex items-center justify-between text-[9px] text-slate-500",
               setup.timestamp && isStale(setup.timestamp) && "opacity-60"
             )}>
               <span className="flex items-center gap-1">
@@ -993,7 +993,7 @@ function BestSetupsSubPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-40 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-40 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1008,13 +1008,13 @@ function BestSetupsSubPage() {
             <Star className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
               Best Setups
               <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-400 border-amber-500/40 text-[10px]">
                 CONVERGENCE
               </Badge>
             </h2>
-            <p className="text-xs text-gray-500 dark:text-slate-500">Top conviction trade ideas from multi-engine convergence</p>
+            <p className="text-xs text-slate-500">Top conviction trade ideas from multi-engine convergence</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1150,7 +1150,7 @@ function MarketMoversSubPage() {
             </div>
           </div>
           {stock.volume && (
-            <div className="mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/30">
+            <div className="mt-2 pt-2 border-t border-[#222]/30">
               <span className="text-[10px] text-slate-500">Vol: {safeToFixed(safeNumber(stock.volume) / 1000000, 1)}M</span>
             </div>
           )}
@@ -1173,7 +1173,7 @@ function MarketMoversSubPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-28 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-28 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1453,7 +1453,7 @@ function SurgeDetectionSubPage() {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-2 p-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg w-fit">
+      <div className="flex items-center gap-2 p-1 bg-[#1a1a1a] rounded-lg w-fit">
         <Button
           variant={activeSubTab === 'now' ? 'default' : 'ghost'}
           size="sm"
@@ -1483,7 +1483,7 @@ function SurgeDetectionSubPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-32 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       ) : activeSubTab === 'now' ? (
@@ -1621,7 +1621,7 @@ function ConvergenceSubPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-40 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-40 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1682,7 +1682,7 @@ function ConvergenceSubPage() {
         </div>
       )}
 
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-[#111] border-[#222] p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-purple-500/10">
             <Brain className="w-4 h-4 text-purple-400" />
@@ -1785,7 +1785,7 @@ function HotAttentionSubPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-32 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1939,7 +1939,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
       return (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-12 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-12 bg-[#1a1a1a] rounded-lg animate-pulse" />
           ))}
         </div>
       );
@@ -1968,7 +1968,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
       return tomorrowPlays.slice(0, 5).map((pred: any, idx: number) => (
         <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222] transition-colors cursor-pointer border-l-2 border-violet-500/50">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer border-l-2 border-violet-500/50">
             <div className="flex items-center gap-2">
               <span className={cn(
                 "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
@@ -2014,7 +2014,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     return displayData.slice(0, 5).map((stock: any, idx: number) => (
       <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
         <div className={cn(
-          "flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222] transition-colors cursor-pointer",
+          "flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer",
           stock.hasCatalyst && "ring-1 ring-purple-500/30 bg-purple-500/5"
         )}>
           <div className="flex items-center gap-2">
@@ -2058,7 +2058,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
   return (
     <Card
-      className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4 cursor-pointer hover:border-orange-500/50 transition-all group"
+      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-orange-500/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewTomorrow?.();
@@ -2172,7 +2172,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4 cursor-pointer hover:border-purple-500/50 transition-all group"
+      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-purple-500/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewAll?.();
@@ -2214,7 +2214,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-12 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-12 bg-[#1a1a1a] rounded-lg animate-pulse" />
             ))}
           </div>
         ) : isError ? (
@@ -2251,7 +2251,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
                 opp.urgency === 'critical' ? "bg-red-500/10 hover:bg-red-500/20 border border-red-500/30" :
                 opp.urgency === 'high' ? "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30" :
-                "bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222]"
+                "bg-[#1a1a1a] hover:bg-[#222]"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
@@ -2329,7 +2329,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4 cursor-pointer hover:border-red-500/50 transition-all group"
+      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-red-500/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewAll?.();
@@ -2351,7 +2351,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-gray-200 dark:bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
             ))}
           </div>
         ) : symbols.length === 0 ? (
@@ -2361,7 +2361,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
             <Link key={item.symbol} href={`/stock/${item.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-[#222]"
+                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-[#1a1a1a] hover:bg-[#222]"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
@@ -2434,7 +2434,7 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
     'options_flow': { type: 'flow', label: 'Options', icon: Activity, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
     'social_sentiment': { type: 'sentiment', label: 'Social', icon: MessageCircle, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
     'convergence': { type: 'multi', label: 'Multi-Signal', icon: Target, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
-    'bot_screener': { type: 'screener', label: 'Screener', icon: Search, color: 'text-teal-400', bgColor: 'bg-teal-500/20' },
+    'bot_screener': { type: 'screener', label: 'Screener', icon: Search, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
     'watchlist': { type: 'watchlist', label: 'Watchlist', icon: Star, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
     'earnings_play': { type: 'catalyst', label: 'Earnings', icon: Calendar, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
   };
@@ -2569,7 +2569,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
     <Card 
       ref={cardRef} 
       className={cn(
-        "bg-white/60 dark:bg-[#111]/60 border-gray-200 dark:border-[#222]/50 overflow-hidden transition-all cursor-pointer",
+        "bg-[#111]/60 border-[#222]/50 overflow-hidden transition-all cursor-pointer",
         expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600 hover:-translate-y-0.5"
       )}
       onClick={handleNavigate}
@@ -2665,7 +2665,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
         </div>
 
         {/* Quick preview toggle + View full analysis hint */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-[#222]/50">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#222]/50">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -2687,7 +2687,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-gray-200 dark:border-[#222]/50 p-4 space-y-3 bg-gray-50 dark:bg-slate-950/40">
+        <div className="border-t border-[#222]/50 p-4 space-y-3 bg-gray-50 dark:bg-slate-950/40">
           {/* Options Details */}
           {isOption && (idea.strikePrice || idea.expiryDate) && (
             <div className="flex items-center gap-4 p-2 bg-gray-100 dark:bg-slate-800/30 rounded-lg text-xs">
@@ -2752,7 +2752,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {idea.qualitySignals.slice(0, 6).map((signal, idx) => (
-                <Badge key={idx} variant="outline" className="text-[9px] bg-gray-100 dark:bg-[#1a1a1a] px-1.5 py-0.5">
+                <Badge key={idx} variant="outline" className="text-[9px] bg-[#1a1a1a] px-1.5 py-0.5">
                   {signal}
                 </Badge>
               ))}
@@ -2764,7 +2764,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             {onViewDetails && (
               <Button
                 size="sm"
-                className="flex-1 h-8 bg-teal-600 hover:bg-teal-500 text-xs"
+                className="flex-1 h-8 bg-emerald-600 hover:bg-emerald-500 text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewDetails(idea);
@@ -3127,7 +3127,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
       {title && (
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1">
             <Button
               size="sm"
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -3513,7 +3513,7 @@ export default function TradeDeskRedesigned() {
   // Show loading skeleton during initial load
   if (showInitialLoader || isLoading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+      <div className="min-h-screen bg-[#0a0a0a]">
         {/* Market Pulse Header Skeleton */}
         <div className="flex items-center gap-6 px-4 py-2.5 bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#1a1a1a]">
           <div className="flex items-center gap-2">
@@ -3532,7 +3532,7 @@ export default function TradeDeskRedesigned() {
           {/* Header Skeleton */}
           <div className="flex items-center justify-between animate-in fade-in duration-300">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
+              <div className="p-2 rounded-lg bg-white dark:bg-[#111] border border-[#222]">
                 <Brain className="w-4 h-4 text-gray-400 dark:text-slate-600 animate-pulse" />
               </div>
               <div>
@@ -3624,7 +3624,7 @@ export default function TradeDeskRedesigned() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+    <div className="min-h-screen bg-[#0a0a0a]">
       {/* Market Pulse Header */}
       <MarketPulseHeader />
 
@@ -3633,12 +3633,12 @@ export default function TradeDeskRedesigned() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-medium flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-                <Brain className="w-4 h-4 text-gray-900 dark:text-white" />
+              <div className="p-2 rounded-lg bg-[#111] border border-[#222]">
+                <Brain className="w-4 h-4 text-white" />
               </div>
-              <span className="text-gray-900 dark:text-gray-900 dark:text-white">Trade Desk</span>
+              <span className="text-white">Trade Desk</span>
             </h1>
-            <p className="text-xs text-gray-500 dark:text-slate-500 mt-1 ml-11">Multi-engine convergence signals</p>
+            <p className="text-xs text-slate-500 mt-1 ml-11">Multi-engine convergence signals</p>
           </div>
           <div className="flex items-center gap-3">
             {/* Generate Ideas Dropdown */}
@@ -3646,7 +3646,7 @@ export default function TradeDeskRedesigned() {
               onValueChange={(value) => generateIdeas.mutate(value as any)}
               disabled={generateIdeas.isPending}
             >
-              <SelectTrigger className="w-[160px] bg-white text-black border-0 hover:bg-slate-200 text-sm font-medium">
+              <SelectTrigger className="w-[160px] bg-emerald-600 text-white border-0 hover:bg-emerald-500 text-sm font-medium">
                 {generatingEngine ? (
                   <div className="flex items-center gap-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -3659,32 +3659,32 @@ export default function TradeDeskRedesigned() {
                   </div>
                 )}
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222]">
-                <SelectItem value="all" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
+              <SelectContent className="bg-[#111] border-[#222]">
+                <SelectItem value="all" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                     <span>All Engines</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="ai" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
+                <SelectItem value="ai" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
                     <Brain className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                     <span>AI Engine</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="quant" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
+                <SelectItem value="quant" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                     <span>Quant Engine</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="hybrid" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
+                <SelectItem value="hybrid" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-teal-500 dark:text-teal-400" />
+                    <Activity className="w-4 h-4 text-emerald-400" />
                     <span>Hybrid AI+Quant</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="flow" className="hover:bg-gray-100 dark:hover:bg-teal-600/20">
+                <SelectItem value="flow" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                     <span>Options Flow</span>
@@ -3695,7 +3695,7 @@ export default function TradeDeskRedesigned() {
 
             {/* Status Badge */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-xs text-emerald-400 font-medium">Connected</span>
             </div>
           </div>
@@ -3718,8 +3718,8 @@ export default function TradeDeskRedesigned() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   assetFilter === value
-                    ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
-                    : "text-slate-400 hover:text-white hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
+                    ? "bg-emerald-600 text-white shadow-lg"
+                    : "text-slate-400 hover:text-white hover:bg-[#1a1a1a]"
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -3746,16 +3746,16 @@ export default function TradeDeskRedesigned() {
 
         {/* Navigation Tabs - 3 Clean Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-[#111]/60 border border-[#222]/60 p-1 w-full grid grid-cols-3">
-            <TabsTrigger value="ideas" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white">
+          <TabsList className="bg-[#0d0d0d] border border-[#222] p-1 w-full grid grid-cols-3 h-11">
+            <TabsTrigger value="ideas" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
               <Layers className="w-4 h-4 mr-2" />
               Today's Plays
             </TabsTrigger>
-            <TabsTrigger value="flow" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600 data-[state=active]:to-amber-600 data-[state=active]:text-white">
+            <TabsTrigger value="flow" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
               <Activity className="w-4 h-4 mr-2" />
               Flow & Levels
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="strategy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-sm">
               <Target className="w-4 h-4 mr-2" />
               Strategy Lab
             </TabsTrigger>
@@ -3765,9 +3765,6 @@ export default function TradeDeskRedesigned() {
           <TabsContent value="ideas" className="space-y-6 mt-6">
             {/* TOP CONVICTION - A/A+ Plays Only */}
             <TopConvictionSection ideas={filteredIdeas} />
-
-            {/* Performance Audit Stats */}
-            <TradePerformanceStats />
 
             {/* Stats Cards */}
             <StatsOverview ideas={filteredIdeas} dateFilter={serverDateFilter} />
@@ -3788,7 +3785,7 @@ export default function TradeDeskRedesigned() {
                   </button>
                   <button
                     onClick={() => setServerDateFilter('all')}
-                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm text-white transition-colors"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm text-white transition-colors"
                   >
                     Show All Ideas
                   </button>
