@@ -83,7 +83,7 @@ export async function getMarketBatch(symbols: string) {
 }
 
 export async function getStockQuote(symbol: string) {
-  return apiFetch(`/api/market-data/quote/${symbol}`);
+  return apiFetch(`/api/market-data/${symbol}`);
 }
 
 // Trade ideas
@@ -97,12 +97,12 @@ export async function getTradeIdeas(params?: { limit?: number; status?: string }
 
 // Morning briefing
 export async function getMorningBriefing() {
-  return apiFetch('/api/morning-briefing/latest');
+  return apiFetch('/api/morning-briefing');
 }
 
 // News
 export async function getLatestNews(limit = 10) {
-  return apiFetch(`/api/news/latest?limit=${limit}`);
+  return apiFetch(`/api/news?limit=${limit}`);
 }
 
 // Watchlist
@@ -119,5 +119,5 @@ export async function addToWatchlist(symbol: string) {
 
 // Earnings
 export async function getEarningsCalendar() {
-  return apiFetch('/api/earnings/calendar');
+  return apiFetch('/api/earnings/upcoming');
 }
