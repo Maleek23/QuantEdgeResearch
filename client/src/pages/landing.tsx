@@ -17,24 +17,52 @@ import {
   Newspaper,
   Radar,
 } from "lucide-react";
-import { useEffect, useState as useReactState, useRef } from "react";
+import { useState as useReactState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 import { CrossAssetOverview, EconomicCalendarWidget, LatestNewsPreview, LatestIdeasPreview } from "@/components/market-intelligence";
 import { cn, safeNumber, safeToFixed } from "@/lib/utils";
+import { NumberTicker } from "@/components/magicui/number-ticker";
+import { BorderBeam } from "@/components/magicui/border-beam";
+import { ShimmerButton } from "@/components/magicui/shimmer-button";
 
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
+// Reusable scroll reveal wrapper
+function SectionReveal({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.6, delay, ease: "easeOut" }}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
+// Section divider with gradient line
+function SectionDivider() {
+  return (
+    <div className="max-w-7xl mx-auto px-6">
+      <div className="h-px bg-gradient-to-r from-transparent via-[#222] to-transparent" />
+    </div>
+  );
+}
+
 // Trading Engines — all emerald accent
 const tradingEngines = [
-  { id: 'ML', name: 'Machine Learning', desc: 'Neural pattern detection', color: '#10b981', icon: Cpu },
-  { id: 'AI', name: 'AI Analysis', desc: 'Multi-LLM consensus', color: '#10b981', icon: Brain },
-  { id: 'QNT', name: 'Quantitative', desc: 'Statistical arbitrage', color: '#10b981', icon: BarChart3 },
-  { id: 'FLW', name: 'Order Flow', desc: 'Dark pool signals', color: '#10b981', icon: Activity },
-  { id: 'SNT', name: 'Sentiment', desc: 'Social & news alpha', color: '#10b981', icon: Eye },
-  { id: 'TCH', name: 'Technical', desc: 'Chart pattern AI', color: '#10b981', icon: LineChart },
+  { id: 'ML', name: 'Machine Learning', desc: 'Neural pattern detection', icon: Cpu },
+  { id: 'AI', name: 'AI Analysis', desc: 'Multi-LLM consensus', icon: Brain },
+  { id: 'QNT', name: 'Quantitative', desc: 'Statistical arbitrage', icon: BarChart3 },
+  { id: 'FLW', name: 'Order Flow', desc: 'Dark pool signals', icon: Activity },
+  { id: 'SNT', name: 'Sentiment', desc: 'Social & news alpha', icon: Eye },
+  { id: 'TCH', name: 'Technical', desc: 'Chart pattern AI', icon: LineChart },
 ];
 
 // Check if US market is open
@@ -65,13 +93,6 @@ function useMarketStatus() {
 function EngineConvergence() {
   const [activeEngine, setActiveEngine] = useReactState(0);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveEngine((prev) => (prev + 1) % tradingEngines.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div className="relative">
       {/* Center convergence point */}
@@ -82,13 +103,17 @@ function EngineConvergence() {
         </div>
       </div>
 
-      {/* Engine cards */}
+      {/* Engine cards with staggered entrance */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
         {tradingEngines.map((engine, i) => (
-          <div
+          <motion.div
             key={engine.id}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: i * 0.08 }}
             className={cn(
-              "relative p-4 rounded-lg border transition-all duration-300 cursor-pointer group",
+              "relative p-4 rounded-lg border transition-all duration-300 cursor-pointer group overflow-hidden",
               "bg-[#111]",
               activeEngine === i
                 ? "border-emerald-500/30"
@@ -96,19 +121,21 @@ function EngineConvergence() {
             )}
             onMouseEnter={() => setActiveEngine(i)}
           >
+            {/* Hover gradient */}
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div
-              className="w-14 h-14 mx-auto mb-3 rounded-lg flex items-center justify-center bg-emerald-500/10"
+              className="w-14 h-14 mx-auto mb-3 rounded-lg flex items-center justify-center bg-emerald-500/10 relative z-10"
             >
               <engine.icon className="w-7 h-7 text-emerald-500" />
             </div>
-            <div className="text-center">
+            <div className="text-center relative z-10">
               <div className="text-sm font-bold text-white mb-0.5">{engine.id}</div>
               <div className="text-[10px] text-slate-500 leading-tight">{engine.desc}</div>
               <div className="text-[10px] font-mono text-emerald-500/50 mt-1">
                 {(0.82 + (i * 0.03)).toFixed(2)} conf
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>
@@ -178,34 +205,29 @@ function MarketTicker() {
   );
 }
 
-// Feature Card
-function FeatureCard({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+// Feature Card with stagger support
+function FeatureCard({ icon: Icon, title, description, index = 0 }: { icon: any; title: string; description: string; index?: number }) {
   return (
-    <div className="group relative p-6 rounded-lg bg-[#111] border border-[#222] hover:border-emerald-500/30 transition-all duration-300">
-      <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-500/10">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, delay: index * 0.08 }}
+      className="group relative p-6 rounded-lg bg-[#111] border border-[#222] hover:border-emerald-500/20 transition-all duration-300 overflow-hidden"
+    >
+      {/* Hover shimmer sweep */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+      <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-500/10 relative z-10">
         <Icon className="w-6 h-6 text-emerald-500" />
       </div>
-      <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-      <p className="text-sm text-slate-400 leading-relaxed">{description}</p>
-    </div>
+      <h3 className="text-lg font-bold text-white mb-2 relative z-10">{title}</h3>
+      <p className="text-sm text-slate-400 leading-relaxed relative z-10">{description}</p>
+    </motion.div>
   );
 }
 
-// Terminal Mockup — staggered reveal animation
+// Terminal Mockup — framer-motion scroll reveal
 function TerminalMockup() {
-  const [isVisible, setIsVisible] = useReactState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
-      { threshold: 0.3 }
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
   const trades = [
     { symbol: 'NVDA', dir: 'LONG', engines: '6/6', entry: '$875.20', target: '$920.00', stop: '$855.00', grade: 'A+', bullish: true },
     { symbol: 'AAPL', dir: 'LONG', engines: '5/6', entry: '$188.50', target: '$198.00', stop: '$182.00', grade: 'A', bullish: true },
@@ -213,12 +235,13 @@ function TerminalMockup() {
   ];
 
   return (
-    <section className="px-6 py-16 max-w-5xl mx-auto" ref={ref}>
+    <SectionReveal className="px-6 py-16 max-w-5xl mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">See it in action</h2>
         <p className="text-sm text-slate-500">Real-time convergence signals from 6 independent engines</p>
       </div>
-      <div className="rounded-lg border border-[#222] overflow-hidden bg-[#0a0a0a]">
+      <div className="relative rounded-lg border border-[#222] overflow-hidden bg-[#0a0a0a]">
+        <BorderBeam colorFrom="#10b981" colorTo="#059669" duration={12} size={150} />
         <div className="flex items-center gap-2 px-4 py-2.5 bg-[#111] border-b border-[#222]">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-[#ff5f57]/60" />
@@ -228,20 +251,23 @@ function TerminalMockup() {
           <span className="text-[11px] font-mono text-slate-600 ml-2">quantedge — trade-desk</span>
         </div>
         <div className="p-4 font-mono text-xs space-y-2">
-          <div className={cn(
-            "text-emerald-500/60 mb-3 transition-all duration-500",
-            isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-          )}>
+          <motion.div
+            initial={{ opacity: 0, x: -16 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-emerald-500/60 mb-3"
+          >
             // HIGH-CONVICTION SIGNALS
-          </div>
+          </motion.div>
           {trades.map((t, i) => (
-            <div
+            <motion.div
               key={t.symbol}
-              className={cn(
-                "flex items-center justify-between p-3 rounded border border-[#222] bg-[#111]/50 transition-all duration-500",
-                isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-              )}
-              style={{ transitionDelay: isVisible ? `${(i + 1) * 200}ms` : '0ms' }}
+              initial={{ opacity: 0, x: -16 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: (i + 1) * 0.15 }}
+              className="flex items-center justify-between p-3 rounded border border-[#222] bg-[#111]/50"
             >
               <div className="flex items-center gap-3">
                 <span className="text-white font-bold">{t.symbol}</span>
@@ -255,64 +281,21 @@ function TerminalMockup() {
                 <span className="text-red-500">stop {t.stop}</span>
                 <span className={`font-bold ${t.bullish ? 'text-emerald-400' : 'text-red-400'}`}>{t.grade}</span>
               </div>
-            </div>
+            </motion.div>
           ))}
-          <div className={cn(
-            "text-slate-700 mt-3 flex items-center gap-1 transition-all duration-500",
-            isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"
-          )} style={{ transitionDelay: isVisible ? '800ms' : '0ms' }}>
+          <motion.div
+            initial={{ opacity: 0, x: -16 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="text-slate-700 mt-3 flex items-center gap-1"
+          >
             // updated {new Date().toISOString().split('T')[0]} | 6-engine convergence analysis
             <span className="inline-block w-2 h-4 bg-emerald-500/50 cursor-blink ml-1" />
-          </div>
+          </motion.div>
         </div>
       </div>
-    </section>
-  );
-}
-
-// Animated counter that counts up when scrolled into view
-function AnimatedCounter({ target, suffix = '', prefix = '' }: { target: number; suffix?: string; prefix?: string }) {
-  const [count, setCount] = useReactState(0);
-  const [hasAnimated, setHasAnimated] = useReactState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ref.current || hasAnimated) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          setHasAnimated(true);
-          const duration = 1500;
-          const startTime = performance.now();
-
-          const animate = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Ease out cubic
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setCount(Math.floor(eased * target));
-
-            if (progress < 1) {
-              requestAnimationFrame(animate);
-            } else {
-              setCount(target);
-            }
-          };
-          requestAnimationFrame(animate);
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [target, hasAnimated]);
-
-  return (
-    <div ref={ref} className="text-4xl md:text-5xl font-mono font-bold text-white">
-      {prefix}{count.toLocaleString()}{suffix}
-    </div>
+    </SectionReveal>
   );
 }
 
@@ -330,10 +313,22 @@ export default function Landing() {
     }
   };
 
+  const features = [
+    { icon: Brain, title: "AI Trade Ideas", description: "Multi-engine convergence signals with entry, target, and stop levels." },
+    { icon: Activity, title: "Dark Pool Flow", description: "Track unusual institutional activity and smart money movements." },
+    { icon: LineChart, title: "Advanced Charts", description: "50+ technical indicators with pattern recognition AI." },
+    { icon: Target, title: "Stock Screener", description: "Filter thousands of stocks by technicals, fundamentals, and signals." },
+    { icon: Newspaper, title: "Sentiment Analysis", description: "Real-time news and social media sentiment scoring." },
+    { icon: Radar, title: "Market Scanner", description: "Find breakouts, momentum plays, and emerging trends." },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden">
+      {/* Dot grid background */}
+      <div className="fixed inset-0 dot-grid opacity-20 pointer-events-none" />
+
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a] border-b border-[#222]">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-[#222]">
         <div className="flex items-center justify-between h-16 px-6 max-w-7xl mx-auto">
           <Link href="/" className="flex items-center gap-3">
             <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-9 w-9" />
@@ -400,29 +395,54 @@ export default function Landing() {
         <section className="px-6 py-16 md:py-24 max-w-7xl mx-auto text-center relative">
           {/* Emerald grid pattern */}
           <div className="absolute inset-0 emerald-grid opacity-30 pointer-events-none" />
-          {/* Radial gradient glow */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.05) 0%, transparent 70%)'
-          }} />
+          {/* Breathing radial gradient glow */}
+          <motion.div
+            animate={{ opacity: [0.03, 0.07, 0.03] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 60%)'
+            }}
+          />
 
           {/* Simple badge */}
-          <div className="relative z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-500/70 text-xs font-mono mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 text-emerald-500/70 text-xs font-mono mb-6"
+          >
             AI-Powered Trading Intelligence
-          </div>
+          </motion.div>
 
-          <h1 className="relative z-10 text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="relative z-10 text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
+          >
             Trade Smarter with
             <br />
             <span className="text-emerald-500">6-Engine Convergence</span>
-          </h1>
+          </motion.h1>
 
-          <p className="relative z-10 text-xl text-slate-400 max-w-2xl mx-auto mb-8">
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative z-10 text-xl text-slate-400 max-w-2xl mx-auto mb-8"
+          >
             When Machine Learning, AI, Quant, Flow, Sentiment, and Technical all agree —
             <span className="text-white font-medium"> that's when we signal.</span>
-          </p>
+          </motion.p>
 
           {/* Search Bar */}
-          <div className="relative z-10 max-w-xl mx-auto mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="relative z-10 max-w-xl mx-auto mb-12"
+          >
             <div className="relative flex items-center bg-[#111] border border-[#222] rounded-lg overflow-hidden focus-within:border-emerald-500/50 transition-colors">
               <Search className="w-5 h-5 text-slate-500 ml-4 flex-shrink-0" />
               <input
@@ -447,30 +467,41 @@ export default function Landing() {
                 </Link>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Stats — animated counters */}
-          <div className="relative z-10 grid grid-cols-3 gap-8 max-w-3xl mx-auto mb-16">
+          {/* Stats — NumberTicker */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="relative z-10 grid grid-cols-3 gap-8 max-w-3xl mx-auto mb-16"
+          >
             <div className="text-center">
-              <AnimatedCounter target={6} />
+              <NumberTicker value={6} className="text-4xl md:text-5xl font-mono font-bold text-white" />
               <div className="text-sm text-slate-500 mt-1">Analysis Engines</div>
             </div>
             <div className="text-center">
-              <AnimatedCounter target={2500} suffix="+" />
+              <NumberTicker value={2500} suffix="+" className="text-4xl md:text-5xl font-mono font-bold text-white" />
               <div className="text-sm text-slate-500 mt-1">Stocks Scanned Daily</div>
             </div>
             <div className="text-center">
-              <AnimatedCounter target={94} suffix="%" />
+              <NumberTicker value={94} suffix="%" className="text-4xl md:text-5xl font-mono font-bold text-white" />
               <div className="text-sm text-slate-500 mt-1">Avg. Accuracy</div>
             </div>
-          </div>
+          </motion.div>
         </section>
 
-        {/* Terminal Mockup — replaces Live Trade Ideas */}
+        {/* Divider */}
+        <SectionDivider />
+
+        {/* Terminal Mockup */}
         <TerminalMockup />
 
+        {/* Divider */}
+        <SectionDivider />
+
         {/* Engine Convergence Section */}
-        <section className="px-6 py-20 max-w-7xl mx-auto">
+        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-white mb-4">6 Engines. One Signal.</h2>
             <p className="text-slate-400 max-w-2xl mx-auto">
@@ -479,26 +510,29 @@ export default function Landing() {
             </p>
           </div>
           <EngineConvergence />
-        </section>
+        </SectionReveal>
+
+        {/* Divider */}
+        <SectionDivider />
 
         {/* Features Grid */}
-        <section className="px-6 py-20 max-w-7xl mx-auto">
+        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-white mb-4">Institutional-Grade Tools</h2>
             <p className="text-slate-400">Everything you need to trade like the pros</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard icon={Brain} title="AI Trade Ideas" description="Multi-engine convergence signals with entry, target, and stop levels." />
-            <FeatureCard icon={Activity} title="Dark Pool Flow" description="Track unusual institutional activity and smart money movements." />
-            <FeatureCard icon={LineChart} title="Advanced Charts" description="50+ technical indicators with pattern recognition AI." />
-            <FeatureCard icon={Target} title="Stock Screener" description="Filter thousands of stocks by technicals, fundamentals, and signals." />
-            <FeatureCard icon={Newspaper} title="Sentiment Analysis" description="Real-time news and social media sentiment scoring." />
-            <FeatureCard icon={Radar} title="Market Scanner" description="Find breakouts, momentum plays, and emerging trends." />
+            {features.map((feature, i) => (
+              <FeatureCard key={feature.title} icon={feature.icon} title={feature.title} description={feature.description} index={i} />
+            ))}
           </div>
-        </section>
+        </SectionReveal>
+
+        {/* Divider */}
+        <SectionDivider />
 
         {/* Live Market Intelligence */}
-        <section className="px-6 py-20 max-w-7xl mx-auto">
+        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/30 bg-transparent mb-6">
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -523,19 +557,29 @@ export default function Landing() {
 
           {/* AI Trade Ideas */}
           <LatestIdeasPreview variant="landing" limit={4} />
-        </section>
+        </SectionReveal>
+
+        {/* Divider */}
+        <SectionDivider />
 
         {/* CTA Section */}
-        <section className="px-6 py-20 max-w-4xl mx-auto text-center">
+        <SectionReveal className="px-6 py-20 max-w-4xl mx-auto text-center">
           <div className="relative p-12 rounded-lg bg-[#111] border border-[#222] overflow-hidden">
-            <h2 className="text-4xl font-bold text-white mb-4">Ready to Trade Smarter?</h2>
-            <p className="text-slate-400 mb-8 max-w-lg mx-auto">
+            <BorderBeam colorFrom="#10b981" colorTo="#059669" duration={10} size={180} />
+            <h2 className="text-4xl font-bold text-white mb-4 relative z-10">Ready to Trade Smarter?</h2>
+            <p className="text-slate-400 mb-8 max-w-lg mx-auto relative z-10">
               Join thousands of traders using AI-powered signals to find high-conviction opportunities.
             </p>
-            <div className="flex items-center justify-center gap-4">
-              <Button onClick={() => setWaitlistOpen(true)} size="lg" className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-6 text-lg font-bold">
+            <div className="flex items-center justify-center gap-4 relative z-10">
+              <ShimmerButton
+                onClick={() => setWaitlistOpen(true)}
+                shimmerColor="#10b981"
+                background="rgba(16, 185, 129, 0.15)"
+                className="px-8 py-4 text-lg font-bold text-white"
+              >
                 Get Started Free
-              </Button>
+                <ArrowRight className="w-5 h-5 ml-2 inline-block" />
+              </ShimmerButton>
               <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
                 <Button size="lg" variant="outline" className="border-[#222] text-slate-300 hover:bg-[#111] hover:border-emerald-500/30 px-8 py-6 text-lg">
                   <SiDiscord className="w-5 h-5 mr-2" /> Join Discord
@@ -543,7 +587,7 @@ export default function Landing() {
               </a>
             </div>
           </div>
-        </section>
+        </SectionReveal>
 
         {/* Footer */}
         <footer className="px-6 py-12 border-t border-[#222]">

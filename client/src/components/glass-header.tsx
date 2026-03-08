@@ -123,11 +123,11 @@ export function GlassHeader() {
             </Link>
 
             {/* Divider */}
-            <div className="h-6 w-px bg-slate-700/50 mx-2 hidden lg:block" />
+            <div className="h-6 w-px bg-slate-700/50 mx-2 hidden md:block" />
 
             {/* Browser-Style Tabs */}
-            <nav className="hidden lg:flex items-center flex-1 min-w-0">
-              <div className="flex items-end overflow-x-auto no-scrollbar">
+            <nav className="hidden md:flex items-center flex-1 min-w-0">
+              <div className="flex items-end">
                 {mainTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = location === tab.href;
@@ -345,7 +345,7 @@ export function GlassHeader() {
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1.5 rounded-lg hover:bg-slate-800/50 text-slate-300"
+                className="md:hidden p-1.5 rounded-lg hover:bg-slate-800/50 text-slate-300"
               >
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
@@ -361,7 +361,7 @@ export function GlassHeader() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden mt-2 bg-slate-900/95 border border-slate-700/50 rounded-xl overflow-hidden"
+              className="md:hidden mt-2 bg-slate-900/95 border border-slate-700/50 rounded-xl overflow-hidden"
             >
               {/* Mobile Search */}
               <div className="p-3 border-b border-slate-700/50">

@@ -459,7 +459,7 @@ export default function MarketPage() {
             <MarketSessionBadge session={currentSession} data-testid="badge-market-session" />
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="h-4 w-4 text-emerald-400" />
-              <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime} CT</span>
+              <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime}</span>
             </div>
           </div>
         }
