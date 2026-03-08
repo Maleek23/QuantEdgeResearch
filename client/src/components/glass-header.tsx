@@ -20,10 +20,9 @@ import {
   Settings,
   LogOut,
   Activity,
-  Newspaper,
   GraduationCap,
   History,
-  Crosshair,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -46,16 +45,14 @@ const mainTabs: NavTab[] = [
   { label: "Scanner", href: "/market-scanner", icon: Search },
 ];
 
-// "More" dropdown — trading tools + research
+// "More" dropdown — tools + learning
 const moreToolItems: NavTab[] = [
   { label: "Smart Money", href: "/smart-money", icon: Activity },
-  { label: "SPX Command", href: "/spx", icon: Crosshair },
   { label: "Watchlist", href: "/watchlist", icon: Star },
 ];
 const moreResearchItems: NavTab[] = [
   { label: "Academy", href: "/academy", icon: GraduationCap },
-  { label: "News & Social", href: "/discover", icon: Newspaper },
-  { label: "Bullish Trends", href: "/bullish-trends", icon: TrendingUp },
+  { label: "Blog", href: "/blog", icon: BookOpen },
 ];
 const allMoreItems = [...moreToolItems, ...moreResearchItems];
 
@@ -394,8 +391,8 @@ export function GlassHeader() {
                 {/* Divider */}
                 <div className="border-t border-slate-700/50 my-2" />
 
-                {/* Trading Tools */}
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Trading</p>
+                {/* Tools */}
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Tools</p>
                 {moreToolItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
@@ -417,9 +414,9 @@ export function GlassHeader() {
                   );
                 })}
 
-                {/* Research */}
+                {/* Learn */}
                 <div className="border-t border-slate-700/50 my-2" />
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Research</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Learn</p>
                 {moreResearchItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
