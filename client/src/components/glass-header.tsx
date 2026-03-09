@@ -23,6 +23,7 @@ import {
   GraduationCap,
   History,
   BookOpen,
+  Infinity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const mainTabs: NavTab[] = [
   { label: "Markets", href: "/market", icon: BarChart3 },
   { label: "Charts", href: "/chart-analysis", icon: LineChart },
   { label: "Scanner", href: "/market-scanner", icon: Search },
+  { label: "AION", href: "/aion", icon: Infinity },
 ];
 
 // "More" dropdown — tools + learning

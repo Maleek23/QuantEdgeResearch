@@ -77,6 +77,7 @@ const BullishTrends = lazyWithRetry(() => import("@/pages/bullish-trends"), "bul
 const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
 const TradingEnginePage = lazyWithRetry(() => import("@/pages/trading-engine"), "trading-engine");
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
+const AionDashboard = lazyWithRetry(() => import("@/pages/aion-dashboard"), "aion-dashboard");
 const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
 const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
 const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis");
@@ -185,6 +186,7 @@ function Router() {
         <Redirect to="/home" />
       </Route>
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
+      <Route path="/aion" component={withBetaProtection(AionDashboard)} />
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
       <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />
