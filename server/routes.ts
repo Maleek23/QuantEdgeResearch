@@ -25909,6 +25909,139 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================
+  // GEX HEATMAP — Strike × Expiration matrix
+  // ============================================
+  const gexHeatmapCache = new Map<string, { data: any; ts: number }>();
+
+  app.get("/api/gex-heatmap/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol?.toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "Symbol required" });
+
+      // 60-second cache
+      const cached = gexHeatmapCache.get(symbol);
+      if (cached && Date.now() - cached.ts < 60_000) {
+        return res.json(cached.data);
+      }
+
+      const { getTradierOptionsChain, getTradierQuote } = await import("./tradier-api");
+      const apiKey = process.env.TRADIER_API_KEY;
+      if (!apiKey) return res.status(500).json({ error: "Options data unavailable" });
+
+      // 1. Get spot price
+      const quote = await getTradierQuote(symbol);
+      if (!quote) return res.status(404).json({ error: `No quote for ${symbol}` });
+      const spotPrice = quote.last || quote.close || 0;
+      if (spotPrice <= 0) return res.status(404).json({ error: "Invalid spot price" });
+
+      // 2. Get expirations
+      const baseUrl = 'https://api.tradier.com/v1';
+      const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
+      });
+      if (!expResponse.ok) return res.status(502).json({ error: "Could not fetch expirations" });
+      const expData = await expResponse.json();
+      const allExpirations: string[] = expData.expirations?.date || [];
+      const expirations = allExpirations.slice(0, 5); // Next 5 expirations
+      if (expirations.length === 0) return res.status(404).json({ error: "No expirations" });
+
+      // 3. Fetch chains for all expirations in parallel
+      const chains = await Promise.all(
+        expirations.map(exp => getTradierOptionsChain(symbol, exp))
+      );
+
+      // 4. Build strike → expiration → netGEX matrix
+      const spotSquared = spotPrice * spotPrice;
+      const heatmap: Record<string, Record<string, number>> = {};
+      const strikePriceRange = spotPrice * 0.05; // ±5% of spot
+
+      for (let i = 0; i < expirations.length; i++) {
+        const exp = expirations[i];
+        const opts = chains[i];
+        // Group by strike, calculate GEX
+        const strikeGex = new Map<number, number>();
+
+        for (const opt of opts) {
+          const strike = opt.strike;
+          // Filter to ±5% of spot
+          if (Math.abs(strike - spotPrice) > strikePriceRange) continue;
+
+          const gamma = opt.greeks?.gamma || 0;
+          const oi = opt.open_interest || 0;
+          const isCall = opt.option_type === 'call';
+
+          // GEX = OI × Gamma × 100 × Spot² / 1e9 (calls positive, puts negative)
+          const gex = isCall
+            ? oi * gamma * 100 * spotSquared / 1e9
+            : -(oi * gamma * 100 * spotSquared / 1e9);
+
+          strikeGex.set(strike, (strikeGex.get(strike) || 0) + gex);
+        }
+
+        for (const [strike, netGex] of strikeGex) {
+          const key = String(strike);
+          if (!heatmap[key]) heatmap[key] = {};
+          // Store as raw number (frontend formats)
+          heatmap[key][exp] = Math.round(netGex * 1000); // Convert B → M for readability
+        }
+      }
+
+      // 5. Get sorted strike list
+      const strikes = Object.keys(heatmap)
+        .map(Number)
+        .sort((a, b) => b - a); // Descending (highest strike first, like reference)
+
+      // 6. Find flip point & max gamma strike from aggregate
+      let flipPoint: number | null = null;
+      let maxGammaStrike = strikes[0] || spotPrice;
+      let maxGamma = 0;
+
+      // Aggregate across all expirations per strike for flip/max
+      const aggregateByStrike = new Map<number, number>();
+      for (const strike of strikes) {
+        const key = String(strike);
+        let total = 0;
+        for (const exp of expirations) {
+          total += heatmap[key]?.[exp] || 0;
+        }
+        aggregateByStrike.set(strike, total);
+        if (Math.abs(total) > maxGamma) {
+          maxGamma = Math.abs(total);
+          maxGammaStrike = strike;
+        }
+      }
+
+      // Find flip point (ascending order)
+      const ascStrikes = [...strikes].sort((a, b) => a - b);
+      let cumGex = 0;
+      let prevSign = 0;
+      for (const s of ascStrikes) {
+        cumGex += aggregateByStrike.get(s) || 0;
+        const sign = Math.sign(cumGex);
+        if (prevSign !== 0 && sign !== prevSign) { flipPoint = s; break; }
+        prevSign = sign;
+      }
+
+      const result = {
+        symbol,
+        spotPrice,
+        expirations,
+        strikes,
+        heatmap,
+        flipPoint,
+        maxGammaStrike,
+        timestamp: new Date().toISOString(),
+      };
+
+      gexHeatmapCache.set(symbol, { data: result, ts: Date.now() });
+      res.json(result);
+    } catch (error) {
+      logger.error("Error generating GEX heatmap", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "GEX heatmap generation failed" });
+    }
+  });
+
   // ============================================================================
   // INSTITUTIONAL-GRADE RISK ENGINE API
   // PhD-level quantitative risk management

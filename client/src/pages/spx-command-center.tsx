@@ -40,6 +40,10 @@ import {
   BarChart2,
   Globe,
   Scale,
+  Grid3x3,
+  Zap as ZapIcon,
+  Star,
+  RefreshCw,
 } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
@@ -352,6 +356,32 @@ function useSPXIntelligence(symbol: IndexSymbol = 'SPY') {
     staleTime: 30_000,
     gcTime: 120_000,
     refetchInterval: 60_000, // Match backend 60s compute cycle
+  });
+}
+
+interface GEXHeatmapData {
+  symbol: string;
+  spotPrice: number;
+  expirations: string[];
+  strikes: number[];
+  heatmap: Record<string, Record<string, number>>;
+  flipPoint: number | null;
+  maxGammaStrike: number;
+  timestamp: string;
+}
+
+function useGEXHeatmap(symbol: IndexSymbol = 'SPY') {
+  const ticker = symbol === 'SPX' ? 'SPY' : symbol;
+  return useQuery<GEXHeatmapData>({
+    queryKey: ['/api/gex-heatmap', ticker],
+    queryFn: async () => {
+      const res = await fetch(`/api/gex-heatmap/${ticker}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch GEX heatmap');
+      return res.json();
+    },
+    staleTime: 30_000,
+    gcTime: 120_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -1315,6 +1345,320 @@ function VolumeDeltaPanel({ volumeDelta }: { volumeDelta: IntelVolumeDelta | nul
   );
 }
 
+// ── GEX Heatmap Tab ────────────────────────────────────────────────────
+
+function formatGexValue(val: number): string {
+  const abs = Math.abs(val);
+  if (abs >= 100_000) return `${(val / 1000).toFixed(1)}K`;
+  if (abs >= 1000) return `${(val / 1000).toFixed(1)}K`;
+  if (abs === 0) return '';
+  return String(Math.round(val));
+}
+
+function gexCellColor(val: number, maxAbs: number): string {
+  if (val === 0 || maxAbs === 0) return '';
+  const intensity = Math.min(1, Math.abs(val) / (maxAbs * 0.6));
+  if (val > 0) {
+    if (intensity > 0.7) return 'bg-emerald-600/70 text-white';
+    if (intensity > 0.4) return 'bg-emerald-500/50 text-emerald-100';
+    if (intensity > 0.15) return 'bg-emerald-500/25 text-emerald-200';
+    return 'bg-emerald-500/10 text-emerald-300';
+  } else {
+    if (intensity > 0.7) return 'bg-red-600/70 text-white';
+    if (intensity > 0.4) return 'bg-red-500/50 text-red-100';
+    if (intensity > 0.15) return 'bg-red-500/25 text-red-200';
+    return 'bg-red-500/10 text-red-300';
+  }
+}
+
+function formatExpDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+}
+
+function GEXHeatmapTab({ symbol }: { symbol: IndexSymbol }) {
+  const { data, isLoading, isError, refetch, isFetching } = useGEXHeatmap(symbol);
+  const isProxy = symbol === 'SPX';
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-8 w-64 bg-slate-800/50 rounded animate-pulse" />
+        <div className="h-[500px] bg-slate-900/60 border border-slate-800/50 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Card className="bg-slate-900/60 border-slate-800/50 p-8 text-center">
+        <p className="text-red-400 mb-2">Failed to load GEX heatmap data</p>
+        <button
+          onClick={() => refetch()}
+          className="text-xs text-cyan-400 hover:text-cyan-300 font-bold"
+        >
+          Retry
+        </button>
+      </Card>
+    );
+  }
+
+  const { spotPrice, expirations, strikes, heatmap, flipPoint, maxGammaStrike } = data;
+
+  // Compute max absolute value for color scaling
+  let maxAbs = 0;
+  for (const strike of strikes) {
+    const row = heatmap[String(strike)];
+    if (!row) continue;
+    for (const exp of expirations) {
+      const v = Math.abs(row[exp] || 0);
+      if (v > maxAbs) maxAbs = v;
+    }
+  }
+
+  // Find the strike closest to spot price
+  const closestStrike = strikes.reduce((prev, curr) =>
+    Math.abs(curr - spotPrice) < Math.abs(prev - spotPrice) ? curr : prev
+  , strikes[0]);
+
+  return (
+    <div className="space-y-4">
+      {/* ── Header row ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Grid3x3 className="w-4 h-4 text-violet-400" />
+            <span className="text-sm font-bold text-white">GEX Heatmap</span>
+            {isProxy && <span className="text-[9px] text-slate-500">(via SPY)</span>}
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-slate-400">
+              Spot: <span className="font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</span>
+            </span>
+            {flipPoint && (
+              <span className="text-slate-400">
+                Flip: <span className="font-mono font-bold text-violet-400">${safeToFixed(flipPoint, 0)}</span>
+              </span>
+            )}
+            <span className="text-slate-400">
+              Max γ: <span className="font-mono font-bold text-amber-400">${safeToFixed(maxGammaStrike, 0)}</span>
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
+          Refresh
+        </button>
+      </div>
+
+      {/* ── Legend ── */}
+      <div className="flex items-center gap-4 text-[10px] text-slate-500">
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-emerald-500/60" />
+          <span>Positive GEX (Call γ)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 rounded bg-red-500/60" />
+          <span>Negative GEX (Put γ)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Star className="w-3 h-3 text-amber-400" />
+          <span>Spot Price</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <ZapIcon className="w-3 h-3 text-violet-400" />
+          <span>Flip Point</span>
+        </div>
+      </div>
+
+      {/* ── Heatmap Table ── */}
+      <div className="overflow-x-auto rounded-lg border border-slate-800/50">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-slate-900/80">
+              <th className="sticky left-0 z-10 bg-slate-900 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 border-r border-slate-800/50 w-20">
+                Strike
+              </th>
+              {expirations.map(exp => (
+                <th
+                  key={exp}
+                  className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 min-w-[90px]"
+                >
+                  {formatExpDate(exp)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {strikes.map(strike => {
+              const row = heatmap[String(strike)] || {};
+              const isSpot = strike === closestStrike;
+              const isFlip = flipPoint !== null && strike === flipPoint;
+              const isMaxGamma = strike === maxGammaStrike;
+
+              return (
+                <tr
+                  key={strike}
+                  className={cn(
+                    "border-t border-slate-800/30 transition-colors",
+                    isSpot && "ring-1 ring-amber-500/40 bg-amber-500/[0.04]",
+                    isFlip && !isSpot && "ring-1 ring-violet-500/30",
+                  )}
+                >
+                  <td className={cn(
+                    "sticky left-0 z-10 px-3 py-1.5 font-mono font-bold text-right border-r border-slate-800/50 whitespace-nowrap",
+                    isSpot ? "bg-slate-900 text-amber-400" :
+                    isFlip ? "bg-slate-900 text-violet-400" :
+                    isMaxGamma ? "bg-slate-900 text-white" :
+                    "bg-slate-900 text-slate-300"
+                  )}>
+                    <div className="flex items-center justify-end gap-1">
+                      {isSpot && <Star className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                      {isFlip && !isSpot && <ZapIcon className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                      ${strike}
+                    </div>
+                  </td>
+                  {expirations.map(exp => {
+                    const val = row[exp] || 0;
+                    const isExtreme = Math.abs(val) > maxAbs * 0.65;
+                    return (
+                      <td
+                        key={exp}
+                        className={cn(
+                          "px-2 py-1.5 text-center font-mono tabular-nums whitespace-nowrap",
+                          gexCellColor(val, maxAbs)
+                        )}
+                      >
+                        <div className="flex items-center justify-center gap-0.5">
+                          {isExtreme && val !== 0 && (
+                            <ZapIcon className="w-3 h-3 flex-shrink-0 opacity-70" />
+                          )}
+                          {formatGexValue(val)}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Gamma Walls Summary ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <GammaWallCard
+          label="Strongest Support"
+          strikes={strikes}
+          heatmap={heatmap}
+          expirations={expirations}
+          filter="positive"
+          spotPrice={spotPrice}
+        />
+        <GammaWallCard
+          label="Strongest Resistance"
+          strikes={strikes}
+          heatmap={heatmap}
+          expirations={expirations}
+          filter="negative"
+          spotPrice={spotPrice}
+        />
+        <Card className="bg-slate-900/60 border-slate-800/50">
+          <CardHeader className="pb-1 px-4 pt-3">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Gamma Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Flip Point</span>
+              <span className="font-mono font-bold text-violet-400">
+                {flipPoint ? `$${flipPoint}` : 'N/A'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Max γ Strike</span>
+              <span className="font-mono font-bold text-amber-400">${maxGammaStrike}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Spot Position</span>
+              <Badge variant="outline" className={cn(
+                "text-[9px] font-bold",
+                flipPoint && spotPrice > flipPoint
+                  ? "border-emerald-500/30 text-emerald-400"
+                  : "border-red-500/30 text-red-400"
+              )}>
+                {flipPoint && spotPrice > flipPoint ? 'ABOVE FLIP (SUPPORT)' : 'BELOW FLIP (RESISTANCE)'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function GammaWallCard({
+  label,
+  strikes,
+  heatmap,
+  expirations,
+  filter,
+  spotPrice,
+}: {
+  label: string;
+  strikes: number[];
+  heatmap: Record<string, Record<string, number>>;
+  expirations: string[];
+  filter: 'positive' | 'negative';
+  spotPrice: number;
+}) {
+  // Aggregate GEX across all expirations per strike
+  const ranked = strikes.map(strike => {
+    const row = heatmap[String(strike)] || {};
+    let total = 0;
+    for (const exp of expirations) total += row[exp] || 0;
+    return { strike, total };
+  })
+    .filter(s => filter === 'positive' ? s.total > 0 : s.total < 0)
+    .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+    .slice(0, 3);
+
+  return (
+    <Card className="bg-slate-900/60 border-slate-800/50">
+      <CardHeader className="pb-1 px-4 pt-3">
+        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          {label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 space-y-1.5">
+        {ranked.length === 0 ? (
+          <span className="text-[10px] text-slate-600">No data</span>
+        ) : (
+          ranked.map((r, i) => (
+            <div key={r.strike} className="flex items-center justify-between text-xs">
+              <span className="font-mono font-bold text-white">${r.strike}</span>
+              <span className={cn(
+                "font-mono text-[10px]",
+                r.total > 0 ? "text-emerald-400" : "text-red-400"
+              )}>
+                {formatGexValue(r.total)}
+              </span>
+              <span className="text-[10px] text-slate-500">
+                {r.strike > spotPrice ? `+$${(r.strike - spotPrice).toFixed(0)}` : `-$${(spotPrice - r.strike).toFixed(0)}`}
+              </span>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function IntelligenceTab({ symbol }: { symbol: IndexSymbol }) {
   const { data: intel, isLoading } = useSPXIntelligence(symbol);
 
@@ -1551,6 +1895,12 @@ export default function SPXCommandCenter() {
               className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400 text-slate-400 text-xs font-bold gap-1.5"
             >
               <Brain className="w-3.5 h-3.5" /> Intelligence
+            </TabsTrigger>
+            <TabsTrigger
+              value="gex-heatmap"
+              className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-400 text-slate-400 text-xs font-bold gap-1.5"
+            >
+              <Grid3x3 className="w-3.5 h-3.5" /> GEX Heatmap
             </TabsTrigger>
           </TabsList>
 
@@ -1822,6 +2172,10 @@ export default function SPXCommandCenter() {
           {/* ── Intelligence Tab ────────────────────────────────────── */}
           <TabsContent value="intelligence" className="mt-4">
             <IntelligenceTab symbol={activeSymbol} />
+          </TabsContent>
+
+          <TabsContent value="gex-heatmap" className="mt-4">
+            <GEXHeatmapTab symbol={activeSymbol} />
           </TabsContent>
 
         </Tabs>
