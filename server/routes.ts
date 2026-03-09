@@ -22899,6 +22899,173 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================
+  // AION DASHBOARD — Composite market intelligence endpoint
+  // Aggregates AI forecast, crash detection, statistical models, consensus
+  // ============================================
+  app.get("/api/aion/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+
+      const upperSymbol = symbol.toUpperCase();
+      // Map index names to tradeable tickers
+      const tickerMap: Record<string, string> = { SPX: "SPY", NDX: "QQQ", DJI: "DIA", RUT: "IWM" };
+      const tradeTicker = tickerMap[upperSymbol] || upperSymbol;
+
+      // Run all data fetches in parallel for speed
+      const [predictionResult, techResult, vixResult] = await Promise.allSettled([
+        (async () => {
+          const { predictPriceWithAI } = await import("./price-prediction-engine");
+          return predictPriceWithAI(tradeTicker);
+        })(),
+        (async () => {
+          const { analyzeTechnicals } = await import("./trading-engine");
+          return analyzeTechnicals(tradeTicker);
+        })(),
+        (async () => {
+          const { default: yahooFinance } = await import("yahoo-finance2");
+          const vixQuote = await yahooFinance.quote("^VIX");
+          return vixQuote?.regularMarketPrice || 18;
+        })(),
+      ]);
+
+      const prediction = predictionResult.status === "fulfilled" ? predictionResult.value : null;
+      const technicals = techResult.status === "fulfilled" ? techResult.value : null;
+      const vixLevel = vixResult.status === "fulfilled" ? (vixResult.value as number) : 18;
+
+      // --- AI Forecast: Probability of upward move at 3/10/20 day horizons ---
+      const predictions = prediction?.predictions || [];
+      const findPred = (days: number) => {
+        const p = predictions.find((pr: any) => pr.daysOut === days) ||
+                  predictions.find((pr: any) => Math.abs(pr.daysOut - days) <= 2);
+        if (!p) return { probability: 50, direction: "neutral" as const };
+        // confidence + direction => probability of upward move
+        const prob = p.direction === "bullish" ? Math.min(95, 50 + p.confidence * 0.45)
+                   : p.direction === "bearish" ? Math.max(5, 50 - p.confidence * 0.45)
+                   : 50;
+        return { probability: Math.round(prob), direction: p.direction };
+      };
+      const aiForecast = {
+        day3: findPred(3).probability,
+        day10: findPred(10).probability,
+        day20: findPred(20).probability,
+      };
+
+      // --- Crash Detection: VIX-based downturn probability ---
+      const { MacroSignals } = await import("./macro-signals");
+      const vixRegime = MacroSignals.analyzeVIXRegime(vixLevel);
+      const quickRegime = MacroSignals.getQuickMacroRegime(vixLevel);
+
+      // Crash probability formula based on VIX level & regime
+      let crashProb: number;
+      if (vixLevel >= 30) crashProb = Math.min(75, 30 + (vixLevel - 30) * 1.5);
+      else if (vixLevel >= 25) crashProb = 20 + (vixLevel - 25) * 2;
+      else if (vixLevel >= 20) crashProb = 12 + (vixLevel - 20) * 1.6;
+      else if (vixLevel >= 15) crashProb = 6 + (vixLevel - 15) * 1.2;
+      else crashProb = Math.max(2, vixLevel * 0.4);
+
+      // Adjust with technicals
+      if (technicals) {
+        if (technicals.trend.direction === "down" && technicals.trend.strength === "strong") crashProb += 5;
+        if (technicals.volatility.regime === "extreme") crashProb += 8;
+        else if (technicals.volatility.regime === "high") crashProb += 3;
+        if (technicals.momentum.condition === "oversold") crashProb += 3;
+      }
+      crashProb = Math.round(Math.min(90, Math.max(1, crashProb)) * 10) / 10;
+
+      // Exposure / Action
+      let exposure: number, action: string;
+      if (crashProb >= 40) { exposure = 10; action = "Max Defensive"; }
+      else if (crashProb >= 25) { exposure = 25; action = "Defensive"; }
+      else if (crashProb >= 15) { exposure = 50; action = "Cautious"; }
+      else if (crashProb >= 8) { exposure = 75; action = "Moderate"; }
+      else { exposure = 100; action = "Full Risk-On"; }
+
+      const crashDetection = {
+        probability: crashProb,
+        action: `Holding ${exposure}%: ${action}`,
+        exposure,
+        vixLevel: Math.round(vixLevel * 100) / 100,
+        regime: vixRegime.regime,
+      };
+
+      // --- Statistical Models: 5 analytical lenses ---
+      const trendDir = technicals?.trend.direction || "sideways";
+      const trendStrength = technicals?.trend.strength || "none";
+      const rsi = technicals?.momentum.rsi14 || 50;
+      const volRegime = technicals?.volatility.regime || "normal";
+      const currentPrice = technicals?.levels.currentPrice || prediction?.currentPrice || 0;
+      const sma50 = technicals?.trend.movingAverages.sma50 || currentPrice;
+      const sma200 = technicals?.trend.movingAverages.sma200 || currentPrice;
+
+      const classifyRegime = (bullishScore: number): { regime: string; expected: number; probUp: number } => {
+        if (bullishScore >= 70) return { regime: "CONSTRUCTIVE RISK-ON", expected: +(bullishScore * 0.05).toFixed(2), probUp: bullishScore };
+        if (bullishScore >= 55) return { regime: "BALANCED / NORMAL", expected: +((bullishScore - 50) * 0.04).toFixed(2), probUp: bullishScore };
+        if (bullishScore >= 40) return { regime: "DEFENSIVE (De-risking)", expected: -+((55 - bullishScore) * 0.04).toFixed(2), probUp: bullishScore };
+        return { regime: "MAX DEFENSIVE", expected: -+((55 - bullishScore) * 0.06).toFixed(2), probUp: bullishScore };
+      };
+
+      // Price Trend model: based on SMA alignment
+      const priceTrendScore = trendDir === "up" ? (trendStrength === "strong" ? 80 : 65) :
+                              trendDir === "down" ? (trendStrength === "strong" ? 20 : 35) : 50;
+      // Trend + Momentum: combines RSI + trend
+      const momentumScore = Math.round(((rsi / 100) * 60 + (priceTrendScore / 100) * 40));
+      // Market Breadth: approximated from macro regime
+      const breadthScore = quickRegime.regime === "bullish" ? 70 :
+                           quickRegime.regime === "bearish" ? 25 : 48;
+      // Volatility Envelope: inverse of vol — low vol = bullish
+      const volScore = volRegime === "low" ? 78 : volRegime === "normal" ? 58 :
+                       volRegime === "high" ? 30 : 15;
+      // Momentum Strength: RSI centered
+      const momStrScore = Math.round(rsi * 0.7 + (trendDir === "up" ? 20 : trendDir === "down" ? -10 : 5));
+
+      const statisticalModels = [
+        { name: "Price Trend", ...classifyRegime(priceTrendScore) },
+        { name: "Trend + Momentum", ...classifyRegime(momentumScore) },
+        { name: "Market Breadth", ...classifyRegime(breadthScore) },
+        { name: "Volatility Envelope", ...classifyRegime(volScore) },
+        { name: "Momentum Strength", ...classifyRegime(Math.min(95, Math.max(5, momStrScore))) },
+      ];
+
+      // --- Model Consensus: count bullish vs bearish across all signals ---
+      const allSignals = [
+        { label: "AI 3-Day", bullish: aiForecast.day3 > 55 },
+        { label: "AI 10-Day", bullish: aiForecast.day10 > 55 },
+        { label: "AI 20-Day", bullish: aiForecast.day20 > 55 },
+        { label: "Crash Safe", bullish: crashProb < 15 },
+        ...statisticalModels.map(m => ({ label: m.name, bullish: m.probUp > 50 })),
+      ];
+      const bullishCount = allSignals.filter(s => s.bullish).length;
+      const bearishCount = allSignals.length - bullishCount;
+      const verdict = bullishCount > bearishCount ? "BULLISH" : bullishCount < bearishCount ? "BEARISH" : "NEUTRAL";
+
+      const modelConsensus = {
+        bullish: bullishCount,
+        bearish: bearishCount,
+        total: allSignals.length,
+        verdict,
+        signals: allSignals,
+      };
+
+      res.json({
+        symbol: upperSymbol,
+        tradeTicker,
+        lastUpdated: new Date().toISOString(),
+        currentPrice,
+        aiForecast,
+        crashDetection,
+        statisticalModels,
+        modelConsensus,
+      });
+    } catch (error) {
+      logger.error("Error generating AION dashboard data", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "AION dashboard data generation failed" });
+    }
+  });
+
   // Macro Signals API - VIX regime, sector rotation
   app.get("/api/macro/context", isAuthenticated, async (req, res) => {
     try {
