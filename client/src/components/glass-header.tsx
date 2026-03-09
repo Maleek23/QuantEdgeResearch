@@ -49,6 +49,7 @@ const mainTabs: NavTab[] = [
 
 // "More" dropdown — tools + learning
 const moreToolItems: NavTab[] = [
+  { label: "SPX Command", href: "/spx-command-center", icon: BarChart3 },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
 ];
