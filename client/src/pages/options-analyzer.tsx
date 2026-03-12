@@ -41,7 +41,11 @@ import {
   Settings2,
   Plus,
   Minus,
-  Info
+  Info,
+  Crosshair,
+  Grid3x3,
+  Shield,
+  Brain
 } from "lucide-react";
 
 interface OptionContract {
@@ -267,7 +271,7 @@ export default function OptionsAnalyzer() {
   const [optionTypeFilter, setOptionTypeFilter] = useState<'all' | 'call' | 'put'>('all');
   const [selectedOption, setSelectedOption] = useState<OptionContract | null>(null);
   const [analysisResult, setAnalysisResult] = useState<DeepAnalysis | null>(null);
-  const [activeTab, setActiveTab] = useState<'chain' | 'surface' | 'pricing' | 'strategy'>('chain');
+  const [activeTab, setActiveTab] = useState<'chain' | 'surface' | 'pricing' | 'strategy' | 'gex'>('chain');
 
   // Update when stock context changes
   useEffect(() => {
@@ -479,10 +483,14 @@ export default function OptionsAnalyzer() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="chain" className="flex items-center gap-1" data-testid="tab-chain">
               <Layers className="h-4 w-4" />
               Options Chain
+            </TabsTrigger>
+            <TabsTrigger value="gex" className="flex items-center gap-1" data-testid="tab-gex">
+              <Crosshair className="h-4 w-4" />
+              GEX Profile
             </TabsTrigger>
             <TabsTrigger value="surface" className="flex items-center gap-1" data-testid="tab-surface">
               <BarChart3 className="h-4 w-4" />
@@ -712,6 +720,10 @@ export default function OptionsAnalyzer() {
               onCalculate={runPricing}
               stockPrice={chainData?.stockPrice}
             />
+          </TabsContent>
+
+          <TabsContent value="gex" className="mt-0">
+            <GEXProfilePanel symbol={searchedSymbol} />
           </TabsContent>
 
           <TabsContent value="strategy" className="mt-0">
@@ -1723,6 +1735,456 @@ function StrategyLabPanel({
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GEX PROFILE PANEL — gexsniper.com-style per-stock gamma analysis
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface GEXProfileData {
+  symbol: string;
+  spotPrice: number;
+  expirations: string[];
+  strikes: number[];
+  heatmap: Record<string, Record<string, number>>;
+  flipPoint: number | null;
+  maxGammaStrike: number;
+  timestamp: string;
+}
+
+interface GEXKeyLevels {
+  anchor: number;        // Strike with highest absolute GEX (magnetic)
+  flip: number | null;   // Where GEX switches sign
+  defenseLines: number[]; // Top 3 support/resistance walls
+  gexRating: number;     // 1-5 based on GEX concentration
+  bias: 'Long Gamma' | 'Short Gamma' | 'Neutral';
+  regime: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+}
+
+function computeKeyLevels(data: GEXProfileData): GEXKeyLevels {
+  const { spotPrice, strikes, heatmap, expirations, flipPoint, maxGammaStrike } = data;
+
+  // Aggregate GEX per strike
+  const agg = new Map<number, number>();
+  for (const strike of strikes) {
+    const row = heatmap[String(strike)] || {};
+    let total = 0;
+    for (const exp of expirations) total += row[exp] || 0;
+    agg.set(strike, total);
+  }
+
+  // Find max absolute
+  let maxAbs = 0;
+  for (const v of agg.values()) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); }
+
+  // Anchor = max gamma strike (most magnetic)
+  const anchor = maxGammaStrike;
+
+  // Defense lines = top 3 walls by absolute magnitude (excluding anchor)
+  const ranked = [...agg.entries()]
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .filter(([s]) => s !== anchor)
+    .slice(0, 3)
+    .map(([s]) => s)
+    .sort((a, b) => b - a);
+
+  // GEX Rating: 1-5 based on concentration around spot
+  const nearSpotGex = strikes
+    .filter(s => Math.abs(s - spotPrice) / spotPrice < 0.02)
+    .reduce((sum, s) => sum + Math.abs(agg.get(s) || 0), 0);
+  const totalGex = [...agg.values()].reduce((sum, v) => sum + Math.abs(v), 0);
+  const concentration = totalGex > 0 ? nearSpotGex / totalGex : 0;
+  const gexRating = Math.min(5, Math.max(1, Math.round(concentration * 10 + 1)));
+
+  // Bias: Long gamma = above flip, Short gamma = below flip
+  const bias: GEXKeyLevels['bias'] = !flipPoint ? 'Neutral'
+    : spotPrice > flipPoint ? 'Long Gamma' : 'Short Gamma';
+
+  const regime: GEXKeyLevels['regime'] = !flipPoint ? 'NEUTRAL'
+    : spotPrice > flipPoint ? 'POSITIVE' : 'NEGATIVE';
+
+  return { anchor, flip: flipPoint, defenseLines: ranked, gexRating, bias, regime };
+}
+
+function formatGexVal(val: number): string {
+  const abs = Math.abs(val);
+  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1000) return `${(val / 1000).toFixed(1)}K`;
+  if (abs === 0) return '';
+  return String(Math.round(val));
+}
+
+function gexColor(val: number, maxAbs: number): string {
+  if (val === 0 || maxAbs === 0) return '';
+  const intensity = Math.min(1, Math.abs(val) / (maxAbs * 0.6));
+  if (val > 0) {
+    if (intensity > 0.7) return 'bg-emerald-600/70 text-white';
+    if (intensity > 0.4) return 'bg-emerald-500/50 text-emerald-100';
+    if (intensity > 0.15) return 'bg-emerald-500/25 text-emerald-200';
+    return 'bg-emerald-500/10 text-emerald-300';
+  } else {
+    if (intensity > 0.7) return 'bg-red-600/70 text-white';
+    if (intensity > 0.4) return 'bg-red-500/50 text-red-100';
+    if (intensity > 0.15) return 'bg-red-500/25 text-red-200';
+    return 'bg-red-500/10 text-red-300';
+  }
+}
+
+function GEXProfilePanel({ symbol }: { symbol: string }) {
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<GEXProfileData>({
+    queryKey: ['/api/gex-heatmap', symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/gex-heatmap/${symbol}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch GEX profile');
+      return res.json();
+    },
+    enabled: !!symbol,
+    staleTime: 30_000,
+    gcTime: 120_000,
+    refetchInterval: 60_000,
+  });
+
+  if (!symbol) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Crosshair className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-muted-foreground">Search a symbol above to view its GEX profile</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="lg:col-span-3 h-[500px] bg-muted/30 rounded-lg animate-pulse" />
+          <div className="h-[500px] bg-muted/30 rounded-lg animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <p className="text-red-400 mb-2">Failed to load GEX data for {symbol}</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const levels = computeKeyLevels(data);
+  const { spotPrice, expirations, strikes, heatmap } = data;
+
+  // Compute max absolute for color scaling
+  let maxAbs = 0;
+  for (const strike of strikes) {
+    const row = heatmap[String(strike)];
+    if (!row) continue;
+    for (const exp of expirations) {
+      const v = Math.abs(row[exp] || 0);
+      if (v > maxAbs) maxAbs = v;
+    }
+  }
+
+  const closestStrike = strikes.reduce((prev, curr) =>
+    Math.abs(curr - spotPrice) < Math.abs(prev - spotPrice) ? curr : prev
+  , strikes[0]);
+
+  // Aggregate for AI analysis
+  const agg = new Map<number, number>();
+  for (const strike of strikes) {
+    const row = heatmap[String(strike)] || {};
+    let total = 0;
+    for (const exp of expirations) total += row[exp] || 0;
+    agg.set(strike, total);
+  }
+
+  // Top support/resistance
+  const supportWalls = [...agg.entries()]
+    .filter(([s, v]) => v > 0 && s <= spotPrice)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 2)
+    .map(([s]) => s);
+
+  const resistWalls = [...agg.entries()]
+    .filter(([s, v]) => v < 0 && s >= spotPrice)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 2)
+    .map(([s]) => s);
+
+  // Generate AI-style outlook
+  const outlook = levels.bias === 'Long Gamma'
+    ? `Bullish due to strong call gamma at key support levels, indicating potential upward momentum as the price approaches $${levels.anchor}. Currently trading $${safeToFixed(spotPrice, 2)}, holding above the flip which keeps dealers in supportive positioning.`
+    : levels.bias === 'Short Gamma'
+    ? `Caution — price below gamma flip at $${levels.flip || 'N/A'}. Dealers in negative gamma amplify moves. Expect increased volatility. Key support at ${supportWalls.length > 0 ? '$' + supportWalls[0] : 'N/A'}.`
+    : `Neutral gamma regime. Dealers are balanced. Price action likely range-bound between ${supportWalls.length > 0 ? '$' + supportWalls[0] : 'support'} and ${resistWalls.length > 0 ? '$' + resistWalls[0] : 'resistance'}.`;
+
+  return (
+    <div className="space-y-4">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold">{symbol} GEX Profile</h2>
+          <Badge variant="outline" className={cn(
+            "text-xs font-bold",
+            levels.bias === 'Long Gamma' ? "border-emerald-500/30 text-emerald-500" :
+            levels.bias === 'Short Gamma' ? "border-red-500/30 text-red-500" :
+            "border-yellow-500/30 text-yellow-500"
+          )}>
+            {levels.bias}
+          </Badge>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* ── LEFT: Heatmap Table ── */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Grid3x3 className="h-4 w-4 text-violet-400" /> Heatmap
+                </CardTitle>
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-emerald-500/60" />
+                    <span>Positive (Call γ)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-red-500/60" />
+                    <span>Negative (Put γ)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 text-amber-400" />
+                    <span>Spot</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-background">
+                      <th className="sticky left-0 z-20 bg-background px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border w-20">
+                        Strike
+                      </th>
+                      {expirations.map(exp => (
+                        <th key={exp} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground min-w-[90px]">
+                          {new Date(exp + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {strikes.map(strike => {
+                      const row = heatmap[String(strike)] || {};
+                      const isSpot = strike === closestStrike;
+                      const isAnchor = strike === levels.anchor;
+                      const isFlip = levels.flip !== null && strike === levels.flip;
+                      const isDefense = levels.defenseLines.includes(strike);
+
+                      return (
+                        <tr
+                          key={strike}
+                          className={cn(
+                            "border-t border-border/30 transition-colors",
+                            isSpot && "ring-1 ring-amber-500/40 bg-amber-500/[0.04]",
+                            isAnchor && !isSpot && "ring-1 ring-emerald-500/30",
+                            isFlip && !isSpot && !isAnchor && "ring-1 ring-violet-500/30",
+                          )}
+                        >
+                          <td className={cn(
+                            "sticky left-0 z-10 px-3 py-1.5 font-mono font-bold text-right border-r border-border/50 whitespace-nowrap",
+                            isSpot ? "bg-background text-amber-400" :
+                            isAnchor ? "bg-background text-emerald-400" :
+                            isFlip ? "bg-background text-violet-400" :
+                            isDefense ? "bg-background text-white" :
+                            "bg-background text-muted-foreground"
+                          )}>
+                            <div className="flex items-center justify-end gap-1">
+                              {isSpot && <Star className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                              {isAnchor && !isSpot && <Crosshair className="w-3 h-3 text-emerald-400 flex-shrink-0" />}
+                              {isFlip && !isSpot && !isAnchor && <Zap className="w-3 h-3 text-violet-400 flex-shrink-0" />}
+                              ${strike}
+                            </div>
+                          </td>
+                          {expirations.map(exp => {
+                            const val = row[exp] || 0;
+                            const isExtreme = Math.abs(val) > maxAbs * 0.65;
+                            return (
+                              <td key={exp} className={cn(
+                                "px-2 py-1.5 text-center font-mono tabular-nums whitespace-nowrap",
+                                gexColor(val, maxAbs)
+                              )}>
+                                <div className="flex items-center justify-center gap-0.5">
+                                  {isExtreme && val !== 0 && <Zap className="w-3 h-3 flex-shrink-0 opacity-70" />}
+                                  {formatGexVal(val)}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── RIGHT: Key Levels Sidebar ── */}
+        <div className="space-y-4">
+          {/* Key Levels Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Key Levels
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-4">
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase">Anchor</div>
+                  <div className="text-2xl font-mono font-black text-emerald-400">${levels.anchor}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground uppercase">Flip</div>
+                  <div className="text-2xl font-mono font-black text-violet-400">
+                    {levels.flip ? `$${levels.flip}` : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="font-mono font-bold">${safeToFixed(spotPrice, 2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">GEX Rating</span>
+                  <span className="font-mono font-bold text-amber-400">{levels.gexRating}/5</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bias</span>
+                  <span className={cn(
+                    "font-bold",
+                    levels.bias === 'Long Gamma' ? "text-emerald-400" :
+                    levels.bias === 'Short Gamma' ? "text-red-400" : "text-yellow-400"
+                  )}>
+                    {levels.bias}
+                  </span>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold mb-2">Defense Lines</div>
+                <div className="space-y-1.5">
+                  {levels.defenseLines.map((strike, i) => (
+                    <div key={strike} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Level {i + 1}</span>
+                      <span className="font-mono font-bold">${strike}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Analysis Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Brain className="h-3.5 w-3.5" /> AI Analysis
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px]">{symbol}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Outlook */}
+              <div>
+                <div className="text-xs font-bold mb-1">Outlook</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{outlook}</p>
+              </div>
+
+              <Separator />
+
+              {/* Levels */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold">Levels</span>
+                  <Badge variant={levels.regime === 'POSITIVE' ? 'default' : levels.regime === 'NEGATIVE' ? 'destructive' : 'secondary'} className="text-[9px]">
+                    {levels.regime === 'POSITIVE' ? 'Brk ' + levels.anchor : levels.regime === 'NEGATIVE' ? 'Def ' + (levels.flip || '') : 'Range'}
+                  </Badge>
+                </div>
+                <div className="text-xs space-y-1">
+                  <div className="text-muted-foreground">
+                    Sup: {supportWalls.length > 0 ? supportWalls.join(' / ') : 'N/A'}
+                  </div>
+                  <div className="text-muted-foreground">
+                    Res: {resistWalls.length > 0 ? resistWalls.join(' / ') : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Strategy */}
+              <div>
+                <div className="text-xs font-bold mb-1">Strategy</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {levels.bias === 'Long Gamma'
+                    ? `Dealers long gamma — sell vol, buy dips toward $${supportWalls[0] || levels.anchor}. Target: $${levels.anchor}. Mean reversion plays favored.`
+                    : levels.bias === 'Short Gamma'
+                    ? `Dealers short gamma — momentum plays. Ride the trend. Risk defined via defense lines. Key pivot: $${levels.flip || 'N/A'}.`
+                    : `Neutral regime. Range plays between support and resistance. Sell premium strategies favored.`
+                  }
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Risk */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold">Risk</span>
+                  <Badge variant={levels.gexRating >= 4 ? 'default' : levels.gexRating >= 2 ? 'secondary' : 'destructive'} className="text-[9px]">
+                    {levels.gexRating}/5
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {levels.gexRating >= 4
+                    ? 'High GEX concentration near spot. Dealer activity provides strong support/resistance. Lower risk for directional plays.'
+                    : levels.gexRating >= 2
+                    ? 'Moderate GEX. Some dealer influence but price can break through levels. Use wider stops.'
+                    : 'Low GEX concentration. Dealers have minimal influence. Higher volatility and unpredictable price action.'}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Timestamp */}
+      <div className="text-[10px] text-muted-foreground text-right">
+        Updated: {new Date(data.timestamp).toLocaleString()}
+      </div>
     </div>
   );
 }
