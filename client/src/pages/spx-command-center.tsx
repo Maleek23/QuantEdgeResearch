@@ -1602,6 +1602,447 @@ function GEXHeatmapTab({ symbol }: { symbol: IndexSymbol }) {
   );
 }
 
+// ── GEX Sniper Tab ─────────────────────────────────────────────────────
+
+interface SniperSignal {
+  type: 'CALL_WALL' | 'PUT_WALL' | 'FLIP_ZONE' | 'GAMMA_SQUEEZE' | 'EXTREME_NEG';
+  strike: number;
+  direction: 'LONG' | 'SHORT';
+  conviction: 'S+' | 'A' | 'B';
+  gexValue: number;
+  distance: number;      // distance from spot in $
+  distancePct: number;   // distance from spot in %
+  reasoning: string;
+  targetStrike: number;  // next wall as target
+  stopStrike: number;    // opposite side
+  expiration: string;    // nearest 0DTE expiration
+}
+
+function deriveSniperSignals(data: GEXHeatmapData): SniperSignal[] {
+  const { spotPrice, strikes, heatmap, expirations, flipPoint, maxGammaStrike } = data;
+  const signals: SniperSignal[] = [];
+
+  // Aggregate GEX per strike across all expirations
+  const agg = new Map<number, number>();
+  for (const strike of strikes) {
+    const row = heatmap[String(strike)] || {};
+    let total = 0;
+    for (const exp of expirations) total += row[exp] || 0;
+    agg.set(strike, total);
+  }
+
+  // Find max absolute for threshold scaling
+  let maxAbs = 0;
+  for (const v of agg.values()) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); }
+  if (maxAbs === 0) return signals;
+
+  // Thresholds
+  const extremeThreshold = maxAbs * 0.5;
+  const wallThreshold = maxAbs * 0.35;
+
+  // Sorted ascending for wall detection
+  const ascStrikes = [...strikes].sort((a, b) => a - b);
+
+  // Nearest 0DTE expiration
+  const today = new Date().toISOString().slice(0, 10);
+  const nearestExp = expirations.find(e => e >= today) || expirations[0] || '';
+
+  // Detect extreme negative GEX zones (put walls = bounce potential)
+  for (const strike of ascStrikes) {
+    const gex = agg.get(strike) || 0;
+    const dist = strike - spotPrice;
+    const distPct = (dist / spotPrice) * 100;
+
+    // Only look at strikes within ±4% of spot
+    if (Math.abs(distPct) > 4) continue;
+
+    // Extreme negative GEX below spot = strong support (potential bounce → LONG)
+    if (gex < -extremeThreshold && strike < spotPrice) {
+      // Find next positive wall above as target
+      const nextWallAbove = ascStrikes.find(s => s > spotPrice && (agg.get(s) || 0) > wallThreshold);
+      signals.push({
+        type: 'EXTREME_NEG',
+        strike,
+        direction: 'LONG',
+        conviction: Math.abs(gex) > maxAbs * 0.7 ? 'S+' : 'A',
+        gexValue: gex,
+        distance: Math.abs(dist),
+        distancePct: Math.abs(distPct),
+        reasoning: `Massive put gamma wall at $${strike} — dealers short gamma, forced to buy dips. High probability bounce zone.`,
+        targetStrike: nextWallAbove || strike + Math.abs(dist) * 2,
+        stopStrike: strike - Math.abs(dist) * 0.5,
+        expiration: nearestExp,
+      });
+    }
+
+    // Extreme negative GEX above spot = strong resistance (rejection → SHORT)
+    if (gex < -extremeThreshold && strike > spotPrice) {
+      const nextWallBelow = [...ascStrikes].reverse().find(s => s < spotPrice && (agg.get(s) || 0) > wallThreshold);
+      signals.push({
+        type: 'EXTREME_NEG',
+        strike,
+        direction: 'SHORT',
+        conviction: Math.abs(gex) > maxAbs * 0.7 ? 'S+' : 'A',
+        gexValue: gex,
+        distance: Math.abs(dist),
+        distancePct: Math.abs(distPct),
+        reasoning: `Extreme negative GEX at $${strike} above spot — vol expansion zone. Dealers amplify moves here.`,
+        targetStrike: nextWallBelow || strike - Math.abs(dist) * 2,
+        stopStrike: strike + Math.abs(dist) * 0.5,
+        expiration: nearestExp,
+      });
+    }
+
+    // Strong positive GEX = call wall (magnetic, price gravitates here)
+    if (gex > extremeThreshold) {
+      const isAbove = strike > spotPrice;
+      signals.push({
+        type: 'CALL_WALL',
+        strike,
+        direction: isAbove ? 'LONG' : 'SHORT',
+        conviction: gex > maxAbs * 0.7 ? 'S+' : 'A',
+        gexValue: gex,
+        distance: Math.abs(dist),
+        distancePct: Math.abs(distPct),
+        reasoning: `Massive call gamma wall at $${strike} — ${isAbove ? 'magnetic target, price gravitates upward' : 'support magnet below, price pinned'}. Dealers hedge by selling into rallies here.`,
+        targetStrike: strike,
+        stopStrike: isAbove ? spotPrice - Math.abs(dist) * 0.3 : spotPrice + Math.abs(dist) * 0.3,
+        expiration: nearestExp,
+      });
+    }
+  }
+
+  // Flip zone signal
+  if (flipPoint) {
+    const flipDist = Math.abs(flipPoint - spotPrice);
+    const flipPct = (flipDist / spotPrice) * 100;
+    if (flipPct < 2) {
+      signals.push({
+        type: 'FLIP_ZONE',
+        strike: flipPoint,
+        direction: spotPrice > flipPoint ? 'LONG' : 'SHORT',
+        conviction: flipPct < 0.5 ? 'S+' : 'A',
+        gexValue: agg.get(flipPoint) || 0,
+        distance: flipDist,
+        distancePct: flipPct,
+        reasoning: spotPrice > flipPoint
+          ? `Spot above gamma flip ($${flipPoint}) — positive gamma regime. Dealers dampen moves = mean reversion bias.`
+          : `Spot below gamma flip ($${flipPoint}) — negative gamma regime. Dealers amplify moves = trend/momentum bias.`,
+        targetStrike: spotPrice > flipPoint ? maxGammaStrike : flipPoint,
+        stopStrike: spotPrice > flipPoint ? flipPoint - flipDist * 0.5 : flipPoint + flipDist * 0.5,
+        expiration: nearestExp,
+      });
+    }
+  }
+
+  // Gamma squeeze potential — max gamma strike far from spot
+  const maxDist = Math.abs(maxGammaStrike - spotPrice);
+  const maxDistPct = (maxDist / spotPrice) * 100;
+  if (maxDistPct > 0.5 && maxDistPct < 3) {
+    signals.push({
+      type: 'GAMMA_SQUEEZE',
+      strike: maxGammaStrike,
+      direction: maxGammaStrike > spotPrice ? 'LONG' : 'SHORT',
+      conviction: maxDistPct < 1 ? 'A' : 'B',
+      gexValue: agg.get(maxGammaStrike) || 0,
+      distance: maxDist,
+      distancePct: maxDistPct,
+      reasoning: `Max gamma concentration at $${maxGammaStrike} — if price approaches, dealer hedging accelerates the move. Squeeze potential.`,
+      targetStrike: maxGammaStrike,
+      stopStrike: maxGammaStrike > spotPrice
+        ? spotPrice - maxDist * 0.3
+        : spotPrice + maxDist * 0.3,
+      expiration: nearestExp,
+    });
+  }
+
+  // Sort by conviction then distance
+  const convictionRank: Record<string, number> = { 'S+': 0, 'A': 1, 'B': 2 };
+  signals.sort((a, b) => {
+    const cr = (convictionRank[a.conviction] || 2) - (convictionRank[b.conviction] || 2);
+    if (cr !== 0) return cr;
+    return a.distancePct - b.distancePct;
+  });
+
+  return signals.slice(0, 8); // Top 8 signals
+}
+
+function GEXSniperTab({ symbol }: { symbol: IndexSymbol }) {
+  const { data, isLoading, isError, refetch, isFetching } = useGEXHeatmap(symbol);
+  const isProxy = symbol === 'SPX';
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-8 w-64 bg-slate-800/50 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-48 bg-slate-900/60 border border-slate-800/50 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Card className="bg-slate-900/60 border-slate-800/50 p-8 text-center">
+        <p className="text-red-400 mb-2">Failed to load GEX data for sniper analysis</p>
+        <button onClick={() => refetch()} className="text-xs text-cyan-400 hover:text-cyan-300 font-bold">Retry</button>
+      </Card>
+    );
+  }
+
+  const signals = deriveSniperSignals(data);
+  const { spotPrice, flipPoint, maxGammaStrike, expirations } = data;
+
+  // Aggregate for the gamma profile bar
+  const agg = new Map<number, number>();
+  for (const strike of data.strikes) {
+    const row = data.heatmap[String(strike)] || {};
+    let total = 0;
+    for (const exp of expirations) total += row[exp] || 0;
+    agg.set(strike, total);
+  }
+  let maxAbs = 0;
+  for (const v of agg.values()) { if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v); }
+
+  // Top support/resistance walls
+  const walls = [...agg.entries()]
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 6);
+
+  const regime = flipPoint && spotPrice > flipPoint ? 'POSITIVE' : 'NEGATIVE';
+
+  return (
+    <div className="space-y-4">
+      {/* ── Sniper Header ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Crosshair className="w-4 h-4 text-red-400" />
+            <span className="text-sm font-bold text-white">GEX Sniper</span>
+            {isProxy && <span className="text-[9px] text-slate-500">(via SPY)</span>}
+          </div>
+          <Badge variant="outline" className={cn(
+            "text-[9px] font-bold",
+            regime === 'POSITIVE'
+              ? "border-emerald-500/30 text-emerald-400"
+              : "border-red-500/30 text-red-400"
+          )}>
+            {regime === 'POSITIVE' ? 'POSITIVE γ — MEAN REVERT' : 'NEGATIVE γ — MOMENTUM'}
+          </Badge>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
+          Refresh
+        </button>
+      </div>
+
+      {/* ── Regime Dashboard ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="bg-slate-900/60 border-slate-800/50">
+          <CardContent className="px-3 py-3">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Spot Price</div>
+            <div className="text-lg font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/60 border-slate-800/50">
+          <CardContent className="px-3 py-3">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Gamma Flip</div>
+            <div className={cn("text-lg font-mono font-bold", flipPoint ? "text-violet-400" : "text-slate-600")}>
+              {flipPoint ? `$${safeToFixed(flipPoint, 0)}` : 'N/A'}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/60 border-slate-800/50">
+          <CardContent className="px-3 py-3">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Max γ Strike</div>
+            <div className="text-lg font-mono font-bold text-amber-400">${safeToFixed(maxGammaStrike, 0)}</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/60 border-slate-800/50">
+          <CardContent className="px-3 py-3">
+            <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Signals</div>
+            <div className={cn(
+              "text-lg font-mono font-bold",
+              signals.length > 0 ? "text-emerald-400" : "text-slate-600"
+            )}>
+              {signals.length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Gamma Profile — Key Walls ── */}
+      <Card className="bg-slate-900/60 border-slate-800/50">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-violet-400" /> Gamma Walls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-3">
+          <div className="space-y-2">
+            {walls.map(([strike, gex]) => {
+              const pct = maxAbs > 0 ? Math.abs(gex) / maxAbs : 0;
+              const isPositive = gex > 0;
+              const isAbove = strike > spotPrice;
+              return (
+                <div key={strike} className="flex items-center gap-3">
+                  <div className="w-14 text-right">
+                    <span className={cn(
+                      "font-mono text-xs font-bold",
+                      strike === maxGammaStrike ? "text-amber-400" :
+                      flipPoint && strike === flipPoint ? "text-violet-400" : "text-white"
+                    )}>
+                      ${strike}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-5 bg-slate-800/50 rounded overflow-hidden relative">
+                    <div
+                      className={cn(
+                        "h-full rounded transition-all duration-500",
+                        isPositive ? "bg-emerald-500/60" : "bg-red-500/60"
+                      )}
+                      style={{ width: `${Math.max(pct * 100, 4)}%` }}
+                    />
+                    <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-white/80">
+                      {formatGexValue(gex)}
+                    </span>
+                  </div>
+                  <Badge variant="outline" className={cn(
+                    "text-[8px] font-bold w-20 justify-center",
+                    isPositive
+                      ? "border-emerald-500/20 text-emerald-400"
+                      : "border-red-500/20 text-red-400"
+                  )}>
+                    {isPositive ? (isAbove ? 'MAGNET ↑' : 'SUPPORT') : (isAbove ? 'RESIST' : 'BOUNCE')}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Sniper Signals ── */}
+      {signals.length === 0 ? (
+        <Card className="bg-slate-900/60 border-slate-800/50 p-6 text-center">
+          <Crosshair className="w-8 h-8 text-slate-700 mx-auto mb-2" />
+          <p className="text-sm text-slate-500">No sniper signals detected</p>
+          <p className="text-[10px] text-slate-600 mt-1">Signals generate when extreme GEX concentrations appear near spot</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {signals.map((sig, idx) => (
+            <Card
+              key={`${sig.strike}-${sig.type}-${idx}`}
+              className={cn(
+                "border overflow-hidden",
+                sig.conviction === 'S+'
+                  ? "bg-gradient-to-br from-red-950/40 to-slate-900/60 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                  : sig.conviction === 'A'
+                    ? "bg-gradient-to-br from-amber-950/20 to-slate-900/60 border-amber-500/20"
+                    : "bg-slate-900/60 border-slate-800/50"
+              )}
+            >
+              <CardContent className="px-4 py-3 space-y-3">
+                {/* Signal Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      sig.direction === 'LONG' ? "bg-emerald-500/15" : "bg-red-500/15"
+                    )}>
+                      {sig.direction === 'LONG'
+                        ? <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        : <TrendingDown className="w-4 h-4 text-red-400" />
+                      }
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-white">${sig.strike}</span>
+                        <Badge variant="outline" className={cn(
+                          "text-[8px] font-bold",
+                          sig.direction === 'LONG' ? "border-emerald-500/30 text-emerald-400" : "border-red-500/30 text-red-400"
+                        )}>
+                          {sig.direction}
+                        </Badge>
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-mono">
+                        {sig.type.replace(/_/g, ' ')} · {sig.distancePct.toFixed(1)}% from spot
+                      </div>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "text-lg font-black",
+                    sig.conviction === 'S+' ? "text-red-400" :
+                    sig.conviction === 'A' ? "text-amber-400" : "text-slate-400"
+                  )}>
+                    {sig.conviction}
+                  </div>
+                </div>
+
+                {/* Entry / Target / Stop */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-800/40 rounded px-2 py-1.5">
+                    <div className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Entry Zone</div>
+                    <div className="text-xs font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</div>
+                  </div>
+                  <div className="bg-slate-800/40 rounded px-2 py-1.5">
+                    <div className="text-[8px] font-bold uppercase tracking-wider text-emerald-500">Target</div>
+                    <div className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(sig.targetStrike, 0)}</div>
+                  </div>
+                  <div className="bg-slate-800/40 rounded px-2 py-1.5">
+                    <div className="text-[8px] font-bold uppercase tracking-wider text-red-500">Stop</div>
+                    <div className="text-xs font-mono font-bold text-red-400">${safeToFixed(sig.stopStrike, 0)}</div>
+                  </div>
+                </div>
+
+                {/* GEX Value */}
+                <div className="flex items-center gap-2 text-[10px]">
+                  <ZapIcon className={cn("w-3 h-3", sig.gexValue > 0 ? "text-emerald-400" : "text-red-400")} />
+                  <span className="text-slate-400">Net GEX:</span>
+                  <span className={cn("font-mono font-bold", sig.gexValue > 0 ? "text-emerald-400" : "text-red-400")}>
+                    {formatGexValue(sig.gexValue)}
+                  </span>
+                  {sig.expiration && (
+                    <>
+                      <span className="text-slate-600">·</span>
+                      <span className="text-slate-500">Exp: {formatExpDate(sig.expiration)}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Reasoning */}
+                <p className="text-[10px] text-slate-400 leading-relaxed">{sig.reasoning}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── How GEX Sniper Works ── */}
+      <Card className="bg-slate-900/40 border-slate-800/30">
+        <CardContent className="px-4 py-3">
+          <div className="flex items-start gap-2">
+            <Brain className="w-4 h-4 text-slate-600 mt-0.5 flex-shrink-0" />
+            <div className="text-[10px] text-slate-600 leading-relaxed space-y-1">
+              <p><span className="font-bold text-slate-500">GEX Sniper</span> analyzes dealer gamma exposure across strikes and expirations to identify high-probability 0DTE zones.</p>
+              <p><span className="text-emerald-500">Positive γ</span> = dealers hedge by selling rallies/buying dips (mean reversion). <span className="text-red-500">Negative γ</span> = dealers amplify moves (momentum/trend).</p>
+              <p>Extreme GEX concentrations at specific strikes create magnetic targets and reversal zones — the same levels institutional desks watch.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function GammaWallCard({
   label,
   strikes,
@@ -1897,6 +2338,12 @@ export default function SPXCommandCenter() {
               <Brain className="w-3.5 h-3.5" /> Intelligence
             </TabsTrigger>
             <TabsTrigger
+              value="gex-sniper"
+              className="data-[state=active]:bg-red-500/10 data-[state=active]:text-red-400 text-slate-400 text-xs font-bold gap-1.5"
+            >
+              <Crosshair className="w-3.5 h-3.5" /> GEX Sniper
+            </TabsTrigger>
+            <TabsTrigger
               value="gex-heatmap"
               className="data-[state=active]:bg-violet-500/10 data-[state=active]:text-violet-400 text-slate-400 text-xs font-bold gap-1.5"
             >
@@ -2172,6 +2619,10 @@ export default function SPXCommandCenter() {
           {/* ── Intelligence Tab ────────────────────────────────────── */}
           <TabsContent value="intelligence" className="mt-4">
             <IntelligenceTab symbol={activeSymbol} />
+          </TabsContent>
+
+          <TabsContent value="gex-sniper" className="mt-4">
+            <GEXSniperTab symbol={activeSymbol} />
           </TabsContent>
 
           <TabsContent value="gex-heatmap" className="mt-4">
