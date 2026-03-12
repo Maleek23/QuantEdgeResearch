@@ -24,6 +24,7 @@ import {
   History,
   BookOpen,
   Infinity,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const mainTabs: NavTab[] = [
 // "More" dropdown — tools + learning
 const moreToolItems: NavTab[] = [
   { label: "SPX Command", href: "/spx", icon: BarChart3 },
+  { label: "GEX", href: "/gex", icon: Crosshair },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
 ];

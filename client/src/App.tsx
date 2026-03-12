@@ -93,6 +93,7 @@ const SmartMoneyPage = lazyWithRetry(() => import("@/pages/smart-money"), "smart
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
 const SPXCommandCenter = lazyWithRetry(() => import("@/pages/spx-command-center"), "spx-command-center");
+const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -333,6 +334,8 @@ function Router() {
       
       {/* SPX Command Center - 0DTE Trading Hub */}
       <Route path="/spx" component={withBetaProtection(SPXCommandCenter)} />
+      {/* GEX Dashboard - Gamma Exposure Analysis */}
+      <Route path="/gex" component={withBetaProtection(GEXDashboard)} />
 
       {/* Design System Test — admin only */}
       <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
