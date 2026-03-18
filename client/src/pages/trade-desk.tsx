@@ -305,6 +305,103 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 }
 
 // ============================================
+// FLOW SIGNALS - GEX + Flow Convergence
+// ============================================
+function FlowSignalsSection() {
+  const { data, isLoading } = useQuery<{ signals: any[]; timestamp: string }>({
+    queryKey: ['/api/flow-gex-convergence/top'],
+    queryFn: async () => {
+      const res = await fetch('/api/flow-gex-convergence/top?limit=3', { credentials: 'include' });
+      if (!res.ok) return { signals: [], timestamp: '' };
+      return res.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  const signals = data?.signals || [];
+  if (isLoading || signals.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40">
+          <Zap className="w-5 h-5 text-cyan-400" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            Flow Signals
+            <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/40 text-[10px]">
+              GEX + FLOW
+            </Badge>
+          </h2>
+          <p className="text-xs text-slate-500">Institutional flow aligned with gamma exposure</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {signals.map((s: any) => {
+          const isBullish = s.flowBias === 'BULLISH';
+          const premiumStr = s.totalPremium >= 1_000_000
+            ? `$${(s.totalPremium / 1_000_000).toFixed(1)}M`
+            : `$${(s.totalPremium / 1000).toFixed(0)}K`;
+
+          return (
+            <Link key={s.symbol} href={`/flow?symbol=${s.symbol}`}>
+              <Card className={cn(
+                "cursor-pointer transition-all duration-300 hover:-translate-y-1",
+                "bg-gradient-to-br from-slate-900/80 to-slate-900/90",
+                s.conviction === 'HIGH'
+                  ? "border-amber-500/40 hover:border-amber-400/60 hover:shadow-amber-500/10"
+                  : "border-cyan-500/30 hover:border-cyan-400/50 hover:shadow-cyan-500/10",
+                "hover:shadow-lg"
+              )}>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-white text-lg">{s.symbol}</span>
+                    <Badge className={cn(
+                      "text-[10px] border",
+                      s.conviction === 'HIGH'
+                        ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                        : s.conviction === 'MEDIUM'
+                        ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/40"
+                        : "bg-slate-500/20 text-slate-400 border-slate-500/40"
+                    )}>
+                      {s.conviction === 'HIGH' && <Flame className="w-3 h-3 mr-1" />}
+                      {s.conviction}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs mb-2">
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded",
+                      s.gexRegime === 'NEGATIVE' ? "bg-red-500/20 text-red-400" :
+                      s.gexRegime === 'POSITIVE' ? "bg-emerald-500/20 text-emerald-400" :
+                      "bg-slate-500/20 text-slate-400"
+                    )}>
+                      {s.gexBias}
+                    </span>
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded",
+                      isBullish ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    )}>
+                      {s.flowBias}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>{s.flowCount} trades • {premiumStr}</span>
+                    <span className="text-amber-400 font-mono">{s.gexRating}/5</span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // STATS OVERVIEW CARDS
 // ============================================
 interface StatsOverviewProps {
@@ -3688,6 +3785,7 @@ export default function TradeDeskRedesigned() {
           <TabsContent value="ideas" className="space-y-6 mt-6">
             {/* TOP CONVICTION - A/A+ Plays Only */}
             <TopConvictionSection ideas={filteredIdeas} />
+            <FlowSignalsSection />
 
             {/* Stats Cards */}
             <StatsOverview ideas={filteredIdeas} dateFilter={serverDateFilter} />

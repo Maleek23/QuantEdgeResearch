@@ -1853,6 +1853,80 @@ export async function sendWhaleFlowAlertToDiscord(whale: {
   }
 }
 
+// ============ FLOW-GEX CONVERGENCE ALERTS ============
+// High-conviction signals when institutional flow aligns with gamma exposure regime
+
+const convergenceCooldown = new Map<string, number>();
+
+export async function sendConvergenceAlertToDiscord(signal: {
+  symbol: string;
+  conviction: 'HIGH' | 'MEDIUM' | 'LOW';
+  gexBias: string;
+  gexRegime: string;
+  flowBias: string;
+  flowCount: number;
+  totalPremium: number;
+  callCount: number;
+  putCount: number;
+  gexAnchor: number;
+  gexFlipPoint: number | null;
+  spotPrice: number;
+  gexRating: number;
+  reasoning: string;
+  strategy: string;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+
+  // Only alert HIGH conviction
+  if (signal.conviction !== 'HIGH') return;
+
+  // Rate limit: 30 min per symbol
+  const lastSent = convergenceCooldown.get(signal.symbol) || 0;
+  if (Date.now() - lastSent < 30 * 60 * 1000) return;
+
+  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
+  try {
+    const isBullish = signal.flowBias === 'BULLISH';
+    const emoji = isBullish ? '🟢' : '🔴';
+    const premiumStr = signal.totalPremium >= 1_000_000
+      ? `$${(signal.totalPremium / 1_000_000).toFixed(1)}M`
+      : `$${(signal.totalPremium / 1000).toFixed(0)}K`;
+
+    const embed: DiscordEmbed = {
+      title: `🎯 CONVERGENCE SIGNAL: ${signal.symbol}`,
+      description: `**${signal.conviction} Conviction** — GEX + Flow alignment detected\n\n${signal.reasoning}`,
+      color: isBullish ? COLORS.LONG : COLORS.SHORT,
+      fields: [
+        { name: '⚡ GEX Regime', value: `${signal.gexBias} (${signal.gexRating}/5)`, inline: true },
+        { name: `${emoji} Flow Bias`, value: `${signal.flowBias} (${signal.flowCount} trades)`, inline: true },
+        { name: '💰 Flow Premium', value: premiumStr, inline: true },
+        { name: '🎯 Anchor', value: `$${signal.gexAnchor}`, inline: true },
+        { name: '🔄 Flip Point', value: signal.gexFlipPoint ? `$${signal.gexFlipPoint}` : 'N/A', inline: true },
+        { name: '💵 Spot', value: `$${signal.spotPrice.toFixed(2)}`, inline: true },
+        { name: '📋 Strategy', value: signal.strategy, inline: false },
+      ],
+      footer: { text: 'Flow Edge • GEX Convergence • QuantEdge Labs' },
+      timestamp: new Date().toISOString(),
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `🎯 **CONVERGENCE**: ${signal.symbol} — ${signal.conviction} conviction | ${signal.gexBias} + ${signal.flowBias} flow | ${premiumStr} premium`,
+        embeds: [embed],
+      }),
+    });
+
+    convergenceCooldown.set(signal.symbol, Date.now());
+    logger.info(`[DISCORD] Sent convergence alert: ${signal.symbol} ${signal.conviction} ${signal.flowBias}`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send convergence alert: ${e}`);
+  }
+}
+
 // ============ DAILY PREVIEW SYSTEM ============
 // Sends a single consolidated morning preview instead of individual alerts throughout the day
 

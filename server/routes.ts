@@ -6029,6 +6029,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════
+  // FLOW EDGE - Options flow scanner (Algo Edge equivalent)
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/options-flow", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getOptionsFlow } = await import("./flow-edge-service");
+      const result = await getOptionsFlow({
+        symbol: req.query.symbol as string,
+        flowType: req.query.flowType as string,
+        minPremium: req.query.minPremium ? parseFloat(req.query.minPremium) : undefined,
+        strategyCategory: req.query.strategyCategory as string,
+        dteCategory: req.query.dteCategory as string,
+        sentiment: req.query.sentiment as string,
+        limit: parseInt(req.query.limit as string) || 50,
+        offset: parseInt(req.query.offset as string) || 0,
+        days: parseInt(req.query.days as string) || 7,
+      });
+      res.json(result);
+    } catch (error) {
+      logger.error("[API] Failed to fetch options flow:", error);
+      res.status(500).json({ error: "Failed to fetch options flow" });
+    }
+  });
+
+  // Flow-GEX Convergence for a specific symbol
+  app.get("/api/flow-gex-convergence/top", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getTopConvergenceSignals } = await import("./flow-gex-convergence");
+      const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+      const signals = await getTopConvergenceSignals(limit);
+      res.json({ signals, timestamp: new Date().toISOString() });
+    } catch (error) {
+      logger.error("[API] Failed to fetch top convergence signals:", error);
+      res.status(500).json({ error: "Failed to fetch convergence signals" });
+    }
+  });
+
+  app.get("/api/flow-gex-convergence/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { computeConvergenceSignal } = await import("./flow-gex-convergence");
+      const signal = await computeConvergenceSignal(req.params.symbol);
+      if (!signal) {
+        return res.json({ signal: null, message: "No convergence data available" });
+      }
+      res.json({ signal });
+    } catch (error) {
+      logger.error("[API] Failed to compute convergence signal:", error);
+      res.status(500).json({ error: "Failed to compute convergence signal" });
+    }
+  });
+
   // 🎯 BEST SETUPS - Top 5 conviction plays for daily/weekly view
   // Forces discipline: wait for the perfect pitch instead of swinging at everything
   // Now supports status filtering (all, open, hit_target, stopped_out, expired)
