@@ -23,7 +23,38 @@ const PENNY_STOCK_TICKERS = [
 
 // High-conviction Semiconductor & Storage tickers (AI Infrastructure)
 const SEMI_STORAGE_TICKERS = [
-  'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX'
+  'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX',
+  'KLAC', 'MRVL', 'ON', 'NXPI', 'SWKS', 'QRVO', 'MCHP', 'MPWR',
+];
+
+// Optics / Photonics / Fiber — AI datacenter buildout = 5-15% daily swings
+const OPTICS_PHOTONICS_TICKERS = [
+  'COHR', 'LITE', 'VIAV', 'CIEN', 'INFN', 'CALX', 'AAOI',
+];
+
+// HIGH VOLATILITY MOVERS — These sectors move 3-20% daily and are prime for options
+// MUST be prioritized in every generation window
+const HIGH_VOL_PRIORITY_TICKERS = [
+  // Chips (daily 3-10% moves on AI narrative)
+  'NVDA', 'AMD', 'MU', 'SMCI', 'ARM', 'AVGO', 'TSM', 'ASML', 'MRVL',
+  // Optics/Photonics (datacenter fiber demand)
+  'COHR', 'LITE', 'CIEN', 'AAOI',
+  // Quantum Computing (10-30% daily swings)
+  'IONQ', 'RGTI', 'QUBT',
+  // AI Software (contract wins = gap up/down)
+  'PLTR', 'SNOW', 'CRWD', 'NET', 'DDOG', 'ZS',
+  // Space/Satellite (binary catalyst plays)
+  'ASTS', 'RKLB', 'LUNR',
+  // Biotech (FDA = 20%+ moves)
+  'MRNA', 'CRSP', 'REGN',
+  // EV/Energy (delivery numbers, policy)
+  'TSLA', 'RIVN', 'ENPH',
+  // Chinese ADRs (overnight gaps)
+  'BABA', 'PDD', 'JD', 'BIDU', 'NIO',
+  // Crypto-adjacent (BTC correlation, leveraged)
+  'MARA', 'RIOT', 'COIN', 'MSTR',
+  // Small cap runners
+  'CVNA', 'UPST', 'APP',
 ];
 
 // INDEX ETFs - ALWAYS include these for 0DTE and swing plays
@@ -225,6 +256,8 @@ class AutoIdeaGenerator {
 
       // Build market context - add penny stock emphasis for evening sessions
       const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
+      const opticsTickers = OPTICS_PHOTONICS_TICKERS.join(', ');
+      const highVolTickers = HIGH_VOL_PRIORITY_TICKERS.join(', ');
       const indexTickers = INDEX_TICKERS.join(', ');
       const correlationContext = Object.entries(TECH_CORRELATION_MAP)
         .map(([leader, followers]) => `${leader} influences ${followers.join(', ')}`)
@@ -247,36 +280,53 @@ class AutoIdeaGenerator {
       } catch {}
 
       let marketContext = `Current market conditions — UNIVERSAL coverage across all asset classes.
-      🎯 TOP PRIORITY: INDEX ETFs (${indexTickers}) for 0DTE and swing trading.
-      📊 SECTOR ROTATION: Analyze sector ETFs (${sectorTickers}) for relative strength. Which sectors are leading/lagging?
-      🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG) — trade macro themes.
-      📈 BONDS/RATES: Treasury ETFs (${bondTickers}) — rising/falling rates create directional plays on TLT, TBT, HYG.
-      🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts and government spending.
-      🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}) — compute demand.
-      CORRELATION TRACKING: ${correlationContext}.
-      Generate ideas across ALL asset classes — stocks, sector ETFs, commodity ETFs, bond ETFs, defense, and options on any of these.${macroContext}`;
+
+⚡ MANDATORY HIGH-VOLATILITY PICKS (MUST include at least 3-4 ideas from these — they move 3-20% daily):
+Chips/Semis: ${semiTickers}
+Optics/Photonics: ${opticsTickers}
+Full high-vol universe: ${highVolTickers}
+These are the MONEY MAKERS. Chips move on every AI headline. Optics move with datacenter buildouts. Quantum swings 10-30% on news. PRIORITIZE THESE for option plays — the premiums are cheap relative to the moves.
+
+🎯 INDEX ETFs (${indexTickers}) for 0DTE and swing trading.
+📊 SECTOR ROTATION: Analyze sector ETFs (${sectorTickers}) for relative strength.
+🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG).
+📈 BONDS/RATES: Treasury ETFs (${bondTickers}) — TLT, TBT, HYG directional plays.
+🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts.
+🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}) — compute demand.
+🔭 OPTICS/FIBER: Photonics (${opticsTickers}) — AI datacenter fiber buildout.
+CORRELATION TRACKING: ${correlationContext}.
+Generate ideas across ALL asset classes. At least HALF should be options plays on high-vol names.${macroContext}`;
       
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
         marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities.
-🎯 TOP PRIORITY: INDEX ETFs (${indexTickers}) - SPY, QQQ, IWM for 0DTE and swing trading!
-📊 SECTOR ROTATION: Analyze sectors (${sectorTickers}) - identify leading/lagging sectors for tomorrow.
-🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG) — macro-driven swing trades.
-📈 BONDS: Treasury ETFs (${bondTickers}) — rate direction creates TLT/TBT plays.
-🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts.
+
+⚡ MANDATORY HIGH-VOLATILITY PICKS (MUST include at least 3-4 ideas from these):
+Chips/Semis: ${semiTickers}
+Optics/Photonics: ${opticsTickers}
+Full high-vol universe: ${highVolTickers}
+These are the money-making sectors. PRIORITIZE option plays on these names.
+
+🎯 INDEX ETFs (${indexTickers}) - 0DTE and swing trading!
+📊 SECTOR ROTATION: Analyze sectors (${sectorTickers}) for tomorrow.
+🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG).
+📈 BONDS: Treasury ETFs (${bondTickers}) — rate direction plays.
+🛡️ DEFENSE: Defense stocks (${defenseTickers}).
 🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}).
+🔭 OPTICS/FIBER: Photonics (${opticsTickers}) — datacenter buildout.
 CORRELATION TRACKING: ${correlationContext}.
-Priority tickers: ${indexTickers}, ${sectorTickers}, ${commodityTickers}, ${bondTickers}, ${defenseTickers}, ${semiTickers}, ${pennyTickers}.${macroContext}
+Priority tickers: ${indexTickers}, ${highVolTickers}, ${pennyTickers}.${macroContext}
 Look for:
-1. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly options based on support/resistance
-2. 🛢️ COMMODITY SWINGS - Oil/gold/gas moves based on macro data or geopolitics
-3. 📈 BOND PLAYS - TLT/TBT direction from rate expectations
-4. 🛡️ DEFENSE - LMT/RTX/NOC on spending catalysts
-5. 🔬 AI Infrastructure (NVDA, MU, WDC, LRCX) - compute demand
-6. Tech Spillover: NVDA laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}
-7. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition
-8. High-vol penny stocks for 5-10x asymmetric returns
-Generate swing trade and option ideas across ALL asset classes. Include sector ETFs, commodity ETFs, and bond plays.`;
+1. ⚡ HIGH-VOL OPTIONS (MU, AMD, SMCI, COHR, LITE, IONQ, PLTR) — these move 3-20% daily, cheap premiums
+2. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly options
+3. 🛢️ COMMODITY SWINGS - Oil/gold/gas on macro data
+4. 📈 BOND PLAYS - TLT/TBT direction
+5. 🛡️ DEFENSE - LMT/RTX/NOC on spending catalysts
+6. 🔬 AI Infrastructure (NVDA, MU, WDC, LRCX, COHR, LITE) - compute + fiber demand
+7. Tech Spillover: NVDA laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}
+8. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC)
+9. High-vol penny stocks for 5-10x asymmetric returns
+At least HALF of ideas should be options plays on high-vol names. These are the ones that produce 200-750%+ winners.`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
 

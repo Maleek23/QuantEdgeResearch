@@ -128,6 +128,11 @@ export const SEMICONDUCTORS = [
   'AEHR', 'PLAB', 'AEIS', 'MKSI', 'ENTG', 'ONTO', 'COHR', 'IPGP', 'NOVT', 'LSCC'
 ];
 
+// === 🔭 OPTICS & PHOTONICS (10) — AI datacenter fiber buildout ===
+export const OPTICS_PHOTONICS = [
+  'LITE', 'VIAV', 'CIEN', 'INFN', 'CALX', 'AAOI', 'FNSR', 'IIVI'
+];
+
 // === 🛡️ DEFENSE & AEROSPACE (20) ===
 export const DEFENSE_AEROSPACE = [
   'RCAT', 'JOBY', 'ACHR', 'UAVS', 'TDG', 'HWM', 'SPR', 'ERJ', 'AJRD'
@@ -259,6 +264,7 @@ export function getFullUniverse(): string[] {
     ...EV_AUTONOMOUS,
     ...CRYPTO_BLOCKCHAIN,
     ...SEMICONDUCTORS,
+    ...OPTICS_PHOTONICS,
     ...DEFENSE_AEROSPACE,
     ...CANNABIS,
     ...COMMODITIES_MATERIALS,
@@ -298,6 +304,7 @@ export function getSectorTickers(sector: string): string[] {
     'ev': EV_AUTONOMOUS,
     'crypto': CRYPTO_BLOCKCHAIN,
     'semiconductors': SEMICONDUCTORS,
+    'optics': OPTICS_PHOTONICS,
     'defense': DEFENSE_AEROSPACE,
     'cannabis': CANNABIS,
     'commodities': COMMODITIES_MATERIALS,
