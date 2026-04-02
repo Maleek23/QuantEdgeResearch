@@ -3406,7 +3406,7 @@ export default function TradeDeskRedesigned() {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
-  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock'>('all');
+  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist'>('all');
   // Trade idea detail modal state
   const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
   const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
@@ -3483,6 +3483,21 @@ export default function TradeDeskRedesigned() {
     gcTime: 60 * 1000,        // Keep in cache for 1 minute only
     refetchInterval: 30000,   // Refresh every 30 seconds for fresh ideas
   });
+
+  // Fetch user's watchlist for "Watchlist" filter
+  const { data: watchlistData } = useQuery<any[]>({
+    queryKey: ['/api/watchlist'],
+    queryFn: async () => {
+      const res = await fetch('/api/watchlist', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+  const watchlistSymbols = useMemo(() => {
+    if (!watchlistData) return new Set<string>();
+    return new Set(watchlistData.map((w: any) => (w.symbol || '').toUpperCase()));
+  }, [watchlistData]);
 
   // EMPTY STATE HANDLER: If "today" shows 0 ideas, offer to expand range
   const hasTodayIdeas = tradeIdeas.length > 0;
@@ -3568,6 +3583,13 @@ export default function TradeDeskRedesigned() {
     return deduplicateOnly(filtered);
   }, [tradeIdeas]);
 
+  // Watchlist-only ideas - only show ideas for tickers in user's watchlist
+  const watchlistIdeas = useMemo(() => {
+    if (watchlistSymbols.size === 0) return [];
+    const filtered = tradeIdeas.filter(i => watchlistSymbols.has((i.symbol || '').toUpperCase()));
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas, watchlistSymbols]);
+
   // All ideas - deduplicated (for "All Ideas" tab)
   const allIdeasDeduplicated = useMemo(() => {
     return deduplicateOnly(tradeIdeas);
@@ -3581,9 +3603,10 @@ export default function TradeDeskRedesigned() {
       case 'crypto': return cryptoIdeas;
       case 'future': return futuresIdeas;
       case 'penny_stock': return pennyIdeas;
+      case 'watchlist': return watchlistIdeas;
       default: return allIdeasDeduplicated;
     }
-  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, allIdeasDeduplicated]);
+  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, watchlistIdeas, allIdeasDeduplicated]);
 
   // ============================================
   // INITIAL LOADING ANIMATION (minimum 0.5s)
@@ -3732,6 +3755,7 @@ export default function TradeDeskRedesigned() {
         <div className="flex items-center gap-1.5">
           {[
             { value: 'all', label: 'All' },
+            { value: 'watchlist', label: 'My Watchlist' },
             { value: 'stock', label: 'Stocks' },
             { value: 'option', label: 'Options' },
             { value: 'crypto', label: 'Crypto' },
@@ -3742,7 +3766,8 @@ export default function TradeDeskRedesigned() {
                           value === 'option' ? optionIdeas.length :
                           value === 'crypto' ? cryptoIdeas.length :
                           value === 'future' ? futuresIdeas.length :
-                          value === 'penny_stock' ? pennyIdeas.length : 0;
+                          value === 'penny_stock' ? pennyIdeas.length :
+                          value === 'watchlist' ? watchlistIdeas.length : 0;
             return (
               <button
                 key={value}
