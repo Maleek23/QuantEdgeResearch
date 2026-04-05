@@ -97,6 +97,7 @@ const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-d
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
 const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
+const CommandCenter = lazyWithRetry(() => import("@/pages/command"), "command");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -343,8 +344,10 @@ function Router() {
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
       {/* Trade Desk v2 - Clean redesign */}
       <Route path="/trade-desk-v2" component={withBetaProtection(TradeDeskV2)} />
-      {/* Market Projector */}
-      <Route path="/projector" component={withBetaProtection(Projector)} />
+      {/* Command Center — unified market intelligence */}
+      <Route path="/command" component={withBetaProtection(CommandCenter)} />
+      {/* Redirects for old pages */}
+      <Route path="/projector" component={withBetaProtection(CommandCenter)} />
 
       {/* Design System Test — admin only */}
       <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
