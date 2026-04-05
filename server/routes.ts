@@ -6157,7 +6157,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Expand time window if viewing closed trades or specific date
       const needsAllData = statusFilter !== 'open' || dateFilter;
       const hoursBack = needsAllData ? 720 : (period === 'daily' ? 48 : 168); // 30 days for history, otherwise 2-7 days
-      const allIdeas = await storage.getRecentTradeIdeas(hoursBack, needsAllData ? 5000 : 2000);
+      const allIdeasRaw = await storage.getRecentTradeIdeas(hoursBack, needsAllData ? 5000 : 2000);
+      // Filter out archived ideas from UI (but they stay in DB for calibration training)
+      const allIdeas = allIdeasRaw.filter((i: any) => !i.archived);
       const now = new Date();
 
       // DEBUG: Log total ideas and field presence

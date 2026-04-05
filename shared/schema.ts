@@ -243,7 +243,8 @@ export const tradeIdeas = pgTable("trade_ideas", {
   
   // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
-  
+  archived: boolean("archived").default(false), // Soft delete — hidden from UI but kept for calibration training
+
   // Trade Type Classification - Clear differentiation for bot execution
   tradeType: text("trade_type").$type<'lotto' | 'swing' | 'mover' | 'scalp'>().default('swing'), // 'lotto' = high risk far OTM, 'swing' = multi-day, 'mover' = momentum/breakout, 'scalp' = quick in-out
   
