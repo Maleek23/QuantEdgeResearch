@@ -56,6 +56,7 @@ export interface WatchlistSetup {
   direction: 'LONG' | 'SHORT' | 'NEUTRAL';
   probability: number;
   catalyst: string;
+  section: 'S-TIER' | 'A-TIER' | 'ACTIVE' | 'INDEX';
 }
 
 export interface ProjectorData {
@@ -73,46 +74,34 @@ export interface ProjectorData {
 // EXPECTED MOVE (from VIX)
 // ═══════════════════════════════════════════════════════════════
 
+// Helper: fetch price from Yahoo (reliable, no auth needed)
+async function yahooPrice(symbol: string): Promise<{ price: number; closes: number[] } | null> {
+  try {
+    const yahooSym = symbol === 'VIX' ? '%5EVIX' : symbol;
+    const res = await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${yahooSym}?range=1mo&interval=1d`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const closes = (data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []).filter(Boolean);
+    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice || closes[closes.length - 1] || 0;
+    return price > 0 ? { price, closes } : null;
+  } catch { return null; }
+}
+
 async function computeExpectedMove(symbol: string, timeframe: 'daily' | 'weekly'): Promise<ExpectedMove | null> {
   try {
-    const quote = await getTradierQuote(symbol).catch(() => null);
-    const vixQuote = await getTradierQuote('VIX').catch(() => null);
+    const [symData, vixData] = await Promise.all([yahooPrice(symbol), yahooPrice('VIX')]);
+    if (!symData) return null;
 
-    if (!quote?.last || !vixQuote?.last) {
-      // Fallback: use Yahoo
-      try {
-        const res = await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=5d&interval=1d`, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        });
-        const data = await res.json();
-        const meta = data?.chart?.result?.[0]?.meta;
-        const price = meta?.regularMarketPrice || 0;
-        if (price <= 0) return null;
-
-        // Estimate VIX from recent price action if not available
-        const vix = vixQuote?.last || 20;
-        const dailyMove = vix / Math.sqrt(252); // VIX to daily expected move
-        const movePct = timeframe === 'weekly' ? dailyMove * Math.sqrt(5) : dailyMove;
-
-        return {
-          symbol,
-          currentPrice: price,
-          expectedMovePct: +movePct.toFixed(2),
-          upperBound: +(price * (1 + movePct / 100)).toFixed(2),
-          lowerBound: +(price * (1 - movePct / 100)).toFixed(2),
-          timeframe,
-        };
-      } catch { return null; }
-    }
-
-    const price = quote.last;
-    const vix = vixQuote.last;
+    const price = symData.price;
+    const vix = vixData?.price || 20;
     const dailyMove = vix / Math.sqrt(252);
     const movePct = timeframe === 'weekly' ? dailyMove * Math.sqrt(5) : dailyMove;
 
     return {
       symbol,
-      currentPrice: price,
+      currentPrice: +price.toFixed(2),
       expectedMovePct: +movePct.toFixed(2),
       upperBound: +(price * (1 + movePct / 100)).toFixed(2),
       lowerBound: +(price * (1 - movePct / 100)).toFixed(2),
@@ -134,30 +123,23 @@ async function computeBias(): Promise<DirectionalBias> {
   try {
     // Factor 0: Overnight futures (STRONGEST predictor — 70%+ accuracy)
     try {
-      const esRes = await fetch('https://query2.finance.yahoo.com/v8/finance/chart/ES%3DF?range=2d&interval=1h', {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      const esData = await esRes.json();
-      const esCloses = esData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean) || [];
-      if (esCloses.length >= 2) {
-        const esLast = esCloses[esCloses.length - 1];
-        const esPrev = esCloses[0]; // Start of range
+      const esData = await yahooPrice('ES=F');
+      if (esData && esData.closes.length >= 2) {
+        const esLast = esData.closes[esData.closes.length - 1];
+        const esPrev = esData.closes[esData.closes.length - 2];
         const esChg = ((esLast - esPrev) / esPrev) * 100;
         factors.push({
           name: 'ES Futures (Overnight)',
           signal: esChg > 0.3 ? 'bullish' : esChg < -0.3 ? 'bearish' : 'neutral',
-          detail: `ES ${esChg > 0 ? '+' : ''}${esChg.toFixed(2)}% overnight — strongest predictor`,
-          weight: 25, // Highest weight
+          detail: `ES ${esChg > 0 ? '+' : ''}${esChg.toFixed(2)}% — strongest predictor`,
+          weight: 25,
         });
       }
     } catch {}
 
     // Factor 1: SPY trend (above/below 20-day EMA)
-    const spyRes = await fetch('https://query2.finance.yahoo.com/v8/finance/chart/SPY?range=1mo&interval=1d', {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    const spyData = await spyRes.json();
-    const spyCloses = spyData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean) || [];
+    const spyData = await yahooPrice('SPY');
+    const spyCloses = spyData?.closes || [];
 
     if (spyCloses.length >= 20) {
       const last = spyCloses[spyCloses.length - 1];
@@ -172,10 +154,11 @@ async function computeBias(): Promise<DirectionalBias> {
     }
 
     // Factor 2: VIX direction
-    const vixQuote = await getTradierQuote('VIX').catch(() => null);
-    if (vixQuote?.last) {
-      const vix = vixQuote.last;
-      const vixChange = vixQuote.change_percentage || 0;
+    const vixData = await yahooPrice('VIX');
+    if (vixData) {
+      const vix = vixData.price;
+      const vixPrev = vixData.closes.length >= 2 ? vixData.closes[vixData.closes.length - 2] : vix;
+      const vixChange = ((vix - vixPrev) / vixPrev) * 100;
       factors.push({
         name: 'VIX',
         signal: vix < 20 ? 'bullish' : vix > 30 ? 'bearish' : vixChange < -2 ? 'bullish' : vixChange > 2 ? 'bearish' : 'neutral',
@@ -185,11 +168,8 @@ async function computeBias(): Promise<DirectionalBias> {
     }
 
     // Factor 3: SMH sector momentum
-    const smhRes = await fetch('https://query2.finance.yahoo.com/v8/finance/chart/SMH?range=5d&interval=1d', {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    const smhData = await smhRes.json();
-    const smhCloses = smhData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean) || [];
+    const smhData = await yahooPrice('SMH');
+    const smhCloses = smhData?.closes || [];
     if (smhCloses.length >= 2) {
       const smhLast = smhCloses[smhCloses.length - 1];
       const smhPrev = smhCloses[smhCloses.length - 2];
@@ -338,23 +318,27 @@ async function computeSectorPulse(): Promise<SectorPulse[]> {
 // ═══════════════════════════════════════════════════════════════
 
 async function computeWatchlistSetups(): Promise<WatchlistSetup[]> {
-  const tickers = [
-    'AAOI', 'KLAC', 'SMTC', 'AEHR', 'MU', 'AMD', 'LUNR', 'OKLO',
-    'LITE', 'COHR', 'RMBS', 'OLED', 'BILL', 'INTA', 'MKSI',
-  ];
+  // Full watchlist organized by TV sections
+  const S_TIER = new Set(['AAOI', 'CRCL', 'OKLO', 'LUNR', 'KLAC', 'SMTC', 'AEHR', 'OLED', 'RMBS', 'BILL', 'INTA', 'MKSI']);
+  const A_TIER = new Set(['LRCX', 'AFRM', 'WDC', 'MU', 'AMD', 'TSEM', 'COIN', 'ARM', 'HIMS', 'ONTO', 'ENTG', 'UPST', 'LITE', 'FN', 'CIEN', 'COHR', 'NBIS', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA', 'SOFI', 'DUOL', 'PATH', 'MDB', 'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN', 'BROS', 'AXTI']);
+  const INDEX = new Set(['SPY', 'QQQ', 'IWM', 'XSP']);
+  const ACTIVE = new Set(['TSLA', 'AVGO', 'NFLX']);
+  function getSection(sym: string): WatchlistSetup['section'] {
+    if (S_TIER.has(sym)) return 'S-TIER';
+    if (A_TIER.has(sym)) return 'A-TIER';
+    if (INDEX.has(sym)) return 'INDEX';
+    return 'ACTIVE';
+  }
+  const tickers = [...S_TIER, ...A_TIER, ...ACTIVE, ...INDEX];
 
   const setups: WatchlistSetup[] = [];
 
   for (const sym of tickers) {
     try {
-      const res = await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${sym}?range=10d&interval=1d`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      const data = await res.json();
-      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(Boolean) || [];
+      const symData = await yahooPrice(sym);
+      if (!symData || symData.closes.length < 3) continue;
 
-      if (closes.length < 3) continue;
-
+      const closes = symData.closes;
       const last = closes[closes.length - 1];
       const prev = closes[closes.length - 2];
       const prev2 = closes[closes.length - 3];
@@ -402,6 +386,7 @@ async function computeWatchlistSetups(): Promise<WatchlistSetup[]> {
         direction,
         probability,
         catalyst,
+        section: getSection(sym),
       });
     } catch {}
 

@@ -51,6 +51,7 @@ interface WatchlistSetup {
   direction: string;
   probability: number;
   catalyst: string;
+  section: string;
 }
 
 interface ProjectorData {
@@ -260,67 +261,85 @@ export default function Projector() {
               );
             })}
 
-            {/* Watchlist Setups */}
-            <Card className="bg-slate-900/50 border-slate-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-semibold text-white">Watchlist Setups — Tomorrow</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-800 text-slate-500">
-                        <th className="py-2 text-left font-medium">Ticker</th>
-                        <th className="py-2 text-right font-medium">Price</th>
-                        <th className="py-2 text-right font-medium">Chg%</th>
-                        <th className="py-2 text-left font-medium pl-3">Setup</th>
-                        <th className="py-2 text-left font-medium">Direction</th>
-                        <th className="py-2 text-right font-medium">Prob</th>
-                        <th className="py-2 text-left font-medium pl-3">Catalyst</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.watchlistSetups.map((s) => (
-                        <tr key={s.symbol} className="border-b border-slate-800/30 hover:bg-slate-800/20">
-                          <td className="py-2 font-mono font-bold text-white">{s.symbol}</td>
-                          <td className="py-2 text-right font-mono text-slate-300">${s.price}</td>
-                          <td className={cn("py-2 text-right font-mono",
-                            s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-400"
-                          )}>
-                            {s.changePct > 0 ? '+' : ''}{s.changePct}%
-                          </td>
-                          <td className="py-2 pl-3">
-                            <Badge variant="outline" className={cn("text-[9px]", setupBadge(s.setup))}>
-                              {s.setup}
-                            </Badge>
-                          </td>
-                          <td className="py-2">
-                            {s.direction === 'LONG' ? (
-                              <span className="flex items-center gap-1 text-emerald-400">
-                                <ArrowUpRight className="w-3 h-3" />LONG
-                              </span>
-                            ) : s.direction === 'SHORT' ? (
-                              <span className="flex items-center gap-1 text-red-400">
-                                <ArrowDownRight className="w-3 h-3" />SHORT
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">—</span>
-                            )}
-                          </td>
-                          <td className={cn("py-2 text-right font-mono",
-                            s.probability >= 70 ? "text-emerald-400" : s.probability >= 60 ? "text-cyan-400" : "text-slate-400"
-                          )}>
-                            {s.probability}%
-                          </td>
-                          <td className="py-2 pl-3 text-slate-500 max-w-[200px] truncate">{s.catalyst}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Watchlist Setups — grouped by TV sections */}
+            {[
+              { key: 'S-TIER', label: 'S-Tier Weekly', icon: '⭐' },
+              { key: 'A-TIER', label: 'A-Tier Weekly', icon: '📊' },
+              { key: 'ACTIVE', label: 'Active / Top', icon: '🔥' },
+              { key: 'INDEX', label: 'Index ETFs', icon: '🎯' },
+            ].map((section) => {
+              const sectionSetups = data.watchlistSetups.filter(s => s.section === section.key);
+              if (sectionSetups.length === 0) return null;
+              const actionable = sectionSetups.filter(s => s.direction !== 'NEUTRAL').length;
+              return (
+                <Card key={section.key} className="bg-slate-900/50 border-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm">{section.icon}</span>
+                      <span className="text-sm font-semibold text-white">{section.label}</span>
+                      {actionable > 0 && (
+                        <Badge variant="outline" className="text-[9px] text-emerald-400 border-emerald-500/30">
+                          {actionable} setup{actionable > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                      <span className="text-[10px] text-slate-600 ml-auto">{sectionSetups.length} tickers</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-500">
+                            <th className="py-1.5 text-left font-medium">Ticker</th>
+                            <th className="py-1.5 text-right font-medium">Price</th>
+                            <th className="py-1.5 text-right font-medium">Chg%</th>
+                            <th className="py-1.5 text-left font-medium pl-3">Setup</th>
+                            <th className="py-1.5 text-left font-medium">Dir</th>
+                            <th className="py-1.5 text-right font-medium">Prob</th>
+                            <th className="py-1.5 text-left font-medium pl-3">Catalyst</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sectionSetups.map((s) => (
+                            <tr key={s.symbol} className="border-b border-slate-800/30 hover:bg-slate-800/20">
+                              <td className="py-1.5 font-mono font-bold text-white">{s.symbol}</td>
+                              <td className="py-1.5 text-right font-mono text-slate-300">${s.price}</td>
+                              <td className={cn("py-1.5 text-right font-mono",
+                                s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-400"
+                              )}>
+                                {s.changePct > 0 ? '+' : ''}{s.changePct}%
+                              </td>
+                              <td className="py-1.5 pl-3">
+                                <Badge variant="outline" className={cn("text-[9px]", setupBadge(s.setup))}>
+                                  {s.setup}
+                                </Badge>
+                              </td>
+                              <td className="py-1.5">
+                                {s.direction === 'LONG' ? (
+                                  <span className="flex items-center gap-1 text-emerald-400">
+                                    <ArrowUpRight className="w-3 h-3" />LONG
+                                  </span>
+                                ) : s.direction === 'SHORT' ? (
+                                  <span className="flex items-center gap-1 text-red-400">
+                                    <ArrowDownRight className="w-3 h-3" />SHORT
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500">—</span>
+                                )}
+                              </td>
+                              <td className={cn("py-1.5 text-right font-mono",
+                                s.probability >= 70 ? "text-emerald-400" : s.probability >= 60 ? "text-cyan-400" : "text-slate-400"
+                              )}>
+                                {s.probability}%
+                              </td>
+                              <td className="py-1.5 pl-3 text-slate-500 max-w-[200px] truncate">{s.catalyst}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             {/* Key Events */}
             {data.keyEvents.length > 0 && (
