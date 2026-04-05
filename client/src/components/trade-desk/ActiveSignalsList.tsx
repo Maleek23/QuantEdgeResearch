@@ -1,8 +1,8 @@
 /**
  * Active Signals List
  * ===================
- * Main signal feed, sorted newest first.
- * TV signals get visual prominence (purple left border).
+ * Grid of trade idea cards, sorted by time or confidence.
+ * TV signals get purple border prominence.
  */
 
 import { useState } from "react";
@@ -31,7 +31,7 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
     return new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime();
   });
 
-  const visible = showAll ? sorted : sorted.slice(0, 20);
+  const visible = showAll ? sorted : sorted.slice(0, 12);
 
   if (isLoading) {
     return (
@@ -62,54 +62,55 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
   }
 
   return (
-    <div>
+    <div className="p-4">
       {/* Sort toggle + count */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/40">
-        <span className="text-xs text-slate-500">{ideas.length} signals</span>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-medium text-slate-300">{ideas.length} Trade Ideas</span>
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSortMode('time')}
             className={cn(
-              "text-[10px] px-2 py-0.5 rounded transition-colors",
-              sortMode === 'time' ? "text-white bg-slate-700" : "text-slate-600 hover:text-slate-400"
+              "text-[11px] px-2.5 py-1 rounded-md transition-colors",
+              sortMode === 'time' ? "text-white bg-slate-700" : "text-slate-500 hover:text-slate-300"
             )}
           >
-            <Clock className="w-3 h-3 inline mr-0.5" />
+            <Clock className="w-3 h-3 inline mr-1" />
             Recent
           </button>
           <button
             onClick={() => setSortMode('confidence')}
             className={cn(
-              "text-[10px] px-2 py-0.5 rounded transition-colors",
-              sortMode === 'confidence' ? "text-white bg-slate-700" : "text-slate-600 hover:text-slate-400"
+              "text-[11px] px-2.5 py-1 rounded-md transition-colors",
+              sortMode === 'confidence' ? "text-white bg-slate-700" : "text-slate-500 hover:text-slate-300"
             )}
           >
-            <TrendingUp className="w-3 h-3 inline mr-0.5" />
+            <TrendingUp className="w-3 h-3 inline mr-1" />
             Best
           </button>
           <button
             onClick={() => onRefresh()}
-            className="text-slate-600 hover:text-slate-400 ml-2 p-1"
+            className="text-slate-600 hover:text-slate-400 p-1.5 rounded-md hover:bg-slate-800/50"
+            title="Refresh"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Signal cards */}
-      <div className="divide-y divide-slate-800/30">
+      {/* Cards grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {visible.map((idea) => (
           <SignalCard key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
         ))}
       </div>
 
       {/* Show more */}
-      {!showAll && sorted.length > 20 && (
+      {!showAll && sorted.length > 12 && (
         <button
           onClick={() => setShowAll(true)}
-          className="w-full py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          className="w-full py-3 mt-4 text-xs text-slate-500 hover:text-slate-300 transition-colors rounded-lg hover:bg-slate-800/30"
         >
-          Show {sorted.length - 20} more
+          Show {sorted.length - 12} more ideas
         </button>
       )}
     </div>
