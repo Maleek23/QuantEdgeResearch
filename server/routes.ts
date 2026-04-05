@@ -4280,6 +4280,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!quote) {
         return res.status(404).json({ error: "Quote not found" });
       }
+
+      // Enrich with 52W data from Yahoo chart metadata (cheap call, has the data we need)
+      if (assetType === 'stock' && !quote.fiftyTwoWeekHigh) {
+        try {
+          const yahooRes = await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=1y&interval=1d`, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+          });
+          if (yahooRes.ok) {
+            const yahooData = await yahooRes.json();
+            const meta = yahooData?.chart?.result?.[0]?.meta;
+            if (meta) {
+              quote.fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh || null;
+              quote.fiftyTwoWeekLow = meta.fiftyTwoWeekLow || null;
+              quote.averageVolume = meta.averageDailyVolume10Day || null;
+              quote.previousClose = meta.chartPreviousClose || meta.previousClose || null;
+              // Estimate market cap from price × shares if available
+              if (meta.sharesOutstanding) {
+                quote.marketCap = (quote.price || 0) * meta.sharesOutstanding;
+              }
+            }
+          }
+        } catch (e) {
+          // Yahoo enrichment failed, continue without
+        }
+      }
+
       res.json(quote);
     } catch (error) {
       logger.error(`Error fetching realtime quote for ${req.params.symbol}:`, error);
