@@ -172,15 +172,21 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
   }
 
   try {
-    // 1. Get live quote
-    const quote = await getTradierQuote(symbol);
-    if (!quote || !quote.last || quote.last <= 0) {
+    // 1. Get live quote (fall back to payload price if market closed)
+    let stockPrice = payload.price || 0;
+    let optionAvailable = true;
+    const quote = await getTradierQuote(symbol).catch(() => null);
+    if (quote?.last && quote.last > 0) {
+      stockPrice = quote.last;
+    } else if (stockPrice <= 0) {
       return { success: false, error: `Could not get quote for ${symbol}` };
+    } else {
+      logger.info(`[TV-WEBHOOK] Using payload price $${stockPrice} for ${symbol} (market may be closed)`);
+      optionAvailable = false; // Can't enrich options without live market
     }
-    const stockPrice = quote.last;
 
-    // 2. Pick best option
-    const option = await pickBestOption(symbol, direction, stockPrice);
+    // 2. Pick best option (skip if market closed)
+    const option = optionAvailable ? await pickBestOption(symbol, direction, stockPrice) : null;
 
     // 3. Build confidence score
     // TV signals from backtested strategy get high base confidence
