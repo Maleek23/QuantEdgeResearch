@@ -40,6 +40,7 @@ interface SectorPulse {
   changePct: number;
   trend: string;
   strength: number;
+  category: string;
 }
 
 interface WatchlistSetup {
@@ -211,42 +212,53 @@ export default function Projector() {
               </Card>
             </div>
 
-            {/* Sector Pulse */}
-            <Card className="bg-slate-900/50 border-slate-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-semibold text-white">Sector Pulse</span>
-                </div>
-                <div className="space-y-2">
-                  {data.sectors.map((s) => (
-                    <div key={s.etf} className="flex items-center gap-3">
-                      <span className="text-xs text-slate-400 w-28">{s.sector}</span>
-                      <span className="text-xs text-slate-500 font-mono w-10">{s.etf}</span>
-                      <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative">
-                        {s.trend === 'BULLISH' ? (
-                          <div className="absolute left-1/2 top-0 bottom-0 bg-emerald-500/60 rounded-r-full"
-                            style={{ width: `${Math.min(50, s.strength / 2)}%` }} />
-                        ) : s.trend === 'BEARISH' ? (
-                          <div className="absolute top-0 bottom-0 bg-red-500/60 rounded-l-full"
-                            style={{ width: `${Math.min(50, s.strength / 2)}%`, right: '50%' }} />
-                        ) : null}
-                        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-600" />
-                      </div>
-                      <span className={cn(
-                        "text-xs font-mono w-14 text-right",
-                        s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-500"
-                      )}>
-                        {s.changePct > 0 ? '+' : ''}{s.changePct}%
-                      </span>
-                      <Badge variant="outline" className={cn("text-[9px] w-16 justify-center", trendColor(s.trend))}>
-                        {s.trend}
-                      </Badge>
+            {/* Sector Pulse — grouped by category */}
+            {[
+              { key: 'core', label: 'Core (Your Sectors)', icon: '⚡' },
+              { key: 'sector', label: 'S&P Sectors', icon: '📊' },
+              { key: 'macro', label: 'Macro Indicators', icon: '🌍' },
+            ].map((cat) => {
+              const catSectors = data.sectors.filter(s => s.category === cat.key);
+              if (catSectors.length === 0) return null;
+              return (
+                <Card key={cat.key} className="bg-slate-900/50 border-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm">{cat.icon}</span>
+                      <span className="text-sm font-semibold text-white">{cat.label}</span>
+                      <span className="text-[10px] text-slate-600 ml-auto">{catSectors.length} ETFs</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="space-y-2">
+                      {catSectors.map((s) => (
+                        <div key={s.etf} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-400 w-28">{s.sector}</span>
+                          <span className="text-xs text-slate-500 font-mono w-12">{s.etf}</span>
+                          <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative">
+                            {s.trend === 'BULLISH' ? (
+                              <div className="absolute left-1/2 top-0 bottom-0 bg-emerald-500/60 rounded-r-full"
+                                style={{ width: `${Math.min(50, s.strength / 2)}%` }} />
+                            ) : s.trend === 'BEARISH' ? (
+                              <div className="absolute top-0 bottom-0 bg-red-500/60 rounded-l-full"
+                                style={{ width: `${Math.min(50, s.strength / 2)}%`, right: '50%' }} />
+                            ) : null}
+                            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-600" />
+                          </div>
+                          <span className={cn(
+                            "text-xs font-mono w-14 text-right",
+                            s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-500"
+                          )}>
+                            {s.changePct > 0 ? '+' : ''}{s.changePct}%
+                          </span>
+                          <Badge variant="outline" className={cn("text-[9px] w-16 justify-center", trendColor(s.trend))}>
+                            {s.trend}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             {/* Watchlist Setups */}
             <Card className="bg-slate-900/50 border-slate-800">
