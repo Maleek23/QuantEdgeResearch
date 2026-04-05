@@ -255,10 +255,10 @@ export function AnalysisHub({
   const links = getAnalysisLinks(symbol, assetClass);
   const availableLinks = links.filter(l => l.available);
   
-  const effectiveQuantScore = quantScore || 65;
-  const effectiveAiScore = aiScore || 60;
-  const effectiveMlScore = mlScore || 55;
-  const effectiveHistoricalWinRate = historicalWinRate || 58;
+  const effectiveQuantScore = quantScore || 0;
+  const effectiveAiScore = aiScore || 0;
+  const effectiveMlScore = mlScore || 0;
+  const effectiveHistoricalWinRate = historicalWinRate || 0;
   
   const signals = [
     { source: 'Quantitative', direction: effectiveQuantScore >= 60 ? 'bullish' as const : effectiveQuantScore <= 40 ? 'bearish' as const : 'neutral' as const, confidence: effectiveQuantScore },

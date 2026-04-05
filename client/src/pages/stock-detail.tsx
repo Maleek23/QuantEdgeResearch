@@ -634,7 +634,7 @@ export default function StockDetailPage() {
             </div>
             <div>
               <div className="text-[10px] text-slate-500 uppercase">AI Grade</div>
-              <div className="text-sm font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 72}%</div>
+              <div className="text-sm font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 0}%</div>
             </div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
@@ -647,11 +647,11 @@ export default function StockDetailPage() {
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W High</div>
-            <div className="text-sm font-bold text-emerald-400">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(safePrice * 1.3, 2)}</div>
+            <div className="text-sm font-bold text-emerald-400">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
-            <div className="text-sm font-bold text-red-400">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(safePrice * 0.7, 2)}</div>
+            <div className="text-sm font-bold text-red-400">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')}</div>
           </div>
           <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
             <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
@@ -922,7 +922,7 @@ export default function StockDetailPage() {
                         {(() => {
                           const engineData: Record<string, { grade: string; calculations: Array<{ label: string; value: string; status: string }>; reasoning: string; color: string }> = {
                             technical: {
-                              grade: analysisData?.components?.technical?.grade || 'B-',
+                              grade: analysisData?.components?.technical?.grade || '--',
                               color: 'cyan',
                               calculations: [
                                 { label: 'RSI (14)', value: safeToFixed(analysisData?.components?.technical?.rsi, 0, '45'), status: safeNumber(analysisData?.components?.technical?.rsi, 45) > 70 ? 'bearish' : safeNumber(analysisData?.components?.technical?.rsi, 45) < 30 ? 'bullish' : 'neutral' },
@@ -933,7 +933,7 @@ export default function StockDetailPage() {
                               reasoning: 'Technical analysis based on momentum indicators, moving averages, and volume patterns.'
                             },
                             fundamental: {
-                              grade: analysisData?.components?.fundamental?.grade || 'C-',
+                              grade: analysisData?.components?.fundamental?.grade || '--',
                               color: 'emerald',
                               calculations: [
                                 { label: 'P/E Ratio', value: `${safeToFixed(analysisData?.components?.fundamental?.pe, 1, '24.5')}x`, status: 'neutral' },
@@ -944,7 +944,7 @@ export default function StockDetailPage() {
                               reasoning: 'Fundamental metrics evaluate financial health, growth trajectory, and valuation.'
                             },
                             quant: {
-                              grade: analysisData?.components?.quant?.grade || 'B-',
+                              grade: analysisData?.components?.quantitative?.grade || '--',
                               color: 'amber',
                               calculations: [
                                 { label: 'Volatility (30d)', value: `${safeToFixed(analysisData?.quant?.volatility, 0, '25')}%`, status: 'neutral' },
@@ -955,7 +955,7 @@ export default function StockDetailPage() {
                               reasoning: 'Quantitative metrics assess risk-adjusted returns and statistical edge.'
                             },
                             ml: {
-                              grade: analysisData?.components?.ml?.grade || 'D',
+                              grade: analysisData?.components?.ml?.grade || '--',
                               color: 'violet',
                               calculations: [
                                 { label: 'Price Direction (7d)', value: changePercent >= 0 ? 'Bullish' : 'Bearish', status: changePercent >= 0 ? 'bullish' : 'bearish' },
@@ -966,7 +966,7 @@ export default function StockDetailPage() {
                               reasoning: 'ML models analyze price patterns and multi-timeframe signals.'
                             },
                             flow: {
-                              grade: analysisData?.components?.flow?.grade || 'B+',
+                              grade: analysisData?.components?.orderFlow?.grade || '--',
                               color: 'rose',
                               calculations: [
                                 { label: 'Put/Call Ratio', value: '0.68', status: 'bullish' },
@@ -977,7 +977,7 @@ export default function StockDetailPage() {
                               reasoning: 'Options flow tracks institutional positioning and smart money sentiment.'
                             },
                             sentiment: {
-                              grade: analysisData?.components?.sentiment?.grade || 'C+',
+                              grade: analysisData?.components?.sentiment?.grade || '--',
                               color: 'purple',
                               calculations: [
                                 { label: 'News Sentiment', value: 'Neutral', status: 'neutral' },
@@ -1132,21 +1132,21 @@ export default function StockDetailPage() {
                 {/* Quick Stats Grid - Key Trading Levels */}
                 <div className="grid grid-cols-4 gap-3">
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Support Level</div>
-                    <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)}</div>
-                    <div className="text-[10px] text-slate-600">-5% from current</div>
+                    <div className="text-xs text-slate-500">Day Low</div>
+                    <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(quoteData?.low, 2, '--')}</div>
+                    <div className="text-[10px] text-slate-600">Today's low</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Resistance</div>
-                    <div className="text-lg font-mono font-bold text-teal-400">${safeToFixed(safePrice * 1.05, 2)}</div>
-                    <div className="text-[10px] text-slate-600">+5% from current</div>
+                    <div className="text-xs text-slate-500">Day High</div>
+                    <div className="text-lg font-mono font-bold text-teal-400">${safeToFixed(quoteData?.high, 2, '--')}</div>
+                    <div className="text-[10px] text-slate-600">Today's high</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Volatility (30d)</div>
                     <div className={cn("text-lg font-bold",
-                      safeNumber(analysisData?.quant?.volatility, 25) > 35 ? "text-red-400" : "text-white"
-                    )}>{safeToFixed(analysisData?.quant?.volatility, 0, '25')}%</div>
-                    <div className="text-[10px] text-slate-600">{safeNumber(analysisData?.quant?.volatility, 25) > 35 ? 'High Risk' : 'Moderate'}</div>
+                      safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? "text-red-400" : "text-white"
+                    )}>{analysisData?.components?.quantitative?.breakdown?.[0]?.value || '--'}%</div>
+                    <div className="text-[10px] text-slate-600">{safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? 'High Risk' : 'Moderate'}</div>
                   </Card>
                   <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
                     <div className="text-xs text-slate-500">Inst. Ownership</div>
@@ -1227,11 +1227,11 @@ export default function StockDetailPage() {
                         </div>
                         <div className="p-2 rounded bg-emerald-500/10">
                           <div className="text-[10px] text-slate-500">Target</div>
-                          <div className="text-sm font-mono text-emerald-400">${safeToFixed(bestTradeIdea.targetPrice, 2) || safeToFixed(safePrice * 1.08, 2)}</div>
+                          <div className="text-sm font-mono text-emerald-400">${safeToFixed(bestTradeIdea.targetPrice, 2) || '--'}</div>
                         </div>
                         <div className="p-2 rounded bg-red-500/10">
                           <div className="text-[10px] text-slate-500">Stop</div>
-                          <div className="text-sm font-mono text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2) || safeToFixed(safePrice * 0.95, 2)}</div>
+                          <div className="text-sm font-mono text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2) || '--'}</div>
                         </div>
                       </div>
 
@@ -1455,18 +1455,18 @@ export default function StockDetailPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500" />
                           <span className="text-xs text-slate-400">Support</span>
-                          <span className="text-xs font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)}</span>
+                          <span className="text-xs font-mono font-bold text-red-400">${safeToFixed(quoteData?.low, 2, '--')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500" />
                           <span className="text-xs text-slate-400">Resistance</span>
-                          <span className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(safePrice * 1.05, 2)}</span>
+                          <span className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(quoteData?.high, 2, '--')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500" />
                           <span className="text-xs text-slate-400">52W Range</span>
                           <span className="text-xs font-mono text-slate-300">
-                            ${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(safePrice * 0.7, 2)} - ${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(safePrice * 1.3, 2)}
+                            ${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')} - ${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}
                           </span>
                         </div>
                       </div>
@@ -1825,12 +1825,12 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Avg Price Target</span>
                       </div>
                       <div className="text-2xl font-bold text-teal-400">
-                        ${safeToFixed(analystData?.priceTarget?.average, 2) || safeToFixed(safePrice * 1.15, 2)}
+                        ${safeToFixed(analystData?.priceTarget?.average, 2) || safeToFixed(0, 2)}
                       </div>
                       <div className={cn("text-xs mt-1",
                         safeNumber(analystData?.priceTarget?.average, price * 1.15) > price ? "text-emerald-400" : "text-red-400"
                       )}>
-                        {safeToFixed(((safeNumber(analystData?.priceTarget?.average, safePrice * 1.15) - safePrice) / safePrice) * 100, 1)}% upside
+                        {safeToFixed(((safeNumber(analystData?.priceTarget?.average, 0) - safePrice) / safePrice) * 100, 1)}% upside
                       </div>
                     </div>
                   </Card>
@@ -1845,9 +1845,9 @@ export default function StockDetailPage() {
                         <span className="text-xs text-slate-500">Target Range</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-red-400">${safeToFixed(analystData?.priceTarget?.low, 2) || safeToFixed(safePrice * 0.85, 2)}</span>
+                        <span className="text-sm text-red-400">${safeToFixed(analystData?.priceTarget?.low, 2) || safeToFixed(analystData?.priceTarget?.low, 2, '--')}</span>
                         <span className="text-xs text-slate-600">-</span>
-                        <span className="text-sm text-emerald-400">${safeToFixed(analystData?.priceTarget?.high, 2) || safeToFixed(safePrice * 1.35, 2)}</span>
+                        <span className="text-sm text-emerald-400">${safeToFixed(analystData?.priceTarget?.high, 2) || safeToFixed(analystData?.priceTarget?.high, 2, '--')}</span>
                       </div>
                       <div className="text-xs text-slate-500 mt-1">Low - High estimates</div>
                     </div>
@@ -2307,15 +2307,15 @@ export default function StockDetailPage() {
                               </div>
                               <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Flow Score</div>
-                                <div className="text-lg font-bold text-gray-900 dark:text-white">{analysisData?.components?.flow?.score || 72}%</div>
+                                <div className="text-lg font-bold text-gray-900 dark:text-white">{analysisData?.components?.flow?.score || 0}%</div>
                               </div>
                               <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
                                 <div className="text-xs text-slate-500">Smart Money Signal</div>
                                 <div className={cn("text-sm font-bold",
-                                  (analysisData?.components?.flow?.score || 72) >= 70 ? "text-emerald-400" :
-                                  (analysisData?.components?.flow?.score || 72) >= 50 ? "text-amber-400" : "text-red-400"
+                                  (analysisData?.components?.flow?.score || 0) >= 70 ? "text-emerald-400" :
+                                  (analysisData?.components?.flow?.score || 0) >= 50 ? "text-amber-400" : "text-red-400"
                                 )}>
-                                  {(analysisData?.components?.flow?.score || 72) >= 70 ? 'Bullish' : (analysisData?.components?.flow?.score || 72) >= 50 ? 'Neutral' : 'Bearish'}
+                                  {(analysisData?.components?.flow?.score || 0) >= 70 ? 'Bullish' : (analysisData?.components?.flow?.score || 0) >= 50 ? 'Neutral' : 'Bearish'}
                                 </div>
                               </div>
                               <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
