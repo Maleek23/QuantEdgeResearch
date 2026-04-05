@@ -3456,8 +3456,14 @@ export default function TradeDeskRedesigned() {
   });
 
   // DATE FILTER STATE: Controls which ideas are fetched/displayed
-  // Default to "today" so users see fresh ideas when they wake up
-  const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>('today');
+  // On weekends/holidays, default to "week" so Friday's ideas are visible
+  // On weekdays, default to "today" for fresh daily ideas
+  const isWeekend = (() => {
+    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const day = et.getDay();
+    return day === 0 || day === 6;
+  })();
+  const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>(isWeekend ? 'week' : 'today');
 
   // Cache buster: Use today's date in ET timezone as cache key to force fresh data each day
   // Using ET timezone ensures cache key matches server-side date filtering
