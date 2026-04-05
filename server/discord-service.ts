@@ -530,9 +530,12 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   }
   try {
     const isLong = idea.direction === 'long';
-    const color = isLong ? COLORS.LONG : COLORS.SHORT;
+    const isTVSignal = ideaSource === 'tradingview';
+    const color = isTVSignal ? 0xa855f7 : (isLong ? COLORS.LONG : COLORS.SHORT); // Purple for TV signals
+    const titleEmoji = isTVSignal ? '📺' : (isLong ? '🟢' : '🔴');
+    const titlePrefix = isTVSignal ? 'TV SIGNAL' : idea.direction.toUpperCase();
     const embed: DiscordEmbed = {
-      title: `${isLong ? '🟢' : '🔴'} ${idea.symbol} ${idea.direction.toUpperCase()}`,
+      title: `${titleEmoji} ${titlePrefix}: ${idea.symbol} ${idea.direction.toUpperCase()}`,
       description: idea.analysis || 'New trade idea detected.',
       color,
       fields: [
@@ -540,12 +543,16 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
         { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
         { name: '🛡️ Stop', value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)}` : 'N/A', inline: true }
       ],
+      footer: isTVSignal ? { text: `TradingView Strategy Signal • ${(idea as any).sessionContext || 'v15'}` } : undefined,
       timestamp: new Date().toISOString()
     };
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [embed] }),
+      body: JSON.stringify({
+        content: isTVSignal ? `📺 **TV SIGNAL**: ${idea.symbol} ${idea.direction.toUpperCase()} — backtested strategy alert` : undefined,
+        embeds: [embed],
+      }),
     });
     
     // Mark as sent to prevent duplicate alerts (including option type and strike)

@@ -286,7 +286,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                       {idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}
                     </span>
                     <span className="text-emerald-500/70 font-medium">
-                      {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
+                      {(idea as any).source === 'tradingview' ? '📺 TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
                     </span>
                   </div>
                 </div>
@@ -1069,7 +1069,7 @@ function BestSetupsSubPage() {
                 {setup.timestamp ? getRelativeTime(setup.timestamp) : '—'}
               </span>
               <span className="text-emerald-500/70 font-medium">
-                {setup.dataSourceUsed?.replace(/_/g, ' ') || setup.source?.replace(/_/g, ' ') || 'scanner'}
+                {(setup as any).source === 'tradingview' ? '📺 TV Signal' : (setup.dataSourceUsed?.replace(/_/g, ' ') || setup.source?.replace(/_/g, ' ') || 'scanner')}
               </span>
             </div>
           </div>
@@ -2838,7 +2838,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             <Clock className="w-3 h-3" />
             <span>First signal:</span>
             <span className="font-medium text-emerald-400">
-              {(idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
+              {(idea as any).source === 'tradingview' ? '📺 TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
             </span>
             {idea.timestamp && (
               <span className="text-slate-400">
@@ -3406,7 +3406,7 @@ export default function TradeDeskRedesigned() {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
-  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist'>('all');
+  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist' | 'tv'>('all');
   // Trade idea detail modal state
   const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
   const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
@@ -3590,6 +3590,12 @@ export default function TradeDeskRedesigned() {
     return deduplicateOnly(filtered);
   }, [tradeIdeas, watchlistSymbols]);
 
+  // TradingView signal ideas only
+  const tvIdeas = useMemo(() => {
+    const filtered = tradeIdeas.filter(i => (i as any).source === 'tradingview');
+    return deduplicateOnly(filtered);
+  }, [tradeIdeas]);
+
   // All ideas - deduplicated (for "All Ideas" tab)
   const allIdeasDeduplicated = useMemo(() => {
     return deduplicateOnly(tradeIdeas);
@@ -3604,9 +3610,10 @@ export default function TradeDeskRedesigned() {
       case 'future': return futuresIdeas;
       case 'penny_stock': return pennyIdeas;
       case 'watchlist': return watchlistIdeas;
+      case 'tv': return tvIdeas;
       default: return allIdeasDeduplicated;
     }
-  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, watchlistIdeas, allIdeasDeduplicated]);
+  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, watchlistIdeas, tvIdeas, allIdeasDeduplicated]);
 
   // ============================================
   // INITIAL LOADING ANIMATION (minimum 0.5s)
@@ -3761,13 +3768,15 @@ export default function TradeDeskRedesigned() {
             { value: 'crypto', label: 'Crypto' },
             { value: 'future', label: 'Futures' },
             { value: 'penny_stock', label: 'Penny' },
+            { value: 'tv', label: 'TV Signals' },
           ].map(({ value, label }) => {
             const count = value === 'stock' ? stockIdeas.length :
                           value === 'option' ? optionIdeas.length :
                           value === 'crypto' ? cryptoIdeas.length :
                           value === 'future' ? futuresIdeas.length :
                           value === 'penny_stock' ? pennyIdeas.length :
-                          value === 'watchlist' ? watchlistIdeas.length : 0;
+                          value === 'watchlist' ? watchlistIdeas.length :
+                          value === 'tv' ? tvIdeas.length : 0;
             return (
               <button
                 key={value}

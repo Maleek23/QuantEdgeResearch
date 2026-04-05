@@ -1605,6 +1605,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════
+  // TRADINGVIEW WEBHOOK — Receive strategy signals from TradingView
+  // ═══════════════════════════════════════════════════════════════
+
+  app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
+    try {
+      const { validateWebhookSecret, processSignal } = await import("./tradingview-webhook");
+      const payload = req.body;
+
+      if (!payload || !payload.secret || !payload.ticker || !payload.direction) {
+        return res.status(400).json({ error: "Missing required fields: secret, ticker, direction" });
+      }
+
+      if (!validateWebhookSecret(payload.secret)) {
+        logger.warn(`[TV-WEBHOOK] Invalid secret from ${req.ip}`);
+        return res.status(401).json({ error: "Invalid webhook secret" });
+      }
+
+      const result = await processSignal(payload);
+
+      if (result.success) {
+        res.json({ received: true, ideaId: result.ideaId });
+      } else {
+        res.status(422).json({ received: false, error: result.error });
+      }
+    } catch (error) {
+      logger.error("[TV-WEBHOOK] Endpoint error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
     try {
