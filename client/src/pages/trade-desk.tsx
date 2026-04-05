@@ -65,7 +65,7 @@ import { getLetterGrade, getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
-import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
+import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
 import { FlowLevelsPanel } from "@/components/flow-levels-panel";
 import { StrategyLab } from "@/components/strategy-lab";
@@ -3856,7 +3856,7 @@ export default function TradeDeskRedesigned() {
       </div>
 
       {/* Trade Idea Detail Modal */}
-      <TradeIdeaDetailModal
+      <TradeIdeaDetailV2
         idea={selectedTradeIdea}
         open={tradeIdeaModalOpen}
         onOpenChange={setTradeIdeaModalOpen}
