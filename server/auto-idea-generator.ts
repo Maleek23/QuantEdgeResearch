@@ -500,9 +500,37 @@ At least HALF of ideas should be options plays on high-vol names. These are the 
           ? `${processedIdea.analysis}${chartContext}` 
           : processedIdea.analysis;
 
-        // Calculate base confidence + chart boost (AI ideas start at 60 base confidence)
-        const baseConfidence = 60;
-        const finalConfidence = Math.min(100, baseConfidence + confidenceBoost);
+        // REAL CONFIDENCE: Use calibration service (learns from historical win rates)
+        // instead of the old hardcoded baseConfidence = 60
+        let finalConfidence: number;
+        let calibrationRecommendation: string = 'standard';
+        try {
+          const { getCalibratedConfidence } = await import('./confidence-calibration');
+          const calibrated = await getCalibratedConfidence({
+            assetType: processedIdea.assetType || 'stock',
+            direction: processedIdea.direction || 'long',
+            source: 'ai',
+            signalCount: qualitySignals.length,
+            riskRewardRatio,
+            entryPrice,
+            targetPrice,
+            stopLoss,
+          });
+          finalConfidence = Math.min(100, calibrated.calibratedScore + confidenceBoost);
+          calibrationRecommendation = calibrated.recommendation;
+          logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} calibrated: raw=${calibrated.rawScore}, calibrated=${calibrated.calibratedScore}, boost=${confidenceBoost}, final=${finalConfidence}, rec=${calibrated.recommendation} (${calibrated.reason})`);
+
+          // SKIP trades the calibration says have no edge
+          if (calibrated.recommendation === 'skip') {
+            logger.warn(`🚫 [AUTO-GEN] SKIPPED ${processedIdea.symbol} — calibration says no edge: ${calibrated.reason}`);
+            rejectedIdeas.push({ symbol: processedIdea.symbol, reason: `Calibration skip: ${calibrated.reason}` });
+            continue;
+          }
+        } catch (calErr) {
+          // Fallback to old logic if calibration fails
+          logger.debug(`[AUTO-GEN] Calibration failed, using base confidence: ${calErr}`);
+          finalConfidence = Math.min(100, 60 + confidenceBoost);
+        }
 
         // AI ideas: choose holding period based on confidence and catalyst type
         // High confidence (>= 65) → swing trade (more conviction = hold longer)
@@ -543,8 +571,9 @@ At least HALF of ideas should be options plays on high-vol names. These are the 
           optionType: processedIdea.optionType || null,
           source: 'ai',
           isLottoPlay: isLotto,
-          confidenceScore: finalConfidence, // Base 60 + chart boost (+5 if chart confirms)
-          qualitySignals, // Array of verified signal labels
+          confidenceScore: finalConfidence, // Calibrated from historical win rate + R:R + signals
+          probabilityBand: finalConfidence >= 95 ? 'A+' : finalConfidence >= 90 ? 'A' : finalConfidence >= 85 ? 'A-' : finalConfidence >= 80 ? 'B+' : finalConfidence >= 70 ? 'B' : finalConfidence >= 60 ? 'B-' : 'C',
+          qualitySignals: [...qualitySignals, ...(calibrationRecommendation === 'high_conviction' ? ['High Conviction'] : [])],
         });
         savedIdeas.push(tradeIdea);
         
