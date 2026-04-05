@@ -62,7 +62,12 @@ export default function Discover() {
 
   // Fetch real news data
   const { data: newsData, isLoading: newsLoading, refetch } = useQuery<{ news: NewsItem[] }>({
-    queryKey: ["/api/news/market?limit=20"],
+    queryKey: ["/api/news"],
+    queryFn: async () => {
+      const res = await fetch('/api/news?limit=20', { credentials: 'include' });
+      if (!res.ok) return { news: [] };
+      return res.json();
+    },
     refetchInterval: 120000,
   });
 
@@ -71,7 +76,7 @@ export default function Discover() {
     gainers: Array<{ symbol: string; change: number; price: number }>;
     losers: Array<{ symbol: string; change: number; price: number }>;
   }>({
-    queryKey: ["/api/market/top-movers"],
+    queryKey: ["/api/market-movers"],
     refetchInterval: 60000,
   });
 
@@ -87,7 +92,7 @@ export default function Discover() {
   const featuredNews = news.slice(0, 1);
   const latestNews = news.slice(1, 8);
   const breakingNews = news.slice(0, 4);
-  const gainers = moversData?.gainers?.slice(0, 5) || [];
+  const gainers = (moversData as any)?.topGainers?.slice(0, 5) || moversData?.gainers?.slice(0, 5) || [];
   const earnings = earningsData?.earnings?.slice(0, 5) || [];
 
   return (
