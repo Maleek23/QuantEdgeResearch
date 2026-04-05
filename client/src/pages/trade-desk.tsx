@@ -3706,8 +3706,6 @@ export default function TradeDeskRedesigned() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-white tracking-tight">Trade Desk</h1>
-            <div className="w-1 h-1 rounded-full bg-emerald-500" />
-            <span className="text-xs text-slate-500 font-mono">MULTI-ENGINE</span>
           </div>
           <div className="flex items-center gap-2">
             {/* Generate Ideas Dropdown */}
@@ -3769,18 +3767,10 @@ export default function TradeDeskRedesigned() {
           {[
             { value: 'all', label: 'All' },
             { value: 'watchlist', label: 'My Watchlist' },
-            { value: 'stock', label: 'Stocks' },
             { value: 'option', label: 'Options' },
-            { value: 'crypto', label: 'Crypto' },
-            { value: 'future', label: 'Futures' },
-            { value: 'penny_stock', label: 'Penny' },
             { value: 'tv', label: 'TV Signals' },
           ].map(({ value, label }) => {
-            const count = value === 'stock' ? stockIdeas.length :
-                          value === 'option' ? optionIdeas.length :
-                          value === 'crypto' ? cryptoIdeas.length :
-                          value === 'future' ? futuresIdeas.length :
-                          value === 'penny_stock' ? pennyIdeas.length :
+            const count = value === 'option' ? optionIdeas.length :
                           value === 'watchlist' ? watchlistIdeas.length :
                           value === 'tv' ? tvIdeas.length : 0;
             return (
@@ -3821,21 +3811,25 @@ export default function TradeDeskRedesigned() {
             </TabsTrigger>
           </TabsList>
 
-          {/* TODAY'S PLAYS TAB - Top Conviction + Signals + All Ideas */}
+          {/* TODAY'S PLAYS TAB */}
           <TabsContent value="ideas" className="space-y-6 mt-6">
-            {/* TOP CONVICTION - A/A+ Plays Only */}
-            <TopConvictionSection ideas={filteredIdeas} />
-            <FlowSignalsSection />
+            {/* TRADE IDEAS — THE MAIN CONTENT, FIRST THING YOU SEE */}
+            <TradeIdeasList
+              ideas={filteredIdeas}
+              title={assetFilter === 'tv' ? 'TradingView Signals' : assetFilter === 'watchlist' ? 'Watchlist Ideas' : assetFilter === 'option' ? 'Options Ideas' : 'Trade Ideas'}
+              onViewDetails={(idea) => {
+                setSelectedTradeIdea(idea);
+                setTradeIdeaModalOpen(true);
+              }}
+              serverDateFilter={serverDateFilter}
+              onServerDateFilterChange={setServerDateFilter}
+            />
 
-            {/* Stats Cards */}
-            <StatsOverview ideas={filteredIdeas} dateFilter={serverDateFilter} />
-
-            {/* Empty State: No ideas for today - offer to expand date range */}
+            {/* Empty state with generate button */}
             {showEmptyTodayMessage && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 text-center">
-                <div className="text-amber-400 text-lg font-semibold mb-2">No ideas generated today yet</div>
-                <p className="text-slate-400 text-sm mb-4">
-                  The AI hasn't generated any trade ideas for today. Ideas are typically generated at 9:30 AM, 11:00 AM, 1:30 PM, and 8:30 PM CT.
+              <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-6 text-center">
+                <p className="text-slate-400 text-sm mb-3">
+                  {isWeekend ? 'Market closed — showing last week' : 'No ideas yet today. Next window coming up.'}
                 </p>
                 <div className="flex justify-center gap-3">
                   <button
@@ -3844,39 +3838,9 @@ export default function TradeDeskRedesigned() {
                   >
                     Show Past Week
                   </button>
-                  <button
-                    onClick={() => setServerDateFilter('all')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm text-white transition-colors"
-                  >
-                    Show All Ideas
-                  </button>
-                  <button
-                    onClick={() => generateIdeas.mutate({ engine: 'quant' })}
-                    disabled={generatingEngine !== null}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm text-white transition-colors"
-                  >
-                    {generatingEngine ? 'Generating...' : 'Generate Now'}
-                  </button>
                 </div>
               </div>
             )}
-
-            {/* Market Movers - What's moving today */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <MarketMoversCard />
-            </div>
-
-            {/* All Trade Ideas List */}
-            <TradeIdeasList
-              ideas={filteredIdeas}
-              title={`${assetFilter === 'all' ? 'All' : assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Trade Ideas`}
-              onViewDetails={(idea) => {
-                setSelectedTradeIdea(idea);
-                setTradeIdeaModalOpen(true);
-              }}
-              serverDateFilter={serverDateFilter}
-              onServerDateFilterChange={setServerDateFilter}
-            />
           </TabsContent>
 
           {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
