@@ -21,41 +21,48 @@ const PENNY_STOCK_TICKERS = [
   'NVAX', 'SRNE', 'BNGO', 'NKLA', 'GOEV', 'FFIE', 'MULN'
 ];
 
-// High-conviction Semiconductor & Storage tickers (AI Infrastructure)
-const SEMI_STORAGE_TICKERS = [
-  'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX',
-  'KLAC', 'MRVL', 'ON', 'NXPI', 'SWKS', 'QRVO', 'MCHP', 'MPWR',
+// ═══════════════════════════════════════════════════════════════
+// PRIMARY WATCHLIST — Backtested tickers with PROVEN P&L
+// These are the ONLY tickers the engine should focus on.
+// AI ideas MUST come from this list first (2-3 ideas guaranteed).
+// ═══════════════════════════════════════════════════════════════
+
+// S-Tier: Highest conviction, best backtested results
+const WATCHLIST_S_TIER = [
+  'AAOI', 'CRCL', 'OKLO', 'LUNR', 'KLAC', 'SMTC',
+  'AEHR', 'OLED', 'RMBS', 'BILL', 'INTA', 'MKSI',
 ];
 
-// Optics / Photonics / Fiber — AI datacenter buildout = 5-15% daily swings
-const OPTICS_PHOTONICS_TICKERS = [
-  'COHR', 'LITE', 'VIAV', 'CIEN', 'INFN', 'CALX', 'AAOI',
+// A-Tier: Strong results, proven setups
+const WATCHLIST_A_TIER = [
+  'LRCX', 'AFRM', 'WDC', 'MU', 'AMD', 'TSEM', 'COIN', 'ARM',
+  'HIMS', 'ONTO', 'ENTG', 'UPST', 'DUOL', 'PATH', 'MDB',
+  'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN',
+  'SOFI', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA',
 ];
 
-// HIGH VOLATILITY MOVERS — These sectors move 3-20% daily and are prime for options
-// MUST be prioritized in every generation window
-const HIGH_VOL_PRIORITY_TICKERS = [
-  // Chips (daily 3-10% moves on AI narrative)
-  'NVDA', 'AMD', 'MU', 'SMCI', 'ARM', 'AVGO', 'TSM', 'ASML', 'MRVL',
-  // Optics/Photonics (datacenter fiber demand)
-  'COHR', 'LITE', 'CIEN', 'AAOI',
-  // Quantum Computing (10-30% daily swings)
-  'IONQ', 'RGTI', 'QUBT',
-  // AI Software (contract wins = gap up/down)
-  'PLTR', 'SNOW', 'CRWD', 'NET', 'DDOG', 'ZS',
-  // Space/Satellite (binary catalyst plays)
-  'ASTS', 'RKLB', 'LUNR',
-  // Biotech (FDA = 20%+ moves)
-  'MRNA', 'CRSP', 'REGN',
-  // EV/Energy (delivery numbers, policy)
-  'TSLA', 'RIVN', 'ENPH',
-  // Chinese ADRs (overnight gaps)
-  'BABA', 'PDD', 'JD', 'BIDU', 'NIO',
-  // Crypto-adjacent (BTC correlation, leveraged)
-  'MARA', 'RIOT', 'COIN', 'MSTR',
-  // Small cap runners
-  'CVNA', 'UPST', 'APP',
+// Combined primary watchlist — AI MUST pick from these first
+const PRIMARY_WATCHLIST = [...WATCHLIST_S_TIER, ...WATCHLIST_A_TIER];
+
+// Secondary movers — fill remaining 1-2 ideas from top daily movers
+// These are high-vol sectors that catch new opportunities
+const SECONDARY_MOVERS = [
+  'NVDA', 'AVGO', 'TSM', 'ASML', 'SMCI', 'MRVL', 'PLTR',
+  'IONQ', 'RGTI', 'CRWD', 'ZS', 'ASTS', 'RKLB',
+  'RIOT', 'MSTR', 'ALGM', 'COHR', 'LITE', 'CIEN',
 ];
+
+// SKIP LIST — lose money on strategy, NEVER suggest these
+const SKIP_TICKERS = new Set([
+  'AI', 'GLBE', 'TOST', 'CYBR', 'MNDY', 'GRAB', 'SE', 'NVDA',
+]);
+
+// Legacy aliases for backward compatibility
+const SEMI_STORAGE_TICKERS = [...new Set([...WATCHLIST_S_TIER, ...WATCHLIST_A_TIER].filter(t =>
+  ['KLAC', 'LRCX', 'MU', 'AMD', 'TSEM', 'AEHR', 'ONTO', 'ENTG', 'SMTC', 'ACLS', 'COHU', 'MKSI', 'WDC', 'ARM', 'DELL', 'RMBS', 'OLED', 'AMBA'].includes(t)
+))];
+const OPTICS_PHOTONICS_TICKERS = ['AAOI', 'COHR', 'LITE', 'CIEN', 'OLED', 'AMBA', 'ALGM'];
+const HIGH_VOL_PRIORITY_TICKERS = PRIMARY_WATCHLIST;
 
 // INDEX ETFs - ALWAYS include these for 0DTE and swing plays
 const INDEX_TICKERS = [
@@ -279,54 +286,64 @@ class AutoIdeaGenerator {
         }
       } catch {}
 
-      let marketContext = `Current market conditions — UNIVERSAL coverage across all asset classes.
+      const watchlistSTier = WATCHLIST_S_TIER.join(', ');
+      const watchlistATier = WATCHLIST_A_TIER.join(', ');
+      const secondaryMovers = SECONDARY_MOVERS.join(', ');
+      const skipList = [...SKIP_TICKERS].join(', ');
 
-⚡ MANDATORY HIGH-VOLATILITY PICKS (MUST include at least 3-4 ideas from these — they move 3-20% daily):
-Chips/Semis: ${semiTickers}
-Optics/Photonics: ${opticsTickers}
-Full high-vol universe: ${highVolTickers}
-These are the MONEY MAKERS. Chips move on every AI headline. Optics move with datacenter buildouts. Quantum swings 10-30% on news. PRIORITIZE THESE for option plays — the premiums are cheap relative to the moves.
+      let marketContext = `WATCHLIST-FOCUSED TRADING — Generate ideas ONLY from approved tickers.
 
-🎯 INDEX ETFs (${indexTickers}) for 0DTE and swing trading.
-📊 SECTOR ROTATION: Analyze sector ETFs (${sectorTickers}) for relative strength.
-🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG).
-📈 BONDS/RATES: Treasury ETFs (${bondTickers}) — TLT, TBT, HYG directional plays.
-🛡️ DEFENSE: Defense stocks (${defenseTickers}) — geopolitical catalysts.
-🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}) — compute demand.
-🔭 OPTICS/FIBER: Photonics (${opticsTickers}) — AI datacenter fiber buildout.
+🔒 RULE: You MUST pick ALL ideas from these two lists. DO NOT suggest random tickers.
+🚫 NEVER suggest these (lose money): ${skipList}
+
+⭐ S-TIER (pick 2-3 from here FIRST — highest conviction, best backtested results):
+${watchlistSTier}
+These are semi equipment, optics, fintech, space — they move 3-20% daily with proven options setups.
+
+📊 A-TIER (pick 1-2 from here — strong results):
+${watchlistATier}
+Memory chips, AI software, crypto-adjacent, fintech — all backtested and profitable.
+
+🔄 SECONDARY MOVERS (pick 0-1 ONLY if a ticker is having an unusually big day):
+${secondaryMovers}
+Only include these if they're moving 3%+ today. Otherwise stick to S-tier and A-tier.
+
+🎯 INDEX ETFs (${indexTickers}) — Include 1 index play (SPY/QQQ/IWM) for 0DTE or weekly swing.
+
+TIMEFRAME MIX:
+- 1-2 ideas should be weekly options (3-7 DTE) on S-tier names
+- 1 idea should be a swing play (2-4 weeks) on an A-tier name
+- 1 index play (SPY/QQQ 0DTE or weekly)
+
 CORRELATION TRACKING: ${correlationContext}.
-Generate ideas across ALL asset classes. At least HALF should be options plays on high-vol names.${macroContext}`;
+At least HALF should be options plays. Focus on QUALITY over quantity — 3 great ideas beats 4 mediocre ones.${macroContext}`;
       
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
-        marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities.
+        marketContext = `TOMORROW'S PLAYBOOK — Evening prep for next-day trading. WATCHLIST ONLY.
 
-⚡ MANDATORY HIGH-VOLATILITY PICKS (MUST include at least 3-4 ideas from these):
-Chips/Semis: ${semiTickers}
-Optics/Photonics: ${opticsTickers}
-Full high-vol universe: ${highVolTickers}
-These are the money-making sectors. PRIORITIZE option plays on these names.
+🔒 RULE: Pick ALL ideas from approved tickers. No random stocks.
+🚫 NEVER suggest: ${skipList}
 
-🎯 INDEX ETFs (${indexTickers}) - 0DTE and swing trading!
-📊 SECTOR ROTATION: Analyze sectors (${sectorTickers}) for tomorrow.
-🛢️ COMMODITIES: Oil (USO, OIH, XLE), Gold (GLD, SLV), Natural Gas (UNG).
-📈 BONDS: Treasury ETFs (${bondTickers}) — rate direction plays.
-🛡️ DEFENSE: Defense stocks (${defenseTickers}).
-🔬 AI INFRASTRUCTURE: Semiconductors (${semiTickers}).
-🔭 OPTICS/FIBER: Photonics (${opticsTickers}) — datacenter buildout.
-CORRELATION TRACKING: ${correlationContext}.
-Priority tickers: ${indexTickers}, ${highVolTickers}, ${pennyTickers}.${macroContext}
-Look for:
-1. ⚡ HIGH-VOL OPTIONS (MU, AMD, SMCI, COHR, LITE, IONQ, PLTR) — these move 3-20% daily, cheap premiums
-2. 🎯 INDEX PLAYS (SPY, QQQ, IWM, SPX) - 0DTE and weekly options
-3. 🛢️ COMMODITY SWINGS - Oil/gold/gas on macro data
-4. 📈 BOND PLAYS - TLT/TBT direction
-5. 🛡️ DEFENSE - LMT/RTX/NOC on spending catalysts
-6. 🔬 AI Infrastructure (NVDA, MU, WDC, LRCX, COHR, LITE) - compute + fiber demand
-7. Tech Spillover: NVDA laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}
-8. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC)
-9. High-vol penny stocks for 5-10x asymmetric returns
-At least HALF of ideas should be options plays on high-vol names. These are the ones that produce 200-750%+ winners.`;
+⭐ S-TIER (pick 2-3 — tomorrow's top setups):
+${watchlistSTier}
+Look for: reversal setups after red days, gap plays, support bounces.
+
+📊 A-TIER (pick 1-2):
+${watchlistATier}
+
+🎰 PENNY/LOTTO (pick 0-1 for asymmetric risk):
+${pennyTickers}
+
+🎯 INDEX (pick 1): ${indexTickers} — prep for tomorrow's 0DTE or weekly swing.
+
+TIMEFRAME MIX FOR TOMORROW:
+- 2 ideas: Weekly options (3-7 DTE) on S-tier tickers with reversal or breakout setup
+- 1 idea: Swing play (2-4 weeks) on A-tier name
+- 1 idea: Index play (SPY/QQQ weekly)
+
+CORRELATION: ${correlationContext}.
+Focus on tickers that closed red today — reversal after -3%+ red day is the highest win rate setup.${macroContext}`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
 
@@ -335,6 +352,13 @@ At least HALF of ideas should be options plays on high-vol names. These are the 
       const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
 
       for (const aiIdea of aiIdeas) {
+        // 🚫 Skip tickers on the SKIP LIST (proven money losers)
+        if (SKIP_TICKERS.has(aiIdea.symbol.toUpperCase())) {
+          logger.warn(`🚫 [AUTO-GEN] BLOCKED ${aiIdea.symbol} — on skip list (loses money)`);
+          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'On skip list — proven loser' });
+          continue;
+        }
+
         // 🚫 Skip if symbol already has an open AI-generated trade
         if (existingOpenAiSymbols.has(aiIdea.symbol.toUpperCase())) {
           logger.info(`⏭️  [AUTO-GEN] Skipped ${aiIdea.symbol} - already has open AI trade`);
