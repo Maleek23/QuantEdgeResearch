@@ -188,90 +188,37 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
     // 2. Pick best option (skip if market closed)
     const option = optionAvailable ? await pickBestOption(symbol, direction, stockPrice) : null;
 
-    // 3. QuantEdge Validation — dual scoring (TV Score + QE Score)
-    // TV Score: from backtested strategy (base 85 for high confidence)
+    // 3. QuantEdge Validation — unified validator (TV signals never blocked, only scored)
     const confMap: Record<string, number> = { high: 85, medium: 75, low: 65 };
     let tvScore = confMap[confidence] || 80;
     if (signalType === 'reversal') tvScore = Math.min(95, tvScore + 5);
 
-    // QE Score: QuantEdge engine validates with real market data
-    let qeScore = 50; // neutral baseline
-    const qeChecks: string[] = [];
+    let qeScore = 50;
+    let qeVerdict = 'NEUTRAL';
+    let qeChecks: string[] = [];
 
     try {
-      // Check 1: Sector alignment — is the sector ETF moving with the trade?
-      const sectorMap: Record<string, string> = {
-        AAOI: 'SMH', KLAC: 'SMH', LRCX: 'SMH', MU: 'SMH', AMD: 'SMH', SMTC: 'SMH',
-        TSEM: 'SMH', AEHR: 'SMH', OLED: 'SMH', RMBS: 'SMH', MKSI: 'SMH', ARM: 'SMH',
-        CRCL: 'SMH', INTA: 'XLK', BILL: 'XLF', AFRM: 'XLF', SOFI: 'XLF', COIN: 'XLF',
-        WDC: 'SMH', LUNR: 'XLI', OKLO: 'XLE', HIMS: 'XLV', LLY: 'XLV',
-        TSLA: 'XLY', AVGO: 'SMH', NFLX: 'XLC', MARA: 'SMH', DDOG: 'XLK',
-      };
-      const sectorETF = sectorMap[symbol] || 'SPY';
-      const sectorQuote = await getTradierQuote(sectorETF).catch(() => null);
-      if (sectorQuote?.change_percentage !== undefined) {
-        const sectorPct = sectorQuote.change_percentage;
-        const sectorAligned = (direction === 'long' && sectorPct > 0) || (direction === 'short' && sectorPct < 0);
-        if (sectorAligned) {
-          qeScore += 15;
-          qeChecks.push(`Sector ${sectorETF} aligned (${sectorPct > 0 ? '+' : ''}${sectorPct.toFixed(1)}%)`);
-        } else {
-          qeScore -= 10;
-          qeChecks.push(`Sector ${sectorETF} opposing (${sectorPct > 0 ? '+' : ''}${sectorPct.toFixed(1)}%)`);
-        }
-      }
+      const { validateIdea } = await import('./unified-validator');
+      const validation = await validateIdea({
+        symbol,
+        direction,
+        source: 'tradingview',
+        entryPrice: stockPrice,
+        targetPrice: direction === 'long' ? stockPrice * 1.03 : stockPrice * 0.97,
+        stopLoss: direction === 'long' ? stockPrice * 0.985 : stockPrice * 1.015,
+        assetType: 'stock',
+        confidence: tvScore,
+      });
 
-      // Check 2: Volume — is the stock trading above average?
-      if (quote?.volume && quote?.average_volume) {
-        const volRatio = quote.volume / quote.average_volume;
-        if (volRatio >= 1.8) {
-          qeScore += 15;
-          qeChecks.push(`High volume ${volRatio.toFixed(1)}x avg`);
-        } else if (volRatio >= 1.3) {
-          qeScore += 5;
-          qeChecks.push(`Moderate volume ${volRatio.toFixed(1)}x`);
-        } else {
-          qeScore -= 5;
-          qeChecks.push(`Low volume ${volRatio.toFixed(1)}x — weak confirmation`);
-        }
-      }
-
-      // Check 3: Price action — prev day move (reversal after red = best setup)
-      if (quote?.change_percentage !== undefined) {
-        const prevPct = quote.change_percentage;
-        if (direction === 'long' && prevPct < -2) {
-          qeScore += 10;
-          qeChecks.push(`Reversal setup (prev ${prevPct.toFixed(1)}% red)`);
-        } else if (direction === 'short' && prevPct > 2) {
-          qeScore += 10;
-          qeChecks.push(`Breakdown setup (prev +${prevPct.toFixed(1)}% extended)`);
-        }
-      }
-
-      // Check 4: Options flow alignment (if flow data available)
-      try {
-        const { getSymbolDirectionality } = await import('./whale-flow-service');
-        const flowDir = await getSymbolDirectionality(symbol);
-        if (flowDir) {
-          const flowAligned = (direction === 'long' && flowDir.netDirection === 'BULLISH') ||
-                             (direction === 'short' && flowDir.netDirection === 'BEARISH');
-          if (flowAligned && flowDir.directionStrength > 30) {
-            qeScore += 10;
-            qeChecks.push(`Flow ${flowDir.netDirection} (${flowDir.directionStrength}% strength)`);
-          }
-        }
-      } catch {}
-
+      qeScore = validation.finalConfidence;
+      qeVerdict = validation.verdict;
+      qeChecks = validation.checks.map(c => `${c.passed ? '✓' : '✗'} ${c.name}: ${c.detail}`);
     } catch (e) {
-      logger.debug(`[TV-WEBHOOK] QE validation partial: ${e}`);
+      logger.debug(`[TV-WEBHOOK] Unified validation failed, using defaults: ${e}`);
     }
 
-    // Clamp QE score
-    qeScore = Math.max(20, Math.min(95, qeScore));
-
-    // Combined score: TV 60% weight + QE 40% weight
+    // Combined: TV 60% + QE 40% (TV never blocked)
     const combinedScore = Math.round(tvScore * 0.6 + qeScore * 0.4);
-    const qeVerdict = qeScore >= 70 ? 'CONFIRMED' : qeScore >= 50 ? 'NEUTRAL' : 'CAUTION';
 
     logger.info(`[TV-WEBHOOK] ${symbol} scores — TV: ${tvScore}, QE: ${qeScore} (${qeVerdict}), Combined: ${combinedScore}`);
     logger.info(`[TV-WEBHOOK] QE checks: ${qeChecks.join(' | ')}`);

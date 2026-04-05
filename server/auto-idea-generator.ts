@@ -556,6 +556,37 @@ Focus on tickers that closed red today — reversal after -3%+ red day is the hi
           finalConfidence = Math.min(100, 60 + confidenceBoost);
         }
 
+        // UNIFIED VALIDATION: sector, volume, VIX, time-of-day checks
+        try {
+          const { validateIdea } = await import('./unified-validator');
+          const validation = await validateIdea({
+            symbol: processedIdea.symbol,
+            direction: processedIdea.direction || 'long',
+            source: 'ai',
+            entryPrice,
+            targetPrice,
+            stopLoss,
+            assetType: processedIdea.assetType || 'stock',
+            confidence: finalConfidence,
+            signalCount: qualitySignals.length,
+          });
+
+          if (!validation.approved) {
+            logger.warn(`🚫 [AUTO-GEN] BLOCKED ${processedIdea.symbol} — ${validation.verdict}: ${validation.reasoning}`);
+            rejectedIdeas.push({ symbol: processedIdea.symbol, reason: `Validator: ${validation.verdict} — ${validation.reasoning}` });
+            continue;
+          }
+
+          // Use validated confidence and grade
+          finalConfidence = validation.finalConfidence;
+          calibrationRecommendation = validation.verdict === 'CONFIRMED' ? 'high_conviction' : calibrationRecommendation;
+          // Add validation checks to quality signals
+          validation.checks.filter(c => c.passed && c.score >= 8).forEach(c => qualitySignals.push(c.name + ': ' + c.detail));
+          logger.info(`✅ [AUTO-GEN] ${processedIdea.symbol} validated: ${validation.verdict} conf=${validation.finalConfidence} grade=${validation.grade}`);
+        } catch (valErr) {
+          logger.debug(`[AUTO-GEN] Validation skipped: ${valErr}`);
+        }
+
         // AI ideas: choose holding period based on confidence and catalyst type
         // High confidence (>= 65) → swing trade (more conviction = hold longer)
         // Intraday catalysts → day trade
