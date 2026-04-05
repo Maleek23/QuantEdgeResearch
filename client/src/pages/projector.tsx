@@ -57,8 +57,7 @@ interface WatchlistSetup {
 interface ProjectorData {
   timestamp: string;
   nextSession: string;
-  spy: ExpectedMove;
-  qqq: ExpectedMove;
+  expectedMoves: ExpectedMove[];
   bias: { direction: string; probability: number; factors: BiasCheck[] };
   sectors: SectorPulse[];
   watchlistSetups: WatchlistSetup[];
@@ -142,46 +141,32 @@ export default function Projector() {
           </div>
         ) : data ? (
           <>
-            {/* Expected Move + Bias */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* SPY Expected Move */}
-              <Card className="bg-slate-900/50 border-slate-800">
-                <CardContent className="p-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">SPY Expected Move ({timeframe})</div>
-                  <div className="text-2xl font-bold font-mono text-white mb-1">${data.spy.currentPrice.toFixed(2)}</div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-red-400 font-mono">${data.spy.lowerBound.toFixed(2)}</span>
-                    <div className="flex-1 h-2 rounded-full bg-slate-800 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
-                      <div className="absolute top-0 bottom-0 w-1 bg-white left-1/2 -translate-x-1/2" />
+            {/* Expected Moves — all index ETFs */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              {(data.expectedMoves || []).map((em) => (
+                <Card key={em.symbol} className="bg-slate-900/50 border-slate-800">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-white">{em.symbol}</span>
+                      <span className="text-[10px] text-slate-500">{timeframe}</span>
                     </div>
-                    <span className="text-xs text-emerald-400 font-mono">${data.spy.upperBound.toFixed(2)}</span>
-                  </div>
-                  <div className="text-xs text-slate-500 text-center">
-                    +/-{data.spy.expectedMovePct}% expected ({timeframe})
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* QQQ Expected Move */}
-              <Card className="bg-slate-900/50 border-slate-800">
-                <CardContent className="p-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">QQQ Expected Move ({timeframe})</div>
-                  <div className="text-2xl font-bold font-mono text-white mb-1">${data.qqq.currentPrice.toFixed(2)}</div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs text-red-400 font-mono">${data.qqq.lowerBound.toFixed(2)}</span>
-                    <div className="flex-1 h-2 rounded-full bg-slate-800 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
-                      <div className="absolute top-0 bottom-0 w-1 bg-white left-1/2 -translate-x-1/2" />
+                    <div className="text-lg font-bold font-mono text-white mb-1">${em.currentPrice.toFixed(2)}</div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-[10px] text-red-400 font-mono">${em.lowerBound.toFixed(0)}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-800 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-white left-1/2 -translate-x-1/2" />
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-mono">${em.upperBound.toFixed(0)}</span>
                     </div>
-                    <span className="text-xs text-emerald-400 font-mono">${data.qqq.upperBound.toFixed(2)}</span>
-                  </div>
-                  <div className="text-xs text-slate-500 text-center">
-                    +/-{data.qqq.expectedMovePct}% expected ({timeframe})
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="text-[10px] text-slate-500 text-center">+/-{em.expectedMovePct}%</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
 
+            {/* Directional Bias */}
+            <div className="grid grid-cols-1 gap-4">
               {/* Directional Bias */}
               <Card className={cn(
                 "border",

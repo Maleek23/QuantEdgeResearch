@@ -62,8 +62,7 @@ export interface WatchlistSetup {
 export interface ProjectorData {
   timestamp: string;
   nextSession: string; // "Monday Apr 7, 2026"
-  spy: ExpectedMove;
-  qqq: ExpectedMove;
+  expectedMoves: ExpectedMove[]; // SPY, QQQ, IWM, SPX, XSP
   bias: DirectionalBias;
   sectors: SectorPulse[];
   watchlistSetups: WatchlistSetup[];
@@ -409,13 +408,15 @@ async function computeWatchlistSetups(): Promise<WatchlistSetup[]> {
 export async function getProjectorData(timeframe: 'daily' | 'weekly' = 'daily'): Promise<ProjectorData> {
   logger.info(`[PROJECTOR] Computing ${timeframe} projection...`);
 
-  const [spy, qqq, bias, sectors, watchlistSetups] = await Promise.all([
-    computeExpectedMove('SPY', timeframe),
-    computeExpectedMove('QQQ', timeframe),
+  // Compute expected moves for all 5 index ETFs
+  const indexETFs = ['SPY', 'QQQ', 'IWM', 'DIA'];
+  const [expectedMovesRaw, bias, sectors, watchlistSetups] = await Promise.all([
+    Promise.all(indexETFs.map(sym => computeExpectedMove(sym, timeframe))),
     computeBias(),
     computeSectorPulse(),
     computeWatchlistSetups(),
   ]);
+  const expectedMoves = expectedMovesRaw.filter(Boolean) as ExpectedMove[];
 
   // Next session label
   const now = new Date();
@@ -438,8 +439,7 @@ export async function getProjectorData(timeframe: 'daily' | 'weekly' = 'daily'):
   return {
     timestamp: now.toISOString(),
     nextSession,
-    spy: spy || { symbol: 'SPY', currentPrice: 0, expectedMovePct: 0, upperBound: 0, lowerBound: 0, timeframe },
-    qqq: qqq || { symbol: 'QQQ', currentPrice: 0, expectedMovePct: 0, upperBound: 0, lowerBound: 0, timeframe },
+    expectedMoves,
     bias,
     sectors,
     watchlistSetups,
