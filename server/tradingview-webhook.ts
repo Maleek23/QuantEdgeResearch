@@ -207,7 +207,7 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
         WDC: 'SMH', LUNR: 'XLI', OKLO: 'XLE', HIMS: 'XLV', LLY: 'XLV',
         TSLA: 'XLY', AVGO: 'SMH', NFLX: 'XLC', MARA: 'SMH', DDOG: 'XLK',
       };
-      const sectorETF = sectorMap[sym] || 'SPY';
+      const sectorETF = sectorMap[symbol] || 'SPY';
       const sectorQuote = await getTradierQuote(sectorETF).catch(() => null);
       if (sectorQuote?.change_percentage !== undefined) {
         const sectorPct = sectorQuote.change_percentage;
@@ -251,7 +251,7 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
       // Check 4: Options flow alignment (if flow data available)
       try {
         const { getSymbolDirectionality } = await import('./whale-flow-service');
-        const flowDir = await getSymbolDirectionality(sym);
+        const flowDir = await getSymbolDirectionality(symbol);
         if (flowDir) {
           const flowAligned = (direction === 'long' && flowDir.netDirection === 'BULLISH') ||
                              (direction === 'short' && flowDir.netDirection === 'BEARISH');
@@ -273,7 +273,7 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
     const combinedScore = Math.round(tvScore * 0.6 + qeScore * 0.4);
     const qeVerdict = qeScore >= 70 ? 'CONFIRMED' : qeScore >= 50 ? 'NEUTRAL' : 'CAUTION';
 
-    logger.info(`[TV-WEBHOOK] ${sym} scores — TV: ${tvScore}, QE: ${qeScore} (${qeVerdict}), Combined: ${combinedScore}`);
+    logger.info(`[TV-WEBHOOK] ${symbol} scores — TV: ${tvScore}, QE: ${qeScore} (${qeVerdict}), Combined: ${combinedScore}`);
     logger.info(`[TV-WEBHOOK] QE checks: ${qeChecks.join(' | ')}`);
 
     // 4. Build trade idea
