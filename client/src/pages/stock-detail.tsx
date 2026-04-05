@@ -700,7 +700,7 @@ export default function StockDetailPage() {
                         </div>
                         <div>
                           <div className="text-xs text-slate-500 uppercase tracking-wider">QuantEdge Score</div>
-                          <div className="text-2xl font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 72}%</div>
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white">{analysisData?.overall?.score || '--'}%</div>
                           <div className={cn("text-sm font-semibold",
                             tier === 'S' || tier.startsWith('A') ? "text-teal-400" :
                             tier.startsWith('B') ? "text-cyan-400" : "text-amber-400"
@@ -710,24 +710,32 @@ export default function StockDetailPage() {
                         </div>
                       </div>
 
-                      {/* Center: Trade Levels */}
+                      {/* Center: Trade Levels — from real trade ideas, not fake calculations */}
                       <div className="flex-1 grid grid-cols-4 gap-3">
-                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
-                          <div className="text-xs text-slate-500">Entry Zone</div>
-                          <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${safeToFixed(safePrice * 0.98, 2)} - ${safeToFixed(safePrice, 2)}</div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
-                          <div className="text-xs text-slate-500">Target</div>
-                          <div className="text-sm font-mono font-bold text-teal-400">${safeToFixed(safePrice * 1.08, 2)} (+8%)</div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
-                          <div className="text-xs text-slate-500">Stop Loss</div>
-                          <div className="text-sm font-mono font-bold text-red-400">${safeToFixed(safePrice * 0.95, 2)} (-5%)</div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                          <div className="text-xs text-slate-500">Risk/Reward</div>
-                          <div className="text-sm font-bold text-teal-400">1 : 1.6</div>
-                        </div>
+                        {bestTradeIdea ? (
+                          <>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
+                              <div className="text-xs text-slate-500">Entry</div>
+                              <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${safeToFixed(bestTradeIdea.entryPrice, 2)}</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
+                              <div className="text-xs text-slate-500">Target</div>
+                              <div className="text-sm font-mono font-bold text-teal-400">${safeToFixed(bestTradeIdea.targetPrice, 2)}</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
+                              <div className="text-xs text-slate-500">Stop Loss</div>
+                              <div className="text-sm font-mono font-bold text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2)}</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
+                              <div className="text-xs text-slate-500">R:R</div>
+                              <div className="text-sm font-bold text-teal-400">{safeToFixed(bestTradeIdea.riskRewardRatio, 1)}:1</div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="col-span-4 p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] text-center">
+                            <div className="text-xs text-slate-500">No active trade setup — waiting for signal</div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -740,12 +748,12 @@ export default function StockDetailPage() {
                       {/* Compact Engine Badges - Click radar below for details */}
                       <div className="grid grid-cols-6 gap-2">
                         {[
-                          { name: 'Tech', grade: analysisData?.components?.technical?.grade || 'B-', color: 'cyan' },
-                          { name: 'Fund', grade: analysisData?.components?.fundamental?.grade || 'C-', color: 'emerald' },
-                          { name: 'Quant', grade: analysisData?.components?.quant?.grade || 'B-', color: 'amber' },
-                          { name: 'ML', grade: analysisData?.components?.ml?.grade || 'D', color: 'violet' },
-                          { name: 'Flow', grade: analysisData?.components?.flow?.grade || 'B+', color: 'rose' },
-                          { name: 'Sent', grade: analysisData?.components?.sentiment?.grade || 'C+', color: 'purple' },
+                          { name: 'Tech', grade: analysisData?.components?.technical?.grade, color: 'cyan' },
+                          { name: 'Fund', grade: analysisData?.components?.fundamental?.grade, color: 'emerald' },
+                          { name: 'Quant', grade: analysisData?.components?.quantitative?.grade, color: 'amber' },
+                          { name: 'ML', grade: analysisData?.components?.ml?.grade, color: 'violet' },
+                          { name: 'Flow', grade: analysisData?.components?.orderFlow?.grade, color: 'rose' },
+                          { name: 'Sent', grade: analysisData?.components?.sentiment?.grade, color: 'purple' },
                         ].map((engine) => {
                           const colorMap: Record<string, string> = {
                             cyan: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
@@ -756,9 +764,9 @@ export default function StockDetailPage() {
                             purple: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
                           };
                           return (
-                            <div key={engine.name} className={cn("p-2 rounded-lg border text-center", colorMap[engine.color])}>
+                            <div key={engine.name} className={cn("p-2 rounded-lg border text-center", engine.grade ? colorMap[engine.color] : 'bg-slate-500/5 border-slate-700/30 text-slate-600')}>
                               <div className="text-[10px] text-slate-400">{engine.name}</div>
-                              <div className="text-lg font-bold">{engine.grade}</div>
+                              <div className="text-lg font-bold">{engine.grade || '--'}</div>
                             </div>
                           );
                         })}
@@ -818,12 +826,12 @@ export default function StockDetailPage() {
                         {/* Data polygon */}
                         <polygon
                           points={[
-                            { score: analysisData?.components?.technical?.score || 42, label: 'Technical' },
-                            { score: analysisData?.components?.fundamental?.score || 48, label: 'Fundamental' },
-                            { score: analysisData?.components?.quant?.score || 62, label: 'Quant' },
-                            { score: analysisData?.components?.ml?.score || 38, label: 'ML' },
-                            { score: analysisData?.components?.flow?.score || 72, label: 'Flow' },
-                            { score: analysisData?.components?.sentiment?.score || 58, label: 'Sentiment' },
+                            { score: analysisData?.components?.technical?.score || 0, label: 'Technical' },
+                            { score: analysisData?.components?.fundamental?.score || 0, label: 'Fundamental' },
+                            { score: analysisData?.components?.quantitative?.score || 0, label: 'Quant' },
+                            { score: analysisData?.components?.ml?.score || 0, label: 'ML' },
+                            { score: analysisData?.components?.orderFlow?.score || 0, label: 'Flow' },
+                            { score: analysisData?.components?.sentiment?.score || 0, label: 'Sentiment' },
                           ].map((item, i) => {
                             const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
                             const r = (item.score / 100) * 80;
@@ -836,12 +844,12 @@ export default function StockDetailPage() {
 
                         {/* Data points */}
                         {[
-                          { score: analysisData?.components?.technical?.score || 42, color: 'cyan' },
-                          { score: analysisData?.components?.fundamental?.score || 48, color: 'emerald' },
-                          { score: analysisData?.components?.quant?.score || 62, color: 'amber' },
-                          { score: analysisData?.components?.ml?.score || 38, color: 'violet' },
-                          { score: analysisData?.components?.flow?.score || 72, color: 'rose' },
-                          { score: analysisData?.components?.sentiment?.score || 58, color: 'purple' },
+                          { score: analysisData?.components?.technical?.score || 0, color: 'cyan' },
+                          { score: analysisData?.components?.fundamental?.score || 0, color: 'emerald' },
+                          { score: analysisData?.components?.quantitative?.score || 0, color: 'amber' },
+                          { score: analysisData?.components?.ml?.score || 0, color: 'violet' },
+                          { score: analysisData?.components?.orderFlow?.score || 0, color: 'rose' },
+                          { score: analysisData?.components?.sentiment?.score || 0, color: 'purple' },
                         ].map((item, i) => {
                           const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
                           const r = (item.score / 100) * 80;
@@ -1036,20 +1044,14 @@ export default function StockDetailPage() {
                         <div
                           className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-500 to-emerald-400/50"
                           style={{
-                            width: `${Math.max(
-                              (analystData?.consensus?.strongBuy || 0) + (analystData?.consensus?.buy || 0),
-                              tier === 'S' || tier.startsWith('A') ? 65 : tier.startsWith('B') ? 55 : 40
-                            )}%`
+                            width: `${(analystData?.consensus?.strongBuy || 0) + (analystData?.consensus?.buy || 0)}%`
                           }}
                         />
                         {/* Bear section */}
                         <div
                           className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-red-500 to-red-400/50"
                           style={{
-                            width: `${Math.max(
-                              (analystData?.consensus?.strongSell || 0) + (analystData?.consensus?.sell || 0),
-                              tier === 'S' || tier.startsWith('A') ? 15 : tier.startsWith('B') ? 25 : 35
-                            )}%`
+                            width: `${(analystData?.consensus?.strongSell || 0) + (analystData?.consensus?.sell || 0)}%`
                           }}
                         />
                         {/* Center marker */}
