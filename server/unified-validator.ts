@@ -197,6 +197,57 @@ export async function validateIdea(input: ValidationInput): Promise<ValidationRe
     }
   } catch {}
 
+  // ── CHECK 8: Fundamental catalysts ───────────────────────────
+  try {
+    const { calculateCatalystScore } = await import('./catalyst-intelligence-service');
+    const catalystData = await calculateCatalystScore(symbol);
+
+    if (catalystData.catalystCount > 0) {
+      const catScore = catalystData.score;
+      if (catScore > 0 && direction === 'long') {
+        checks.push({ name: 'Catalyst', passed: true, score: Math.min(12, catScore), detail: `${catalystData.catalystCount} bullish catalysts — ${catalystData.summary}` });
+      } else if (catScore < 0 && direction === 'short') {
+        checks.push({ name: 'Catalyst', passed: true, score: Math.min(12, Math.abs(catScore)), detail: `${catalystData.catalystCount} bearish catalysts — ${catalystData.summary}` });
+      } else if (catScore > 0 && direction === 'short') {
+        checks.push({ name: 'Catalyst', passed: false, score: -8, detail: `Bullish catalysts detected but shorting — ${catalystData.summary}` });
+      } else if (catScore < 0 && direction === 'long') {
+        checks.push({ name: 'Catalyst', passed: false, score: -8, detail: `Bearish catalysts detected but going long — ${catalystData.summary}` });
+      }
+    }
+  } catch {}
+
+  // ── CHECK 9: Earnings proximity ─────────────────────────────
+  try {
+    const { shouldBlockSymbol } = await import('./earnings-service');
+    const earningsBlocked = await shouldBlockSymbol(symbol, false);
+    if (earningsBlocked) {
+      if (isTV) {
+        // TV signals: warn but don't block
+        checks.push({ name: 'Earnings', passed: false, score: -5, detail: 'Earnings within 2 days — IV crush risk' });
+      } else {
+        // AI/other: strong penalty
+        checks.push({ name: 'Earnings', passed: false, score: -12, detail: 'Earnings within 2 days — high risk of gap' });
+      }
+    }
+  } catch {}
+
+  // ── CHECK 10: Whale flow alignment ──────────────────────────
+  try {
+    const { getSymbolDirectionality } = await import('./whale-flow-service');
+    const flowDir = await getSymbolDirectionality(symbol);
+    if (flowDir && flowDir.whaleCount >= 3) {
+      const flowAligned = (direction === 'long' && flowDir.netDirection === 'BULLISH') ||
+                         (direction === 'short' && flowDir.netDirection === 'BEARISH');
+      if (flowAligned && flowDir.directionStrength > 40) {
+        checks.push({ name: 'Whale Flow', passed: true, score: 12, detail: `${flowDir.netDirection} flow (${flowDir.whaleCount} whales, ${flowDir.directionStrength}% strength)` });
+      } else if (flowAligned) {
+        checks.push({ name: 'Whale Flow', passed: true, score: 5, detail: `${flowDir.netDirection} flow (${flowDir.whaleCount} whales)` });
+      } else if (flowDir.directionStrength > 40) {
+        checks.push({ name: 'Whale Flow', passed: false, score: -8, detail: `${flowDir.netDirection} flow OPPOSING trade (${flowDir.directionStrength}% strength)` });
+      }
+    }
+  } catch {}
+
   // ── CALCULATE FINAL SCORE ───────────────────────────────────
   totalScore = checks.reduce((sum, c) => sum + c.score, 0);
 
