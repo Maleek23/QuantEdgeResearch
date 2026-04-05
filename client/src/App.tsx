@@ -35,7 +35,7 @@ import { lazyWithRetry } from "@/lib/lazy-import";
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
-const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
+const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
 const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
 const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
 const MarketPage = lazyWithRetry(() => import("@/pages/market"), "market");

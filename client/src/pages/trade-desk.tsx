@@ -3861,12 +3861,9 @@ export default function TradeDeskRedesigned() {
               </div>
             )}
 
-            {/* Quick Signal Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Market Movers - What's moving today */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <MarketMoversCard />
-              <SurgeDetectionCard />
-              <ConvergenceSignalsCard />
-              <HotSymbolsCard />
             </div>
 
             {/* All Trade Ideas List */}
@@ -3880,9 +3877,6 @@ export default function TradeDeskRedesigned() {
               serverDateFilter={serverDateFilter}
               onServerDateFilterChange={setServerDateFilter}
             />
-
-            {/* Index Lotto Scanner - High R:R plays on SPX/SPY/IWM/QQQ */}
-            <IndexLottoScanner />
           </TabsContent>
 
           {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
