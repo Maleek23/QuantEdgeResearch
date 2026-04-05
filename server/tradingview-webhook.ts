@@ -188,16 +188,98 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
     // 2. Pick best option (skip if market closed)
     const option = optionAvailable ? await pickBestOption(symbol, direction, stockPrice) : null;
 
-    // 3. Build confidence score
-    // TV signals from backtested strategy get high base confidence
+    // 3. QuantEdge Validation — dual scoring (TV Score + QE Score)
+    // TV Score: from backtested strategy (base 85 for high confidence)
     const confMap: Record<string, number> = { high: 85, medium: 75, low: 65 };
-    let confScore = confMap[confidence] || 80;
-    // Boost for reversal setups (highest WR in backtest)
-    if (signalType === 'reversal') confScore = Math.min(95, confScore + 5);
+    let tvScore = confMap[confidence] || 80;
+    if (signalType === 'reversal') tvScore = Math.min(95, tvScore + 5);
+
+    // QE Score: QuantEdge engine validates with real market data
+    let qeScore = 50; // neutral baseline
+    const qeChecks: string[] = [];
+
+    try {
+      // Check 1: Sector alignment — is the sector ETF moving with the trade?
+      const sectorMap: Record<string, string> = {
+        AAOI: 'SMH', KLAC: 'SMH', LRCX: 'SMH', MU: 'SMH', AMD: 'SMH', SMTC: 'SMH',
+        TSEM: 'SMH', AEHR: 'SMH', OLED: 'SMH', RMBS: 'SMH', MKSI: 'SMH', ARM: 'SMH',
+        CRCL: 'SMH', INTA: 'XLK', BILL: 'XLF', AFRM: 'XLF', SOFI: 'XLF', COIN: 'XLF',
+        WDC: 'SMH', LUNR: 'XLI', OKLO: 'XLE', HIMS: 'XLV', LLY: 'XLV',
+        TSLA: 'XLY', AVGO: 'SMH', NFLX: 'XLC', MARA: 'SMH', DDOG: 'XLK',
+      };
+      const sectorETF = sectorMap[sym] || 'SPY';
+      const sectorQuote = await getTradierQuote(sectorETF).catch(() => null);
+      if (sectorQuote?.change_percentage !== undefined) {
+        const sectorPct = sectorQuote.change_percentage;
+        const sectorAligned = (direction === 'long' && sectorPct > 0) || (direction === 'short' && sectorPct < 0);
+        if (sectorAligned) {
+          qeScore += 15;
+          qeChecks.push(`Sector ${sectorETF} aligned (${sectorPct > 0 ? '+' : ''}${sectorPct.toFixed(1)}%)`);
+        } else {
+          qeScore -= 10;
+          qeChecks.push(`Sector ${sectorETF} opposing (${sectorPct > 0 ? '+' : ''}${sectorPct.toFixed(1)}%)`);
+        }
+      }
+
+      // Check 2: Volume — is the stock trading above average?
+      if (quote?.volume && quote?.average_volume) {
+        const volRatio = quote.volume / quote.average_volume;
+        if (volRatio >= 1.8) {
+          qeScore += 15;
+          qeChecks.push(`High volume ${volRatio.toFixed(1)}x avg`);
+        } else if (volRatio >= 1.3) {
+          qeScore += 5;
+          qeChecks.push(`Moderate volume ${volRatio.toFixed(1)}x`);
+        } else {
+          qeScore -= 5;
+          qeChecks.push(`Low volume ${volRatio.toFixed(1)}x — weak confirmation`);
+        }
+      }
+
+      // Check 3: Price action — prev day move (reversal after red = best setup)
+      if (quote?.change_percentage !== undefined) {
+        const prevPct = quote.change_percentage;
+        if (direction === 'long' && prevPct < -2) {
+          qeScore += 10;
+          qeChecks.push(`Reversal setup (prev ${prevPct.toFixed(1)}% red)`);
+        } else if (direction === 'short' && prevPct > 2) {
+          qeScore += 10;
+          qeChecks.push(`Breakdown setup (prev +${prevPct.toFixed(1)}% extended)`);
+        }
+      }
+
+      // Check 4: Options flow alignment (if flow data available)
+      try {
+        const { getSymbolDirectionality } = await import('./whale-flow-service');
+        const flowDir = await getSymbolDirectionality(sym);
+        if (flowDir) {
+          const flowAligned = (direction === 'long' && flowDir.netDirection === 'BULLISH') ||
+                             (direction === 'short' && flowDir.netDirection === 'BEARISH');
+          if (flowAligned && flowDir.directionStrength > 30) {
+            qeScore += 10;
+            qeChecks.push(`Flow ${flowDir.netDirection} (${flowDir.directionStrength}% strength)`);
+          }
+        }
+      } catch {}
+
+    } catch (e) {
+      logger.debug(`[TV-WEBHOOK] QE validation partial: ${e}`);
+    }
+
+    // Clamp QE score
+    qeScore = Math.max(20, Math.min(95, qeScore));
+
+    // Combined score: TV 60% weight + QE 40% weight
+    const combinedScore = Math.round(tvScore * 0.6 + qeScore * 0.4);
+    const qeVerdict = qeScore >= 70 ? 'CONFIRMED' : qeScore >= 50 ? 'NEUTRAL' : 'CAUTION';
+
+    logger.info(`[TV-WEBHOOK] ${sym} scores — TV: ${tvScore}, QE: ${qeScore} (${qeVerdict}), Combined: ${combinedScore}`);
+    logger.info(`[TV-WEBHOOK] QE checks: ${qeChecks.join(' | ')}`);
 
     // 4. Build trade idea
     const now = new Date();
-    const catalyst = payload.message || `TradingView ${strategy} ${signalType} signal on ${symbol}`;
+    const qeNote = qeChecks.length > 0 ? ` | QE: ${qeVerdict} — ${qeChecks.join(', ')}` : '';
+    const catalyst = (payload.message || `TradingView ${strategy} ${signalType} signal on ${symbol}`) + qeNote;
     const isOption = !!option;
 
     const idea: any = {
@@ -210,14 +292,14 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
       riskRewardRatio: isOption ? option!.riskRewardRatio : 2.0,
       catalyst,
       analysis: isOption
-        ? `${strategy.toUpperCase()} ${signalType} signal. ${option!.optionType.toUpperCase()} $${option!.strikePrice} (delta: ${option!.delta}, IV: ${(option!.iv * 100).toFixed(0)}%) exp ${option!.expiryDate}. Entry: $${option!.entryPremium}, Target: $${option!.targetPremium}${option!.isLotto ? ' — LOTTO PLAY' : ''}.`
-        : `${strategy.toUpperCase()} ${signalType} signal at $${stockPrice.toFixed(2)}. ${payload.message || ''}`,
+        ? `${strategy.toUpperCase()} ${signalType} signal. ${option!.optionType.toUpperCase()} $${option!.strikePrice} (delta: ${option!.delta}, IV: ${(option!.iv * 100).toFixed(0)}%) exp ${option!.expiryDate}. Entry: $${option!.entryPremium}, Target: $${option!.targetPremium}${option!.isLotto ? ' — LOTTO PLAY' : ''}. TV:${tvScore} QE:${qeScore}(${qeVerdict})`
+        : `${strategy.toUpperCase()} ${signalType} signal at $${stockPrice.toFixed(2)}. TV:${tvScore} QE:${qeScore}(${qeVerdict}). ${payload.message || ''}`,
       sessionContext: `TradingView ${strategy} ${payload.timeframe || '15'}min`,
       timestamp: now.toISOString(),
       source: 'tradingview',
       status: 'published',
-      confidenceScore: confScore,
-      probabilityBand: confScore >= 90 ? 'A+' : confScore >= 85 ? 'A' : confScore >= 80 ? 'B+' : 'B',
+      confidenceScore: combinedScore,
+      probabilityBand: combinedScore >= 90 ? 'A+' : combinedScore >= 85 ? 'A' : combinedScore >= 80 ? 'B+' : combinedScore >= 70 ? 'B' : 'B-',
       visibility: 'private',
       isLottoPlay: isOption ? option!.isLotto : false,
       tradeType: isOption && option!.isLotto ? 'lotto' : 'swing',
