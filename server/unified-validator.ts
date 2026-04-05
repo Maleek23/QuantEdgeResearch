@@ -64,6 +64,7 @@ const SECTOR_MAP: Record<string, string> = {
   LUNR: 'XLI', OKLO: 'XLE', HIMS: 'XLV', LLY: 'XLV',
   TSLA: 'XLY', NFLX: 'XLC', SHOP: 'XLY', DKNG: 'XLY',
   MARA: 'SMH', MSTR: 'SMH',
+  LITE: 'SMH', FN: 'SMH', CIEN: 'SMH', AXTI: 'SMH', // Optics/photonics
 };
 
 // ═══════════════════════════════════════════════════════════════

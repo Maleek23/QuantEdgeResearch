@@ -22,8 +22,8 @@ export const WATCHLIST_TIERS: Record<string, 'S' | 'A' | 'INDEX' | 'NEW'> = {
   // Index ETFs
   SPY: 'INDEX', QQQ: 'INDEX', IWM: 'INDEX', XSP: 'INDEX',
 
-  // New finds (optics/photonics sector)
-  ALGM: 'NEW', COHR: 'NEW',
+  // Optics/photonics peers (moves with AAOI)
+  ALGM: 'NEW', COHR: 'NEW', LITE: 'A', FN: 'A', CIEN: 'A', AXTI: 'NEW',
 };
 
 export const ALL_WATCHLIST_SYMBOLS = Object.keys(WATCHLIST_TIERS);

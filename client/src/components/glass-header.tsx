@@ -26,6 +26,7 @@ import {
   Infinity,
   Crosshair,
   Zap,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const moreToolItems: NavTab[] = [
   { label: "SPX Command", href: "/spx", icon: BarChart3 },
   { label: "GEX", href: "/gex", icon: Crosshair },
   { label: "Flow Edge", href: "/flow", icon: Zap },
+  { label: "Projector", href: "/projector", icon: Target },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
 ];

@@ -6087,6 +6087,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // MARKET PROJECTOR — Next session outlook with probability zones
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/projector", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getCachedProjectorData } = await import("./market-projector");
+      const timeframe = (req.query.timeframe as string) === 'weekly' ? 'weekly' : 'daily';
+      const data = await getCachedProjectorData(timeframe);
+      res.json(data);
+    } catch (error) {
+      logger.error("[API] Projector error:", error);
+      res.status(500).json({ error: "Failed to compute projection" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // FLOW EDGE - Options flow scanner (Algo Edge equivalent)
   // ═══════════════════════════════════════════════════════════════
 

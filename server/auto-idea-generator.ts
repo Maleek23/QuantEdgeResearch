@@ -39,17 +39,17 @@ const WATCHLIST_A_TIER = [
   'HIMS', 'ONTO', 'ENTG', 'UPST', 'DUOL', 'PATH', 'MDB',
   'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN',
   'SOFI', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA',
+  'LITE', 'FN', 'CIEN', 'AXTI', // Optics/photonics peers of AAOI
 ];
 
 // Combined primary watchlist — AI MUST pick from these first
 const PRIMARY_WATCHLIST = [...WATCHLIST_S_TIER, ...WATCHLIST_A_TIER];
 
 // Secondary movers — fill remaining 1-2 ideas from top daily movers
-// These are high-vol sectors that catch new opportunities
 const SECONDARY_MOVERS = [
   'NVDA', 'AVGO', 'TSM', 'ASML', 'SMCI', 'MRVL', 'PLTR',
   'IONQ', 'RGTI', 'CRWD', 'ZS', 'ASTS', 'RKLB',
-  'RIOT', 'MSTR', 'ALGM', 'COHR', 'LITE', 'CIEN',
+  'RIOT', 'MSTR', 'ALGM', 'COHR',
 ];
 
 // SKIP LIST — lose money on strategy, NEVER suggest these
