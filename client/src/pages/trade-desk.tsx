@@ -2671,10 +2671,10 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
         "bg-[#111]/60 border-[#222]/50 overflow-hidden transition-all cursor-pointer",
         expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600 hover:-translate-y-0.5"
       )}
-      onClick={handleNavigate}
+      onClick={() => onViewDetails ? onViewDetails(idea) : handleNavigate()}
       data-testid={`trade-card-${idea.symbol}`}
     >
-      {/* Compact Card Content - Click navigates to full analysis */}
+      {/* Compact Card Content - Click opens detail modal */}
       <div className="p-4">
         {/* Header Row: Symbol + Direction Badge + Option Details + Confidence */}
         <div className="flex items-center justify-between mb-3">
