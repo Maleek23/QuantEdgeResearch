@@ -63,21 +63,19 @@ const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
 const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
-const PaperTrading = lazyWithRetry(() => import("@/pages/paper-trading"), "paper-trading");
-const WalletTracker = lazyWithRetry(() => import("@/pages/wallet-tracker"), "wallet-tracker");
-const CTTracker = lazyWithRetry(() => import("@/pages/ct-tracker"), "ct-tracker");
+// REMOVED — Paper Trading, Wallet Tracker, CT Tracker consolidated out
+// Redirects added below to prevent broken bookmarks
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
 const Features = lazyWithRetry(() => import("@/pages/features"), "features");
 const BacktestPage = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
 const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "market-scanner");
-const BullishTrends = lazyWithRetry(() => import("@/pages/bullish-trends"), "bullish-trends");
-// Dashboard deleted — redirects to /home
+// MERGED — Bullish Trends absorbed into Market Scanner
+// MERGED — Trading Engine absorbed into Performance
 const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
-const TradingEnginePage = lazyWithRetry(() => import("@/pages/trading-engine"), "trading-engine");
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
-const AionDashboard = lazyWithRetry(() => import("@/pages/aion-dashboard"), "aion-dashboard");
+// REMOVED — AION consolidated out, redirect added below
 const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
 const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
 const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis");
@@ -88,16 +86,16 @@ const OptionsAnalyzer = lazyWithRetry(() => import("@/pages/options-analyzer"), 
 const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "forgot-password");
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
 const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard"), "learning-dashboard");
-const DiscoverPage = lazyWithRetry(() => import("@/pages/discover"), "discover");
+// MERGED — Discover absorbed into Trade Desk
 const SmartMoneyPage = lazyWithRetry(() => import("@/pages/smart-money"), "smart-money");
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
-const SPXCommandCenter = lazyWithRetry(() => import("@/pages/spx-command-center"), "spx-command-center");
+// MERGED — SPX Command Center absorbed into Options Analyzer
 const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
 const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
-const CommandCenter = lazyWithRetry(() => import("@/pages/command"), "command");
+// MERGED — Command Center absorbed into Home
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -190,8 +188,9 @@ function Router() {
       <Route path="/command-center-v2">
         <Redirect to="/home" />
       </Route>
-      <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
-      <Route path="/aion" component={withBetaProtection(AionDashboard)} />
+      {/* MERGED: Trading Engine → Performance */}
+      <Route path="/trading-engine"><Redirect to="/performance" /></Route>
+      <Route path="/aion"><Redirect to="/home" /></Route>
       <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
       <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />
@@ -206,30 +205,25 @@ function Router() {
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
-      <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
-      <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
-      <Route path="/ct-tracker" component={withBetaProtection(CTTracker)} />
-      <Route path="/wsb-trending">
-        <Redirect to="/discover" />
-      </Route>
-      <Route path="/social-trends">
-        <Redirect to="/discover" />
-      </Route>
+      <Route path="/paper-trading"><Redirect to="/home" /></Route>
+      <Route path="/wallet-tracker"><Redirect to="/home" /></Route>
+      <Route path="/ct-tracker"><Redirect to="/home" /></Route>
+      <Route path="/wsb-trending"><Redirect to="/trade-desk" /></Route>
+      <Route path="/social-trends"><Redirect to="/trade-desk" /></Route>
       <Route path="/watchlist-bot">
         <Redirect to="/automations" />
       </Route>
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
-      <Route path="/smart-advisor">
-        <Redirect to="/trading-engine" />
-      </Route>
+      <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
       <Route path="/research">
         <Redirect to="/home" />
       </Route>
       {/* Stock detail is PUBLIC - visitors can browse and analyze any stock */}
       <Route path="/stock/:symbol" component={StockDetailPage} />
-      <Route path="/discover" component={withBetaProtection(DiscoverPage)} />
+      {/* MERGED: Discover → Trade Desk */}
+      <Route path="/discover"><Redirect to="/trade-desk" /></Route>
       <Route path="/market-movers">
         <Redirect to="/market" />
       </Route>
@@ -259,7 +253,8 @@ function Router() {
       <Route path="/swing-scanner">
         <Redirect to="/market-scanner" />
       </Route>
-      <Route path="/bullish-trends" component={withBetaProtection(BullishTrends)} />
+      {/* MERGED: Bullish Trends → Market Scanner */}
+      <Route path="/bullish-trends"><Redirect to="/market-scanner" /></Route>
       <Route path="/futures">
         <Redirect to="/trade-desk?tab=futures" />
       </Route>
@@ -336,18 +331,17 @@ function Router() {
       <Route path="/learning" component={NotFound} />
       <Route path="/risk" component={NotFound} />
       
-      {/* SPX Command Center - 0DTE Trading Hub */}
-      <Route path="/spx" component={withBetaProtection(SPXCommandCenter)} />
+      {/* MERGED: SPX Command Center → Options Analyzer */}
+      <Route path="/spx"><Redirect to="/options-analyzer" /></Route>
       {/* GEX Dashboard - Gamma Exposure Analysis */}
       <Route path="/gex" component={withBetaProtection(GEXDashboard)} />
       {/* Flow Edge - Options Flow Scanner */}
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
-      {/* Trade Desk v2 - Clean redesign */}
-      <Route path="/trade-desk-v2" component={withBetaProtection(TradeDeskV2)} />
-      {/* Command Center — unified market intelligence */}
-      <Route path="/command" component={withBetaProtection(CommandCenter)} />
-      {/* Redirects for old pages */}
-      <Route path="/projector" component={withBetaProtection(CommandCenter)} />
+      {/* Trade Desk v2 - redirects to main */}
+      <Route path="/trade-desk-v2"><Redirect to="/trade-desk" /></Route>
+      {/* MERGED: Command Center → Home */}
+      <Route path="/command"><Redirect to="/home" /></Route>
+      <Route path="/projector"><Redirect to="/home" /></Route>
 
       {/* Design System Test — admin only */}
       <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
@@ -383,11 +377,11 @@ function AuthHeader() {
   const userData = user as { email?: string; firstName?: string } | null;
   
   return (
-    <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-slate-800/50">
+    <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border/50">
       <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
         <span className="hidden lg:flex items-center gap-2 text-xs font-mono text-muted-foreground">
-          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-[var(--trade-bullish)] animate-pulse' : 'bg-red-500'}`} />
           {marketStatus.isOpen ? 'MARKET OPEN' : 'MARKET CLOSED'}
         </span>
       </div>
@@ -533,14 +527,14 @@ function AuroraContentWrapper() {
       className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10"
       style={{ marginLeft: `${railWidth}px` }}
     >
-      <header className="flex items-center justify-between h-12 px-6 border-b border-slate-800/20 backdrop-blur-md">
+      <header className="flex items-center justify-between h-12 px-6 border-b border-border/20 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs font-mono">
             <span className={cn(
               "h-2 w-2 rounded-full",
-              marketStatus.isOpen ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)] animate-pulse" : "bg-slate-500"
+              marketStatus.isOpen ? "bg-[var(--trade-bullish)] shadow-[0_0_8px_rgba(74,222,128,0.5)] animate-pulse" : "bg-muted-foreground"
             )} />
-            <span className="text-slate-400">
+            <span className="text-muted-foreground">
               {marketStatus.isOpen ? 'MARKET OPEN' : 'CLOSED'}
             </span>
           </div>
@@ -548,7 +542,7 @@ function AuroraContentWrapper() {
         <div className="flex items-center gap-3">
           {isAuthenticated && userData && (
             <>
-              <span className="text-xs font-mono text-slate-500">
+              <span className="text-xs font-mono text-muted-foreground">
                 {userData.email || userData.firstName || 'User'}
               </span>
               <Button 
@@ -556,7 +550,7 @@ function AuroraContentWrapper() {
                 size="sm"
                 onClick={handleLogout}
                 data-testid="button-logout"
-                className="gap-1.5 text-slate-400 hover:text-slate-200"
+                className="gap-1.5 text-muted-foreground hover:text-foreground/90"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -565,7 +559,7 @@ function AuroraContentWrapper() {
           <ThemeToggle />
         </div>
       </header>
-      <div className="flex-1 overflow-auto bg-slate-950/50">
+      <div className="flex-1 overflow-auto bg-card/50">
         <main className="min-h-full p-6">
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>

@@ -37,6 +37,7 @@ import {
   Bell,
 } from "lucide-react";
 import { useState } from "react";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 
 interface NavItem {
   id: string;
@@ -74,6 +75,12 @@ const navItems: NavItem[] = [
     href: "/chart-analysis"
   },
   {
+    id: "flow",
+    title: "Flow Edge",
+    icon: Zap,
+    href: "/flow"
+  },
+  {
     id: "smart-money",
     title: "Smart Money",
     icon: Briefcase,
@@ -84,18 +91,6 @@ const navItems: NavItem[] = [
     title: "Watchlist",
     icon: Eye,
     href: "/watchlist"
-  },
-  {
-    id: "discover",
-    title: "Discover",
-    icon: Compass,
-    href: "/discover"
-  },
-  {
-    id: "academy",
-    title: "Academy",
-    icon: Search,
-    href: "/academy"
   },
   {
     id: "performance",
@@ -115,16 +110,19 @@ export function AppSidebar() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
-    <Sidebar className="border-r border-slate-800/50 bg-slate-950">
-      <SidebarHeader className="p-4 border-b border-slate-800/50">
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
         <Link href="/">
-          <div className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">Q</span>
+          <div className="flex items-center gap-2.5 cursor-pointer group">
+            <img src={quantEdgeLabsLogoUrl} alt="QuantEdge" className="h-7 w-7 object-contain" />
+            <div className="flex flex-col leading-none">
+              <span className="text-sm font-bold text-sidebar-foreground tracking-tight">
+                QuantEdge
+              </span>
+              <span className="text-[9px] font-medium text-sidebar-foreground/50 tracking-[0.15em] uppercase">
+                Labs
+              </span>
             </div>
-            <span className="font-semibold text-slate-100 group-hover:text-white transition-colors">
-              Quant Edge
-            </span>
           </div>
         </Link>
       </SidebarHeader>
@@ -144,18 +142,18 @@ export function AppSidebar() {
                       className={cn(
                         "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all",
                         isActive 
-                          ? "bg-cyan-500/10 text-cyan-400" 
-                          : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                          ? "bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]" 
+                          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                       )}
                       data-testid={`nav-${item.id}`}
                     >
                       <Link href={item.href}>
-                        <item.icon className="w-[18px] h-[18px]" />
-                        <span className="flex-1 text-sm font-medium">{item.title}</span>
+                        <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+                        <span className="flex-1 text-sm font-medium truncate">{item.title}</span>
                         {item.badge && (
                           <Badge 
                             variant="outline" 
-                            className="text-[10px] px-1.5 py-0 h-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                            className="text-[10px] px-1.5 py-0 h-4 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)] border-[var(--brand-cyan)]/30"
                           >
                             {item.badge}
                           </Badge>
@@ -173,22 +171,22 @@ export function AppSidebar() {
                   className={cn(
                     "w-full justify-start gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer",
                     historyOpen || location.startsWith("/history")
-                      ? "bg-slate-800/50 text-slate-100" 
-                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                      ? "bg-sidebar-accent/50 text-sidebar-foreground" 
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                   data-testid="nav-history"
                 >
                   <Clock className="w-[18px] h-[18px]" />
                   <span className="flex-1 text-sm font-medium">History</span>
                   {historyOpen ? (
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                    <ChevronDown className="w-4 h-4 text-sidebar-foreground/50" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                    <ChevronRight className="w-4 h-4 text-sidebar-foreground/50" />
                   )}
                 </SidebarMenuButton>
                 
                 {historyOpen && (
-                  <SidebarMenuSub className="mt-1 ml-6 border-l border-slate-800 pl-3">
+                  <SidebarMenuSub className="mt-1 ml-6 border-l border-sidebar-border pl-3">
                     {historyItems.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.href}>
                         <SidebarMenuSubButton
@@ -196,8 +194,8 @@ export function AppSidebar() {
                           className={cn(
                             "px-3 py-2 rounded-md text-sm transition-all",
                             location === subItem.href
-                              ? "text-cyan-400"
-                              : "text-slate-500 hover:text-slate-300"
+                              ? "text-[var(--brand-cyan)]"
+                              : "text-sidebar-foreground/50 hover:text-sidebar-foreground/80"
                           )}
                         >
                           <Link href={subItem.href}>
@@ -215,24 +213,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-slate-800/50">
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
         <Button
           variant="outline"
-          className="w-full justify-start gap-2 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+          className="w-full justify-start gap-2 border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
           asChild
         >
           <Link href="/upgrade">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Sparkles className="w-4 h-4 text-[var(--trade-neutral)]" />
             <span>Upgrade</span>
             <ArrowUpRight className="w-3 h-3 ml-auto" />
           </Link>
         </Button>
         
-        <div className="mt-3 flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-900/50">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
-            <Mail className="w-3 h-3 text-white" />
+        <div className="mt-3 flex items-center gap-2 px-2 py-2 rounded-lg bg-sidebar-accent/30">
+          <div className="w-6 h-6 rounded-full bg-[var(--brand-teal)]/15 flex items-center justify-center flex-shrink-0">
+            <Mail className="w-3 h-3 text-[var(--brand-teal)]" />
           </div>
-          <span className="text-xs text-slate-400 truncate flex-1">
+          <span className="text-xs text-sidebar-foreground/60 truncate flex-1 min-w-0">
             user@email.com
           </span>
         </div>
