@@ -967,8 +967,34 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
  * Generate and save a trade idea from any source
  * Includes database-level deduplication to prevent duplicate ideas
  */
+// WATCHLIST LOCK — only generate ideas for approved tickers
+const APPROVED_TICKERS = new Set([
+  // S-Tier
+  'AAOI','CRCL','OKLO','LUNR','KLAC','SMTC','AEHR','OLED','RMBS','BILL','INTA','MKSI',
+  // A-Tier
+  'LRCX','AFRM','WDC','MU','AMD','TSEM','COIN','ARM','HIMS','ONTO','ENTG','UPST',
+  'DUOL','PATH','MDB','AMBA','COHU','SNOW','NET','FRSH','ESTC','ACLS','ASAN',
+  'SOFI','DDOG','DELL','SHOP','DKNG','MARA','LITE','FN','CIEN','AXTI','BROS',
+  'NBIS','TSLA','AVGO','NFLX','COHR','ALGM',
+  // Index
+  'SPY','QQQ','IWM','XSP','DIA',
+  // Crypto
+  'BTC','ETH','SOL','DOGE',
+]);
+const SKIP_TICKERS = new Set(['AI','GLBE','TOST','CYBR','MNDY','GRAB','SE']);
+
 export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Promise<boolean> {
   const symbol = input.symbol.toUpperCase();
+
+  // WATCHLIST GATE: Block tickers not on approved list
+  if (!APPROVED_TICKERS.has(symbol)) {
+    logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
+    return false;
+  }
+  if (SKIP_TICKERS.has(symbol)) {
+    logger.debug(`[UNIVERSAL] Blocked ${symbol} — on skip list`);
+    return false;
+  }
 
   // DATABASE-LEVEL DEDUPLICATION: Check for recent idea with same symbol/direction
   try {
