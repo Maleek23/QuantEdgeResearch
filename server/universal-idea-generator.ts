@@ -739,16 +739,33 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       logger.debug(`[UNIVERSAL] Loss analyzer check skipped for ${input.symbol}`);
     }
     
-    // Fetch current price if not provided
-    let price = input.currentPrice;
-    if (!price) {
+    // Fetch FRESH price — never trust stale input price
+    let price = 0;
+    try {
       const quote = await getTradierQuote(input.symbol);
-      if (quote && quote.last) {
+      if (quote?.last && quote.last > 0) {
         price = quote.last;
-      } else {
-        logger.warn(`[UNIVERSAL] Could not fetch price for ${input.symbol}`);
-        return null;
       }
+    } catch {}
+    // Fallback: Yahoo Finance
+    if (!price) {
+      try {
+        const yahooRes = await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${input.symbol}?range=5d&interval=1d`, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+        });
+        if (yahooRes.ok) {
+          const yahooData = await yahooRes.json();
+          price = yahooData?.chart?.result?.[0]?.meta?.regularMarketPrice || 0;
+        }
+      } catch {}
+    }
+    // Last fallback: use input price
+    if (!price && input.currentPrice) {
+      price = input.currentPrice;
+    }
+    if (!price) {
+      logger.warn(`[UNIVERSAL] Could not fetch price for ${input.symbol}`);
+      return null;
     }
     
     // Ensure we have a valid price
@@ -869,9 +886,17 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.25;
       stopMultiplier = holdingPeriod === 'day' ? 0.95 : holdingPeriod === 'swing' ? 0.90 : 0.85;
     } else {
-      // STOCKS/FUTURES: Standard targets
-      targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.08 : 1.15;
-      stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
+      // STOCKS/FUTURES: ATR-aware targets (not fixed %)
+      // High-vol stocks (semis, optics) move 3-10% daily — need wider targets
+      // Low-vol stocks move 1-3% — tighter targets
+      const isHighVol = ['AAOI','SMTC','AEHR','LUNR','OKLO','IONQ','RGTI','TSLA','MARA','CLSK','RIOT','ARM'].includes(input.symbol);
+      if (isHighVol) {
+        targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.20;
+        stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
+      } else {
+        targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.08 : 1.15;
+        stopMultiplier = holdingPeriod === 'day' ? 0.98 : holdingPeriod === 'swing' ? 0.96 : 0.93;
+      }
     }
     
     const targetPrice = input.targetPrice || (
