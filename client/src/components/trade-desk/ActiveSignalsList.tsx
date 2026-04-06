@@ -35,7 +35,7 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-600">
+      <div className="flex items-center justify-center h-48 text-muted-foreground/70">
         <RefreshCw className="w-4 h-4 animate-spin mr-2" />
         Loading signals...
       </div>
@@ -44,17 +44,17 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
 
   if (ideas.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-slate-600">
+      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground/70">
         <Clock className="w-5 h-5 mb-2 opacity-40" />
         {isWeekend ? (
           <>
-            <p className="text-sm text-slate-500">Market closed — showing last week</p>
-            <p className="text-xs text-slate-600 mt-1">New signals generate Monday 9:30 AM CT</p>
+            <p className="text-sm text-muted-foreground">Market closed — showing last week</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">New signals generate Monday 9:30 AM CT</p>
           </>
         ) : (
           <>
-            <p className="text-sm text-slate-500">No signals yet today</p>
-            <p className="text-xs text-slate-600 mt-1">Next generation window coming up</p>
+            <p className="text-sm text-muted-foreground">No signals yet today</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Next generation window coming up</p>
           </>
         )}
       </div>
@@ -62,43 +62,45 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
   }
 
   return (
-    <div className="p-4">
-      {/* Sort toggle + count */}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-slate-300">{ideas.length} Trade Ideas</span>
-        <div className="flex items-center gap-1.5">
+    <div className="p-3">
+      {/* Sort toggle + count — compact toolbar */}
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-xs font-medium text-foreground/70 font-mono">
+          <span className="tabular-nums">{ideas.length}</span> Signals
+        </span>
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setSortMode('time')}
             className={cn(
-              "text-[11px] px-2.5 py-1 rounded-md transition-colors",
-              sortMode === 'time' ? "text-white bg-slate-700" : "text-slate-500 hover:text-slate-300"
+              "text-[10px] px-2 py-0.5 rounded-md transition-colors font-mono",
+              sortMode === 'time' ? "text-foreground bg-muted" : "text-muted-foreground hover:text-foreground/80"
             )}
           >
-            <Clock className="w-3 h-3 inline mr-1" />
+            <Clock className="w-2.5 h-2.5 inline mr-0.5" />
             Recent
           </button>
           <button
             onClick={() => setSortMode('confidence')}
             className={cn(
-              "text-[11px] px-2.5 py-1 rounded-md transition-colors",
-              sortMode === 'confidence' ? "text-white bg-slate-700" : "text-slate-500 hover:text-slate-300"
+              "text-[10px] px-2 py-0.5 rounded-md transition-colors font-mono",
+              sortMode === 'confidence' ? "text-foreground bg-muted" : "text-muted-foreground hover:text-foreground/80"
             )}
           >
-            <TrendingUp className="w-3 h-3 inline mr-1" />
+            <TrendingUp className="w-2.5 h-2.5 inline mr-0.5" />
             Best
           </button>
           <button
             onClick={() => onRefresh()}
-            className="text-slate-600 hover:text-slate-400 p-1.5 rounded-md hover:bg-slate-800/50"
+            className="text-muted-foreground/50 hover:text-muted-foreground p-1 rounded-md hover:bg-muted/40"
             title="Refresh"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {/* Cards grid — tighter gaps */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
         {visible.map((idea) => (
           <SignalCard key={idea.id || `${idea.symbol}-${idea.timestamp}`} idea={idea} />
         ))}
@@ -108,9 +110,9 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
       {!showAll && sorted.length > 12 && (
         <button
           onClick={() => setShowAll(true)}
-          className="w-full py-3 mt-4 text-xs text-slate-500 hover:text-slate-300 transition-colors rounded-lg hover:bg-slate-800/30"
+          className="w-full py-2 mt-3 text-[10px] text-muted-foreground hover:text-foreground/80 transition-colors rounded-md hover:bg-muted/20 font-mono"
         >
-          Show {sorted.length - 12} more ideas
+          +{sorted.length - 12} more
         </button>
       )}
     </div>

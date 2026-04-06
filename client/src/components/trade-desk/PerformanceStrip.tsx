@@ -19,55 +19,52 @@ export default function PerformanceStrip({ performance, closedTrades }: Props) {
 
   if (totalTrades === 0) {
     return (
-      <div className="px-3 py-4 border-t border-slate-800/40">
-        <span className="text-xs text-slate-600">No resolved trades yet — performance will show here</span>
+      <div className="px-3 py-4 border-t border-border/40">
+        <span className="text-xs text-muted-foreground/70">No resolved trades yet — performance will show here</span>
       </div>
     );
   }
 
   return (
-    <div className="border-t border-slate-800/40">
-      {/* Stats row */}
-      <div className="px-3 py-3 flex items-center gap-4 text-xs">
-        <div>
-          <span className="text-slate-500">Win Rate </span>
+    <div className="border-t border-border/40">
+      {/* Stats row — data-strip style */}
+      <div className="data-strip mx-2 my-2">
+        <div className="data-strip-item">
+          <span className="data-strip-label">WR</span>
           <span className={cn(
-            "font-bold font-mono",
-            winRate >= 55 ? "text-emerald-400" : winRate >= 45 ? "text-amber-400" : "text-red-400"
+            "data-strip-value",
+            winRate >= 55 ? "text-[var(--trade-bullish)]" : winRate >= 45 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
           )}>
             {winRate}%
           </span>
         </div>
-        <span className="text-slate-800">|</span>
-        <div>
-          <span className="text-slate-500">PF </span>
+        <div className="data-strip-item">
+          <span className="data-strip-label">PF</span>
           <span className={cn(
-            "font-bold font-mono",
-            profitFactor >= 1.5 ? "text-emerald-400" : profitFactor >= 1 ? "text-amber-400" : "text-red-400"
+            "data-strip-value",
+            profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : profitFactor >= 1 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
           )}>
             {profitFactor}
           </span>
         </div>
-        <span className="text-slate-800">|</span>
-        <div className="text-slate-500">
-          <span className="text-emerald-400 font-mono">{wins}W</span>
-          {' / '}
-          <span className="text-red-400 font-mono">{losses}L</span>
-          <span className="text-slate-600"> ({totalTrades})</span>
+        <div className="data-strip-item">
+          <span className="text-[var(--trade-bullish)] font-mono font-semibold text-data-xs">{wins}W</span>
+          <span className="text-muted-foreground/40">/</span>
+          <span className="text-[var(--trade-bearish)] font-mono font-semibold text-data-xs">{losses}L</span>
         </div>
-        <span className="text-slate-800">|</span>
-        <div className="text-slate-500">
-          Avg <span className="text-emerald-400 font-mono">+{avgWinPct}%</span>
-          {' / '}
-          <span className="text-red-400 font-mono">{avgLossPct}%</span>
+        <div className="data-strip-item">
+          <span className="data-strip-label">Avg</span>
+          <span className="text-[var(--trade-bullish)] font-mono font-semibold text-data-xs">+{avgWinPct}%</span>
+          <span className="text-muted-foreground/40">/</span>
+          <span className="text-[var(--trade-bearish)] font-mono font-semibold text-data-xs">{avgLossPct}%</span>
         </div>
       </div>
 
-      {/* Recent closed */}
+      {/* Recent closed — compact chips */}
       {closedTrades.length > 0 && (
-        <div className="px-3 pb-3">
-          <span className="text-[10px] text-slate-600 uppercase tracking-wider">Recent Closed</span>
-          <div className="flex flex-wrap gap-2 mt-1.5">
+        <div className="px-2 pb-2">
+          <span className="text-[8px] text-muted-foreground/60 uppercase tracking-[0.1em] font-mono">Recent</span>
+          <div className="flex flex-wrap gap-1 mt-1">
             {closedTrades.slice(0, 8).map((trade) => {
               const isWin = (trade as any).outcomeStatus === 'hit_target';
               const pct = (trade as any).percentGain;
@@ -75,11 +72,11 @@ export default function PerformanceStrip({ performance, closedTrades }: Props) {
                 <span
                   key={trade.id}
                   className={cn(
-                    "text-[11px] font-mono px-1.5 py-0.5 rounded",
-                    isWin ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                    "text-[10px] font-mono tabular-nums px-1 py-0 rounded",
+                    isWin ? "bg-emerald-500/10 text-[var(--trade-bullish)]" : "bg-red-500/10 text-[var(--trade-bearish)]"
                   )}
                 >
-                  {isWin ? '+' : ''}{pct ? `${pct > 0 ? '+' : ''}${Number(pct).toFixed(0)}%` : ''} {trade.symbol}
+                  {pct ? `${pct > 0 ? '+' : ''}${Number(pct).toFixed(0)}%` : ''} {trade.symbol}
                 </span>
               );
             })}

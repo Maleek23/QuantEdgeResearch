@@ -31,9 +31,20 @@ export default {
         'safe-right': 'env(safe-area-inset-right)',
       },
       borderRadius: {
-        lg: ".5625rem", /* 9px */
+        lg: ".5rem", /* 8px — slightly tighter */
         md: ".375rem", /* 6px */
         sm: ".1875rem", /* 3px */
+      },
+      fontSize: {
+        /** Data-dense micro sizes for Bloomberg-style layouts */
+        'micro': ['0.5625rem', { lineHeight: '0.875rem' }],   /* 9px — metric labels */
+        'data-xs': ['0.6875rem', { lineHeight: '1rem' }],     /* 11px — table cells */
+        'data-sm': ['0.75rem', { lineHeight: '1.125rem' }],   /* 12px — stat values */
+        'data-base': ['0.8125rem', { lineHeight: '1.25rem' }], /* 13px — body data */
+        'data-lg': ['0.9375rem', { lineHeight: '1.375rem' }], /* 15px — emphasized */
+        'price-sm': ['1rem', { lineHeight: '1.25rem', letterSpacing: '-0.02em' }],
+        'price-md': ['1.25rem', { lineHeight: '1.5rem', letterSpacing: '-0.02em' }],
+        'price-lg': ['1.5rem', { lineHeight: '1.75rem', letterSpacing: '-0.03em' }],
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -101,14 +112,14 @@ export default {
           border: "var(--sidebar-accent-border)"
         },
         status: {
-          online: "rgb(34 197 94)",
-          away: "rgb(245 158 11)",
-          busy: "rgb(239 68 68)",
+          online: "var(--trade-bullish)",
+          away: "var(--trade-neutral)",
+          busy: "var(--trade-bearish)",
           offline: "rgb(156 163 175)",
         },
-        bullish: "hsl(142 76% 45%)",
-        bearish: "hsl(0 72% 55%)",
-        neutral: "hsl(45 93% 58%)",
+        bullish: "var(--trade-bullish)",
+        bearish: "var(--trade-bearish)",
+        neutral: "var(--trade-neutral)",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

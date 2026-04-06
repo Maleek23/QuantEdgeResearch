@@ -443,3 +443,84 @@ export function safeCurrency(value: any, fallback: string = '$0.00'): string {
   if (num === 0 && (value === null || value === undefined)) return fallback;
   return formatCurrency(num);
 }
+
+// ============================================
+// UNIFIED DATA FORMATTING — Bloomberg density
+// Single source of truth for all numerical display.
+// Every number on the platform should go through one of these.
+// ============================================
+
+/**
+ * Format market cap with T/B/M/K suffix
+ */
+export function formatMarketCap(value: number | null | undefined): string {
+  const num = safeNumber(value);
+  if (num === 0) return '--';
+  if (num >= 1_000_000_000_000) return `$${(num / 1_000_000_000_000).toFixed(2)}T`;
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(0)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`;
+  return `$${num.toFixed(0)}`;
+}
+
+/**
+ * Format risk:reward ratio — "2.3:1" style
+ */
+export function formatRR(entry: number, target: number, stop: number): string {
+  const risk = Math.abs(entry - stop);
+  if (risk === 0) return '--';
+  const reward = Math.abs(target - entry);
+  return `${(reward / risk).toFixed(1)}:1`;
+}
+
+/**
+ * Compact relative time — "2m" / "3h" / "1d" / "2w"
+ */
+export function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '--';
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'now';
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w`;
+}
+
+/**
+ * Format compact volume — "1.2M" style (fewer decimals than formatVolume)
+ */
+export function formatVolumeCompact(volume: number | null | undefined): string {
+  const num = safeNumber(volume);
+  if (num === 0) return '--';
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`;
+  return num.toFixed(0);
+}
+
+/**
+ * Format price change with color class — returns { text, className }
+ * Use for consistent bullish/bearish/neutral display everywhere.
+ */
+export function formatPriceChange(value: number | null | undefined, decimals: number = 2): {
+  text: string;
+  className: string;
+  isPositive: boolean;
+} {
+  const num = safeNumber(value);
+  const isPositive = num >= 0;
+  return {
+    text: `${isPositive ? '+' : ''}${num.toFixed(decimals)}%`,
+    className: num > 0
+      ? 'text-[var(--trade-bullish)]'
+      : num < 0
+        ? 'text-[var(--trade-bearish)]'
+        : 'text-muted-foreground',
+    isPositive,
+  };
+}

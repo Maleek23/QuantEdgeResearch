@@ -45,92 +45,81 @@
   opacity: 0;
 }
 
-/* LIGHT MODE - Clean Modern Fintech Theme */
+/* ============================================================
+   QUANT EDGE LABS — UNIFIED DESIGN TOKENS
+   Single source of truth for both light and dark modes.
+
+   Architecture:
+   - index.css (this file) = CSS variables (THE source of truth)
+   - tailwind.config.ts    = references these variables
+   - design-tokens.ts      = Tailwind class-string API for components
+   ============================================================ */
+
+/* LIGHT MODE */
 :root {
+  /* --- Interaction overlays --- */
   --button-outline: rgba(0,0,0, .08);
   --badge-outline: rgba(0,0,0, .06);
-
-  /* Automatic computation of border around primary / danger buttons */
   --opaque-button-border-intensity: -8;
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(0,0,0, .04);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Pure white background for clean modern look */
+  /* --- Core palette --- */
   --background: 0 0% 100%;
-
-  /* Dark text for excellent readability */
   --foreground: 0 0% 9%;
-
-  /* Subtle borders */
   --border: 0 0% 90%;
 
-  /* White cards */
+  /* --- Cards --- */
   --card: 0 0% 100%;
-
   --card-foreground: 0 0% 9%;
-
   --card-border: 0 0% 92%;
 
-  /* Light sidebar */
+  /* --- Sidebar --- */
   --sidebar: 0 0% 98%;
-
   --sidebar-foreground: 0 0% 15%;
-
   --sidebar-border: 0 0% 92%;
-
-  /* Black primary for clean modern look */
   --sidebar-primary: 0 0% 9%;
-
   --sidebar-primary-foreground: 0 0% 100%;
-
   --sidebar-accent: 0 0% 96%;
-
   --sidebar-accent-foreground: 0 0% 20%;
-
   --sidebar-ring: 0 0% 50%;
 
+  /* --- Popover --- */
   --popover: 0 0% 100%;
-
   --popover-foreground: 0 0% 9%;
-
   --popover-border: 0 0% 92%;
 
-  /* Black primary buttons in light mode */
+  /* --- Actions --- */
   --primary: 0 0% 9%;
-
   --primary-foreground: 0 0% 100%;
-
-  /* Light gray secondary */
   --secondary: 0 0% 96%;
-
   --secondary-foreground: 0 0% 20%;
-
-  /* Subtle muted backgrounds */
   --muted: 0 0% 96%;
-
   --muted-foreground: 0 0% 45%;
-
-  /* Emerald accent for trading highlights */
   --accent: 160 84% 95%;
-
   --accent-foreground: 160 84% 30%;
-
-  /* Clear red for destructive actions */
   --destructive: 0 84% 60%;
-
   --destructive-foreground: 0 0% 100%;
 
+  /* --- Inputs --- */
   --input: 0 0% 92%;
   --ring: 0 0% 50%;
+
+  /* --- Chart palette --- */
   --chart-1: 160 84% 39%;
   --chart-2: 217 91% 60%;
   --chart-3: 45 93% 50%;
   --chart-4: 262 83% 58%;
   --chart-5: 0 84% 60%;
 
-  /* Light mode terminal colors */
+  /* --- Surface layers (panels, shells) --- */
+  --surface-base: #ffffff;
+  --surface-raised: #f8fafc;
+  --surface-overlay: rgba(255, 255, 255, 0.9);
+  --surface-glass: rgba(255, 255, 255, 0.8);
+  --surface-glass-border: rgba(0, 0, 0, 0.08);
+
+  /* --- Terminal / code blocks --- */
   --terminal-bg: #ffffff;
   --terminal-bg-secondary: #f8f8f8;
   --terminal-bg-tertiary: #f5f5f5;
@@ -140,7 +129,7 @@
   --terminal-text-secondary: #525252;
   --terminal-text-muted: #a3a3a3;
 
-  /* Trading colors - same in both modes */
+  /* --- Trading semantic colors (same both modes) --- */
   --trade-bullish: #10b981;
   --trade-bullish-bg: rgba(16, 185, 129, 0.1);
   --trade-bearish: #ef4444;
@@ -148,221 +137,182 @@
   --trade-neutral: #f59e0b;
   --trade-neutral-bg: rgba(245, 158, 11, 0.1);
 
+  /* --- AI / Confidence --- */
+  --ai-primary: #10b981;
+  --ai-secondary: #3b82f6;
+  --confidence-high: #10b981;
+  --confidence-medium: #3b82f6;
+  --confidence-low: #f59e0b;
+
+  /* --- Brand accents --- */
+  --brand-cyan: #22d3ee;
+  --brand-teal: #14b8a6;
+  --brand-blue: #3b82f6;
+  --brand-gold: #f59e0b;
+
+  /* --- Grade system --- */
+  --grade-s: #22d3ee;
+  --grade-a: #10b981;
+  --grade-b: #60a5fa;
+  --grade-c: #f59e0b;
+  --grade-d: #f97316;
+  --grade-f: #ef4444;
+
+  /* --- Glow effects (ambient orbs, status dots) --- */
+  --glow-cyan: rgba(34, 211, 238, 0.06);
+  --glow-blue: rgba(59, 130, 246, 0.05);
+  --glow-teal: rgba(20, 184, 166, 0.1);
+
+  /* --- Typography --- */
   --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
-  --radius: 0.875rem; /* 8px */
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 2px 4px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 4px 6px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 8px 10px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
-  --tracking-normal: 0em;
+  --font-mono: 'JetBrains Mono', 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
+
+  /* --- Layout --- */
+  --radius: 0.5rem;
   --spacing: 0.25rem;
+  --tracking-normal: 0em;
 
-  /* Automatically computed borders - intensity can be controlled by the user by the --opaque-button-border-intensity setting */
+  /* --- Shadows (light — minimal, flat) --- */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 12px -2px rgba(0, 0, 0, 0.08), 0 3px 7px -3px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 24px -4px rgba(0, 0, 0, 0.1), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 20px 40px -6px rgba(0, 0, 0, 0.12), 0 12px 24px -8px rgba(0, 0, 0, 0.08);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 
-  /* Fallback for older browsers */
+  /* --- Auto-computed borders --- */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --sidebar-accent-border: hsl(var(--sidebar-accent));
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --primary-border: hsl(var(--primary));
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --secondary-border: hsl(var(--secondary));
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --muted-border: hsl(var(--muted));
   --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --accent-border: hsl(var(--accent));
   --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  /* Fallback for older browsers */
   --destructive-border: hsl(var(--destructive));
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+/* DARK MODE */
 .dark {
+  /* --- Interaction overlays --- */
   --button-outline: rgba(255,255,255, .08);
   --badge-outline: rgba(255,255,255, .06);
-
   --opaque-button-border-intensity: 8;
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .08);
 
-  /* ========================================
-     CLEAN DARK DESIGN SYSTEM
-     Matches landing page aesthetic
-     ======================================== */
-
-  /* Core Colors - Super dark */
-  --accent-blue: #3b82f6;
-  --accent-blue-light: #60a5fa;
-  --bg-glass: rgba(10, 10, 10, 0.8);
-  --border-glass: rgba(34, 34, 34, 0.8);
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #525252;
-  --danger-red: #ef4444;
-  --success-green: #10b981;
-  --warning-amber: #f59e0b;
-
-  /* Glassmorphism Colors */
-  --glass-blue: 217 91% 60%;
-  --glass-blue-rgb: 59, 130, 246;
-  --glass-purple: 263 70% 76%;
-  --glass-purple-rgb: 167, 139, 250;
-  --glass-border: rgba(34, 34, 34, 1);
-  --glass-border-hover: rgba(51, 51, 51, 1);
-
-  /* Background - True dark #0a0a0a */
+  /* --- Core palette (OLED-friendly near-black) --- */
   --background: 0 0% 4%;
-
   --foreground: 0 0% 100%;
-
-  /* Border - Subtle dark gray #222 */
   --border: 0 0% 13%;
 
-  /* Card backgrounds - #111 */
+  /* --- Cards --- */
   --card: 0 0% 7%;
-
   --card-foreground: 0 0% 96%;
-
   --card-border: 0 0% 13%;
 
-  /* Sidebar - #0d0d0d */
+  /* --- Sidebar --- */
   --sidebar: 0 0% 5%;
-
   --sidebar-foreground: 0 0% 85%;
-
   --sidebar-border: 0 0% 10%;
-
   --sidebar-primary: 0 0% 100%;
-
   --sidebar-primary-foreground: 0 0% 0%;
-
   --sidebar-accent: 0 0% 10%;
-
   --sidebar-accent-foreground: 0 0% 70%;
-
   --sidebar-ring: 0 0% 50%;
 
+  /* --- Popover --- */
   --popover: 0 0% 7%;
-
   --popover-foreground: 0 0% 96%;
-
   --popover-border: 0 0% 15%;
 
-  /* White primary for actions (like landing page buttons) */
+  /* --- Actions --- */
   --primary: 0 0% 100%;
-
   --primary-foreground: 0 0% 0%;
-
-  /* Subtle secondary */
   --secondary: 0 0% 11%;
-
   --secondary-foreground: 0 0% 80%;
-
-  /* Muted backgrounds */
   --muted: 0 0% 10%;
-
   --muted-foreground: 0 0% 45%;
-
-  /* Emerald accent for trading */
   --accent: 160 84% 39%;
-
   --accent-foreground: 0 0% 100%;
-
   --destructive: 0 84% 60%;
-
   --destructive-foreground: 0 0% 100%;
 
+  /* --- Inputs --- */
   --input: 0 0% 11%;
   --ring: 160 84% 39%;
+
+  /* --- Chart palette --- */
   --chart-1: 217 91% 60%;
   --chart-2: 142 71% 55%;
   --chart-3: 45 93% 58%;
   --chart-4: 0 84% 60%;
   --chart-5: 263 70% 60%;
 
-  --shadow-2xs: 0px 1px 2px 0px hsl(222 47% 2% / 0.3);
-  --shadow-xs: 0px 1px 3px 0px hsl(222 47% 2% / 0.4);
-  --shadow-sm: 0px 2px 4px -1px hsl(222 47% 2% / 0.4), 0px 1px 3px -1px hsl(222 47% 2% / 0.3);
-  --shadow: 0px 4px 6px -1px hsl(222 47% 2% / 0.5), 0px 2px 4px -1px hsl(222 47% 2% / 0.3);
-  --shadow-md: 0px 6px 12px -2px hsl(222 47% 2% / 0.5), 0px 3px 7px -3px hsl(222 47% 2% / 0.3);
-  --shadow-lg: 0px 10px 24px -4px hsl(222 47% 2% / 0.6), 0px 8px 16px -4px hsl(222 47% 2% / 0.4);
-  --shadow-xl: 0px 20px 40px -6px hsl(222 47% 2% / 0.7), 0px 12px 24px -8px hsl(222 47% 2% / 0.5);
-  --shadow-2xl: 0px 25px 50px -12px hsl(222 47% 2% / 0.8);
-  --radius: 0.625rem;
-  --spacing: 0.25rem;
-  --font-mono: 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
-  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-serif: Georgia, serif;
-  --tracking-normal: -0.01em;
+  /* --- Surface layers (panels, shells) --- */
+  --surface-base: #0a0a0b;
+  --surface-raised: #111113;
+  --surface-overlay: rgba(10, 10, 10, 0.8);
+  --surface-glass: rgba(10, 10, 10, 0.8);
+  --surface-glass-border: rgba(34, 34, 34, 0.8);
 
-  /* ========================================
-     CLEAN TERMINAL DESIGN SYSTEM
-     Matches landing page aesthetic
-     ======================================== */
-
-  /* Terminal Backgrounds - True dark */
+  /* --- Terminal / code blocks --- */
   --terminal-bg: #0a0a0a;
   --terminal-bg-secondary: #111111;
   --terminal-bg-tertiary: #0d0d0d;
-
-  /* Terminal Borders - Subtle */
   --terminal-border: #222222;
   --terminal-border-hover: #333333;
-
-  /* Terminal Text */
   --terminal-text: #ffffff;
   --terminal-text-secondary: #94a3b8;
   --terminal-text-muted: #525252;
 
-  /* Trading Colors - Emerald for bullish */
+  /* --- Trading semantic (same values, different bg opacity) --- */
   --trade-bullish: #10b981;
   --trade-bullish-bg: rgba(16, 185, 129, 0.15);
   --trade-bearish: #ef4444;
   --trade-bearish-bg: rgba(239, 68, 68, 0.15);
-
   --trade-neutral: #f59e0b;
   --trade-neutral-bg: rgba(245, 158, 11, 0.15);
 
-  /* AI/Confidence Colors */
+  /* --- AI / Confidence --- */
   --ai-primary: #10b981;
-  --ai-secondary: #10b981;
+  --ai-secondary: #3b82f6;
   --confidence-high: #10b981;
   --confidence-medium: #3b82f6;
   --confidence-low: #f59e0b;
-}
 
-/* ========================================
-   LIGHT MODE - CLEAN MINIMAL THEME
-   Inspired by modern SaaS/fintech designs
-   ======================================== */
-:root {
-  /* Light Terminal (for light mode pages) */
-  --terminal-light-bg: #ffffff;
-  --terminal-light-bg-secondary: #f8fafc;
-  --terminal-light-bg-tertiary: #f1f5f9;
-  --terminal-light-border: rgba(226, 232, 240, 0.8);
-  --terminal-light-text: #0f172a;
-  --terminal-light-text-secondary: #475569;
-  --terminal-light-text-muted: #94a3b8;
+  /* --- Glow effects (brighter in dark mode) --- */
+  --glow-cyan: rgba(34, 211, 238, 0.08);
+  --glow-blue: rgba(59, 130, 246, 0.06);
+  --glow-teal: rgba(20, 184, 166, 0.15);
+
+  /* --- Typography --- */
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Space Mono', Menlo, Monaco, 'Courier New', monospace;
+
+  /* --- Layout --- */
+  --radius: 0.5rem;
+  --spacing: 0.25rem;
+  --tracking-normal: -0.01em;
+
+  /* --- Shadows (dark — deeper, bluer) --- */
+  --shadow-2xs: 0 1px 2px hsl(222 47% 2% / 0.3);
+  --shadow-xs: 0 1px 3px hsl(222 47% 2% / 0.4);
+  --shadow-sm: 0 2px 4px -1px hsl(222 47% 2% / 0.4), 0 1px 3px -1px hsl(222 47% 2% / 0.3);
+  --shadow: 0 4px 6px -1px hsl(222 47% 2% / 0.5), 0 2px 4px -1px hsl(222 47% 2% / 0.3);
+  --shadow-md: 0 6px 12px -2px hsl(222 47% 2% / 0.5), 0 3px 7px -3px hsl(222 47% 2% / 0.3);
+  --shadow-lg: 0 10px 24px -4px hsl(222 47% 2% / 0.6), 0 8px 16px -4px hsl(222 47% 2% / 0.4);
+  --shadow-xl: 0 20px 40px -6px hsl(222 47% 2% / 0.7), 0 12px 24px -8px hsl(222 47% 2% / 0.5);
+  --shadow-2xl: 0 25px 50px -12px hsl(222 47% 2% / 0.8);
 }
 
 /* ========================================
@@ -734,6 +684,324 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* ========================================
+   BLOOMBERG × APPLE — DATA DENSITY SYSTEM
+   Premium trading terminal aesthetic with
+   Apple-level polish. Mono fonts for all
+   numerical data, tight spacing, glass panels
+   with accent borders.
+   ======================================== */
+
+/* Bloomberg-style data cell — tabular mono numbers */
+.data-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  letter-spacing: -0.02em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ticker symbol — tight, uppercase, slightly tracked */
+.ticker-font {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Stat row — horizontal key-value pair with dot leader */
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  border-bottom: 1px solid transparent;
+}
+
+.stat-row:not(:last-child) {
+  border-bottom-color: var(--surface-glass-border);
+}
+
+.stat-row .stat-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.stat-row .stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  text-align: right;
+}
+
+/* Bloomberg accent card — left-border color accent */
+.accent-card {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.accent-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px 0 0 2px;
+}
+
+.accent-card--cyan::before    { background: var(--brand-cyan); }
+.accent-card--teal::before    { background: var(--brand-teal); }
+.accent-card--gold::before    { background: var(--brand-gold); }
+.accent-card--bullish::before { background: var(--trade-bullish); }
+.accent-card--bearish::before { background: var(--trade-bearish); }
+.accent-card--blue::before    { background: var(--brand-blue); }
+.accent-card--s::before       { background: var(--grade-s); }
+.accent-card--a::before       { background: var(--grade-a); }
+
+/* Top accent bar variant */
+.accent-card-top::before {
+  top: 0; left: 0; right: 0;
+  width: auto; height: 2px;
+  bottom: auto;
+  border-radius: 0;
+}
+
+/* Bloomberg glass panel — tighter, data-dense */
+.bloomberg-panel {
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-glass-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.bloomberg-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--surface-glass-border);
+  background: var(--surface-raised);
+}
+
+.dark .bloomberg-panel .panel-header {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bloomberg-panel .panel-header .panel-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(var(--muted-foreground));
+}
+
+.bloomberg-panel .panel-body {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Compact data table — Bloomberg-density */
+.data-table-compact {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  border-collapse: collapse;
+}
+
+.data-table-compact th {
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--muted-foreground));
+  border-bottom: 1px solid hsl(var(--border));
+  white-space: nowrap;
+}
+
+.data-table-compact td {
+  padding: 0.3125rem 0.5rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  white-space: nowrap;
+}
+
+.data-table-compact tbody tr:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Price display — large mono with tabular alignment */
+.price-display {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.price-display-lg {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.price-display-md {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.price-display-sm {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* Inline change indicator — +2.45% style */
+.change-indicator {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.1875rem;
+}
+
+.change-indicator--up {
+  color: var(--trade-bullish);
+  background: var(--trade-bullish-bg);
+}
+
+.change-indicator--down {
+  color: var(--trade-bearish);
+  background: var(--trade-bearish-bg);
+}
+
+.change-indicator--flat {
+  color: var(--trade-neutral);
+  background: var(--trade-neutral-bg);
+}
+
+/* Mini sparkline container */
+.sparkline-cell {
+  display: inline-flex;
+  align-items: center;
+  height: 1.25rem;
+  width: 3.5rem;
+}
+
+/* Compact metric block — for dashboard stat grids */
+.metric-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background: hsl(var(--muted) / 0.3);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.metric-block .metric-label {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: hsl(var(--muted-foreground));
+  line-height: 1;
+}
+
+.metric-block .metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  line-height: 1.2;
+}
+
+/* Section chrome — thin panel header with mono label */
+.section-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.section-chrome::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: hsl(var(--border) / 0.5);
+}
+
+.section-chrome .section-label {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+/* Inset panel — nested data container */
+.inset-panel {
+  background: hsl(var(--muted) / 0.25);
+  border: 1px solid hsl(var(--border) / 0.4);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+.dark .inset-panel {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Horizontal data strip — for compact inline stats */
+.data-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 0.625rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem;
+  background: hsl(var(--muted) / 0.2);
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border) / 0.3);
+  overflow-x: auto;
+}
+
+.data-strip .data-strip-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.data-strip .data-strip-label {
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
+  font-size: 0.625rem;
+}
+
+.data-strip .data-strip-value {
+  color: hsl(var(--foreground));
+  font-weight: 600;
 }
 
 @layer base {

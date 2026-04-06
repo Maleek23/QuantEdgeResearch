@@ -6,7 +6,7 @@
  */
 
 import { Star, BarChart3, Target, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safePercent } from "@/lib/utils";
 import { getTier, type Timeframe } from "./constants";
 import type { WatchlistItem } from "./useTradeDeskData";
 
@@ -32,15 +32,15 @@ function TierSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="mb-4">
+    <div className="mb-3">
       <button
         onClick={() => onSelect(null)}
-        className="flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors w-full"
+        className="flex items-center gap-1 px-1.5 py-0.5 text-[8px] uppercase tracking-[0.1em] text-muted-foreground hover:text-foreground/80 transition-colors w-full font-mono font-semibold"
       >
-        <Icon className="w-3 h-3" />
+        <Icon className="w-2.5 h-2.5" />
         {label}
       </button>
-      <div className="space-y-0.5">
+      <div className="space-y-px">
         {items.map((item) => {
           const isSelected = selectedSymbol === item.symbol;
           const change = item.priceChangePercent || 0;
@@ -51,18 +51,18 @@ function TierSection({
               key={item.symbol}
               onClick={() => onSelect(isSelected ? null : item.symbol)}
               className={cn(
-                "flex items-center justify-between w-full px-2 py-1.5 rounded text-xs transition-all",
+                "flex items-center justify-between w-full px-1.5 py-1 rounded-sm text-data-xs transition-all",
                 isSelected
-                  ? "bg-slate-700/60 text-white"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  ? "bg-[var(--brand-teal)]/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
               )}
             >
-              <span className="font-mono font-medium">{item.symbol}</span>
+              <span className="font-mono font-semibold tracking-wider text-[11px]">{item.symbol}</span>
               <span className={cn(
-                "font-mono text-[11px]",
-                isUp ? "text-emerald-400" : "text-red-400"
+                "font-mono tabular-nums text-[10px]",
+                isUp ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
-                {isUp ? '+' : ''}{change.toFixed(1)}%
+                {safePercent(change, 1)}
               </span>
             </button>
           );
@@ -81,19 +81,19 @@ export default function WatchlistSidebar({ watchlist, selectedSymbol, onSelect }
   const other = watchlist.filter(w => !getTier(w.symbol));
 
   return (
-    <div className="w-56 shrink-0 border-r border-slate-800/60 overflow-y-auto h-[calc(100vh-4rem)] pr-1">
-      <div className="px-2 py-3">
-        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">
-          My Watchlist
-          <span className="ml-1.5 text-slate-600 font-normal">{watchlist.length}</span>
+    <div className="w-48 shrink-0 border-r border-border/50 overflow-y-auto h-[calc(100vh-3.5rem)] pr-0.5">
+      <div className="px-1.5 py-2">
+        <h3 className="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.12em] mb-2 font-mono px-1.5">
+          Watchlist
+          <span className="ml-1 text-muted-foreground/50 font-normal tabular-nums">{watchlist.length}</span>
         </h3>
 
         {selectedSymbol && (
           <button
             onClick={() => onSelect(null)}
-            className="text-[10px] text-cyan-400 hover:text-cyan-300 mb-2 block"
+            className="text-[9px] text-cyan-400 hover:text-cyan-300 mb-1.5 block font-mono px-1.5"
           >
-            Clear filter
+            Clear
           </button>
         )}
 

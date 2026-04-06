@@ -17,22 +17,22 @@ const TABS: Timeframe[] = ['0dte', 'weekly', 'swing', 'all'];
 
 export default function TimeframeTabs({ active, onChange, counts }: Props) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       {TABS.map((tf) => (
         <button
           key={tf}
           onClick={() => onChange(tf)}
           className={cn(
-            "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+            "px-2 py-1 rounded-md text-[10px] font-medium transition-all font-mono",
             active === tf
-              ? "bg-white/10 text-white ring-1 ring-white/20"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
+              ? "bg-foreground/10 text-foreground ring-1 ring-foreground/15"
+              : "text-muted-foreground hover:text-foreground/80 hover:bg-foreground/[0.04]"
           )}
         >
           {TIMEFRAME_LABELS[tf]}
           <span className={cn(
-            "ml-1.5 text-[10px]",
-            active === tf ? "text-slate-300" : "text-slate-600"
+            "ml-1 text-[9px] tabular-nums",
+            active === tf ? "text-foreground/70" : "text-muted-foreground/50"
           )}>
             {counts[tf]}
           </span>

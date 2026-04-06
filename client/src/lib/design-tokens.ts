@@ -1,178 +1,13 @@
 /**
- * QuantEdge Design System Tokens
+ * QuantEdge Design Tokens — Component Style API
  *
- * Visual identity: "Geometric Edge" - Sharp, precise, premium
- * Inspired by: Kompose.ai, Taskk, modern fintech
+ * This file provides Tailwind class strings for component variants.
+ * All colors reference CSS variables defined in index.css (the single source of truth).
+ *
+ * Usage:
+ *   import { componentStyles } from "@/lib/design-tokens";
+ *   <div className={componentStyles.card.default} />
  */
-
-// =============================================================================
-// COLORS
-// =============================================================================
-
-export const colors = {
-  // Backgrounds
-  bg: {
-    primary: '#0a0a0b',      // Near black - main background
-    secondary: '#0f0f10',    // Slightly lighter - sections
-    tertiary: '#141416',     // Card backgrounds
-  },
-
-  // Surfaces (cards, modals, dropdowns)
-  surface: {
-    1: 'rgba(15, 23, 42, 0.8)',      // slate-900/80 - primary cards
-    2: 'rgba(30, 41, 59, 0.5)',      // slate-800/50 - nested elements
-    3: 'rgba(51, 65, 85, 0.3)',      // slate-700/30 - hover states
-    glass: 'rgba(15, 23, 42, 0.6)',  // glassmorphism base
-  },
-
-  // Borders
-  border: {
-    default: 'rgba(51, 65, 85, 0.5)',   // slate-700/50
-    subtle: 'rgba(51, 65, 85, 0.3)',    // slate-700/30
-    hover: 'rgba(20, 184, 166, 0.3)',   // teal-500/30
-    active: 'rgba(20, 184, 166, 0.5)',  // teal-500/50
-  },
-
-  // Accent colors
-  accent: {
-    primary: '#14b8a6',      // teal-500 - main accent
-    secondary: '#06b6d4',    // cyan-500 - secondary accent
-    tertiary: '#3b82f6',     // blue-500 - tertiary
-    gold: '#f59e0b',         // amber-500 - premium/highlight
-  },
-
-  // Gradients (as CSS strings)
-  gradient: {
-    primary: 'linear-gradient(to right, #14b8a6, #06b6d4)',           // teal → cyan
-    secondary: 'linear-gradient(to right, #06b6d4, #3b82f6)',         // cyan → blue
-    premium: 'linear-gradient(to right, #14b8a6, #f59e0b)',           // teal → gold
-    surface: 'linear-gradient(to bottom right, #0f172a, #020617)',    // slate gradient
-    glow: 'radial-gradient(circle, rgba(20,184,166,0.15) 0%, transparent 70%)',
-  },
-
-  // Text colors
-  text: {
-    primary: '#ffffff',
-    secondary: '#94a3b8',    // slate-400
-    tertiary: '#64748b',     // slate-500
-    muted: '#475569',        // slate-600
-  },
-
-  // Semantic colors
-  semantic: {
-    success: '#10b981',      // emerald-500
-    warning: '#f59e0b',      // amber-500
-    error: '#ef4444',        // red-500
-    info: '#3b82f6',         // blue-500
-  },
-} as const;
-
-// =============================================================================
-// SPACING
-// =============================================================================
-
-export const spacing = {
-  xs: '0.25rem',   // 4px
-  sm: '0.5rem',    // 8px
-  md: '1rem',      // 16px
-  lg: '1.5rem',    // 24px
-  xl: '2rem',      // 32px
-  '2xl': '3rem',   // 48px
-  '3xl': '4rem',   // 64px
-} as const;
-
-// =============================================================================
-// BORDER RADIUS
-// =============================================================================
-
-export const radius = {
-  sm: '0.5rem',    // 8px - buttons, badges
-  md: '0.75rem',   // 12px - inputs, small cards
-  lg: '1rem',      // 16px - cards
-  xl: '1.5rem',    // 24px - large cards
-  '2xl': '2rem',   // 32px - feature cards, modals
-  full: '9999px',  // pills
-} as const;
-
-// =============================================================================
-// SHADOWS
-// =============================================================================
-
-export const shadows = {
-  sm: '0 1px 2px rgba(0, 0, 0, 0.3)',
-  md: '0 4px 6px rgba(0, 0, 0, 0.3)',
-  lg: '0 10px 15px rgba(0, 0, 0, 0.3)',
-  xl: '0 20px 25px rgba(0, 0, 0, 0.3)',
-  glow: {
-    teal: '0 0 40px rgba(20, 184, 166, 0.15)',
-    cyan: '0 0 40px rgba(6, 182, 212, 0.15)',
-    gold: '0 0 40px rgba(245, 158, 11, 0.15)',
-  },
-  inner: 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
-} as const;
-
-// =============================================================================
-// TYPOGRAPHY
-// =============================================================================
-
-export const typography = {
-  // Font sizes with line heights
-  size: {
-    xs: ['0.75rem', '1rem'],      // 12px
-    sm: ['0.875rem', '1.25rem'],  // 14px
-    base: ['1rem', '1.5rem'],     // 16px
-    lg: ['1.125rem', '1.75rem'],  // 18px
-    xl: ['1.25rem', '1.75rem'],   // 20px
-    '2xl': ['1.5rem', '2rem'],    // 24px
-    '3xl': ['1.875rem', '2.25rem'], // 30px
-    '4xl': ['2.25rem', '2.5rem'], // 36px
-    '5xl': ['3rem', '1'],         // 48px
-    '6xl': ['3.75rem', '1'],      // 60px
-    '7xl': ['4.5rem', '1'],       // 72px
-    '8xl': ['6rem', '1'],         // 96px
-  },
-
-  // Font weights
-  weight: {
-    normal: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
-  },
-
-  // Letter spacing
-  tracking: {
-    tighter: '-0.05em',
-    tight: '-0.025em',
-    normal: '0',
-    wide: '0.025em',
-    wider: '0.05em',
-    widest: '0.1em',
-  },
-} as const;
-
-// =============================================================================
-// ANIMATIONS
-// =============================================================================
-
-export const animations = {
-  // Durations
-  duration: {
-    fast: '150ms',
-    normal: '200ms',
-    slow: '300ms',
-    slower: '500ms',
-  },
-
-  // Easings
-  easing: {
-    default: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    in: 'cubic-bezier(0.4, 0, 1, 1)',
-    out: 'cubic-bezier(0, 0, 0.2, 1)',
-    inOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-  },
-} as const;
 
 // =============================================================================
 // COMPONENT STYLES (Tailwind class strings)
@@ -181,87 +16,124 @@ export const animations = {
 export const componentStyles = {
   // Card variants
   card: {
-    default: 'rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm',
-    glass: 'rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md',
-    elevated: 'rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm shadow-xl',
-    interactive: 'rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm hover:border-teal-500/30 transition-all',
-    feature: 'rounded-3xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-slate-800/50 backdrop-blur-sm',
+    default: 'rounded-lg bg-card border border-card-border',
+    glass: 'rounded-lg bg-[var(--surface-glass)] border border-[var(--surface-glass-border)] backdrop-blur-md',
+    elevated: 'rounded-lg bg-card border border-card-border shadow-lg',
+    interactive: 'rounded-lg bg-card border border-card-border hover:border-[var(--brand-teal)]/30 transition-colors cursor-pointer',
+    feature: 'rounded-xl bg-card border border-card-border',
+    /** Bloomberg-density card — tighter padding, left accent ready */
+    dense: 'rounded-lg bg-card border border-card-border [&_.shadcn-card]:shadow-none',
+    /** Accent-left card — colored left border for categorization */
+    accentCyan: 'rounded-lg bg-card border border-card-border border-l-2 border-l-[var(--brand-cyan)]',
+    accentTeal: 'rounded-lg bg-card border border-card-border border-l-2 border-l-[var(--brand-teal)]',
+    accentGold: 'rounded-lg bg-card border border-card-border border-l-2 border-l-[var(--brand-gold)]',
+    accentBullish: 'rounded-lg bg-card border border-card-border border-l-2 border-l-[var(--trade-bullish)]',
+    accentBearish: 'rounded-lg bg-card border border-card-border border-l-2 border-l-[var(--trade-bearish)]',
+    /** Inset card — for nested data blocks within panels */
+    inset: 'rounded-md bg-muted/25 border border-border/40 dark:bg-white/[0.015] dark:border-white/[0.04]',
   },
 
   // Button variants
   button: {
     primary: 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-black font-semibold',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-white font-medium border border-slate-700',
-    outline: 'border border-slate-700 hover:bg-slate-800 text-white font-medium',
-    ghost: 'hover:bg-slate-800/50 text-slate-400 hover:text-white',
+    secondary: 'bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium border border-border',
+    outline: 'border border-border hover:bg-muted text-foreground font-medium',
+    ghost: 'hover:bg-muted/50 text-muted-foreground hover:text-foreground',
+    /** Compact action button — for toolbars and dense layouts */
+    compact: 'h-7 px-2.5 text-xs font-medium rounded-md border border-border bg-card hover:bg-muted text-foreground transition-colors',
   },
 
   // Badge variants
   badge: {
-    default: 'px-2 py-1 rounded-full bg-slate-800/80 border border-slate-700/50 text-xs text-slate-300',
-    accent: 'px-2 py-1 rounded-full bg-teal-500/20 border border-teal-500/30 text-xs text-teal-400',
-    success: 'px-2 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-xs text-emerald-400',
-    warning: 'px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-xs text-amber-400',
-    error: 'px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-xs text-red-400',
-    // Panel header badge variants (used by QEPanelHeader)
-    cyan: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#00d4ff]/10 border border-[#00d4ff]/25 text-[#00d4ff]',
-    bullish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400',
-    bearish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-red-500/10 border border-red-500/25 text-red-400',
-    gold: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/10 border border-amber-500/25 text-amber-400',
+    default: 'px-2 py-0.5 rounded-full bg-muted border border-border text-xs text-muted-foreground',
+    accent: 'px-2 py-0.5 rounded-full bg-[var(--brand-teal)]/15 border border-[var(--brand-teal)]/30 text-xs text-[var(--brand-teal)]',
+    success: 'px-2 py-0.5 rounded-full bg-[var(--trade-bullish)]/15 border border-[var(--trade-bullish)]/30 text-xs text-[var(--trade-bullish)]',
+    warning: 'px-2 py-0.5 rounded-full bg-[var(--trade-neutral)]/15 border border-[var(--trade-neutral)]/30 text-xs text-[var(--trade-neutral)]',
+    error: 'px-2 py-0.5 rounded-full bg-[var(--trade-bearish)]/15 border border-[var(--trade-bearish)]/30 text-xs text-[var(--trade-bearish)]',
+    cyan: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--brand-cyan)]/10 border border-[var(--brand-cyan)]/25 text-[var(--brand-cyan)]',
+    bullish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--trade-bullish)]/10 border border-[var(--trade-bullish)]/25 text-[var(--trade-bullish)]',
+    bearish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--trade-bearish)]/10 border border-[var(--trade-bearish)]/25 text-[var(--trade-bearish)]',
+    gold: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--brand-gold)]/10 border border-[var(--brand-gold)]/25 text-[var(--brand-gold)]',
     ai: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-500/10 border border-violet-500/25 text-violet-400',
-    live: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#b6ff33]/10 border border-[#b6ff33]/25 text-[#b6ff33]',
+    live: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-lime-400/10 border border-lime-400/25 text-lime-400',
   },
 
   // Input styles
   input: {
-    default: 'rounded-xl bg-slate-900/80 border border-slate-700/50 px-4 py-3 text-white placeholder:text-slate-500 focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all',
+    default: 'rounded-lg bg-muted/50 border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-teal)]/50 focus:ring-1 focus:ring-[var(--brand-teal)]/20 transition-colors',
+    /** Compact input for data-dense panels */
+    compact: 'rounded-md bg-muted/50 border border-border px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-teal)]/50 focus:ring-1 focus:ring-[var(--brand-teal)]/20 transition-colors font-mono',
   },
 
   // Section styles
   section: {
     default: 'py-16 md:py-24',
     compact: 'py-8 md:py-12',
+    /** Dense section — Bloomberg terminal spacing */
+    dense: 'py-4 md:py-6',
   },
 
   // Container styles
   container: {
-    default: 'max-w-7xl mx-auto px-6 md:px-8',
-    narrow: 'max-w-4xl mx-auto px-6 md:px-8',
-    wide: 'max-w-[1600px] mx-auto px-6 md:px-8',
+    default: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8',
+    narrow: 'max-w-4xl mx-auto px-4 sm:px-6 lg:px-8',
+    wide: 'max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8',
+    /** Full-bleed — edge-to-edge data layout */
+    flush: 'max-w-[1600px] mx-auto px-3 sm:px-4',
   },
 
   // Panel variants (used by QEPanel system)
   panel: {
-    default: 'rounded-lg bg-[#0c1219]/80 border border-white/[0.08] backdrop-blur-md',
-    glass: 'rounded-lg bg-[#0c1219]/60 border border-white/[0.10] backdrop-blur-xl',
-    nested: 'rounded-md bg-white/[0.03] border border-white/[0.05]',
-    interactive: 'rounded-lg bg-[#0c1219]/80 border border-white/[0.08] backdrop-blur-md hover:border-[#00d4ff]/20 hover:shadow-[0_0_24px_rgba(0,212,255,0.08)] transition-all duration-200 cursor-pointer',
-    stat: 'rounded-lg bg-white/[0.03] border border-white/[0.06]',
-    layer: 'rounded-lg border border-dashed border-white/[0.10] bg-transparent',
+    default: 'rounded-lg bg-[var(--surface-glass)] border border-[var(--surface-glass-border)] backdrop-blur-md',
+    glass: 'rounded-lg bg-[var(--surface-glass)] border border-[var(--surface-glass-border)] backdrop-blur-xl',
+    nested: 'rounded-md bg-foreground/[0.03] border border-foreground/[0.05]',
+    interactive: 'rounded-lg bg-[var(--surface-glass)] border border-[var(--surface-glass-border)] backdrop-blur-md hover:border-[var(--brand-cyan)]/20 hover:shadow-[0_0_24px_var(--glow-cyan)] transition-all duration-200 cursor-pointer',
+    stat: 'rounded-lg bg-foreground/[0.03] border border-foreground/[0.06]',
+    layer: 'rounded-lg border border-dashed border-foreground/[0.10] bg-transparent',
+    /** Bloomberg panel — chrome header + tight body */
+    bloomberg: 'rounded-lg bg-card border border-card-border overflow-hidden [&>.panel-header]:flex [&>.panel-header]:items-center [&>.panel-header]:justify-between [&>.panel-header]:px-3 [&>.panel-header]:py-2 [&>.panel-header]:border-b [&>.panel-header]:border-border [&>.panel-header]:bg-muted/30 [&>.panel-body]:p-3',
   },
 
   // Text utility classes
   text: {
-    sectionMarker: 'text-[10px] font-mono font-medium text-slate-500 uppercase tracking-widest mb-0.5',
-    statLabel: 'text-[11px] font-medium text-slate-500 uppercase tracking-wide',
+    sectionMarker: 'text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-widest mb-0.5',
+    statLabel: 'text-[11px] font-medium text-muted-foreground uppercase tracking-wide',
+    /** Mono data — for any numerical value display */
+    dataValue: 'font-mono tabular-nums text-foreground',
+    /** Price — large mono number */
+    price: 'font-mono tabular-nums font-semibold tracking-tight text-foreground',
+    /** Ticker symbol */
+    ticker: 'font-mono font-semibold tracking-wider uppercase',
+    /** Percent change */
+    change: 'font-mono tabular-nums text-xs font-medium',
+    /** Section chrome label */
+    chromeLabel: 'text-[9px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground',
   },
 
   // Status indicator dots
   status: {
-    online: 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.5)]',
-    warning: 'w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.5)]',
-    error: 'w-2 h-2 rounded-full bg-red-400 shadow-[0_0_6px_rgba(239,68,68,0.5)]',
-    live: 'w-2 h-2 rounded-full bg-[#b6ff33] shadow-[0_0_6px_rgba(182,255,51,0.5)] animate-pulse',
+    online: 'w-2 h-2 rounded-full bg-[var(--trade-bullish)] shadow-[0_0_6px_var(--trade-bullish)]',
+    warning: 'w-2 h-2 rounded-full bg-[var(--trade-neutral)] shadow-[0_0_6px_var(--trade-neutral)]',
+    error: 'w-2 h-2 rounded-full bg-[var(--trade-bearish)] shadow-[0_0_6px_var(--trade-bearish)]',
+    live: 'w-2 h-2 rounded-full bg-lime-400 shadow-[0_0_6px_rgba(182,255,51,0.5)] animate-pulse',
   },
 
   // Grade letter badges
   grade: {
-    S: 'bg-[#00d4ff]/15 border border-[#00d4ff]/30 text-[#00d4ff]',
-    A: 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400',
-    B: 'bg-white/[0.04] border border-white/[0.08] text-slate-400',
-    C: 'bg-amber-500/10 border border-amber-500/25 text-amber-400',
-    D: 'bg-red-500/10 border border-red-500/25 text-red-400',
-    F: 'bg-red-500/15 border border-red-500/35 text-red-500',
+    S: 'bg-[var(--grade-s)]/15 border border-[var(--grade-s)]/30 text-[var(--grade-s)]',
+    A: 'bg-[var(--grade-a)]/15 border border-[var(--grade-a)]/30 text-[var(--grade-a)]',
+    B: 'bg-foreground/[0.04] border border-foreground/[0.08] text-muted-foreground',
+    C: 'bg-[var(--grade-c)]/10 border border-[var(--grade-c)]/25 text-[var(--grade-c)]',
+    D: 'bg-[var(--grade-d)]/10 border border-[var(--grade-d)]/25 text-[var(--grade-d)]',
+    F: 'bg-[var(--grade-f)]/15 border border-[var(--grade-f)]/35 text-[var(--grade-f)]',
+  },
+
+  // Data density helpers — use on parent container to tighten child spacing
+  density: {
+    /** Bloomberg compact — minimal spacing everywhere */
+    compact: '[&_.p-6]:p-3 [&_.p-4]:p-2.5 [&_.space-y-4]:space-y-2 [&_.space-y-3]:space-y-1.5 [&_.gap-4]:gap-2 [&_.gap-3]:gap-1.5 [&_.text-2xl]:text-lg [&_.text-xl]:text-base [&_.mb-6]:mb-3 [&_.mb-4]:mb-2',
+    /** Comfortable default */
+    comfortable: '',
   },
 } as const;
 
@@ -270,16 +142,11 @@ export const componentStyles = {
 // =============================================================================
 
 export const backgrounds = {
-  // Grid pattern overlay
-  grid: `
-    background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-  `,
-
-  // Gradient orbs (as positioned divs)
-  orbTeal: 'absolute w-[600px] h-[600px] bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl',
-  orbBlue: 'absolute w-[500px] h-[500px] bg-gradient-to-tr from-blue-500/10 via-indigo-500/5 to-transparent rounded-full blur-3xl',
+  grid: {
+    image: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
+    size: '60px 60px',
+  },
 } as const;
 
 // =============================================================================

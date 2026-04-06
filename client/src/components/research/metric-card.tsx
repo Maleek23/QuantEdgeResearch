@@ -32,37 +32,37 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
     cyan: {
       badge: "border-cyan-500/30 text-cyan-400",
       value: "text-cyan-400",
-      high: "text-emerald-400",
+      high: "text-[var(--trade-bullish)]",
       medium: "text-cyan-400",
-      low: "text-slate-400"
+      low: "text-muted-foreground"
     },
     blue: {
       badge: "border-blue-500/30 text-blue-400",
       value: "text-blue-400",
-      high: "text-emerald-400",
+      high: "text-[var(--trade-bullish)]",
       medium: "text-blue-400",
-      low: "text-slate-400"
+      low: "text-muted-foreground"
     },
     purple: {
       badge: "border-purple-500/30 text-purple-400",
       value: "text-purple-400",
-      high: "text-emerald-400",
+      high: "text-[var(--trade-bullish)]",
       medium: "text-purple-400",
-      low: "text-slate-400"
+      low: "text-muted-foreground"
     },
     amber: {
-      badge: "border-amber-500/30 text-amber-400",
-      value: "text-amber-400",
-      high: "text-emerald-400",
-      medium: "text-amber-400",
-      low: "text-slate-400"
+      badge: "border-amber-500/30 text-[var(--trade-neutral)]",
+      value: "text-[var(--trade-neutral)]",
+      high: "text-[var(--trade-bullish)]",
+      medium: "text-[var(--trade-neutral)]",
+      low: "text-muted-foreground"
     },
     emerald: {
-      badge: "border-emerald-500/30 text-emerald-400",
-      value: "text-emerald-400",
-      high: "text-emerald-400",
-      medium: "text-emerald-400",
-      low: "text-slate-400"
+      badge: "border-emerald-500/30 text-[var(--trade-bullish)]",
+      value: "text-[var(--trade-bullish)]",
+      high: "text-[var(--trade-bullish)]",
+      medium: "text-[var(--trade-bullish)]",
+      low: "text-muted-foreground"
     }
   };
 
@@ -70,28 +70,28 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden hover:border-slate-700 transition-colors"
+      transition={{ delay: index * 0.02 }}
+      className="bg-card/50 border border-border rounded-lg overflow-hidden hover:border-border transition-colors"
     >
-      {/* Metric Header */}
+      {/* Metric Header — Bloomberg compact */}
       <div
         className={cn(
-          "p-4",
-          hasResearchData && "cursor-pointer hover:bg-slate-800/30 transition-colors"
+          "p-3",
+          hasResearchData && "cursor-pointer hover:bg-muted/20 transition-colors"
         )}
         onClick={() => hasResearchData && setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h4 className="text-sm font-semibold text-slate-200">{metric.category}</h4>
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+              <h4 className="text-xs font-semibold text-foreground/90">{metric.category}</h4>
               {metric.statisticalSignificance && (
                 <Badge
                   variant="outline"
                   className={cn(
-                    "text-xs",
+                    "text-[9px] px-1 py-0 font-mono",
                     metric.statisticalSignificance.confidence === 'HIGH' ? colors.high :
                     metric.statisticalSignificance.confidence === 'MEDIUM' ? colors.medium :
                     colors.low
@@ -102,17 +102,17 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
               )}
             </div>
 
-            <div className="flex items-baseline gap-3 mb-1">
-              <span className={cn("text-base font-bold font-mono", colors.value)}>
+            <div className="flex items-baseline gap-2 mb-0.5">
+              <span className={cn("text-sm font-bold font-mono tabular-nums", colors.value)}>
                 {metric.value}
               </span>
             </div>
 
-            <p className="text-xs text-slate-500 leading-relaxed">{metric.interpretation}</p>
+            <p className="text-[10px] text-muted-foreground leading-snug">{metric.interpretation}</p>
 
-            {/* Quick Stats */}
+            {/* Quick Stats — data-strip inline */}
             {hasResearchData && (
-              <div className="flex items-center gap-4 mt-2 text-xs text-slate-600">
+              <div className="flex items-center gap-3 mt-1.5 text-[9px] text-muted-foreground/60 font-mono tabular-nums">
                 {metric.statisticalSignificance && (
                   <span>p={safeToFixed(metric.statisticalSignificance.pValue, 3)}</span>
                 )}
@@ -129,7 +129,7 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
           {hasResearchData && (
             <ChevronDown
               className={cn(
-                "h-5 w-5 text-slate-500 transition-transform shrink-0",
+                "h-4 w-4 text-muted-foreground/50 transition-transform shrink-0",
                 isExpanded && "rotate-180"
               )}
             />
@@ -137,40 +137,42 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
         </div>
       </div>
 
-      {/* Expanded Research Details */}
+      {/* Expanded Research Details — metric-block density */}
       {isExpanded && hasResearchData && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="border-t border-slate-800 bg-slate-900/70"
+          className="border-t border-border bg-card/70"
         >
-          <div className="p-4 space-y-4">
+          <div className="p-3 space-y-3">
             {/* Statistical Significance */}
             {metric.statisticalSignificance && (
               <div>
-                <h5 className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                  <Activity className="h-3 w-3" />
-                  Statistical Significance
+                <h5 className="section-chrome">
+                  <span className="section-label flex items-center gap-1">
+                    <Activity className="h-2.5 w-2.5" />
+                    Statistical Significance
+                  </span>
                 </h5>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">p-value</p>
-                    <p className="text-sm font-mono font-semibold text-cyan-400">
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div className="metric-block">
+                    <span className="metric-label">p-value</span>
+                    <span className="metric-value text-cyan-400">
                       {safeToFixed(metric.statisticalSignificance.pValue, 4)}
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">z-score</p>
-                    <p className="text-sm font-mono font-semibold text-cyan-400">
+                  <div className="metric-block">
+                    <span className="metric-label">z-score</span>
+                    <span className="metric-value text-cyan-400">
                       {safeToFixed(metric.statisticalSignificance.zScore, 2)}
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Confidence</p>
-                    <p className="text-sm font-semibold text-cyan-400">
+                  <div className="metric-block">
+                    <span className="metric-label">Confidence</span>
+                    <span className="metric-value text-cyan-400">
                       {metric.statisticalSignificance.confidence}
-                    </p>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -179,34 +181,36 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
             {/* Historical Context */}
             {metric.historicalContext && (
               <div>
-                <h5 className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                  <BarChart3 className="h-3 w-3" />
-                  Historical Context (1Y)
+                <h5 className="section-chrome">
+                  <span className="section-label flex items-center gap-1">
+                    <BarChart3 className="h-2.5 w-2.5" />
+                    Historical Context (1Y)
+                  </span>
                 </h5>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Percentile</p>
-                    <p className="text-sm font-mono font-semibold text-purple-400">
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="metric-block">
+                    <span className="metric-label">Percentile</span>
+                    <span className="metric-value text-purple-400">
                       {metric.historicalContext.percentile}%
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Mean</p>
-                    <p className="text-sm font-mono font-semibold text-slate-300">
+                  <div className="metric-block">
+                    <span className="metric-label">Mean</span>
+                    <span className="metric-value">
                       {safeToFixed(metric.historicalContext.mean, 1)}
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Std Dev</p>
-                    <p className="text-sm font-mono font-semibold text-slate-300">
+                  <div className="metric-block">
+                    <span className="metric-label">Std Dev</span>
+                    <span className="metric-value">
                       {safeToFixed(metric.historicalContext.stdDev, 1)}
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">n</p>
-                    <p className="text-sm font-mono font-semibold text-slate-300">
+                  <div className="metric-block">
+                    <span className="metric-label">n</span>
+                    <span className="metric-value">
                       {metric.historicalContext.sampleSize}
-                    </p>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -215,48 +219,50 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
             {/* Backtest Performance */}
             {metric.backtestPerformance && (
               <div>
-                <h5 className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                  <Target className="h-3 w-3" />
-                  Backtest Performance
+                <h5 className="section-chrome">
+                  <span className="section-label flex items-center gap-1">
+                    <Target className="h-2.5 w-2.5" />
+                    Backtest Performance
+                  </span>
                 </h5>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Win Rate</p>
-                    <p className={cn(
-                      "text-sm font-mono font-semibold",
-                      safeNumber(metric.backtestPerformance.winRate) >= 0.6 ? "text-emerald-400" :
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="metric-block">
+                    <span className="metric-label">Win Rate</span>
+                    <span className={cn(
+                      "metric-value",
+                      safeNumber(metric.backtestPerformance.winRate) >= 0.6 ? "text-[var(--trade-bullish)]" :
                       safeNumber(metric.backtestPerformance.winRate) >= 0.5 ? "text-cyan-400" :
-                      "text-red-400"
+                      "text-[var(--trade-bearish)]"
                     )}>
                       {safeToFixed(safeNumber(metric.backtestPerformance.winRate) * 100, 1)}%
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Avg Return</p>
-                    <p className={cn(
-                      "text-sm font-mono font-semibold",
-                      safeNumber(metric.backtestPerformance.avgReturn) >= 0 ? "text-emerald-400" : "text-red-400"
+                  <div className="metric-block">
+                    <span className="metric-label">Avg Return</span>
+                    <span className={cn(
+                      "metric-value",
+                      safeNumber(metric.backtestPerformance.avgReturn) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>
                       {safeNumber(metric.backtestPerformance.avgReturn) >= 0 ? '+' : ''}
                       {safeToFixed(metric.backtestPerformance.avgReturn, 2)}%
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Sharpe</p>
-                    <p className={cn(
-                      "text-sm font-mono font-semibold",
-                      safeNumber(metric.backtestPerformance.sharpeRatio) >= 1 ? "text-emerald-400" :
+                  <div className="metric-block">
+                    <span className="metric-label">Sharpe</span>
+                    <span className={cn(
+                      "metric-value",
+                      safeNumber(metric.backtestPerformance.sharpeRatio) >= 1 ? "text-[var(--trade-bullish)]" :
                       safeNumber(metric.backtestPerformance.sharpeRatio) >= 0 ? "text-cyan-400" :
-                      "text-red-400"
+                      "text-[var(--trade-bearish)]"
                     )}>
                       {safeToFixed(metric.backtestPerformance.sharpeRatio, 2)}
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/50 rounded p-2">
-                    <p className="text-xs text-slate-500 mb-1">Signals</p>
-                    <p className="text-sm font-mono font-semibold text-slate-300">
+                  <div className="metric-block">
+                    <span className="metric-label">Signals</span>
+                    <span className="metric-value">
                       {metric.backtestPerformance.sampleSize}
-                    </p>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -265,31 +271,32 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
             {/* Methodology */}
             {metric.methodology && (
               <div>
-                <h5 className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                  <FileText className="h-3 w-3" />
-                  Methodology
+                <h5 className="section-chrome">
+                  <span className="section-label flex items-center gap-1">
+                    <FileText className="h-2.5 w-2.5" />
+                    Methodology
+                  </span>
                 </h5>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {metric.methodology.formula && (
-                    <div className="bg-slate-800/30 rounded p-2 border border-slate-700/50">
-                      <p className="text-xs text-slate-500 mb-1">Formula</p>
-                      <code className="text-xs font-mono text-cyan-300">
+                    <div className="inset-panel">
+                      <p className="text-[8px] text-muted-foreground font-mono uppercase tracking-wider mb-0.5">Formula</p>
+                      <code className="text-[10px] font-mono text-cyan-300">
                         {metric.methodology.formula}
                       </code>
                     </div>
                   )}
                   {metric.methodology.period && (
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span className="text-slate-500">Period:</span>
-                      <span className="font-mono text-cyan-400">{metric.methodology.period} days</span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span>Period:</span>
+                      <span className="font-mono tabular-nums text-cyan-400">{metric.methodology.period}d</span>
                     </div>
                   )}
                   {metric.methodology.citations && metric.methodology.citations.length > 0 && (
-                    <div className="border-t border-slate-700/50 pt-2">
-                      <p className="text-xs text-slate-500 mb-1">Citations:</p>
-                      <ul className="text-xs text-slate-400 space-y-1">
+                    <div className="border-t border-border/30 pt-1.5">
+                      <ul className="text-[9px] text-muted-foreground/70 space-y-0.5">
                         {metric.methodology.citations.slice(0, 2).map((citation: string, i: number) => (
-                          <li key={i} className="italic text-slate-500">• {citation}</li>
+                          <li key={i} className="italic">• {citation}</li>
                         ))}
                       </ul>
                     </div>

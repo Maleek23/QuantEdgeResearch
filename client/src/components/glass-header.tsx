@@ -1,6 +1,7 @@
 /**
- * Browser-Tab Style Navigation
- * Clean, modern navigation with Chrome-like tabs
+ * QuantEdge Navigation Header
+ * Clean, floating navigation bar with browser-style tabs.
+ * Uses semantic design tokens — works in both light and dark modes.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -12,7 +13,6 @@ import {
   LineChart,
   Menu,
   X,
-  TrendingUp,
   ChevronDown,
   BarChart3,
   Wallet,
@@ -23,10 +23,10 @@ import {
   GraduationCap,
   History,
   BookOpen,
-  Infinity,
   Crosshair,
   Zap,
-  Target,
+  SlidersHorizontal,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UniversalSearchHero } from "@/components/universal-search-hero";
 import { useAuth } from "@/hooks/useAuth";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 
 interface NavTab {
   label: string;
@@ -41,27 +42,48 @@ interface NavTab {
   icon: any;
 }
 
-// Main navigation tabs - browser-style (4 core tools)
+/**
+ * Navigation Architecture — logical grouping:
+ *
+ * Main tabs (always visible):
+ *   Home → Dashboard entry
+ *   Trade Desk → AI picks, discovery, overnight predictions (Discover merged)
+ *   Markets → Market overview + Scanner (Bullish Trends merged)
+ *   Charts → Technical analysis
+ *   Options → Chain analysis (SPX merged as preset)
+ *   Flow → Options flow + convergence (kept separate)
+ *
+ * More → Tools:
+ *   GEX → Gamma exposure
+ *   Smart Money → Whale flow
+ *   Watchlist → Unified watchlist
+ *   Performance → Track record (Trading Engine merged)
+ *
+ * More → Learn:
+ *   Academy → Education
+ *   Blog → Content
+ */
 const mainTabs: NavTab[] = [
+  { label: "Home", href: "/home", icon: BarChart3 },
   { label: "Trade Desk", href: "/trade-desk", icon: Brain },
-  { label: "Markets", href: "/market", icon: BarChart3 },
+  { label: "Markets", href: "/market", icon: Search },
   { label: "Charts", href: "/chart-analysis", icon: LineChart },
-  { label: "Scanner", href: "/market-scanner", icon: Search },
-  { label: "AION", href: "/aion", icon: Infinity },
+  { label: "Options", href: "/options-analyzer", icon: SlidersHorizontal },
+  { label: "Flow", href: "/flow", icon: Zap },
 ];
 
-// "More" dropdown — tools + learning
 const moreToolItems: NavTab[] = [
-  { label: "Command", href: "/command", icon: Target },
   { label: "GEX", href: "/gex", icon: Crosshair },
-  { label: "Flow Edge", href: "/flow", icon: Zap },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
+  { label: "Performance", href: "/performance", icon: Trophy },
 ];
+
 const moreResearchItems: NavTab[] = [
   { label: "Academy", href: "/academy", icon: GraduationCap },
   { label: "Blog", href: "/blog", icon: BookOpen },
 ];
+
 const allMoreItems = [...moreToolItems, ...moreResearchItems];
 
 export function GlassHeader() {
@@ -105,32 +127,42 @@ export function GlassHeader() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        scrolled ? "pt-1" : "pt-2"
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-150",
+        scrolled ? "pt-0.5" : "pt-1.5"
       )}
     >
-      <div className="max-w-[1600px] mx-auto px-3">
+      <div className="max-w-[1600px] mx-auto px-2">
         {/* Main Header Bar */}
-        <div className="bg-slate-900/90 border border-slate-700/50 rounded-xl">
-          <div className="flex items-center h-12 px-2">
+        <div
+          className={cn(
+            "bg-card/92 backdrop-blur-xl border border-border rounded-lg transition-shadow duration-150",
+            scrolled && "shadow-md"
+          )}
+        >
+          <div className="flex items-center h-10 px-1.5">
             {/* Logo */}
             <Link href="/home">
-              <div className="flex items-center gap-2 px-3 cursor-pointer group shrink-0">
-                <div className="relative">
-                  <div className="relative bg-emerald-500 p-1.5 rounded-md">
-                    <TrendingUp className="h-4 w-4 text-white" />
-                  </div>
+              <div className="flex items-center gap-1.5 px-1.5 cursor-pointer group shrink-0">
+                <img
+                  src={quantEdgeLabsLogoUrl}
+                  alt="QuantEdge"
+                  className="h-6 w-6 object-contain"
+                />
+                <div className="hidden xl:flex flex-col leading-none">
+                  <span className="text-xs font-bold text-foreground tracking-tight">
+                    QuantEdge
+                  </span>
+                  <span className="text-[8px] font-semibold text-muted-foreground tracking-[0.12em] uppercase font-mono">
+                    Labs
+                  </span>
                 </div>
-                <span className="hidden xl:block text-lg text-white font-bold">
-                  QuantEdge
-                </span>
               </div>
             </Link>
 
             {/* Divider */}
-            <div className="h-6 w-px bg-slate-700/50 mx-2 hidden md:block" />
+            <div className="h-5 w-px bg-border mx-1.5 hidden md:block" />
 
-            {/* Browser-Style Tabs */}
+            {/* Browser-Style Tabs — Bloomberg-dense */}
             <nav className="hidden md:flex items-center flex-1 min-w-0">
               <div className="flex items-end">
                 {mainTabs.map((tab) => {
@@ -141,19 +173,18 @@ export function GlassHeader() {
                     <Link key={tab.href} href={tab.href}>
                       <div
                         className={cn(
-                          "relative flex items-center gap-1 px-2.5 py-2 text-sm font-medium transition-all cursor-pointer whitespace-nowrap",
-                          // Browser tab styling
+                          "relative flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap rounded-md mx-px",
                           isActive
-                            ? "bg-slate-800 text-white rounded-t-lg -mb-px border-t border-x border-slate-600/50"
-                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg mx-0.5"
+                            ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                         )}
                       >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <Icon className="h-3 w-3 shrink-0" />
                         <span>{tab.label}</span>
                         {isActive && (
                           <motion.div
                             layoutId="activeTab"
-                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"
+                            className="absolute bottom-0 left-1.5 right-1.5 h-0.5 rounded-full bg-[var(--brand-teal)]"
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
                           />
                         )}
@@ -167,66 +198,76 @@ export function GlassHeader() {
                   <button
                     onClick={() => setMoreOpen(!moreOpen)}
                     className={cn(
-                      "flex items-center gap-1 px-2.5 py-2 text-sm font-medium transition-all cursor-pointer rounded-lg mx-0.5 whitespace-nowrap",
+                      "flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium transition-all cursor-pointer rounded-md mx-px whitespace-nowrap",
                       moreOpen || allMoreItems.some(item => location === item.href)
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     )}
                   >
                     <span>More</span>
-                    <ChevronDown className={cn("h-3 w-3 transition-transform", moreOpen && "rotate-180")} />
+                    <ChevronDown className={cn("h-2.5 w-2.5 transition-transform", moreOpen && "rotate-180")} />
                   </button>
 
                   <AnimatePresence>
                     {moreOpen && (
                       <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 overflow-hidden z-50"
+                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-border bg-popover/95 backdrop-blur-xl shadow-lg overflow-hidden z-50"
                       >
-                        {moreToolItems.map((item) => {
-                          const Icon = item.icon;
-                          const isActive = location === item.href;
-                          return (
-                            <Link key={item.href} href={item.href}>
-                              <div
-                                onClick={() => setMoreOpen(false)}
-                                className={cn(
-                                  "flex items-center gap-2.5 px-3 py-2 text-sm transition-all cursor-pointer",
-                                  isActive
-                                    ? "bg-emerald-500/20 text-emerald-500"
-                                    : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
-                                )}
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span>{item.label}</span>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                        <div className="border-t border-slate-700/50 my-1" />
-                        {moreResearchItems.map((item) => {
-                          const Icon = item.icon;
-                          const isActive = location === item.href;
-                          return (
-                            <Link key={item.href} href={item.href}>
-                              <div
-                                onClick={() => setMoreOpen(false)}
-                                className={cn(
-                                  "flex items-center gap-2.5 px-3 py-2 text-sm transition-all cursor-pointer",
-                                  isActive
-                                    ? "bg-emerald-500/20 text-emerald-500"
-                                    : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
-                                )}
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span>{item.label}</span>
-                              </div>
-                            </Link>
-                          );
-                        })}
+                        <div className="p-1">
+                          <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-mono px-2 py-1">
+                            Tools
+                          </p>
+                          {moreToolItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = location === item.href;
+                            return (
+                              <Link key={item.href} href={item.href}>
+                                <div
+                                  onClick={() => setMoreOpen(false)}
+                                  className={cn(
+                                    "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer",
+                                    isActive
+                                      ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                                      : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                                  )}
+                                >
+                                  <Icon className="h-3.5 w-3.5" />
+                                  <span>{item.label}</span>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                        <div className="border-t border-border mx-1" />
+                        <div className="p-1">
+                          <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-mono px-2 py-1">
+                            Learn
+                          </p>
+                          {moreResearchItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = location === item.href;
+                            return (
+                              <Link key={item.href} href={item.href}>
+                                <div
+                                  onClick={() => setMoreOpen(false)}
+                                  className={cn(
+                                    "flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer",
+                                    isActive
+                                      ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                                      : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                                  )}
+                                >
+                                  <Icon className="h-3.5 w-3.5" />
+                                  <span>{item.label}</span>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -235,22 +276,19 @@ export function GlassHeader() {
             </nav>
 
             {/* Right Section */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-1 ml-auto">
               {/* Search */}
-              <div className="hidden md:flex w-48 lg:w-56">
-                <UniversalSearchHero
-                  variant="default"
-                  placeholder="Search..."
-                />
+              <div className="hidden md:flex w-44 lg:w-52">
+                <UniversalSearchHero variant="default" placeholder="Search..." />
               </div>
 
               {/* Live Badge */}
               <Badge
                 variant="outline"
-                className="hidden sm:flex border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] px-1.5 py-0.5"
+                className="hidden sm:flex border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] text-[9px] px-1.5 py-0 h-5 font-mono"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
-                Live
+                <div className="w-1 h-1 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1" />
+                LIVE
               </Badge>
 
               {/* Quick Links */}
@@ -258,9 +296,9 @@ export function GlassHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden lg:flex h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  className="hidden lg:flex h-7 w-7 text-muted-foreground hover:text-foreground"
                 >
-                  <Wallet className="h-4 w-4" />
+                  <Wallet className="h-3.5 w-3.5" />
                 </Button>
               </Link>
 
@@ -268,9 +306,9 @@ export function GlassHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800/50"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-3.5 w-3.5" />
                 </Button>
               </Link>
 
@@ -280,8 +318,8 @@ export function GlassHeader() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="cursor-pointer"
                 >
-                  <Avatar className="h-8 w-8 border border-emerald-500/30 hover:border-emerald-500/50 transition-colors">
-                    <AvatarFallback className="bg-emerald-500 text-white text-xs">
+                  <Avatar className="h-6 w-6 border border-[var(--brand-teal)]/30 hover:border-[var(--brand-teal)]/50 transition-colors">
+                    <AvatarFallback className="bg-[var(--brand-teal)] text-white text-[10px] font-semibold">
                       {userInitial}
                     </AvatarFallback>
                   </Avatar>
@@ -290,17 +328,17 @@ export function GlassHeader() {
                 <AnimatePresence>
                   {userMenuOpen && isAuthenticated && (
                     <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-slate-700/50 bg-slate-900/95 overflow-hidden z-50"
+                      initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute top-full right-0 mt-1 w-48 rounded-lg border border-border bg-popover/95 backdrop-blur-xl shadow-lg overflow-hidden z-50"
                     >
-                      <div className="px-3 py-2 border-b border-slate-700/50">
-                        <p className="text-sm font-medium text-white truncate">
+                      <div className="px-2.5 py-2 border-b border-border">
+                        <p className="text-xs font-semibold text-foreground truncate">
                           {userData?.firstName || "User"}
                         </p>
-                        <p className="text-[11px] text-slate-500 truncate">
+                        <p className="text-[10px] text-muted-foreground truncate font-mono">
                           {userData?.email || ""}
                         </p>
                       </div>
@@ -308,7 +346,7 @@ export function GlassHeader() {
                         <Link href="/performance">
                           <div
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-slate-300 hover:bg-slate-800/70 hover:text-white cursor-pointer"
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-foreground/80 hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                           >
                             <Wallet className="h-3.5 w-3.5" />
                             <span>Portfolio</span>
@@ -317,7 +355,7 @@ export function GlassHeader() {
                         <Link href="/history">
                           <div
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-slate-300 hover:bg-slate-800/70 hover:text-white cursor-pointer"
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-foreground/80 hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                           >
                             <History className="h-3.5 w-3.5" />
                             <span>History</span>
@@ -326,21 +364,20 @@ export function GlassHeader() {
                         <Link href="/settings">
                           <div
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-slate-300 hover:bg-slate-800/70 hover:text-white cursor-pointer"
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-foreground/80 hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                           >
                             <Settings className="h-3.5 w-3.5" />
                             <span>Settings</span>
                           </div>
                         </Link>
-                        <div className="border-t border-slate-700/50 mt-1 pt-1">
-                          <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-red-400 hover:bg-red-500/10 cursor-pointer w-full"
-                          >
-                            <LogOut className="h-3.5 w-3.5" />
-                            <span>Sign out</span>
-                          </button>
-                        </div>
+                        <div className="border-t border-border mx-1 my-0.5" />
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-destructive hover:bg-destructive/10 cursor-pointer w-full transition-colors"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Sign out</span>
+                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -350,7 +387,7 @@ export function GlassHeader() {
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-1.5 rounded-lg hover:bg-slate-800/50 text-slate-300"
+                className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
               >
                 {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
@@ -366,15 +403,14 @@ export function GlassHeader() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="md:hidden mt-2 bg-slate-900/95 border border-slate-700/50 rounded-xl overflow-hidden"
+              className="md:hidden mt-2 bg-popover/95 backdrop-blur-xl border border-border rounded-xl overflow-hidden shadow-xl"
             >
               {/* Mobile Search */}
-              <div className="p-3 border-b border-slate-700/50">
+              <div className="p-3 border-b border-border">
                 <UniversalSearchHero variant="default" placeholder="Search..." />
               </div>
 
-              <div className="p-2 space-y-1">
-                {/* Main Tabs */}
+              <div className="p-2 space-y-0.5">
                 {mainTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = location === tab.href;
@@ -383,10 +419,10 @@ export function GlassHeader() {
                       <div
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
                           isActive
-                            ? "bg-emerald-500/20 text-emerald-500"
-                            : "text-slate-300 hover:bg-slate-800/50"
+                            ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                            : "text-foreground/80 hover:bg-muted"
                         )}
                       >
                         <Icon className="h-5 w-5" />
@@ -396,11 +432,8 @@ export function GlassHeader() {
                   );
                 })}
 
-                {/* Divider */}
-                <div className="border-t border-slate-700/50 my-2" />
-
-                {/* Tools */}
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Tools</p>
+                <div className="border-t border-border my-2" />
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono px-3 py-1">Tools</p>
                 {moreToolItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
@@ -409,10 +442,10 @@ export function GlassHeader() {
                       <div
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
                           isActive
-                            ? "bg-emerald-500/20 text-emerald-500"
-                            : "text-slate-300 hover:bg-slate-800/50"
+                            ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                            : "text-foreground/80 hover:bg-muted"
                         )}
                       >
                         <Icon className="h-5 w-5" />
@@ -422,9 +455,8 @@ export function GlassHeader() {
                   );
                 })}
 
-                {/* Learn */}
-                <div className="border-t border-slate-700/50 my-2" />
-                <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Learn</p>
+                <div className="border-t border-border my-2" />
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono px-3 py-1">Learn</p>
                 {moreResearchItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location === item.href;
@@ -433,10 +465,10 @@ export function GlassHeader() {
                       <div
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
                           isActive
-                            ? "bg-emerald-500/20 text-emerald-500"
-                            : "text-slate-300 hover:bg-slate-800/50"
+                            ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)]"
+                            : "text-foreground/80 hover:bg-muted"
                         )}
                       >
                         <Icon className="h-5 w-5" />
@@ -446,15 +478,14 @@ export function GlassHeader() {
                   );
                 })}
 
-                {/* Account */}
                 {isAuthenticated && (
                   <>
-                    <div className="border-t border-slate-700/50 my-2" />
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500 px-3 py-1">Account</p>
+                    <div className="border-t border-border my-2" />
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono px-3 py-1">Account</p>
                     <Link href="/performance">
                       <div
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800/50 cursor-pointer"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted cursor-pointer"
                       >
                         <Wallet className="h-5 w-5" />
                         <span>Portfolio</span>
@@ -463,7 +494,7 @@ export function GlassHeader() {
                     <Link href="/history">
                       <div
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800/50 cursor-pointer"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground/80 hover:bg-muted cursor-pointer"
                       >
                         <History className="h-5 w-5" />
                         <span>History</span>
@@ -474,7 +505,7 @@ export function GlassHeader() {
                         handleLogout();
                         setMobileMenuOpen(false);
                       }}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 cursor-pointer w-full"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 cursor-pointer w-full transition-colors"
                     >
                       <LogOut className="h-5 w-5" />
                       <span>Sign out</span>

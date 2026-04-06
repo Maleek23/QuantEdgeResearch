@@ -52,9 +52,9 @@ const widthClasses = {
 
 const paddingClasses = {
   none: "",
-  sm: "px-4 py-3 sm:px-5 sm:py-4",
-  md: "px-4 py-4 sm:px-6 sm:py-6",
-  lg: "px-6 py-6 sm:px-8 sm:py-8",
+  sm: "px-3 py-2 sm:px-4 sm:py-3",
+  md: "px-3 py-3 sm:px-5 sm:py-4",
+  lg: "px-4 py-4 sm:px-6 sm:py-6",
 };
 
 export function QEPageShell({
@@ -74,7 +74,7 @@ export function QEPageShell({
   return (
     <div
       className={cn(
-        "min-h-screen bg-[#0a0e17] text-white relative",
+        "min-h-screen bg-[var(--surface-base)] text-foreground relative",
         scrollable && "overflow-y-auto",
         className
       )}
@@ -87,16 +87,8 @@ export function QEPageShell({
           className="fixed inset-0 pointer-events-none"
           style={{
             zIndex: zIndex.behind,
-            backgroundImage: gridVariant === "cyan"
-              ? backgrounds.gridCyan.image
-              : gridVariant === "subtle"
-                ? backgrounds.gridSubtle.image
-                : backgrounds.grid.image,
-            backgroundSize: gridVariant === "cyan"
-              ? backgrounds.gridCyan.size
-              : gridVariant === "subtle"
-                ? backgrounds.gridSubtle.size
-                : backgrounds.grid.size,
+            backgroundImage: backgrounds.grid.image,
+            backgroundSize: backgrounds.grid.size,
           }}
           aria-hidden="true"
         />
@@ -109,7 +101,7 @@ export function QEPageShell({
             className="fixed top-0 right-0 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none opacity-40"
             style={{
               zIndex: zIndex.behind,
-              background: `radial-gradient(ellipse at center, rgba(0, 212, 255, 0.06), transparent 70%)`,
+              background: `radial-gradient(ellipse at center, var(--glow-cyan), transparent 70%)`,
             }}
             aria-hidden="true"
           />
@@ -117,7 +109,7 @@ export function QEPageShell({
             className="fixed bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-3xl pointer-events-none opacity-30"
             style={{
               zIndex: zIndex.behind,
-              background: `radial-gradient(ellipse at center, rgba(59, 130, 246, 0.05), transparent 70%)`,
+              background: `radial-gradient(ellipse at center, var(--glow-blue), transparent 70%)`,
             }}
             aria-hidden="true"
           />
@@ -182,17 +174,17 @@ export function QEPageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3",
-        compact ? "mb-4" : "mb-6",
+        "flex flex-col sm:flex-row sm:items-center justify-between gap-2",
+        compact ? "mb-3" : "mb-4",
         className
       )}
       {...props}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 min-w-0">
         {icon && (
           <div
             className={cn(
-              "p-2.5 rounded-xl bg-gradient-to-br border flex-shrink-0",
+              "p-2 rounded-lg bg-gradient-to-br border flex-shrink-0",
               iconAccentClasses[iconAccent]
             )}
           >
@@ -201,20 +193,20 @@ export function QEPageHeader({
         )}
         <div className="min-w-0">
           {marker && (
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 font-mono mb-0.5">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground font-mono mb-0.5">
               {marker}
             </div>
           )}
-          <h1 className="text-xl sm:text-2xl font-bold text-white font-display tracking-tight truncate">
+          <h1 className="text-base sm:text-lg font-bold text-foreground tracking-tight truncate">
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xs sm:text-sm text-slate-400 mt-0.5 truncate">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
       </div>
       {actions && (
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {actions}
         </div>
       )}
@@ -241,17 +233,17 @@ export function QESectionDivider({
 }: QESectionDividerProps) {
   if (!label && !number) {
     return (
-      <hr className={cn("border-white/[0.06] my-6", className)} {...props} />
+      <hr className={cn("border-foreground/[0.06] my-4", className)} {...props} />
     );
   }
 
   return (
-    <div className={cn("flex items-center gap-3 my-6", className)} {...props}>
-      <div className="h-px flex-1 bg-white/[0.06]" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 font-mono flex-shrink-0">
+    <div className={cn("flex items-center gap-2.5 my-4", className)} {...props}>
+      <div className="h-px flex-1 bg-foreground/[0.06]" />
+      <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground font-mono flex-shrink-0">
         {number && `${number} // `}{label}
       </span>
-      <div className="h-px flex-1 bg-white/[0.06]" />
+      <div className="h-px flex-1 bg-foreground/[0.06]" />
     </div>
   );
 }
@@ -277,9 +269,9 @@ const colClasses = {
 };
 
 const gapClasses = {
-  sm: "gap-2",
-  md: "gap-3",
-  lg: "gap-4",
+  sm: "gap-1.5",
+  md: "gap-2.5",
+  lg: "gap-3",
 };
 
 export function QEGridLayout({
@@ -327,13 +319,13 @@ export function QEEmptyState({
       {...props}
     >
       {icon && (
-        <div className="w-14 h-14 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-4 text-slate-500">
+        <div className="w-14 h-14 rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] flex items-center justify-center mb-4 text-muted-foreground">
           {icon}
         </div>
       )}
-      <h3 className="text-base font-semibold text-white mb-1.5 font-display">{title}</h3>
+      <h3 className="text-base font-semibold text-foreground mb-1.5 font-display">{title}</h3>
       {description && (
-        <p className="text-sm text-slate-400 max-w-sm mb-4">{description}</p>
+        <p className="text-sm text-muted-foreground max-w-sm mb-4">{description}</p>
       )}
       {action}
     </div>
