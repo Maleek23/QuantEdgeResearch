@@ -162,6 +162,18 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
   const strategy = payload.strategy || 'v15';
   const signalType = payload.signal_type || 'signal';
   const confidence = payload.confidence || 'high';
+  const message = (payload.message || '').toUpperCase().trim();
+
+  // IGNORE EXIT SIGNALS — only process new entries
+  // v15 sends: "SL" (stop loss), "TP" (take profit), "TRAIL" (trailing stop),
+  // "TIME" (time stop), "MAXHOLD" (max hold exit), "EXIT" as exit comments
+  const EXIT_KEYWORDS = ['SL', 'TP', 'TRAIL', 'TIME', 'MAXHOLD', 'EXIT', 'CLOSE', 'STOP'];
+  const isExitSignal = EXIT_KEYWORDS.some(kw => message === kw || message.startsWith(kw + '+') || message.startsWith(kw + ' '));
+
+  if (isExitSignal) {
+    logger.info(`[TV-WEBHOOK] Ignored EXIT signal for ${symbol}: "${payload.message}" (not a new entry)`);
+    return { success: false, error: `Exit signal ignored: ${payload.message}` };
+  }
 
   logger.info(`[TV-WEBHOOK] Processing ${symbol} ${direction} signal (${strategy}, ${signalType})`);
 
