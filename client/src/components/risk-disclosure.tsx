@@ -16,7 +16,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
         className={`flex items-center gap-1.5 text-[10px] text-amber-200/70 ${className}`}
         data-testid="risk-disclosure-micro"
       >
-        <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+        <AlertTriangle className="h-3 w-3 text-[var(--trade-neutral)] flex-shrink-0" />
         <span>Educational research only. Not financial advice.</span>
       </div>
     );
@@ -29,7 +29,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
         data-testid="risk-disclosure-banner"
       >
         <div className="container mx-auto flex items-center justify-center gap-2 text-xs text-amber-200/80">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] flex-shrink-0" />
           <span>
             <strong>Educational research only.</strong> Not financial advice. Past performance does not guarantee future results.
           </span>
@@ -41,7 +41,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
   if (variant === 'compact') {
     return (
       <Alert className={`border-amber-500/30 bg-amber-500/5 ${className}`} data-testid="alert-risk-disclosure">
-        <AlertTriangle className="h-4 w-4 text-amber-500" />
+        <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
         <AlertDescription className="text-sm">
           <strong className="font-semibold">Educational Research Only:</strong> Pattern analysis and market research for educational purposes.{' '}
           <span className="text-muted-foreground">NOT financial advice. YOU decide your own entries, exits, and risk. Past patterns do not guarantee future results.</span>
@@ -59,7 +59,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
     <Card className={`border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent ${className}`} data-testid="card-risk-disclosure">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
           Risk Disclosure & Legal Notice
           {engineVersion && (
             <Badge variant="outline" className="ml-auto">
@@ -82,7 +82,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
           </div>
 
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-foreground">Not Financial Advice</p>
               <p className="text-muted-foreground">
@@ -93,7 +93,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
           </div>
 
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-[var(--trade-bearish)] mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-foreground">Risk Warning</p>
               <p className="text-muted-foreground">

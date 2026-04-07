@@ -57,11 +57,11 @@ import type { WatchlistItem, TradeIdea } from "@shared/schema";
 // Tier configuration for grading display
 const TIER_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   S: { bg: "bg-purple-500/20", text: "text-purple-400", label: "S" },
-  A: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "A" },
-  B: { bg: "bg-emerald-500/20", text: "text-emerald-400", label: "B" },
-  C: { bg: "bg-amber-500/20", text: "text-amber-400", label: "C" },
+  A: { bg: "bg-emerald-500/20", text: "text-[var(--trade-bullish)]", label: "A" },
+  B: { bg: "bg-emerald-500/20", text: "text-[var(--trade-bullish)]", label: "B" },
+  C: { bg: "bg-amber-500/20", text: "text-[var(--trade-neutral)]", label: "C" },
   D: { bg: "bg-orange-500/20", text: "text-orange-400", label: "D" },
-  F: { bg: "bg-red-500/20", text: "text-red-400", label: "F" },
+  F: { bg: "bg-red-500/20", text: "text-[var(--trade-bearish)]", label: "F" },
 };
 
 interface QuoteData {
@@ -235,11 +235,11 @@ export default function UnifiedWatchlist() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold text-slate-100 flex items-center gap-3">
-              <Star className="h-7 w-7 text-emerald-400" />
+            <h1 className="text-3xl font-semibold text-foreground/90 flex items-center gap-3">
+              <Star className="h-7 w-7 text-[var(--trade-bullish)]" />
               Watchlist
             </h1>
-            <Badge className="bg-emerald-500/20 text-emerald-400 border-0 font-mono">
+            <Badge className="bg-emerald-500/20 text-[var(--trade-bullish)] border-0 font-mono">
               {watchlistItems.length}
             </Badge>
           </div>
@@ -247,7 +247,7 @@ export default function UnifiedWatchlist() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-700"
+              className="border-border"
               onClick={() => reGradeAllMutation.mutate()}
               disabled={reGradeAllMutation.isPending}
             >
@@ -257,7 +257,7 @@ export default function UnifiedWatchlist() {
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-700"
+              className="border-border"
               onClick={() => {
                 const csv = [
                   ['Symbol', 'Price', 'Type', 'YTD Return', 'Market Cap', 'Outlook', 'Tier'].join(','),
@@ -311,9 +311,9 @@ export default function UnifiedWatchlist() {
           className="flex items-center justify-between gap-4"
         >
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-400">Default</span>
+            <span className="text-sm text-muted-foreground">Default</span>
             <Select value={selectedWatchlist} onValueChange={setSelectedWatchlist}>
-              <SelectTrigger className="w-40 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+              <SelectTrigger className="w-40 bg-emerald-500/10 border-emerald-500/30 text-[var(--trade-bullish)]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -325,8 +325,8 @@ export default function UnifiedWatchlist() {
           </div>
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="bg-slate-800/50">
-              <TabsTrigger value="default" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="default" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-[var(--trade-bullish)]">
                 <Star className="w-4 h-4 mr-2" />
                 Overview
               </TabsTrigger>
@@ -334,7 +334,7 @@ export default function UnifiedWatchlist() {
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Technical
               </TabsTrigger>
-              <TabsTrigger value="bot" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400">
+              <TabsTrigger value="bot" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-[var(--trade-bullish)]">
                 <Bot className="w-4 h-4 mr-2" />
                 Moving Averages
               </TabsTrigger>
@@ -342,9 +342,9 @@ export default function UnifiedWatchlist() {
           </Tabs>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-400">Add Symbol:</span>
+            <span className="text-sm text-muted-foreground">Add Symbol:</span>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="AAPL, TSLA..."
                 value={newSymbol}
@@ -354,7 +354,7 @@ export default function UnifiedWatchlist() {
                     addSymbolMutation.mutate();
                   }
                 }}
-                className="pl-9 w-48 bg-slate-800/50 border-slate-700"
+                className="pl-9 w-48 bg-muted/50 border-border"
               />
             </div>
           </div>
@@ -366,23 +366,23 @@ export default function UnifiedWatchlist() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
+          <Card className="bg-card/60 border-border overflow-hidden">
             {watchlistLoading ? (
               <div className="p-12 text-center">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-emerald-400 mb-4" />
-                <p className="text-slate-400">Loading watchlist...</p>
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-[var(--trade-bullish)] mb-4" />
+                <p className="text-muted-foreground">Loading watchlist...</p>
               </div>
             ) : sortedItems.length === 0 ? (
               <div className="p-12 text-center">
-                <Star className="h-12 w-12 mx-auto text-slate-700 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-300 mb-2">No symbols in watchlist</h3>
-                <p className="text-sm text-slate-500">Add symbols using the search bar above</p>
+                <Star className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-semibold text-foreground/80 mb-2">No symbols in watchlist</h3>
+                <p className="text-sm text-muted-foreground">Add symbols using the search bar above</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b border-slate-800 hover:bg-transparent">
+                    <TableRow className="border-b border-border hover:bg-transparent">
                       <TableHead className="cursor-pointer" onClick={() => handleSort('symbol')}>
                         <div className="flex items-center gap-1">
                           Symbol
@@ -426,22 +426,22 @@ export default function UnifiedWatchlist() {
                       return (
                         <TableRow
                           key={item.id}
-                          className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                          className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                         >
                           <TableCell>
                             <div>
                               <Link href={`/stock/${item.symbol}`}>
-                                <span className="font-semibold text-emerald-400 hover:text-emerald-300 cursor-pointer">
+                                <span className="font-semibold text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)] cursor-pointer">
                                   {item.symbol}
                                 </span>
                               </Link>
-                              <p className="text-xs text-slate-500 mt-0.5 max-w-xs truncate">
+                              <p className="text-xs text-muted-foreground mt-0.5 max-w-xs truncate">
                                 {item.notes || item.assetType?.toUpperCase() || 'Stock'}
                               </p>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="font-mono text-slate-200">
+                            <span className="font-mono text-foreground/80">
                               {price > 0 ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}
                             </span>
                           </TableCell>
@@ -453,19 +453,19 @@ export default function UnifiedWatchlist() {
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
                               {isPositive ? (
-                                <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                                <ArrowUpRight className="w-3 h-3 text-[var(--trade-bullish)]" />
                               ) : (
-                                <ArrowDownRight className="w-3 h-3 text-red-400" />
+                                <ArrowDownRight className="w-3 h-3 text-[var(--trade-bearish)]" />
                               )}
                               <span className={cn(
                                 "font-mono text-sm",
-                                isPositive ? "text-emerald-400" : "text-red-400"
+                                isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                               )}>
                                 {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right text-slate-400 text-sm">
+                          <TableCell className="text-right text-muted-foreground text-sm">
                             {getMarketCap(item)}
                           </TableCell>
                           <TableCell className="text-center">
@@ -473,15 +473,15 @@ export default function UnifiedWatchlist() {
                               <Badge className={cn(
                                 "text-xs",
                                 outlook === "Outperform"
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                  ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30"
                                   : outlook === "Underperform"
-                                  ? "bg-red-500/20 text-red-400 border-red-500/30"
-                                  : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                                  ? "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
+                                  : "bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30"
                               )}>
                                 {outlook}
                               </Badge>
                             ) : (
-                              <Lock className="w-4 h-4 text-slate-600 mx-auto" />
+                              <Lock className="w-4 h-4 text-muted-foreground/70 mx-auto" />
                             )}
                           </TableCell>
                           <TableCell className="text-center">
@@ -490,7 +490,7 @@ export default function UnifiedWatchlist() {
                                 {tier}
                               </div>
                               {item.gradeScore && (
-                                <span className="text-xs text-slate-500 font-mono">
+                                <span className="text-xs text-muted-foreground font-mono">
                                   {item.gradeScore}/100
                                 </span>
                               )}
@@ -499,14 +499,14 @@ export default function UnifiedWatchlist() {
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">
                               <Link href={`/stock/${item.symbol}`}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-400 hover:text-emerald-300">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)]">
                                   <Eye className="w-4 h-4" />
                                 </Button>
                               </Link>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-400 hover:text-red-300"
+                                className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300"
                                 onClick={() => {
                                   if (confirm(`Remove ${item.symbol} from watchlist?`)) {
                                     removeSymbolMutation.mutate(item.id);
@@ -533,20 +533,20 @@ export default function UnifiedWatchlist() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <Card className="bg-slate-900/60 border-slate-800">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          <Card className="bg-card/60 border-border">
+            <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Bell className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-semibold text-slate-100">Notifications & Alerts</h3>
+                <Bell className="w-5 h-5 text-[var(--trade-bullish)]" />
+                <h3 className="font-semibold text-foreground/90">Notifications & Alerts</h3>
               </div>
-              <Button variant="ghost" size="sm" className="text-xs text-slate-400">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
                 Upgrade to Premium
                 <ArrowUpRight className="w-3 h-3 ml-1" />
               </Button>
             </div>
 
             {/* Notification Tabs */}
-            <div className="px-4 py-3 border-b border-slate-800/50 flex gap-2 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-border/50 flex gap-2 overflow-x-auto">
               {["All", "Analyst Updates", "Insider Activity", "Congress Trades", "Earnings", "Dividends", "Price Alerts"].map((tab) => (
                 <Button
                   key={tab}
@@ -555,8 +555,8 @@ export default function UnifiedWatchlist() {
                   className={cn(
                     "whitespace-nowrap text-xs",
                     tab === "All"
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-emerald-500/10 text-[var(--trade-bullish)]"
+                      : "text-muted-foreground hover:text-foreground/80"
                   )}
                 >
                   {tab}
@@ -566,8 +566,8 @@ export default function UnifiedWatchlist() {
 
             {/* Empty State */}
             <div className="p-12 text-center">
-              <Bell className="h-12 w-12 mx-auto text-slate-700 mb-4" />
-              <p className="text-slate-500">No notifications yet. Add stocks to receive alerts.</p>
+              <Bell className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">No notifications yet. Add stocks to receive alerts.</p>
             </div>
           </Card>
         </motion.div>

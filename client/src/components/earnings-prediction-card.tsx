@@ -142,16 +142,16 @@ function ScenarioBar({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-300">{label}</span>
+        <span className="text-foreground/80">{label}</span>
         <div className="flex items-center gap-2">
           <span className={cn("font-medium", color)}>
             {priceChange >= 0 ? "+" : ""}
             {priceChange}%
           </span>
-          <span className="text-white font-bold">{probability}%</span>
+          <span className="text-foreground font-bold">{probability}%</span>
         </div>
       </div>
-      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all", color.replace("text-", "bg-"))}
           style={{ width: `${probability}%` }}
@@ -173,10 +173,10 @@ function ForecastCard({
   const isPositive = forecast.variance >= 0;
 
   return (
-    <div className="bg-slate-800/50 rounded-lg p-4">
+    <div className="bg-muted/50 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="h-4 w-4 text-cyan-400" />
-        <span className="text-sm font-medium text-white">{title}</span>
+        <span className="text-sm font-medium text-foreground">{title}</span>
       </div>
       <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
@@ -184,7 +184,7 @@ function ForecastCard({
           <p
             className={cn(
               "text-lg font-bold",
-              isPositive ? "text-emerald-400" : "text-red-400"
+              isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}
           >
             {title === "EPS" ? `$${safeToFixed(forecast.estimate, 2)}` : `$${safeToFixed(forecast.estimate / 1e9, 2)}B`}
@@ -192,7 +192,7 @@ function ForecastCard({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Consensus</p>
-          <p className="text-lg font-bold text-slate-300">
+          <p className="text-lg font-bold text-foreground/80">
             {title === "EPS" ? `$${safeToFixed(forecast.consensus, 2)}` : `$${safeToFixed(forecast.consensus / 1e9, 2)}B`}
           </p>
         </div>
@@ -202,15 +202,15 @@ function ForecastCard({
           variant="outline"
           className={cn(
             isPositive
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              : "bg-red-500/10 border-red-500/20 text-red-400"
+              ? "bg-emerald-500/10 border-emerald-500/20 text-[var(--trade-bullish)]"
+              : "bg-red-500/10 border-red-500/20 text-[var(--trade-bearish)]"
           )}
         >
           {isPositive ? "+" : ""}
           {forecast.variance}% vs consensus
         </Badge>
       </div>
-      <p className="text-xs text-slate-400 mt-2">{forecast.justification}</p>
+      <p className="text-xs text-muted-foreground mt-2">{forecast.justification}</p>
     </div>
   );
 }
@@ -237,19 +237,19 @@ function StrategyCard({ strategy, type }: { strategy: TacticalStrategy; type: st
           className={cn(
             "h-4 w-4",
             type === "bullish"
-              ? "text-emerald-400"
+              ? "text-[var(--trade-bullish)]"
               : type === "bearish"
-              ? "text-red-400"
-              : "text-amber-400"
+              ? "text-[var(--trade-bearish)]"
+              : "text-[var(--trade-neutral)]"
           )}
         />
-        <span className="text-sm font-medium text-white capitalize">{type} Strategy</span>
+        <span className="text-sm font-medium text-foreground capitalize">{type} Strategy</span>
       </div>
-      <p className="text-sm font-semibold text-white mb-1">{strategy.strategy}</p>
+      <p className="text-sm font-semibold text-foreground mb-1">{strategy.strategy}</p>
       {strategy.optionPlay && (
         <p className="text-xs text-cyan-400 mb-2 font-mono">{strategy.optionPlay}</p>
       )}
-      <p className="text-xs text-slate-400">{strategy.reasoning}</p>
+      <p className="text-xs text-muted-foreground">{strategy.reasoning}</p>
     </div>
   );
 }
@@ -260,10 +260,10 @@ function SurpriseHistoryChart({ history }: { history: EarningsSurprise[] }) {
       {history.slice(0, 4).map((item, i) => (
         <div
           key={item.date}
-          className="flex items-center justify-between p-2 bg-slate-800/30 rounded"
+          className="flex items-center justify-between p-2 bg-muted/30 rounded"
         >
           <div>
-            <p className="text-sm font-medium text-white">{item.date}</p>
+            <p className="text-sm font-medium text-foreground">{item.date}</p>
             <p className="text-xs text-muted-foreground">
               Est: ${safeToFixed(item.expectedEPS, 2)} | Act: ${safeToFixed(item.actualEPS, 2)}
             </p>
@@ -273,8 +273,8 @@ function SurpriseHistoryChart({ history }: { history: EarningsSurprise[] }) {
               variant="outline"
               className={cn(
                 item.surprise >= 0
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  : "bg-red-500/10 border-red-500/20 text-red-400"
+                  ? "bg-emerald-500/10 border-emerald-500/20 text-[var(--trade-bullish)]"
+                  : "bg-red-500/10 border-red-500/20 text-[var(--trade-bearish)]"
               )}
             >
               {item.surprise >= 0 ? "+" : ""}
@@ -283,7 +283,7 @@ function SurpriseHistoryChart({ history }: { history: EarningsSurprise[] }) {
             <p
               className={cn(
                 "text-xs mt-1",
-                item.priceReaction >= 0 ? "text-emerald-400" : "text-red-400"
+                item.priceReaction >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}
             >
               Stock: {item.priceReaction >= 0 ? "+" : ""}
@@ -351,11 +351,11 @@ export function EarningsPredictionCard({
 
   // Prediction styling
   const predictionColors = {
-    strong_beat: { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    beat: { text: "text-green-400", bg: "bg-green-500/10", border: "border-green-500/20" },
-    neutral: { text: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    strong_beat: { text: "text-[var(--trade-bullish)]", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    beat: { text: "text-[var(--trade-bullish)]", bg: "bg-[var(--trade-bullish)]/10", border: "border-green-500/20" },
+    neutral: { text: "text-[var(--trade-neutral)]", bg: "bg-amber-500/10", border: "border-amber-500/20" },
     miss: { text: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
-    strong_miss: { text: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
+    strong_miss: { text: "text-[var(--trade-bearish)]", bg: "bg-red-500/10", border: "border-red-500/20" },
   };
 
   const predictionLabels = {
@@ -385,7 +385,7 @@ export function EarningsPredictionCard({
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Confidence</p>
-              <p className="text-lg font-bold text-white">{data.confidence}%</p>
+              <p className="text-lg font-bold text-foreground">{data.confidence}%</p>
             </div>
           </div>
         </CardContent>
@@ -426,61 +426,61 @@ export function EarningsPredictionCard({
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Confidence</p>
-                  <p className="text-2xl font-bold text-white">{data.confidence}%</p>
+                  <p className="text-2xl font-bold text-foreground">{data.confidence}%</p>
                 </div>
               </div>
               <Progress value={data.confidence} className="h-2 mb-3" />
-              <p className="text-sm text-slate-300">{data.aiSummary}</p>
+              <p className="text-sm text-foreground/80">{data.aiSummary}</p>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Beat Rate</p>
-                <p className="text-lg font-bold text-white">{data.beatRate}%</p>
+                <p className="text-lg font-bold text-foreground">{data.beatRate}%</p>
               </div>
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Avg Surprise</p>
                 <p
                   className={cn(
                     "text-lg font-bold",
-                    data.averageSurprise >= 0 ? "text-emerald-400" : "text-red-400"
+                    data.averageSurprise >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )}
                 >
                   {data.averageSurprise >= 0 ? "+" : ""}
                   {data.averageSurprise}%
                 </p>
               </div>
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+              <div className="bg-muted/50 rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Implied Move</p>
-                <p className="text-lg font-bold text-amber-400">±{data.impliedMove}%</p>
+                <p className="text-lg font-bold text-[var(--trade-neutral)]">±{data.impliedMove}%</p>
               </div>
             </div>
 
             {/* Risk Badge */}
-            <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
               <div className="flex items-center gap-2">
                 <AlertTriangle
                   className={cn(
                     "h-4 w-4",
                     data.riskLevel === "high"
-                      ? "text-red-400"
+                      ? "text-[var(--trade-bearish)]"
                       : data.riskLevel === "medium"
-                      ? "text-amber-400"
-                      : "text-emerald-400"
+                      ? "text-[var(--trade-neutral)]"
+                      : "text-[var(--trade-bullish)]"
                   )}
                 />
-                <span className="text-sm text-slate-300">Risk Level</span>
+                <span className="text-sm text-foreground/80">Risk Level</span>
               </div>
               <Badge
                 variant="outline"
                 className={cn(
                   "capitalize",
                   data.riskLevel === "high"
-                    ? "bg-red-500/10 border-red-500/20 text-red-400"
+                    ? "bg-red-500/10 border-red-500/20 text-[var(--trade-bearish)]"
                     : data.riskLevel === "medium"
-                    ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                    ? "bg-amber-500/10 border-amber-500/20 text-[var(--trade-neutral)]"
+                    : "bg-emerald-500/10 border-emerald-500/20 text-[var(--trade-bullish)]"
                 )}
               >
                 {data.riskLevel}
@@ -497,19 +497,19 @@ export function EarningsPredictionCard({
               label="Strong Beat"
               probability={data.scenarios.strongBeat.probability}
               priceChange={data.scenarios.strongBeat.priceChange}
-              color="text-emerald-400"
+              color="text-[var(--trade-bullish)]"
             />
             <ScenarioBar
               label="Beat"
               probability={data.scenarios.beat.probability}
               priceChange={data.scenarios.beat.priceChange}
-              color="text-green-400"
+              color="text-[var(--trade-bullish)]"
             />
             <ScenarioBar
               label="Meet Expectations"
               probability={data.scenarios.neutral.probability}
               priceChange={data.scenarios.neutral.priceChange}
-              color="text-amber-400"
+              color="text-[var(--trade-neutral)]"
             />
             <ScenarioBar
               label="Miss"
@@ -521,7 +521,7 @@ export function EarningsPredictionCard({
               label="Strong Miss"
               probability={data.scenarios.strongMiss.probability}
               priceChange={data.scenarios.strongMiss.priceChange}
-              color="text-red-400"
+              color="text-[var(--trade-bearish)]"
             />
           </TabsContent>
 
@@ -537,7 +537,7 @@ export function EarningsPredictionCard({
             <div className="pt-2">
               <div className="flex items-center gap-2 mb-3">
                 <History className="h-4 w-4 text-cyan-400" />
-                <span className="text-sm font-medium text-white">Historical Surprises</span>
+                <span className="text-sm font-medium text-foreground">Historical Surprises</span>
               </div>
               <SurpriseHistoryChart history={data.surpriseHistory} />
             </div>
@@ -556,7 +556,7 @@ export function EarningsPredictionCard({
 
         {/* Disclaimer */}
         <div className="flex items-start gap-2 mt-4 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-          <Info className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+          <Info className="h-4 w-4 text-[var(--trade-neutral)] mt-0.5 flex-shrink-0" />
           <p className="text-xs text-amber-200">
             This is AI-generated analysis for educational purposes only. Past performance does not
             guarantee future results. Always conduct your own research before making investment

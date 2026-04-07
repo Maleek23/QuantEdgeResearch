@@ -209,7 +209,7 @@ export default function SettingsPage() {
               <RotateCcw className="h-4 w-4 mr-1" />
               Reset
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="button-save">
+            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-foreground" data-testid="button-save">
               <Save className="h-4 w-4 mr-1" />
               {saveMutation.isPending ? "Saving..." : "Save"}
             </Button>
@@ -583,7 +583,7 @@ export default function SettingsPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{bot.name}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">Active</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-[var(--trade-bullish)]">Active</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{bot.description}</p>
                     </div>
@@ -660,7 +660,7 @@ export default function SettingsPage() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    className="text-red-500 hover:text-red-600"
+                    className="text-[var(--trade-bearish)] hover:text-red-600"
                     onClick={() => toast({ title: "Logs cleared", description: "Bot trade logs have been reset" })}
                     data-testid="button-clear-logs"
                   >
@@ -677,7 +677,7 @@ export default function SettingsPage() {
                       <div key={i} className="flex items-center justify-between p-2 text-xs hover:bg-muted/50">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-medium">{position.symbol}</span>
-                          <span className={position.direction === 'long' ? 'text-emerald-500' : 'text-red-500'}>
+                          <span className={position.direction === 'long' ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
                             {position.direction?.toUpperCase()}
                           </span>
                           <span className="text-muted-foreground">@${safeToFixed(position.entryPrice, 2)}</span>
@@ -691,7 +691,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <div className="p-8 text-center text-muted-foreground text-sm">
-                    No bot trades recorded yet. Trades will appear once bots start executing.
+                    Bot trades will appear here once active
                   </div>
                 )}
               </div>
@@ -781,7 +781,7 @@ export default function SettingsPage() {
             <RotateCcw className="h-4 w-4 mr-1" />
             Reset
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950">
+          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-foreground">
             <Save className="h-4 w-4 mr-1" />
             {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
@@ -790,7 +790,7 @@ export default function SettingsPage() {
 
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardContent className="flex items-start gap-3 pt-4">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">
             Quant Edge Labs is for <strong className="text-foreground">educational and research purposes only</strong>. 
             This platform does not constitute financial advice.

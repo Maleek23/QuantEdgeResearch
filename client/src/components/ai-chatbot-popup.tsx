@@ -174,8 +174,8 @@ export function AIChatbotPopup() {
                   variant="outline" 
                   className={cn(
                     "text-xs gap-1",
-                    creditsRemaining <= 5 ? "border-red-500/50 text-red-400" :
-                    creditsRemaining <= 15 ? "border-amber-500/50 text-amber-400" :
+                    creditsRemaining <= 5 ? "border-red-500/50 text-[var(--trade-bearish)]" :
+                    creditsRemaining <= 15 ? "border-amber-500/50 text-[var(--trade-neutral)]" :
                     "border-cyan-500/50 text-cyan-400"
                   )}
                   data-testid="badge-credits"
@@ -312,7 +312,7 @@ export function AIChatbotPopup() {
                     </div>
                   </a>
                 )}
-                <div className="flex items-center gap-1 mb-2 text-xs text-amber-500/80">
+                <div className="flex items-center gap-1 mb-2 text-xs text-[var(--trade-neutral)]/80">
                   <AlertTriangle className="h-3 w-3" />
                   <span>Educational only. Not financial advice.</span>
                 </div>

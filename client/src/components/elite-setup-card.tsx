@@ -36,7 +36,7 @@ const TIER_CONFIG: Record<string, {
   },
   A: {
     bg: "bg-emerald-500/15",
-    text: "text-emerald-400",
+    text: "text-[var(--trade-bullish)]",
     border: "border-emerald-500/40",
     glow: "shadow-emerald-500/20",
     label: "Strong",
@@ -52,7 +52,7 @@ const TIER_CONFIG: Record<string, {
   },
   C: {
     bg: "bg-amber-500/15",
-    text: "text-amber-400",
+    text: "text-[var(--trade-neutral)]",
     border: "border-amber-500/40",
     glow: "shadow-amber-500/20",
     label: "Neutral",
@@ -68,8 +68,8 @@ const TIER_CONFIG: Record<string, {
   },
   F: {
     bg: "bg-red-500/15",
-    text: "text-red-400",
-    border: "border-red-500/40",
+    text: "text-[var(--trade-bearish)]",
+    border: "border-[var(--trade-bearish)]/40",
     glow: "shadow-red-500/20",
     label: "Avoid",
     icon: AlertTriangle
@@ -141,7 +141,7 @@ export default function EliteSetupCard({
               {scoreChange !== 0 && (
                 <Badge variant="outline" className={cn(
                   "ml-1 text-xs",
-                  scoreChange > 0 ? "border-green-500/40 text-green-400" : "border-red-500/40 text-red-400"
+                  scoreChange > 0 ? "border-[var(--trade-bullish)]/40 text-[var(--trade-bullish)]" : "border-[var(--trade-bearish)]/40 text-[var(--trade-bearish)]"
                 )}>
                   {scoreChange > 0 ? '+' : ''}{scoreChange}
                 </Badge>
@@ -158,7 +158,7 @@ export default function EliteSetupCard({
       className={cn(
         "hover-elevate transition-all overflow-visible",
         config.border,
-        "bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-sm"
+        "bg-card backdrop-blur-sm"
       )}
       data-testid={`elite-card-${item.symbol}`}
     >
@@ -175,7 +175,7 @@ export default function EliteSetupCard({
               <h3 className="text-lg font-semibold font-mono" data-testid={`symbol-${item.symbol}`}>
                 {item.symbol}
               </h3>
-              <p className="text-sm font-medium text-slate-400">
+              <p className="text-sm font-medium text-muted-foreground">
                 {item.assetType?.toUpperCase()} {item.sector && `• ${item.sector}`}
               </p>
             </div>
@@ -200,7 +200,7 @@ export default function EliteSetupCard({
             {scoreChange !== 0 && (
               <p className={cn(
                 "text-sm font-mono",
-                scoreChange > 0 ? "text-green-400" : "text-red-400"
+                scoreChange > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 ({scoreChange > 0 ? '↑' : '↓'} {scoreChange > 0 ? '+' : ''}{scoreChange} from {safeToFixed(item.initialScore, 0, '?')})
               </p>
@@ -208,7 +208,7 @@ export default function EliteSetupCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
           <span>{daysWatched} days watched</span>
         </div>
@@ -216,20 +216,20 @@ export default function EliteSetupCard({
         {item.priceSinceAdded !== null && item.priceSinceAdded !== undefined && (
           <div className="grid grid-cols-2 gap-2 text-sm font-mono">
             <div>
-              <span className="text-xs text-slate-500 block">Price Since Added</span>
+              <span className="text-xs text-muted-foreground block">Price Since Added</span>
               <span className={cn(
                 "font-semibold",
-                item.priceSinceAdded >= 0 ? "text-green-400" : "text-red-400"
+                item.priceSinceAdded >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {item.priceSinceAdded >= 0 ? '+' : ''}{safeToFixed(item.priceSinceAdded, 1)}%
               </span>
             </div>
             {item.ytdPerformance !== null && item.ytdPerformance !== undefined && (
               <div>
-                <span className="text-xs text-slate-500 block">YTD</span>
+                <span className="text-xs text-muted-foreground block">YTD</span>
                 <span className={cn(
                   "font-semibold",
-                  item.ytdPerformance >= 0 ? "text-green-400" : "text-red-400"
+                  item.ytdPerformance >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {item.ytdPerformance >= 0 ? '+' : ''}{safeToFixed(item.ytdPerformance, 1)}%
                 </span>
@@ -239,27 +239,27 @@ export default function EliteSetupCard({
         )}
 
         {(item.timesTraded && item.timesTraded > 0) && (
-          <div className="p-2 rounded-md bg-slate-700/30 border border-slate-600/30">
-            <p className="text-xs font-medium text-slate-400 mb-1">Your {item.symbol} Stats</p>
+          <div className="p-2 rounded-md bg-muted/30 border border-border/30">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Your {item.symbol} Stats</p>
             <div className="grid grid-cols-3 gap-2 text-sm font-mono">
               <div>
-                <span className="text-xs text-slate-500">Traded</span>
+                <span className="text-xs text-muted-foreground">Traded</span>
                 <p className="font-semibold">{item.timesTraded}x</p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">Win Rate</span>
+                <span className="text-xs text-muted-foreground">Win Rate</span>
                 <p className={cn(
                   "font-semibold",
-                  winRate && parseInt(winRate) >= 50 ? "text-green-400" : "text-red-400"
+                  winRate && parseInt(winRate) >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {winRate || 0}%
                 </p>
               </div>
               <div>
-                <span className="text-xs text-slate-500">P&L</span>
+                <span className="text-xs text-muted-foreground">P&L</span>
                 <p className={cn(
                   "font-semibold",
-                  (item.totalPnl || 0) >= 0 ? "text-green-400" : "text-red-400"
+                  (item.totalPnl || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {formatPnl(item.totalPnl)}
                 </p>
@@ -269,19 +269,19 @@ export default function EliteSetupCard({
         )}
 
         {item.addedReason && (
-          <p className="text-sm text-slate-400 italic" data-testid={`reason-${item.symbol}`}>
+          <p className="text-sm text-muted-foreground italic" data-testid={`reason-${item.symbol}`}>
             "{item.addedReason}"
           </p>
         )}
 
         {item.nextCatalyst && (
           <div className="flex items-center gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/30">
-            <Calendar className="h-4 w-4 text-amber-400" />
-            <span className="text-sm text-amber-400">{item.nextCatalyst}</span>
+            <Calendar className="h-4 w-4 text-[var(--trade-neutral)]" />
+            <span className="text-sm text-[var(--trade-neutral)]">{item.nextCatalyst}</span>
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
+        <div className="flex items-center gap-2 pt-2 border-t border-border/50">
           <Button 
             variant="ghost" 
             size="sm" 

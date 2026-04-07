@@ -76,14 +76,14 @@ interface SymbolIntelligence {
 
 function getWinRateColor(rate: number | null): string {
   if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-green-500";
-  if (rate >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (rate >= 70) return "text-[var(--trade-bullish)]";
+  if (rate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 function getPnlColor(pnl: number | null): string {
   if (pnl === null || pnl === 0) return "text-muted-foreground";
-  return pnl > 0 ? "text-green-500" : "text-red-500";
+  return pnl > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
 }
 
 function HeroStats({ stats }: { stats: HistoricalStats }) {
@@ -102,7 +102,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center">
-            <CheckCircle className="h-8 w-8 text-green-400 mb-2" />
+            <CheckCircle className="h-8 w-8 text-[var(--trade-bullish)] mb-2" />
             <p className={cn("text-3xl font-bold", getWinRateColor(stats.overall.winRate))}>
               {safeToFixed(stats.overall.winRate, 1)}%
             </p>
@@ -114,7 +114,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center">
-            <Target className="h-8 w-8 text-amber-400 mb-2" />
+            <Target className="h-8 w-8 text-[var(--trade-neutral)] mb-2" />
             <p className="text-3xl font-bold">{stats.overall.wins}</p>
             <p className="text-xs text-muted-foreground">Wins</p>
           </div>
@@ -124,7 +124,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col items-center">
-            <AlertTriangle className="h-8 w-8 text-red-400 mb-2" />
+            <AlertTriangle className="h-8 w-8 text-[var(--trade-bearish)] mb-2" />
             <p className="text-3xl font-bold">{stats.overall.losses}</p>
             <p className="text-xs text-muted-foreground">Losses</p>
           </div>
@@ -135,7 +135,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
         <CardContent className="pt-6">
           <div className="flex flex-col items-center">
             <Zap className="h-8 w-8 text-purple-400 mb-2" />
-            <p className={cn("text-3xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-green-500" : stats.overall.profitFactor >= 1 ? "text-amber-500" : "text-red-500")}>
+            <p className={cn("text-3xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : stats.overall.profitFactor >= 1 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]")}>
               {safeToFixed(stats.overall.profitFactor, 2)}x
             </p>
             <p className="text-xs text-muted-foreground">Profit Factor</p>
@@ -187,7 +187,7 @@ function CatalystPerformance({ stats }: { stats: HistoricalStats }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          <Activity className="h-5 w-5 text-amber-400" />
+          <Activity className="h-5 w-5 text-[var(--trade-neutral)]" />
           Catalyst Performance
         </CardTitle>
         <CardDescription>Win rates by catalyst type</CardDescription>
@@ -195,7 +195,7 @@ function CatalystPerformance({ stats }: { stats: HistoricalStats }) {
       <CardContent>
         <div className="grid grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium text-green-400 mb-3 flex items-center gap-1">
+            <h4 className="text-sm font-medium text-[var(--trade-bullish)] mb-3 flex items-center gap-1">
               <TrendingUp className="h-4 w-4" /> Best Catalysts
             </h4>
             <div className="space-y-2">
@@ -214,7 +214,7 @@ function CatalystPerformance({ stats }: { stats: HistoricalStats }) {
           </div>
           
           <div>
-            <h4 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-1">
+            <h4 className="text-sm font-medium text-[var(--trade-bearish)] mb-3 flex items-center gap-1">
               <TrendingDown className="h-4 w-4" /> Worst Catalysts
             </h4>
             <div className="space-y-2">
@@ -270,7 +270,7 @@ function ConfidenceCalibration({ stats }: { stats: HistoricalStats }) {
                   {safeToFixed(band.actualWinRate, 1)}%
                 </TableCell>
                 <TableCell className={cn("text-right font-medium", 
-                  band.calibrationError >= 0 ? "text-green-500" : "text-red-500"
+                  band.calibrationError >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {band.calibrationError >= 0 ? '+' : ''}{safeToFixed(band.calibrationError, 1)}%
                 </TableCell>
@@ -425,9 +425,9 @@ function SymbolLookup() {
                 <Badge 
                   variant={intelligence.profile.overallWinRate && intelligence.profile.overallWinRate >= 60 ? 'default' : 'secondary'}
                   className={cn(
-                    intelligence.profile.overallWinRate && intelligence.profile.overallWinRate >= 70 ? "bg-green-500/20 text-green-400" :
-                    intelligence.profile.overallWinRate && intelligence.profile.overallWinRate >= 50 ? "bg-amber-500/20 text-amber-400" :
-                    "bg-red-500/20 text-red-400"
+                    intelligence.profile.overallWinRate && intelligence.profile.overallWinRate >= 70 ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" :
+                    intelligence.profile.overallWinRate && intelligence.profile.overallWinRate >= 50 ? "bg-amber-500/20 text-[var(--trade-neutral)]" :
+                    "bg-red-500/20 text-[var(--trade-bearish)]"
                   )}
                 >
                   {safeToFixed(intelligence.profile.overallWinRate, 0)}% Win Rate
@@ -454,8 +454,8 @@ function SymbolLookup() {
                 <div className="bg-muted/30 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground">Profit Factor</p>
                   <p className={cn("text-xl font-bold", 
-                    intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1.5 ? "text-green-500" : 
-                    intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1 ? "text-amber-500" : "text-red-500"
+                    intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : 
+                    intelligence.profile.profitFactor && intelligence.profile.profitFactor >= 1 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                   )}>
                     {safeToFixed(intelligence.profile.profitFactor, 2) || 'N/A'}x
                   </p>
@@ -532,7 +532,7 @@ export default function HistoricalIntelligencePage() {
       <div className="container mx-auto py-8 px-4">
         <Card>
           <CardContent className="py-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-[var(--trade-neutral)] mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Failed to Load Historical Intelligence</h2>
             <p className="text-muted-foreground mb-4">There was an error loading the analytics data.</p>
             <Button onClick={() => window.location.reload()}>
@@ -594,9 +594,9 @@ export default function HistoricalIntelligencePage() {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           {direction === 'long' ? (
-                            <TrendingUp className="h-4 w-4 text-green-400" />
+                            <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                           ) : (
-                            <TrendingDown className="h-4 w-4 text-red-400" />
+                            <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
                           )}
                           <span className="capitalize font-medium">{direction}</span>
                           <span className="text-xs text-muted-foreground">{data.ideas} ideas</span>
@@ -616,7 +616,7 @@ export default function HistoricalIntelligencePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-green-400">
+                <CardTitle className="text-lg flex items-center gap-2 text-[var(--trade-bullish)]">
                   <TrendingUp className="h-5 w-5" />
                   Top 10 Performers
                 </CardTitle>
@@ -630,7 +630,7 @@ export default function HistoricalIntelligencePage() {
                         <span className="font-medium">{p.symbol}</span>
                         <span className="text-xs text-muted-foreground">({p.trades} trades)</span>
                       </div>
-                      <span className="text-green-400 font-medium">{safeToFixed(p.winRate, 0)}%</span>
+                      <span className="text-[var(--trade-bullish)] font-medium">{safeToFixed(p.winRate, 0)}%</span>
                     </div>
                   ))}
                 </div>
@@ -639,7 +639,7 @@ export default function HistoricalIntelligencePage() {
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-red-400">
+                <CardTitle className="text-lg flex items-center gap-2 text-[var(--trade-bearish)]">
                   <TrendingDown className="h-5 w-5" />
                   Bottom 10 Performers
                 </CardTitle>
@@ -653,7 +653,7 @@ export default function HistoricalIntelligencePage() {
                         <span className="font-medium">{p.symbol}</span>
                         <span className="text-xs text-muted-foreground">({p.trades} trades)</span>
                       </div>
-                      <span className="text-red-400 font-medium">{safeToFixed(p.winRate, 0)}%</span>
+                      <span className="text-[var(--trade-bearish)] font-medium">{safeToFixed(p.winRate, 0)}%</span>
                     </div>
                   ))}
                 </div>

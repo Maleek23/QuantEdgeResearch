@@ -59,13 +59,13 @@ export function TradePerformanceStats() {
 
   if (isLoading) {
     return (
-      <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+      <Card className="bg-white dark:bg-card border-gray-200 dark:border-border p-4">
         <div className="animate-pulse space-y-3">
-          <div className="h-4 w-32 bg-gray-200 dark:bg-[#1a1a1a] rounded" />
+          <div className="h-4 w-32 bg-gray-200 dark:bg-muted rounded" />
           <div className="flex gap-4">
-            <div className="h-16 w-20 bg-gray-200 dark:bg-[#1a1a1a] rounded" />
-            <div className="h-16 w-20 bg-gray-200 dark:bg-[#1a1a1a] rounded" />
-            <div className="h-16 w-20 bg-gray-200 dark:bg-[#1a1a1a] rounded" />
+            <div className="h-16 w-20 bg-gray-200 dark:bg-muted rounded" />
+            <div className="h-16 w-20 bg-gray-200 dark:bg-muted rounded" />
+            <div className="h-16 w-20 bg-gray-200 dark:bg-muted rounded" />
           </div>
         </div>
       </Card>
@@ -80,17 +80,17 @@ export function TradePerformanceStats() {
   const isPositiveExpectancy = summary.expectancy > 0;
 
   return (
-    <Card className="bg-white dark:bg-[#111] border-gray-200 dark:border-[#222] p-4">
+    <Card className="bg-white dark:bg-card border-gray-200 dark:border-border p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">Performance Audit</span>
+          <span className="text-sm font-semibold text-foreground dark:text-white">Performance Audit</span>
         </div>
         <Badge className={cn(
           "text-xs",
           isPositiveExpectancy
-            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-            : "bg-red-500/20 text-red-400 border-red-500/40"
+            ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40"
+            : "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/40"
         )}>
           {isPositiveExpectancy ? '+' : ''}{safeToFixed(summary.expectancy, 2)}% EV
         </Badge>
@@ -98,49 +98,49 @@ export function TradePerformanceStats() {
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-4 gap-3 mb-4">
-        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">Win Rate</div>
+        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-muted">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Win Rate</div>
           <div className={cn(
             "text-lg font-bold",
-            summary.winRate >= 50 ? "text-emerald-400" : "text-amber-400"
+            summary.winRate >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
           )}>
             {safeToFixed(summary.winRate, 1)}%
           </div>
         </div>
-        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">Wins</div>
-          <div className="text-lg font-bold text-emerald-400">{summary.wins}</div>
+        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-muted">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Wins</div>
+          <div className="text-lg font-bold text-[var(--trade-bullish)]">{summary.wins}</div>
         </div>
-        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">Losses</div>
-          <div className="text-lg font-bold text-red-400">{summary.losses}</div>
+        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-muted">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Losses</div>
+          <div className="text-lg font-bold text-[var(--trade-bearish)]">{summary.losses}</div>
         </div>
-        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">Total</div>
-          <div className="text-lg font-bold text-gray-900 dark:text-white">{summary.decided}</div>
+        <div className="text-center p-2 rounded-lg bg-gray-100 dark:bg-muted">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Total</div>
+          <div className="text-lg font-bold text-foreground dark:text-white">{summary.decided}</div>
         </div>
       </div>
 
       {/* Detailed Stats Row */}
       <div className="grid grid-cols-3 gap-3 mb-4">
         <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
           <div>
-            <div className="text-[10px] text-slate-500">Avg Win</div>
-            <div className="text-sm font-bold text-emerald-400">+{safeToFixed(summary.avgWinPercent, 1)}%</div>
+            <div className="text-[10px] text-muted-foreground">Avg Win</div>
+            <div className="text-sm font-bold text-[var(--trade-bullish)]">+{safeToFixed(summary.avgWinPercent, 1)}%</div>
           </div>
         </div>
         <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-          <TrendingDown className="w-4 h-4 text-red-400" />
+          <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
           <div>
-            <div className="text-[10px] text-slate-500">Avg Loss</div>
-            <div className="text-sm font-bold text-red-400">-{safeToFixed(summary.avgLossPercent, 1)}%</div>
+            <div className="text-[10px] text-muted-foreground">Avg Loss</div>
+            <div className="text-sm font-bold text-[var(--trade-bearish)]">-{safeToFixed(summary.avgLossPercent, 1)}%</div>
           </div>
         </div>
         <div className="flex items-center gap-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
           <Target className="w-4 h-4 text-cyan-400" />
           <div>
-            <div className="text-[10px] text-slate-500">Profit Factor</div>
+            <div className="text-[10px] text-muted-foreground">Profit Factor</div>
             <div className="text-sm font-bold text-cyan-400">{safeToFixed(summary.profitFactor, 2)}x</div>
           </div>
         </div>
@@ -151,14 +151,14 @@ export function TradePerformanceStats() {
         {/* Top Winners */}
         <div>
           <div className="flex items-center gap-1 mb-2">
-            <Trophy className="w-3 h-3 text-amber-400" />
-            <span className="text-[10px] font-semibold text-slate-500 uppercase">Top Winners</span>
+            <Trophy className="w-3 h-3 text-[var(--trade-neutral)]" />
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Top Winners</span>
           </div>
           <div className="space-y-1">
             {topWinners.slice(0, 3).map((trade, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs p-1.5 rounded bg-emerald-500/5 border border-emerald-500/10">
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{trade.symbol}</span>
-                <span className="text-emerald-400 font-bold">+{safeToFixed(trade.percentGain, 1)}%</span>
+                <span className="font-mono font-bold text-foreground dark:text-white">{trade.symbol}</span>
+                <span className="text-[var(--trade-bullish)] font-bold">+{safeToFixed(trade.percentGain, 1)}%</span>
               </div>
             ))}
           </div>
@@ -167,14 +167,14 @@ export function TradePerformanceStats() {
         {/* Top Losers */}
         <div>
           <div className="flex items-center gap-1 mb-2">
-            <AlertTriangle className="w-3 h-3 text-red-400" />
-            <span className="text-[10px] font-semibold text-slate-500 uppercase">Top Losers</span>
+            <AlertTriangle className="w-3 h-3 text-[var(--trade-bearish)]" />
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Top Losers</span>
           </div>
           <div className="space-y-1">
             {topLosers.slice(0, 3).map((trade, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs p-1.5 rounded bg-red-500/5 border border-red-500/10">
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{trade.symbol}</span>
-                <span className="text-red-400 font-bold">{safeToFixed(trade.percentGain, 1)}%</span>
+                <span className="font-mono font-bold text-foreground dark:text-white">{trade.symbol}</span>
+                <span className="text-[var(--trade-bearish)] font-bold">{safeToFixed(trade.percentGain, 1)}%</span>
               </div>
             ))}
           </div>

@@ -185,7 +185,7 @@ function PayoffDiagram({ data, breakEvens, spotPrice }: {
 }) {
   if (!data?.length) {
     return (
-      <div className="h-64 flex items-center justify-center text-slate-500 text-sm">
+      <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
         Configure a strategy to see the payoff diagram
       </div>
     );
@@ -275,8 +275,8 @@ function GreeksDisplay({ greeks, compact }: { greeks: Greeks | null; compact?: b
     { label: 'Delta (Δ)', value: greeks.delta, color: 'text-cyan-400', format: (v: number) => v.toFixed(4) },
     { label: 'Gamma (Γ)', value: greeks.gamma, color: 'text-purple-400', format: (v: number) => v.toFixed(4) },
     { label: 'Theta (Θ)', value: greeks.theta, color: 'text-rose-400', format: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(4)}` },
-    { label: 'Vega (ν)', value: greeks.vega, color: 'text-amber-400', format: (v: number) => v.toFixed(4) },
-    { label: 'Rho (ρ)', value: greeks.rho, color: 'text-emerald-400', format: (v: number) => v.toFixed(4) },
+    { label: 'Vega (ν)', value: greeks.vega, color: 'text-[var(--trade-neutral)]', format: (v: number) => v.toFixed(4) },
+    { label: 'Rho (ρ)', value: greeks.rho, color: 'text-[var(--trade-bullish)]', format: (v: number) => v.toFixed(4) },
   ];
 
   if (compact) {
@@ -284,7 +284,7 @@ function GreeksDisplay({ greeks, compact }: { greeks: Greeks | null; compact?: b
       <div className="flex gap-4">
         {items.slice(0, 4).map(item => (
           <div key={item.label} className="text-center">
-            <div className="text-[10px] text-slate-500">{item.label.split(' ')[0]}</div>
+            <div className="text-[10px] text-muted-foreground">{item.label.split(' ')[0]}</div>
             <div className={cn("text-sm font-mono font-bold", item.color)}>{item.format(item.value)}</div>
           </div>
         ))}
@@ -295,8 +295,8 @@ function GreeksDisplay({ greeks, compact }: { greeks: Greeks | null; compact?: b
   return (
     <div className="grid grid-cols-5 gap-3">
       {items.map(item => (
-        <div key={item.label} className="bg-slate-900/60 rounded-lg p-3 border border-slate-800/50 text-center">
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{item.label}</div>
+        <div key={item.label} className="bg-card/60 rounded-lg p-3 border border-border/50 text-center">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">{item.label}</div>
           <div className={cn("text-lg font-mono font-bold", item.color)}>{item.format(item.value)}</div>
         </div>
       ))}
@@ -311,7 +311,7 @@ function GreeksDisplay({ greeks, compact }: { greeks: Greeks | null; compact?: b
 function IVAnalysisPanel({ ivData }: { ivData: IVAnalysis | null }) {
   if (!ivData) return null;
 
-  const rankColor = ivData.ivRank > 70 ? 'text-rose-400' : ivData.ivRank > 30 ? 'text-amber-400' : 'text-emerald-400';
+  const rankColor = ivData.ivRank > 70 ? 'text-rose-400' : ivData.ivRank > 30 ? 'text-[var(--trade-neutral)]' : 'text-[var(--trade-bullish)]';
   const rankBg = ivData.ivRank > 70 ? 'bg-rose-500/10 border-rose-500/30' : ivData.ivRank > 30 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/30';
   const trendIcon = ivData.ivTrend === 'rising' ? <ArrowUpRight className="w-3.5 h-3.5" /> :
                     ivData.ivTrend === 'falling' ? <ArrowDownRight className="w-3.5 h-3.5" /> : null;
@@ -321,33 +321,33 @@ function IVAnalysisPanel({ ivData }: { ivData: IVAnalysis | null }) {
       {/* IV Rank / Percentile */}
       <div className="grid grid-cols-2 gap-3">
         <div className={cn("rounded-lg p-3 border text-center", rankBg)}>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider">IV Rank</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">IV Rank</div>
           <div className={cn("text-2xl font-mono font-bold", rankColor)}>{ivData.ivRank.toFixed(0)}%</div>
         </div>
         <div className={cn("rounded-lg p-3 border text-center", rankBg)}>
-          <div className="text-[10px] text-slate-500 uppercase tracking-wider">IV Percentile</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">IV Percentile</div>
           <div className={cn("text-2xl font-mono font-bold", rankColor)}>{ivData.ivPercentile.toFixed(0)}%</div>
         </div>
       </div>
 
       {/* IV Stats */}
       <div className="grid grid-cols-4 gap-2">
-        <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800/50 text-center">
-          <div className="text-[9px] text-slate-600 uppercase">Current</div>
+        <div className="bg-card/60 rounded-lg p-2 border border-border/50 text-center">
+          <div className="text-[9px] text-muted-foreground/70 uppercase">Current</div>
           <div className="text-sm font-mono text-white font-bold">{(ivData.currentIV * 100).toFixed(1)}%</div>
         </div>
-        <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800/50 text-center">
-          <div className="text-[9px] text-slate-600 uppercase">52w High</div>
+        <div className="bg-card/60 rounded-lg p-2 border border-border/50 text-center">
+          <div className="text-[9px] text-muted-foreground/70 uppercase">52w High</div>
           <div className="text-sm font-mono text-rose-400">{(ivData.ivHigh52Week * 100).toFixed(1)}%</div>
         </div>
-        <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800/50 text-center">
-          <div className="text-[9px] text-slate-600 uppercase">52w Low</div>
-          <div className="text-sm font-mono text-emerald-400">{(ivData.ivLow52Week * 100).toFixed(1)}%</div>
+        <div className="bg-card/60 rounded-lg p-2 border border-border/50 text-center">
+          <div className="text-[9px] text-muted-foreground/70 uppercase">52w Low</div>
+          <div className="text-sm font-mono text-[var(--trade-bullish)]">{(ivData.ivLow52Week * 100).toFixed(1)}%</div>
         </div>
-        <div className="bg-slate-900/60 rounded-lg p-2 border border-slate-800/50 text-center">
-          <div className="text-[9px] text-slate-600 uppercase">Trend</div>
+        <div className="bg-card/60 rounded-lg p-2 border border-border/50 text-center">
+          <div className="text-[9px] text-muted-foreground/70 uppercase">Trend</div>
           <div className={cn("text-sm font-mono font-bold flex items-center justify-center gap-1",
-            ivData.ivTrend === 'rising' ? 'text-rose-400' : ivData.ivTrend === 'falling' ? 'text-emerald-400' : 'text-slate-400'
+            ivData.ivTrend === 'rising' ? 'text-rose-400' : ivData.ivTrend === 'falling' ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground'
           )}>
             {trendIcon}
             {ivData.ivTrend.toUpperCase()}
@@ -357,20 +357,20 @@ function IVAnalysisPanel({ ivData }: { ivData: IVAnalysis | null }) {
 
       {/* Expected Move */}
       <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-lg p-3">
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Expected Move (1σ)</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Expected Move (1σ)</div>
         <div className="flex items-center gap-4">
           <span className="text-xl font-mono font-bold text-cyan-400">
             ±${ivData.expectedMove.toFixed(2)}
           </span>
-          <span className="text-sm font-mono text-slate-400">
+          <span className="text-sm font-mono text-muted-foreground">
             ({ivData.expectedMovePercent.toFixed(2)}%)
           </span>
         </div>
       </div>
 
       {/* IV Rank Gauge */}
-      <div className="bg-slate-900/60 rounded-lg p-3 border border-slate-800/50">
-        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">IV Rank Gauge</div>
+      <div className="bg-card/60 rounded-lg p-3 border border-border/50">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">IV Rank Gauge</div>
         <div className="relative h-3 rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 overflow-hidden">
           <div
             className="absolute top-0 h-full w-1 bg-white shadow-lg shadow-white/50 rounded-full"
@@ -378,8 +378,8 @@ function IVAnalysisPanel({ ivData }: { ivData: IVAnalysis | null }) {
           />
         </div>
         <div className="flex justify-between mt-1">
-          <span className="text-[9px] text-emerald-500">Low IV</span>
-          <span className="text-[9px] text-amber-500">Normal</span>
+          <span className="text-[9px] text-[var(--trade-bullish)]">Low IV</span>
+          <span className="text-[9px] text-[var(--trade-neutral)]">Normal</span>
           <span className="text-[9px] text-rose-500">High IV</span>
         </div>
       </div>
@@ -419,14 +419,14 @@ function LegEditor({ legs, setLegs, spotPrice }: {
   return (
     <div className="space-y-2">
       {legs.map((leg, i) => (
-        <div key={i} className="flex items-center gap-2 p-2 bg-slate-900/40 rounded-lg border border-slate-800/50">
+        <div key={i} className="flex items-center gap-2 p-2 bg-card/40 rounded-lg border border-border/50">
           {/* Long/Short */}
           <button
             onClick={() => updateLeg(i, 'quantity', leg.quantity > 0 ? -Math.abs(leg.quantity) : Math.abs(leg.quantity))}
             className={cn(
               "px-2 py-1 rounded text-[10px] font-bold min-w-[50px]",
               leg.quantity > 0
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                ? "bg-emerald-500/20 text-[var(--trade-bullish)] border border-emerald-500/40"
                 : "bg-rose-500/20 text-rose-400 border border-rose-500/40"
             )}
           >
@@ -441,7 +441,7 @@ function LegEditor({ legs, setLegs, spotPrice }: {
               const abs = Math.max(1, parseInt(e.target.value) || 1);
               updateLeg(i, 'quantity', leg.quantity > 0 ? abs : -abs);
             }}
-            className="w-14 h-7 text-xs bg-slate-900 border-slate-700 font-mono text-center"
+            className="w-14 h-7 text-xs bg-card border-border font-mono text-center"
           />
 
           {/* Call/Put */}
@@ -459,24 +459,24 @@ function LegEditor({ legs, setLegs, spotPrice }: {
 
           {/* Strike */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-slate-600">$</span>
+            <span className="text-[10px] text-muted-foreground/70">$</span>
             <Input
               type="number"
               value={leg.strike}
               onChange={(e) => updateLeg(i, 'strike', parseFloat(e.target.value) || 0)}
-              className="w-20 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+              className="w-20 h-7 text-xs bg-card border-border font-mono"
             />
           </div>
 
           {/* Premium */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-slate-600">@</span>
+            <span className="text-[10px] text-muted-foreground/70">@</span>
             <Input
               type="number"
               step="0.01"
               value={leg.premium}
               onChange={(e) => updateLeg(i, 'premium', parseFloat(e.target.value) || 0)}
-              className="w-16 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+              className="w-16 h-7 text-xs bg-card border-border font-mono"
               placeholder="Price"
             />
           </div>
@@ -486,11 +486,11 @@ function LegEditor({ legs, setLegs, spotPrice }: {
             type="date"
             value={leg.expiry}
             onChange={(e) => updateLeg(i, 'expiry', e.target.value)}
-            className="w-32 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+            className="w-32 h-7 text-xs bg-card border-border font-mono"
           />
 
           {/* Remove */}
-          <button onClick={() => removeLeg(i)} className="text-slate-600 hover:text-rose-400 transition-colors p-1">
+          <button onClick={() => removeLeg(i)} className="text-muted-foreground/70 hover:text-rose-400 transition-colors p-1">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -498,7 +498,7 @@ function LegEditor({ legs, setLegs, spotPrice }: {
 
       <button
         onClick={addLeg}
-        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-400 transition-colors py-1"
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-cyan-400 transition-colors py-1"
       >
         <Plus className="w-3.5 h-3.5" />
         Add Leg
@@ -542,7 +542,7 @@ function QuickPriceCalc() {
   });
 
   return (
-    <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+    <Card className="bg-[var(--surface-base)] border-border/50 p-4">
       <div className="flex items-center gap-2 mb-3">
         <Calculator className="w-4 h-4 text-cyan-400" />
         <h4 className="text-sm font-semibold text-white">Quick Price</h4>
@@ -552,13 +552,13 @@ function QuickPriceCalc() {
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
           placeholder="Symbol"
-          className="w-16 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+          className="w-16 h-7 text-xs bg-card border-border font-mono"
         />
         <Input
           type="number"
           value={strike}
           onChange={(e) => setStrike(parseFloat(e.target.value) || 0)}
-          className="w-20 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+          className="w-20 h-7 text-xs bg-card border-border font-mono"
           placeholder="Strike"
         />
         <button
@@ -576,7 +576,7 @@ function QuickPriceCalc() {
           type="number"
           value={daysToExpiry}
           onChange={(e) => setDaysToExpiry(parseInt(e.target.value) || 1)}
-          className="w-14 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+          className="w-14 h-7 text-xs bg-card border-border font-mono"
           placeholder="DTE"
         />
         <Input
@@ -584,7 +584,7 @@ function QuickPriceCalc() {
           step="0.01"
           value={vol}
           onChange={(e) => setVol(parseFloat(e.target.value) || 0.2)}
-          className="w-14 h-7 text-xs bg-slate-900 border-slate-700 font-mono"
+          className="w-14 h-7 text-xs bg-card border-border font-mono"
           placeholder="IV"
         />
         <Button
@@ -601,20 +601,20 @@ function QuickPriceCalc() {
         <div className="space-y-2">
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-[10px] text-slate-500">Theoretical Price</div>
+              <div className="text-[10px] text-muted-foreground">Theoretical Price</div>
               <div className="text-2xl font-mono font-bold text-white">
                 ${priceMutation.data.theoreticalPrice.toFixed(2)}
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-500">Contract Cost</div>
-              <div className="text-lg font-mono font-bold text-amber-400">
+              <div className="text-[10px] text-muted-foreground">Contract Cost</div>
+              <div className="text-lg font-mono font-bold text-[var(--trade-neutral)]">
                 ${(priceMutation.data.theoreticalPrice * 100).toFixed(0)}
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-500">Spot</div>
-              <div className="text-sm font-mono text-slate-400">
+              <div className="text-[10px] text-muted-foreground">Spot</div>
+              <div className="text-sm font-mono text-muted-foreground">
                 ${priceMutation.data.spotPrice?.toLocaleString()}
               </div>
             </div>
@@ -776,7 +776,7 @@ export function StrategyLab() {
             onChange={(e) => setSymbolInput(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && handleSymbolChange()}
             placeholder="Symbol"
-            className="w-24 h-8 text-sm bg-slate-900 border-slate-700 font-mono"
+            className="w-24 h-8 text-sm bg-card border-border font-mono"
           />
           <Button size="sm" onClick={handleSymbolChange} className="h-8 text-xs bg-cyan-600 hover:bg-cyan-500">
             Go
@@ -791,7 +791,7 @@ export function StrategyLab() {
                 "px-2 py-1 rounded text-[10px] font-mono transition-colors",
                 symbol === s
                   ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40"
-                  : "bg-slate-800/50 text-slate-500 hover:text-slate-300 border border-transparent"
+                  : "bg-muted/50 text-muted-foreground hover:text-foreground/80 border border-transparent"
               )}
             >
               {s}
@@ -801,7 +801,7 @@ export function StrategyLab() {
         {quoteData && (
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-lg font-mono font-bold text-white">${spotPrice.toLocaleString()}</span>
-            <Badge className="bg-slate-700/50 text-slate-400 border-slate-600/50 text-[10px]">{symbol}</Badge>
+            <Badge className="bg-muted/50 text-muted-foreground border-border/50 text-[10px]">{symbol}</Badge>
           </div>
         )}
       </div>
@@ -816,12 +816,12 @@ export function StrategyLab() {
               "p-3 rounded-lg border text-left transition-all hover:scale-[1.02]",
               activePreset === preset.name
                 ? "bg-cyan-500/10 border-cyan-500/40 shadow-lg shadow-cyan-500/10"
-                : "bg-slate-900/60 border-slate-800/50 hover:border-slate-700"
+                : "bg-card/60 border-border/50 hover:border-border"
             )}
           >
             <div className="text-lg mb-1">{preset.icon}</div>
             <div className="text-xs font-semibold text-white">{preset.name}</div>
-            <div className="text-[10px] text-slate-500">{preset.description}</div>
+            <div className="text-[10px] text-muted-foreground">{preset.description}</div>
           </button>
         ))}
       </div>
@@ -830,14 +830,14 @@ export function StrategyLab() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: Leg Builder (2 cols) */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+          <Card className="bg-[var(--surface-base)] border-border/50 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-cyan-400" />
                 <h3 className="text-sm font-semibold text-white">Strategy Legs</h3>
               </div>
               {legs.length > 0 && (
-                <Badge className="bg-slate-700/50 text-slate-400 border-slate-600/50 text-[10px]">
+                <Badge className="bg-muted/50 text-muted-foreground border-border/50 text-[10px]">
                   {legs.length} leg{legs.length !== 1 ? 's' : ''}
                 </Badge>
               )}
@@ -852,7 +852,7 @@ export function StrategyLab() {
                   disabled={priceLegsMutation.isPending}
                   size="sm"
                   variant="outline"
-                  className="text-xs border-slate-700 hover:bg-slate-800"
+                  className="text-xs border-border hover:bg-muted"
                 >
                   {priceLegsMutation.isPending ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <DollarSign className="w-3 h-3 mr-1" />}
                   Auto-Price
@@ -872,25 +872,25 @@ export function StrategyLab() {
 
           {/* Net Cost / Credit */}
           {legs.length > 0 && (
-            <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+            <Card className="bg-[var(--surface-base)] border-border/50 p-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="text-[10px] text-slate-500 uppercase">Net Premium</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Net Premium</div>
                   <div className={cn("text-xl font-mono font-bold",
-                    netCost > 0 ? "text-rose-400" : netCost < 0 ? "text-emerald-400" : "text-slate-400"
+                    netCost > 0 ? "text-rose-400" : netCost < 0 ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
                   )}>
                     {netCost > 0 ? '-' : netCost < 0 ? '+' : ''}${Math.abs(netCost).toFixed(0)}
                   </div>
-                  <div className="text-[10px] text-slate-600">
+                  <div className="text-[10px] text-muted-foreground/70">
                     {netCost > 0 ? 'Debit (you pay)' : netCost < 0 ? 'Credit (you receive)' : '—'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 uppercase">Per Contract</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Per Contract</div>
                   <div className="text-xl font-mono font-bold text-white">
                     ${Math.abs(netCost / 100).toFixed(2)}
                   </div>
-                  <div className="text-[10px] text-slate-600">×100 multiplier</div>
+                  <div className="text-[10px] text-muted-foreground/70">×100 multiplier</div>
                 </div>
               </div>
             </Card>
@@ -903,16 +903,16 @@ export function StrategyLab() {
         {/* Right: Payoff Diagram + Greeks + Stats (3 cols) */}
         <div className="lg:col-span-3 space-y-4">
           {/* Payoff Diagram */}
-          <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+          <Card className="bg-[var(--surface-base)] border-border/50 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-emerald-400" />
+                <BarChart3 className="w-4 h-4 text-[var(--trade-bullish)]" />
                 <h3 className="text-sm font-semibold text-white">Payoff Diagram</h3>
               </div>
               {payoff && (
                 <div className="flex items-center gap-3">
                   {payoff.breakEvenPoints.length > 0 && (
-                    <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+                    <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/40 text-[10px]">
                       BE: ${payoff.breakEvenPoints.map(b => b.toFixed(0)).join(' / $')}
                     </Badge>
                   )}
@@ -931,27 +931,27 @@ export function StrategyLab() {
           {payoff && (
             <div className="grid grid-cols-4 gap-3">
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 text-center">
-                <div className="text-[10px] text-slate-500 uppercase">Max Profit</div>
-                <div className="text-lg font-mono font-bold text-emerald-400">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Max Profit</div>
+                <div className="text-lg font-mono font-bold text-[var(--trade-bullish)]">
                   {payoff.maxProfit === 'unlimited' ? '∞' : `$${Number(payoff.maxProfit).toFixed(0)}`}
                 </div>
               </div>
               <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 text-center">
-                <div className="text-[10px] text-slate-500 uppercase">Max Loss</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Max Loss</div>
                 <div className="text-lg font-mono font-bold text-rose-400">
                   {payoff.maxLoss === 'unlimited' ? '∞' : `$${Math.abs(Number(payoff.maxLoss)).toFixed(0)}`}
                 </div>
               </div>
               <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3 text-center">
-                <div className="text-[10px] text-slate-500 uppercase">P(Profit)</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">P(Profit)</div>
                 <div className="text-lg font-mono font-bold text-cyan-400">
                   {(payoff.probabilityOfProfit * 100).toFixed(0)}%
                 </div>
               </div>
               <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 text-center">
-                <div className="text-[10px] text-slate-500 uppercase">E[Value]</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">E[Value]</div>
                 <div className={cn("text-lg font-mono font-bold",
-                  payoff.expectedValue >= 0 ? "text-emerald-400" : "text-rose-400"
+                  payoff.expectedValue >= 0 ? "text-[var(--trade-bullish)]" : "text-rose-400"
                 )}>
                   ${payoff.expectedValue.toFixed(0)}
                 </div>
@@ -961,7 +961,7 @@ export function StrategyLab() {
 
           {/* Greeks */}
           {payoff?.greeksAggregate && (
-            <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+            <Card className="bg-[var(--surface-base)] border-border/50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="w-4 h-4 text-purple-400" />
                 <h3 className="text-sm font-semibold text-white">Position Greeks</h3>
@@ -971,24 +971,24 @@ export function StrategyLab() {
           )}
 
           {/* IV Analysis Toggle */}
-          <Card className="bg-[#0a0a0a] border-[#1a1a1a] p-4">
+          <Card className="bg-[var(--surface-base)] border-border/50 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-amber-400" />
+                <Target className="w-4 h-4 text-[var(--trade-neutral)]" />
                 <h3 className="text-sm font-semibold text-white">IV Analysis</h3>
               </div>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => { setShowIV(!showIV); if (!showIV) ivMutation.mutate(); }}
-                className="h-6 text-[10px] border-slate-700"
+                className="h-6 text-[10px] border-border"
               >
                 {showIV ? 'Hide' : 'Analyze IV'}
               </Button>
             </div>
 
             {showIV && ivMutation.isPending && (
-              <div className="flex items-center gap-2 py-4 text-slate-500 text-sm">
+              <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 Analyzing implied volatility...
               </div>
@@ -999,7 +999,7 @@ export function StrategyLab() {
             )}
 
             {showIV && !ivMutation.data && !ivMutation.isPending && (
-              <div className="text-center py-4 text-slate-600 text-sm">
+              <div className="text-center py-4 text-muted-foreground/70 text-sm">
                 Click "Analyze IV" to see IV rank, percentile, and expected move
               </div>
             )}

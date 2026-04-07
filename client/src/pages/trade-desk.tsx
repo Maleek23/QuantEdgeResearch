@@ -58,6 +58,8 @@ import {
   Lock,
   Microscope,
   Newspaper,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
@@ -113,15 +115,15 @@ function MarketPulseHeader() {
   ];
 
   return (
-    <div className="flex items-center gap-6 px-4 py-2.5 bg-[#0d0d0d] border-b border-[#1a1a1a] overflow-x-auto">
+    <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50 overflow-x-auto">
       <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-        <span className="text-[10px] font-medium text-emerald-500">LIVE</span>
+        <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+        <span className="text-[10px] font-medium text-[var(--trade-bullish)]">LIVE</span>
       </div>
       {tickers.map((t) => (
         <div key={t.symbol} className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] text-slate-600 font-mono">{t.symbol}</span>
-          <span className="text-xs font-mono text-white">
+          <span className="text-[10px] text-muted-foreground/70 font-mono">{t.symbol}</span>
+          <span className="text-xs font-mono text-foreground">
             {t.price ? `${t.prefix || ''}${t.price.toLocaleString()}` : '—'}
           </span>
         </div>
@@ -155,17 +157,17 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
   return (
     <div className="mb-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
-          <Star className="w-5 h-5 text-amber-400" />
+        <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-[var(--trade-neutral)]/40">
+          <Star className="w-5 h-5 text-[var(--trade-neutral)]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             Top Conviction
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+            <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] border-[var(--trade-neutral)]/40 text-[10px]">
               A/A+ ONLY
             </Badge>
           </h2>
-          <p className="text-xs text-slate-500">Highest grade plays - don't miss these</p>
+          <p className="text-xs text-muted-foreground">Highest grade plays - don't miss these</p>
         </div>
       </div>
 
@@ -188,7 +190,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
               <Card className={cn(
                 "relative overflow-hidden cursor-pointer transition-all duration-300",
                 "bg-gradient-to-br from-amber-500/5 via-slate-900/80 to-slate-900/90",
-                "border-amber-500/30 hover:border-amber-400/60",
+                "border-[var(--trade-neutral)]/30 hover:border-amber-400/60",
                 "hover:shadow-lg hover:shadow-amber-500/10",
                 "hover:-translate-y-1",
                 idea.timestamp && isStale(idea.timestamp) && "opacity-70"
@@ -203,17 +205,17 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                       <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
                         isLong
-                          ? "bg-gradient-to-br from-emerald-500 to-green-600 text-white"
-                          : "bg-gradient-to-br from-red-500 to-rose-600 text-white"
+                          ? "bg-gradient-to-br from-emerald-500 to-green-600 text-foreground"
+                          : "bg-gradient-to-br from-red-500 to-rose-600 text-foreground"
                       )}>
                         {idea.symbol.slice(0, 2)}
                       </div>
                       <div>
-                        <span className="font-bold text-white text-lg">{idea.symbol}</span>
+                        <span className="font-bold text-foreground text-lg">{idea.symbol}</span>
                         <div className="flex items-center gap-1">
                           <span className={cn(
                             "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                            isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                            isLong ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                           )}>
                             {isLong ? 'LONG' : 'SHORT'}
                           </span>
@@ -236,18 +238,18 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 
                   {/* Confidence + Target */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="text-center p-2 rounded-lg bg-[#1a1a1a]">
-                      <div className="text-[10px] text-slate-500 uppercase">Confidence</div>
+                    <div className="text-center p-2 rounded-lg bg-muted">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Confidence</div>
                       <div className={cn(
                         "text-xl font-bold",
-                        confidence >= 80 ? "text-emerald-400" : "text-amber-400"
+                        confidence >= 80 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
                       )}>
                         {confidence}%
                       </div>
                     </div>
-                    <div className="text-center p-2 rounded-lg bg-[#1a1a1a]">
-                      <div className="text-[10px] text-slate-500 uppercase">Target</div>
-                      <div className="text-xl font-bold text-emerald-400">
+                    <div className="text-center p-2 rounded-lg bg-muted">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Target</div>
+                      <div className="text-xl font-bold text-[var(--trade-bullish)]">
                         +{safeToFixed(potentialProfit, 0)}%
                       </div>
                     </div>
@@ -256,20 +258,20 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                   {/* Price Levels */}
                   <div className="flex items-center justify-between text-xs">
                     <div className="text-center">
-                      <div className="text-slate-500">Entry</div>
-                      <div className="font-mono text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
+                      <div className="text-muted-foreground">Entry</div>
+                      <div className="font-mono text-foreground">${safeToFixed(idea.entryPrice, 2, '—')}</div>
                     </div>
-                    <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                    <ArrowUpRight className="w-4 h-4 text-[var(--trade-bullish)]" />
                     <div className="text-center">
-                      <div className="text-emerald-400">Target</div>
-                      <div className="font-mono text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
+                      <div className="text-[var(--trade-bullish)]">Target</div>
+                      <div className="font-mono text-[var(--trade-bullish)]">${safeToFixed(idea.targetPrice, 2, '—')}</div>
                     </div>
                   </div>
 
                   {/* Catalyst hint if available */}
                   {idea.catalyst && (
-                    <div className="mt-2 pt-2 border-t border-[#222]/50">
-                      <p className="text-[10px] text-amber-400/80 truncate flex items-center gap-1">
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <p className="text-[10px] text-[var(--trade-neutral)]/80 truncate flex items-center gap-1">
                         <Zap className="w-3 h-3" />
                         {idea.catalyst.slice(0, 50)}...
                       </p>
@@ -278,14 +280,14 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                   
                   {/* Generated timestamp with relative time */}
                   <div className={cn(
-                    "mt-2 pt-2 border-t border-[#222]/50 flex items-center justify-between text-[9px] text-slate-500",
+                    "mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-[9px] text-muted-foreground",
                     idea.timestamp && isStale(idea.timestamp) && "opacity-60"
                   )}>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}
                     </span>
-                    <span className="text-emerald-500/70 font-medium">
+                    <span className="text-[var(--trade-bullish)]/70 font-medium">
                       {(idea as any).source === 'tradingview' ? '📺 TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
                     </span>
                   </div>
@@ -293,7 +295,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 
                 {/* View Analysis indicator */}
                 <div className="absolute bottom-0 right-0 p-2">
-                  <ChevronRight className="w-4 h-4 text-amber-400/50" />
+                  <ChevronRight className="w-4 h-4 text-[var(--trade-neutral)]/50" />
                 </div>
               </Card>
             </Link>
@@ -329,13 +331,13 @@ function FlowSignalsSection() {
           <Zap className="w-5 h-5 text-cyan-400" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             Flow Signals
             <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/40 text-[10px]">
               GEX + FLOW
             </Badge>
           </h2>
-          <p className="text-xs text-slate-500">Institutional flow aligned with gamma exposure</p>
+          <p className="text-xs text-muted-foreground">Institutional flow aligned with gamma exposure</p>
         </div>
       </div>
 
@@ -352,20 +354,20 @@ function FlowSignalsSection() {
                 "cursor-pointer transition-all duration-300 hover:-translate-y-1",
                 "bg-gradient-to-br from-slate-900/80 to-slate-900/90",
                 s.conviction === 'HIGH'
-                  ? "border-amber-500/40 hover:border-amber-400/60 hover:shadow-amber-500/10"
+                  ? "border-[var(--trade-neutral)]/40 hover:border-amber-400/60 hover:shadow-amber-500/10"
                   : "border-cyan-500/30 hover:border-cyan-400/50 hover:shadow-cyan-500/10",
                 "hover:shadow-lg"
               )}>
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-white text-lg">{s.symbol}</span>
+                    <span className="font-bold text-foreground text-lg">{s.symbol}</span>
                     <Badge className={cn(
                       "text-[10px] border",
                       s.conviction === 'HIGH'
-                        ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                        ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] border-[var(--trade-neutral)]/40"
                         : s.conviction === 'MEDIUM'
                         ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/40"
-                        : "bg-slate-500/20 text-slate-400 border-slate-500/40"
+                        : "bg-muted-foreground/20 text-muted-foreground border-muted-foreground/40"
                     )}>
                       {s.conviction === 'HIGH' && <Flame className="w-3 h-3 mr-1" />}
                       {s.conviction}
@@ -374,22 +376,22 @@ function FlowSignalsSection() {
                   <div className="flex items-center gap-2 text-xs mb-2">
                     <span className={cn(
                       "px-1.5 py-0.5 rounded",
-                      s.gexRegime === 'NEGATIVE' ? "bg-red-500/20 text-red-400" :
-                      s.gexRegime === 'POSITIVE' ? "bg-emerald-500/20 text-emerald-400" :
-                      "bg-slate-500/20 text-slate-400"
+                      s.gexRegime === 'NEGATIVE' ? "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]" :
+                      s.gexRegime === 'POSITIVE' ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" :
+                      "bg-muted-foreground/20 text-muted-foreground"
                     )}>
                       {s.gexBias}
                     </span>
                     <span className={cn(
                       "px-1.5 py-0.5 rounded",
-                      isBullish ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                      isBullish ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                     )}>
                       {s.flowBias}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>{s.flowCount} trades • {premiumStr}</span>
-                    <span className="text-amber-400 font-mono">{s.gexRating}/5</span>
+                    <span className="text-[var(--trade-neutral)] font-mono">{s.gexRating}/5</span>
                   </div>
                 </div>
               </Card>
@@ -443,25 +445,25 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
   const totalLabel = dateFilter === 'today' ? "Today" : dateFilter === 'week' ? "Week" : "Total";
 
   return (
-    <div className="flex items-center gap-5 px-4 py-2.5 rounded-lg bg-[#0d0d0d] border border-[#1a1a1a]">
+    <div className="flex items-center gap-5 px-4 py-2.5 rounded-lg bg-[var(--surface-base)] border border-border/50">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-600 uppercase tracking-wider">{totalLabel}</span>
-        <span className="text-base font-bold font-mono text-white">{stats.total}</span>
+        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">{totalLabel}</span>
+        <span className="text-base font-bold font-mono text-foreground">{stats.total}</span>
       </div>
       <div className="w-px h-4 bg-[#222]" />
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Today</span>
-        <span className="text-base font-bold font-mono text-emerald-400">{stats.today}</span>
+        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Today</span>
+        <span className="text-base font-bold font-mono text-[var(--trade-bullish)]">{stats.today}</span>
       </div>
       <div className="w-px h-4 bg-[#222]" />
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Quality</span>
-        <span className="text-base font-bold font-mono text-emerald-400">{stats.quality}</span>
+        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Quality</span>
+        <span className="text-base font-bold font-mono text-[var(--trade-bullish)]">{stats.quality}</span>
       </div>
       <div className="w-px h-4 bg-[#222]" />
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-600 uppercase tracking-wider">Confidence</span>
-        <span className="text-base font-bold font-mono text-white">{stats.avgConf}%</span>
+        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Confidence</span>
+        <span className="text-base font-bold font-mono text-foreground">{stats.avgConf}%</span>
       </div>
     </div>
   );
@@ -489,16 +491,16 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-amber-500/50 transition-all group"
+      className="bg-card border-border p-4 cursor-pointer hover:border-[var(--trade-neutral)]/50 transition-all group"
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
       }}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Star className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-semibold text-white">Best Setups</span>
-          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors" />
+          <Star className="w-4 h-4 text-[var(--trade-neutral)]" />
+          <span className="text-sm font-semibold text-foreground">Best Setups</span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-[var(--trade-neutral)] transition-colors" />
         </div>
         <Badge variant="outline" className="text-xs">{setups.length} Active</Badge>
       </div>
@@ -506,23 +508,23 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
         ) : setups.length === 0 ? (
-          <div className="text-center py-4 text-slate-500 text-sm">No setups available</div>
+          <div className="text-center py-4 text-muted-foreground text-sm">Scanning engines for setups...</div>
         ) : (
           setups.slice(0, 5).map((setup: any) => {
             const grade = setup.probabilityBand || getLetterGrade(setup.confidenceScore || 50);
             const style = getGradeStyle(grade);
             return (
               <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-white">{setup.symbol}</span>
+                    <span className="font-mono font-bold text-foreground">{setup.symbol}</span>
                     <Badge className={cn("text-xs", style.bgClass, style.textClass)}>{grade}</Badge>
                   </div>
-                  <span className="text-sm font-mono text-slate-400">{setup.confidenceScore}%</span>
+                  <span className="text-sm font-mono text-muted-foreground">{setup.confidenceScore}%</span>
                 </div>
               </Link>
             );
@@ -533,7 +535,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-3 h-7 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+          className="w-full mt-3 h-7 text-xs text-[var(--trade-neutral)] hover:text-amber-300 hover:bg-[var(--trade-neutral)]/10"
           onClick={onViewAll}
         >
           {setups.length > 0 ? 'View All Setups' : 'Open Setups'} <ChevronRight className="w-3 h-3 ml-1" />
@@ -563,7 +565,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-emerald-500/50 transition-all group"
+      className="bg-card border-border p-4 cursor-pointer hover:border-[var(--trade-bullish)]/50 transition-all group"
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a')) onViewAll?.();
       }}
@@ -571,28 +573,28 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-orange-400" />
-          <span className="text-sm font-semibold text-white">Market Movers</span>
-          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+          <span className="text-sm font-semibold text-foreground">Market Movers</span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-[var(--trade-bullish)] transition-colors" />
         </div>
-        <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-400/30">Live</Badge>
+        <Badge variant="outline" className="text-xs text-[var(--trade-bullish)] border-emerald-400/30">Live</Badge>
       </div>
       <div className="space-y-2">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
         ) : gainers.length === 0 ? (
-          <div className="text-center py-4 text-slate-500 text-sm">No movers</div>
+          <div className="text-center py-4 text-muted-foreground text-sm">No movers</div>
         ) : (
           gainers.map((stock: any) => (
             <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer">
-                <span className="font-mono font-bold text-white">{stock.symbol}</span>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer">
+                <span className="font-mono font-bold text-foreground">{stock.symbol}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-emerald-400">+{safeToFixed(stock.changePercent, 1)}%</span>
-                  <span className="text-xs text-slate-500">${safeToFixed(stock.price, 2)}</span>
+                  <span className="text-sm font-mono text-[var(--trade-bullish)]">+{safeToFixed(stock.changePercent, 1)}%</span>
+                  <span className="text-xs text-muted-foreground">${safeToFixed(stock.price, 2)}</span>
                 </div>
               </div>
             </Link>
@@ -603,7 +605,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-3 h-7 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+          className="w-full mt-3 h-7 text-xs text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)] hover:bg-[var(--trade-bullish)]/10"
           onClick={onViewAll}
         >
           {gainers.length > 0 ? 'View All Movers' : 'Open Movers'} <ChevronRight className="w-3 h-3 ml-1" />
@@ -645,11 +647,11 @@ function TomorrowSurgersSubPage() {
       case 'HIGH_CONVICTION':
         return { bg: 'from-violet-500/20 to-purple-500/20', border: 'border-violet-500/50', text: 'text-violet-400', badge: 'bg-violet-500/30 text-violet-300' };
       case 'STRONG_SETUP':
-        return { bg: 'from-emerald-500/20 to-emerald-500/20', border: 'border-emerald-500/50', text: 'text-emerald-400', badge: 'bg-emerald-500/30 text-emerald-300' };
+        return { bg: 'from-emerald-500/20 to-emerald-500/20', border: 'border-[var(--trade-bullish)]/50', text: 'text-[var(--trade-bullish)]', badge: 'bg-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]' };
       case 'WATCH_CLOSELY':
-        return { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/50', text: 'text-amber-400', badge: 'bg-amber-500/30 text-amber-300' };
+        return { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-[var(--trade-neutral)]/50', text: 'text-[var(--trade-neutral)]', badge: 'bg-[var(--trade-neutral)]/30 text-amber-300' };
       default:
-        return { bg: 'from-slate-500/20 to-gray-500/20', border: 'border-slate-500/50', text: 'text-slate-400', badge: 'bg-slate-500/30 text-slate-300' };
+        return { bg: 'from-slate-500/20 to-gray-500/20', border: 'border-muted-foreground/50', text: 'text-muted-foreground', badge: 'bg-muted-foreground/30 text-foreground/80' };
     }
   };
 
@@ -674,18 +676,18 @@ function TomorrowSurgersSubPage() {
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
-                  "bg-gradient-to-br from-violet-500 to-purple-600 text-white"
+                  "bg-gradient-to-br from-violet-500 to-purple-600 text-foreground"
                 )}>
                   {pred.symbol.slice(0, 2)}
                 </div>
                 <div>
-                  <span className="font-bold text-white text-lg">{pred.symbol}</span>
+                  <span className="font-bold text-foreground text-lg">{pred.symbol}</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-slate-500">${safeToFixed(pred.currentPrice, 2, '—')}</span>
+                    <span className="text-xs text-muted-foreground">${safeToFixed(pred.currentPrice, 2, '—')}</span>
                     {pred.change && (
                       <span className={cn(
                         "text-xs font-medium",
-                        safeNumber(pred.change) > 0 ? "text-emerald-400" : "text-red-400"
+                        safeNumber(pred.change) > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {safeNumber(pred.change) > 0 ? '+' : ''}{safeToFixed(pred.change, 1)}%
                       </span>
@@ -705,19 +707,19 @@ function TomorrowSurgersSubPage() {
 
             {/* Target Range */}
             {pred.prediction?.targetRange && (
-              <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs mb-3">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[var(--surface-raised)] text-xs mb-3">
                 <div className="text-center">
-                  <div className="text-slate-500 text-[10px]">Low Target</div>
-                  <div className="font-semibold text-amber-400">${safeToFixed(pred.prediction.targetRange.low, 2, '—')}</div>
+                  <div className="text-muted-foreground text-[10px]">Low Target</div>
+                  <div className="font-semibold text-[var(--trade-neutral)]">${safeToFixed(pred.prediction.targetRange.low, 2, '—')}</div>
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                <ArrowUpRight className="w-4 h-4 text-[var(--trade-bullish)]" />
                 <div className="text-center">
-                  <div className="text-slate-500 text-[10px]">High Target</div>
-                  <div className="font-semibold text-emerald-400">${safeToFixed(pred.prediction.targetRange.high, 2, '—')}</div>
+                  <div className="text-muted-foreground text-[10px]">High Target</div>
+                  <div className="font-semibold text-[var(--trade-bullish)]">${safeToFixed(pred.prediction.targetRange.high, 2, '—')}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-slate-500 text-[10px]">Potential</div>
-                  <div className="font-semibold text-emerald-400">
+                  <div className="text-muted-foreground text-[10px]">Potential</div>
+                  <div className="font-semibold text-[var(--trade-bullish)]">
                     +{safeToFixed(pred.prediction?.expectedMove, 0, '—')}%
                   </div>
                 </div>
@@ -728,12 +730,12 @@ function TomorrowSurgersSubPage() {
             {topSignals.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {topSignals.map((signal: any, sIdx: number) => (
-                  <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-[#1a1a1a] text-gray-600 dark:text-slate-300">
+                  <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-muted text-muted-foreground dark:text-foreground/80">
                     <BarChart3 className="w-3 h-3" /> {signal.name || signal}
                   </span>
                 ))}
                 {signals.length > 4 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-400">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-muted/50 text-muted-foreground">
                     +{signals.length - 4} more
                   </span>
                 )}
@@ -742,7 +744,7 @@ function TomorrowSurgersSubPage() {
 
             {/* Reasoning */}
             {pred.prediction?.reasoning && (
-              <p className="text-[10px] text-slate-400 truncate">
+              <p className="text-[10px] text-muted-foreground truncate">
                 {pred.prediction.reasoning.slice(0, 80)}...
               </p>
             )}
@@ -766,14 +768,14 @@ function TomorrowSurgersSubPage() {
               <Sparkles className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Tomorrow's Potential Surgers</h2>
-              <p className="text-xs text-slate-500">Loading predictions...</p>
+              <h2 className="text-lg font-bold text-foreground">Tomorrow's Potential Surgers</h2>
+              <p className="text-xs text-muted-foreground">Loading predictions...</p>
             </div>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-48 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -783,8 +785,8 @@ function TomorrowSurgersSubPage() {
   if (isError) {
     return (
       <div className="text-center py-16">
-        <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-400 opacity-50" />
-        <p className="text-red-400">Failed to load overnight predictions</p>
+        <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-[var(--trade-bearish)] opacity-50" />
+        <p className="text-[var(--trade-bearish)]">Failed to load overnight predictions</p>
         <Button variant="outline" className="mt-4" onClick={() => refetch()}>
           Try Again
         </Button>
@@ -801,13 +803,13 @@ function TomorrowSurgersSubPage() {
             <Sparkles className="w-5 h-5 text-violet-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Tomorrow's Potential Surgers
               <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/40 text-[10px]">
                 PREDICTIVE AI
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Stocks showing overnight surge patterns • Best scanned near market close
             </p>
           </div>
@@ -816,7 +818,7 @@ function TomorrowSurgersSubPage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 bg-[#1a1a1a] border-[#222]/50"
+            className="h-8 bg-muted border-border/50"
             onClick={() => {
               setForceRefresh(true);
               refetch();
@@ -841,34 +843,34 @@ function TomorrowSurgersSubPage() {
           </div>
           <div className="text-2xl font-bold text-violet-300">{highConviction.length}</div>
         </Card>
-        <Card className="bg-emerald-500/10 border-emerald-500/30 p-4">
+        <Card className="bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 p-4">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs text-emerald-400">Strong Setup</span>
+            <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
+            <span className="text-xs text-[var(--trade-bullish)]">Strong Setup</span>
           </div>
-          <div className="text-2xl font-bold text-emerald-300">{strongSetup.length}</div>
+          <div className="text-2xl font-bold text-[var(--trade-bullish)]">{strongSetup.length}</div>
         </Card>
-        <Card className="bg-amber-500/10 border-amber-500/30 p-4">
+        <Card className="bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/30 p-4">
           <div className="flex items-center gap-2 mb-1">
-            <Eye className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-amber-400">Watch Closely</span>
+            <Eye className="w-4 h-4 text-[var(--trade-neutral)]" />
+            <span className="text-xs text-[var(--trade-neutral)]">Watch Closely</span>
           </div>
           <div className="text-2xl font-bold text-amber-300">{watchClosely.length}</div>
         </Card>
-        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
+        <Card className="bg-muted-foreground/10 border-muted-foreground/30 p-4">
           <div className="flex items-center gap-2 mb-1">
-            <Activity className="w-4 h-4 text-slate-400" />
-            <span className="text-xs text-slate-400">Speculative</span>
+            <Activity className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Speculative</span>
           </div>
-          <div className="text-2xl font-bold text-slate-300">{speculative.length}</div>
+          <div className="text-2xl font-bold text-foreground/80">{speculative.length}</div>
         </Card>
       </div>
 
       {predictions.length === 0 ? (
         <div className="text-center py-16">
-          <Clock className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-          <p className="text-slate-400">No overnight predictions available</p>
-          <p className="text-xs text-slate-500 mt-2">
+          <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground">Generating overnight predictions...</p>
+          <p className="text-xs text-muted-foreground mt-2">
             Best results when scanned near market close (3-4 PM ET)
           </p>
         </div>
@@ -879,7 +881,7 @@ function TomorrowSurgersSubPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Star className="w-4 h-4 text-violet-400" />
-                <h3 className="text-sm font-semibold text-white">High Conviction Plays</h3>
+                <h3 className="text-sm font-semibold text-foreground">High Conviction Plays</h3>
                 <Badge className="bg-violet-500/20 text-violet-400 text-[10px]">
                   70%+ Probability
                 </Badge>
@@ -894,9 +896,9 @@ function TomorrowSurgersSubPage() {
           {strongSetup.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-semibold text-white">Strong Setups</h3>
-                <Badge className="bg-emerald-500/20 text-emerald-400 text-[10px]">
+                <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
+                <h3 className="text-sm font-semibold text-foreground">Strong Setups</h3>
+                <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] text-[10px]">
                   55-70% Probability
                 </Badge>
               </div>
@@ -910,9 +912,9 @@ function TomorrowSurgersSubPage() {
           {watchClosely.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Eye className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-semibold text-white">Watch Closely</h3>
-                <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+                <Eye className="w-4 h-4 text-[var(--trade-neutral)]" />
+                <h3 className="text-sm font-semibold text-foreground">Watch Closely</h3>
+                <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] text-[10px]">
                   40-55% Probability
                 </Badge>
               </div>
@@ -926,9 +928,9 @@ function TomorrowSurgersSubPage() {
           {speculative.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Activity className="w-4 h-4 text-slate-400" />
-                <h3 className="text-sm font-semibold text-white">Speculative</h3>
-                <Badge className="bg-slate-500/20 text-slate-400 text-[10px]">
+                <Activity className="w-4 h-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Speculative</h3>
+                <Badge className="bg-muted-foreground/20 text-muted-foreground text-[10px]">
                   &lt;40% Probability
                 </Badge>
               </div>
@@ -941,20 +943,20 @@ function TomorrowSurgersSubPage() {
       )}
 
       {/* Info Footer */}
-      <Card className="bg-[#111] border-[#222] p-4">
+      <Card className="bg-card border-border p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-violet-500/10">
             <Brain className="w-4 h-4 text-violet-400" />
           </div>
-          <div className="text-xs text-slate-400">
-            <p className="font-medium text-slate-300 mb-1">How Overnight Surge Prediction Works</p>
+          <div className="text-xs text-muted-foreground">
+            <p className="font-medium text-foreground/80 mb-1">How Overnight Surge Prediction Works</p>
             <p>Our AI analyzes consolidation patterns, volume accumulation, after-hours activity, and sector momentum to identify stocks with high probability of significant moves the next trading day. Best used for weekly options plays on high-momentum stocks.</p>
           </div>
         </div>
       </Card>
 
       {data?.cached && (
-        <p className="text-[9px] text-slate-600 text-center">
+        <p className="text-[9px] text-muted-foreground/70 text-center">
           Data cached {data.cacheAge}s ago • Next refresh in {Math.max(0, 600 - (data.cacheAge || 0))}s
         </p>
       )}
@@ -1000,24 +1002,24 @@ function BestSetupsSubPage() {
       <Link key={setup.id || `${setup.symbol}-${setup.timestamp}`} href={`/stock/${setup.symbol}`}>
         <Card className={cn(
           "relative overflow-hidden cursor-pointer transition-all duration-300",
-          "bg-[#111]/60 border-[#222]/50",
-          "hover:border-emerald-500/50 hover:shadow-lg hover:-translate-y-1"
+          "bg-card/60 border-border/50",
+          "hover:border-[var(--trade-bullish)]/50 hover:shadow-lg hover:-translate-y-1"
         )}>
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
-                  isLong ? "bg-gradient-to-br from-emerald-500 to-green-600 text-white" : "bg-gradient-to-br from-red-500 to-rose-600 text-white"
+                  isLong ? "bg-gradient-to-br from-emerald-500 to-green-600 text-foreground" : "bg-gradient-to-br from-red-500 to-rose-600 text-foreground"
                 )}>
                   {setup.symbol.slice(0, 2)}
                 </div>
                 <div>
-                  <span className="font-bold text-white text-lg">{setup.symbol}</span>
+                  <span className="font-bold text-foreground text-lg">{setup.symbol}</span>
                   <div className="flex items-center gap-1">
                     <span className={cn(
                       "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                      isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                      isLong ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                     )}>
                       {isLong ? 'LONG' : 'SHORT'}
                     </span>
@@ -1033,42 +1035,42 @@ function BestSetupsSubPage() {
                 <Badge className={cn("text-base font-bold px-3 py-1 border", style.bgClass, style.textClass)}>
                   {grade}
                 </Badge>
-                <div className="text-lg font-bold text-white mt-1">{setup.confidenceScore || 50}%</div>
+                <div className="text-lg font-bold text-foreground mt-1">{setup.confidenceScore || 50}%</div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[var(--surface-raised)] text-xs">
               <div className="text-center">
-                <div className="text-slate-500 text-[10px]">Entry</div>
-                <div className="font-semibold text-white">${safeToFixed(setup.entryPrice, 2, '—')}</div>
+                <div className="text-muted-foreground text-[10px]">Entry</div>
+                <div className="font-semibold text-foreground">${safeToFixed(setup.entryPrice, 2, '—')}</div>
               </div>
-              <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              <ArrowUpRight className="w-4 h-4 text-[var(--trade-bullish)]" />
               <div className="text-center">
-                <div className="text-slate-500 text-[10px]">Target</div>
-                <div className="font-semibold text-emerald-400">${safeToFixed(setup.targetPrice, 2, '—')}</div>
+                <div className="text-muted-foreground text-[10px]">Target</div>
+                <div className="font-semibold text-[var(--trade-bullish)]">${safeToFixed(setup.targetPrice, 2, '—')}</div>
               </div>
               <div className="text-center">
-                <div className="text-slate-500 text-[10px]">Stop</div>
-                <div className="font-semibold text-red-400">${safeToFixed(setup.stopLoss, 2, '—')}</div>
+                <div className="text-muted-foreground text-[10px]">Stop</div>
+                <div className="font-semibold text-[var(--trade-bearish)]">${safeToFixed(setup.stopLoss, 2, '—')}</div>
               </div>
             </div>
 
             {setup.catalyst && (
-              <p className="mt-2 text-[10px] text-amber-400/80 truncate flex items-center gap-1">
+              <p className="mt-2 text-[10px] text-[var(--trade-neutral)]/80 truncate flex items-center gap-1">
                 <Zap className="w-3 h-3" /> {setup.catalyst.slice(0, 60)}...
               </p>
             )}
             
             {/* Generated timestamp with relative time */}
             <div className={cn(
-              "mt-2 pt-2 border-t border-[#222] flex items-center justify-between text-[9px] text-slate-500",
+              "mt-2 pt-2 border-t border-border flex items-center justify-between text-[9px] text-muted-foreground",
               setup.timestamp && isStale(setup.timestamp) && "opacity-60"
             )}>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {setup.timestamp ? getRelativeTime(setup.timestamp) : '—'}
               </span>
-              <span className="text-emerald-500/70 font-medium">
+              <span className="text-[var(--trade-bullish)]/70 font-medium">
                 {(setup as any).source === 'tradingview' ? '📺 TV Signal' : (setup.dataSourceUsed?.replace(/_/g, ' ') || setup.source?.replace(/_/g, ' ') || 'scanner')}
               </span>
             </div>
@@ -1082,17 +1084,17 @@ function BestSetupsSubPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
-            <Star className="w-5 h-5 text-amber-400" />
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-[var(--trade-neutral)]/40">
+            <Star className="w-5 h-5 text-[var(--trade-neutral)]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Best Setups</h2>
-            <p className="text-xs text-slate-500">Loading AI-picked trades...</p>
+            <h2 className="text-lg font-bold text-foreground">Best Setups</h2>
+            <p className="text-xs text-muted-foreground">Loading AI-picked trades...</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-40 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-40 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1103,17 +1105,17 @@ function BestSetupsSubPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40">
-            <Star className="w-5 h-5 text-amber-400" />
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-[var(--trade-neutral)]/40">
+            <Star className="w-5 h-5 text-[var(--trade-neutral)]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Best Setups
-              <Badge className="bg-amber-500/20 text-amber-500 dark:text-amber-400 border-amber-500/40 text-[10px]">
+              <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] dark:text-[var(--trade-neutral)] border-[var(--trade-neutral)]/40 text-[10px]">
                 CONVERGENCE
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">Top conviction trade ideas from multi-engine convergence</p>
+            <p className="text-xs text-muted-foreground">Top conviction trade ideas from multi-engine convergence</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1126,31 +1128,31 @@ function BestSetupsSubPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-emerald-500/10 border-emerald-500/30 p-4">
-          <div className="text-xs text-emerald-400 mb-1">Elite (A Grade)</div>
-          <div className="text-2xl font-bold text-emerald-300">{eliteSetups.length}</div>
+        <Card className="bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 p-4">
+          <div className="text-xs text-[var(--trade-bullish)] mb-1">Elite (A Grade)</div>
+          <div className="text-2xl font-bold text-[var(--trade-bullish)]">{eliteSetups.length}</div>
         </Card>
         <Card className="bg-blue-500/10 border-blue-500/30 p-4">
           <div className="text-xs text-blue-400 mb-1">Strong (B Grade)</div>
           <div className="text-2xl font-bold text-blue-300">{strongSetups.length}</div>
         </Card>
-        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
-          <div className="text-xs text-slate-400 mb-1">Watchlist</div>
-          <div className="text-2xl font-bold text-slate-300">{otherSetups.length}</div>
+        <Card className="bg-muted-foreground/10 border-muted-foreground/30 p-4">
+          <div className="text-xs text-muted-foreground mb-1">Watchlist</div>
+          <div className="text-2xl font-bold text-foreground/80">{otherSetups.length}</div>
         </Card>
       </div>
 
       {setups.length === 0 ? (
         <div className="text-center py-16">
-          <Star className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-          <p className="text-slate-400">No setups available</p>
+          <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground">Scanning engines for setups...</p>
         </div>
       ) : (
         <>
           {eliteSetups.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <Star className="w-4 h-4 text-emerald-400" /> Elite Setups (A Grade)
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Star className="w-4 h-4 text-[var(--trade-bullish)]" /> Elite Setups (A Grade)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {eliteSetups.map(renderSetupCard)}
@@ -1160,7 +1162,7 @@ function BestSetupsSubPage() {
 
           {strongSetups.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-blue-400" /> Strong Setups (B Grade)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1171,8 +1173,8 @@ function BestSetupsSubPage() {
 
           {otherSetups.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <Eye className="w-4 h-4 text-slate-400" /> Watchlist
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-muted-foreground" /> Watchlist
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {otherSetups.map(renderSetupCard)}
@@ -1207,7 +1209,7 @@ function MarketMoversSubPage() {
     <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
-        isGainer ? "bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400/50" : "bg-red-500/10 border-red-500/30 hover:border-red-400/50",
+        isGainer ? "bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 hover:border-emerald-400/50" : "bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 hover:border-red-400/50",
         // Highlight stocks with catalysts
         stock.hasCatalyst && "ring-1 ring-purple-500/40"
       )}>
@@ -1216,7 +1218,7 @@ function MarketMoversSubPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
-                isGainer ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                isGainer ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
               )}>
                 {stock.symbol.slice(0, 2)}
                 {/* Catalyst indicator dot */}
@@ -1228,7 +1230,7 @@ function MarketMoversSubPage() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-white">{stock.symbol}</span>
+                  <span className="font-bold text-foreground">{stock.symbol}</span>
                   {/* Catalyst badge */}
                   {stock.hasCatalyst && stock.catalyst && (
                     <Badge className="text-[9px] bg-purple-500/20 text-purple-300 border-purple-500/30">
@@ -1236,21 +1238,21 @@ function MarketMoversSubPage() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
+                <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
                   {stock.hasCatalyst && stock.catalyst?.title ? stock.catalyst.title : (stock.name || 'Stock')}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <div className={cn("text-xl font-bold", isGainer ? "text-emerald-400" : "text-red-400")}>
+              <div className={cn("text-xl font-bold", isGainer ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                 {isGainer ? '+' : ''}{safeToFixed(stock.changePercent, 1)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${safeToFixed(stock.price, 2)}</div>
+              <div className="text-sm font-mono text-muted-foreground">${safeToFixed(stock.price, 2)}</div>
             </div>
           </div>
           {stock.volume && (
-            <div className="mt-2 pt-2 border-t border-[#222]/30">
-              <span className="text-[10px] text-slate-500">Vol: {safeToFixed(safeNumber(stock.volume) / 1000000, 1)}M</span>
+            <div className="mt-2 pt-2 border-t border-border/30">
+              <span className="text-[10px] text-muted-foreground">Vol: {safeToFixed(safeNumber(stock.volume) / 1000000, 1)}M</span>
             </div>
           )}
         </div>
@@ -1266,13 +1268,13 @@ function MarketMoversSubPage() {
             <Flame className="w-5 h-5 text-orange-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Market Movers</h2>
-            <p className="text-xs text-slate-500">Loading...</p>
+            <h2 className="text-lg font-bold text-foreground">Market Movers</h2>
+            <p className="text-xs text-muted-foreground">Loading...</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-28 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-28 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1287,13 +1289,13 @@ function MarketMoversSubPage() {
             <Flame className="w-5 h-5 text-orange-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Market Movers
-              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-[10px]">
+              <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/40 text-[10px]">
                 LIVE
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">Today's biggest gainers and losers</p>
+            <p className="text-xs text-muted-foreground">Today's biggest gainers and losers</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -1303,11 +1305,11 @@ function MarketMoversSubPage() {
 
       {/* Top Gainers */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-emerald-400" /> Top Gainers ({gainers.length})
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" /> Top Gainers ({gainers.length})
         </h3>
         {gainers.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">No gainers data</div>
+          <div className="text-center py-8 text-muted-foreground">Loading market data...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {gainers.slice(0, 12).map((stock: any) => renderMoverCard(stock, true))}
@@ -1317,11 +1319,11 @@ function MarketMoversSubPage() {
 
       {/* Top Losers */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-red-400" /> Top Losers ({losers.length})
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" /> Top Losers ({losers.length})
         </h3>
         {losers.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">No losers data</div>
+          <div className="text-center py-8 text-muted-foreground">Loading market data...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {losers.slice(0, 12).map((stock: any) => renderMoverCard(stock, false))}
@@ -1388,7 +1390,7 @@ function SurgeDetectionSubPage() {
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         stock.tier === 'SURGE' ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-400/50" :
-        stock.tier === 'MOMENTUM' ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-400/50" :
+        stock.tier === 'MOMENTUM' ? "bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/30 hover:border-amber-400/50" :
         "bg-blue-500/10 border-blue-500/30 hover:border-blue-400/50",
         // Highlight stocks with catalysts
         stock.hasCatalyst && "ring-1 ring-purple-500/40"
@@ -1399,7 +1401,7 @@ function SurgeDetectionSubPage() {
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
                 stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
-                stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+                stock.tier === 'MOMENTUM' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
                 "bg-blue-500/20 text-blue-400"
               )}>
                 {stock.symbol.slice(0, 2)}
@@ -1412,11 +1414,11 @@ function SurgeDetectionSubPage() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-white">{stock.symbol}</span>
+                  <span className="font-bold text-foreground">{stock.symbol}</span>
                   <Badge className={cn(
                     "text-[9px]",
                     stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
-                    stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+                    stock.tier === 'MOMENTUM' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
                     "bg-blue-500/20 text-blue-400"
                   )}>
                     {stock.tier}
@@ -1437,15 +1439,15 @@ function SurgeDetectionSubPage() {
               </div>
             </div>
             <div className="text-right">
-              <div className={cn("text-xl font-bold", safeNumber(stock.change) > 0 ? "text-emerald-400" : "text-red-400")}>
+              <div className={cn("text-xl font-bold", safeNumber(stock.change) > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                 {safeNumber(stock.change) > 0 ? '+' : ''}{safeToFixed(stock.change, 1)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${safeToFixed(stock.price, 2)}</div>
+              <div className="text-sm font-mono text-muted-foreground">${safeToFixed(stock.price, 2)}</div>
             </div>
           </div>
-          <p className="text-[10px] text-slate-500 truncate">{stock.reason}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{stock.reason}</p>
           {stock.score && (
-            <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+            <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-500" style={{ width: `${stock.score}%` }} />
             </div>
           )}
@@ -1459,8 +1461,8 @@ function SurgeDetectionSubPage() {
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/10 border-violet-500/30 hover:border-violet-400/50" :
-        pred.prediction?.tier === 'STRONG_SETUP' ? "bg-emerald-500/10 border-emerald-500/30 hover:border-cyan-400/50" :
-        "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50",
+        pred.prediction?.tier === 'STRONG_SETUP' ? "bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 hover:border-cyan-400/50" :
+        "bg-muted-foreground/10 border-muted-foreground/30 hover:border-muted-foreground/50",
         // Highlight stocks with catalysts
         pred.hasCatalyst && "ring-1 ring-purple-500/40"
       )}>
@@ -1469,7 +1471,7 @@ function SurgeDetectionSubPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm relative",
-                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-emerald-500/20 text-emerald-400"
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/20 text-violet-400" : "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"
               )}>
                 {pred.symbol.slice(0, 2)}
                 {/* Catalyst indicator dot */}
@@ -1481,7 +1483,7 @@ function SurgeDetectionSubPage() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-white">{pred.symbol}</span>
+                  <span className="font-bold text-foreground">{pred.symbol}</span>
                   {pred.prediction?.tier === 'HIGH_CONVICTION' && <Sparkles className="w-3 h-3 text-violet-400" />}
                   {/* Catalyst badge */}
                   {pred.hasCatalyst && pred.catalyst && (
@@ -1501,22 +1503,22 @@ function SurgeDetectionSubPage() {
             <div className="text-right">
               <div className={cn(
                 "text-xl font-bold",
-                pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-emerald-400"
+                pred.prediction?.tier === 'HIGH_CONVICTION' ? "text-violet-400" : "text-[var(--trade-bullish)]"
               )}>
                 {safeToFixed(pred.prediction?.probability, 0)}%
               </div>
-              <div className="text-sm font-mono text-slate-400">${safeToFixed(pred.currentPrice, 2)}</div>
+              <div className="text-sm font-mono text-muted-foreground">${safeToFixed(pred.currentPrice, 2)}</div>
             </div>
           </div>
           {pred.prediction?.targetRange && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Target: ${safeToFixed(pred.prediction.targetRange.low, 2)} - ${safeToFixed(pred.prediction.targetRange.high, 2)}</span>
             </div>
           )}
           {pred.signals && pred.signals.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {pred.signals.slice(0, 3).map((signal: any, idx: number) => (
-                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-300">
+                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-muted/50 text-foreground/80">
                   {signal.name || signal}
                 </span>
               ))}
@@ -1531,17 +1533,17 @@ function SurgeDetectionSubPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40">
-            <Zap className="w-5 h-5 text-amber-400" />
+          <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-[var(--trade-neutral)]/40">
+            <Zap className="w-5 h-5 text-[var(--trade-neutral)]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Surge Detection
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">
+              <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] border-[var(--trade-neutral)]/40 text-[10px]">
                 REAL-TIME
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">Momentum & pre-breakout detection system</p>
+            <p className="text-xs text-muted-foreground">Momentum & pre-breakout detection system</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1552,7 +1554,7 @@ function SurgeDetectionSubPage() {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-2 p-1 bg-[#1a1a1a] rounded-lg w-fit">
+      <div className="flex items-center gap-2 p-1 bg-muted rounded-lg w-fit">
         <Button
           variant={activeSubTab === 'now' ? 'default' : 'ghost'}
           size="sm"
@@ -1582,15 +1584,15 @@ function SurgeDetectionSubPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-32 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       ) : activeSubTab === 'now' ? (
         surges.length === 0 ? (
           <div className="text-center py-16">
-            <Zap className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-            <p className="text-slate-400">No surges detected right now</p>
-            <p className="text-xs text-slate-500 mt-2">Scanning market for momentum signals...</p>
+            <Zap className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Market calm — monitoring momentum right now</p>
+            <p className="text-xs text-muted-foreground mt-2">Scanning market for momentum signals...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1600,8 +1602,8 @@ function SurgeDetectionSubPage() {
       ) : activeSubTab === 'early' ? (
         earlySetups.length === 0 ? (
           <div className="text-center py-16">
-            <TrendingUp className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-            <p className="text-slate-400">No early signals detected</p>
+            <TrendingUp className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Scanning for early-stage signals...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1611,9 +1613,9 @@ function SurgeDetectionSubPage() {
       ) : (
         tomorrowPlays.length === 0 ? (
           <div className="text-center py-16">
-            <Clock className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-            <p className="text-slate-400">No overnight predictions available</p>
-            <p className="text-xs text-slate-500 mt-2">Best scanned near market close (3-4 PM ET)</p>
+            <Clock className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Generating overnight predictions...</p>
+            <p className="text-xs text-muted-foreground mt-2">Best scanned near market close (3-4 PM ET)</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1648,8 +1650,8 @@ function ConvergenceSubPage() {
     <Link key={opp.symbol} href={`/stock/${opp.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
-        opp.urgency === 'critical' ? "bg-red-500/10 border-red-500/30 hover:border-red-400/50" :
-        opp.urgency === 'high' ? "bg-amber-500/10 border-amber-500/30 hover:border-amber-400/50" :
+        opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 hover:border-red-400/50" :
+        opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/30 hover:border-amber-400/50" :
         "bg-purple-500/10 border-purple-500/30 hover:border-purple-400/50"
       )}>
         <div className="p-4">
@@ -1657,17 +1659,17 @@ function ConvergenceSubPage() {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
-                opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
-                opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
+                opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]" :
+                opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
                 "bg-purple-500/20 text-purple-400"
               )}>
                 {opp.symbol.slice(0, 2)}
               </div>
               <div>
-                <span className="font-bold text-white">{opp.symbol}</span>
+                <span className="font-bold text-foreground">{opp.symbol}</span>
                 <Badge className={cn(
                   "ml-2 text-[9px]",
-                  opp.direction === 'bullish' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  opp.direction === 'bullish' ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                 )}>
                   {opp.direction?.toUpperCase()}
                 </Badge>
@@ -1676,16 +1678,16 @@ function ConvergenceSubPage() {
             <div className="text-right">
               <div className={cn(
                 "text-xl font-bold",
-                opp.convergenceScore >= 80 ? "text-emerald-400" :
-                opp.convergenceScore >= 65 ? "text-amber-400" : "text-white"
+                opp.convergenceScore >= 80 ? "text-[var(--trade-bullish)]" :
+                opp.convergenceScore >= 65 ? "text-[var(--trade-neutral)]" : "text-foreground"
               )}>
                 {opp.convergenceScore}%
               </div>
               <Badge className={cn(
                 "text-[9px]",
-                opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
-                opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
-                "bg-slate-500/20 text-slate-400"
+                opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]" :
+                opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
+                "bg-muted-foreground/20 text-muted-foreground"
               )}>
                 {opp.urgency?.toUpperCase()}
               </Badge>
@@ -1694,7 +1696,7 @@ function ConvergenceSubPage() {
           {opp.signals && opp.signals.length > 0 && (
             <div className="space-y-1">
               {opp.signals.slice(0, 4).map((signal: any, idx: number) => (
-                <div key={idx} className="flex items-center gap-2 text-xs text-slate-400">
+                <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="w-2 h-2 rounded-full bg-purple-400" />
                   <span>{signal.source}: {signal.description?.slice(0, 40)}</span>
                 </div>
@@ -1714,13 +1716,13 @@ function ConvergenceSubPage() {
             <Target className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Convergence Signals</h2>
-            <p className="text-xs text-slate-500">Loading...</p>
+            <h2 className="text-lg font-bold text-foreground">Convergence Signals</h2>
+            <p className="text-xs text-muted-foreground">Loading...</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-40 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-40 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1735,32 +1737,32 @@ function ConvergenceSubPage() {
             <Target className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Convergence Signals
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/40 text-[10px]">
                 MULTI-SOURCE
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">When multiple data sources agree, something big is brewing</p>
+            <p className="text-xs text-muted-foreground">When multiple data sources agree, something big is brewing</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
-          {criticalCount > 0 && <Badge className="bg-red-500/20 text-red-400">{criticalCount} Critical</Badge>}
-          {highCount > 0 && <Badge className="bg-amber-500/20 text-amber-400">{highCount} High</Badge>}
+          {criticalCount > 0 && <Badge className="bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]">{criticalCount} Critical</Badge>}
+          {highCount > 0 && <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]">{highCount} High</Badge>}
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-red-500/10 border-red-500/30 p-4">
-          <div className="text-xs text-red-400 mb-1">Critical Urgency</div>
+        <Card className="bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 p-4">
+          <div className="text-xs text-[var(--trade-bearish)] mb-1">Critical Urgency</div>
           <div className="text-2xl font-bold text-red-300">{criticalCount}</div>
         </Card>
-        <Card className="bg-amber-500/10 border-amber-500/30 p-4">
-          <div className="text-xs text-amber-400 mb-1">High Urgency</div>
+        <Card className="bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/30 p-4">
+          <div className="text-xs text-[var(--trade-neutral)] mb-1">High Urgency</div>
           <div className="text-2xl font-bold text-amber-300">{highCount}</div>
         </Card>
         <Card className="bg-purple-500/10 border-purple-500/30 p-4">
@@ -1771,9 +1773,9 @@ function ConvergenceSubPage() {
 
       {opportunities.length === 0 ? (
         <div className="text-center py-16">
-          <Activity className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-          <p className="text-slate-400">No convergence signals detected</p>
-          <p className="text-xs text-slate-500 mt-2">Monitoring news, options flow, insider activity, and sector momentum...</p>
+          <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground">Monitoring for convergence... detected</p>
+          <p className="text-xs text-muted-foreground mt-2">Monitoring news, options flow, insider activity, and sector momentum...</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1781,13 +1783,13 @@ function ConvergenceSubPage() {
         </div>
       )}
 
-      <Card className="bg-[#111] border-[#222] p-4">
+      <Card className="bg-card border-border p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-purple-500/10">
             <Brain className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-xs text-slate-400">
-            <p className="font-medium text-slate-300 mb-1">How Convergence Detection Works</p>
+          <div className="text-xs text-muted-foreground">
+            <p className="font-medium text-foreground/80 mb-1">How Convergence Detection Works</p>
             <p>Our system monitors multiple data sources (news sentiment, options flow, insider trades, sector momentum) and alerts when 2+ sources align on the same symbol within a short timeframe. Higher urgency = more sources converging.</p>
           </div>
         </div>
@@ -1819,19 +1821,19 @@ function HotAttentionSubPage() {
     <Link key={item.symbol} href={`/stock/${item.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
-        item.isConverging ? "bg-orange-500/10 border-orange-500/30 hover:border-orange-400/50" : "bg-slate-500/10 border-slate-500/30 hover:border-slate-400/50"
+        item.isConverging ? "bg-orange-500/10 border-orange-500/30 hover:border-orange-400/50" : "bg-muted-foreground/10 border-muted-foreground/30 hover:border-muted-foreground/50"
       )}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm",
-                item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-slate-500/20 text-slate-400"
+                item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-muted-foreground/20 text-muted-foreground"
               )}>
                 {item.symbol.slice(0, 2)}
               </div>
               <div>
-                <span className="font-bold text-white">{item.symbol}</span>
+                <span className="font-bold text-foreground">{item.symbol}</span>
                 {item.isConverging && (
                   <Badge className="ml-2 text-[9px] bg-orange-500/20 text-orange-400">CONVERGING</Badge>
                 )}
@@ -1840,27 +1842,27 @@ function HotAttentionSubPage() {
             <div className="text-right">
               <div className={cn(
                 "text-xl font-bold",
-                safeNumber(item.heatScore) >= 5 ? "text-red-400" :
-                safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-slate-400"
+                safeNumber(item.heatScore) >= 5 ? "text-[var(--trade-bearish)]" :
+                safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-muted-foreground"
               )}>
                 {safeToFixed(item.heatScore, 1)}
               </div>
-              <span className="text-[10px] text-slate-500">heat score</span>
+              <span className="text-[10px] text-muted-foreground">heat score</span>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-400">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span>{item.distinctSources} sources</span>
             <span>{item.recentTouches1h} hits/hr</span>
             <span>{item.totalSignals} signals</span>
           </div>
           {/* Heat bar */}
-          <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+          <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
             <div
               className={cn(
                 "h-full",
                 item.heatScore >= 5 ? "bg-gradient-to-r from-orange-500 to-red-500" :
                 item.heatScore >= 3 ? "bg-gradient-to-r from-amber-500 to-orange-500" :
-                "bg-slate-500"
+                "bg-muted-foreground"
               )}
               style={{ width: `${Math.min(100, (item.heatScore || 0) * 10)}%` }}
             />
@@ -1878,13 +1880,13 @@ function HotAttentionSubPage() {
             <Flame className="w-5 h-5 text-orange-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Hot Attention</h2>
-            <p className="text-xs text-slate-500">Loading...</p>
+            <h2 className="text-lg font-bold text-foreground">Hot Attention</h2>
+            <p className="text-xs text-muted-foreground">Loading...</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-32 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-32 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -1899,13 +1901,13 @@ function HotAttentionSubPage() {
             <Flame className="w-5 h-5 text-orange-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Hot Attention
               <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/40 text-[10px]">
                 HEAT MAP
               </Badge>
             </h2>
-            <p className="text-xs text-slate-500">Symbols flagged by multiple scanners - watch for moves</p>
+            <p className="text-xs text-muted-foreground">Symbols flagged by multiple scanners - watch for moves</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1922,26 +1924,26 @@ function HotAttentionSubPage() {
           <div className="text-xs text-orange-400 mb-1">Converging</div>
           <div className="text-2xl font-bold text-orange-300">{convergingSymbols.length}</div>
         </Card>
-        <Card className="bg-slate-500/10 border-slate-500/30 p-4">
-          <div className="text-xs text-slate-400 mb-1">Watching</div>
-          <div className="text-2xl font-bold text-slate-300">{watchingSymbols.length}</div>
+        <Card className="bg-muted-foreground/10 border-muted-foreground/30 p-4">
+          <div className="text-xs text-muted-foreground mb-1">Watching</div>
+          <div className="text-2xl font-bold text-foreground/80">{watchingSymbols.length}</div>
         </Card>
-        <Card className="bg-red-500/10 border-red-500/30 p-4">
-          <div className="text-xs text-red-400 mb-1">Highest Heat</div>
+        <Card className="bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 p-4">
+          <div className="text-xs text-[var(--trade-bearish)] mb-1">Highest Heat</div>
           <div className="text-2xl font-bold text-red-300">{safeToFixed(symbols[0]?.heatScore, 1, '0')}</div>
         </Card>
       </div>
 
       {symbols.length === 0 ? (
         <div className="text-center py-16">
-          <Flame className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-          <p className="text-slate-400">No hot symbols detected</p>
+          <Flame className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground">Scanning for unusual activity... detected</p>
         </div>
       ) : (
         <>
           {convergingSymbols.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Flame className="w-4 h-4 text-orange-400" /> Converging Signals ({convergingSymbols.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1952,8 +1954,8 @@ function HotAttentionSubPage() {
 
           {watchingSymbols.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <Eye className="w-4 h-4 text-slate-400" /> On Radar ({watchingSymbols.length})
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Eye className="w-4 h-4 text-muted-foreground" /> On Radar ({watchingSymbols.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {watchingSymbols.map(renderHotCard)}
@@ -2038,7 +2040,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
       return (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-12 bg-[#1a1a1a] rounded-lg animate-pulse" />
+            <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
       );
@@ -2046,7 +2048,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
     if (breakoutError && tab === 'surge') {
       return (
-        <div className="text-center py-4 text-slate-500 text-sm">
+        <div className="text-center py-4 text-muted-foreground text-sm">
           <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-50" />
           <p>Temporarily unavailable</p>
         </div>
@@ -2057,7 +2059,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     if (tab === 'tomorrow') {
       if (tomorrowPlays.length === 0) {
         return (
-          <div className="text-center py-4 text-slate-500 text-sm">
+          <div className="text-center py-4 text-muted-foreground text-sm">
             <Clock className="w-6 h-6 mx-auto mb-2 opacity-50" />
             <p>No high-conviction setups</p>
             <p className="text-[10px] mt-1">Best scanned near market close (3-4 PM ET)</p>
@@ -2067,27 +2069,27 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
       return tomorrowPlays.slice(0, 5).map((pred: any, idx: number) => (
         <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer border-l-2 border-violet-500/50">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer border-l-2 border-violet-500/50">
             <div className="flex items-center gap-2">
               <span className={cn(
                 "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
                 pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/30 text-violet-300" :
-                "bg-emerald-500/20 text-emerald-400"
+                "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"
               )}>{idx + 1}</span>
               <div>
                 <div className="flex items-center gap-1">
-                  <span className="font-mono font-bold text-white text-sm">{pred.symbol}</span>
+                  <span className="font-mono font-bold text-foreground text-sm">{pred.symbol}</span>
                   {pred.prediction?.tier === 'HIGH_CONVICTION' && (
                     <Sparkles className="w-3 h-3 text-violet-400" />
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500 truncate max-w-[100px]">
+                <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
                   {pred.signals?.[0]?.name || 'Setup detected'}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-xs font-mono text-white">
+              <span className="text-xs font-mono text-foreground">
                 ${safeToFixed(pred.currentPrice, 2, '—')}
               </span>
               <p className="text-[10px] text-violet-400 font-medium">
@@ -2104,7 +2106,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
     if (displayData.length === 0) {
       return (
-        <div className="text-center py-4 text-slate-500 text-sm">
+        <div className="text-center py-4 text-muted-foreground text-sm">
           No {tab === 'surge' ? 'surges' : 'setups'} detected
         </div>
       );
@@ -2113,38 +2115,38 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     return displayData.slice(0, 5).map((stock: any, idx: number) => (
       <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
         <div className={cn(
-          "flex items-center justify-between p-2 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors cursor-pointer",
+          "flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer",
           stock.hasCatalyst && "ring-1 ring-purple-500/30 bg-purple-500/5"
         )}>
           <div className="flex items-center gap-2">
             <span className={cn(
               "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
               stock.tier === 'SURGE' ? "bg-rose-500/20 text-rose-400" :
-              stock.tier === 'MOMENTUM' ? "bg-amber-500/20 text-amber-400" :
+              stock.tier === 'MOMENTUM' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
               "bg-blue-500/20 text-blue-400"
             )}>{idx + 1}</span>
             <div>
               <div className="flex items-center gap-1">
-                <span className="font-mono font-bold text-white text-sm">{stock.symbol}</span>
+                <span className="font-mono font-bold text-foreground text-sm">{stock.symbol}</span>
                 {stock.hasCatalyst && stock.catalyst && (
                   <span className="text-[10px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">
                     {stock.catalyst.icon}
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-500 truncate max-w-[140px]">
+              <p className="text-[10px] text-muted-foreground truncate max-w-[140px]">
                 {stock.catalyst?.title || stock.reason?.split(' | ')[0] || stock.tier}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-xs font-mono text-white">
+            <span className="text-xs font-mono text-foreground">
               ${safeToFixed(stock.price, 2, '—')}
             </span>
             {typeof stock.change === 'number' && (
               <p className={cn(
                 "text-xs font-mono font-bold",
-                safeNumber(stock.change) > 0 ? "text-emerald-400" : "text-red-400"
+                safeNumber(stock.change) > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {safeNumber(stock.change) > 0 ? '+' : ''}{safeToFixed(stock.change, 1)}%
               </p>
@@ -2157,7 +2159,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
   return (
     <Card
-      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-orange-500/50 transition-all group"
+      className="bg-card border-border p-4 cursor-pointer hover:border-orange-500/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewTomorrow?.();
@@ -2165,13 +2167,13 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-semibold text-white">Surge Detection</span>
-          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-orange-400 transition-colors" />
+          <Zap className="w-4 h-4 text-[var(--trade-neutral)]" />
+          <span className="text-sm font-semibold text-foreground">Surge Detection</span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-orange-400 transition-colors" />
           <Button
             variant="ghost"
             size="sm"
-            className="h-5 w-5 p-0 text-slate-500 hover:text-white"
+            className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
             onClick={() => {
               setForceRefresh(true);
               refetchBreakouts();
@@ -2211,7 +2213,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
           </Button>
         </div>
       </div>
-      <p className="text-[10px] text-slate-500 mb-3">
+      <p className="text-[10px] text-muted-foreground mb-3">
         {tab === 'tomorrow'
           ? 'Predictive: Stocks that might surge 10-40% next day'
           : tab === 'surge' && !hasSurgeMomentum && surges.length > 0
@@ -2238,7 +2240,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
       )}
 
       {(breakoutData?.cached || overnightData?.cached) && (
-        <p className="text-[9px] text-slate-600 mt-2 text-center">
+        <p className="text-[9px] text-muted-foreground/70 mt-2 text-center">
           Cached {tab === 'tomorrow' ? overnightData?.cacheAge : breakoutData?.cacheAge}s ago
         </p>
       )}
@@ -2271,7 +2273,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-purple-500/50 transition-all group"
+      className="bg-card border-border p-4 cursor-pointer hover:border-purple-500/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewAll?.();
@@ -2280,10 +2282,10 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-semibold text-white">Convergence</span>
-          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-purple-400 transition-colors" />
+          <span className="text-sm font-semibold text-foreground">Convergence</span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-purple-400 transition-colors" />
           {status === 'active' && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
           )}
           {status === 'monitoring' && (
             <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -2291,40 +2293,40 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
         </div>
         <div className="flex items-center gap-1">
           {criticalCount > 0 && (
-            <Badge className="bg-red-500/20 text-red-400 text-[10px]">
+            <Badge className="bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)] text-[10px]">
               {criticalCount} Critical
             </Badge>
           )}
           {highCount > 0 && (
-            <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+            <Badge className="bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)] text-[10px]">
               {highCount} High
             </Badge>
           )}
           {activeSignalCount > 0 && criticalCount === 0 && highCount === 0 && (
-            <Badge className="bg-slate-700 text-slate-400 text-[10px]">
+            <Badge className="bg-muted text-muted-foreground text-[10px]">
               {activeSignalCount} signals
             </Badge>
           )}
         </div>
       </div>
-      <p className="text-[10px] text-slate-500 mb-3">Multi-source signal correlation (pre-move detection)</p>
+      <p className="text-[10px] text-muted-foreground mb-3">Multi-source signal correlation (pre-move detection)</p>
 
       <div className="space-y-2">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-12 bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
         ) : isError ? (
-          <div className="text-center py-4 text-slate-500 text-sm">
+          <div className="text-center py-4 text-muted-foreground text-sm">
             <AlertTriangle className="w-6 h-6 mx-auto mb-2 opacity-50" />
             <p>Temporarily unavailable</p>
           </div>
         ) : opportunities.length === 0 ? (
-          <div className="text-center py-4 text-slate-500 text-sm">
+          <div className="text-center py-4 text-muted-foreground text-sm">
             <Activity className="w-6 h-6 mx-auto mb-2 opacity-50" />
-            <p>{status === 'monitoring' ? 'Monitoring signals...' : 'No convergence signals'}</p>
+            <p>{status === 'monitoring' ? 'Monitoring signals...' : 'Monitoring for convergence...'}</p>
             <p className="text-[10px] mt-1">
               {activeSignalCount > 0
                 ? `${activeSignalCount} signal${activeSignalCount > 1 ? 's' : ''} tracked (need 2+ sources to converge)`
@@ -2332,10 +2334,10 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
             </p>
             {hotSymbols.length > 0 && (
               <div className="flex items-center justify-center gap-2 mt-2">
-                <span className="text-[10px] text-slate-600">Hot:</span>
+                <span className="text-[10px] text-muted-foreground/70">Hot:</span>
                 {hotSymbols.map((s: any) => (
                   <Link key={s.symbol} href={`/stock/${s.symbol}`}>
-                    <span className="text-[10px] font-mono text-emerald-400 hover:underline cursor-pointer">
+                    <span className="text-[10px] font-mono text-[var(--trade-bullish)] hover:underline cursor-pointer">
                       {s.symbol}
                     </span>
                   </Link>
@@ -2348,26 +2350,26 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
             <Link key={`${opp.symbol}-${idx}`} href={`/stock/${opp.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                opp.urgency === 'critical' ? "bg-red-500/10 hover:bg-red-500/20 border border-red-500/30" :
-                opp.urgency === 'high' ? "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30" :
-                "bg-[#1a1a1a] hover:bg-[#222]"
+                opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/10 hover:bg-[var(--trade-bearish)]/20 border border-[var(--trade-bearish)]/30" :
+                opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/10 hover:bg-[var(--trade-neutral)]/20 border border-[var(--trade-neutral)]/30" :
+                "bg-muted hover:bg-[#222]"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
-                    opp.urgency === 'critical' ? "bg-red-500/20 text-red-400" :
-                    opp.urgency === 'high' ? "bg-amber-500/20 text-amber-400" :
+                    opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]" :
+                    opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/20 text-[var(--trade-neutral)]" :
                     "bg-purple-500/20 text-purple-400"
                   )}>{opp.signals?.length || idx + 1}</span>
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="font-mono font-bold text-white text-sm">{opp.symbol}</span>
+                      <span className="font-mono font-bold text-foreground text-sm">{opp.symbol}</span>
                       <span className={cn(
                         "text-[10px] font-medium",
-                        opp.direction === 'bullish' ? "text-emerald-400" : "text-red-400"
+                        opp.direction === 'bullish' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>{opp.direction === 'bullish' ? '↑' : '↓'}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
                       {opp.signals?.map((s: any) => s.source).slice(0, 3).join(', ') || 'Multi-source'}
                     </p>
                   </div>
@@ -2375,12 +2377,12 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
                 <div className="text-right">
                   <span className={cn(
                     "text-sm font-mono font-bold",
-                    opp.convergenceScore >= 80 ? "text-emerald-400" :
-                    opp.convergenceScore >= 65 ? "text-amber-400" : "text-white"
+                    opp.convergenceScore >= 80 ? "text-[var(--trade-bullish)]" :
+                    opp.convergenceScore >= 65 ? "text-[var(--trade-neutral)]" : "text-foreground"
                   )}>
                     {opp.convergenceScore}%
                   </span>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-muted-foreground">
                     {opp.urgency.toUpperCase()}
                   </p>
                 </div>
@@ -2400,7 +2402,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
         </Button>
       )}
       {data?.cached && (
-        <p className="text-[9px] text-slate-600 mt-2 text-center">
+        <p className="text-[9px] text-muted-foreground/70 mt-2 text-center">
           Cached {data.cacheAge}s ago
         </p>
       )}
@@ -2411,6 +2413,46 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
 // ============================================
 // HOT SYMBOLS CARD - Symbols with multi-source attention
 // ============================================
+// Compact version for sidebar
+function HotSymbolsCompact() {
+  const { data } = useQuery({
+    queryKey: ['/api/convergence/hot-symbols'],
+    queryFn: async () => {
+      const res = await fetch('/api/convergence/hot-symbols?limit=6');
+      if (!res.ok) throw new Error('Failed');
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
+    retry: 1,
+  });
+
+  const symbols = (data?.symbols || []).slice(0, 6);
+
+  if (!symbols.length) {
+    return <p className="text-[11px] text-muted-foreground text-center py-2">Scanning for unusual activity...</p>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {symbols.map((sym: any, i: number) => (
+        <Link key={i} href={`/stock/${sym.symbol}`}>
+          <div className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[10px] text-muted-foreground/60 font-mono w-3">{i + 1}</span>
+              <span className="font-mono font-semibold text-xs text-foreground truncate">{sym.symbol}</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[10px] text-muted-foreground font-mono">{sym.sources || sym.scannerCount || 1}src</span>
+              <span className="text-[10px] font-mono font-bold text-orange-400">{sym.heat?.toFixed(1) || sym.score?.toFixed(1) || '—'}</span>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['/api/convergence/hot-symbols'],
@@ -2428,7 +2470,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
 
   return (
     <Card
-      className="bg-[#111] border-[#222] p-4 cursor-pointer hover:border-red-500/50 transition-all group"
+      className="bg-card border-border p-4 cursor-pointer hover:border-[var(--trade-bearish)]/50 transition-all group"
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (!target.closest('a') && !target.closest('button')) onViewAll?.();
@@ -2437,39 +2479,39 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-orange-400" />
-          <span className="text-sm font-semibold text-white">Hot Attention</span>
-          <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-red-400 transition-colors" />
+          <span className="text-sm font-semibold text-foreground">Hot Attention</span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-[var(--trade-bearish)] transition-colors" />
         </div>
         <Badge variant="outline" className="text-xs">
           {data?.convergingCount || 0} Converging
         </Badge>
       </div>
-      <p className="text-[10px] text-slate-500 mb-3">Symbols flagged by multiple scanners</p>
+      <p className="text-[10px] text-muted-foreground mb-3">Symbols flagged by multiple scanners</p>
 
       <div className="space-y-2">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 bg-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
         ) : symbols.length === 0 ? (
-          <div className="text-center py-4 text-slate-500 text-sm">No hot symbols</div>
+          <div className="text-center py-4 text-muted-foreground text-sm">Scanning for unusual activity...</div>
         ) : (
           symbols.slice(0, 6).map((item: any, idx: number) => (
             <Link key={item.symbol} href={`/stock/${item.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-[#1a1a1a] hover:bg-[#222]"
+                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-muted hover:bg-[#222]"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
-                    item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-slate-700 text-slate-400"
+                    item.isConverging ? "bg-orange-500/20 text-orange-400" : "bg-muted text-muted-foreground"
                   )}>{idx + 1}</span>
                   <div>
-                    <span className="font-mono font-bold text-white text-sm">{item.symbol}</span>
-                    <p className="text-[10px] text-slate-500">
+                    <span className="font-mono font-bold text-foreground text-sm">{item.symbol}</span>
+                    <p className="text-[10px] text-muted-foreground">
                       {item.distinctSources} sources • {item.recentTouches1h} hits/hr
                     </p>
                   </div>
@@ -2477,12 +2519,12 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
                 <div className="text-right">
                   <span className={cn(
                     "text-sm font-mono font-bold",
-                    safeNumber(item.heatScore) >= 5 ? "text-red-400" :
-                    safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-slate-400"
+                    safeNumber(item.heatScore) >= 5 ? "text-[var(--trade-bearish)]" :
+                    safeNumber(item.heatScore) >= 3 ? "text-orange-400" : "text-muted-foreground"
                   )}>
                     {safeToFixed(item.heatScore, 1)}
                   </span>
-                  <p className="text-[10px] text-slate-500">heat</p>
+                  <p className="text-[10px] text-muted-foreground">heat</p>
                 </div>
               </div>
             </Link>
@@ -2493,7 +2535,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-3 h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          className="w-full mt-3 h-7 text-xs text-[var(--trade-bearish)] hover:text-red-300 hover:bg-[var(--trade-bearish)]/10"
           onClick={onViewAll}
         >
           {symbols.length > 0 ? 'View All Hot Symbols' : 'Open Hot Symbols'} <ChevronRight className="w-3 h-3 ml-1" />
@@ -2524,16 +2566,16 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
   const sourceDriverMap: Record<string, IdeaDriver> = {
     'ai_analysis': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
     'ai': { type: 'ai', label: 'AI', icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
-    'quant_signal': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    'quant': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'quant_signal': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-[var(--trade-bullish)]', bgColor: 'bg-[var(--trade-bullish)]/20' },
+    'quant': { type: 'quant', label: 'Quant', icon: BarChart3, color: 'text-[var(--trade-bullish)]', bgColor: 'bg-[var(--trade-bullish)]/20' },
     'chart_analysis': { type: 'technical', label: 'Chart', icon: LineChart, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
     'surge_detection': { type: 'momentum', label: 'Surge', icon: Zap, color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
-    'market_scanner': { type: 'momentum', label: 'Mover', icon: Radar, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
-    'flow': { type: 'flow', label: 'Flow', icon: Activity, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    'options_flow': { type: 'flow', label: 'Options', icon: Activity, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'market_scanner': { type: 'momentum', label: 'Mover', icon: Radar, color: 'text-[var(--trade-neutral)]', bgColor: 'bg-[var(--trade-neutral)]/20' },
+    'flow': { type: 'flow', label: 'Flow', icon: Activity, color: 'text-[var(--trade-bullish)]', bgColor: 'bg-[var(--trade-bullish)]/20' },
+    'options_flow': { type: 'flow', label: 'Options', icon: Activity, color: 'text-[var(--trade-bullish)]', bgColor: 'bg-[var(--trade-bullish)]/20' },
     'social_sentiment': { type: 'sentiment', label: 'Social', icon: MessageCircle, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
     'convergence': { type: 'multi', label: 'Multi-Signal', icon: Target, color: 'text-violet-400', bgColor: 'bg-violet-500/20' },
-    'bot_screener': { type: 'screener', label: 'Screener', icon: Search, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+    'bot_screener': { type: 'screener', label: 'Screener', icon: Search, color: 'text-[var(--trade-bullish)]', bgColor: 'bg-[var(--trade-bullish)]/20' },
     'watchlist': { type: 'watchlist', label: 'Watchlist', icon: Star, color: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
     'earnings_play': { type: 'catalyst', label: 'Earnings', icon: Calendar, color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
   };
@@ -2564,12 +2606,12 @@ function getIdeaDrivers(idea: TradeIdea): IdeaDriver[] {
 
   // Check for insider/pre-market indicators
   if (catalyst.includes('insider') || catalyst.includes('pre-market') || catalyst.includes('premarket')) {
-    drivers.push({ type: 'insider', label: 'Insider', icon: Lock, color: 'text-amber-400', bgColor: 'bg-amber-500/20' });
+    drivers.push({ type: 'insider', label: 'Insider', icon: Lock, color: 'text-[var(--trade-neutral)]', bgColor: 'bg-[var(--trade-neutral)]/20' });
   }
 
   // Default if no drivers found
   if (drivers.length === 0) {
-    drivers.push({ type: 'analysis', label: 'Analysis', icon: Microscope, color: 'text-slate-400', bgColor: 'bg-slate-500/20' });
+    drivers.push({ type: 'analysis', label: 'Analysis', icon: Microscope, color: 'text-muted-foreground', bgColor: 'bg-muted-foreground/20' });
   }
 
   return drivers.slice(0, 3); // Max 3 driver tags
@@ -2668,8 +2710,8 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
     <Card 
       ref={cardRef} 
       className={cn(
-        "bg-[#111]/60 border-[#222]/50 overflow-hidden transition-all cursor-pointer",
-        expanded ? "ring-1 ring-cyan-500/50" : "hover:border-slate-600 hover:-translate-y-0.5"
+        "bg-card/60 border-border/50 overflow-hidden transition-all cursor-pointer",
+        expanded ? "ring-1 ring-cyan-500/50" : "hover:border-border hover:-translate-y-0.5"
       )}
       onClick={() => onViewDetails ? onViewDetails(idea) : handleNavigate()}
       data-testid={`trade-card-${idea.symbol}`}
@@ -2682,17 +2724,17 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             <div className={cn(
               "w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs",
               isLong ? "bg-gradient-to-br from-emerald-500 to-green-600" : "bg-gradient-to-br from-red-500 to-rose-600",
-              "text-white"
+              "text-foreground"
             )}>
               {idea.symbol.slice(0, 2)}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-white">{idea.symbol}</span>
+                <span className="font-bold text-foreground">{idea.symbol}</span>
                 {isOption && (
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded font-semibold",
-                    isCall ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    isCall ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                   )}>
                     {idea.optionType?.toUpperCase()} ${safeToFixed(idea.strikePrice, 0)}
                   </span>
@@ -2705,23 +2747,23 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
                 {!isOption && (
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                    isLong ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    isLong ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)]"
                   )}>
                     {isLong ? 'LONG' : 'SHORT'}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-slate-500">{idea.holdingPeriod || 'Swing'} • Grade {grade}</span>
+              <span className="text-[10px] text-muted-foreground">{idea.holdingPeriod || 'Swing'} • Grade {grade}</span>
             </div>
           </div>
           <div className="text-right">
             <div className={cn(
               "text-xl font-bold",
-              confidence >= 75 ? "text-emerald-400" : confidence >= 60 ? "text-amber-400" : "text-slate-400"
+              confidence >= 75 ? "text-[var(--trade-bullish)]" : confidence >= 60 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
             )}>
               {confidence}%
             </div>
-            <span className="text-[9px] text-slate-500">Confidence</span>
+            <span className="text-[9px] text-muted-foreground">Confidence</span>
           </div>
         </div>
 
@@ -2737,40 +2779,40 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             </span>
           ))}
           {topSignals.length > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-300">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-muted/50 text-foreground/80">
               +{topSignals.length} signals
             </span>
           )}
         </div>
 
         {/* Price Levels - Compact Row */}
-        <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#151515] text-xs">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[var(--surface-raised)] text-xs">
           <div className="text-center">
-            <div className="text-slate-500 text-[10px]">Entry</div>
-            <div className="font-semibold text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
+            <div className="text-muted-foreground text-[10px]">Entry</div>
+            <div className="font-semibold text-foreground">${safeToFixed(idea.entryPrice, 2, '—')}</div>
           </div>
           <div className="text-center">
-            <div className="text-slate-500 text-[10px]">Target</div>
-            <div className="font-semibold text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
+            <div className="text-muted-foreground text-[10px]">Target</div>
+            <div className="font-semibold text-[var(--trade-bullish)]">${safeToFixed(idea.targetPrice, 2, '—')}</div>
           </div>
           <div className="text-center">
-            <div className="text-slate-500 text-[10px]">Stop</div>
-            <div className="font-semibold text-red-400">${safeToFixed(idea.stopLoss, 2, '—')}</div>
+            <div className="text-muted-foreground text-[10px]">Stop</div>
+            <div className="font-semibold text-[var(--trade-bearish)]">${safeToFixed(idea.stopLoss, 2, '—')}</div>
           </div>
           <div className="text-center">
-            <div className="text-slate-500 text-[10px]">R:R</div>
-            <div className="font-semibold text-emerald-400">1:{riskReward}</div>
+            <div className="text-muted-foreground text-[10px]">R:R</div>
+            <div className="font-semibold text-[var(--trade-bullish)]">1:{riskReward}</div>
           </div>
         </div>
 
         {/* Quick preview toggle + View full analysis hint */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#222]/50">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggle();
             }}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/80 transition-colors"
           >
             <ChevronRight className={cn(
               "w-4 h-4 transition-transform",
@@ -2778,7 +2820,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             )} />
             <span>{expanded ? 'Hide preview' : 'Quick preview'}</span>
           </button>
-          <span className="text-[10px] text-slate-500 flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
             <Eye className="w-3 h-3" /> Click for full analysis
           </span>
         </div>
@@ -2786,19 +2828,19 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-[#222]/50 p-4 space-y-3 bg-gray-50 dark:bg-slate-950/40">
+        <div className="border-t border-border/50 p-4 space-y-3 bg-gray-50 dark:bg-card/40">
           {/* Options Details */}
           {isOption && (idea.strikePrice || idea.expiryDate) && (
-            <div className="flex items-center gap-4 p-2 bg-gray-100 dark:bg-slate-800/30 rounded-lg text-xs">
+            <div className="flex items-center gap-4 p-2 bg-gray-100 dark:bg-muted/30 rounded-lg text-xs">
               <div className="flex items-center gap-1">
-                <Target className="w-3 h-3 text-slate-500" />
-                <span className="text-slate-400">Strike:</span>
-                <span className="font-mono text-white">${safeToFixed(idea.strikePrice, 2, '—')}</span>
+                <Target className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Strike:</span>
+                <span className="font-mono text-foreground">${safeToFixed(idea.strikePrice, 2, '—')}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-slate-500" />
-                <span className="text-slate-400">Exp:</span>
-                <span className="font-mono text-white">{idea.expiryDate || '—'}</span>
+                <Calendar className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Exp:</span>
+                <span className="font-mono text-foreground">{idea.expiryDate || '—'}</span>
               </div>
             </div>
           )}
@@ -2816,17 +2858,17 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           {/* Analysis */}
           {idea.analysis && (
             <div>
-              <h4 className="text-[10px] font-semibold text-slate-400 uppercase mb-1 flex items-center gap-1">
+              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1">
                 <Brain className="w-3 h-3" /> Analysis
               </h4>
-              <p className="text-xs text-slate-300 leading-relaxed">{idea.analysis}</p>
+              <p className="text-xs text-foreground/80 leading-relaxed">{idea.analysis}</p>
             </div>
           )}
 
           {/* Catalyst */}
           {idea.catalyst && (
-            <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
-              <h4 className="text-[10px] font-semibold text-amber-400 uppercase mb-1 flex items-center gap-1">
+            <div className="p-2 bg-[var(--trade-neutral)]/10 rounded-lg border border-[var(--trade-neutral)]/20">
+              <h4 className="text-[10px] font-semibold text-[var(--trade-neutral)] uppercase mb-1 flex items-center gap-1">
                 <Zap className="w-3 h-3" /> Catalyst
               </h4>
               <p className="text-xs text-amber-300">{idea.catalyst}</p>
@@ -2834,14 +2876,14 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           )}
 
           {/* Source Engine + Timestamp - use firstGeneratedAt for when signal first appeared */}
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             <span>First signal:</span>
-            <span className="font-medium text-emerald-400">
+            <span className="font-medium text-[var(--trade-bullish)]">
               {(idea as any).source === 'tradingview' ? '📺 TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
             </span>
             {idea.timestamp && (
-              <span className="text-slate-400">
+              <span className="text-muted-foreground">
                 {getRelativeTime(idea.timestamp)}
               </span>
             )}
@@ -2851,7 +2893,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {idea.qualitySignals.slice(0, 6).map((signal, idx) => (
-                <Badge key={idx} variant="outline" className="text-[9px] bg-[#1a1a1a] px-1.5 py-0.5">
+                <Badge key={idx} variant="outline" className="text-[9px] bg-muted px-1.5 py-0.5">
                   {signal}
                 </Badge>
               ))}
@@ -2863,7 +2905,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             {onViewDetails && (
               <Button
                 size="sm"
-                className="flex-1 h-8 bg-emerald-600 hover:bg-emerald-500 text-xs"
+                className="flex-1 h-8 bg-emerald-600 hover:bg-[var(--trade-bullish)] text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewDetails(idea);
@@ -2873,7 +2915,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
               </Button>
             )}
             <Link href={`/stock/${idea.symbol}`} className="flex-1">
-              <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-emerald-400 hover:bg-emerald-500/10 text-xs">
+              <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-[var(--trade-bullish)] hover:bg-[var(--trade-bullish)]/10 text-xs">
                 <Eye className="w-3 h-3 mr-1" /> Full Analysis
               </Button>
             </Link>
@@ -2893,7 +2935,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 bg-slate-600/20 border-slate-500/40 hover:bg-slate-600/30 text-slate-400 text-xs"
+              className="h-8 bg-muted/20 border-muted-foreground/40 hover:bg-muted/30 text-muted-foreground text-xs"
               onClick={(e) => {
                 e.stopPropagation();
                 downloadCard();
@@ -2960,30 +3002,30 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
 
   return (
     <div className="space-y-3">
-      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
         <BarChart3 className="w-3 h-3" /> Research Reports
       </h4>
       <div className="space-y-2">
         {insights.map((report, idx) => (
           <div
             key={idx}
-            className="bg-gray-100 dark:bg-slate-800/30 rounded-lg p-3 border border-[#222]/30"
+            className="bg-gray-100 dark:bg-muted/30 rounded-lg p-3 border border-border/30"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className={cn(
                   "w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold",
-                  report.type === 'ai' ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400"
+                  report.type === 'ai' ? "bg-purple-500/20 text-purple-400" : "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"
                 )}>
                   {report.type === 'ai' ? 'AI' : 'Q'}
                 </div>
-                <span className="text-xs font-medium text-white">{report.title}</span>
+                <span className="text-xs font-medium text-foreground">{report.title}</span>
               </div>
               <Badge variant="outline" className="text-[8px] px-1.5 py-0">
                 QuantEdge
               </Badge>
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">{report.content}</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">{report.content}</p>
           </div>
         ))}
       </div>
@@ -3000,11 +3042,11 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
 
   return (
     <Link href={`/stock/${idea.symbol}`}>
-      <div className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-slate-800/30 hover:bg-gray-50 dark:bg-[#151515] border border-[#222]/30 hover:border-slate-600/50 transition-all cursor-pointer group">
+      <div className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-muted/30 hover:bg-gray-50 dark:bg-[var(--surface-raised)] border border-border/30 hover:border-border/50 transition-all cursor-pointer group">
         <div className="flex items-center gap-3 min-w-[140px]">
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-white text-sm">{idea.symbol}</span>
+              <span className="font-mono font-bold text-foreground text-sm">{idea.symbol}</span>
               {isOption && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
                   {idea.optionType?.toUpperCase() || 'OPT'}
@@ -3012,7 +3054,7 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
               )}
             </div>
             <div className={cn("flex items-center gap-1 text-xs",
-              isLong ? "text-emerald-400" : "text-red-400"
+              isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {isLong ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               <span>{isLong ? 'LONG' : 'SHORT'}</span>
@@ -3024,24 +3066,24 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
             {grade}
           </Badge>
           <div className="text-right">
-            <div className="text-sm font-mono text-white">{idea.confidenceScore || 50}%</div>
-            <div className="text-[10px] text-slate-500">Confidence</div>
+            <div className="text-sm font-mono text-foreground">{idea.confidenceScore || 50}%</div>
+            <div className="text-[10px] text-muted-foreground">Confidence</div>
           </div>
         </div>
         <div className="flex items-center gap-6 text-xs">
           <div className="text-right">
-            <div className="text-slate-400">Entry</div>
-            <div className="font-mono text-white">${safeToFixed(idea.entryPrice, 2, '—')}</div>
+            <div className="text-muted-foreground">Entry</div>
+            <div className="font-mono text-foreground">${safeToFixed(idea.entryPrice, 2, '—')}</div>
           </div>
           <div className="text-right">
-            <div className="text-emerald-400">Target</div>
-            <div className="font-mono text-emerald-400">${safeToFixed(idea.targetPrice, 2, '—')}</div>
+            <div className="text-[var(--trade-bullish)]">Target</div>
+            <div className="font-mono text-[var(--trade-bullish)]">${safeToFixed(idea.targetPrice, 2, '—')}</div>
           </div>
           <div className="text-right">
-            <div className="text-red-400">Stop</div>
-            <div className="font-mono text-red-400">${safeToFixed(idea.stopLoss, 2, '—')}</div>
+            <div className="text-[var(--trade-bearish)]">Stop</div>
+            <div className="font-mono text-[var(--trade-bearish)]">${safeToFixed(idea.stopLoss, 2, '—')}</div>
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
         </div>
       </div>
     </Link>
@@ -3225,8 +3267,8 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
     <div className="space-y-4">
       {title && (
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1">
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
             <Button
               size="sm"
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -3248,19 +3290,19 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
       )}
 
       {/* Filters Bar */}
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-gray-100/60 dark:bg-[#111]/40 rounded-xl border border-[#222]/60">
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-gray-100/60 dark:bg-card/40 rounded-xl border border-border/60">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search symbols..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-gray-50 dark:bg-[#151515] border-[#222]/50"
+            className="pl-9 bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50"
           />
         </div>
 
         <Select value={directionFilter} onValueChange={setDirectionFilter}>
-          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
             <SelectValue placeholder="Direction" />
           </SelectTrigger>
           <SelectContent>
@@ -3271,7 +3313,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -3290,7 +3332,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
             value={serverDateFilter || 'today'}
             onValueChange={(v) => onServerDateFilterChange(v as 'today' | 'week' | 'all')}
           >
-            <SelectTrigger className="w-[140px] bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+            <SelectTrigger className="w-[140px] bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]">
               <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
@@ -3301,7 +3343,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
           </Select>
         ) : (
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+            <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
               <SelectValue placeholder="Date" />
             </SelectTrigger>
             <SelectContent>
@@ -3313,7 +3355,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
         )}
 
         <Select value={gradeFilter} onValueChange={setGradeFilter}>
-          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
             <SelectValue placeholder="Grade" />
           </SelectTrigger>
           <SelectContent>
@@ -3325,7 +3367,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
         </Select>
 
         <Select value={tradeTypeFilter} onValueChange={setTradeTypeFilter}>
-          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+          <SelectTrigger className="w-[130px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
             <SelectValue placeholder="Trade Type" />
           </SelectTrigger>
           <SelectContent>
@@ -3337,7 +3379,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
         </Select>
 
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[#151515] border-[#222]/50">
+          <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-[var(--surface-raised)] border-border/50">
             <SelectValue placeholder="Sort By" />
           </SelectTrigger>
           <SelectContent>
@@ -3347,16 +3389,16 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
           </SelectContent>
         </Select>
 
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted-foreground">
           {filteredIdeas.length} ideas
         </div>
       </div>
 
       {/* Ideas Display */}
       {filteredIdeas.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-muted-foreground">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 opacity-50" />
-          <p>No trade ideas match your filters</p>
+          <p>No ideas match current filters — try broadening</p>
         </div>
       ) : viewMode === 'grid' ? (
         /* 2-Column Grid View */
@@ -3381,7 +3423,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
       )}
 
       {filteredIdeas.length > 100 && (
-        <div className="text-center py-4 text-slate-500 text-sm">
+        <div className="text-center py-4 text-muted-foreground text-sm">
           Showing 100 of {filteredIdeas.length} ideas
         </div>
       )}
@@ -3410,6 +3452,8 @@ export default function TradeDeskRedesigned() {
   // Trade idea detail modal state
   const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
   const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
+  // Side panel state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   // Note: Filters (statusFilter, dateFilter, gradeFilter, directionFilter) are handled inside TradeIdeasList component
 
   // AI Generation mutation - triggers the 6 engines
@@ -3648,36 +3692,36 @@ export default function TradeDeskRedesigned() {
   // Show loading skeleton during initial load
   if (showInitialLoader || isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a]">
-        <div className="flex items-center gap-6 px-4 py-2.5 bg-[#0d0d0d] border-b border-[#1a1a1a]">
+      <div className="min-h-screen bg-[var(--surface-base)]">
+        <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-medium text-emerald-500">LOADING</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+            <span className="text-[10px] font-medium text-[var(--trade-bullish)]">LOADING</span>
           </div>
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="flex items-center gap-2">
-              <div className="h-3 w-8 bg-slate-800 rounded animate-pulse" />
-              <div className="h-4 w-16 bg-slate-800 rounded animate-pulse" />
+              <div className="h-3 w-8 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-16 bg-muted rounded animate-pulse" />
             </div>
           ))}
         </div>
         <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-5 w-24 bg-slate-800 rounded animate-pulse" />
-              <div className="h-3 w-20 bg-slate-800/50 rounded animate-pulse" />
+              <div className="h-5 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-20 bg-muted/50 rounded animate-pulse" />
             </div>
-            <div className="h-8 w-[140px] bg-slate-800 rounded animate-pulse" />
+            <div className="h-8 w-[140px] bg-muted rounded animate-pulse" />
           </div>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-7 w-16 bg-slate-800/50 rounded-md animate-pulse" />
+              <div key={i} className="h-7 w-16 bg-muted/50 rounded-md animate-pulse" />
             ))}
           </div>
-          <div className="h-10 bg-slate-800/30 rounded-lg animate-pulse" />
+          <div className="h-10 bg-muted/30 rounded-lg animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="h-40 bg-[#111] border border-[#1a1a1a] rounded-lg animate-pulse" />
+              <div key={i} className="h-40 bg-card border border-border/50 rounded-lg animate-pulse" />
             ))}
           </div>
         </div>
@@ -3687,17 +3731,17 @@ export default function TradeDeskRedesigned() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--surface-base)] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 text-red-400 mx-auto" />
-          <p className="text-red-400">Failed to load trade ideas</p>
+          <AlertTriangle className="h-12 w-12 text-[var(--trade-bearish)] mx-auto" />
+          <p className="text-[var(--trade-bearish)]">Failed to load trade ideas</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[var(--surface-base)]">
       {/* Market Pulse Header */}
       <MarketPulseHeader />
 
@@ -3705,7 +3749,7 @@ export default function TradeDeskRedesigned() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-white tracking-tight">Trade Desk</h1>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">Trade Desk</h1>
           </div>
           <div className="flex items-center gap-2">
             {/* Generate Ideas Dropdown */}
@@ -3713,7 +3757,7 @@ export default function TradeDeskRedesigned() {
               onValueChange={(value) => generateIdeas.mutate(value as any)}
               disabled={generateIdeas.isPending}
             >
-              <SelectTrigger className="w-[140px] bg-transparent text-slate-400 border-[#222] hover:border-emerald-500/40 hover:text-white text-xs font-medium h-8">
+              <SelectTrigger className="w-[140px] bg-transparent text-muted-foreground border-border hover:border-[var(--trade-bullish)]/40 hover:text-foreground text-xs font-medium h-8">
                 {generatingEngine ? (
                   <div className="flex items-center gap-1.5">
                     <RefreshCw className="w-3 h-3 animate-spin" />
@@ -3726,10 +3770,10 @@ export default function TradeDeskRedesigned() {
                   </div>
                 )}
               </SelectTrigger>
-              <SelectContent className="bg-[#111] border-[#222]">
+              <SelectContent className="bg-card border-border">
                 <SelectItem value="all" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <Zap className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
                     <span>All Engines</span>
                   </div>
                 </SelectItem>
@@ -3741,19 +3785,19 @@ export default function TradeDeskRedesigned() {
                 </SelectItem>
                 <SelectItem value="quant" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+                    <BarChart3 className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                     <span>Quant Engine</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="hybrid" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                    <Activity className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                     <span>Hybrid AI+Quant</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="flow" className="hover:bg-emerald-600/20">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                    <DollarSign className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                     <span>Options Flow</span>
                   </div>
                 </SelectItem>
@@ -3780,8 +3824,8 @@ export default function TradeDeskRedesigned() {
                 className={cn(
                   "px-3 py-1 rounded-md text-xs font-medium transition-all",
                   assetFilter === value
-                    ? "bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30"
-                    : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
+                    ? "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] ring-1 ring-[var(--trade-bullish)]/30"
+                    : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/50"
                 )}
               >
                 {label}
@@ -3791,28 +3835,40 @@ export default function TradeDeskRedesigned() {
               </button>
             );
           })}
-          <span className="ml-auto text-[11px] text-slate-600 font-mono">{filteredIdeas.length} ideas</span>
+          <span className="ml-auto text-[11px] text-muted-foreground/70 font-mono">{filteredIdeas.length} ideas</span>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden lg:flex"
+            title={sidebarOpen ? "Hide insights panel" : "Show insights panel"}
+          >
+            {sidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          </button>
         </div>
+
+        {/* Main Content + Side Panel */}
+        <div className="flex gap-5">
+          {/* Left: Tabs + Ideas */}
+          <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent border-b border-[#1a1a1a] w-full justify-start gap-0 h-auto p-0 rounded-none">
-            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+          <TabsList className="bg-transparent border-b border-border/50 w-full justify-start gap-0 h-auto p-0 rounded-none">
+            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
               <Layers className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Today's Plays
             </TabsTrigger>
-            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
               <Activity className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Flow & Levels
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-slate-500 transition-all data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-slate-300">
+            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
               <Target className="w-3.5 h-3.5 mr-1.5 opacity-60" />
               Strategy Lab
             </TabsTrigger>
           </TabsList>
 
           {/* TODAY'S PLAYS TAB */}
-          <TabsContent value="ideas" className="space-y-6 mt-6">
+          <TabsContent value="ideas" className="space-y-4 mt-4">
             {/* TRADE IDEAS — THE MAIN CONTENT, FIRST THING YOU SEE */}
             <TradeIdeasList
               ideas={filteredIdeas}
@@ -3827,14 +3883,14 @@ export default function TradeDeskRedesigned() {
 
             {/* Empty state with generate button */}
             {showEmptyTodayMessage && (
-              <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-6 text-center">
-                <p className="text-slate-400 text-sm mb-3">
-                  {isWeekend ? 'Market closed — showing last week' : 'No ideas yet today. Next window coming up.'}
+              <div className="bg-muted/30 border border-border/30 rounded-xl p-6 text-center">
+                <p className="text-muted-foreground text-sm mb-3">
+                  {isWeekend ? 'Market closed — showing last week' : 'Next scan window coming up — engines running'}
                 </p>
                 <div className="flex justify-center gap-3">
                   <button
                     onClick={() => setServerDateFilter('week')}
-                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-white transition-colors"
+                    className="px-4 py-2 bg-muted hover:bg-muted rounded-lg text-sm text-foreground transition-colors"
                   >
                     Show Past Week
                   </button>
@@ -3844,15 +3900,136 @@ export default function TradeDeskRedesigned() {
           </TabsContent>
 
           {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
-          <TabsContent value="flow" className="space-y-6 mt-6">
+          <TabsContent value="flow" className="space-y-4 mt-4">
             <FlowLevelsPanel />
           </TabsContent>
 
           {/* STRATEGY LAB TAB - Options Builder (OptionStrat clone) */}
-          <TabsContent value="strategy" className="space-y-6 mt-6">
+          <TabsContent value="strategy" className="space-y-4 mt-4">
             <StrategyLab />
           </TabsContent>
         </Tabs>
+          </div>{/* End left column */}
+
+          {/* Right: Insights Side Panel (collapsible) */}
+          {sidebarOpen && (
+            <aside className="hidden lg:block w-72 flex-shrink-0 space-y-3">
+              {/* Top Conviction */}
+              <div className="rounded-lg bg-card border border-border p-3 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--brand-cyan)]/30 to-transparent" />
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Gem className="w-3.5 h-3.5 text-[var(--brand-cyan)]" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top Conviction</span>
+                </div>
+                <div className="space-y-1">
+                  {filteredIdeas
+                    .filter(i => {
+                      const grade = (i as any).probabilityBand || '';
+                      return grade.startsWith('A') || grade === 'S';
+                    })
+                    .slice(0, 5)
+                    .map((idea, idx) => {
+                      const isLong = idea.direction === 'LONG' || idea.direction === 'long';
+                      const conf = idea.confidenceScore || 0;
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => { setSelectedTradeIdea(idea); setTradeIdeaModalOpen(true); }}
+                          className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={cn(
+                              "w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold",
+                              isLong ? "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/15 text-[var(--trade-bearish)]"
+                            )}>
+                              {isLong ? '↑' : '↓'}
+                            </span>
+                            <span className="font-mono font-semibold text-xs text-foreground truncate">{idea.symbol}</span>
+                            <span className={cn("text-[9px] px-1 rounded font-semibold",
+                              isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                            )}>
+                              {isLong ? 'LONG' : 'SHORT'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">
+                              <div className={cn("h-full rounded-full", conf >= 75 ? "bg-[var(--trade-bullish)]" : conf >= 60 ? "bg-[var(--brand-cyan)]" : "bg-[var(--trade-neutral)]")} style={{ width: `${conf}%` }} />
+                            </div>
+                            <span className={cn("text-[10px] font-mono font-bold tabular-nums",
+                              conf >= 75 ? "text-[var(--trade-bullish)]" : conf >= 60 ? "text-[var(--brand-cyan)]" : "text-[var(--trade-neutral)]"
+                            )}>
+                              {conf}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  {filteredIdeas.filter(i => ((i as any).probabilityBand || '').match(/^[AS]/)).length === 0 && (
+                    <p className="text-[11px] text-muted-foreground text-center py-3">Scanning for A+ grade setups...</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="rounded-lg bg-card border border-border p-3">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <BarChart3 className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Session Stats</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded bg-muted/30 text-center">
+                    <div className="text-[9px] text-muted-foreground font-medium uppercase">Open</div>
+                    <div className="text-sm font-mono font-bold text-foreground">{filteredIdeas.filter(i => (i as any).outcomeStatus === 'open' || !(i as any).outcomeStatus).length}</div>
+                  </div>
+                  <div className="p-2 rounded bg-muted/30 text-center">
+                    <div className="text-[9px] text-muted-foreground font-medium uppercase">Quality</div>
+                    <div className="text-sm font-mono font-bold text-[var(--trade-bullish)]">{filteredIdeas.filter(i => { const g = (i as any).probabilityBand || ''; return g.startsWith('A') || g === 'S'; }).length}</div>
+                  </div>
+                  <div className="p-2 rounded bg-muted/30 text-center">
+                    <div className="text-[9px] text-muted-foreground font-medium uppercase">Long</div>
+                    <div className="text-sm font-mono font-bold text-foreground">{filteredIdeas.filter(i => i.direction === 'LONG' || i.direction === 'long').length}</div>
+                  </div>
+                  <div className="p-2 rounded bg-muted/30 text-center">
+                    <div className="text-[9px] text-muted-foreground font-medium uppercase">Short</div>
+                    <div className="text-sm font-mono font-bold text-foreground">{filteredIdeas.filter(i => i.direction === 'SHORT' || i.direction === 'short').length}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hot Symbols — compact version */}
+              <div className="rounded-lg bg-card border border-border p-3 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/30 to-transparent" />
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Flame className="w-3.5 h-3.5 text-orange-400" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hot Symbols</span>
+                </div>
+                <HotSymbolsCompact />
+              </div>
+
+              {/* Watchlist Quick Access */}
+              <div className="rounded-lg bg-card border border-border p-3">
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Watchlist</span>
+                  </div>
+                  <Link href="/watchlist">
+                    <span className="text-[10px] text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] cursor-pointer">View all</span>
+                  </Link>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(watchlistSymbols).slice(0, 12).map(sym => (
+                    <Link key={sym} href={`/stock/${sym}`}>
+                      <span className="inline-block text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors">
+                        {sym}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
+        </div>{/* End flex container */}
       </div>
 
       {/* Trade Idea Detail Modal */}

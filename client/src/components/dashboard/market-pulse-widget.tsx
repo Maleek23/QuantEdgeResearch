@@ -114,7 +114,7 @@ function SentimentGauge({ value, label }: SentimentGaugeProps) {
 
       {/* Label */}
       <div className="mt-2 text-center">
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
         <motion.p
           className="text-lg font-bold"
           style={{ color }}
@@ -124,7 +124,7 @@ function SentimentGauge({ value, label }: SentimentGaugeProps) {
         >
           {getSentimentLabel(normalizedValue)}
         </motion.p>
-        <p className="text-sm text-gray-400">{safeToFixed(normalizedValue, 0)}%</p>
+        <p className="text-sm text-muted-foreground">{safeToFixed(normalizedValue, 0)}%</p>
       </div>
     </div>
   );
@@ -144,14 +144,14 @@ function MiniMetric({
       whileHover={{ scale: 1.02 }}
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className="text-gray-400">{icon}</div>
-        <span className="text-xs text-gray-500">{label}</span>
+        <div className="text-muted-foreground">{icon}</div>
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-lg font-bold text-white">{value.toLocaleString()}</span>
         <span
           className={`text-xs font-medium flex items-center gap-1 ${
-            isPositive ? 'text-emerald-400' : 'text-red-400'
+            isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
           }`}
         >
           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -177,10 +177,10 @@ function HeatBar({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-400">{label}</span>
+        <span className="text-muted-foreground">{label}</span>
         <div className="flex items-center gap-4">
-          <span className="text-emerald-400">{bullish} Bull</span>
-          <span className="text-red-400">{bearish} Bear</span>
+          <span className="text-[var(--trade-bullish)]">{bullish} Bull</span>
+          <span className="text-[var(--trade-bearish)]">{bearish} Bear</span>
         </div>
       </div>
       <div className="h-2 bg-gray-800 rounded-full overflow-hidden flex">
@@ -231,10 +231,10 @@ export function MarketPulseWidget() {
   }, []);
 
   const getVixStatus = (value: number) => {
-    if (value < 15) return { label: 'Calm', color: 'text-emerald-400', icon: <Snowflake className="w-4 h-4" /> };
+    if (value < 15) return { label: 'Calm', color: 'text-[var(--trade-bullish)]', icon: <Snowflake className="w-4 h-4" /> };
     if (value < 20) return { label: 'Normal', color: 'text-blue-400', icon: <Waves className="w-4 h-4" /> };
     if (value < 30) return { label: 'Elevated', color: 'text-yellow-400', icon: <AlertTriangle className="w-4 h-4" /> };
-    return { label: 'Fear', color: 'text-red-400', icon: <Flame className="w-4 h-4" /> };
+    return { label: 'Fear', color: 'text-[var(--trade-bearish)]', icon: <Flame className="w-4 h-4" /> };
   };
 
   const vixStatus = getVixStatus(vix.value);
@@ -250,7 +250,7 @@ export function MarketPulseWidget() {
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
-          <Badge className="ml-auto bg-gray-800/50 text-gray-400">
+          <Badge className="ml-auto bg-gray-800/50 text-muted-foreground">
             Live
           </Badge>
         </CardTitle>
@@ -266,9 +266,9 @@ export function MarketPulseWidget() {
         <div className="p-4 bg-gray-800/30 rounded-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Gauge className="w-5 h-5 text-gray-400" />
+              <Gauge className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-xs text-gray-500">VIX (Fear Index)</p>
+                <p className="text-xs text-muted-foreground">VIX (Fear Index)</p>
                 <p className="text-xl font-bold text-white">{safeToFixed(vix.value, 2)}</p>
               </div>
             </div>
@@ -279,7 +279,7 @@ export function MarketPulseWidget() {
               </div>
               <span
                 className={`text-xs ${
-                  vix.change >= 0 ? 'text-red-400' : 'text-emerald-400'
+                  vix.change >= 0 ? 'text-[var(--trade-bearish)]' : 'text-[var(--trade-bullish)]'
                 }`}
               >
                 {vix.change >= 0 ? '+' : ''}{safeToFixed(vix.change, 2)}%
@@ -306,7 +306,7 @@ export function MarketPulseWidget() {
 
         {/* Advance/Decline Bars */}
         <div className="space-y-4">
-          <h4 className="text-sm font-medium text-gray-400">Market Breadth</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Market Breadth</h4>
           <HeatBar
             label="S&P 500"
             bullish={advDecline.advancing}
@@ -341,10 +341,10 @@ export function MarketPulseWidget() {
               }`}
               whileHover={{ scale: 1.05 }}
             >
-              <p className="text-[10px] text-gray-400">{sector.label}</p>
+              <p className="text-[10px] text-muted-foreground">{sector.label}</p>
               <p
                 className={`text-sm font-bold ${
-                  sector.value >= 0 ? 'text-emerald-400' : 'text-red-400'
+                  sector.value >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                 }`}
               >
                 {sector.value >= 0 ? '+' : ''}{sector.value}%

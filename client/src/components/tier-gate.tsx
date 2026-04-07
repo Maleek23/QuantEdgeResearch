@@ -190,8 +190,8 @@ export function UsageBadge({ className }: { className?: string }) {
   if (isAdmin) {
     return (
       <div className={cn("flex items-center gap-1 text-xs", className)}>
-        <Crown className="h-3 w-3 text-amber-500" />
-        <span className="text-amber-500 font-medium">Admin</span>
+        <Crown className="h-3 w-3 text-[var(--trade-neutral)]" />
+        <span className="text-[var(--trade-neutral)] font-medium">Admin</span>
       </div>
     );
   }

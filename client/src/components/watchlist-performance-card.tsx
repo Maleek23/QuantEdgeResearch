@@ -36,15 +36,15 @@ function StatRow({ label, value, trend, icon: Icon }: {
   icon?: any;
 }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-slate-700/30 last:border-0">
+    <div className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {Icon && <Icon className="h-3 w-3" />}
         <span>{label}</span>
       </div>
       <span className={cn(
         "text-xs font-mono font-medium",
-        trend === 'positive' && "text-green-400",
-        trend === 'negative' && "text-red-400",
+        trend === 'positive' && "text-[var(--trade-bullish)]",
+        trend === 'negative' && "text-[var(--trade-bearish)]",
         trend === 'neutral' && "text-muted-foreground"
       )}>
         {value}
@@ -62,7 +62,7 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-800/30 backdrop-blur-sm">
+      <Card className="bg-muted/30 backdrop-blur-sm">
         <CardHeader className="pb-2">
           <Skeleton className="h-5 w-32" />
         </CardHeader>
@@ -81,7 +81,7 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
 
   if (!stats || stats.totalTrades === 0) {
     return (
-      <Card className="bg-slate-800/30 backdrop-blur-sm" data-testid="performance-card-empty">
+      <Card className="bg-muted/30 backdrop-blur-sm" data-testid="performance-card-empty">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-cyan-400" />
@@ -102,12 +102,12 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
     );
   }
 
-  const winRateColor = stats.winRate >= 70 ? 'text-green-400' : 
+  const winRateColor = stats.winRate >= 70 ? 'text-[var(--trade-bullish)]' : 
                         stats.winRate >= 50 ? 'text-cyan-400' : 
-                        'text-red-400';
+                        'text-[var(--trade-bearish)]';
 
   return (
-    <Card className="bg-slate-800/30 backdrop-blur-sm" data-testid="performance-card">
+    <Card className="bg-muted/30 backdrop-blur-sm" data-testid="performance-card">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -125,7 +125,7 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
               variant="outline"
               className={cn(
                 "text-xs",
-                stats.totalPnL >= 0 ? "text-green-400" : "text-red-400"
+                stats.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}
             >
               {stats.totalPnL >= 0 ? '+' : ''}${safeToFixed(stats.totalPnL, 0)}
@@ -181,7 +181,7 @@ export default function WatchlistPerformanceCard({ symbol, compact = false }: Wa
             />
           )}
           {stats.gradeAtEntry.length > 0 && (
-            <div className="pt-2 border-t border-slate-700/30 mt-2">
+            <div className="pt-2 border-t border-border/30 mt-2">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <Target className="h-3 w-3" />
                 <span>Grades at Entry</span>

@@ -139,13 +139,13 @@ export function AnimatedMetricCard({
     cyan: "text-cyan-400",
     purple: "text-purple-400",
     pink: "text-pink-400",
-    green: "text-green-400",
-    amber: "text-amber-400",
+    green: "text-[var(--trade-bullish)]",
+    amber: "text-[var(--trade-neutral)]",
   };
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-2xl border ${borderColors[color]} bg-slate-900/50 backdrop-blur-sm p-6 ${className}`}
+      className={`relative overflow-hidden rounded-2xl border ${borderColors[color]} bg-card/50 backdrop-blur-sm p-6 ${className}`}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}

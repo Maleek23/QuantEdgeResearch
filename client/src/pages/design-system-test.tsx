@@ -63,7 +63,7 @@ export default function DesignSystemTest() {
         actions={
           <div className="flex items-center gap-2">
             <QEStatusDot status="live" label="Dev" />
-            <span className="text-xs text-slate-500 font-mono">v1.0</span>
+            <span className="text-xs text-muted-foreground font-mono">v1.0</span>
           </div>
         }
       />
@@ -78,11 +78,11 @@ export default function DesignSystemTest() {
         <QEPanel>
           <QEPanelHeader title="Default Panel" badge="DEFAULT" />
           <QEPanelContent>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Standard card/section container. Used for most content blocks.
             </p>
             <QEPanelNested compact>
-              <p className="text-xs text-slate-500">Nested panel inside default</p>
+              <p className="text-xs text-muted-foreground">Nested panel inside default</p>
             </QEPanelNested>
           </QEPanelContent>
         </QEPanel>
@@ -96,7 +96,7 @@ export default function DesignSystemTest() {
             icon={<Shield className="w-4 h-4" />}
           />
           <QEPanelContent>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Elevated glass surface. Used for nav bars, sidebars, modals.
             </p>
           </QEPanelContent>
@@ -110,7 +110,7 @@ export default function DesignSystemTest() {
             badgeColor="bullish"
           />
           <QEPanelContent>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Clickable card with hover border glow. For watchlist items, scan results, etc.
             </p>
           </QEPanelContent>
@@ -121,7 +121,7 @@ export default function DesignSystemTest() {
           <QEPanelHeader title="Stat Panel" badge="METRIC" badgeColor="gold" />
           <QEPanelContent>
             <div className="text-3xl font-bold font-mono text-white tracking-tighter">$5,847.23</div>
-            <div className="text-xs text-emerald-400 font-medium">+12.4% today</div>
+            <div className="text-xs text-[var(--trade-bullish)] font-medium">+12.4% today</div>
           </QEPanelContent>
         </QEPanelStat>
 
@@ -135,15 +135,15 @@ export default function DesignSystemTest() {
           <QEPanelContent>
             <QEGridLayout cols={3} gap="sm">
               <QEPanelNested compact>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">TCH</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">TCH</div>
                 <div className="text-sm font-bold text-white">Technical</div>
               </QEPanelNested>
               <QEPanelNested compact>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">FND</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">FND</div>
                 <div className="text-sm font-bold text-white">Fundamental</div>
               </QEPanelNested>
               <QEPanelNested compact>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">SNT</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">SNT</div>
                 <div className="text-sm font-bold text-white">Sentiment</div>
               </QEPanelNested>
             </QEGridLayout>
@@ -212,15 +212,15 @@ export default function DesignSystemTest() {
           <QEPanelContent>
             <div className="space-y-3">
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">High (92%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">High (92%)</div>
                 <QEConfidenceBar value={92} showLabel size="md" />
               </div>
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Medium (67%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Medium (67%)</div>
                 <QEConfidenceBar value={67} showLabel size="md" />
               </div>
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Low (34%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Low (34%)</div>
                 <QEConfidenceBar value={34} showLabel size="md" />
               </div>
             </div>
@@ -269,7 +269,7 @@ export default function DesignSystemTest() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-sm font-bold font-mono text-white">{signal.symbol}</span>
-                    <span className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${signal.direction === "CALL" ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${signal.direction === "CALL" ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}`}>
                       {signal.direction}
                     </span>
                   </div>
@@ -279,7 +279,7 @@ export default function DesignSystemTest() {
             ))}
           </QEPanelContent>
           <QEPanelFooter>
-            <span className="text-[10px] font-mono text-slate-500">Last scan: 2s ago</span>
+            <span className="text-[10px] font-mono text-muted-foreground">Last scan: 2s ago</span>
             <QEStatusDot status="live" />
           </QEPanelFooter>
         </QEPanel>
@@ -296,9 +296,9 @@ export default function DesignSystemTest() {
               <div className="flex items-center gap-2 mb-2">
                 <QEGradeDisplay grade="S" />
                 <span className="text-sm font-semibold text-white">AAPL</span>
-                <span className="text-xs text-emerald-400">Strong Buy</span>
+                <span className="text-xs text-[var(--trade-bullish)]">Strong Buy</span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 6-engine convergence at 92%. Technical breakout above $198 resistance
                 confirmed with above-average volume. Sentiment shift positive.
               </p>
@@ -307,16 +307,16 @@ export default function DesignSystemTest() {
               <div className="flex items-center gap-2 mb-2">
                 <QEGradeDisplay grade="A" />
                 <span className="text-sm font-semibold text-white">NVDA</span>
-                <span className="text-xs text-emerald-400">Buy</span>
+                <span className="text-xs text-[var(--trade-bullish)]">Buy</span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Institutional accumulation detected. Order flow divergence bullish.
                 Catalyst: earnings in 3 days.
               </p>
             </QEPanelNested>
           </QEPanelContent>
           <QEPanelFooter>
-            <span className="text-[10px] font-mono text-slate-500">Updated: 12:34 CT</span>
+            <span className="text-[10px] font-mono text-muted-foreground">Updated: 12:34 CT</span>
             <button className="bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded hover:bg-violet-500/20 transition-colors">
               Full Brief →
             </button>
@@ -356,9 +356,9 @@ export default function DesignSystemTest() {
           <QEWorkspacePanel id="chart" title="Price Chart" icon={<LineChart className="w-3.5 h-3.5" />} minSize={20}>
             <div className="p-4 h-full flex items-center justify-center">
               <div className="text-center">
-                <LineChart className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <LineChart className="w-12 h-12 text-muted-foreground/70 mx-auto mb-3" />
                 <div className="text-sm font-semibold text-white font-display">Chart Panel</div>
-                <p className="text-xs text-slate-500 mt-1">Drag handles to resize • Click expand icon to fullscreen</p>
+                <p className="text-xs text-muted-foreground mt-1">Drag handles to resize • Click expand icon to fullscreen</p>
               </div>
             </div>
           </QEWorkspacePanel>
@@ -366,9 +366,9 @@ export default function DesignSystemTest() {
           <QEWorkspacePanel id="scanner" title="Scanner" icon={<Eye className="w-3.5 h-3.5" />} minSize={15}>
             <div className="p-4 h-full flex items-center justify-center">
               <div className="text-center">
-                <Eye className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <Eye className="w-10 h-10 text-muted-foreground/70 mx-auto mb-3" />
                 <div className="text-sm font-semibold text-white font-display">Scanner Panel</div>
-                <p className="text-xs text-slate-500 mt-1">Live signal feed</p>
+                <p className="text-xs text-muted-foreground mt-1">Live signal feed</p>
               </div>
             </div>
           </QEWorkspacePanel>
@@ -376,9 +376,9 @@ export default function DesignSystemTest() {
           <QEWorkspacePanel id="orders" title="Order Flow" icon={<Activity className="w-3.5 h-3.5" />} minSize={15}>
             <div className="p-4 h-full flex items-center justify-center">
               <div className="text-center">
-                <Activity className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <Activity className="w-10 h-10 text-muted-foreground/70 mx-auto mb-3" />
                 <div className="text-sm font-semibold text-white font-display">Order Flow Panel</div>
-                <p className="text-xs text-slate-500 mt-1">Whale detection & flow</p>
+                <p className="text-xs text-muted-foreground mt-1">Whale detection & flow</p>
               </div>
             </div>
           </QEWorkspacePanel>
@@ -386,9 +386,9 @@ export default function DesignSystemTest() {
           <QEWorkspacePanel id="alerts" title="Alerts" icon={<AlertTriangle className="w-3.5 h-3.5" />} minSize={15} collapsible>
             <div className="p-4 h-full flex items-center justify-center">
               <div className="text-center">
-                <AlertTriangle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <AlertTriangle className="w-10 h-10 text-muted-foreground/70 mx-auto mb-3" />
                 <div className="text-sm font-semibold text-white font-display">Alerts Panel</div>
-                <p className="text-xs text-slate-500 mt-1">Price & signal alerts</p>
+                <p className="text-xs text-muted-foreground mt-1">Price & signal alerts</p>
               </div>
             </div>
           </QEWorkspacePanel>
@@ -406,15 +406,15 @@ export default function DesignSystemTest() {
           <QEPanelContent>
             <div className="space-y-4">
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Display — Space Grotesk</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Display — Space Grotesk</div>
                 <div className="text-3xl font-bold font-display tracking-tight text-white">QuantEdge Intelligence</div>
               </div>
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Body — Inter</div>
-                <div className="text-sm text-slate-300">The quick brown fox jumps over the lazy dog. AI-powered convergence scoring across 6 engines.</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Body — Inter</div>
+                <div className="text-sm text-foreground/80">The quick brown fox jumps over the lazy dog. AI-powered convergence scoring across 6 engines.</div>
               </div>
               <div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Mono — JetBrains Mono</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mono — JetBrains Mono</div>
                 <div className="text-sm font-mono text-[#00d4ff]">$5,847.23 &nbsp; +12.4% &nbsp; VOL 2.3M &nbsp; IV 32.1%</div>
               </div>
             </div>
@@ -429,42 +429,42 @@ export default function DesignSystemTest() {
                 <div className="w-8 h-8 rounded-md bg-[#00d4ff]" />
                 <div>
                   <div className="text-xs font-bold text-white">Electric Cyan</div>
-                  <div className="text-[10px] font-mono text-slate-500">#00d4ff — Primary accent</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#00d4ff — Primary accent</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-[#8b5cf6]" />
                 <div>
                   <div className="text-xs font-bold text-white">AI Violet</div>
-                  <div className="text-[10px] font-mono text-slate-500">#8b5cf6 — AI/Intelligence</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#8b5cf6 — AI/Intelligence</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-[#10b981]" />
                 <div>
                   <div className="text-xs font-bold text-white">Bullish Green</div>
-                  <div className="text-[10px] font-mono text-slate-500">#10b981 — Profit / Long</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#10b981 — Profit / Long</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-[#ef4444]" />
                 <div>
                   <div className="text-xs font-bold text-white">Bearish Red</div>
-                  <div className="text-[10px] font-mono text-slate-500">#ef4444 — Loss / Short</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#ef4444 — Loss / Short</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-[#f59e0b]" />
                 <div>
                   <div className="text-xs font-bold text-white">Gold</div>
-                  <div className="text-[10px] font-mono text-slate-500">#f59e0b — Premium / Warning</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#f59e0b — Premium / Warning</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-[#b6ff33]" />
                 <div>
                   <div className="text-xs font-bold text-white">Live Lime</div>
-                  <div className="text-[10px] font-mono text-slate-500">#b6ff33 — Live / High conviction</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">#b6ff33 — Live / High conviction</div>
                 </div>
               </div>
             </div>

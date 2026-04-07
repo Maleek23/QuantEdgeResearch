@@ -41,7 +41,7 @@ export function PageContainer({
   ...props
 }: PageContainerProps) {
   return (
-    <div className={cn("min-h-screen bg-[#0a0a0b] text-white relative", className)} {...props}>
+    <div className={cn("min-h-screen bg-[var(--surface-base)] text-white relative", className)} {...props}>
       {/* Grid pattern overlay */}
       {showGrid && (
         <div
@@ -114,7 +114,7 @@ export function PageHeader({
         <div>
           <h1 className="text-2xl font-bold text-white">{title}</h1>
           {subtitle && (
-            <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>
           )}
         </div>
       </div>
@@ -152,7 +152,7 @@ export function Section({
         <div className="flex items-center justify-between mb-4">
           <div>
             {title && <h2 className="text-lg font-semibold text-white">{title}</h2>}
-            {description && <p className="text-sm text-slate-500 mt-0.5">{description}</p>}
+            {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
           </div>
           {actions}
         </div>
@@ -183,7 +183,7 @@ export function StatsBar({ stats, className, ...props }: StatsBarProps) {
   return (
     <div
       className={cn(
-        "grid gap-4 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/50",
+        "grid gap-4 p-4 rounded-2xl bg-card/60 border border-border/50",
         className
       )}
       style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}
@@ -192,19 +192,19 @@ export function StatsBar({ stats, className, ...props }: StatsBarProps) {
       {stats.map((stat, index) => (
         <div key={index} className="flex items-center gap-3">
           {stat.icon && (
-            <div className="w-10 h-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-slate-400">
+            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground">
               {stat.icon}
             </div>
           )}
           <div>
-            <div className="text-xs text-slate-500 uppercase tracking-wide">{stat.label}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">{stat.label}</div>
             <div className="text-lg font-bold text-white">{stat.value}</div>
             {stat.change && (
               <div className={cn(
                 "text-xs",
-                stat.changeType === "positive" && "text-emerald-400",
-                stat.changeType === "negative" && "text-red-400",
-                stat.changeType === "neutral" && "text-slate-400"
+                stat.changeType === "positive" && "text-[var(--trade-bullish)]",
+                stat.changeType === "negative" && "text-[var(--trade-bearish)]",
+                stat.changeType === "neutral" && "text-muted-foreground"
               )}>
                 {stat.change}
               </div>
@@ -245,13 +245,13 @@ export function EmptyState({
       {...props}
     >
       {icon && (
-        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4 text-slate-500">
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4 text-muted-foreground">
           {icon}
         </div>
       )}
       <h3 className="text-lg font-medium text-white mb-2">{title}</h3>
       {description && (
-        <p className="text-sm text-slate-400 max-w-md mb-4">{description}</p>
+        <p className="text-sm text-muted-foreground max-w-md mb-4">{description}</p>
       )}
       {action}
     </div>

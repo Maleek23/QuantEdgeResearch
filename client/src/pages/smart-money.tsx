@@ -150,8 +150,8 @@ export default function SmartMoney() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-10"
           >
-            <h1 className="text-3xl font-semibold text-slate-100 mb-3">Smart Money</h1>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+            <h1 className="text-3xl font-semibold text-foreground/95 mb-3">Smart Money</h1>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Track insider trades, institutional activity, and analyst ratings in real-time.
               Follow where the smart money is flowing.
             </p>
@@ -164,50 +164,50 @@ export default function SmartMoney() {
             transition={{ delay: 0.1 }}
             className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10"
           >
-            <Card className="p-5 bg-slate-900/60 border-slate-800">
+            <Card className="p-5 bg-card/60 border-border">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <Users className="w-5 h-5 text-emerald-400" />
+                  <Users className="w-5 h-5 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Insider Trades</p>
-                  <p className="text-2xl font-bold text-white">{insiderTrades.length}</p>
+                  <p className="text-sm text-muted-foreground">Insider Trades</p>
+                  <p className="text-2xl font-bold text-foreground">{insiderTrades.length}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5 bg-slate-900/60 border-slate-800">
+            <Card className="p-5 bg-card/60 border-border">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <DollarSign className="w-5 h-5 text-emerald-400" />
+                  <DollarSign className="w-5 h-5 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Total Value</p>
-                  <p className="text-2xl font-bold text-emerald-400">{formatValue(totalInsiderValue)}</p>
+                  <p className="text-sm text-muted-foreground">Total Value</p>
+                  <p className="text-2xl font-bold text-[var(--trade-bullish)]">{formatValue(totalInsiderValue)}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5 bg-slate-900/60 border-slate-800">
+            <Card className="p-5 bg-card/60 border-border">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
                   <TrendingUp className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Buy Signals</p>
+                  <p className="text-sm text-muted-foreground">Buy Signals</p>
                   <p className="text-2xl font-bold text-purple-400">{buyCount}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5 bg-slate-900/60 border-slate-800">
+            <Card className="p-5 bg-card/60 border-border">
               <div className="flex items-center gap-3">
                 <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <Activity className="w-5 h-5 text-amber-400" />
+                  <Activity className="w-5 h-5 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Options Flow</p>
-                  <p className="text-2xl font-bold text-amber-400">{optionsFlow.length}</p>
+                  <p className="text-sm text-muted-foreground">Options Flow</p>
+                  <p className="text-2xl font-bold text-[var(--trade-neutral)]">{optionsFlow.length}</p>
                 </div>
               </div>
             </Card>
@@ -221,35 +221,35 @@ export default function SmartMoney() {
             className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10"
           >
             <Link href="/options-analyzer">
-              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-emerald-500/30 transition-all cursor-pointer group">
+              <Card className="p-6 bg-card/60 border-border hover:border-emerald-500/30 transition-all cursor-pointer group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                      <BarChart3 className="w-6 h-6 text-emerald-400" />
+                      <BarChart3 className="w-6 h-6 text-[var(--trade-bullish)]" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-100">Options Analyzer</h3>
-                      <p className="text-sm text-slate-400">Deep options analysis</p>
+                      <h3 className="text-lg font-semibold text-foreground/95">Options Analyzer</h3>
+                      <p className="text-sm text-muted-foreground">Deep options analysis</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-[var(--trade-bullish)] transition-colors" />
                 </div>
               </Card>
             </Link>
 
             <Link href="/market?tab=scanner">
-              <Card className="p-6 bg-slate-900/60 border-slate-800 hover:border-purple-500/30 transition-all cursor-pointer group">
+              <Card className="p-6 bg-card/60 border-border hover:border-purple-500/30 transition-all cursor-pointer group">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
                       <Briefcase className="w-6 h-6 text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-100">Market Movers</h3>
-                      <p className="text-sm text-slate-400">Top gainers and losers</p>
+                      <h3 className="text-lg font-semibold text-foreground/95">Market Movers</h3>
+                      <p className="text-sm text-muted-foreground">Top gainers and losers</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-purple-400 transition-colors" />
                 </div>
               </Card>
             </Link>
@@ -261,14 +261,14 @@ export default function SmartMoney() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
-              <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-100">Recent Insider Trades</h3>
+            <Card className="bg-card/60 border-border overflow-hidden">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground/95">Recent Insider Trades</h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => refetchInsider()}
-                  className="text-slate-400 hover:text-emerald-400"
+                  className="text-muted-foreground hover:text-[var(--trade-bullish)]"
                 >
                   <RefreshCw className={cn("w-4 h-4", insiderLoading && "animate-spin")} />
                 </Button>
@@ -277,13 +277,13 @@ export default function SmartMoney() {
                 {insiderLoading ? (
                   <div className="p-4 space-y-3">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <Skeleton key={i} className="h-14 bg-slate-800" />
+                      <Skeleton key={i} className="h-14 bg-muted" />
                     ))}
                   </div>
                 ) : insiderTrades.length > 0 ? (
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-slate-800 text-sm text-slate-400">
+                      <tr className="border-b border-border text-sm text-muted-foreground">
                         <th className="text-left p-4 font-medium">Symbol</th>
                         <th className="text-left p-4 font-medium">Insider</th>
                         <th className="text-left p-4 font-medium">Type</th>
@@ -299,26 +299,26 @@ export default function SmartMoney() {
                         return (
                           <tr
                             key={i}
-                            className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                            className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <img
                                   src={getStockLogoUrl(trade.symbol)}
                                   alt={trade.symbol}
-                                  className="w-8 h-8 rounded-full bg-slate-800"
+                                  className="w-8 h-8 rounded-full bg-muted"
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = "none";
                                   }}
                                 />
-                                <span className="font-semibold text-emerald-400">{trade.symbol}</span>
+                                <span className="font-semibold text-[var(--trade-bullish)]">{trade.symbol}</span>
                               </div>
                             </td>
                             <td className="p-4">
                               <div>
-                                <span className="text-slate-200">{trade.name || "Corporate Insider"}</span>
+                                <span className="text-foreground/90">{trade.name || "Corporate Insider"}</span>
                                 {trade.title && (
-                                  <p className="text-xs text-slate-500">{trade.title}</p>
+                                  <p className="text-xs text-muted-foreground">{trade.title}</p>
                                 )}
                               </div>
                             </td>
@@ -327,8 +327,8 @@ export default function SmartMoney() {
                                 className={cn(
                                   "text-xs",
                                   isBuy
-                                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                    : "bg-red-500/20 text-red-400 border-red-500/30"
+                                    ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30"
+                                    : "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
                                 )}
                               >
                                 {isBuy ? (
@@ -339,13 +339,13 @@ export default function SmartMoney() {
                                 {isBuy ? "Buy" : "Sell"}
                               </Badge>
                             </td>
-                            <td className="p-4 text-right text-slate-200 font-mono">
+                            <td className="p-4 text-right text-foreground/90 font-mono">
                               {formatShares(trade.shares)}
                             </td>
-                            <td className="p-4 text-right text-slate-200 font-mono">
+                            <td className="p-4 text-right text-foreground/90 font-mono">
                               {formatValue(trade.value)}
                             </td>
-                            <td className="p-4 text-right text-slate-400 text-sm">
+                            <td className="p-4 text-right text-muted-foreground text-sm">
                               {new Date(trade.date).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
@@ -353,7 +353,7 @@ export default function SmartMoney() {
                             </td>
                             <td className="p-4 text-center">
                               <Link href={`/chart-analysis?symbol=${trade.symbol}`}>
-                                <Button variant="ghost" size="sm" className="text-emerald-400 hover:text-emerald-300">
+                                <Button variant="ghost" size="sm" className="text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)]">
                                   <Eye className="w-4 h-4 mr-1" />
                                   Analyze
                                 </Button>
@@ -365,7 +365,7 @@ export default function SmartMoney() {
                     </tbody>
                   </table>
                 ) : (
-                  <div className="p-12 text-center text-slate-500">
+                  <div className="p-12 text-center text-muted-foreground">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No insider trades available</p>
                     <p className="text-sm mt-1">Check back later for updates</p>
@@ -383,10 +383,10 @@ export default function SmartMoney() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"
           >
             {/* Unusual Options Flow */}
-            <Card className="bg-slate-900/60 border-slate-800">
-              <div className="p-5 border-b border-slate-800">
-                <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-amber-400" />
+            <Card className="bg-card/60 border-border">
+              <div className="p-5 border-b border-border">
+                <h3 className="text-lg font-semibold text-foreground/95 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-[var(--trade-neutral)]" />
                   Unusual Options Flow
                 </h3>
               </div>
@@ -394,31 +394,31 @@ export default function SmartMoney() {
                 {flowLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-16 bg-slate-800" />
+                      <Skeleton key={i} className="h-16 bg-muted" />
                     ))}
                   </div>
                 ) : optionsFlow.length > 0 ? (
                   <div className="space-y-3">
                     {optionsFlow.slice(0, 5).map((flow, i) => (
                       <Link key={i} href={`/chart-analysis?symbol=${flow.symbol}`}>
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer">
                           <div className="flex items-center gap-3">
-                            <span className="font-semibold text-emerald-400">{flow.symbol}</span>
+                            <span className="font-semibold text-[var(--trade-bullish)]">{flow.symbol}</span>
                             <Badge
                               variant="outline"
                               className={cn(
                                 "text-xs",
                                 flow.type === "Call"
-                                  ? "border-emerald-500/30 text-emerald-400"
-                                  : "border-red-500/30 text-red-400"
+                                  ? "border-emerald-500/30 text-[var(--trade-bullish)]"
+                                  : "border-red-500/30 text-[var(--trade-bearish)]"
                               )}
                             >
                               {flow.type} Heavy
                             </Badge>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-white font-mono">{formatValue(flow.premium)}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-sm text-foreground font-mono">{formatValue(flow.premium)}</p>
+                            <p className="text-xs text-muted-foreground">
                               {flow.callVolume?.toLocaleString() || 0} calls / {flow.putVolume?.toLocaleString() || 0} puts
                             </p>
                           </div>
@@ -427,7 +427,7 @@ export default function SmartMoney() {
                     ))}
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-slate-500">
+                  <div className="py-8 text-center text-muted-foreground">
                     <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>No unusual flow detected</p>
                   </div>
@@ -436,10 +436,10 @@ export default function SmartMoney() {
             </Card>
 
             {/* Hot Stocks */}
-            <Card className="bg-slate-900/60 border-slate-800">
-              <div className="p-5 border-b border-slate-800">
-                <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+            <Card className="bg-card/60 border-border">
+              <div className="p-5 border-b border-border">
+                <h3 className="text-lg font-semibold text-foreground/95 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-[var(--trade-bullish)]" />
                   Today's Hot Stocks
                 </h3>
               </div>
@@ -447,7 +447,7 @@ export default function SmartMoney() {
                 {moversLoading ? (
                   <div className="grid grid-cols-2 gap-3">
                     {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-24 bg-slate-800" />
+                      <Skeleton key={i} className="h-24 bg-muted" />
                     ))}
                   </div>
                 ) : hotStocks.length > 0 ? (
@@ -457,7 +457,7 @@ export default function SmartMoney() {
                       return (
                         <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
                           <Card className={cn(
-                            "p-4 bg-slate-800/50 border-slate-700 transition-all cursor-pointer",
+                            "p-4 bg-muted/50 border-border transition-all cursor-pointer",
                             isUp ? "hover:border-emerald-500/30" : "hover:border-red-500/30"
                           )}>
                             <div className="flex items-center justify-between mb-2">
@@ -465,25 +465,25 @@ export default function SmartMoney() {
                                 <img
                                   src={getStockLogoUrl(stock.symbol)}
                                   alt={stock.symbol}
-                                  className="w-6 h-6 rounded-full bg-slate-700"
+                                  className="w-6 h-6 rounded-full bg-muted"
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = "none";
                                   }}
                                 />
-                                <span className="font-bold text-emerald-400">{stock.symbol}</span>
+                                <span className="font-bold text-[var(--trade-bullish)]">{stock.symbol}</span>
                               </div>
                               <Badge className={cn(
                                 "text-xs",
-                                isUp ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                                isUp ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                               )}>
                                 {isUp ? "+" : ""}{safeToFixed(stock.change, 1)}%
                               </Badge>
                             </div>
-                            <div className="text-lg font-semibold text-slate-100">
+                            <div className="text-lg font-semibold text-foreground/95">
                               ${safeToFixed(stock.price, 2)}
                             </div>
                             {stock.name && (
-                              <p className="text-xs text-slate-500 truncate mt-1">{stock.name}</p>
+                              <p className="text-xs text-muted-foreground truncate mt-1">{stock.name}</p>
                             )}
                           </Card>
                         </Link>
@@ -491,7 +491,7 @@ export default function SmartMoney() {
                     })}
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-slate-500">
+                  <div className="py-8 text-center text-muted-foreground">
                     <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>No market data available</p>
                   </div>

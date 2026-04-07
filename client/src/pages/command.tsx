@@ -46,11 +46,11 @@ interface IntelData {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-function trendColor(t: string) { return t === 'BULLISH' ? 'text-emerald-400' : t === 'BEARISH' ? 'text-red-400' : 'text-slate-400'; }
+function trendColor(t: string) { return t === 'BULLISH' ? 'text-[var(--trade-bullish)]' : t === 'BEARISH' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground'; }
 function trendIcon(t: string) {
-  if (t === 'BULLISH' || t === 'bullish') return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (t === 'BEARISH' || t === 'bearish') return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-  return <Minus className="w-3.5 h-3.5 text-slate-500" />;
+  if (t === 'BULLISH' || t === 'bullish') return <TrendingUp className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />;
+  if (t === 'BEARISH' || t === 'bearish') return <TrendingDown className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />;
+  return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
 const SYMBOLS = ['SPY', 'QQQ', 'IWM'] as const;
@@ -107,7 +107,7 @@ export default function Command() {
   const currentEM = projData?.expectedMoves?.find(em => em.symbol === symbol);
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
 
         {/* Header */}
@@ -118,7 +118,7 @@ export default function Command() {
             </div>
             <div>
               <h1 className="text-lg font-bold">Command Center</h1>
-              <p className="text-xs text-slate-500">{projData?.nextSession || 'Market Intelligence'}</p>
+              <p className="text-xs text-muted-foreground">{projData?.nextSession || 'Market Intelligence'}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -126,12 +126,12 @@ export default function Command() {
               <Button key={s} size="sm" variant={symbol === s ? 'default' : 'outline'}
                 onClick={() => setSymbol(s)} className="h-7 text-xs px-3">{s}</Button>
             ))}
-            <div className="w-px h-5 bg-slate-700 mx-1" />
+            <div className="w-px h-5 bg-muted mx-1" />
             <Button size="sm" variant={timeframe === 'daily' ? 'default' : 'outline'}
               onClick={() => setTimeframe('daily')} className="h-7 text-xs">Daily</Button>
             <Button size="sm" variant={timeframe === 'weekly' ? 'default' : 'outline'}
               onClick={() => setTimeframe('weekly')} className="h-7 text-xs">Weekly</Button>
-            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 text-xs text-slate-400">
+            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 text-xs text-muted-foreground">
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
@@ -142,12 +142,12 @@ export default function Command() {
 
           {/* Chart — 3 cols */}
           <div className="lg:col-span-3">
-            <Card className="bg-slate-900/50 border-slate-800">
+            <Card className="bg-card/50 border-border">
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-white">{symbol}</span>
+                  <span className="text-sm font-bold text-foreground">{symbol}</span>
                   {currentEM && (
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-muted-foreground">
                       +/-{currentEM.expectedMovePct}% expected ({timeframe})
                     </span>
                   )}
@@ -155,7 +155,7 @@ export default function Command() {
                 {chartData && chartData.length > 0 ? (
                   <StockChart symbol={symbol} data={chartData} height={380} chartType="candlestick" />
                 ) : (
-                  <div className="h-[380px] flex items-center justify-center text-slate-600">
+                  <div className="h-[380px] flex items-center justify-center text-muted-foreground/70">
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" />Loading chart...
                   </div>
                 )}
@@ -168,17 +168,17 @@ export default function Command() {
 
             {/* Expected Move */}
             {currentEM && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Expected Move ({timeframe})</div>
-                  <div className="text-xl font-bold font-mono text-white">${currentEM.currentPrice.toFixed(2)}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Expected Move ({timeframe})</div>
+                  <div className="text-xl font-bold font-mono text-foreground">${currentEM.currentPrice.toFixed(2)}</div>
                   <div className="flex items-center gap-1.5 mt-2 mb-1">
-                    <span className="text-[10px] text-red-400 font-mono">${currentEM.lowerBound.toFixed(0)}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-slate-800 relative overflow-hidden">
+                    <span className="text-[10px] text-[var(--trade-bearish)] font-mono">${currentEM.lowerBound.toFixed(0)}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-muted relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
                       <div className="absolute top-0 bottom-0 w-0.5 bg-white left-1/2 -translate-x-1/2" />
                     </div>
-                    <span className="text-[10px] text-emerald-400 font-mono">${currentEM.upperBound.toFixed(0)}</span>
+                    <span className="text-[10px] text-[var(--trade-bullish)] font-mono">${currentEM.upperBound.toFixed(0)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -189,7 +189,7 @@ export default function Command() {
               <Card className={cn("border",
                 projData.bias.direction === 'BULLISH' ? "bg-emerald-500/5 border-emerald-500/20" :
                 projData.bias.direction === 'BEARISH' ? "bg-red-500/5 border-red-500/20" :
-                "bg-slate-900/50 border-slate-800"
+                "bg-card/50 border-border"
               )}>
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-2">
@@ -197,15 +197,15 @@ export default function Command() {
                     <span className={cn("text-sm font-bold", trendColor(projData.bias.direction))}>
                       {projData.bias.direction}
                     </span>
-                    <span className="text-xs text-slate-400 ml-auto">{projData.bias.probability}%</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{projData.bias.probability}%</span>
                   </div>
                   <div className="space-y-1">
                     {projData.bias.factors.slice(0, 5).map((f, i) => (
                       <div key={i} className="flex items-center gap-1.5 text-[10px]">
                         <span className={cn("w-1.5 h-1.5 rounded-full shrink-0",
-                          f.signal === 'bullish' ? "bg-emerald-400" : f.signal === 'bearish' ? "bg-red-400" : "bg-slate-500"
+                          f.signal === 'bullish' ? "bg-[var(--trade-bullish)]" : f.signal === 'bearish' ? "bg-red-400" : "bg-muted-foreground"
                         )} />
-                        <span className="text-slate-400 truncate">{f.detail}</span>
+                        <span className="text-muted-foreground truncate">{f.detail}</span>
                       </div>
                     ))}
                   </div>
@@ -215,22 +215,22 @@ export default function Command() {
 
             {/* Unified Score */}
             {intelData?.unifiedScore && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Brain className="w-3.5 h-3.5 text-purple-400" />
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">Intelligence Score</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Intelligence Score</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={cn("text-2xl font-bold font-mono",
-                      intelData.unifiedScore.score >= 60 ? "text-emerald-400" :
-                      intelData.unifiedScore.score >= 40 ? "text-amber-400" : "text-red-400"
+                      intelData.unifiedScore.score >= 60 ? "text-[var(--trade-bullish)]" :
+                      intelData.unifiedScore.score >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                     )}>{intelData.unifiedScore.score}</span>
                     <div>
                       <div className={cn("text-xs font-semibold", trendColor(intelData.unifiedScore.direction?.toUpperCase()))}>
                         {intelData.unifiedScore.direction?.toUpperCase()}
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate max-w-[180px]">{intelData.unifiedScore.thesis}</div>
+                      <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">{intelData.unifiedScore.thesis}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -239,23 +239,23 @@ export default function Command() {
 
             {/* VIX Regime */}
             {intelData?.vixRegime && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <Gauge className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">VIX Regime</span>
+                    <Gauge className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">VIX Regime</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={cn("text-xl font-bold font-mono",
-                      intelData.vixRegime.vix > 30 ? "text-red-400" : intelData.vixRegime.vix > 20 ? "text-amber-400" : "text-emerald-400"
+                      intelData.vixRegime.vix > 30 ? "text-[var(--trade-bearish)]" : intelData.vixRegime.vix > 20 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
                     )}>{intelData.vixRegime.vix.toFixed(1)}</span>
                     <div>
                       <Badge variant="outline" className={cn("text-[9px]",
-                        intelData.vixRegime.regime.regime === 'fear' ? "text-amber-400 border-amber-500/30" :
-                        intelData.vixRegime.regime.regime === 'panic' ? "text-red-400 border-red-500/30" :
-                        "text-emerald-400 border-emerald-500/30"
+                        intelData.vixRegime.regime.regime === 'fear' ? "text-[var(--trade-neutral)] border-amber-500/30" :
+                        intelData.vixRegime.regime.regime === 'panic' ? "text-[var(--trade-bearish)] border-red-500/30" :
+                        "text-[var(--trade-bullish)] border-emerald-500/30"
                       )}>{intelData.vixRegime.regime.regime.toUpperCase()}</Badge>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{intelData.vixRegime.regime.percentile}th percentile | {intelData.vixRegime.termStructure}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{intelData.vixRegime.regime.percentile}th percentile | {intelData.vixRegime.termStructure}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -264,45 +264,45 @@ export default function Command() {
 
             {/* Momentum */}
             {intelData?.momentum && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">Momentum</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Momentum</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs">
                     <div>
-                      <span className="text-slate-500">RSI </span>
+                      <span className="text-muted-foreground">RSI </span>
                       <span className={cn("font-mono font-bold",
-                        intelData.momentum.rsi > 70 ? "text-red-400" : intelData.momentum.rsi < 30 ? "text-emerald-400" : "text-white"
+                        intelData.momentum.rsi > 70 ? "text-[var(--trade-bearish)]" : intelData.momentum.rsi < 30 ? "text-[var(--trade-bullish)]" : "text-foreground"
                       )}>{intelData.momentum.rsi.toFixed(0)}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500">EMA </span>
+                      <span className="text-muted-foreground">EMA </span>
                       <span className={cn("font-mono",
-                        intelData.momentum.emaAlignment === 'bullish' ? "text-emerald-400" : "text-red-400"
+                        intelData.momentum.emaAlignment === 'bullish' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>{intelData.momentum.emaAlignment}</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] text-slate-400">{intelData.momentum.regime}</Badge>
+                    <Badge variant="outline" className="text-[9px] text-muted-foreground">{intelData.momentum.regime}</Badge>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-1">{intelData.momentum.tradingAdvice}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">{intelData.momentum.tradingAdvice}</div>
                 </CardContent>
               </Card>
             )}
 
             {/* GEX */}
             {intelData?.gex && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">Gamma Exposure</span>
+                    <Shield className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Gamma Exposure</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs">
-                    <div><span className="text-slate-500">Anchor </span><span className="font-mono text-white">${intelData.gex.maxGammaStrike}</span></div>
-                    <div><span className="text-slate-500">Flip </span><span className="font-mono text-white">${intelData.gex.flipPoint}</span></div>
+                    <div><span className="text-muted-foreground">Anchor </span><span className="font-mono text-foreground">${intelData.gex.maxGammaStrike}</span></div>
+                    <div><span className="text-muted-foreground">Flip </span><span className="font-mono text-foreground">${intelData.gex.flipPoint}</span></div>
                     <Badge variant="outline" className={cn("text-[9px]",
-                      intelData.gex.regime === 'positive' ? "text-emerald-400" : "text-red-400"
+                      intelData.gex.regime === 'positive' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>{intelData.gex.regime}</Badge>
                   </div>
                 </CardContent>
@@ -311,17 +311,17 @@ export default function Command() {
 
             {/* PCR */}
             {intelData?.pcr && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">Put/Call Ratio</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Put/Call Ratio</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className={cn("text-lg font-bold font-mono",
-                      intelData.pcr.volumeRatio < 0.8 ? "text-emerald-400" : intelData.pcr.volumeRatio > 1.2 ? "text-red-400" : "text-white"
+                      intelData.pcr.volumeRatio < 0.8 ? "text-[var(--trade-bullish)]" : intelData.pcr.volumeRatio > 1.2 ? "text-[var(--trade-bearish)]" : "text-foreground"
                     )}>{intelData.pcr.volumeRatio.toFixed(2)}</span>
-                    <span className="text-slate-500">{intelData.pcr.interpretation}</span>
+                    <span className="text-muted-foreground">{intelData.pcr.interpretation}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -340,17 +340,17 @@ export default function Command() {
               const catSectors = projData.sectors.filter(s => s.category === cat.key);
               if (catSectors.length === 0) return null;
               return (
-                <Card key={cat.key} className="bg-slate-900/50 border-slate-800">
+                <Card key={cat.key} className="bg-card/50 border-border">
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm">{cat.icon}</span>
-                      <span className="text-xs font-semibold text-white">{cat.label}</span>
+                      <span className="text-xs font-semibold text-foreground">{cat.label}</span>
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                       {catSectors.map(s => (
-                        <div key={s.etf} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-800/30">
-                          <span className="text-slate-400">{s.etf}</span>
-                          <span className={cn("font-mono", s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-500")}>
+                        <div key={s.etf} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted/30">
+                          <span className="text-muted-foreground">{s.etf}</span>
+                          <span className={cn("font-mono", s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground")}>
                             {s.changePct > 0 ? '+' : ''}{s.changePct}%
                           </span>
                         </div>
@@ -376,36 +376,36 @@ export default function Command() {
               if (setups.length === 0) return null;
               const actionable = setups.filter(s => s.direction !== 'NEUTRAL').length;
               return (
-                <Card key={section.key} className="bg-slate-900/50 border-slate-800">
+                <Card key={section.key} className="bg-card/50 border-border">
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm">{section.icon}</span>
-                      <span className="text-xs font-semibold text-white">{section.label}</span>
-                      {actionable > 0 && <Badge variant="outline" className="text-[9px] text-emerald-400 border-emerald-500/30">{actionable} setups</Badge>}
+                      <span className="text-xs font-semibold text-foreground">{section.label}</span>
+                      {actionable > 0 && <Badge variant="outline" className="text-[9px] text-[var(--trade-bullish)] border-emerald-500/30">{actionable} setups</Badge>}
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                       {setups.map(s => (
                         <div key={s.symbol} className={cn("px-2 py-1.5 rounded text-xs",
                           s.direction === 'LONG' ? "bg-emerald-500/5 border border-emerald-500/10" :
                           s.direction === 'SHORT' ? "bg-red-500/5 border border-red-500/10" :
-                          "bg-slate-800/30"
+                          "bg-muted/30"
                         )}>
                           <div className="flex items-center justify-between">
-                            <span className="font-mono font-bold text-white">{s.symbol}</span>
+                            <span className="font-mono font-bold text-foreground">{s.symbol}</span>
                             <span className={cn("font-mono text-[10px]",
-                              s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-500"
+                              s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                             )}>{s.changePct > 0 ? '+' : ''}{s.changePct}%</span>
                           </div>
                           <div className="flex items-center justify-between mt-1">
                             <Badge variant="outline" className={cn("text-[8px] px-1 py-0",
-                              s.setup === 'REVERSAL' ? "text-amber-400 border-amber-500/30" :
-                              s.setup === 'BREAKOUT' ? "text-emerald-400 border-emerald-500/30" :
+                              s.setup === 'REVERSAL' ? "text-[var(--trade-neutral)] border-amber-500/30" :
+                              s.setup === 'BREAKOUT' ? "text-[var(--trade-bullish)] border-emerald-500/30" :
                               s.setup === 'BOUNCE' ? "text-cyan-400 border-cyan-500/30" :
-                              "text-slate-500 border-slate-600"
+                              "text-muted-foreground border-border"
                             )}>{s.setup}</Badge>
                             {s.direction !== 'NEUTRAL' && (
                               <span className={cn("text-[10px] flex items-center gap-0.5",
-                                s.direction === 'LONG' ? "text-emerald-400" : "text-red-400"
+                                s.direction === 'LONG' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                               )}>
                                 {s.direction === 'LONG' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                                 {s.probability}%
@@ -424,15 +424,15 @@ export default function Command() {
 
         {/* Key Events */}
         {projData?.keyEvents && projData.keyEvents.length > 0 && (
-          <Card className="bg-slate-900/50 border-slate-800">
+          <Card className="bg-card/50 border-border">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-semibold text-white">Key Events</span>
+                <span className="text-xs font-semibold text-foreground">Key Events</span>
               </div>
               <div className="space-y-1">
                 {projData.keyEvents.map((e, i) => (
-                  <div key={i} className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <div key={i} className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />{e}
                   </div>
                 ))}

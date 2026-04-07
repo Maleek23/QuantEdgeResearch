@@ -48,15 +48,15 @@ function CustomTooltip({ active, payload }: any) {
             <span className="font-mono">{safeToFixed(data.predicted, 1)}%</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-green-500">Actual:</span>
+            <span className="text-[var(--trade-bullish)]">Actual:</span>
             <span className="font-mono">{safeToFixed(data.actual, 1)}%</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Error:</span>
             <span className={cn(
               "font-mono font-semibold",
-              Math.abs(data.calibrationError) <= 10 ? "text-green-500" :
-              Math.abs(data.calibrationError) <= 20 ? "text-amber-500" : "text-red-500"
+              Math.abs(data.calibrationError) <= 10 ? "text-[var(--trade-bullish)]" :
+              Math.abs(data.calibrationError) <= 20 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {data.calibrationError > 0 ? '+' : ''}{safeToFixed(data.calibrationError, 1)}%
             </span>
@@ -68,7 +68,7 @@ function CustomTooltip({ active, payload }: any) {
               {' '}({data.wins}W / {data.losses}L)
             </p>
             <p className="text-muted-foreground">
-              Avg P&L: <span className={cn("font-mono", data.avgPnL >= 0 ? "text-green-500" : "text-red-500")}>
+              Avg P&L: <span className={cn("font-mono", data.avgPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                 {data.avgPnL >= 0 ? '+' : ''}{safeToFixed(data.avgPnL, 1)}%
               </span>
             </p>
@@ -118,9 +118,9 @@ export default function CalibrationCurve() {
 
   const { calibrationCurve, summary } = data;
   const statusColors = {
-    WELL_CALIBRATED: 'text-green-500 bg-green-500/10 border-green-500/20',
-    NEEDS_ADJUSTMENT: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
-    POORLY_CALIBRATED: 'text-red-500 bg-red-500/10 border-red-500/20',
+    WELL_CALIBRATED: 'text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20',
+    NEEDS_ADJUSTMENT: 'text-[var(--trade-neutral)] bg-amber-500/10 border-amber-500/20',
+    POORLY_CALIBRATED: 'text-[var(--trade-bearish)] bg-red-500/10 border-red-500/20',
   };
 
   const statusIcons = {
@@ -172,7 +172,7 @@ export default function CalibrationCurve() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="p-3 rounded-lg bg-muted/30 border">
             <p className="text-xs text-muted-foreground">Calibrated</p>
-            <p className="text-lg font-bold font-mono">
+            <p className="text-lg font-bold font-mono tabular-nums">
               {summary.calibratedBuckets}/{summary.totalBuckets}
             </p>
           </div>
@@ -180,8 +180,8 @@ export default function CalibrationCurve() {
             <p className="text-xs text-muted-foreground">Avg Error</p>
             <p className={cn(
               "text-lg font-bold font-mono",
-              summary.avgCalibrationError <= 15 ? "text-green-500" :
-              summary.avgCalibrationError <= 25 ? "text-amber-500" : "text-red-500"
+              summary.avgCalibrationError <= 15 ? "text-[var(--trade-bullish)]" :
+              summary.avgCalibrationError <= 25 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.avgCalibrationError}%
             </p>
@@ -190,9 +190,9 @@ export default function CalibrationCurve() {
             <p className="text-xs text-muted-foreground">Brier Score</p>
             <p className={cn(
               "text-lg font-bold font-mono",
-              (summary.brierScore || 0) <= 0.15 ? "text-green-500" :
+              (summary.brierScore || 0) <= 0.15 ? "text-[var(--trade-bullish)]" :
               (summary.brierScore || 0) <= 0.20 ? "text-cyan-500" :
-              (summary.brierScore || 0) <= 0.25 ? "text-amber-500" : "text-red-500"
+              (summary.brierScore || 0) <= 0.25 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.brierScore !== undefined ? safeToFixed(summary.brierScore, 3, 'N/A') : 'N/A'}
             </p>
@@ -202,7 +202,7 @@ export default function CalibrationCurve() {
             <p className="text-xs text-muted-foreground">Skill Score</p>
             <p className={cn(
               "text-lg font-bold font-mono",
-              (summary.brierSkillScore || 0) > 0 ? "text-green-500" : "text-red-500"
+              (summary.brierSkillScore || 0) > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.brierSkillScore !== undefined ? (summary.brierSkillScore > 0 ? '+' : '') + safeToFixed(summary.brierSkillScore, 3) : 'N/A'}
             </p>
@@ -210,7 +210,7 @@ export default function CalibrationCurve() {
           </div>
           <div className="p-3 rounded-lg bg-muted/30 border">
             <p className="text-xs text-muted-foreground">Trades</p>
-            <p className="text-lg font-bold font-mono">{summary.totalTrades}</p>
+            <p className="text-lg font-bold font-mono tabular-nums">{summary.totalTrades}</p>
           </div>
         </div>
 
@@ -268,7 +268,7 @@ export default function CalibrationCurve() {
 
         <div className="space-y-2">
           <p className="text-sm font-medium flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
             Best Performing Buckets
           </p>
           <div className="flex flex-wrap gap-2">
@@ -277,7 +277,7 @@ export default function CalibrationCurve() {
               .sort((a, b) => b.actual - a.actual)
               .slice(0, 3)
               .map(c => (
-                <Badge key={c.confidenceRange} variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 font-mono">
+                <Badge key={c.confidenceRange} variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] font-mono">
                   {c.confidenceRange}%: {safeToFixed(c.actual, 0)}% win ({c.trades} trades)
                 </Badge>
               ))}
@@ -286,7 +286,7 @@ export default function CalibrationCurve() {
 
         <div className="space-y-2">
           <p className="text-sm font-medium flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
             Overconfident Buckets (Predicted {'>'} Actual)
           </p>
           <div className="flex flex-wrap gap-2">
@@ -295,7 +295,7 @@ export default function CalibrationCurve() {
               .sort((a, b) => b.calibrationError - a.calibrationError)
               .slice(0, 3)
               .map(c => (
-                <Badge key={c.confidenceRange} variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 font-mono">
+                <Badge key={c.confidenceRange} variant="outline" className="bg-red-500/10 text-red-600 dark:text-[var(--trade-bearish)] font-mono">
                   {c.confidenceRange}%: predicted {safeToFixed(c.predicted, 0)}% → actual {safeToFixed(c.actual, 0)}%
                 </Badge>
               ))}

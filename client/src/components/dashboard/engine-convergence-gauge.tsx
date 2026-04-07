@@ -33,13 +33,13 @@ export function EngineConvergenceGauge({
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <Layers className="w-4 h-4 text-purple-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Engine Convergence
         </span>
       </div>
@@ -57,7 +57,7 @@ export function EngineConvergenceGauge({
                 className={cn(
                   "absolute w-4 h-4 rounded-full border-2 transition-all duration-300",
                   engine.direction === "bullish"
-                    ? "bg-green-400/30 border-green-400"
+                    ? "bg-[var(--trade-bullish)]/30 border-green-400"
                     : engine.direction === "bearish"
                       ? "bg-red-400/30 border-red-400"
                       : "bg-amber-400/30 border-amber-400"
@@ -84,23 +84,23 @@ export function EngineConvergenceGauge({
               className={cn(
                 "text-sm font-medium",
                 overallConvergence >= 70
-                  ? "text-green-400"
+                  ? "text-[var(--trade-bullish)]"
                   : overallConvergence >= 50
-                    ? "text-amber-400"
-                    : "text-red-400"
+                    ? "text-[var(--trade-neutral)]"
+                    : "text-[var(--trade-bearish)]"
               )}
             >
               {convergenceLevel} Convergence
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs">
-            <span className="text-green-400">
+            <span className="text-[var(--trade-bullish)]">
               {bullishCount} Bullish
             </span>
-            <span className="text-red-400">
+            <span className="text-[var(--trade-bearish)]">
               {bearishCount} Bearish
             </span>
-            <span className="text-amber-400">
+            <span className="text-[var(--trade-neutral)]">
               {engines.length - bullishCount - bearishCount} Neutral
             </span>
           </div>
@@ -114,21 +114,21 @@ export function EngineConvergenceGauge({
             className={cn(
               "p-2 rounded-lg border text-center",
               engine.direction === "bullish"
-                ? "bg-green-500/10 border-green-500/30"
+                ? "bg-[var(--trade-bullish)]/10 border-green-500/30"
                 : engine.direction === "bearish"
                   ? "bg-red-500/10 border-red-500/30"
                   : "bg-amber-500/10 border-amber-500/30"
             )}
           >
-            <span className="text-[10px] text-slate-400 block">{engine.name}</span>
+            <span className="text-[10px] text-muted-foreground block">{engine.name}</span>
             <span
               className={cn(
                 "text-xs font-mono font-medium",
                 engine.direction === "bullish"
-                  ? "text-green-400"
+                  ? "text-[var(--trade-bullish)]"
                   : engine.direction === "bearish"
-                    ? "text-red-400"
-                    : "text-amber-400"
+                    ? "text-[var(--trade-bearish)]"
+                    : "text-[var(--trade-neutral)]"
               )}
             >
               {engine.confidence}%

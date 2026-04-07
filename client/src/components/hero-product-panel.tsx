@@ -33,7 +33,7 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
       <div className="relative z-10">
         {/* Main Analysis Card */}
         <div 
-          className="bg-slate-900/90 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-md max-w-md mx-auto shadow-2xl shadow-cyan-500/5"
+          className="bg-card/90 border border-border/60 rounded-2xl p-6 backdrop-blur-md max-w-md mx-auto shadow-2xl shadow-cyan-500/5"
           data-testid="research-preview-card"
         >
           {/* Header with live indicator */}
@@ -41,7 +41,7 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <Zap className="h-6 w-6 text-cyan-400" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--trade-bullish)] rounded-full animate-pulse" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Multi-Engine Analysis</h3>
@@ -78,7 +78,7 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
           <div className="relative py-3">
             <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
             <div className="flex justify-center">
-              <div className="relative px-4 py-1.5 bg-slate-900 rounded-full border border-slate-700">
+              <div className="relative px-4 py-1.5 bg-card rounded-full border border-border">
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-1">
                     {engines.map((e, i) => (
@@ -119,22 +119,22 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
         <div className="flex items-center justify-center gap-6 mt-4 text-center">
           <div>
             <p className="text-lg font-bold font-mono text-foreground">{perfStats?.overall?.totalIdeas || '--'}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ideas</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Ideas</p>
           </div>
-          <div className="w-px h-8 bg-slate-700" />
+          <div className="w-px h-8 bg-muted" />
           <div>
             <p className="text-lg font-bold font-mono text-foreground">{perfStats?.overall?.openIdeas || '--'}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Active</p>
           </div>
-          <div className="w-px h-8 bg-slate-700" />
+          <div className="w-px h-8 bg-muted" />
           <div>
             <p className="text-lg font-bold font-mono text-foreground">5</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Engines</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Engines</p>
           </div>
-          <div className="w-px h-8 bg-slate-700" />
+          <div className="w-px h-8 bg-muted" />
           <div>
             <p className="text-lg font-bold font-mono text-foreground">4</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Markets</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Markets</p>
           </div>
         </div>
       </div>

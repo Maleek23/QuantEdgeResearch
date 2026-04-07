@@ -127,14 +127,14 @@ export default function Blog() {
           {/* Quick Links */}
           <div className="flex items-center gap-3 mb-8">
             <Link href="/academy">
-              <Button variant="outline" size="sm" className="border-slate-700 gap-2" data-testid="link-to-academy">
+              <Button variant="outline" size="sm" className="border-border gap-2" data-testid="link-to-academy">
                 <GraduationCap className="h-4 w-4" />
                 Trading Academy
                 <ChevronRight className="h-3 w-3" />
               </Button>
             </Link>
             <Link href="/trading-rules">
-              <Button variant="outline" size="sm" className="border-slate-700 gap-2" data-testid="link-to-rules">
+              <Button variant="outline" size="sm" className="border-border gap-2" data-testid="link-to-rules">
                 <Shield className="h-4 w-4" />
                 Trading Rules
               </Button>
@@ -151,7 +151,7 @@ export default function Blog() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={isActive ? "bg-cyan-500 text-slate-950" : "border-slate-700"}
+                  className={isActive ? "bg-cyan-500 text-foreground" : "border-border"}
                   data-testid={`category-${cat.id}`}
                 >
                   <cat.icon className="h-4 w-4 mr-2" />
@@ -276,7 +276,7 @@ function ArticleCard({ article }: { article: BlogPost }) {
         </div>
         
         {/* Content */}
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <Badge variant="outline" className="mb-3 capitalize text-xs">
             {article.category.replace('-', ' ')}
           </Badge>
@@ -409,7 +409,7 @@ function NewsletterCTA() {
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-400" />
+                <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                 Weekly market recaps and analysis
               </li>
               <li className="flex items-center gap-2">
@@ -417,7 +417,7 @@ function NewsletterCTA() {
                 Educational articles and trading tips
               </li>
               <li className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-amber-400" />
+                <DollarSign className="h-4 w-4 text-[var(--trade-neutral)]" />
                 Trade ideas and setup breakdowns
               </li>
             </ul>
@@ -427,7 +427,7 @@ function NewsletterCTA() {
               size="lg"
               variant="outline"
               disabled
-              className="w-full md:w-auto border-slate-700"
+              className="w-full md:w-auto border-border"
               data-testid="button-subscribe-newsletter"
             >
               Newsletter Coming Soon

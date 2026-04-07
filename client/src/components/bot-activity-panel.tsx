@@ -44,14 +44,14 @@ const BOT_CONFIGS: BotConfig[] = [
     id: "ai",
     name: "AI Bot",
     icon: Brain,
-    color: "text-amber-400",
+    color: "text-[var(--trade-neutral)]",
     sources: ["ai_analysis", "sentiment"],
   },
   {
     id: "scanner",
     name: "Scanner Bot",
     icon: Target,
-    color: "text-emerald-400",
+    color: "text-[var(--trade-bullish)]",
     sources: ["market_scanner", "bullish_trend"],
   },
 ];
@@ -92,20 +92,20 @@ export function BotActivityPanel() {
   const totalActive = botStatuses.filter((b) => b.status === "active").length;
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800">
+    <Card className="bg-card/50 border-border">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="h-4 w-4 text-cyan-400" />
-            <CardTitle className="text-sm font-semibold text-slate-200">AI Bot Activity</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground/90">AI Bot Activity</CardTitle>
           </div>
           <Badge
             variant="outline"
             className={cn(
               "text-xs",
               totalActive > 0
-                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                : "border-slate-700 text-slate-500"
+                ? "border-emerald-500/30 text-[var(--trade-bullish)] bg-emerald-500/10"
+                : "border-border text-muted-foreground"
             )}
           >
             {totalActive}/{BOT_CONFIGS.length} Active
@@ -119,30 +119,30 @@ export function BotActivityPanel() {
           return (
             <div
               key={bot.id}
-              className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0"
+              className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
             >
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "p-1.5 rounded",
-                  bot.status === "active" ? "bg-slate-800" : "bg-slate-900"
+                  bot.status === "active" ? "bg-muted" : "bg-card"
                 )}>
                   <Icon className={cn("h-4 w-4", bot.color)} />
                 </div>
                 <div>
-                  <span className="text-sm font-medium text-slate-200">{bot.name}</span>
-                  <p className="text-xs text-slate-500">{bot.lastActivity}</p>
+                  <span className="text-sm font-medium text-foreground/90">{bot.name}</span>
+                  <p className="text-xs text-muted-foreground">{bot.lastActivity}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 {bot.recentIdeas > 0 && (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-muted-foreground">
                     {bot.recentIdeas} ideas
                   </span>
                 )}
                 <div className={cn(
                   "h-2 w-2 rounded-full",
-                  bot.status === "active" ? "bg-emerald-400" : "bg-slate-600"
+                  bot.status === "active" ? "bg-[var(--trade-bullish)]" : "bg-muted"
                 )} />
               </div>
             </div>
@@ -151,7 +151,7 @@ export function BotActivityPanel() {
 
         {/* Summary */}
         <div className="pt-2 text-center">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             {ideasData?.ideas?.length || 0} active trade ideas
           </p>
         </div>

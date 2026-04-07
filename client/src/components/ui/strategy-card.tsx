@@ -81,7 +81,7 @@ export function StrategyCard({
             {performance.winRate !== undefined && (
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Win Rate</span>
-                <span className="text-sm font-semibold text-emerald-500">
+                <span className="text-sm font-semibold text-[var(--trade-bullish)]">
                   {safeToFixed(performance.winRate, 1)}%
                 </span>
               </div>
@@ -89,7 +89,7 @@ export function StrategyCard({
             {performance.annualizedReturn !== undefined && (
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Ann. Return</span>
-                <span className="text-sm font-semibold text-emerald-500">
+                <span className="text-sm font-semibold text-[var(--trade-bullish)]">
                   +{safeToFixed(performance.annualizedReturn, 0)}%
                 </span>
               </div>

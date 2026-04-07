@@ -199,13 +199,13 @@ export function AIBrainVisualization() {
                 <div className="font-semibold text-sm" style={{ color: engine.color }}>
                   {engine.name}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   Win Rate: {engine.winRate > 0 ? `${engine.winRate}%` : 'N/A'}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   Confidence: {safeToFixed(engine.confidence, 0)}%
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   {engine.tradesProcessed.toLocaleString()} trades analyzed
                 </div>
               </div>

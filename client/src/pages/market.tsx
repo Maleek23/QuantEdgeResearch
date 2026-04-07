@@ -147,7 +147,7 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
               <Badge variant="secondary" className="text-xs">Large Cap</Badge>
             )}
             {stock.currentPrice < 5 && (
-              <Badge variant="outline" className="text-xs text-amber-400 border-amber-400/30">Penny</Badge>
+              <Badge variant="outline" className="text-xs text-[var(--trade-neutral)] border-amber-400/30">Penny</Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate max-w-[200px]" data-testid={`text-name-${stock.symbol}`}>
@@ -163,7 +163,7 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
           </p>
         </div>
         
-        <div className={`min-w-[80px] flex items-center justify-end gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`min-w-[80px] flex items-center justify-end gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
           {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
           <span className="font-mono font-medium" data-testid={`text-change-${stock.symbol}`}>
             {formatPercentage(change)}
@@ -189,9 +189,9 @@ function SectorCard({ sector, data }: { sector: string; data: { avg: number; cou
     <div className="bg-card border border-border/50 rounded-lg p-4 hover-elevate">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">{sector}</span>
-        <div className={`flex items-center gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`flex items-center gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
           {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-          <span className="font-mono font-bold">{formatPercentage(data.avg)}</span>
+          <span className="font-mono font-bold tabular-nums">{formatPercentage(data.avg)}</span>
         </div>
       </div>
     </div>
@@ -200,10 +200,10 @@ function SectorCard({ sector, data }: { sector: string; data: { avg: number; cou
 
 function getRiskBadgeColor(risk: string) {
   switch (risk) {
-    case 'low': return 'bg-green-500/20 text-green-400 border-green-500/30';
-    case 'medium': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+    case 'low': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+    case 'medium': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
     case 'high': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-    case 'speculative': return 'bg-red-500/20 text-red-400 border-red-500/30';
+    case 'speculative': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
 }
@@ -216,7 +216,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover-elevate">
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-[var(--trade-bullish)] font-bold text-sm">
               {index + 1}
             </div>
             <div className="text-left">
@@ -226,7 +226,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
                   {pick.tradeIdea.riskLevel}
                 </Badge>
                 {pick.score >= 80 && (
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Star className="w-4 h-4 text-[var(--trade-neutral)] fill-amber-400" />
                 )}
               </div>
               <p className="text-xs text-muted-foreground truncate max-w-[200px]">{pick.name}</p>
@@ -236,14 +236,14 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
           <div className="flex items-center gap-6 text-right">
             <div>
               <p className="font-mono font-medium">{formatPrice(pick.currentPrice)}</p>
-              <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                 {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 <span className="font-mono">{formatPercentage(pick.changePercent)}</span>
               </div>
             </div>
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Score</p>
-              <p className="font-mono font-bold text-emerald-400">{pick.score}</p>
+              <p className="font-mono font-bold text-[var(--trade-bullish)]">{pick.score}</p>
             </div>
           </div>
         </div>
@@ -253,7 +253,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
         <div className="space-y-4 pt-2">
           <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-start gap-2 mb-3">
-              <Lightbulb className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <Lightbulb className="w-5 h-5 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Trade Thesis</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.thesis}</p>
@@ -261,7 +261,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Zap className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <Zap className="w-5 h-5 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Entry Reason</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.entryReason}</p>
@@ -269,7 +269,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Target className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <Target className="w-5 h-5 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Suggested Action</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.suggestedAction}</p>
@@ -292,7 +292,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-emerald-400">{safeToFixed(pick.volumeRatio, 1)}x avg</p>
+                <p className="text-xs text-[var(--trade-bullish)]">{safeToFixed(pick.volumeRatio, 1)}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -302,7 +302,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             {pick.distanceFrom52High !== undefined && (
               <div className="bg-card border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">From 52W High</p>
-                <p className="font-mono font-medium text-amber-400">-{safeToFixed(pick.distanceFrom52High, 1)}%</p>
+                <p className="font-mono font-medium text-[var(--trade-neutral)]">-{safeToFixed(pick.distanceFrom52High, 1)}%</p>
               </div>
             )}
             {pick.week52High && (
@@ -453,12 +453,12 @@ export default function MarketPage() {
         title="Market Overview"
         description="Track 500+ stocks across multiple sectors and timeframes"
         icon={BarChart2}
-        iconColor="text-emerald-400"
+        iconColor="text-[var(--trade-bullish)]"
         actions={
           <div className="flex items-center gap-3 flex-wrap">
             <MarketSessionBadge session={currentSession} data-testid="badge-market-session" />
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4 text-emerald-400" />
+              <Clock className="h-4 w-4 text-[var(--trade-bullish)]" />
               <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime}</span>
             </div>
           </div>
@@ -474,7 +474,7 @@ export default function MarketPage() {
               size="sm"
               onClick={() => refreshPricesMutation.mutate()}
               disabled={refreshPricesMutation.isPending}
-              className="border-slate-700"
+              className="border-border"
               data-testid="button-refresh-prices"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
@@ -525,7 +525,7 @@ export default function MarketPage() {
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Tracked Assets</p>
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-emerald-400" />
+                  <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-assets">{marketData.length}</p>
@@ -536,10 +536,10 @@ export default function MarketPage() {
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Market Sentiment</p>
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
               </div>
-              <p className={`text-2xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
+              <p className={`text-2xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`} data-testid="text-avg-change">
                 {avgChange >= 0 ? '+' : ''}{safeToFixed(avgChange, 2)}%
               </p>
               <p className="text-sm text-muted-foreground mt-1">Average Change</p>
@@ -549,7 +549,7 @@ export default function MarketPage() {
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Volume</p>
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-emerald-400" />
+                  <BarChart3 className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-volume">
@@ -562,7 +562,7 @@ export default function MarketPage() {
               <div className="flex items-center justify-between gap-2 mb-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active Catalysts</p>
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Activity className="h-4 w-4 text-emerald-400" />
+                  <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
               </div>
               <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-catalyst-count">{catalysts.length}</p>
@@ -574,8 +574,8 @@ export default function MarketPage() {
             <Card className="glass-card overflow-visible">
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                    <ArrowUp className="h-4 w-4 text-green-400" />
+                  <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center">
+                    <ArrowUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                   </div>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Movers</p>
@@ -601,7 +601,7 @@ export default function MarketPage() {
                           <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs font-mono">{data.symbol}</span>
                           <span className="text-sm font-medium font-mono">{formatCurrency(data.currentPrice)}</span>
                         </div>
-                        <span className="text-sm font-bold font-mono text-green-400">
+                        <span className="text-sm font-bold font-mono text-[var(--trade-bullish)]">
                           {formatPercent(data.changePercent)}
                         </span>
                       </div>
@@ -615,7 +615,7 @@ export default function MarketPage() {
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-                    <ArrowDown className="h-4 w-4 text-red-400" />
+                    <ArrowDown className="h-4 w-4 text-[var(--trade-bearish)]" />
                   </div>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Movers</p>
@@ -641,7 +641,7 @@ export default function MarketPage() {
                           <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs font-mono">{data.symbol}</span>
                           <span className="text-sm font-medium font-mono">{formatCurrency(data.currentPrice)}</span>
                         </div>
-                        <span className="text-sm font-bold font-mono text-red-400">
+                        <span className="text-sm font-bold font-mono text-[var(--trade-bearish)]">
                           {formatPercent(data.changePercent)}
                         </span>
                       </div>
@@ -656,7 +656,7 @@ export default function MarketPage() {
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-emerald-400" />
+                  <BarChart3 className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Real-Time</p>
@@ -698,7 +698,7 @@ export default function MarketPage() {
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Star className="h-4 w-4 text-amber-400" />
+                  <Star className="h-4 w-4 text-[var(--trade-neutral)]" />
                 </div>
                 <div className="flex items-center gap-3">
                   <div>
@@ -715,7 +715,7 @@ export default function MarketPage() {
               ) : watchlist.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="h-14 w-14 rounded-xl bg-amber-500/10 mx-auto mb-4 flex items-center justify-center">
-                    <Star className="h-7 w-7 text-amber-400" />
+                    <Star className="h-7 w-7 text-[var(--trade-neutral)]" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">No Symbols Tracked</h3>
                   <p className="text-muted-foreground text-sm">
@@ -778,7 +778,7 @@ export default function MarketPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-emerald-400" data-testid="smart-watchlist-title">
+                    <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]" data-testid="smart-watchlist-title">
                       <Star className="w-5 h-5" />
                       Smart Watchlist - {timeframeLabels[scannerTimeframe]} Picks
                     </CardTitle>
@@ -787,7 +787,7 @@ export default function MarketPage() {
                     </CardDescription>
                   </div>
                   {watchlistQuery.data && (
-                    <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+                    <Badge variant="outline" className="text-[var(--trade-bullish)] border-emerald-500/30">
                       {watchlistQuery.data.count} picks
                     </Badge>
                   )}
@@ -796,17 +796,17 @@ export default function MarketPage() {
               <CardContent>
                 {watchlistQuery.isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                     <span className="ml-3 text-muted-foreground">Analyzing stocks...</span>
                   </div>
                 ) : watchlistQuery.error ? (
-                  <div className="flex items-center justify-center py-12 text-red-400">
+                  <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                     <AlertTriangle className="w-5 h-5 mr-2" />
                     Failed to generate watchlist. Try refreshing.
                   </div>
                 ) : watchlistQuery.data?.picks.length === 0 ? (
                   <div className="flex items-center justify-center py-12 text-muted-foreground">
-                    No picks available for this timeframe
+                    Loading picks for this timeframe...
                   </div>
                 ) : (
                   <Accordion type="single" collapsible className="w-full" data-testid="smart-watchlist">
@@ -823,7 +823,7 @@ export default function MarketPage() {
                 <div className="grid lg:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-green-400">
+                      <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]">
                         <TrendingUp className="w-5 h-5" />
                         Top Gainers
                       </CardTitle>
@@ -844,15 +844,15 @@ export default function MarketPage() {
                       
                       {moversQuery.isLoading ? (
                         <div className="flex items-center justify-center py-12">
-                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                          <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                         </div>
                       ) : moversQuery.error ? (
-                        <div className="flex items-center justify-center py-12 text-red-400">
+                        <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                           Failed to load data. Try refreshing.
                         </div>
                       ) : moversQuery.data?.gainers.length === 0 ? (
                         <div className="flex items-center justify-center py-12 text-muted-foreground">
-                          No gainers found for this timeframe
+                          Loading market movers...
                         </div>
                       ) : (
                         <div className="max-h-[500px] overflow-y-auto" data-testid="gainers-list">
@@ -866,7 +866,7 @@ export default function MarketPage() {
 
                   <Card>
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-red-400">
+                      <CardTitle className="flex items-center gap-2 text-[var(--trade-bearish)]">
                         <TrendingDown className="w-5 h-5" />
                         Top Losers
                       </CardTitle>
@@ -887,10 +887,10 @@ export default function MarketPage() {
                       
                       {moversQuery.isLoading ? (
                         <div className="flex items-center justify-center py-12">
-                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                          <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                         </div>
                       ) : moversQuery.error ? (
-                        <div className="flex items-center justify-center py-12 text-red-400">
+                        <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                           Failed to load data. Try refreshing.
                         </div>
                       ) : moversQuery.data?.losers.length === 0 ? (
@@ -939,7 +939,7 @@ export default function MarketPage() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-emerald-400" />
+                  <BarChart3 className="w-5 h-5 text-[var(--trade-bullish)]" />
                   Sector Analysis
                 </CardTitle>
                 <CardDescription>
@@ -958,11 +958,11 @@ export default function MarketPage() {
                           <div className="w-32 text-sm font-medium truncate">{sector}</div>
                           <div className="flex-1 h-6 bg-muted/30 rounded-full overflow-hidden relative">
                             <div 
-                              className={`h-full rounded-full ${isPositive ? 'bg-green-500/50' : 'bg-red-500/50'}`}
+                              className={`h-full rounded-full ${isPositive ? 'bg-[var(--trade-bullish)]/50' : 'bg-red-500/50'}`}
                               style={{ width: `${width}%` }}
                             />
                           </div>
-                          <div className={`w-20 text-right font-mono font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className={`w-20 text-right font-mono font-medium ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                             {formatPercentage(data.avg)}
                           </div>
                           <div className="w-16 text-right text-sm text-muted-foreground">

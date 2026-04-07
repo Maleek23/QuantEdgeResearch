@@ -54,7 +54,7 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
       <Card data-testid="card-symbol-leaderboard-empty">
         <CardHeader>
           <CardTitle>Symbol Leaderboard</CardTitle>
-          <CardDescription>No data available</CardDescription>
+          <CardDescription>Data loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -72,9 +72,9 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
   };
 
   const getWinRateBadgeColor = (winRate: number) => {
-    if (winRate > 70) return "text-green-500";
-    if (winRate >= 50) return "text-amber-500";
-    return "text-red-500";
+    if (winRate > 70) return "text-[var(--trade-bullish)]";
+    if (winRate >= 50) return "text-[var(--trade-neutral)]";
+    return "text-[var(--trade-bearish)]";
   };
 
   const renderTable = (symbols: SymbolPerformance[], title: string, icon: React.ReactNode) => {
@@ -105,7 +105,7 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
             <TableBody>
               {symbols.map((symbol) => (
                 <TableRow key={symbol.symbol} data-testid={`row-symbol-${symbol.symbol}`}>
-                  <TableCell className="font-mono font-bold">
+                  <TableCell className="font-mono font-bold tabular-nums">
                     {symbol.symbol}
                   </TableCell>
                   <TableCell className="text-center font-mono">
@@ -115,7 +115,7 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <AlertTriangle className="w-3 h-3 text-amber-500" />
+                              <AlertTriangle className="w-3 h-3 text-[var(--trade-neutral)]" />
                             </TooltipTrigger>
                             <TooltipContent>
                               <p className="text-xs">Low sample size ({symbol.trades} trades)</p>
@@ -126,10 +126,10 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center font-mono text-green-500">
+                  <TableCell className="text-center font-mono text-[var(--trade-bullish)]">
                     {symbol.wins}
                   </TableCell>
-                  <TableCell className="text-center font-mono text-red-500">
+                  <TableCell className="text-center font-mono text-[var(--trade-bearish)]">
                     {symbol.losses}
                   </TableCell>
                   <TableCell className="text-center">
@@ -141,10 +141,10 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
                       {safeToFixed(symbol.winRate, 1)}%
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-green-500">
+                  <TableCell className="text-right font-mono text-[var(--trade-bullish)]">
                     +{safeToFixed(symbol.avgGain, 2)}%
                   </TableCell>
-                  <TableCell className="text-right font-mono text-red-500">
+                  <TableCell className="text-right font-mono text-[var(--trade-bearish)]">
                     {safeToFixed(symbol.avgLoss, 2)}%
                   </TableCell>
                 </TableRow>
@@ -169,12 +169,12 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
         {renderTable(
           data.topPerformers,
           "Top Performers",
-          <TrendingUp className="w-5 h-5 text-green-500" />
+          <TrendingUp className="w-5 h-5 text-[var(--trade-bullish)]" />
         )}
         {renderTable(
           data.underperformers,
           "Underperformers",
-          <TrendingDown className="w-5 h-5 text-red-500" />
+          <TrendingDown className="w-5 h-5 text-[var(--trade-bearish)]" />
         )}
       </CardContent>
     </Card>

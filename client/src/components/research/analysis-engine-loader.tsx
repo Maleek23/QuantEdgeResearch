@@ -50,10 +50,10 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
               damping: 20,
             }}
           >
-            <h2 className="text-3xl font-bold text-slate-100 mb-2">
+            <h2 className="text-3xl font-bold text-foreground/95 mb-2">
               Analyzing {symbol}
             </h2>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Running institutional-grade analysis engines
             </p>
           </motion.div>
@@ -71,7 +71,7 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
                 "flex items-center gap-4 p-4 rounded-lg border transition-all",
                 engine.status === 'done' && "bg-emerald-950/20 border-emerald-500/30",
                 engine.status === 'running' && "bg-cyan-950/20 border-cyan-500/30",
-                engine.status === 'pending' && "bg-slate-900/50 border-slate-700/30",
+                engine.status === 'pending' && "bg-card/50 border-border/30",
                 engine.status === 'error' && "bg-red-950/20 border-red-500/30"
               )}
             >
@@ -80,15 +80,15 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
                 "shrink-0 p-2 rounded-lg",
                 engine.status === 'done' && "bg-emerald-500/20",
                 engine.status === 'running' && "bg-cyan-500/20",
-                engine.status === 'pending' && "bg-slate-800",
+                engine.status === 'pending' && "bg-muted",
                 engine.status === 'error' && "bg-red-500/20"
               )}>
                 <engine.icon className={cn(
                   "h-5 w-5",
-                  engine.status === 'done' && "text-emerald-400",
+                  engine.status === 'done' && "text-[var(--trade-bullish)]",
                   engine.status === 'running' && "text-cyan-400",
-                  engine.status === 'pending' && "text-slate-500",
-                  engine.status === 'error' && "text-red-400"
+                  engine.status === 'pending' && "text-muted-foreground",
+                  engine.status === 'error' && "text-[var(--trade-bearish)]"
                 )} />
               </div>
 
@@ -96,20 +96,20 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-sm font-semibold",
-                  engine.status === 'done' && "text-emerald-300",
+                  engine.status === 'done' && "text-[var(--trade-bullish)]",
                   engine.status === 'running' && "text-cyan-300",
-                  engine.status === 'pending' && "text-slate-400",
+                  engine.status === 'pending' && "text-muted-foreground",
                   engine.status === 'error' && "text-red-300"
                 )}>
                   {engine.name}
                 </p>
-                <p className="text-xs text-slate-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {engine.description}
                 </p>
 
                 {/* Progress bar for running engines */}
                 {engine.status === 'running' && engine.progress !== undefined && (
-                  <div className="w-full bg-slate-800 rounded-full h-1 mt-2">
+                  <div className="w-full bg-muted rounded-full h-1 mt-2">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${engine.progress}%` }}
@@ -123,16 +123,16 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
               {/* Status Indicator */}
               <div className="shrink-0">
                 {engine.status === 'done' && (
-                  <CheckCircle className="h-5 w-5 text-emerald-400" />
+                  <CheckCircle className="h-5 w-5 text-[var(--trade-bullish)]" />
                 )}
                 {engine.status === 'running' && (
                   <Loader2 className="h-5 w-5 text-cyan-400 animate-spin" />
                 )}
                 {engine.status === 'pending' && (
-                  <Clock className="h-5 w-5 text-slate-500" />
+                  <Clock className="h-5 w-5 text-muted-foreground" />
                 )}
                 {engine.status === 'error' && (
-                  <span className="text-xs font-semibold text-red-400">Failed</span>
+                  <span className="text-xs font-semibold text-[var(--trade-bearish)]">Failed</span>
                 )}
               </div>
             </motion.div>
@@ -142,7 +142,7 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
         {/* Overall Progress */}
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">
+            <span className="text-muted-foreground">
               Overall Progress: {completedCount}/{totalCount} engines
             </span>
             <span className="font-mono font-semibold text-cyan-400">
@@ -150,7 +150,7 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
             </span>
           </div>
 
-          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${overallProgress}%` }}
@@ -167,7 +167,7 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
           </div>
 
           {overallProgress < 100 && (
-            <p className="text-xs text-center text-slate-500">
+            <p className="text-xs text-center text-muted-foreground">
               Estimated time remaining: {Math.max(1, Math.ceil((100 - overallProgress) / 12))}s
             </p>
           )}

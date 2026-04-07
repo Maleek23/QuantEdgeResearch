@@ -109,7 +109,7 @@ export default function AdminBetaInvites() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary" className="bg-amber-500/20 text-amber-400"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge variant="secondary" className="bg-amber-500/20 text-[var(--trade-neutral)]"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
       case 'approved':
         return <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">Approved</Badge>;
       case 'invited':
@@ -117,12 +117,12 @@ export default function AdminBetaInvites() {
         return <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400"><Mail className="w-3 h-3 mr-1" />Invited</Badge>;
       case 'joined':
       case 'redeemed':
-        return <Badge variant="secondary" className="bg-green-500/20 text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Joined</Badge>;
+        return <Badge variant="secondary" className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"><CheckCircle className="w-3 h-3 mr-1" />Joined</Badge>;
       case 'rejected':
       case 'revoked':
-        return <Badge variant="secondary" className="bg-red-500/20 text-red-400"><XCircle className="w-3 h-3 mr-1" />Revoked</Badge>;
+        return <Badge variant="secondary" className="bg-red-500/20 text-[var(--trade-bearish)]"><XCircle className="w-3 h-3 mr-1" />Revoked</Badge>;
       case 'expired':
-        return <Badge variant="secondary" className="bg-gray-500/20 text-gray-400">Expired</Badge>;
+        return <Badge variant="secondary" className="bg-gray-500/20 text-muted-foreground">Expired</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -274,7 +274,7 @@ export default function AdminBetaInvites() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>Expires {new Date(invite.expiresAt).toLocaleDateString()}</span>
                             {invite.redeemedAt && (
-                              <span className="text-green-400">• Redeemed {new Date(invite.redeemedAt).toLocaleDateString()}</span>
+                              <span className="text-[var(--trade-bullish)]">• Redeemed {new Date(invite.redeemedAt).toLocaleDateString()}</span>
                             )}
                           </div>
                         </div>
@@ -307,7 +307,7 @@ export default function AdminBetaInvites() {
                                 onClick={() => revokeInviteMutation.mutate(invite.id)}
                                 disabled={revokeInviteMutation.isPending}
                                 title="Revoke invite"
-                                className="text-red-400 hover:text-red-300"
+                                className="text-[var(--trade-bearish)] hover:text-red-300"
                                 data-testid={`button-revoke-${invite.id}`}
                               >
                                 <XCircle className="w-4 h-4" />

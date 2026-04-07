@@ -56,17 +56,17 @@ function getSignalFromScore(score: number): 'bullish' | 'bearish' | 'neutral' {
 
 function getSignalColor(signal: 'bullish' | 'bearish' | 'neutral'): string {
   switch (signal) {
-    case 'bullish': return 'text-green-400';
-    case 'bearish': return 'text-red-400';
-    default: return 'text-amber-400';
+    case 'bullish': return 'text-[var(--trade-bullish)]';
+    case 'bearish': return 'text-[var(--trade-bearish)]';
+    default: return 'text-[var(--trade-neutral)]';
   }
 }
 
 function SignalIcon({ signal }: { signal: 'bullish' | 'bearish' | 'neutral' }) {
   switch (signal) {
-    case 'bullish': return <TrendingUp className="h-3 w-3 text-green-400" />;
-    case 'bearish': return <TrendingDown className="h-3 w-3 text-red-400" />;
-    default: return <Minus className="h-3 w-3 text-amber-400" />;
+    case 'bullish': return <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />;
+    case 'bearish': return <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />;
+    default: return <Minus className="h-3 w-3 text-[var(--trade-neutral)]" />;
   }
 }
 
@@ -147,7 +147,7 @@ function DimensionCard({ dimension, compact }: { dimension: AnalysisDimension; c
       </div>
       <ConfidenceBar 
         value={dimension.score} 
-        color={dimension.signal === 'bullish' ? 'bg-green-500' : dimension.signal === 'bearish' ? 'bg-red-500' : 'bg-amber-500'} 
+        color={dimension.signal === 'bullish' ? 'bg-[var(--trade-bullish)]' : dimension.signal === 'bearish' ? 'bg-red-500' : 'bg-amber-500'} 
       />
       <div className="text-[10px] text-muted-foreground line-clamp-2">
         {dimension.factors.slice(0, 2).join(' • ')}
@@ -169,23 +169,23 @@ function ConvergenceIndicator({ dimensions }: { dimensions: AnalysisDimension[] 
   return (
     <div className={cn(
       "flex items-center gap-3 p-3 rounded-lg border-2",
-      dominantSignal === 'bullish' && convergencePercent >= 80 && "bg-green-500/10 border-green-500/50",
+      dominantSignal === 'bullish' && convergencePercent >= 80 && "bg-[var(--trade-bullish)]/10 border-green-500/50",
       dominantSignal === 'bearish' && convergencePercent >= 80 && "bg-red-500/10 border-red-500/50",
       convergencePercent < 80 && "bg-amber-500/10 border-amber-500/50"
     )}>
       <div className={cn(
         "p-2 rounded-full",
-        dominantSignal === 'bullish' && convergencePercent >= 80 && "bg-green-500/20",
+        dominantSignal === 'bullish' && convergencePercent >= 80 && "bg-[var(--trade-bullish)]/20",
         dominantSignal === 'bearish' && convergencePercent >= 80 && "bg-red-500/20",
         convergencePercent < 80 && "bg-amber-500/20"
       )}>
         {convergencePercent >= 80 ? (
           <CheckCircle2 className={cn(
             "h-5 w-5",
-            dominantSignal === 'bullish' ? "text-green-400" : "text-red-400"
+            dominantSignal === 'bullish' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )} />
         ) : (
-          <AlertTriangle className="h-5 w-5 text-amber-400" />
+          <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
         )}
       </div>
       <div className="flex-1">
@@ -195,9 +195,9 @@ function ConvergenceIndicator({ dimensions }: { dimensions: AnalysisDimension[] 
           </span>
           <Badge variant="outline" className={cn(
             "text-xs font-bold",
-            dominantSignal === 'bullish' && "text-green-400 border-green-500/30",
-            dominantSignal === 'bearish' && "text-red-400 border-red-500/30",
-            dominantSignal === 'neutral' && "text-amber-400 border-amber-500/30"
+            dominantSignal === 'bullish' && "text-[var(--trade-bullish)] border-green-500/30",
+            dominantSignal === 'bearish' && "text-[var(--trade-bearish)] border-red-500/30",
+            dominantSignal === 'neutral' && "text-[var(--trade-neutral)] border-amber-500/30"
           )}>
             {bullishCount}/{total} BULLISH
           </Badge>
@@ -207,16 +207,16 @@ function ConvergenceIndicator({ dimensions }: { dimensions: AnalysisDimension[] 
             value={convergencePercent} 
             className={cn(
               "h-2 flex-1",
-              dominantSignal === 'bullish' && "[&>div]:bg-green-500",
+              dominantSignal === 'bullish' && "[&>div]:bg-[var(--trade-bullish)]",
               dominantSignal === 'bearish' && "[&>div]:bg-red-500",
               dominantSignal === 'neutral' && "[&>div]:bg-amber-500"
             )}
           />
           <span className={cn(
             "text-sm font-bold font-mono",
-            dominantSignal === 'bullish' && "text-green-400",
-            dominantSignal === 'bearish' && "text-red-400",
-            dominantSignal === 'neutral' && "text-amber-400"
+            dominantSignal === 'bullish' && "text-[var(--trade-bullish)]",
+            dominantSignal === 'bearish' && "text-[var(--trade-bearish)]",
+            dominantSignal === 'neutral' && "text-[var(--trade-neutral)]"
           )}>
             {Math.round(avgScore)}%
           </span>
@@ -231,7 +231,7 @@ function EntryExitTimingCard({ timing, direction }: { timing: EntryExitTiming; d
     <div className="grid grid-cols-2 gap-3">
       <div className={cn(
         "p-3 rounded-lg border space-y-2",
-        timing.urgency === 'high' && "bg-green-500/10 border-green-500/40",
+        timing.urgency === 'high' && "bg-[var(--trade-bullish)]/10 border-green-500/40",
         timing.urgency === 'medium' && "bg-amber-500/10 border-amber-500/40",
         timing.urgency === 'low' && "bg-muted/20 border-border/40"
       )}>
@@ -245,7 +245,7 @@ function EntryExitTimingCard({ timing, direction }: { timing: EntryExitTiming; d
             <div 
               className={cn(
                 "h-full rounded-full",
-                timing.urgency === 'high' && "bg-green-500",
+                timing.urgency === 'high' && "bg-[var(--trade-bullish)]",
                 timing.urgency === 'medium' && "bg-amber-500",
                 timing.urgency === 'low' && "bg-muted-foreground"
               )}
@@ -255,7 +255,7 @@ function EntryExitTimingCard({ timing, direction }: { timing: EntryExitTiming; d
           <span className="text-xs font-mono font-semibold">{timing.entryScore}%</span>
         </div>
         {timing.urgency === 'high' && (
-          <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">
+          <Badge variant="outline" className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30 text-[10px]">
             <Zap className="h-3 w-3 mr-1" />
             OPTIMAL NOW
           </Badge>
@@ -335,7 +335,7 @@ export function MultiDimensionalAnalysis({
     },
     {
       name: 'ML Prediction',
-      icon: <Cpu className="h-4 w-4 text-emerald-400" />,
+      icon: <Cpu className="h-4 w-4 text-[var(--trade-bullish)]" />,
       score: mlScore,
       signal: getSignalFromScore(mlScore),
       confidence: Math.min(100, targetHitProbability + 10),
@@ -348,7 +348,7 @@ export function MultiDimensionalAnalysis({
     },
     {
       name: 'Historical',
-      icon: <History className="h-4 w-4 text-amber-400" />,
+      icon: <History className="h-4 w-4 text-[var(--trade-neutral)]" />,
       score: historicalWinRate,
       signal: getSignalFromScore(historicalWinRate),
       confidence: 85,
@@ -469,14 +469,14 @@ export function CompactAnalysisBadges({
       </Badge>
       <Badge variant="outline" className={cn(
         "text-[10px] font-semibold gap-1",
-        mlScore >= 60 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-muted/20 text-muted-foreground"
+        mlScore >= 60 ? "bg-emerald-500/10 text-[var(--trade-bullish)] border-emerald-500/30" : "bg-muted/20 text-muted-foreground"
       )}>
         <Cpu className="h-2.5 w-2.5" />
         ML:{mlScore}%
       </Badge>
       <Badge variant="outline" className={cn(
         "text-[10px] font-semibold gap-1",
-        historicalWinRate >= 60 ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-muted/20 text-muted-foreground"
+        historicalWinRate >= 60 ? "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30" : "bg-muted/20 text-muted-foreground"
       )}>
         <History className="h-2.5 w-2.5" />
         H:{historicalWinRate}%

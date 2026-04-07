@@ -157,7 +157,7 @@ export default function Pricing() {
   const currentTier = userTier?.tier || 'free';
 
   return (
-    <div className="min-h-screen bg-black py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--surface-base)] py-12 px-4 sm:px-6 lg:px-8">
       <SEOHead pageKey="pricing" />
       <FloatingBubblesBackground />
       
@@ -167,7 +167,7 @@ export default function Pricing() {
           <Link href="/">
             <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" />
           </Link>
-          <h2 className="text-xl font-bold text-white italic">
+          <h2 className="text-xl font-bold text-foreground italic">
             Quant Edge Labs
           </h2>
         </div>
@@ -178,9 +178,9 @@ export default function Pricing() {
         <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
           <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-400 mb-1">
+                <p className="text-sm font-medium text-[var(--trade-neutral)] mb-1">
                   Research Platform Disclaimer
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -225,13 +225,13 @@ export default function Pricing() {
               </span>
             </div>
             <h1 
-              className="text-3xl sm:text-4xl font-bold mb-4 text-white"
+              className="text-3xl sm:text-4xl font-bold mb-4 text-foreground"
               data-testid="text-pricing-header"
             >
               Choose Your Plan
             </h1>
             <p 
-              className="text-slate-400 max-w-2xl mx-auto leading-relaxed"
+              className="text-muted-foreground max-w-2xl mx-auto leading-relaxed"
               data-testid="text-pricing-subtext"
             >
               Start with Free to explore the platform, then upgrade to Advanced for unlimited access and real-time data. Beta pricing - lock in these rates before launch.
@@ -248,11 +248,11 @@ export default function Pricing() {
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Clock className="h-4 w-4 text-green-400" />
+                <div className="h-8 w-8 rounded-full bg-[var(--trade-bullish)]/20 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-green-300">
+                  <p className="text-sm font-medium text-[var(--trade-bullish)]">
                     Save 2 months with annual billing
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -260,7 +260,7 @@ export default function Pricing() {
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-medium text-green-400 whitespace-nowrap">
+              <span className="text-xs font-medium text-[var(--trade-bullish)] whitespace-nowrap">
                 ~25% OFF
               </span>
             </div>
@@ -287,7 +287,7 @@ export default function Pricing() {
             Yearly
           </span>
           {isYearly && (
-            <span className="glass-success rounded px-2 py-0.5 text-xs text-green-400" data-testid="badge-yearly-savings">
+            <span className="glass-success rounded px-2 py-0.5 text-xs text-[var(--trade-bullish)]" data-testid="badge-yearly-savings">
               Save ~25%
             </span>
           )}
@@ -305,7 +305,7 @@ export default function Pricing() {
                 className={`relative flex flex-col glass-card rounded-lg p-6 hover-elevate transition-all duration-200 ${
                   plan.popular 
                     ? 'border-l-2 border-l-cyan-500' 
-                    : 'border border-slate-700/50'
+                    : 'border border-border/50'
                 }`}
                 data-testid={`card-plan-${plan.id}`}
               >
@@ -326,7 +326,7 @@ export default function Pricing() {
                 {plan.comingSoon && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span 
-                      className="glass-secondary rounded px-3 py-1 text-xs font-medium text-amber-400 flex items-center gap-1"
+                      className="glass-secondary rounded px-3 py-1 text-xs font-medium text-[var(--trade-neutral)] flex items-center gap-1"
                       data-testid="badge-coming-soon"
                     >
                       <Clock className="w-3 h-3" />
@@ -346,7 +346,7 @@ export default function Pricing() {
                   }`}>
                     <Icon className={`w-6 h-6 ${
                       plan.id === 'free' 
-                        ? 'text-slate-400' 
+                        ? 'text-muted-foreground' 
                         : plan.id === 'advanced'
                         ? 'text-cyan-400'
                         : 'text-purple-400'
@@ -381,7 +381,7 @@ export default function Pricing() {
                       </span>
                     </div>
                     {isYearly && savings && (
-                      <p className="text-sm text-green-400 font-mono mt-1" data-testid={`text-savings-${plan.id}`}>
+                      <p className="text-sm text-[var(--trade-bullish)] font-mono mt-1" data-testid={`text-savings-${plan.id}`}>
                         Save {savings}% vs monthly
                       </p>
                     )}
@@ -396,14 +396,14 @@ export default function Pricing() {
                         data-testid={`feature-${plan.id}-${index}`}
                       >
                         {feature.included ? (
-                          <Check className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                          <Check className="w-4 h-4 text-[var(--trade-bullish)] shrink-0 mt-0.5" />
                         ) : (
                           <X className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
                         )}
                         <span className={`flex items-center gap-2 ${feature.included ? 'text-foreground' : 'text-muted-foreground/40'}`}>
                           {feature.name}
                           {feature.comingSoon && (
-                            <span className="bg-amber-500/10 text-amber-400 rounded px-1.5 py-0.5 text-[10px] font-medium">
+                            <span className="bg-amber-500/10 text-[var(--trade-neutral)] rounded px-1.5 py-0.5 text-[10px] font-medium">
                               Soon
                             </span>
                           )}
@@ -480,7 +480,7 @@ export default function Pricing() {
             Upgrade or downgrade at any time.
           </p>
           <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
-            <span className="text-red-400 font-medium">NOT FINANCIAL ADVICE</span> • 
+            <span className="text-[var(--trade-bearish)] font-medium">NOT FINANCIAL ADVICE</span> • 
             Quant Edge Labs is for educational research purposes only. Trading involves substantial risk of loss.
           </p>
         </div>

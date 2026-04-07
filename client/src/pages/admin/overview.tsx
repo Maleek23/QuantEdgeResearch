@@ -38,39 +38,39 @@ interface MetricCardProps {
 function MetricCard({ title, value, description, icon, trend, color = 'cyan', isLoading }: MetricCardProps) {
   const colorClasses = {
     cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-    green: "text-green-400 bg-green-500/10 border-green-500/20",
-    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    green: "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20",
+    amber: "text-[var(--trade-neutral)] bg-amber-500/10 border-amber-500/20",
     purple: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-    red: "text-red-400 bg-red-500/10 border-red-500/20",
+    red: "text-[var(--trade-bearish)] bg-red-500/10 border-red-500/20",
   };
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card className="bg-card border-border">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-slate-400">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <div className={cn("p-2 rounded-lg border", colorClasses[color])}>
           {icon}
         </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <Skeleton className="h-8 w-24 bg-slate-800" />
+          <Skeleton className="h-8 w-24 bg-muted" />
         ) : (
           <>
-            <div className="text-2xl font-bold text-white" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+            <div className="text-2xl font-bold text-foreground" data-testid={`metric-${title.toLowerCase().replace(/\s+/g, '-')}`}>
               {value}
             </div>
             {description && (
-              <p className="text-xs text-slate-500 mt-1">{description}</p>
+              <p className="text-xs text-muted-foreground mt-1">{description}</p>
             )}
             {trend && (
               <div className={cn(
                 "flex items-center gap-1 text-xs mt-2",
-                trend.value >= 0 ? "text-green-400" : "text-red-400"
+                trend.value >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 <TrendingUp className={cn("h-3 w-3", trend.value < 0 && "rotate-180")} />
                 <span>{trend.value >= 0 ? '+' : ''}{trend.value}%</span>
-                <span className="text-slate-500">{trend.label}</span>
+                <span className="text-muted-foreground">{trend.label}</span>
               </div>
             )}
           </>
@@ -93,7 +93,7 @@ function RecentActivity({ activities, isLoading }: { activities: ActivityItem[];
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4, 5].map(i => (
-          <Skeleton key={i} className="h-12 bg-slate-800" />
+          <Skeleton key={i} className="h-12 bg-muted" />
         ))}
       </div>
     );
@@ -101,7 +101,7 @@ function RecentActivity({ activities, isLoading }: { activities: ActivityItem[];
 
   if (!activities?.length) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="text-center py-8 text-muted-foreground">
         <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>No recent activity</p>
       </div>
@@ -113,19 +113,19 @@ function RecentActivity({ activities, isLoading }: { activities: ActivityItem[];
       {activities.slice(0, 8).map((activity) => (
         <div 
           key={activity.id} 
-          className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50"
+          className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50"
         >
-          <div className="p-2 rounded-full bg-slate-700">
-            {activity.type === 'user_signup' && <UserPlus className="h-3 w-3 text-green-400" />}
+          <div className="p-2 rounded-full bg-muted">
+            {activity.type === 'user_signup' && <UserPlus className="h-3 w-3 text-[var(--trade-bullish)]" />}
             {activity.type === 'invite_sent' && <Mail className="h-3 w-3 text-cyan-400" />}
-            {activity.type === 'invite_redeemed' && <CheckCircle2 className="h-3 w-3 text-green-400" />}
-            {activity.type === 'waitlist_join' && <Clock className="h-3 w-3 text-amber-400" />}
+            {activity.type === 'invite_redeemed' && <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />}
+            {activity.type === 'waitlist_join' && <Clock className="h-3 w-3 text-[var(--trade-neutral)]" />}
             {!['user_signup', 'invite_sent', 'invite_redeemed', 'waitlist_join'].includes(activity.type) && 
-              <Activity className="h-3 w-3 text-slate-400" />}
+              <Activity className="h-3 w-3 text-muted-foreground" />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-white truncate">{activity.description}</p>
-            <p className="text-xs text-slate-500">{activity.timestamp}</p>
+            <p className="text-sm text-foreground truncate">{activity.description}</p>
+            <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
           </div>
         </div>
       ))}
@@ -144,7 +144,7 @@ function SystemHealth({ systems, isLoading }: { systems: SystemStatus[]; isLoadi
     return (
       <div className="space-y-2">
         {[1, 2, 3, 4].map(i => (
-          <Skeleton key={i} className="h-10 bg-slate-800" />
+          <Skeleton key={i} className="h-10 bg-muted" />
         ))}
       </div>
     );
@@ -164,28 +164,28 @@ function SystemHealth({ systems, isLoading }: { systems: SystemStatus[]; isLoadi
       {displaySystems.map((system) => (
         <div 
           key={system.name}
-          className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50"
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
         >
           <div className="flex items-center gap-3">
             <div className={cn(
               "h-2 w-2 rounded-full",
-              system.status === 'healthy' && "bg-green-400",
+              system.status === 'healthy' && "bg-[var(--trade-bullish)]",
               system.status === 'degraded' && "bg-amber-400",
               system.status === 'down' && "bg-red-400"
             )} />
-            <span className="text-sm text-white">{system.name}</span>
+            <span className="text-sm text-foreground">{system.name}</span>
           </div>
           <div className="flex items-center gap-2">
             {system.latency && (
-              <span className="text-xs text-slate-500">{system.latency}ms</span>
+              <span className="text-xs text-muted-foreground">{system.latency}ms</span>
             )}
             <Badge 
               variant="outline"
               className={cn(
                 "text-xs",
-                system.status === 'healthy' && "text-green-400 border-green-500/20",
-                system.status === 'degraded' && "text-amber-400 border-amber-500/20",
-                system.status === 'down' && "text-red-400 border-red-500/20"
+                system.status === 'healthy' && "text-[var(--trade-bullish)] border-green-500/20",
+                system.status === 'degraded' && "text-[var(--trade-neutral)] border-amber-500/20",
+                system.status === 'down' && "text-[var(--trade-bearish)] border-red-500/20"
               )}
             >
               {system.status}
@@ -283,12 +283,12 @@ function AdminOverviewContent() {
   const botSourceMap: Record<string, { label: string; color: string; icon: any }> = {
     quant_signal: { label: "Quant Bot", color: "text-purple-400", icon: BarChart3 },
     bot_screener: { label: "Screener Bot", color: "text-cyan-400", icon: Target },
-    ai_analysis: { label: "AI Bot", color: "text-amber-400", icon: Brain },
-    options_flow: { label: "Flow Bot", color: "text-green-400", icon: TrendingUp },
-    whale_flow: { label: "Whale Bot", color: "text-emerald-400", icon: TrendingUp },
+    ai_analysis: { label: "AI Bot", color: "text-[var(--trade-neutral)]", icon: Brain },
+    options_flow: { label: "Flow Bot", color: "text-[var(--trade-bullish)]", icon: TrendingUp },
+    whale_flow: { label: "Whale Bot", color: "text-[var(--trade-bullish)]", icon: TrendingUp },
     market_scanner: { label: "Scanner Bot", color: "text-blue-400", icon: Target },
     sentiment: { label: "Sentiment Bot", color: "text-pink-400", icon: Eye },
-    bullish_trend: { label: "Trend Bot", color: "text-green-400", icon: TrendingUp },
+    bullish_trend: { label: "Trend Bot", color: "text-[var(--trade-bullish)]", icon: TrendingUp },
   };
 
   const botStats = Object.entries(
@@ -299,7 +299,7 @@ function AdminOverviewContent() {
   ).map(([source, count]) => ({
     source,
     count: count as number,
-    ...botSourceMap[source] || { label: source, color: "text-slate-400", icon: Bot },
+    ...botSourceMap[source] || { label: source, color: "text-muted-foreground", icon: Bot },
   })).sort((a, b) => b.count - a.count);
 
   const activeIdeas = ideas.filter((i: any) => i.status === 'active').length;
@@ -346,13 +346,13 @@ function AdminOverviewContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Activity className="h-5 w-5 text-cyan-400" />
               Recent Activity
             </CardTitle>
-            <CardDescription className="text-slate-500">
+            <CardDescription className="text-muted-foreground">
               Latest platform events
             </CardDescription>
           </CardHeader>
@@ -361,13 +361,13 @@ function AdminOverviewContent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Cpu className="h-5 w-5 text-green-400" />
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-[var(--trade-bullish)]" />
               System Status
             </CardTitle>
-            <CardDescription className="text-slate-500">
+            <CardDescription className="text-muted-foreground">
               Service health overview
             </CardDescription>
           </CardHeader>
@@ -381,65 +381,65 @@ function AdminOverviewContent() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Database</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Database</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
               <Database className="h-8 w-8 text-cyan-400" />
               <div>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold text-foreground">
                   {stats?.dbStats?.tableCount || 0} tables
                 </p>
-                <p className="text-xs text-slate-500">PostgreSQL (Neon)</p>
+                <p className="text-xs text-muted-foreground">PostgreSQL (Neon)</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Revenue</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Revenue</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              <DollarSign className="h-8 w-8 text-green-400" />
+              <DollarSign className="h-8 w-8 text-[var(--trade-bullish)]" />
               <div>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold text-foreground">
                   ${safeToFixed(stats?.revenue, 2, '0.00')}
                 </p>
-                <p className="text-xs text-slate-500">This month</p>
+                <p className="text-xs text-muted-foreground">This month</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-400">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Conversion Rate</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
               <TrendingUp className="h-8 w-8 text-purple-400" />
               <div>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-lg font-semibold text-foreground">
                   {totalInvites > 0 ? safeToFixed((redeemedInvites / totalInvites) * 100, 1) : 0}%
                 </p>
-                <p className="text-xs text-slate-500">Invite → User</p>
+                <p className="text-xs text-muted-foreground">Invite → User</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-cyan-400" />
             User Behavior Analytics (24h)
           </CardTitle>
-          <CardDescription className="text-slate-500">
+          <CardDescription className="text-muted-foreground">
             Page views, activities, and engagement metrics
           </CardDescription>
         </CardHeader>
@@ -447,48 +447,48 @@ function AdminOverviewContent() {
           {analyticsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map(i => (
-                <Skeleton key={i} className="h-20 bg-slate-800" />
+                <Skeleton key={i} className="h-20 bg-muted" />
               ))}
             </div>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
                     <Eye className="h-4 w-4 text-cyan-400" />
-                    <span className="text-sm text-slate-400">Page Views</span>
+                    <span className="text-sm text-muted-foreground">Page Views</span>
                   </div>
-                  <p className="text-2xl font-bold text-white" data-testid="metric-page-views-24h">
+                  <p className="text-2xl font-bold text-foreground" data-testid="metric-page-views-24h">
                     {analyticsData?.totalPageViews24h || 0}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Users className="h-4 w-4 text-green-400" />
-                    <span className="text-sm text-slate-400">Active Users</span>
+                    <Users className="h-4 w-4 text-[var(--trade-bullish)]" />
+                    <span className="text-sm text-muted-foreground">Active Users</span>
                   </div>
-                  <p className="text-2xl font-bold text-white" data-testid="metric-active-users-24h">
+                  <p className="text-2xl font-bold text-foreground" data-testid="metric-active-users-24h">
                     {analyticsData?.activeUsers24h || 0}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <MousePointer className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm text-slate-400">Total Activities</span>
+                    <MousePointer className="h-4 w-4 text-[var(--trade-neutral)]" />
+                    <span className="text-sm text-muted-foreground">Total Activities</span>
                   </div>
-                  <p className="text-2xl font-bold text-white" data-testid="metric-total-activities">
+                  <p className="text-2xl font-bold text-foreground" data-testid="metric-total-activities">
                     {analyticsData?.topActivities?.reduce((sum: number, a: any) => sum + (a.count || 0), 0) || 0}
                   </p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="h-4 w-4 text-purple-400" />
-                    <span className="text-sm text-slate-400">Logins</span>
+                    <span className="text-sm text-muted-foreground">Logins</span>
                   </div>
-                  <p className="text-2xl font-bold text-white" data-testid="metric-logins-24h">
+                  <p className="text-2xl font-bold text-foreground" data-testid="metric-logins-24h">
                     {analyticsData?.recentLogins?.length || 0}
                   </p>
                 </div>
@@ -496,16 +496,16 @@ function AdminOverviewContent() {
 
               {analyticsData?.topPages && analyticsData.topPages.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400">Top Pages</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">Top Pages</h4>
                   <div className="space-y-2">
                     {analyticsData.topPages.slice(0, 5).map((page: { path: string; count: number }, idx: number) => (
                       <div 
                         key={page.path}
-                        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30"
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-slate-500 w-5">{idx + 1}.</span>
-                          <span className="text-sm text-white font-mono">{page.path}</span>
+                          <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
+                          <span className="text-sm text-foreground font-mono">{page.path}</span>
                         </div>
                         <Badge variant="outline" className="text-cyan-400 border-cyan-500/20">
                           {page.count} views
@@ -518,15 +518,15 @@ function AdminOverviewContent() {
 
               {analyticsData?.topActivities && analyticsData.topActivities.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400">Activity Breakdown</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">Activity Breakdown</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {analyticsData.topActivities.map((activity: { activityType: string; count: number }) => (
                       <div 
                         key={activity.activityType}
-                        className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 text-center"
+                        className="p-3 rounded-lg bg-muted/30 border border-border/30 text-center"
                       >
-                        <p className="text-lg font-semibold text-white">{activity.count}</p>
-                        <p className="text-xs text-slate-500 capitalize">
+                        <p className="text-lg font-semibold text-foreground">{activity.count}</p>
+                        <p className="text-xs text-muted-foreground capitalize">
                           {activity.activityType.replace(/_/g, ' ')}
                         </p>
                       </div>
@@ -540,13 +540,13 @@ function AdminOverviewContent() {
       </Card>
 
       {/* Bot Activity Section */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <Bot className="h-5 w-5 text-purple-400" />
             AI Bot Activity
           </CardTitle>
-          <CardDescription className="text-slate-500">
+          <CardDescription className="text-muted-foreground">
             Trade idea generation by source
           </CardDescription>
         </CardHeader>
@@ -554,50 +554,50 @@ function AdminOverviewContent() {
           {ideasLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map(i => (
-                <Skeleton key={i} className="h-20 bg-slate-800" />
+                <Skeleton key={i} className="h-20 bg-muted" />
               ))}
             </div>
           ) : (
             <div className="space-y-6">
               {/* Summary Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-4 w-4 text-cyan-400" />
-                    <span className="text-sm text-slate-400">Total Ideas</span>
+                    <span className="text-sm text-muted-foreground">Total Ideas</span>
                   </div>
-                  <p className="text-2xl font-bold text-white">{ideas.length}</p>
+                  <p className="text-2xl font-bold text-foreground">{ideas.length}</p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-400" />
-                    <span className="text-sm text-slate-400">Active</span>
+                    <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)]" />
+                    <span className="text-sm text-muted-foreground">Active</span>
                   </div>
-                  <p className="text-2xl font-bold text-green-400">{activeIdeas}</p>
+                  <p className="text-2xl font-bold text-[var(--trade-bullish)]">{activeIdeas}</p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Clock className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm text-slate-400">Expired</span>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Expired</span>
                   </div>
-                  <p className="text-2xl font-bold text-slate-400">{expiredIdeas}</p>
+                  <p className="text-2xl font-bold text-muted-foreground">{expiredIdeas}</p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm text-slate-400">Avg Confidence</span>
+                    <Target className="h-4 w-4 text-[var(--trade-neutral)]" />
+                    <span className="text-sm text-muted-foreground">Avg Confidence</span>
                   </div>
-                  <p className="text-2xl font-bold text-amber-400">{avgConfidence}%</p>
+                  <p className="text-2xl font-bold text-[var(--trade-neutral)]">{avgConfidence}%</p>
                 </div>
               </div>
 
               {/* Bot Breakdown */}
               {botStats.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-slate-400">Ideas by Bot</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">Ideas by Bot</h4>
                   <div className="space-y-2">
                     {botStats.slice(0, 6).map((bot) => {
                       const BotIcon = bot.icon;
@@ -605,16 +605,16 @@ function AdminOverviewContent() {
                       return (
                         <div
                           key={bot.source}
-                          className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30"
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30"
                         >
                           <div className="flex items-center gap-3">
-                            <div className={cn("p-1.5 rounded", "bg-slate-700/50")}>
+                            <div className={cn("p-1.5 rounded", "bg-muted/50")}>
                               <BotIcon className={cn("h-4 w-4", bot.color)} />
                             </div>
-                            <span className="text-sm text-white">{bot.label}</span>
+                            <span className="text-sm text-foreground">{bot.label}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                               <div
                                 className={cn("h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400")}
                                 style={{ width: `${percentage}%` }}
@@ -632,9 +632,9 @@ function AdminOverviewContent() {
               )}
 
               {botStats.length === 0 && (
-                <div className="text-center py-8 text-slate-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No bot activity recorded yet</p>
+                  <p>Bot activity will appear when running</p>
                 </div>
               )}
             </div>

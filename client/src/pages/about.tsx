@@ -129,7 +129,7 @@ export default function About() {
             About QuantEdge Labs
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-bold">
-            <span className="text-emerald-400">
+            <span className="text-[var(--trade-bullish)]">
               Multi-Engine Intelligence
             </span>
             <br />
@@ -146,8 +146,8 @@ export default function About() {
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
             <Card key={i} className="glass-card text-center">
-              <CardContent className="p-6">
-                <div className="text-3xl font-bold text-emerald-400">
+              <CardContent className="p-4">
+                <div className="text-3xl font-bold text-[var(--trade-bullish)]">
                   {stat.value}{stat.suffix}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
@@ -164,8 +164,8 @@ export default function About() {
             </div>
             <h2 className="text-2xl font-semibold">Our Mission</h2>
           </div>
-          <Card className="glass-card border-l-2 border-emerald-500/50">
-            <CardContent className="p-6">
+          <Card className="glass-card border-l-2 border-[var(--trade-bullish)]/50">
+            <CardContent className="p-4">
               <p className="text-muted-foreground leading-relaxed">
                 Financial markets generate millions of data points daily. Individual traders can't
                 possibly track technical patterns, fundamental changes, sentiment shifts, options flow,
@@ -192,7 +192,7 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {engines.map((engine, i) => (
               <Card key={i} className="glass-card group hover:border-cyan-500/30 transition-colors">
-                <CardContent className="p-5">
+                <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${engine.color} flex items-center justify-center flex-shrink-0`}>
                       <engine.icon className="h-5 w-5 text-white" />
@@ -221,9 +221,9 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {values.map((value, i) => (
               <Card key={i} className="glass-card">
-                <CardContent className="p-5">
+                <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-slate-800/50 flex items-center justify-center flex-shrink-0">
+                    <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center flex-shrink-0">
                       <value.icon className="h-4 w-4 text-cyan-400" />
                     </div>
                     <div>
@@ -246,7 +246,7 @@ export default function About() {
             <h2 className="text-2xl font-semibold">Development Timeline</h2>
           </div>
           <Card className="glass-card">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="space-y-4">
                 {milestones.map((milestone, i) => (
                   <div key={i} className="flex items-center gap-4">
@@ -274,7 +274,7 @@ export default function About() {
             {trustBadges.map((badge, i) => (
               <Card key={i} className="glass-card text-center">
                 <CardContent className="p-4">
-                  <badge.icon className="h-6 w-6 text-green-400 mx-auto mb-2" />
+                  <badge.icon className="h-6 w-6 text-[var(--trade-bullish)] mx-auto mb-2" />
                   <span className="text-xs text-muted-foreground">{badge.label}</span>
                 </CardContent>
               </Card>
@@ -295,7 +295,7 @@ export default function About() {
             <h2 className="text-2xl font-semibold">Meet the Creator</h2>
           </div>
           <Card className="glass-card">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-1 flex justify-center lg:justify-start">
                   <img

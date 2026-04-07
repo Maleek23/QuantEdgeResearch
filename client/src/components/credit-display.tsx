@@ -35,7 +35,7 @@ export function CreditDisplay({ compact = false, className }: CreditDisplayProps
         <Badge
           variant="outline"
           className={cn(
-            "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-medium",
+            "border-emerald-500/30 bg-emerald-500/10 text-[var(--trade-bullish)] font-medium",
             className
           )}
         >
@@ -49,7 +49,7 @@ export function CreditDisplay({ compact = false, className }: CreditDisplayProps
       <Badge
         variant="outline"
         className={cn(
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 px-3 py-1",
+          "border-emerald-500/30 bg-emerald-500/10 text-[var(--trade-bullish)] px-3 py-1",
           className
         )}
       >
@@ -69,7 +69,7 @@ export function CreditDisplay({ compact = false, className }: CreditDisplayProps
           <Badge
             variant="outline"
             className={cn(
-              "border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium cursor-pointer hover:bg-amber-500/20 transition-colors",
+              "border-amber-500/30 bg-amber-500/10 text-[var(--trade-neutral)] font-medium cursor-pointer hover:bg-amber-500/20 transition-colors",
               className
             )}
             onClick={() => setWaitlistOpen(true)}
@@ -93,10 +93,10 @@ export function CreditDisplay({ compact = false, className }: CreditDisplayProps
           )}
           onClick={() => setWaitlistOpen(true)}
         >
-          <Sparkles className="h-4 w-4 text-amber-400" />
-          <span className="text-amber-400 font-medium">Apply for Beta</span>
+          <Sparkles className="h-4 w-4 text-[var(--trade-neutral)]" />
+          <span className="text-[var(--trade-neutral)] font-medium">Apply for Beta</span>
           {trialsUsed > 0 && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               ({trialsUsed} trial{trialsUsed > 1 ? "s" : ""} used)
             </span>
           )}

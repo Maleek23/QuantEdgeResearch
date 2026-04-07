@@ -56,17 +56,17 @@ export function LivePriceTicker({
     <span
       className={cn(
         'inline-flex items-center gap-1 font-mono tabular-nums transition-colors duration-300',
-        flash === 'up' && 'animate-pulse text-green-400',
-        flash === 'down' && 'animate-pulse text-red-400',
-        !flash && direction === 'up' && 'text-green-400',
-        !flash && direction === 'down' && 'text-red-400',
+        flash === 'up' && 'animate-pulse text-[var(--trade-bullish)]',
+        flash === 'down' && 'animate-pulse text-[var(--trade-bearish)]',
+        !flash && direction === 'up' && 'text-[var(--trade-bullish)]',
+        !flash && direction === 'down' && 'text-[var(--trade-bearish)]',
         !flash && !direction && 'text-foreground',
         className
       )}
       data-testid={`price-ticker-${symbol}`}
     >
       {showLiveIndicator && isConnected && (
-        <Radio className="h-3 w-3 text-green-400 animate-pulse" />
+        <Radio className="h-3 w-3 text-[var(--trade-bullish)] animate-pulse" />
       )}
       <span className={cn(
         'transition-all duration-300',
@@ -77,9 +77,9 @@ export function LivePriceTicker({
       {showDirection && direction && (
         <>
           {direction === 'up' ? (
-            <TrendingUp className="h-3 w-3 text-green-400" />
+            <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
           ) : (
-            <TrendingDown className="h-3 w-3 text-red-400" />
+            <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
           )}
         </>
       )}

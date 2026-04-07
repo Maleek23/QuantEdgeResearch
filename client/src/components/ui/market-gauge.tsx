@@ -15,11 +15,11 @@ export function MarketStrengthGauge({
   const clampedValue = Math.max(0, Math.min(100, value));
   
   const sentiment = useMemo(() => {
-    if (clampedValue <= 25) return { text: "Bearish", color: "text-red-500" };
+    if (clampedValue <= 25) return { text: "Bearish", color: "text-[var(--trade-bearish)]" };
     if (clampedValue <= 45) return { text: "Weak", color: "text-orange-500" };
     if (clampedValue <= 55) return { text: "Neutral", color: "text-muted-foreground" };
-    if (clampedValue <= 75) return { text: "Bullish", color: "text-emerald-500" };
-    return { text: "Strong", color: "text-emerald-400" };
+    if (clampedValue <= 75) return { text: "Bullish", color: "text-[var(--trade-bullish)]" };
+    return { text: "Strong", color: "text-[var(--trade-bullish)]" };
   }, [clampedValue]);
 
   const rotation = useMemo(() => {
@@ -120,7 +120,7 @@ export function AltcoinSeasonIndex({ value, className }: AltcoinSeasonIndexProps
         </div>
         
         <div className="flex justify-between w-full mt-2 text-sm">
-          <span className="text-amber-500 font-medium">Bitcoin</span>
+          <span className="text-[var(--trade-neutral)] font-medium">Bitcoin</span>
           <span className="text-blue-500 font-medium">Altcoin</span>
         </div>
       </div>

@@ -295,9 +295,9 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
                         <span className="text-xs text-muted-foreground">Fill Probability</span>
                         <Badge variant="outline" className={cn(
                           "text-[10px] h-4",
-                          executionMetrics.fillProbability >= 90 ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                          executionMetrics.fillProbability >= 75 ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
-                          "bg-red-500/10 text-red-400 border-red-500/30"
+                          executionMetrics.fillProbability >= 90 ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" :
+                          executionMetrics.fillProbability >= 75 ? "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30" :
+                          "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                         )}>
                           {executionMetrics.fillProbability}%
                         </Badge>
@@ -315,9 +315,9 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
                         <span className="text-xs text-muted-foreground">Liquidity</span>
                         <Badge variant="outline" className={cn(
                           "text-[10px] h-4",
-                          executionMetrics.liquidityScore >= 70 ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                          executionMetrics.liquidityScore >= 40 ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
-                          "bg-red-500/10 text-red-400 border-red-500/30"
+                          executionMetrics.liquidityScore >= 70 ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" :
+                          executionMetrics.liquidityScore >= 40 ? "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30" :
+                          "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                         )}>
                           {executionMetrics.liquidityScore}
                         </Badge>
@@ -337,9 +337,9 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
                       </div>
                       <div className={cn(
                         "text-sm font-mono font-semibold mt-1",
-                        executionMetrics.estimatedSlippage <= 5 ? "text-green-400" :
-                        executionMetrics.estimatedSlippage <= 10 ? "text-amber-400" :
-                        "text-red-400"
+                        executionMetrics.estimatedSlippage <= 5 ? "text-[var(--trade-bullish)]" :
+                        executionMetrics.estimatedSlippage <= 10 ? "text-[var(--trade-neutral)]" :
+                        "text-[var(--trade-bearish)]"
                       )} data-testid="text-slippage">
                         {executionMetrics.estimatedSlippage} bps
                       </div>
@@ -353,10 +353,10 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
                       </div>
                       <Badge variant="outline" className={cn(
                         "text-[10px] mt-1",
-                        executionMetrics.timingQuality === 'optimal' ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                        executionMetrics.timingQuality === 'optimal' ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" :
                         executionMetrics.timingQuality === 'good' ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
-                        executionMetrics.timingQuality === 'fair' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
-                        "bg-red-500/10 text-red-400 border-red-500/30"
+                        executionMetrics.timingQuality === 'fair' ? "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30" :
+                        "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                       )} data-testid="badge-timing">
                         {executionMetrics.timingQuality.charAt(0).toUpperCase() + executionMetrics.timingQuality.slice(1)}
                       </Badge>
@@ -367,7 +367,7 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
                   <div className="mt-3 p-2 rounded bg-cyan-500/5 border border-cyan-500/20">
                     <div className="flex items-start gap-2">
                       {executionMetrics.liquidityScore < 40 && (
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
                       )}
                       <p className="text-xs text-muted-foreground" data-testid="text-execution-recommendation">
                         {executionMetrics.recommendation}
@@ -393,8 +393,8 @@ export function RiskCalculator({ symbol = '' }: { symbol?: string }) {
               {flowError && !flowLoading && (
                 <div className="mt-4 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm text-amber-400">Execution metrics unavailable</span>
+                    <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
+                    <span className="text-sm text-[var(--trade-neutral)]">Execution metrics unavailable</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Unable to fetch liquidity data for {tickerSymbol}. Default execution parameters will apply.

@@ -31,17 +31,17 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
     
     // For SHORT trades
     if (isShort) {
-      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-green-400', signal: 'Strong sell signal', isSupporting: true };
-      if (rsi >= 70) return { label: 'Overbought', color: 'text-green-300', signal: 'Sell signal', isSupporting: true };
-      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-red-400', signal: 'Already oversold (risky)', isSupporting: false };
-      if (rsi <= 30) return { label: 'Oversold', color: 'text-amber-400', signal: 'Approaching oversold', isSupporting: false };
+      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-[var(--trade-bullish)]', signal: 'Strong sell signal', isSupporting: true };
+      if (rsi >= 70) return { label: 'Overbought', color: 'text-[var(--trade-bullish)]', signal: 'Sell signal', isSupporting: true };
+      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-[var(--trade-bearish)]', signal: 'Already oversold (risky)', isSupporting: false };
+      if (rsi <= 30) return { label: 'Oversold', color: 'text-[var(--trade-neutral)]', signal: 'Approaching oversold', isSupporting: false };
     }
     // For LONG trades
     else {
-      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-green-400', signal: 'Strong buy signal', isSupporting: true };
-      if (rsi <= 30) return { label: 'Oversold', color: 'text-green-300', signal: 'Buy signal', isSupporting: true };
-      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-red-400', signal: 'Already overbought (risky)', isSupporting: false };
-      if (rsi >= 70) return { label: 'Overbought', color: 'text-amber-400', signal: 'Approaching overbought', isSupporting: false };
+      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-[var(--trade-bullish)]', signal: 'Strong buy signal', isSupporting: true };
+      if (rsi <= 30) return { label: 'Oversold', color: 'text-[var(--trade-bullish)]', signal: 'Buy signal', isSupporting: true };
+      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-[var(--trade-bearish)]', signal: 'Already overbought (risky)', isSupporting: false };
+      if (rsi >= 70) return { label: 'Overbought', color: 'text-[var(--trade-neutral)]', signal: 'Approaching overbought', isSupporting: false };
     }
     
     return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No clear signal', isSupporting: false };
@@ -51,21 +51,21 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
   const getMACDInterpretation = (histogram: number | null | undefined, isShort: boolean): { label: string; color: string; signal: string; isSupporting: boolean } => {
     if (histogram == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data', isSupporting: false };
     
-    if (Math.abs(histogram) < 0.05) return { label: 'Crossover Imminent', color: 'text-amber-400', signal: 'Watch closely', isSupporting: false };
+    if (Math.abs(histogram) < 0.05) return { label: 'Crossover Imminent', color: 'text-[var(--trade-neutral)]', signal: 'Watch closely', isSupporting: false };
     
     // For SHORT trades
     if (isShort) {
-      if (histogram > 0.5) return { label: 'Against Position', color: 'text-red-400', signal: 'Strong upward momentum', isSupporting: false };
-      if (histogram > 0) return { label: 'Against Position', color: 'text-amber-400', signal: 'Upward momentum', isSupporting: false };
-      if (histogram < -0.5) return { label: 'Supports Short', color: 'text-green-400', signal: 'Strong downward momentum', isSupporting: true };
-      if (histogram < 0) return { label: 'Supports Short', color: 'text-green-300', signal: 'Downward momentum', isSupporting: true };
+      if (histogram > 0.5) return { label: 'Against Position', color: 'text-[var(--trade-bearish)]', signal: 'Strong upward momentum', isSupporting: false };
+      if (histogram > 0) return { label: 'Against Position', color: 'text-[var(--trade-neutral)]', signal: 'Upward momentum', isSupporting: false };
+      if (histogram < -0.5) return { label: 'Supports Short', color: 'text-[var(--trade-bullish)]', signal: 'Strong downward momentum', isSupporting: true };
+      if (histogram < 0) return { label: 'Supports Short', color: 'text-[var(--trade-bullish)]', signal: 'Downward momentum', isSupporting: true };
     }
     // For LONG trades
     else {
-      if (histogram > 0.5) return { label: 'Supports Long', color: 'text-green-400', signal: 'Strong upward momentum', isSupporting: true };
-      if (histogram > 0) return { label: 'Supports Long', color: 'text-green-300', signal: 'Upward momentum', isSupporting: true };
-      if (histogram < -0.5) return { label: 'Against Position', color: 'text-red-400', signal: 'Strong downward momentum', isSupporting: false };
-      if (histogram < 0) return { label: 'Against Position', color: 'text-amber-400', signal: 'Downward momentum', isSupporting: false };
+      if (histogram > 0.5) return { label: 'Supports Long', color: 'text-[var(--trade-bullish)]', signal: 'Strong upward momentum', isSupporting: true };
+      if (histogram > 0) return { label: 'Supports Long', color: 'text-[var(--trade-bullish)]', signal: 'Upward momentum', isSupporting: true };
+      if (histogram < -0.5) return { label: 'Against Position', color: 'text-[var(--trade-bearish)]', signal: 'Strong downward momentum', isSupporting: false };
+      if (histogram < 0) return { label: 'Against Position', color: 'text-[var(--trade-neutral)]', signal: 'Downward momentum', isSupporting: false };
     }
     
     return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No trend', isSupporting: false };
@@ -75,12 +75,12 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
   const getVolumeInterpretation = (ratio: number | null | undefined): { label: string; color: string; signal: string } => {
     if (ratio == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data' };
     
-    if (ratio >= 5) return { label: 'Institutional Flow', color: 'text-green-400', signal: 'Major interest' };
-    if (ratio >= 3) return { label: 'Exceptional (3x+)', color: 'text-green-300', signal: 'High conviction' };
+    if (ratio >= 5) return { label: 'Institutional Flow', color: 'text-[var(--trade-bullish)]', signal: 'Major interest' };
+    if (ratio >= 3) return { label: 'Exceptional (3x+)', color: 'text-[var(--trade-bullish)]', signal: 'High conviction' };
     if (ratio >= 2) return { label: 'Strong (2x+)', color: 'text-cyan-400', signal: 'Above average' };
     if (ratio >= 1.5) return { label: 'Above Average', color: 'text-cyan-300', signal: 'Confirmed' };
     if (ratio >= 1.2) return { label: 'Confirmed', color: 'text-muted-foreground', signal: 'Normal' };
-    return { label: 'Below Average', color: 'text-amber-400', signal: 'Weak confirmation' };
+    return { label: 'Below Average', color: 'text-[var(--trade-neutral)]', signal: 'Weak confirmation' };
   };
 
   const isShort = idea.direction === 'SHORT';
@@ -106,7 +106,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
                 <span className="text-sm font-medium">RSI (14-period Wilder's)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">{safeToFixed(idea.rsiValue, 1)}</span>
+                <span className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.rsiValue, 1)}</span>
                 <Badge variant="outline" className={rsiInfo.color}>
                   {rsiInfo.label}
                 </Badge>
@@ -141,7 +141,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               </div>
               {idea.macdHistogram != null && (
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold font-mono">
+                  <span className="text-lg font-bold font-mono tabular-nums">
                     {idea.macdHistogram > 0 ? '+' : ''}{safeToFixed(idea.macdHistogram, 3)}
                   </span>
                   <Badge variant="outline" className={macdInfo.color}>
@@ -191,7 +191,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
                 <span className="text-sm font-medium">Volume vs Average</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold font-mono">{safeToFixed(idea.volumeRatio, 1)}x</span>
+                <span className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.volumeRatio, 1)}x</span>
                 <Badge variant="outline" className={volumeInfo.color}>
                   {volumeInfo.label}
                 </Badge>
@@ -215,13 +215,13 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               {idea.priceVs52WeekHigh != null && (
                 <div className="flex items-center justify-between p-2 bg-background/50 rounded">
                   <span className="text-muted-foreground">From High:</span>
-                  <span className="font-mono text-red-400">{safeToFixed(idea.priceVs52WeekHigh, 1)}%</span>
+                  <span className="font-mono text-[var(--trade-bearish)]">{safeToFixed(idea.priceVs52WeekHigh, 1)}%</span>
                 </div>
               )}
               {idea.priceVs52WeekLow != null && (
                 <div className="flex items-center justify-between p-2 bg-background/50 rounded">
                   <span className="text-muted-foreground">From Low:</span>
-                  <span className="font-mono text-green-400">{formatPercent(idea.priceVs52WeekLow, 1)}</span>
+                  <span className="font-mono text-[var(--trade-bullish)]">{formatPercent(idea.priceVs52WeekLow, 1)}</span>
                 </div>
               )}
             </div>

@@ -384,7 +384,7 @@ export function LiveChart({
         <span
           className={cn(
             "ml-2 text-xs font-mono",
-            isUp ? "text-emerald-400" : "text-red-400"
+            isUp ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}
         >
           {isUp ? "+" : ""}

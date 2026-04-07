@@ -126,7 +126,7 @@ export default function TradingRules() {
         </TabsList>
 
         {/* ======================= OPTIONS TAB ======================= */}
-        <TabsContent value="options" className="space-y-6 mt-6">
+        <TabsContent value="options" className="space-y-4 mt-4">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Options Position Sizing Calculator */}
             <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-options-sizing">
@@ -193,7 +193,7 @@ export default function TradingRules() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (50%):</span>
-                    <span className="font-mono font-medium text-red-400">-${safeToFixed(optionsStopLossAmount, 2)}</span>
+                    <span className="font-mono font-medium text-[var(--trade-bearish)]">-${safeToFixed(optionsStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -211,7 +211,7 @@ export default function TradingRules() {
                   </div>
                   {!optionsIsWithinRisk && (
                     <div className="flex items-start gap-3 p-3 rounded-lg glass border-l-2 border-l-amber-500">
-                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                      <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
                       <p className="text-sm text-muted-foreground">
                         Suggested: {optionsSuggestedContracts} contract(s) max for this price
                       </p>
@@ -226,7 +226,7 @@ export default function TradingRules() {
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
-                    <Target className="h-5 w-5 text-green-400" />
+                    <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
@@ -237,10 +237,10 @@ export default function TradingRules() {
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="h-4 w-4 text-red-400" />
-                    <span className="font-medium text-red-400">Stop Loss (50% drop)</span>
+                    <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
+                    <span className="font-medium text-[var(--trade-bearish)]">Stop Loss (50% drop)</span>
                   </div>
-                  <div className="text-2xl font-mono font-bold text-red-400">
+                  <div className="text-2xl font-mono font-bold text-[var(--trade-bearish)]">
                     ${safeToFixed(optionsStopLoss50, 2)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -252,10 +252,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 1 (50%)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 1 (50%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget50, 2)}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(optionsTarget50, 2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${safeToFixed(optionPrice * 50 * contracts, 2)}</p>
                   </div>
@@ -263,10 +263,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 2 (100%)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 2 (100%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget100, 2)}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(optionsTarget100, 2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Double your money: +${safeToFixed(optionPrice * 100 * contracts, 2)}</p>
                   </div>
@@ -274,10 +274,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 3 (200%)</span>
+                        <Zap className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 3 (200%)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(optionsTarget200, 2)}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(optionsTarget200, 2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Triple up: +${safeToFixed(optionPrice * 200 * contracts, 2)}</p>
                   </div>
@@ -291,7 +291,7 @@ export default function TradingRules() {
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-amber-400" />
+                  <Shield className="h-5 w-5 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Options Trading Rules</h3>
@@ -303,7 +303,7 @@ export default function TradingRules() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                     Risk Management
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -328,7 +328,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-400" />
+                    <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                     Entry Rules
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -378,7 +378,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-400" />
+                    <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
                     Things to Avoid
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -490,7 +490,7 @@ export default function TradingRules() {
         </TabsContent>
 
         {/* ======================= STOCKS TAB ======================= */}
-        <TabsContent value="stocks" className="space-y-6 mt-6">
+        <TabsContent value="stocks" className="space-y-4 mt-4">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Stocks Position Sizing Calculator */}
             <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-stocks-sizing">
@@ -557,7 +557,7 @@ export default function TradingRules() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (3.5%):</span>
-                    <span className="font-mono font-medium text-red-400">-${safeToFixed(stocksStopLossAmount, 2)}</span>
+                    <span className="font-mono font-medium text-[var(--trade-bearish)]">-${safeToFixed(stocksStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -575,7 +575,7 @@ export default function TradingRules() {
                   </div>
                   {!stocksIsWithinRisk && (
                     <div className="flex items-start gap-3 p-3 rounded-lg glass border-l-2 border-l-amber-500">
-                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                      <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
                       <p className="text-sm text-muted-foreground">
                         Suggested: {stocksSuggestedShares} shares max for this price
                       </p>
@@ -590,7 +590,7 @@ export default function TradingRules() {
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
-                    <Target className="h-5 w-5 text-green-400" />
+                    <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
@@ -601,10 +601,10 @@ export default function TradingRules() {
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="h-4 w-4 text-red-400" />
-                    <span className="font-medium text-red-400">Stop Loss (3.5% drop)</span>
+                    <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
+                    <span className="font-medium text-[var(--trade-bearish)]">Stop Loss (3.5% drop)</span>
                   </div>
-                  <div className="text-2xl font-mono font-bold text-red-400">
+                  <div className="text-2xl font-mono font-bold text-[var(--trade-bearish)]">
                     ${safeToFixed(stocksStopLossPrice, 2)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -616,10 +616,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 1 (7% - 2:1 R:R)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 1 (7% - 2:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(stocksTarget1, 2)}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(stocksTarget1, 2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Sell half, lock in +${safeToFixed((stocksTarget1 - stockPrice) * shares, 2)}</p>
                   </div>
@@ -627,10 +627,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 2 (10.5% - 3:1 R:R)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 2 (10.5% - 3:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${safeToFixed(stocksTarget2, 2)}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(stocksTarget2, 2)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Let winners run: +${safeToFixed((stocksTarget2 - stockPrice) * shares, 2)}</p>
                   </div>
@@ -651,7 +651,7 @@ export default function TradingRules() {
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-amber-400" />
+                  <Shield className="h-5 w-5 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Stock Trading Rules</h3>
@@ -663,7 +663,7 @@ export default function TradingRules() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                     Risk Management
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -688,7 +688,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-400" />
+                    <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                     Entry Rules
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -738,7 +738,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-400" />
+                    <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
                     Things to Avoid
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -766,7 +766,7 @@ export default function TradingRules() {
         </TabsContent>
 
         {/* ======================= CRYPTO TAB ======================= */}
-        <TabsContent value="crypto" className="space-y-6 mt-6">
+        <TabsContent value="crypto" className="space-y-4 mt-4">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Crypto Position Sizing Calculator */}
             <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-crypto-sizing">
@@ -833,7 +833,7 @@ export default function TradingRules() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Stop Loss (5%):</span>
-                    <span className="font-mono font-medium text-red-400">-${safeToFixed(cryptoStopLossAmount, 2)}</span>
+                    <span className="font-mono font-medium text-[var(--trade-bearish)]">-${safeToFixed(cryptoStopLossAmount, 2)}</span>
                   </div>
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">Risk Status:</span>
@@ -858,7 +858,7 @@ export default function TradingRules() {
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
-                    <Target className="h-5 w-5 text-green-400" />
+                    <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
@@ -869,10 +869,10 @@ export default function TradingRules() {
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingDown className="h-4 w-4 text-red-400" />
-                    <span className="font-medium text-red-400">Stop Loss (5% drop)</span>
+                    <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
+                    <span className="font-medium text-[var(--trade-bearish)]">Stop Loss (5% drop)</span>
                   </div>
-                  <div className="text-2xl font-mono font-bold text-red-400">
+                  <div className="text-2xl font-mono font-bold text-[var(--trade-bearish)]">
                     ${cryptoStopLossPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -884,10 +884,10 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 1 (10% - 2:1 R:R)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 1 (10% - 2:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${cryptoTarget1.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${cryptoTarget1.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Take partial profit: +${safeToFixed((cryptoTarget1 - cryptoPrice) * cryptoAmount, 2)}</p>
                   </div>
@@ -895,17 +895,17 @@ export default function TradingRules() {
                   <div className="p-4 rounded-lg glass-success">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Target 2 (15% - 3:1 R:R)</span>
+                        <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+                        <span className="text-sm font-medium text-[var(--trade-bullish)]">Target 2 (15% - 3:1 R:R)</span>
                       </div>
-                      <span className="text-lg font-mono font-bold text-green-400">${cryptoTarget2.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${cryptoTarget2.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Let winners run: +${safeToFixed((cryptoTarget2 - cryptoPrice) * cryptoAmount, 2)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 p-3 rounded-lg glass border-l-2 border-l-amber-500">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
                     Crypto trades 24/7. Set stop-loss orders on exchange - don't rely on watching the market manually.
                   </p>
@@ -919,7 +919,7 @@ export default function TradingRules() {
             <div className="p-5 pb-3">
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-amber-400" />
+                  <Shield className="h-5 w-5 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Crypto Trading Rules</h3>
@@ -931,7 +931,7 @@ export default function TradingRules() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                     Risk Management
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -956,7 +956,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-400" />
+                    <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                     Entry Rules
                   </h4>
                   <ul className="space-y-2 text-sm">
@@ -1006,7 +1006,7 @@ export default function TradingRules() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-400" />
+                    <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
                     Things to Avoid
                   </h4>
                   <ul className="space-y-2 text-sm">

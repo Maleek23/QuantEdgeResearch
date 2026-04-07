@@ -48,30 +48,30 @@ interface SignalAttributionData {
 function getTrendIcon(direction: string) {
   switch (direction) {
     case 'improving':
-      return <TrendingUp className="w-3 h-3 text-green-500" />;
+      return <TrendingUp className="w-3 h-3 text-[var(--trade-bullish)]" />;
     case 'declining':
-      return <TrendingDown className="w-3 h-3 text-red-500" />;
+      return <TrendingDown className="w-3 h-3 text-[var(--trade-bearish)]" />;
     default:
-      return <Minus className="w-3 h-3 text-slate-400" />;
+      return <Minus className="w-3 h-3 text-muted-foreground" />;
   }
 }
 
 function getGradeColor(grade: string) {
   switch (grade) {
-    case 'A': return 'bg-green-500/10 text-green-500 border-green-500/20';
+    case 'A': return 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20';
     case 'B': return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20';
-    case 'C': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    case 'C': return 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20';
     case 'D': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-    case 'F': return 'bg-red-500/10 text-red-500 border-red-500/20';
-    default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
+    case 'F': return 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20';
+    default: return 'bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20';
   }
 }
 
 function getWinRateColor(rate: number) {
-  if (rate >= 70) return 'text-green-400';
+  if (rate >= 70) return 'text-[var(--trade-bullish)]';
   if (rate >= 60) return 'text-cyan-400';
-  if (rate >= 50) return 'text-amber-400';
-  return 'text-red-400';
+  if (rate >= 50) return 'text-[var(--trade-neutral)]';
+  return 'text-[var(--trade-bearish)]';
 }
 
 function formatSignalName(name: string): string {
@@ -93,7 +93,7 @@ function formatSignalName(name: string): string {
 function SignalRow({ signal }: { signal: SignalStats }) {
   return (
     <div 
-      className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/50 hover-elevate"
+      className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 hover-elevate"
       data-testid={`signal-row-${signal.signalName}`}
     >
       <div className="flex items-center gap-3">
@@ -130,13 +130,13 @@ function SignalRow({ signal }: { signal: SignalStats }) {
               <div className="space-y-2">
                 <div className="font-medium">{formatSignalName(signal.signalName)}</div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>Avg Win: <span className="text-green-400">+{safeToFixed(signal.avgWinPercent, 2)}%</span></div>
-                  <div>Avg Loss: <span className="text-red-400">{safeToFixed(signal.avgLossPercent, 2)}%</span></div>
+                  <div>Avg Win: <span className="text-[var(--trade-bullish)]">+{safeToFixed(signal.avgWinPercent, 2)}%</span></div>
+                  <div>Avg Loss: <span className="text-[var(--trade-bearish)]">{safeToFixed(signal.avgLossPercent, 2)}%</span></div>
                   <div>Profit Factor: <span className="text-cyan-400">{safeToFixed(signal.profitFactor, 2)}</span></div>
-                  <div>Expectancy: <span className={signal.expectancy >= 0 ? 'text-green-400' : 'text-red-400'}>{safeToFixed(signal.expectancy, 2)}%</span></div>
+                  <div>Expectancy: <span className={signal.expectancy >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>{safeToFixed(signal.expectancy, 2)}%</span></div>
                 </div>
                 {(signal.stockWinRate > 0 || signal.optionWinRate > 0 || signal.cryptoWinRate > 0) && (
-                  <div className="pt-2 border-t border-slate-700 text-xs">
+                  <div className="pt-2 border-t border-border text-xs">
                     <div className="font-medium mb-1">By Asset Type:</div>
                     {signal.stockWinRate > 0 && <div>Stock: {safeToFixed(signal.stockWinRate, 1)}%</div>}
                     {signal.optionWinRate > 0 && <div>Options: {safeToFixed(signal.optionWinRate, 1)}%</div>}
@@ -183,7 +183,7 @@ export function SignalAttributionDashboard() {
 
   if (isLoading) {
     return (
-      <Card className="border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30">
+      <Card className="border-border/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-cyan-400" />
@@ -203,10 +203,10 @@ export function SignalAttributionDashboard() {
 
   if (error || !data) {
     return (
-      <Card className="border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30">
+      <Card className="border-border/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)]" />
             Signal Attribution Analytics
           </CardTitle>
         </CardHeader>
@@ -220,7 +220,7 @@ export function SignalAttributionDashboard() {
   const hasData = data.signals && data.signals.length > 0;
 
   return (
-    <Card className="border-slate-800/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30" data-testid="signal-attribution-dashboard">
+    <Card className="border-border/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30" data-testid="signal-attribution-dashboard">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
         <div>
           <CardTitle className="flex items-center gap-2">
@@ -267,9 +267,9 @@ export function SignalAttributionDashboard() {
             {data.topPerformers && data.topPerformers.length > 0 && (
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
-                  <Award className="w-4 h-4 text-green-400" />
+                  <Award className="w-4 h-4 text-[var(--trade-bullish)]" />
                   Top Performing Signals
-                  <Badge variant="outline" className="ml-auto text-green-400 border-green-400/30">60%+ Win Rate</Badge>
+                  <Badge variant="outline" className="ml-auto text-[var(--trade-bullish)] border-green-400/30">60%+ Win Rate</Badge>
                 </h3>
                 <div className="space-y-2">
                   {data.topPerformers.map(signal => (
@@ -282,9 +282,9 @@ export function SignalAttributionDashboard() {
             {data.worstPerformers && data.worstPerformers.length > 0 && (
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <AlertTriangle className="w-4 h-4 text-[var(--trade-neutral)]" />
                   Underperforming Signals
-                  <Badge variant="outline" className="ml-auto text-amber-400 border-amber-400/30">&lt;50% Win Rate</Badge>
+                  <Badge variant="outline" className="ml-auto text-[var(--trade-neutral)] border-amber-400/30">&lt;50% Win Rate</Badge>
                 </h3>
                 <div className="space-y-2">
                   {data.worstPerformers.map(signal => (

@@ -51,33 +51,33 @@ const getEngineIcon = (engine: string) => {
 };
 
 const getWinRateColor = (winRate: number) => {
-  if (winRate >= 70) return "text-green-500";
-  if (winRate >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (winRate >= 70) return "text-[var(--trade-bullish)]";
+  if (winRate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 };
 
 const getWinRateBg = (winRate: number) => {
-  if (winRate >= 70) return "bg-green-500";
+  if (winRate >= 70) return "bg-[var(--trade-bullish)]";
   if (winRate >= 50) return "bg-amber-500";
   return "bg-red-500";
 };
 
 const getGradeColor = (grade: string) => {
   switch (grade) {
-    case 'A': return 'bg-green-500/20 text-green-500 border-green-500/30';
+    case 'A': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
     case 'B': return 'bg-cyan-500/20 text-cyan-500 border-cyan-500/30';
-    case 'C': return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+    case 'C': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
     case 'D': return 'bg-orange-500/20 text-orange-500 border-orange-500/30';
-    case 'F': return 'bg-red-500/20 text-red-500 border-red-500/30';
+    case 'F': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
 };
 
 const getSharpeColor = (sharpe: number) => {
-  if (sharpe >= 1) return "text-green-500";
+  if (sharpe >= 1) return "text-[var(--trade-bullish)]";
   if (sharpe >= 0.5) return "text-cyan-500";
-  if (sharpe >= 0) return "text-amber-500";
-  return "text-red-500";
+  if (sharpe >= 0) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 };
 
 export default function EngineActualPerformance() {
@@ -138,8 +138,8 @@ export default function EngineActualPerformance() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <p className="text-xs text-muted-foreground">Best Engine</p>
-            <p className="font-semibold text-emerald-400">{summary.bestEngine}</p>
-            <p className="text-xs font-mono text-emerald-500">{summary.bestWinRate}% win rate</p>
+            <p className="font-semibold text-[var(--trade-bullish)]">{summary.bestEngine}</p>
+            <p className="text-xs font-mono text-[var(--trade-bullish)]">{summary.bestWinRate}% win rate</p>
           </div>
           <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
             <p className="text-xs text-muted-foreground">Sharpe Ratio</p>
@@ -152,7 +152,7 @@ export default function EngineActualPerformance() {
           </div>
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <p className="text-xs text-muted-foreground">Max Drawdown</p>
-            <p className="font-semibold font-mono text-red-400">-{summary.maxDrawdown}%</p>
+            <p className="font-semibold font-mono text-[var(--trade-bearish)]">-{summary.maxDrawdown}%</p>
             <p className="text-xs text-muted-foreground">Largest peak-to-trough</p>
           </div>
           <div className="p-3 rounded-lg bg-muted/30 border">
@@ -168,7 +168,7 @@ export default function EngineActualPerformance() {
               key={engine.engine}
               className={cn(
                 "p-4 rounded-lg border transition-colors",
-                index === 0 ? "bg-green-500/5 border-green-500/20" : "bg-muted/30"
+                index === 0 ? "bg-[var(--trade-bullish)]/5 border-green-500/20" : "bg-muted/30"
               )}
               data-testid={`engine-stats-${engine.engine}`}
             >
@@ -176,7 +176,7 @@ export default function EngineActualPerformance() {
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "p-2 rounded-md",
-                    index === 0 ? "bg-green-500/20 text-green-500" : "bg-muted text-muted-foreground"
+                    index === 0 ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-muted text-muted-foreground"
                   )}>
                     {getEngineIcon(engine.engine)}
                   </div>
@@ -205,7 +205,7 @@ export default function EngineActualPerformance() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                              <AlertTriangle className="h-3 w-3 text-[var(--trade-neutral)]" />
                             </TooltipTrigger>
                             <TooltipContent>
                               <p className="text-xs">Low sample size (n&lt;30)</p>
@@ -247,24 +247,24 @@ export default function EngineActualPerformance() {
               <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                 <div className="p-2 rounded bg-muted/50">
                   <p className="text-muted-foreground">Avg Win</p>
-                  <p className="font-mono text-green-500">+{engine.avgWin}%</p>
+                  <p className="font-mono text-[var(--trade-bullish)]">+{engine.avgWin}%</p>
                 </div>
                 <div className="p-2 rounded bg-muted/50">
                   <p className="text-muted-foreground">Avg Loss</p>
-                  <p className="font-mono text-red-500">-{engine.avgLoss}%</p>
+                  <p className="font-mono text-[var(--trade-bearish)]">-{engine.avgLoss}%</p>
                 </div>
                 <div className="p-2 rounded bg-muted/50">
                   <p className="text-muted-foreground">Profit Factor</p>
                   <p className={cn("font-mono", 
-                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1.5 ? "text-green-500" :
-                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1 ? "text-amber-500" : "text-red-500"
+                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" :
+                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                   )}>
                     {engine.profitFactor}
                   </p>
                 </div>
                 <div className="p-2 rounded bg-muted/50">
                   <p className="text-muted-foreground">Expectancy</p>
-                  <p className={cn("font-mono", engine.expectancy >= 0 ? "text-green-500" : "text-red-500")}>
+                  <p className={cn("font-mono", engine.expectancy >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                     {engine.expectancy >= 0 ? '+' : ''}{engine.expectancy}%
                   </p>
                 </div>
@@ -288,10 +288,10 @@ export default function EngineActualPerformance() {
 
         {engines.some(e => !e.isStatisticallySignificant) && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="text-sm text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-600 dark:text-[var(--trade-neutral)]">
               <p className="font-medium">Statistical Significance Warning</p>
-              <p className="text-xs mt-1 text-amber-500/80">
+              <p className="text-xs mt-1 text-[var(--trade-neutral)]/80">
                 Some engines have fewer than 30 trades. Results marked with grade D/F may not be statistically reliable.
                 A minimum of 30 samples is required for 95% confidence intervals to be meaningful.
               </p>

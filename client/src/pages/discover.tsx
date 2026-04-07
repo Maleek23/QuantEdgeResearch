@@ -102,14 +102,14 @@ export default function Discover() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-2xl font-semibold text-slate-100">Discover</h1>
-              <p className="text-sm text-slate-500">Market insights and financial news</p>
+              <h1 className="text-2xl font-semibold text-foreground/90">Discover</h1>
+              <p className="text-sm text-muted-foreground">Market insights and financial news</p>
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="border-slate-700 text-slate-400 hover:text-emerald-400"
+              className="border-border text-muted-foreground hover:text-[var(--trade-bullish)]"
             >
               <RefreshCw className={cn("w-4 h-4 mr-2", newsLoading && "animate-spin")} />
               Refresh
@@ -121,8 +121,8 @@ export default function Discover() {
             <div className="col-span-2">
               <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20">
                 <div className="mb-4 pb-3 border-b border-emerald-500/20">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--trade-bullish)]" />
                     Categories
                   </h3>
                 </div>
@@ -134,8 +134,8 @@ export default function Discover() {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all text-left",
                         activeCategory === cat.id
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-emerald-500/10 border border-transparent"
+                          ? "bg-emerald-500/20 text-[var(--trade-bullish)] border border-emerald-500/30"
+                          : "text-muted-foreground hover:text-foreground/80 hover:bg-emerald-500/10 border border-transparent"
                       )}
                     >
                       <cat.icon className="w-4 h-4" />
@@ -145,23 +145,23 @@ export default function Discover() {
                 </nav>
 
                 {/* Trending Stocks */}
-                <div className="mt-6 pt-4 border-t border-slate-700/50">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                <div className="mt-6 pt-4 border-t border-border/50">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Top Gainers
                   </h4>
                   {moversLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-8 bg-slate-800" />
+                        <Skeleton key={i} className="h-8 bg-muted" />
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {gainers.map((stock) => (
                         <Link key={stock.symbol} href={`/chart-analysis?symbol=${stock.symbol}`}>
-                          <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 cursor-pointer">
-                            <span className="text-sm font-medium text-emerald-400">{stock.symbol}</span>
-                            <span className="text-xs text-emerald-400">
+                          <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 cursor-pointer">
+                            <span className="text-sm font-medium text-[var(--trade-bullish)]">{stock.symbol}</span>
+                            <span className="text-xs text-[var(--trade-bullish)]">
                               +{safeToFixed(stock.change, 1)}%
                             </span>
                           </div>
@@ -176,12 +176,12 @@ export default function Discover() {
             {/* Main Content */}
             <div className="col-span-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-100">Featured Stories</h2>
+                <h2 className="text-lg font-semibold text-foreground/90">Featured Stories</h2>
               </div>
 
               {/* Featured Article Card */}
               {newsLoading ? (
-                <Skeleton className="h-80 bg-slate-800" />
+                <Skeleton className="h-80 bg-muted" />
               ) : featuredNews.length > 0 ? (
                 featuredNews.map((article, i) => (
                   <a
@@ -195,11 +195,11 @@ export default function Discover() {
                       <div className="aspect-[16/9] bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex items-center justify-center relative overflow-hidden">
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_50%)]" />
                         <div className="text-center relative z-10 p-6">
-                          <Newspaper className="w-16 h-16 text-emerald-500/30 mx-auto mb-4" />
+                          <Newspaper className="w-16 h-16 text-[var(--trade-bullish)]/30 mx-auto mb-4" />
                           {article.tickers && article.tickers.length > 0 && (
                             <div className="flex gap-2 justify-center">
                               {article.tickers.slice(0, 3).map((ticker) => (
-                                <Badge key={ticker} className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Badge key={ticker} className="bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30">
                                   {ticker}
                                 </Badge>
                               ))}
@@ -207,17 +207,17 @@ export default function Discover() {
                           )}
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
-                        <Badge className="absolute top-4 right-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        <Badge className="absolute top-4 right-4 bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30">
                           <Star className="w-3 h-3 mr-1" />
                           Featured
                         </Badge>
                       </div>
                       <div className="p-6">
-                        <h3 className="text-lg font-semibold text-slate-100 mb-3 group-hover:text-emerald-400 transition-colors leading-tight line-clamp-2">
+                        <h3 className="text-lg font-semibold text-foreground/90 mb-3 group-hover:text-[var(--trade-bullish)] transition-colors leading-tight line-clamp-2">
                           {article.title}
                         </h3>
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-sm text-slate-400">
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <span>{article.source}</span>
                             <span>·</span>
                             <div className="flex items-center gap-1">
@@ -225,7 +225,7 @@ export default function Discover() {
                               {formatTimeAgo(article.publishedAt)}
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm" className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="text-[var(--trade-bullish)] opacity-0 group-hover:opacity-100 transition-opacity">
                             Read <ExternalLink className="w-3 h-3 ml-1" />
                           </Button>
                         </div>
@@ -234,21 +234,21 @@ export default function Discover() {
                   </a>
                 ))
               ) : (
-                <Card className="p-12 text-center bg-slate-900/60 border-slate-800">
-                  <Newspaper className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-500">No news available</p>
+                <Card className="p-12 text-center bg-card/60 border-border">
+                  <Newspaper className="w-12 h-12 text-muted-foreground/70 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Loading news feed...</p>
                 </Card>
               )}
 
               {/* Breaking News Section */}
               <div className="mt-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-slate-100">Breaking News</h2>
+                  <h2 className="text-lg font-semibold text-foreground/90">Breaking News</h2>
                 </div>
                 {newsLoading ? (
                   <div className="grid grid-cols-2 gap-4">
                     {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-24 bg-slate-800" />
+                      <Skeleton key={i} className="h-24 bg-muted" />
                     ))}
                   </div>
                 ) : (
@@ -262,19 +262,19 @@ export default function Discover() {
                         className="block"
                       >
                         <Card className="p-4 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20 hover:border-cyan-500/40 transition-all cursor-pointer group h-full">
-                          <div className="flex items-center gap-2 mb-2 text-xs text-slate-500">
-                            <Newspaper className="w-3 h-3 text-emerald-500/70" />
+                          <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                            <Newspaper className="w-3 h-3 text-[var(--trade-bullish)]/70" />
                             <span>{article.source}</span>
                             <span>·</span>
                             <span>{formatTimeAgo(article.publishedAt)}</span>
                           </div>
-                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-emerald-400 transition-colors">
+                          <p className="text-sm text-foreground/80 line-clamp-2 group-hover:text-[var(--trade-bullish)] transition-colors">
                             {article.title}
                           </p>
                           {article.tickers && article.tickers.length > 0 && (
                             <div className="mt-2 flex gap-1">
                               {article.tickers.slice(0, 2).map((ticker) => (
-                                <Badge key={ticker} variant="outline" className="text-xs border-slate-700 text-slate-400">
+                                <Badge key={ticker} variant="outline" className="text-xs border-border text-muted-foreground">
                                   {ticker}
                                 </Badge>
                               ))}
@@ -291,13 +291,13 @@ export default function Discover() {
             {/* Right Sidebar - More Articles + Earnings */}
             <div className="col-span-4">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-slate-400">Latest News</span>
+                <span className="text-sm text-muted-foreground">Latest News</span>
               </div>
 
               {newsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-20 bg-slate-800" />
+                    <Skeleton key={i} className="h-20 bg-muted" />
                   ))}
                 </div>
               ) : (
@@ -313,13 +313,13 @@ export default function Discover() {
                       <Card className="flex gap-3 cursor-pointer group p-3 bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border-emerald-500/20 hover:border-cyan-500/40 transition-all">
                         <div className="w-20 h-14 rounded-lg bg-gradient-to-br from-cyan-900/20 via-slate-800 to-slate-900 flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.15),transparent)]" />
-                          <Newspaper className="w-6 h-6 text-slate-600 relative z-10" />
+                          <Newspaper className="w-6 h-6 text-muted-foreground/70 relative z-10" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-200 line-clamp-2 group-hover:text-emerald-400 transition-colors mb-1">
+                          <p className="text-sm text-foreground/80 line-clamp-2 group-hover:text-[var(--trade-bullish)] transition-colors mb-1">
                             {article.title}
                           </p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{article.source}</span>
                             <span>·</span>
                             <Clock className="w-3 h-3" />
@@ -334,29 +334,29 @@ export default function Discover() {
 
               {/* Upcoming Earnings */}
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-[var(--trade-bullish)]" />
                   Upcoming Earnings
                 </h3>
-                <Card className="p-4 bg-slate-900/60 border-slate-800">
+                <Card className="p-4 bg-card/60 border-border">
                   {earningsLoading ? (
                     <div className="space-y-2">
                       {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-10 bg-slate-800" />
+                        <Skeleton key={i} className="h-10 bg-muted" />
                       ))}
                     </div>
                   ) : earnings.length > 0 ? (
                     <div className="space-y-3">
                       {earnings.map((earning, i) => (
                         <Link key={i} href={`/chart-analysis?symbol=${earning.symbol}`}>
-                          <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 cursor-pointer">
+                          <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 cursor-pointer">
                             <div className="flex items-center gap-3">
-                              <span className="font-semibold text-emerald-400">{earning.symbol}</span>
-                              <span className="text-xs text-slate-500 truncate max-w-[100px]">
+                              <span className="font-semibold text-[var(--trade-bullish)]">{earning.symbol}</span>
+                              <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                                 {earning.companyName}
                               </span>
                             </div>
-                            <div className="text-xs text-slate-400">
+                            <div className="text-xs text-muted-foreground">
                               {new Date(earning.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                               {earning.time === "BMO" ? " Pre" : earning.time === "AMC" ? " After" : ""}
                             </div>
@@ -365,7 +365,7 @@ export default function Discover() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500 text-center py-4">No upcoming earnings</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No earnings this week</p>
                   )}
                 </Card>
               </div>

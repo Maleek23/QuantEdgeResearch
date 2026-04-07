@@ -104,7 +104,7 @@ export function WaitlistPopup({ open, onOpenChange }: WaitlistPopupProps) {
               />
               <Button 
                 type="submit" 
-                className="w-full bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-semibold"
+                className="w-full bg-cyan-500 text-foreground hover:bg-cyan-400 font-semibold"
                 disabled={joinWaitlist.isPending}
                 data-testid="button-join-waitlist"
               >

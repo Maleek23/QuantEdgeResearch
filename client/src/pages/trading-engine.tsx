@@ -165,7 +165,7 @@ function BotCard({
 }) {
   return (
     <Card className={cn(
-      "bg-slate-900/50 backdrop-blur-xl border-slate-700/30 hover:border-slate-600/50 transition-all duration-300",
+      "bg-card/50 backdrop-blur-xl border-border/30 hover:border-border/50 transition-all duration-300",
       "shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)] hover:shadow-[0_0_40px_-10px_rgba(34,211,238,0.12)]"
     )} data-testid={`card-${title.toLowerCase().replace(' ', '-')}`}>
       <CardHeader className="pb-3">
@@ -180,32 +180,32 @@ function BotCard({
               <Icon className={cn("w-5 h-5", iconColor)} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-100">{title}</h3>
-              <p className="text-[10px] text-slate-400 font-mono tracking-wide">{subtitle}</p>
+              <h3 className="font-bold text-sm text-foreground/95">{title}</h3>
+              <p className="text-[10px] text-muted-foreground font-mono tracking-wide">{subtitle}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-500/15 border border-green-500/25">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
-            <span className="text-[10px] font-bold text-green-400 tracking-wide">LIVE</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--trade-bullish)]/15 border border-green-500/25">
+            <span className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+            <span className="text-[10px] font-bold text-[var(--trade-bullish)] tracking-wide">LIVE</span>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Capital</p>
+          <div className="p-3 rounded-lg bg-muted/40 border border-border/30">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-widest mb-1">Capital</p>
             <p className={cn("text-xl font-bold font-mono", iconColor)}>${capital}</p>
           </div>
-          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">P&L</p>
-            <p className={cn("text-xl font-bold font-mono", pnl >= 0 ? "text-green-400" : "text-red-400")}>
+          <div className="p-3 rounded-lg bg-muted/40 border border-border/30">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-widest mb-1">P&L</p>
+            <p className={cn("text-xl font-bold font-mono", pnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {pnl >= 0 ? "+" : ""}{safeToFixed(pnl, 2)}
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
-          <span>Open: <span className="text-slate-200">{openPositions}</span></span>
-          <span>Win: <span className="text-slate-200">{winRate}%</span></span>
+        <div className="flex items-center justify-between text-xs font-mono text-muted-foreground px-1">
+          <span>Open: <span className="text-foreground/90">{openPositions}</span></span>
+          <span>Win: <span className="text-foreground/90">{winRate}%</span></span>
         </div>
       </CardContent>
     </Card>
@@ -232,9 +232,9 @@ function BotActivityMonitor() {
   
   const getStatusDisplay = () => {
     if (isMarketOpen) {
-      return { label: 'SCANNING', textColor: 'text-green-400' };
+      return { label: 'SCANNING', textColor: 'text-[var(--trade-bullish)]' };
     }
-    return { label: 'MARKET CLOSED', textColor: 'text-amber-400' };
+    return { label: 'MARKET CLOSED', textColor: 'text-[var(--trade-neutral)]' };
   };
   
   const status = getStatusDisplay();
@@ -260,17 +260,17 @@ function BotActivityMonitor() {
       <CardContent className="space-y-4 pt-2">
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="p-3 rounded-md bg-muted/40 border border-border/30">
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Active</div>
-            <div className="text-2xl font-mono font-bold">{openPositions}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Active</div>
+            <div className="text-2xl font-mono font-bold tabular-nums">{openPositions}</div>
           </div>
           <div className="p-3 rounded-md bg-muted/40 border border-border/30">
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold">Volume</div>
-            <div className="text-2xl font-mono font-bold">{todayTrades}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Volume</div>
+            <div className="text-2xl font-mono font-bold tabular-nums">{todayTrades}</div>
           </div>
           <div className="p-3 rounded-md bg-muted/40 border border-border/30">
-            <div className="text-[10px] text-muted-foreground uppercase font-semibold">P&L</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">P&L</div>
             <div className={cn("text-2xl font-mono font-bold",
-              todayPnL >= 0 ? "text-green-400" : "text-red-400"
+              todayPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {todayPnL >= 0 ? '+' : ''}{safeToFixed(todayPnL, 0, '0')}
             </div>
@@ -328,18 +328,18 @@ function MLIntelligenceWidget() {
   const topSignals = scan?.signals?.slice(0, 5) || [];
 
   const getRegimeColor = (r: string) => {
-    if (r?.includes('bull')) return 'text-green-400';
-    if (r?.includes('bear')) return 'text-red-400';
-    if (r?.includes('high_volatility')) return 'text-amber-400';
-    return 'text-slate-400';
+    if (r?.includes('bull')) return 'text-[var(--trade-bullish)]';
+    if (r?.includes('bear')) return 'text-[var(--trade-bearish)]';
+    if (r?.includes('high_volatility')) return 'text-[var(--trade-neutral)]';
+    return 'text-muted-foreground';
   };
 
   const getRiskColor = (level: string) => {
-    if (level === 'low') return 'bg-green-500/15 text-green-400 border-green-500/30';
-    if (level === 'medium') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+    if (level === 'low') return 'bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] border-green-500/30';
+    if (level === 'medium') return 'bg-amber-500/15 text-[var(--trade-neutral)] border-amber-500/30';
     if (level === 'high') return 'bg-orange-500/15 text-orange-400 border-orange-500/30';
-    if (level === 'extreme') return 'bg-red-500/15 text-red-400 border-red-500/30';
-    return 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+    if (level === 'extreme') return 'bg-red-500/15 text-[var(--trade-bearish)] border-red-500/30';
+    return 'bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30';
   };
 
   return (
@@ -350,7 +350,7 @@ function MLIntelligenceWidget() {
             <Layers className="h-4 w-4" />
             ML Intelligence
           </CardTitle>
-          <Badge variant="outline" className={cn("text-[10px] font-mono", status?.isActive ? "text-green-400" : "text-amber-400")}>
+          <Badge variant="outline" className={cn("text-[10px] font-mono", status?.isActive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]")}>
             {status?.isActive ? 'ACTIVE' : 'LOADING'}
           </Badge>
         </div>
@@ -358,21 +358,21 @@ function MLIntelligenceWidget() {
       <CardContent className="space-y-4">
         {/* System Status Row */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/30">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Models</div>
+          <div className="p-2 rounded-lg bg-muted/50 border border-border/30">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide mb-1">Models</div>
             <div className="text-lg font-mono font-bold text-purple-400">{modelsLoaded}/5</div>
           </div>
-          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/30">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Cache</div>
-            <div className="text-lg font-mono font-bold text-slate-300">{status?.cacheStats?.predictions || 0}</div>
+          <div className="p-2 rounded-lg bg-muted/50 border border-border/30">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide mb-1">Cache</div>
+            <div className="text-lg font-mono font-bold text-foreground/80">{status?.cacheStats?.predictions || 0}</div>
           </div>
         </div>
 
         {/* Market Regime */}
         {regime && (
-          <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
+          <div className="p-3 rounded-lg bg-muted/40 border border-border/30">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wide">Regime</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide">Regime</span>
               <Badge className={cn("text-[10px]", getRiskColor(regime.riskLevel))}>
                 {regime.riskLevel?.toUpperCase() || 'UNKNOWN'}
               </Badge>
@@ -386,19 +386,19 @@ function MLIntelligenceWidget() {
         {/* Top ML Signals */}
         {topSignals.length > 0 && (
           <div className="space-y-2">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Top Signals</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide">Top Signals</div>
             {topSignals.map((s, i) => (
-              <div key={i} className="flex items-center justify-between p-2 rounded bg-slate-800/30 border border-slate-700/20">
+              <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/30 border border-border/20">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-sm">{s.symbol}</span>
-                  {s.direction === 'bullish' && <TrendingUp className="w-3 h-3 text-green-400" />}
-                  {s.direction === 'bearish' && <TrendingDown className="w-3 h-3 text-red-400" />}
+                  {s.direction === 'bullish' && <TrendingUp className="w-3 h-3 text-[var(--trade-bullish)]" />}
+                  {s.direction === 'bearish' && <TrendingDown className="w-3 h-3 text-[var(--trade-bearish)]" />}
                 </div>
                 <Badge variant="outline" className={cn("text-[10px]",
-                  s.recommendation === 'strong_buy' ? "text-green-400" :
-                  s.recommendation === 'buy' ? "text-green-300" :
+                  s.recommendation === 'strong_buy' ? "text-[var(--trade-bullish)]" :
+                  s.recommendation === 'buy' ? "text-[var(--trade-bullish)]" :
                   s.recommendation === 'sell' ? "text-red-300" :
-                  s.recommendation === 'strong_sell' ? "text-red-400" : "text-slate-400"
+                  s.recommendation === 'strong_sell' ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                 )}>
                   {safeToFixed(s.confidence, 0, '0')}%
                 </Badge>
@@ -409,7 +409,7 @@ function MLIntelligenceWidget() {
 
         {/* Scanned Count */}
         {scan?.scanned && (
-          <div className="text-[10px] text-center text-slate-500 font-mono">
+          <div className="text-[10px] text-center text-muted-foreground font-mono">
             {scan.scanned} symbols scanned
           </div>
         )}
@@ -453,7 +453,7 @@ function PaperPortfolios() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-mono">${safeToFixed(totalValue, 0, '0')}</span>
                   <Badge variant="outline" className={cn("text-xs",
-                    pnlPct >= 0 ? "text-green-400" : "text-red-400"
+                    pnlPct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )}>
                     {pnlPct >= 0 ? '+' : ''}{safeToFixed(pnlPct, 1, '0.0')}%
                   </Badge>
@@ -512,7 +512,7 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-base tracking-tight">{s.symbol}</span>
                 {s.convergenceLevel >= 2 && (
-                  <Badge variant="outline" className="text-[10px] h-4 text-amber-400 border-amber-400/50 px-1 font-mono uppercase">
+                  <Badge variant="outline" className="text-[10px] h-4 text-[var(--trade-neutral)] border-amber-400/50 px-1 font-mono uppercase">
                     HIGH
                   </Badge>
                 )}
@@ -540,8 +540,8 @@ function HotSymbolsWidget({ onSelectSymbol }: { onSelectSymbol: (symbol: string)
 
 function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }) {
   const getBiasColor = (bias: string) => {
-    if (bias === 'bullish') return 'text-green-400';
-    if (bias === 'bearish') return 'text-red-400';
+    if (bias === 'bullish') return 'text-[var(--trade-bullish)]';
+    if (bias === 'bearish') return 'text-[var(--trade-bearish)]';
     return 'text-muted-foreground';
   };
 
@@ -585,8 +585,8 @@ function FundamentalPanel({ data }: { data: TradingEngineResult['fundamental'] }
 
 function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical']; symbol: string }) {
   const getTrendColor = (direction: string) => {
-    if (direction === 'bullish' || direction === 'up') return 'text-green-400';
-    if (direction === 'bearish' || direction === 'down') return 'text-red-400';
+    if (direction === 'bullish' || direction === 'up') return 'text-[var(--trade-bullish)]';
+    if (direction === 'bearish' || direction === 'down') return 'text-[var(--trade-bearish)]';
     return 'text-muted-foreground';
   };
 
@@ -608,8 +608,8 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">RSI(14)</span>
           <span className={cn("text-sm font-mono",
-            data.momentum.rsi14 > 70 ? "text-red-400" :
-            data.momentum.rsi14 < 30 ? "text-green-400" : "text-foreground"
+            data.momentum.rsi14 > 70 ? "text-[var(--trade-bearish)]" :
+            data.momentum.rsi14 < 30 ? "text-[var(--trade-bullish)]" : "text-foreground"
           )}>
             {safeToFixed(data.momentum.rsi14, 1, '0.0')}
           </span>
@@ -637,13 +637,13 @@ function TechnicalPanel({ data, symbol }: { data: TradingEngineResult['technical
             </div>
             {data.levels.support[0] && (
               <div className="flex justify-between">
-                <span className="text-green-400">S1:</span>
+                <span className="text-[var(--trade-bullish)]">S1:</span>
                 <span className="font-mono">${safeToFixed(data.levels.support[0], 2)}</span>
               </div>
             )}
             {data.levels.resistance[0] && (
               <div className="flex justify-between">
-                <span className="text-red-400">R1:</span>
+                <span className="text-[var(--trade-bearish)]">R1:</span>
                 <span className="font-mono">${safeToFixed(data.levels.resistance[0], 2)}</span>
               </div>
             )}
@@ -670,25 +670,25 @@ function TradeStructurePanel({ data, symbol }: { data: NonNullable<TradingEngine
     <Card className="bg-gradient-to-br from-green-500/5 to-transparent border-green-500/20">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Target className="h-4 w-4 text-green-400" />
+          <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
           Trade Structure
-          <Badge className="bg-green-500 text-green-950 text-[10px]">ACTIONABLE</Badge>
+          <Badge className="bg-[var(--trade-bullish)] text-foreground text-[10px]">ACTIONABLE</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="p-3 rounded-lg bg-muted/30">
-            <div className="text-[10px] text-muted-foreground uppercase">Entry</div>
-            <div className="text-lg font-mono font-bold text-green-400">${safeToFixed(data.entry.price, 2)}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Entry</div>
+            <div className="text-lg font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(data.entry.price, 2)}</div>
             <div className="text-[10px] text-muted-foreground">{data.entry.type}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30">
-            <div className="text-[10px] text-muted-foreground uppercase">Stop</div>
-            <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(data.stop.price, 2)}</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Stop</div>
+            <div className="text-lg font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(data.stop.price, 2)}</div>
             <div className="text-[10px] text-muted-foreground">{data.stop.type}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30">
-            <div className="text-[10px] text-muted-foreground uppercase">Target</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Target</div>
             <div className="text-lg font-mono font-bold text-cyan-400">
               ${safeToFixed(data.targets[0]?.price, 2) || '--'}
             </div>
@@ -699,21 +699,21 @@ function TradeStructurePanel({ data, symbol }: { data: NonNullable<TradingEngine
         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30">
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-[10px] text-muted-foreground uppercase">R:R Ratio</div>
-              <div className="text-xl font-mono font-bold">{safeToFixed(data.riskReward, 2)}:1</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">R:R Ratio</div>
+              <div className="text-xl font-mono font-bold tabular-nums">{safeToFixed(data.riskReward, 2)}:1</div>
             </div>
             <div className="h-8 w-px bg-border" />
             <div>
-              <div className="text-[10px] text-muted-foreground uppercase">Direction</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Direction</div>
               <Badge variant="outline" className={cn("text-xs",
-                data.direction === 'long' ? "text-green-400" : "text-red-400"
+                data.direction === 'long' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {data.direction.toUpperCase()}
               </Badge>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-muted-foreground uppercase">Timeframe</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Timeframe</div>
             <div className="text-sm font-medium">{data.timeframe}</div>
           </div>
         </div>
@@ -733,8 +733,8 @@ function NewsPanelWithInsights({ data, symbol, currentPrice }: {
         <CardTitle className="text-sm flex items-center gap-2">
           News & Sentiment
           <Badge variant="outline" className={cn("text-xs",
-            data.newsBias === 'bullish' ? "text-green-400" : 
-            data.newsBias === 'bearish' ? "text-red-400" : "text-muted-foreground"
+            data.newsBias === 'bullish' ? "text-[var(--trade-bullish)]" : 
+            data.newsBias === 'bearish' ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
           )}>
             {data.sentimentLabel}
           </Badge>
@@ -806,12 +806,12 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
 
   if (!symbol) {
     return (
-      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30">
+      <Card className="bg-card/50 backdrop-blur-xl border-border/30">
         <CardContent className="py-16 text-center">
           <div className="p-5 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-2xl border border-cyan-500/20 w-fit mx-auto mb-6">
             <Search className="h-10 w-10 text-cyan-400/60" />
           </div>
-          <h3 className="text-xl font-bold mb-2 text-slate-300">Enter a Symbol to Begin</h3>
+          <h3 className="text-xl font-bold mb-2 text-foreground/80">Enter a Symbol to Begin</h3>
           <p className="text-muted-foreground font-mono text-sm max-w-md mx-auto">
             The 6-engine analysis will provide ML, AI, Quant, Flow, Sentiment & Technical insights for any ticker.
           </p>
@@ -824,7 +824,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
     return (
       <Card className="bg-card/80 border-red-500/30 backdrop-blur-xl">
         <CardContent className="py-16 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-400 animate-pulse" />
+          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-[var(--trade-bearish)] animate-pulse" />
           <h3 className="text-xl font-bold mb-2">Engine Execution Fault</h3>
           <p className="text-muted-foreground font-mono text-sm max-w-md mx-auto">
             The quantitative engine failed to synthesize data for {symbol}. 
@@ -840,9 +840,9 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
   }
 
   const getAlignmentColor = (alignment: string) => {
-    if (alignment === 'strong') return 'bg-green-500/10 text-green-400 border-green-500/30';
-    if (alignment === 'moderate') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    if (alignment === 'conflict') return 'bg-red-500/10 text-red-400 border-red-500/30';
+    if (alignment === 'strong') return 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30';
+    if (alignment === 'moderate') return 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30';
+    if (alignment === 'conflict') return 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30';
     return 'bg-muted text-muted-foreground';
   };
 
@@ -861,12 +861,12 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
             <div className="flex items-start gap-3">
               <AlertTriangle className={cn(
                 "h-5 w-5 mt-0.5",
-                lossData?.shouldAvoid ? "text-red-400" : "text-amber-400"
+                lossData?.shouldAvoid ? "text-[var(--trade-bearish)]" : "text-[var(--trade-neutral)]"
               )} />
               <div className="flex-1">
                 <h4 className={cn(
                   "font-bold text-sm",
-                  lossData?.shouldAvoid ? "text-red-400" : "text-amber-400"
+                  lossData?.shouldAvoid ? "text-[var(--trade-bearish)]" : "text-[var(--trade-neutral)]"
                 )}>
                   {lossData?.shouldAvoid ? "SYMBOL BLOCKED - Loss Cooldown Active" : "Loss History Detected"}
                 </h4>
@@ -896,7 +896,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
         "bg-card/80 backdrop-blur-2xl border-border/60 shadow-2xl overflow-hidden transition-all duration-500",
         data.actionable ? "ring-1 ring-green-500/20 shadow-green-500/5" : ""
       )}>
-        <div className={cn("h-1", data.actionable ? "bg-green-500" : "bg-muted")}></div>
+        <div className={cn("h-1", data.actionable ? "bg-[var(--trade-bullish)]" : "bg-muted")}></div>
         <CardHeader className="p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
@@ -904,7 +904,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
                 <h2 className="text-4xl font-bold font-mono tracking-tighter">{data.symbol}</h2>
                 <Badge variant="outline" className="text-[10px] font-mono uppercase">{data.assetClass}</Badge>
                 {data.actionable && (
-                  <Badge className="bg-green-500 text-green-950 font-bold px-2 py-0.5 animate-pulse">
+                  <Badge className="bg-[var(--trade-bullish)] text-foreground font-bold px-2 py-0.5 animate-pulse">
                     READY
                   </Badge>
                 )}
@@ -915,8 +915,8 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
               <div className="text-right">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Confluence</div>
                 <div className={cn("text-3xl font-bold font-mono tabular-nums", 
-                  data.confluence.score >= 80 ? "text-green-400" : 
-                  data.confluence.score >= 60 ? "text-amber-400" : "text-red-400"
+                  data.confluence.score >= 80 ? "text-[var(--trade-bullish)]" : 
+                  data.confluence.score >= 60 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {data.confluence.score}%
                 </div>
@@ -941,12 +941,12 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
                   <div key={i} className="flex items-start gap-3 group">
                     <div className={cn(
                       "mt-1 p-0.5 rounded-full transition-colors",
-                      check.passed ? "bg-green-500/20" : "bg-red-500/20"
+                      check.passed ? "bg-[var(--trade-bullish)]/20" : "bg-red-500/20"
                     )}>
                       {check.passed ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
                       ) : (
-                        <XCircle className="h-3.5 w-3.5 text-red-400" />
+                        <XCircle className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
                       )}
                     </div>
                     <div className="flex-1">
@@ -960,14 +960,14 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
             
             {data.confluence.warnings.length > 0 && (
               <div className="space-y-4">
-                <h4 className="text-[10px] font-bold text-amber-500/80 uppercase tracking-widest flex items-center gap-2">
+                <h4 className="text-[10px] font-bold text-[var(--trade-neutral)]/80 uppercase tracking-widest flex items-center gap-2">
                   <AlertTriangle className="h-3 w-3" />
                   Risk Advisories
                 </h4>
                 <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-lg space-y-2">
                   {data.confluence.warnings.map((w, i) => (
                     <div key={i} className="flex gap-2 text-xs text-amber-200/70 leading-snug">
-                      <span className="text-amber-500">•</span>
+                      <span className="text-[var(--trade-neutral)]">•</span>
                       {w}
                     </div>
                   ))}
@@ -1078,7 +1078,7 @@ function BotsOverviewTab() {
           title="Crypto Bot"
           subtitle="24/7 (13 coins)"
           icon={Bitcoin}
-          iconColor="text-amber-400"
+          iconColor="text-[var(--trade-neutral)]"
           borderColor="border-amber-500/30"
           capital={botData?.cryptoPortfolio?.startingCapital || 300}
           pnl={botData?.cryptoPortfolio?.totalPnL || 0}
@@ -1089,7 +1089,7 @@ function BotsOverviewTab() {
           title="Small Account"
           subtitle="<$500 Strategies"
           icon={Rocket}
-          iconColor="text-green-400"
+          iconColor="text-[var(--trade-bullish)]"
           borderColor="border-green-500/30"
           capital={300}
           pnl={0}
@@ -1106,7 +1106,7 @@ function BotsOverviewTab() {
       
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-slate-900/60 border-slate-700/50">
+        <Card className="bg-card/60 border-border/50">
           <CardContent className="p-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Search className="w-5 h-5 text-cyan-400" />
@@ -1122,7 +1122,7 @@ function BotsOverviewTab() {
             </Link>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/60 border-slate-700/50">
+        <Card className="bg-card/60 border-border/50">
           <CardContent className="p-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Activity className="w-5 h-5 text-purple-400" />
@@ -1138,17 +1138,17 @@ function BotsOverviewTab() {
             </Link>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/60 border-slate-700/50">
+        <Card className="bg-card/60 border-border/50">
           <CardContent className="p-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Target className="w-5 h-5 text-amber-400" />
+              <Target className="w-5 h-5 text-[var(--trade-neutral)]" />
               <div>
                 <h4 className="font-semibold text-sm">Performance</h4>
                 <p className="text-xs text-muted-foreground">Track your results</p>
               </div>
             </div>
             <Link href="/performance">
-              <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-400">
+              <Button size="sm" variant="outline" className="border-amber-500/30 text-[var(--trade-neutral)]">
                 Open
               </Button>
             </Link>
@@ -1191,7 +1191,7 @@ export default function TradingEnginePage() {
     <div className="min-h-screen text-foreground">
       <div className="max-w-[1600px] mx-auto px-6 py-8 space-y-8">
         {/* Aurora Grid Header */}
-        <div className="flex flex-wrap items-center justify-between gap-6 p-8 bg-slate-900/40 backdrop-blur-2xl border border-slate-700/30 rounded-2xl shadow-[0_0_60px_-15px_rgba(34,211,238,0.1)]">
+        <div className="flex flex-wrap items-center justify-between gap-6 p-8 bg-card/40 backdrop-blur-2xl border border-border/30 rounded-2xl shadow-[0_0_60px_-15px_rgba(34,211,238,0.1)]">
           <div className="flex items-center gap-5">
             <div className="p-4 bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
               <Target className="h-7 w-7 text-cyan-400" />
@@ -1201,15 +1201,15 @@ export default function TradingEnginePage() {
                 Command Center
                 <Badge className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2 h-5">UNIFIED</Badge>
               </h1>
-              <p className="text-sm font-mono text-slate-400 uppercase tracking-[0.2em] mt-2">
+              <p className="text-sm font-mono text-muted-foreground uppercase tracking-[0.2em] mt-2">
                 {format(new Date(), 'EEEE, MMMM d, yyyy')} • {marketContext?.shouldTrade ? 'SESSION ACTIVE' : 'SESSION CLOSED'} • {marketContext?.tradingSession?.replace(/_/g, ' ').toUpperCase() || ''}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex flex-col items-end px-5 border-r border-slate-700/50">
-              <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Status</span>
-              <span className={cn("text-base font-mono font-bold", marketContext?.shouldTrade ? "text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]" : "text-amber-400")}>
+            <div className="hidden md:flex flex-col items-end px-5 border-r border-border/50">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Status</span>
+              <span className={cn("text-base font-mono font-bold", marketContext?.shouldTrade ? "text-[var(--trade-bullish)] drop-shadow-[0_0_8px_rgba(74,222,128,0.4)]" : "text-[var(--trade-neutral)]")}>
                 {marketContext?.shouldTrade ? "LIVE" : "CLOSED"}
               </span>
             </div>
@@ -1227,7 +1227,7 @@ export default function TradingEnginePage() {
 
         {/* Main Tabs - Aurora Grid Style */}
         <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-8">
-          <TabsList className="inline-flex h-14 bg-slate-900/60 backdrop-blur-xl border border-slate-700/40 rounded-xl p-1.5 gap-2">
+          <TabsList className="inline-flex h-14 bg-card/60 backdrop-blur-xl border border-border/40 rounded-xl p-1.5 gap-2">
             <TabsTrigger 
               value="analysis" 
               data-testid="tab-analysis"
@@ -1243,7 +1243,7 @@ export default function TradingEnginePage() {
             >
               <Bot className="w-4 h-4 mr-2" />
               Bots
-              <Badge className="ml-2 h-5 px-1.5 text-[9px] bg-green-500/20 text-green-400 border border-green-500/40 animate-pulse">LIVE</Badge>
+              <Badge className="ml-2 h-5 px-1.5 text-[9px] bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border border-green-500/40 animate-pulse">LIVE</Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="positions" 
@@ -1266,27 +1266,27 @@ export default function TradingEnginePage() {
           {/* Analysis Tab - Simplified Layout */}
           <TabsContent value="analysis" className="mt-0 space-y-6">
             {/* Symbol Search Bar - Clean and Prominent */}
-            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/40">
-              <CardContent className="p-6">
+            <Card className="bg-card/50 backdrop-blur-xl border-border/40">
+              <CardContent className="p-4">
                 <div className="flex flex-wrap gap-4 items-end">
                   <div className="flex-1 min-w-[250px]">
-                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">Symbol</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Symbol</label>
                     <div className="relative">
                       <Input
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         placeholder="NVDA, QQQ, BTC..."
-                        className="h-12 bg-slate-800/60 border-slate-600/50 font-mono tracking-wide pl-10"
+                        className="h-12 bg-muted/60 border-border/50 font-mono tracking-wide pl-10"
                         data-testid="input-symbol"
                       />
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
                   <div className="w-[160px]">
-                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2 block">Type</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Type</label>
                     <Tabs value={assetClass} onValueChange={(v) => setAssetClass(v as AssetClass)} className="w-full">
-                      <TabsList className="grid grid-cols-2 h-12 bg-slate-800/60 border border-slate-600/50 p-1 rounded-lg">
+                      <TabsList className="grid grid-cols-2 h-12 bg-muted/60 border border-border/50 p-1 rounded-lg">
                         <TabsTrigger value="stock" className="text-xs font-medium rounded data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-stock">Stock</TabsTrigger>
                         <TabsTrigger value="options" className="text-xs font-medium rounded data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-options">Options</TabsTrigger>
                       </TabsList>

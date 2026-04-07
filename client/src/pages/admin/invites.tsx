@@ -181,11 +181,11 @@ function AdminInvitesContent() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      pending: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20",
       sent: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-      redeemed: "bg-green-500/10 text-green-400 border-green-500/20",
-      expired: "bg-slate-500/10 text-slate-400 border-slate-500/20",
-      revoked: "bg-red-500/10 text-red-400 border-red-500/20",
+      redeemed: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20",
+      expired: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
+      revoked: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
     };
     const icons = {
       pending: <Clock className="h-3 w-3" />,
@@ -217,50 +217,50 @@ function AdminInvitesContent() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Pending</p>
-                <p className="text-2xl font-bold text-amber-400">{pendingCount}</p>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-[var(--trade-neutral)]">{pendingCount}</p>
               </div>
-              <Clock className="h-8 w-8 text-amber-400/20" />
+              <Clock className="h-8 w-8 text-[var(--trade-neutral)]/20" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Sent</p>
+                <p className="text-sm text-muted-foreground">Sent</p>
                 <p className="text-2xl font-bold text-cyan-400">{sentCount}</p>
               </div>
               <Send className="h-8 w-8 text-cyan-400/20" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Redeemed</p>
-                <p className="text-2xl font-bold text-green-400">{redeemedCount}</p>
+                <p className="text-sm text-muted-foreground">Redeemed</p>
+                <p className="text-2xl font-bold text-[var(--trade-bullish)]">{redeemedCount}</p>
               </div>
-              <CheckCircle2 className="h-8 w-8 text-green-400/20" />
+              <CheckCircle2 className="h-8 w-8 text-[var(--trade-bullish)]/20" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <Mail className="h-5 w-5 text-cyan-400" />
                 Beta Invites
               </CardTitle>
-              <CardDescription className="text-slate-500">
+              <CardDescription className="text-muted-foreground">
                 Manage invite codes and track redemptions
               </CardDescription>
             </div>
@@ -269,7 +269,7 @@ function AdminInvitesContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-foreground/80"
                 data-testid="button-refresh-invites"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -282,31 +282,31 @@ function AdminInvitesContent() {
                     Create Invite
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-slate-700">
+                <DialogContent className="bg-card border-border">
                   <DialogHeader>
-                    <DialogTitle className="text-white">Create New Invite</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogTitle className="text-foreground">Create New Invite</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
                       Generate a new invite code for beta access
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Email Address</label>
+                      <label className="text-sm text-muted-foreground">Email Address</label>
                       <Input
                         placeholder="user@example.com"
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className="bg-muted border-border text-foreground"
                         data-testid="input-invite-email"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Subscription Tier</label>
+                      <label className="text-sm text-muted-foreground">Subscription Tier</label>
                       <Select value={newTier} onValueChange={setNewTier}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white" data-testid="select-invite-tier">
+                        <SelectTrigger className="bg-muted border-border text-foreground" data-testid="select-invite-tier">
                           <SelectValue placeholder="Select tier" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectContent className="bg-muted border-border">
                           <SelectItem value="free">Free</SelectItem>
                           <SelectItem value="advanced">Advanced</SelectItem>
                           <SelectItem value="pro">Pro</SelectItem>
@@ -314,12 +314,12 @@ function AdminInvitesContent() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm text-slate-400">Notes (optional)</label>
+                      <label className="text-sm text-muted-foreground">Notes (optional)</label>
                       <Textarea
                         placeholder="Internal notes about this invite..."
                         value={newNotes}
                         onChange={(e) => setNewNotes(e.target.value)}
-                        className="bg-slate-800 border-slate-700 text-white resize-none"
+                        className="bg-muted border-border text-foreground resize-none"
                         rows={3}
                         data-testid="input-invite-notes"
                       />
@@ -329,7 +329,7 @@ function AdminInvitesContent() {
                     <Button 
                       variant="outline" 
                       onClick={() => setShowCreateDialog(false)}
-                      className="border-slate-700 text-slate-300"
+                      className="border-border text-foreground/80"
                     >
                       Cancel
                     </Button>
@@ -351,43 +351,43 @@ function AdminInvitesContent() {
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-16 bg-slate-800" />
+                <Skeleton key={i} className="h-16 bg-muted" />
               ))}
             </div>
           ) : invites.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-muted-foreground">
               <Mail className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No invites created yet</p>
+              <p>Create an invite to get started</p>
               <p className="text-sm mt-1">Click "Create Invite" to get started</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800 hover:bg-transparent">
-                    <TableHead className="text-slate-400">Email</TableHead>
-                    <TableHead className="text-slate-400">Access Code</TableHead>
-                    <TableHead className="text-slate-400">Status</TableHead>
-                    <TableHead className="text-slate-400">Tier</TableHead>
-                    <TableHead className="text-slate-400">Expires</TableHead>
-                    <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Email</TableHead>
+                    <TableHead className="text-muted-foreground">Access Code</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-muted-foreground">Tier</TableHead>
+                    <TableHead className="text-muted-foreground">Expires</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invites.map((invite) => (
-                    <TableRow key={invite.id} className="border-slate-800" data-testid={`row-invite-${invite.id}`}>
+                    <TableRow key={invite.id} className="border-border" data-testid={`row-invite-${invite.id}`}>
                       <TableCell>
-                        <p className="font-medium text-white">{invite.email}</p>
+                        <p className="font-medium text-foreground">{invite.email}</p>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="text-xs text-cyan-400 font-mono bg-slate-800/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
+                          <code className="text-xs text-cyan-400 font-mono bg-muted/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
                             {invite.token}
                           </code>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-slate-400 hover:text-cyan-400"
+                            className="h-6 w-6 text-muted-foreground hover:text-cyan-400"
                             onClick={() => {
                               navigator.clipboard.writeText(invite.token);
                               setCopiedId(invite.id + '-code');
@@ -398,7 +398,7 @@ function AdminInvitesContent() {
                             title="Copy access code"
                           >
                             {copiedId === invite.id + '-code' ? (
-                              <CheckCircle2 className="h-3 w-3 text-green-400" />
+                              <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
                             ) : (
                               <Copy className="h-3 w-3" />
                             )}
@@ -407,11 +407,11 @@ function AdminInvitesContent() {
                       </TableCell>
                       <TableCell>{getStatusBadge(invite.status)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-slate-300 border-slate-600">
+                        <Badge variant="outline" className="text-foreground/80 border-border">
                           {invite.tierOverride || 'free'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-slate-400 text-sm">
+                      <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(invite.expiresAt), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>
@@ -419,12 +419,12 @@ function AdminInvitesContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-slate-400 hover:text-white"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => copyInviteLink(invite.token, invite.id)}
                             data-testid={`button-copy-${invite.id}`}
                           >
                             {copiedId === invite.id ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-400" />
+                              <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)]" />
                             ) : (
                               <Copy className="h-4 w-4" />
                             )}
@@ -446,7 +446,7 @@ function AdminInvitesContent() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-amber-400 hover:text-amber-300"
+                              className="h-8 w-8 text-[var(--trade-neutral)] hover:text-amber-300"
                               onClick={() => resendInviteMutation.mutate(invite.id)}
                               disabled={resendInviteMutation.isPending}
                               data-testid={`button-resend-${invite.id}`}
@@ -459,7 +459,7 @@ function AdminInvitesContent() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-red-400 hover:text-red-300"
+                              className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300"
                               onClick={() => revokeInviteMutation.mutate(invite.id)}
                               data-testid={`button-revoke-${invite.id}`}
                               title="Revoke invite"

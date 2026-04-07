@@ -130,7 +130,7 @@ export default function LearningDashboard() {
                 Self-Improving
               </Badge>
             </div>
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               Watch your 6 engines learn and improve from every trade
             </p>
           </div>
@@ -217,7 +217,7 @@ export default function LearningDashboard() {
                               >
                                 {insight.category}
                               </Badge>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">
                                 {safeToFixed(insight.confidence * 100, 0)}% confidence
                               </span>
                             </div>
@@ -317,9 +317,9 @@ export default function LearningDashboard() {
             <Card className="bg-gray-900/50 border-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
-                  <Target className="w-5 h-5 text-green-400" />
+                  <Target className="w-5 h-5 text-[var(--trade-bullish)]" />
                   Learned Thresholds
-                  <Badge className="bg-green-500/20 text-green-400 ml-2">
+                  <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] ml-2">
                     Auto-Adjusted
                   </Badge>
                 </CardTitle>
@@ -327,25 +327,25 @@ export default function LearningDashboard() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-gray-800/50 rounded-xl">
-                    <div className="text-sm text-gray-400 mb-1">Min Confluence</div>
+                    <div className="text-sm text-muted-foreground mb-1">Min Confluence</div>
                     <div className="text-2xl font-bold text-white">
                       {learningData.learnedThresholds.confluence?.minScore || 55}
                     </div>
                   </div>
                   <div className="p-4 bg-gray-800/50 rounded-xl">
-                    <div className="text-sm text-gray-400 mb-1">Optimal Confluence</div>
+                    <div className="text-sm text-muted-foreground mb-1">Optimal Confluence</div>
                     <div className="text-2xl font-bold text-white">
                       {learningData.learnedThresholds.confluence?.optimalScore || 70}
                     </div>
                   </div>
                   <div className="p-4 bg-gray-800/50 rounded-xl">
-                    <div className="text-sm text-gray-400 mb-1">Min R:R Ratio</div>
+                    <div className="text-sm text-muted-foreground mb-1">Min R:R Ratio</div>
                     <div className="text-2xl font-bold text-white">
                       {learningData.learnedThresholds.riskReward?.minRatio || 1.5}:1
                     </div>
                   </div>
                   <div className="p-4 bg-gray-800/50 rounded-xl">
-                    <div className="text-sm text-gray-400 mb-1">Best Hour</div>
+                    <div className="text-sm text-muted-foreground mb-1">Best Hour</div>
                     <div className="text-2xl font-bold text-white">
                       {learningData.learnedThresholds.timing?.bestHour || 10}:00
                     </div>

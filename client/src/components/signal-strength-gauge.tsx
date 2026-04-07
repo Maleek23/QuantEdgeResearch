@@ -32,9 +32,9 @@ export function SignalStrengthGauge() {
     if (score >= 70) return {
       from: 'from-green-500',
       to: 'to-emerald-600',
-      text: 'text-green-500',
+      text: 'text-[var(--trade-bullish)]',
       label: 'High Probability',
-      bg: 'bg-green-500/10'
+      bg: 'bg-[var(--trade-bullish)]/10'
     };
     if (score >= 40) return {
       from: 'from-yellow-500',
@@ -46,7 +46,7 @@ export function SignalStrengthGauge() {
     return {
       from: 'from-red-500',
       to: 'to-rose-600',
-      text: 'text-red-500',
+      text: 'text-[var(--trade-bearish)]',
       label: 'Caution',
       bg: 'bg-red-500/10'
     };

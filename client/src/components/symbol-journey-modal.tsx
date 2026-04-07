@@ -39,11 +39,11 @@ interface TimelineEvent {
 
 const TIER_COLORS: Record<string, string> = {
   S: 'text-purple-400 bg-purple-500/20 border-purple-500/40',
-  A: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/40',
+  A: 'text-[var(--trade-bullish)] bg-emerald-500/20 border-emerald-500/40',
   B: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/40',
-  C: 'text-amber-400 bg-amber-500/20 border-amber-500/40',
+  C: 'text-[var(--trade-neutral)] bg-amber-500/20 border-amber-500/40',
   D: 'text-orange-400 bg-orange-500/20 border-orange-500/40',
-  F: 'text-red-400 bg-red-500/20 border-red-500/40',
+  F: 'text-[var(--trade-bearish)] bg-red-500/20 border-red-500/40',
 };
 
 function getEventIcon(type: TimelineEvent['type']) {
@@ -178,7 +178,7 @@ export default function SymbolJourneyModal({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden" data-testid="symbol-journey-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <span className="text-2xl font-bold font-mono">{symbol}</span>
+            <span className="text-2xl font-bold font-mono tabular-nums">{symbol}</span>
             {watchlistItem?.tier && (
               <Badge className={cn("text-sm font-bold", TIER_COLORS[watchlistItem.tier])}>
                 {watchlistItem.tier}
@@ -225,7 +225,7 @@ export default function SymbolJourneyModal({
                 </div>
               ) : timelineEvents.length > 0 ? (
                 <div className="relative">
-                  <div className="absolute left-5 top-0 bottom-0 w-px bg-slate-700" />
+                  <div className="absolute left-5 top-0 bottom-0 w-px bg-muted" />
                   <div className="space-y-6">
                     {timelineEvents.map((event) => {
                       const Icon = getEventIcon(event.type);
@@ -233,10 +233,10 @@ export default function SymbolJourneyModal({
                         <div key={event.id} className="flex gap-4 relative" data-testid={`event-${event.id}`}>
                           <div className={cn(
                             "w-10 h-10 rounded-full flex items-center justify-center z-10",
-                            event.type === 'traded' ? 'bg-green-500/20 text-green-400' :
+                            event.type === 'traded' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' :
                             event.type === 'grade_change' ? 'bg-cyan-500/20 text-cyan-400' :
                             event.type === 'added' ? 'bg-purple-500/20 text-purple-400' :
-                            'bg-slate-700 text-slate-400'
+                            'bg-muted text-muted-foreground'
                           )}>
                             <Icon className="h-5 w-5" />
                           </div>
@@ -256,7 +256,7 @@ export default function SymbolJourneyModal({
                                 {event.scoreDelta !== undefined && (
                                   <span className={cn(
                                     "text-xs font-mono",
-                                    event.scoreDelta > 0 ? "text-green-400" : "text-red-400"
+                                    event.scoreDelta > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                   )}>
                                     ({event.scoreDelta > 0 ? '+' : ''}{event.scoreDelta} pts)
                                   </span>
@@ -304,7 +304,7 @@ export default function SymbolJourneyModal({
                 {notesLoading ? (
                   <div className="space-y-3">
                     {[1, 2].map((i) => (
-                      <Card key={i} className="bg-slate-800/50">
+                      <Card key={i} className="bg-muted/50">
                         <CardContent className="p-3">
                           <Skeleton className="h-4 w-full mb-2" />
                           <Skeleton className="h-3 w-1/3" />
@@ -315,7 +315,7 @@ export default function SymbolJourneyModal({
                 ) : notes && notes.length > 0 ? (
                   <div className="space-y-3">
                     {notes.map((note) => (
-                      <Card key={note.id} className="bg-slate-800/50 border-slate-700/50" data-testid={`note-${note.id}`}>
+                      <Card key={note.id} className="bg-muted/50 border-border/50" data-testid={`note-${note.id}`}>
                         <CardContent className="p-3">
                           <p className="text-sm">{note.content}</p>
                           <div className="flex items-center justify-between mt-2">
@@ -352,28 +352,28 @@ export default function SymbolJourneyModal({
 
           <TabsContent value="stats" className="mt-4">
             <div className="grid grid-cols-2 gap-4">
-              <Card className="bg-slate-800/50 border-slate-700/50">
+              <Card className="bg-muted/50 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs text-muted-foreground">Days Watched</span>
                   </div>
-                  <p className="text-2xl font-bold font-mono">{stats.daysWatched}</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums">{stats.daysWatched}</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700/50">
+              <Card className="bg-muted/50 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="h-4 w-4 text-purple-400" />
                     <span className="text-xs text-muted-foreground">Score Evolution</span>
                   </div>
-                  <p className="text-2xl font-bold font-mono">
+                  <p className="text-2xl font-bold font-mono tabular-nums">
                     {stats.initialScore} → {Math.round(stats.currentScore)}
                     <span className={cn(
                       "text-sm ml-2",
-                      stats.scoreImprovement > 0 ? "text-green-400" : 
-                      stats.scoreImprovement < 0 ? "text-red-400" : "text-slate-400"
+                      stats.scoreImprovement > 0 ? "text-[var(--trade-bullish)]" : 
+                      stats.scoreImprovement < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                     )}>
                       ({stats.scoreImprovement > 0 ? '+' : ''}{stats.scoreImprovement})
                     </span>
@@ -381,46 +381,46 @@ export default function SymbolJourneyModal({
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700/50">
+              <Card className="bg-muted/50 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-4 w-4 text-green-400" />
+                    <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
                     <span className="text-xs text-muted-foreground">Times Traded</span>
                   </div>
-                  <p className="text-2xl font-bold font-mono">{stats.timesTraded}x</p>
+                  <p className="text-2xl font-bold font-mono tabular-nums">{stats.timesTraded}x</p>
                   {stats.timesTraded > 0 && (
                     <p className="text-sm text-muted-foreground">
                       Win rate: <span className={cn(
                         "font-mono",
-                        stats.winRate >= 50 ? "text-green-400" : "text-red-400"
+                        stats.winRate >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>{stats.winRate}%</span>
                     </p>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/50 border-slate-700/50">
+              <Card className="bg-muted/50 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="h-4 w-4 text-amber-400" />
+                    <BarChart3 className="h-4 w-4 text-[var(--trade-neutral)]" />
                     <span className="text-xs text-muted-foreground">Total P&L</span>
                   </div>
                   <p className={cn(
                     "text-2xl font-bold font-mono",
-                    stats.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+                    stats.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )}>
                     {stats.totalPnl >= 0 ? '+' : ''}${Math.abs(stats.totalPnl).toLocaleString()}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="col-span-2 bg-slate-800/50 border-slate-700/50">
+              <Card className="col-span-2 bg-muted/50 border-border/50">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="h-4 w-4 text-slate-400" />
+                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Average Score ({year})</span>
                   </div>
-                  <p className="text-xl font-bold font-mono">{stats.avgScore}/100</p>
+                  <p className="text-xl font-bold font-mono tabular-nums">{stats.avgScore}/100</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Based on {history?.length || 0} daily snapshots
                   </p>

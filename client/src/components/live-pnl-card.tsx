@@ -81,7 +81,7 @@ export function LivePnLCard() {
 
   if (isLoading) {
     return (
-      <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-slate-700/50">
+      <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-border/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Loader2 className="h-4 w-4 text-cyan-400 animate-spin" />
@@ -97,7 +97,7 @@ export function LivePnLCard() {
   }
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-slate-700/50">
+    <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-border/50">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -105,7 +105,7 @@ export function LivePnLCard() {
             Live Unrealized P&L
           </CardTitle>
           {isConnected && (
-            <Badge variant="outline" className="text-xs gap-1 border-green-500/50 text-green-400">
+            <Badge variant="outline" className="text-xs gap-1 border-green-500/50 text-[var(--trade-bullish)]">
               <Radio className="h-3 w-3 animate-pulse" />
               LIVE
             </Badge>
@@ -123,7 +123,7 @@ export function LivePnLCard() {
                   'text-3xl font-bold tabular-nums font-mono transition-all duration-300',
                   flash === 'up' && 'animate-pulse scale-105',
                   flash === 'down' && 'animate-pulse scale-105',
-                  livePnL >= 0 ? 'text-green-400' : 'text-red-400'
+                  livePnL >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                 )}>
                   <span className="flex items-center gap-2">
                     {livePnL >= 0 ? (
@@ -157,7 +157,7 @@ export function LivePnLCard() {
                   }
 
                   return (
-                    <div key={pos.id} className="flex items-center justify-between text-sm bg-slate-800/50 rounded px-2 py-1">
+                    <div key={pos.id} className="flex items-center justify-between text-sm bg-muted/50 rounded px-2 py-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{pos.symbol}</span>
                         <Badge variant="outline" className="text-xs py-0">
@@ -166,7 +166,7 @@ export function LivePnLCard() {
                       </div>
                       <span className={cn(
                         'font-mono text-xs',
-                        pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                        pnl >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                       )}>
                         {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
                       </span>

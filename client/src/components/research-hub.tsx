@@ -41,7 +41,7 @@ export function InsightBar({ context }: { context?: 'research' | 'trade-desk' | 
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800/50 mb-6">
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-card/60 border border-border/50 mb-6">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-4 w-20" />
@@ -51,23 +51,23 @@ export function InsightBar({ context }: { context?: 'research' | 'trade-desk' | 
 
   if (!data) return null;
 
-  const biasColor = data.bias === 'Long' ? 'text-emerald-400' : data.bias === 'Short' ? 'text-red-400' : 'text-slate-400';
+  const biasColor = data.bias === 'Long' ? 'text-[var(--trade-bullish)]' : data.bias === 'Short' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground';
   const riskColor =
-    data.riskLevel === 'Low' ? 'text-emerald-400' :
-    data.riskLevel === 'Moderate' ? 'text-amber-400' :
+    data.riskLevel === 'Low' ? 'text-[var(--trade-bullish)]' :
+    data.riskLevel === 'Moderate' ? 'text-[var(--trade-neutral)]' :
     data.riskLevel === 'Elevated' ? 'text-orange-400' :
-    data.riskLevel === 'High' ? 'text-red-400' : 'text-slate-400';
+    data.riskLevel === 'High' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground';
 
   return (
-    <div className="flex items-center gap-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800/50 mb-6 overflow-x-auto">
+    <div className="flex items-center gap-4 p-3 rounded-lg bg-card/60 border border-border/50 mb-6 overflow-x-auto">
       <div className="flex items-center gap-2">
         <Brain className="h-4 w-4 text-cyan-400 shrink-0" />
-        <span className="text-xs text-slate-500 uppercase">Insight</span>
+        <span className="text-xs text-muted-foreground uppercase">Insight</span>
       </div>
 
       <div className="flex items-center gap-1.5">
-        <Activity className="h-3 w-3 text-slate-500" />
-        <span className="text-xs text-slate-400">{data.regimeLabel || data.regime}</span>
+        <Activity className="h-3 w-3 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">{data.regimeLabel || data.regime}</span>
       </div>
 
       <Badge variant="outline" className={cn("text-xs", biasColor, "border-current/30")}>
@@ -75,20 +75,20 @@ export function InsightBar({ context }: { context?: 'research' | 'trade-desk' | 
       </Badge>
 
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-slate-500">Risk:</span>
+        <span className="text-xs text-muted-foreground">Risk:</span>
         <span className={cn("text-xs font-medium", riskColor)}>{data.riskLevel}</span>
       </div>
 
       {data.topEngine && data.topEngineWinRate && data.topEngineWinRate >= 55 && (
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-          <span className="text-slate-500">Top:</span>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="text-muted-foreground">Top:</span>
           <span className="text-cyan-400">{data.topEngine}</span>
-          <span className="text-emerald-400">{data.topEngineWinRate}%</span>
+          <span className="text-[var(--trade-bullish)]">{data.topEngineWinRate}%</span>
         </div>
       )}
 
       {data.riskLevel === 'High' || data.riskLevel === 'Extreme' ? (
-        <div className="flex items-center gap-1 text-amber-400 ml-auto">
+        <div className="flex items-center gap-1 text-[var(--trade-neutral)] ml-auto">
           <AlertTriangle className="h-3 w-3" />
           <span className="text-xs">Elevated risk</span>
         </div>
@@ -106,29 +106,29 @@ function MarketSentiment() {
 
   const vix = vixData?.quotes?.VIX?.regularMarketPrice || 0;
   const fearLevel = vix < 15 ? "Low" : vix < 20 ? "Moderate" : vix < 30 ? "Elevated" : "Extreme";
-  const fearColor = vix < 15 ? "text-emerald-400" : vix < 20 ? "text-amber-400" : vix < 30 ? "text-orange-400" : "text-red-400";
+  const fearColor = vix < 15 ? "text-[var(--trade-bullish)]" : vix < 20 ? "text-[var(--trade-neutral)]" : vix < 30 ? "text-orange-400" : "text-[var(--trade-bearish)]";
 
   return (
-    <Card className="p-5 bg-slate-900/40 border-slate-800/50">
+    <Card className="p-5 bg-card/40 border-border/50">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Market Sentiment</h3>
-        <Gauge className="h-4 w-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Market Sentiment</h3>
+        <Gauge className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-xs text-slate-500 mb-1">VIX (Fear Index)</div>
-          <div className="text-2xl font-bold text-slate-100">{safeToFixed(vix, 2)}</div>
+          <div className="text-xs text-muted-foreground mb-1">VIX (Fear Index)</div>
+          <div className="text-2xl font-bold text-foreground/95">{safeToFixed(vix, 2)}</div>
           <div className={cn("text-sm font-medium", fearColor)}>{fearLevel} Fear</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500 mb-1">Market Regime</div>
+          <div className="text-xs text-muted-foreground mb-1">Market Regime</div>
           <div className={cn(
             "text-lg font-semibold",
-            vix < 20 ? "text-emerald-400" : "text-amber-400"
+            vix < 20 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
           )}>
             {vix < 20 ? "Risk On" : "Risk Off"}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted-foreground">
             {vix < 20 ? "Favorable conditions" : "Caution advised"}
           </div>
         </div>
@@ -159,21 +159,21 @@ function SectorPerformance() {
   ];
 
   return (
-    <Card className="p-5 bg-slate-900/40 border-slate-800/50">
+    <Card className="p-5 bg-card/40 border-border/50">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Sector Performance</h3>
-        <BarChart3 className="h-4 w-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sector Performance</h3>
+        <BarChart3 className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="grid grid-cols-2 gap-2">
         {sectors.map((sector) => {
           const change = data?.quotes?.[sector.symbol]?.regularMarketChangePercent || 0;
           return (
             <Link key={sector.symbol} href={`/chart-analysis?symbol=${sector.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
-                <span className="text-xs text-slate-400">{sector.name}</span>
+              <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer">
+                <span className="text-xs text-muted-foreground">{sector.name}</span>
                 <span className={cn(
                   "text-xs font-semibold",
-                  change >= 0 ? "text-emerald-400" : "text-red-400"
+                  change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                 </span>
@@ -203,14 +203,14 @@ function MarketNews() {
   const news = data?.news || [];
 
   return (
-    <Card className="p-5 bg-slate-900/40 border-slate-800/50">
+    <Card className="p-5 bg-card/40 border-border/50">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Market News</h3>
-        <Newspaper className="h-4 w-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Market News</h3>
+        <Newspaper className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="space-y-3">
         {isLoading ? (
-          <div className="text-xs text-slate-600">Loading news...</div>
+          <div className="text-xs text-muted-foreground/70">Loading news...</div>
         ) : news.length > 0 ? (
           news.slice(0, 6).map((item, i) => (
             <a
@@ -218,14 +218,14 @@ function MarketNews() {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block p-3 rounded-lg hover:bg-slate-800/50 transition-colors group"
+              className="block p-3 rounded-lg hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2 mb-1">
+                  <h4 className="text-sm text-foreground/90 group-hover:text-cyan-400 transition-colors line-clamp-2 mb-1">
                     {item.title}
                   </h4>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{item.source}</span>
                     <span>·</span>
                     <Clock className="h-3 w-3" />
@@ -237,9 +237,9 @@ function MarketNews() {
                     variant="outline"
                     className={cn(
                       "text-xs shrink-0",
-                      item.sentiment > 0.3 ? "border-emerald-500/30 text-emerald-400" :
-                      item.sentiment < -0.3 ? "border-red-500/30 text-red-400" :
-                      "border-slate-700 text-slate-500"
+                      item.sentiment > 0.3 ? "border-emerald-500/30 text-[var(--trade-bullish)]" :
+                      item.sentiment < -0.3 ? "border-red-500/30 text-[var(--trade-bearish)]" :
+                      "border-border text-muted-foreground"
                     )}
                   >
                     {item.sentiment > 0.3 ? "Bullish" : item.sentiment < -0.3 ? "Bearish" : "Neutral"}
@@ -249,7 +249,7 @@ function MarketNews() {
             </a>
           ))
         ) : (
-          <div className="text-xs text-slate-600">No news available</div>
+          <div className="text-xs text-muted-foreground/70">Loading news feed...</div>
         )}
       </div>
     </Card>
@@ -272,28 +272,28 @@ function UpcomingEvents() {
   const events = data?.earnings || [];
 
   return (
-    <Card className="p-5 bg-slate-900/40 border-slate-800/50">
+    <Card className="p-5 bg-card/40 border-border/50">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Upcoming Earnings</h3>
-        <Calendar className="h-4 w-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Upcoming Earnings</h3>
+        <Calendar className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="space-y-2">
         {events.length > 0 ? (
           events.slice(0, 6).map((event, i) => (
             <Link key={i} href={`/chart-analysis?symbol=${event.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
+              <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-sm text-cyan-400">{event.symbol}</span>
-                  <span className="text-xs text-slate-500 truncate max-w-[120px]">{event.companyName}</span>
+                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">{event.companyName}</span>
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-muted-foreground">
                   {formatDate(event.date)} {event.time === "BMO" ? "Pre" : event.time === "AMC" ? "After" : ""}
                 </div>
               </div>
             </Link>
           ))
         ) : (
-          <div className="text-xs text-slate-600">No upcoming earnings</div>
+          <div className="text-xs text-muted-foreground/70">No earnings this week</div>
         )}
       </div>
     </Card>
@@ -314,37 +314,37 @@ function TrendingSymbols() {
   const losers = topMovers?.losers?.slice(0, 4) || [];
 
   return (
-    <Card className="p-5 bg-slate-900/40 border-slate-800/50">
+    <Card className="p-5 bg-card/40 border-border/50">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">Trending</h3>
-        <Zap className="h-4 w-4 text-slate-500" />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Trending</h3>
+        <Zap className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-xs text-emerald-400 mb-2 flex items-center gap-1">
+          <div className="text-xs text-[var(--trade-bullish)] mb-2 flex items-center gap-1">
             <TrendingUp className="h-3 w-3" /> Gainers
           </div>
           <div className="space-y-1">
             {gainers.map((s) => (
               <Link key={s.symbol} href={`/chart-analysis?symbol=${s.symbol}`}>
-                <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
-                  <span className="text-sm font-medium text-slate-300">{s.symbol}</span>
-                  <span className="text-xs text-emerald-400">+{safeToFixed(s.change, 1)}%</span>
+                <div className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 transition-colors cursor-pointer">
+                  <span className="text-sm font-medium text-foreground/80">{s.symbol}</span>
+                  <span className="text-xs text-[var(--trade-bullish)]">+{safeToFixed(s.change, 1)}%</span>
                 </div>
               </Link>
             ))}
           </div>
         </div>
         <div>
-          <div className="text-xs text-red-400 mb-2 flex items-center gap-1">
+          <div className="text-xs text-[var(--trade-bearish)] mb-2 flex items-center gap-1">
             <TrendingDown className="h-3 w-3" /> Losers
           </div>
           <div className="space-y-1">
             {losers.map((s) => (
               <Link key={s.symbol} href={`/chart-analysis?symbol=${s.symbol}`}>
-                <div className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
-                  <span className="text-sm font-medium text-slate-300">{s.symbol}</span>
-                  <span className="text-xs text-red-400">{safeToFixed(s.change, 1)}%</span>
+                <div className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 transition-colors cursor-pointer">
+                  <span className="text-sm font-medium text-foreground/80">{s.symbol}</span>
+                  <span className="text-xs text-[var(--trade-bearish)]">{safeToFixed(s.change, 1)}%</span>
                 </div>
               </Link>
             ))}
@@ -385,8 +385,8 @@ export function ResearchHub() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-100 mb-2">Research Hub</h1>
-          <p className="text-sm text-slate-500">Market intelligence and real-time analysis</p>
+          <h1 className="text-2xl font-bold text-foreground/95 mb-2">Research Hub</h1>
+          <p className="text-sm text-muted-foreground">Market intelligence and real-time analysis</p>
         </div>
 
         {/* Contextual Insight Bar */}
@@ -418,14 +418,14 @@ export function ResearchHub() {
         </div>
 
         {/* Quick links */}
-        <div className="mt-8 pt-6 border-t border-slate-800/50">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">Quick Research</h3>
+        <div className="mt-8 pt-6 border-t border-border/50">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Quick Research</h3>
           <div className="flex flex-wrap gap-2">
             {["AAPL", "NVDA", "TSLA", "MSFT", "GOOGL", "AMZN", "META", "AMD", "SPY", "QQQ"].map((symbol) => (
               <Link key={symbol} href={`/chart-analysis?symbol=${symbol}`}>
                 <Badge
                   variant="outline"
-                  className="cursor-pointer border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300 transition-colors"
+                  className="cursor-pointer border-border text-muted-foreground hover:border-border hover:text-foreground/80 transition-colors"
                 >
                   {symbol}
                 </Badge>

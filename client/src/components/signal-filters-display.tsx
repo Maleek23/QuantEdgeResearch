@@ -44,10 +44,10 @@ export function SignalFiltersDisplay({
   const getRegimeColor = (regime: string | null | undefined): string => {
     if (!regime) return 'text-muted-foreground';
     switch (regime) {
-      case 'low': return 'text-green-400';
+      case 'low': return 'text-[var(--trade-bullish)]';
       case 'normal': return 'text-cyan-400';
-      case 'high': return 'text-amber-400';
-      case 'extreme': return 'text-red-400';
+      case 'high': return 'text-[var(--trade-neutral)]';
+      case 'extreme': return 'text-[var(--trade-bearish)]';
       default: return 'text-muted-foreground';
     }
   };
@@ -64,10 +64,10 @@ export function SignalFiltersDisplay({
   };
 
   const getSignalBadgeColor = (count: number): string => {
-    if (count >= 3) return 'bg-green-500/20 text-green-400 border-green-500/30';
+    if (count >= 3) return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
     if (count >= 2) return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
-    if (count >= 1) return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    return 'bg-red-500/20 text-red-400 border-red-500/30';
+    if (count >= 1) return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
+    return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
   };
 
   const sizes = {
@@ -141,8 +141,8 @@ export function SignalFiltersDisplay({
                 <span className="text-muted-foreground">RSI(2):</span>
                 <span className={cn(
                   "font-mono font-semibold",
-                  rsiValue < 10 ? 'text-green-400' : 
-                  rsiValue > 90 ? 'text-red-400' : 
+                  rsiValue < 10 ? 'text-[var(--trade-bullish)]' : 
+                  rsiValue > 90 ? 'text-[var(--trade-bearish)]' : 
                   'text-foreground'
                 )}>
                   {safeToFixed(rsiValue, 1)}

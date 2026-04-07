@@ -245,7 +245,7 @@ export function ChartWorkbench({
               {priceChange !== null && (
                 <span className={cn(
                   "ml-2 text-sm font-medium",
-                  priceChange >= 0 ? "text-emerald-500" : "text-red-500"
+                  priceChange >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {priceChange >= 0 ? "+" : ""}{safeToFixed(priceChange, 2)}%
                 </span>

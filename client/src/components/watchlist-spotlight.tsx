@@ -59,7 +59,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
       <Card className="border-dashed" data-testid="card-watchlist-spotlight-empty">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Eye className="h-4 w-4 text-amber-500" />
+            <Eye className="h-4 w-4 text-[var(--trade-neutral)]" />
             Watch Out For These
           </CardTitle>
         </CardHeader>
@@ -84,7 +84,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Eye className="h-4 w-4 text-amber-500" />
+            <Eye className="h-4 w-4 text-[var(--trade-neutral)]" />
             Watch Out For These
           </CardTitle>
           <Link href="/market">
@@ -164,7 +164,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                           {formatCurrency(currentPrice)}
                         </span>
                         {changePercent !== undefined && (
-                          <span className={`text-[10px] flex items-center gap-0.5 ${isUp ? 'text-green-500' : isDown ? 'text-red-500' : 'text-muted-foreground'}`}>
+                          <span className={`text-[10px] flex items-center gap-0.5 ${isUp ? 'text-[var(--trade-bullish)]' : isDown ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground'}`}>
                             {isUp && <TrendingUp className="h-2.5 w-2.5" />}
                             {isDown && <TrendingDown className="h-2.5 w-2.5" />}
                             {changePercent > 0 ? '+' : ''}{safeToFixed(changePercent, 2)}%
@@ -197,7 +197,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="font-mono font-bold">{selectedItem?.symbol}</span>
+              <span className="font-mono font-bold tabular-nums">{selectedItem?.symbol}</span>
               <Badge variant="outline" className="text-xs">
                 {selectedItem?.assetType.toUpperCase()}
               </Badge>
@@ -222,7 +222,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                     {changePercent !== undefined && (
                       <span className={cn(
                         "ml-2 text-sm",
-                        changePercent > 0 ? "text-green-500" : changePercent < 0 ? "text-red-500" : "text-muted-foreground"
+                        changePercent > 0 ? "text-[var(--trade-bullish)]" : changePercent < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                       )}>
                         {changePercent > 0 ? '+' : ''}{safeToFixed(changePercent, 2)}%
                       </span>
@@ -233,8 +233,8 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                 {/* Price Alerts */}
                 <div className="grid grid-cols-3 gap-2">
                   {selectedItem.entryAlertPrice && (
-                    <div className="p-2 rounded border bg-green-500/10 border-green-500/30">
-                      <div className="flex items-center gap-1 text-[10px] text-green-500 mb-1">
+                    <div className="p-2 rounded border bg-[var(--trade-bullish)]/10 border-green-500/30">
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--trade-bullish)] mb-1">
                         <Target className="h-3 w-3" />
                         Entry
                       </div>
@@ -256,7 +256,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                   )}
                   {selectedItem.stopAlertPrice && (
                     <div className="p-2 rounded border bg-red-500/10 border-red-500/30">
-                      <div className="flex items-center gap-1 text-[10px] text-red-500 mb-1">
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--trade-bearish)] mb-1">
                         <ShieldAlert className="h-3 w-3" />
                         Stop
                       </div>
@@ -293,11 +293,11 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                       </div>
                       <div>
                         <div className="text-[10px] text-muted-foreground">Target</div>
-                        <div className="font-mono text-sm text-green-500">{formatCurrency(relatedIdea.targetPrice)}</div>
+                        <div className="font-mono text-sm text-[var(--trade-bullish)]">{formatCurrency(relatedIdea.targetPrice)}</div>
                       </div>
                       <div>
                         <div className="text-[10px] text-muted-foreground">Stop</div>
-                        <div className="font-mono text-sm text-red-500">{formatCurrency(relatedIdea.stopLoss)}</div>
+                        <div className="font-mono text-sm text-[var(--trade-bearish)]">{formatCurrency(relatedIdea.stopLoss)}</div>
                       </div>
                     </div>
                     <Link href={`/trade-ideas/${relatedIdea.id}/audit`}>

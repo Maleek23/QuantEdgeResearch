@@ -53,7 +53,7 @@ export function TimingDisplay({ timestamp, label, showCountdown = false, classNa
         "flex items-start gap-2 px-3 py-2 rounded-md border",
         isEnterWhen 
           ? "bg-cyan-500/5 border-cyan-500/30" 
-          : "bg-green-500/5 border-green-500/30",
+          : "bg-[var(--trade-bullish)]/5 border-green-500/30",
         isPast && isEnterWhen && "opacity-60",
         className
       )}
@@ -61,12 +61,12 @@ export function TimingDisplay({ timestamp, label, showCountdown = false, classNa
     >
       <Calendar className={cn(
         "h-4 w-4 mt-0.5 flex-shrink-0",
-        isEnterWhen ? "text-cyan-500" : "text-green-500"
+        isEnterWhen ? "text-cyan-500" : "text-[var(--trade-bullish)]"
       )} />
       <div className="flex flex-col gap-0.5 min-w-0">
         <div className={cn(
           "text-xs font-semibold uppercase tracking-wide",
-          isEnterWhen ? "text-cyan-400" : "text-green-400"
+          isEnterWhen ? "text-cyan-400" : "text-[var(--trade-bullish)]"
         )}>
           {label}:
         </div>

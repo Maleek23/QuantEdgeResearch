@@ -44,7 +44,7 @@ export function SocialProofSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
-              className="glass-card rounded-xl p-6 text-center border border-slate-800/50"
+              className="glass-card rounded-xl p-6 text-center border border-border/50"
             >
               <div className={`h-12 w-12 rounded-xl bg-${metric.color}-500/10 flex items-center justify-center mx-auto mb-3`}>
                 <metric.icon className={`h-6 w-6 text-${metric.color}-400`} />
@@ -71,7 +71,7 @@ export function SocialProofSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.15 }}
-              className="glass-card rounded-xl p-6 border border-slate-800/50 hover-elevate"
+              className="glass-card rounded-xl p-6 border border-border/50 hover-elevate"
             >
               <div className="mb-4">
                 <div className="flex gap-1 mb-3">

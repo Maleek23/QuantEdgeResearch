@@ -55,9 +55,9 @@ const SCAN_SYMBOLS = ['SPY', 'QQQ', 'AAPL', 'NVDA'];
 
 function ConfluenceScore({ score, alignment }: { score: number; alignment: string }) {
   const getColor = () => {
-    if (alignment === 'strong') return 'text-green-400 bg-green-500/20';
-    if (alignment === 'moderate') return 'text-amber-400 bg-amber-500/20';
-    if (alignment === 'conflict') return 'text-red-400 bg-red-500/20';
+    if (alignment === 'strong') return 'text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/20';
+    if (alignment === 'moderate') return 'text-[var(--trade-neutral)] bg-amber-500/20';
+    if (alignment === 'conflict') return 'text-[var(--trade-bearish)] bg-red-500/20';
     return 'text-muted-foreground bg-muted';
   };
 
@@ -77,14 +77,14 @@ function ConfluenceScore({ score, alignment }: { score: number; alignment: strin
 
 function SymbolCard({ result }: { result: TradingEngineResult }) {
   const getBiasIcon = (bias: string) => {
-    if (bias === 'bullish') return <TrendingUp className="h-3 w-3 text-green-400" />;
-    if (bias === 'bearish') return <TrendingDown className="h-3 w-3 text-red-400" />;
+    if (bias === 'bullish') return <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />;
+    if (bias === 'bearish') return <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />;
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   };
 
   const getBiasColor = (bias: string) => {
-    if (bias === 'bullish') return 'text-green-400';
-    if (bias === 'bearish') return 'text-red-400';
+    if (bias === 'bullish') return 'text-[var(--trade-bullish)]';
+    if (bias === 'bearish') return 'text-[var(--trade-bearish)]';
     return 'text-muted-foreground';
   };
 
@@ -93,7 +93,7 @@ function SymbolCard({ result }: { result: TradingEngineResult }) {
       className={cn(
         "p-3 rounded-lg border",
         result.actionable 
-          ? "bg-green-500/5 border-green-500/20" 
+          ? "bg-[var(--trade-bullish)]/5 border-green-500/20" 
           : "bg-muted/30 border-border/50"
       )}
       data-testid={`trading-engine-card-${result.symbol}`}
@@ -102,7 +102,7 @@ function SymbolCard({ result }: { result: TradingEngineResult }) {
         <div className="flex items-center gap-2">
           <span className="font-mono font-bold text-sm">{result.symbol}</span>
           {result.actionable && (
-            <Badge variant="outline" className="text-xs text-green-400 border-green-400/50">
+            <Badge variant="outline" className="text-xs text-[var(--trade-bullish)] border-green-400/50">
               ACTIONABLE
             </Badge>
           )}
@@ -141,8 +141,8 @@ function SymbolCard({ result }: { result: TradingEngineResult }) {
             className={cn(
               "text-xs",
               result.tradeStructure.direction === 'long' 
-                ? "text-green-400 border-green-400/50" 
-                : "text-red-400 border-red-400/50"
+                ? "text-[var(--trade-bullish)] border-green-400/50" 
+                : "text-[var(--trade-bearish)] border-red-400/50"
             )}
           >
             {result.tradeStructure.direction.toUpperCase()}
@@ -154,7 +154,7 @@ function SymbolCard({ result }: { result: TradingEngineResult }) {
           <ArrowRight className="h-3 w-3 text-muted-foreground" />
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground">Target:</span>
-            <span className="font-mono text-green-400">
+            <span className="font-mono text-[var(--trade-bullish)]">
               ${safeToFixed(result.tradeStructure.targets[0]?.price, 2)}
             </span>
           </div>
@@ -204,7 +204,7 @@ export function TradingEngineWidget() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Target className="h-4 w-4 text-emerald-400" />
+            <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
             Trading Engine
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -250,7 +250,7 @@ export function TradingEngineWidget() {
 
         <div className="border-t border-border/50 pt-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 className="h-3 w-3 text-green-400" />
+            <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
             <span>
               <strong>Strong confluence</strong> = Fundamental & Technical aligned
             </span>

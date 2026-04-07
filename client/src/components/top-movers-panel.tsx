@@ -39,7 +39,7 @@ export function TopMoversPanel() {
         <div className="flex items-center gap-2">
           <div className={cn(
             "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
-            type === "gainer" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+            type === "gainer" ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-red-500/10 text-[var(--trade-bearish)]"
           )}>
             {mover.symbol.slice(0, 2)}
           </div>
@@ -52,7 +52,7 @@ export function TopMoversPanel() {
           <p className="text-sm font-medium text-foreground">${safeToFixed(mover.price, 2)}</p>
           <div className={cn(
             "flex items-center gap-0.5 text-xs font-medium justify-end",
-            type === "gainer" ? "text-green-500" : "text-red-500"
+            type === "gainer" ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
             {type === "gainer" ? (
               <TrendingUp className="h-3 w-3" />
@@ -100,7 +100,7 @@ export function TopMoversPanel() {
                 ))}
               </div>
             ) : gainers.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No gainers data</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Loading market data...</p>
             ) : (
               <div className="space-y-1">
                 {gainers.map((mover) => renderMover(mover, "gainer"))}
@@ -118,7 +118,7 @@ export function TopMoversPanel() {
                 ))}
               </div>
             ) : losers.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No losers data</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Loading market data...</p>
             ) : (
               <div className="space-y-1">
                 {losers.map((mover) => renderMover(mover, "loser"))}

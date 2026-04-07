@@ -188,59 +188,59 @@ export default function BullishTrends() {
 
   const getTrendStrengthColor = (strength: string) => {
     switch (strength) {
-      case 'explosive': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      case 'strong': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'moderate': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+      case 'explosive': return 'bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30';
+      case 'strong': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+      case 'moderate': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
+      default: return 'bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30';
     }
   };
 
   const getTrendPhaseColor = (phase: string) => {
     switch (phase) {
-      case 'breakout': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'breakout': return 'bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30';
       case 'momentum': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'accumulation': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-red-500/20 text-red-400 border-red-500/30';
+      default: return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     }
   };
 
   const getMomentumColor = (score: number | null) => {
-    if (!score) return 'text-slate-400';
-    if (score >= 80) return 'text-emerald-400';
-    if (score >= 65) return 'text-green-400';
-    if (score >= 45) return 'text-amber-400';
-    return 'text-red-400';
+    if (!score) return 'text-muted-foreground';
+    if (score >= 80) return 'text-[var(--trade-bullish)]';
+    if (score >= 65) return 'text-[var(--trade-bullish)]';
+    if (score >= 45) return 'text-[var(--trade-neutral)]';
+    return 'text-[var(--trade-bearish)]';
   };
 
   const getSectorInfo = (sector: string) => {
     const sectorMap: Record<string, { icon: any; color: string; label: string }> = {
-      'NUCLEAR': { icon: AtomIcon, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30', label: 'Nuclear/Energy' },
+      'NUCLEAR': { icon: AtomIcon, color: 'text-[var(--trade-bullish)] bg-emerald-500/20 border-emerald-500/30', label: 'Nuclear/Energy' },
       'DEFENSE': { icon: Shield, color: 'text-blue-400 bg-blue-500/20 border-blue-500/30', label: 'Defense/Aerospace' },
       'SPACE': { icon: Satellite, color: 'text-purple-400 bg-purple-500/20 border-purple-500/30', label: 'Space/Satellites' },
       'CRYPTO': { icon: Bitcoin, color: 'text-orange-400 bg-orange-500/20 border-orange-500/30', label: 'Crypto/Mining' },
-      'SEMIS': { icon: Cpu, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30', label: 'Semiconductors' },
+      'SEMIS': { icon: Cpu, color: 'text-[var(--trade-bullish)] bg-emerald-500/20 border-emerald-500/30', label: 'Semiconductors' },
       'AI_QUANTUM': { icon: Brain, color: 'text-pink-400 bg-pink-500/20 border-pink-500/30', label: 'AI/Quantum' },
       'MEGA_TECH': { icon: Building2, color: 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30', label: 'Mega Tech' },
-      'ETF_INDEX': { icon: Layers, color: 'text-slate-400 bg-slate-500/20 border-slate-500/30', label: 'ETF/Index' },
+      'ETF_INDEX': { icon: Layers, color: 'text-muted-foreground bg-muted-foreground/20 border-muted-foreground/30', label: 'ETF/Index' },
       'GROWTH': { icon: TrendingUp, color: 'text-teal-400 bg-teal-500/20 border-teal-500/30', label: 'Growth' },
-      'CLEAN_ENERGY': { icon: Leaf, color: 'text-green-400 bg-green-500/20 border-green-500/30', label: 'Clean Energy' },
-      'OTHER': { icon: BarChart3, color: 'text-gray-400 bg-gray-500/20 border-gray-500/30', label: 'Other' },
+      'CLEAN_ENERGY': { icon: Leaf, color: 'text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/20 border-green-500/30', label: 'Clean Energy' },
+      'OTHER': { icon: BarChart3, color: 'text-muted-foreground bg-gray-500/20 border-gray-500/30', label: 'Other' },
     };
     return sectorMap[sector] || sectorMap['OTHER'];
   };
 
   const getHeatColor = (score: number) => {
-    if (score >= 15) return 'text-red-400';
+    if (score >= 15) return 'text-[var(--trade-bearish)]';
     if (score >= 12) return 'text-orange-400';
-    if (score >= 10) return 'text-amber-400';
+    if (score >= 10) return 'text-[var(--trade-neutral)]';
     if (score >= 8) return 'text-yellow-400';
-    return 'text-slate-400';
+    return 'text-muted-foreground';
   };
 
   const getSourceBadgeColor = (count: number) => {
     if (count >= 3) return 'bg-red-500/30 text-red-300 border-red-500/40';
     if (count >= 2) return 'bg-amber-500/30 text-amber-300 border-amber-500/40';
-    return 'bg-slate-500/30 text-slate-300 border-slate-500/40';
+    return 'bg-muted-foreground/30 text-foreground/80 border-muted-foreground/40';
   };
 
   const getDisplayTrends = () => {
@@ -276,7 +276,7 @@ export default function BullishTrends() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-emerald-500/20 border-2 border-cyan-500/40">
-                <TrendingUp className="h-8 w-8 text-emerald-400" />
+                <TrendingUp className="h-8 w-8 text-[var(--trade-bullish)]" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-foreground" data-testid="text-page-title">Bullish Trend Tracker</h1>
@@ -292,7 +292,7 @@ export default function BullishTrends() {
                   value={newSymbol}
                   onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
-                  className="w-32 bg-slate-900/50 border-slate-700"
+                  className="w-32 bg-card/50 border-border"
                   data-testid="input-add-symbol"
                 />
                 <Button
@@ -309,7 +309,7 @@ export default function BullishTrends() {
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400"
+                className="border-emerald-500/30 hover:bg-emerald-500/10 text-[var(--trade-bullish)]"
                 data-testid="button-refresh"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -320,29 +320,29 @@ export default function BullishTrends() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-emerald-500/20 bg-slate-900/50">
+          <Card className="border-emerald-500/20 bg-card/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Explosive Momentum</p>
-                  <p className="text-3xl font-bold font-mono text-emerald-400" data-testid="text-explosive-count">{explosiveCount}</p>
+                  <p className="text-3xl font-bold font-mono text-[var(--trade-bullish)]" data-testid="text-explosive-count">{explosiveCount}</p>
                 </div>
-                <Rocket className="h-8 w-8 text-emerald-400/50" />
+                <Rocket className="h-8 w-8 text-[var(--trade-bullish)]/50" />
               </div>
             </CardContent>
           </Card>
-          <Card className="border-emerald-500/20 bg-slate-900/50">
+          <Card className="border-emerald-500/20 bg-card/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Active Breakouts</p>
-                  <p className="text-3xl font-bold font-mono text-emerald-400" data-testid="text-breakout-count">{breakoutCount}</p>
+                  <p className="text-3xl font-bold font-mono text-[var(--trade-bullish)]" data-testid="text-breakout-count">{breakoutCount}</p>
                 </div>
-                <Zap className="h-8 w-8 text-emerald-400/50" />
+                <Zap className="h-8 w-8 text-[var(--trade-bullish)]/50" />
               </div>
             </CardContent>
           </Card>
-          <Card className="border-purple-500/20 bg-slate-900/50">
+          <Card className="border-purple-500/20 bg-card/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -356,7 +356,7 @@ export default function BullishTrends() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-slate-900/60 border border-slate-700">
+          <TabsList className="bg-card/60 border border-border">
             <TabsTrigger value="heatmap" data-testid="tab-heatmap">
               <Flame className="h-4 w-4 mr-1" />
               Sector Heat Map
@@ -375,7 +375,7 @@ export default function BullishTrends() {
           </TabsList>
 
           <TabsContent value="heatmap" className="mt-4">
-            <Card className="border-slate-700/50 bg-slate-900/40">
+            <Card className="border-border/50 bg-card/40">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
@@ -410,8 +410,8 @@ export default function BullishTrends() {
                       const sectorInfo = getSectorInfo(sector.name);
                       const SectorIcon = sectorInfo.icon;
                       return (
-                        <div key={sector.name} className="rounded-lg border border-slate-700/50 bg-slate-800/30 overflow-hidden">
-                          <div className={`p-4 flex items-center justify-between border-b border-slate-700/30 ${sectorInfo.color.split(' ')[1]}`}>
+                        <div key={sector.name} className="rounded-lg border border-border/50 bg-muted/30 overflow-hidden">
+                          <div className={`p-4 flex items-center justify-between border-b border-border/30 ${sectorInfo.color.split(' ')[1]}`}>
                             <div className="flex items-center gap-3">
                               <div className={`p-2 rounded-lg ${sectorInfo.color}`}>
                                 <SectorIcon className="h-5 w-5" />
@@ -425,7 +425,7 @@ export default function BullishTrends() {
                             </div>
                             <div className="flex items-center gap-4">
                               {sector.convergingCount > 0 && (
-                                <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                <Badge variant="outline" className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30">
                                   <Zap className="h-3 w-3 mr-1" />
                                   {sector.convergingCount} Converging
                                 </Badge>
@@ -447,7 +447,7 @@ export default function BullishTrends() {
                                       className={`px-3 py-2 rounded-lg border transition-colors cursor-default ${
                                         sym.distinctSources >= 2 
                                           ? 'bg-amber-500/10 border-amber-500/40 hover:border-amber-400' 
-                                          : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600'
+                                          : 'bg-muted/50 border-border/50 hover:border-border'
                                       }`}
                                       data-testid={`heatmap-symbol-${sym.symbol}`}
                                     >
@@ -499,10 +499,10 @@ export default function BullishTrends() {
           </TabsContent>
 
           <TabsContent value={activeTab} className="mt-4">
-            <Card className="border-slate-700/50 bg-slate-900/40">
+            <Card className="border-border/50 bg-card/40">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-emerald-400" />
+                  <Activity className="h-5 w-5 text-[var(--trade-bullish)]" />
                   {activeTab === 'all' ? 'All Bullish Stocks' : activeTab === 'breakouts' ? 'Breakout Alerts' : 'Top Momentum Plays'}
                 </CardTitle>
                 <CardDescription>
@@ -520,7 +520,7 @@ export default function BullishTrends() {
                     {displayTrends.map((trend) => (
                       <div
                         key={trend.id}
-                        className="flex items-center justify-between p-4 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/40 border border-border/50 hover:border-emerald-500/30 transition-colors"
                         data-testid={`trend-row-${trend.symbol}`}
                       >
                         <div className="flex items-center gap-4">
@@ -537,7 +537,7 @@ export default function BullishTrends() {
                               {trend.trendPhase}
                             </Badge>
                             {trend.isBreakout && (
-                              <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                              <Badge variant="outline" className="bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30">
                                 <Zap className="h-3 w-3 mr-1" />
                                 Breakout
                               </Badge>
@@ -556,7 +556,7 @@ export default function BullishTrends() {
                             <div className="font-mono font-semibold" data-testid={`text-price-${trend.symbol}`}>
                               {trend.currentPrice != null ? `$${safeToFixed(trend.currentPrice, 2)}` : 'N/A'}
                             </div>
-                            <div className={`text-sm font-mono flex items-center justify-end gap-1 ${(trend.dayChangePercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <div className={`text-sm font-mono flex items-center justify-end gap-1 ${(trend.dayChangePercent ?? 0) >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                               {(trend.dayChangePercent ?? 0) >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                               {trend.dayChangePercent != null ? `${safeToFixed(Math.abs(trend.dayChangePercent), 2)}%` : 'N/A'}
                             </div>
@@ -586,7 +586,7 @@ export default function BullishTrends() {
                                 size="icon"
                                 onClick={() => addToWatchlist.mutate(trend)}
                                 disabled={addToWatchlist.isPending}
-                                className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                className="text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)] hover:bg-emerald-500/10"
                                 data-testid={`button-watchlist-${trend.symbol}`}
                               >
                                 <BookmarkPlus className="h-4 w-4" />
@@ -599,7 +599,7 @@ export default function BullishTrends() {
                             size="icon"
                             onClick={() => removeStock.mutate(trend.symbol)}
                             disabled={removeStock.isPending}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="text-[var(--trade-bearish)] hover:text-red-300 hover:bg-red-500/10"
                             data-testid={`button-remove-${trend.symbol}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -616,9 +616,9 @@ export default function BullishTrends() {
 
         <Card className="border-amber-500/20 bg-amber-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <Target className="h-5 w-5 text-amber-400" />
+            <Target className="h-5 w-5 text-[var(--trade-neutral)]" />
             <p className="text-sm text-muted-foreground">
-              <span className="text-amber-400 font-medium">Educational Only:</span> This scanner is for research purposes. Always do your own due diligence before trading.
+              <span className="text-[var(--trade-neutral)] font-medium">Educational Only:</span> This scanner is for research purposes. Always do your own due diligence before trading.
             </p>
           </CardContent>
         </Card>

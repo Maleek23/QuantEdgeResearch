@@ -23,17 +23,17 @@ function useMarketStatus() {
     const isAfterHours = etHour >= 16 && etHour < 20;
     
     let status = "CLOSED";
-    let statusColor = "text-slate-500";
-    let pulseColor = "bg-slate-500";
+    let statusColor = "text-muted-foreground";
+    let pulseColor = "bg-muted-foreground";
     
     if (isWeekday) {
       if (isMarketHours) {
         status = "MARKET OPEN";
-        statusColor = "text-green-400";
-        pulseColor = "bg-green-400";
+        statusColor = "text-[var(--trade-bullish)]";
+        pulseColor = "bg-[var(--trade-bullish)]";
       } else if (isPreMarket) {
         status = "PRE-MARKET";
-        statusColor = "text-amber-400";
+        statusColor = "text-[var(--trade-neutral)]";
         pulseColor = "bg-amber-400";
       } else if (isAfterHours) {
         status = "AFTER HOURS";
@@ -98,21 +98,21 @@ function LiveStatsBar() {
 
   const getRegimeColor = (r: string) => {
     const lower = r.toLowerCase();
-    if (lower.includes("greed") || lower.includes("low")) return "text-green-400";
-    if (lower.includes("fear") || lower.includes("high")) return "text-red-400";
-    if (lower.includes("neutral")) return "text-amber-400";
-    return "text-slate-400";
+    if (lower.includes("greed") || lower.includes("low")) return "text-[var(--trade-bullish)]";
+    if (lower.includes("fear") || lower.includes("high")) return "text-[var(--trade-bearish)]";
+    if (lower.includes("neutral")) return "text-[var(--trade-neutral)]";
+    return "text-muted-foreground";
   };
 
   return (
     <div className="flex items-center gap-4 text-xs">
       <div className="flex items-center gap-1.5" data-testid="stat-bots">
-        <Bot className="h-3.5 w-3.5 text-emerald-400" />
+        <Bot className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
         <span className="text-muted-foreground">Bots:</span>
-        <span className="text-emerald-400 font-medium">{activeBots}</span>
+        <span className="text-[var(--trade-bullish)] font-medium">{activeBots}</span>
       </div>
       
-      <div className="h-3 w-px bg-slate-700" />
+      <div className="h-3 w-px bg-muted" />
       
       <div className="flex items-center gap-1.5" data-testid="stat-watchlist">
         <Eye className="h-3.5 w-3.5 text-purple-400" />
@@ -120,10 +120,10 @@ function LiveStatsBar() {
         <span className="text-purple-400 font-medium">{watchlistCount}</span>
       </div>
       
-      <div className="h-3 w-px bg-slate-700" />
+      <div className="h-3 w-px bg-muted" />
       
       <div className="flex items-center gap-1.5" data-testid="stat-regime">
-        <Activity className="h-3.5 w-3.5 text-amber-400" />
+        <Activity className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />
         <span className="text-muted-foreground">VIX:</span>
         <span className={cn("font-medium", getRegimeColor(regime))}>
           {safeToFixed(vix, 1)}
@@ -139,14 +139,14 @@ function DataFeedIndicator() {
   return (
     <div className="flex items-center gap-2" data-testid="data-feed">
       <div className="flex items-center gap-1">
-        <Radio className="h-3 w-3 text-green-400" />
-        <span className="text-[10px] text-green-400 font-mono">LIVE</span>
+        <Radio className="h-3 w-3 text-[var(--trade-bullish)]" />
+        <span className="text-[10px] text-[var(--trade-bullish)] font-mono">LIVE</span>
       </div>
       <div className="flex gap-0.5 items-end">
         {barHeights.map((height, i) => (
           <div
             key={i}
-            className="w-0.5 bg-green-400/80 rounded-full"
+            className="w-0.5 bg-[var(--trade-bullish)]/80 rounded-full"
             style={{
               height: `${height}px`,
               animationDelay: `${i * 150}ms`,
@@ -160,11 +160,11 @@ function DataFeedIndicator() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-slate-800/50 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 backdrop-blur-sm py-2.5 px-4 mt-auto">
+    <footer className="border-t border-border/50 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/80 backdrop-blur-sm py-2.5 px-4 mt-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 pr-3 border-r border-slate-700/50">
+            <div className="flex items-center gap-1.5 pr-3 border-r border-border/50">
               <Zap className="h-4 w-4 text-primary" />
               <span className="text-xs font-bold text-foreground tracking-tight">QEL</span>
             </div>
@@ -172,10 +172,10 @@ export function Footer() {
           </div>
           
           <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
-            <Link href="/privacy" className="hover:text-emerald-400 transition-colors" data-testid="footer-link-privacy">
+            <Link href="/privacy" className="hover:text-[var(--trade-bullish)] transition-colors" data-testid="footer-link-privacy">
               Privacy
             </Link>
-            <Link href="/terms" className="hover:text-emerald-400 transition-colors" data-testid="footer-link-terms">
+            <Link href="/terms" className="hover:text-[var(--trade-bullish)] transition-colors" data-testid="footer-link-terms">
               Terms
             </Link>
           </div>
@@ -188,9 +188,9 @@ export function Footer() {
         <div className="flex items-center gap-4">
           <DataFeedIndicator />
           
-          <div className="flex items-center gap-2 pl-3 border-l border-slate-700/50">
-            <Shield className="h-3 w-3 text-red-400" />
-            <span className="text-[10px] font-mono text-red-400/90 uppercase tracking-wider">
+          <div className="flex items-center gap-2 pl-3 border-l border-border/50">
+            <Shield className="h-3 w-3 text-[var(--trade-bearish)]" />
+            <span className="text-[10px] font-mono text-[var(--trade-bearish)]/90 uppercase tracking-wider">
               Educational Only
             </span>
           </div>

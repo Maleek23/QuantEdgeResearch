@@ -180,11 +180,11 @@ export default function JoinBeta() {
 
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-[var(--surface-base)] flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="w-full max-w-md text-center relative z-10">
           <div className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-emerald-400" />
+            <CheckCircle className="w-10 h-10 text-[var(--trade-bullish)]" />
           </div>
           <h1 className="text-2xl font-semibold text-white mb-2" data-testid="text-welcome-title">Welcome to the Lab!</h1>
           <p className="text-neutral-400 mb-6">Your account is active. Redirecting to dashboard...</p>
@@ -202,7 +202,7 @@ export default function JoinBeta() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-start justify-center py-8 px-6 relative overflow-y-auto">
+    <div className="min-h-screen bg-[var(--surface-base)] flex items-start justify-center py-8 px-6 relative overflow-y-auto">
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="w-full max-w-lg relative z-10">
@@ -226,7 +226,7 @@ export default function JoinBeta() {
         </div>
 
         <div className="flex justify-center items-center gap-3 mb-8">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-[var(--trade-bullish)]"}`}>
             {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
           </div>
           <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-cyan-500" : "bg-neutral-800"}`} />
@@ -236,7 +236,7 @@ export default function JoinBeta() {
         </div>
 
         {step === "verify" ? (
-          <div className="bg-[#111111] border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
+          <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center gap-2 mb-1">
@@ -269,7 +269,7 @@ export default function JoinBeta() {
                     />
                   </div>
                   {verifyForm.formState.errors.email && (
-                    <p className="text-red-400 text-sm mt-1">{verifyForm.formState.errors.email.message}</p>
+                    <p className="text-[var(--trade-bearish)] text-sm mt-1">{verifyForm.formState.errors.email.message}</p>
                   )}
                 </div>
                 
@@ -287,7 +287,7 @@ export default function JoinBeta() {
                     />
                   </div>
                   {verifyForm.formState.errors.token && (
-                    <p className="text-red-400 text-sm mt-1">{verifyForm.formState.errors.token.message}</p>
+                    <p className="text-[var(--trade-bearish)] text-sm mt-1">{verifyForm.formState.errors.token.message}</p>
                   )}
                 </div>
 
@@ -308,7 +308,7 @@ export default function JoinBeta() {
             </CardContent>
           </div>
         ) : (
-          <div className="bg-[#111111] border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
+          <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
             <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center justify-between">
@@ -347,7 +347,7 @@ export default function JoinBeta() {
                         />
                       </div>
                       {onboardingForm.formState.errors.firstName && (
-                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.firstName.message}</p>
+                        <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.firstName.message}</p>
                       )}
                     </div>
                     <div>
@@ -360,7 +360,7 @@ export default function JoinBeta() {
                         {...onboardingForm.register("lastName")}
                       />
                       {onboardingForm.formState.errors.lastName && (
-                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.lastName.message}</p>
+                        <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.lastName.message}</p>
                       )}
                     </div>
                   </div>
@@ -502,7 +502,7 @@ export default function JoinBeta() {
                         />
                       </div>
                       {onboardingForm.formState.errors.password && (
-                        <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
+                        <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
                       )}
                     </div>
                   </div>
@@ -520,7 +520,7 @@ export default function JoinBeta() {
                       />
                     </div>
                     {onboardingForm.formState.errors.confirmPassword && (
-                      <p className="text-red-400 text-sm mt-1">{onboardingForm.formState.errors.confirmPassword.message}</p>
+                      <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.confirmPassword.message}</p>
                     )}
                   </div>
 

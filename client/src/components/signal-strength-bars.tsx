@@ -73,7 +73,7 @@ export function SignalStrengthBars({ signals, className }: SignalStrengthBarsPro
                   <p className="text-xs text-muted-foreground">{signalConfig.description}</p>
                   <p className={cn(
                     "text-xs font-medium",
-                    isActive ? "text-green-500" : "text-muted-foreground"
+                    isActive ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
                   )}>
                     {isActive ? '✓ Active' : '○ Not triggered'}
                   </p>

@@ -34,9 +34,9 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
   };
 
   const getGradeColor = (grade: string) => {
-    if (grade.startsWith('A')) return 'text-green-500';
+    if (grade.startsWith('A')) return 'text-[var(--trade-bullish)]';
     if (grade.startsWith('B')) return 'text-cyan-500';
-    if (grade.startsWith('C')) return 'text-amber-500';
+    if (grade.startsWith('C')) return 'text-[var(--trade-neutral)]';
     return 'text-muted-foreground';
   };
 
@@ -77,7 +77,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-muted-foreground">Win Rate</span>
-                    <span className="text-sm font-bold font-mono">{safeToFixed(winRatePercent, 1)}%</span>
+                    <span className="text-sm font-bold font-mono tabular-nums">{safeToFixed(winRatePercent, 1)}%</span>
                   </div>
                   <div className="h-2 bg-secondary/20 rounded-full overflow-hidden">
                     <div 
@@ -96,7 +96,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
                   <div className="glass-card rounded-lg p-2">
                     <p className="text-muted-foreground mb-1">Avg Gain</p>
                     <div className={`flex items-center gap-1 font-mono font-semibold ${
-                      isPositive ? 'text-green-500' : 'text-red-500'
+                      isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                     }`}>
                       {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {signal.avgPercentGain >= 0 ? '+' : ''}{safeToFixed(signal.avgPercentGain, 1)}%

@@ -148,8 +148,8 @@ function PlatformBadge({ platform }: { platform: Platform }) {
 
 function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
   const config = {
-    bullish: { color: "bg-green-500/20 text-green-400 border-green-500/30", icon: TrendingUp },
-    bearish: { color: "bg-red-500/20 text-red-400 border-red-500/30", icon: TrendingDown },
+    bullish: { color: "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30", icon: TrendingUp },
+    bearish: { color: "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30", icon: TrendingDown },
     neutral: { color: "bg-white/10 text-muted-foreground border-white/10", icon: BarChart3 },
   };
   const { color, icon: Icon } = config[sentiment];
@@ -412,7 +412,7 @@ function TopTickerRow({ ticker, onClick, isSelected }: { ticker: TopTicker; onCl
         <div className="flex items-center gap-2">
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500"
+              className="h-full bg-[var(--trade-bullish)]"
               style={{ width: `${ticker.bullishPercent}%` }}
             />
           </div>
@@ -421,9 +421,9 @@ function TopTickerRow({ ticker, onClick, isSelected }: { ticker: TopTicker; onCl
       <div className="text-right text-sm">
         <p className="font-mono">{ticker.mentionCount} mentions</p>
         <p className="text-xs text-muted-foreground">
-          <span className="text-green-400">{ticker.bullishPercent}%</span>
+          <span className="text-[var(--trade-bullish)]">{ticker.bullishPercent}%</span>
           {" / "}
-          <span className="text-red-400">{ticker.bearishPercent}%</span>
+          <span className="text-[var(--trade-bearish)]">{ticker.bearishPercent}%</span>
         </p>
       </div>
     </div>
@@ -467,8 +467,8 @@ function PerformanceTable({ performance }: { performance: CTPerformance[] }) {
   const getStatusBadge = (status: CTPerformance["status"]) => {
     const config = {
       open: { color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", label: "Open" },
-      won: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Won" },
-      lost: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Lost" },
+      won: { color: "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30", label: "Won" },
+      lost: { color: "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30", label: "Lost" },
       breakeven: { color: "bg-white/10 text-muted-foreground border-white/10", label: "Breakeven" },
     };
     const { color, label } = config[status];
@@ -500,7 +500,7 @@ function PerformanceTable({ performance }: { performance: CTPerformance[] }) {
             <TableCell className="text-right font-mono">
               ${safeToFixed(p.exitPrice || p.currentPrice || 0, 2)}
             </TableCell>
-            <TableCell className={cn("text-right font-mono", p.pnlPercent >= 0 ? "text-green-400" : "text-red-400")}>
+            <TableCell className={cn("text-right font-mono", p.pnlPercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {formatPercent(p.pnlPercent)}
             </TableCell>
             <TableCell>{getStatusBadge(p.status)}</TableCell>
@@ -642,7 +642,7 @@ export default function CTTracker() {
                 <div className="h-12 w-12 mx-auto rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
                   <User className="h-6 w-6 text-purple-400" />
                 </div>
-                <p className="text-muted-foreground">No sources tracked yet</p>
+                <p className="text-muted-foreground">Add sources to start tracking</p>
                 <p className="text-sm text-muted-foreground">Add a crypto influencer to start tracking</p>
               </div>
             )}
@@ -703,7 +703,7 @@ export default function CTTracker() {
                     <div className="h-12 w-12 mx-auto rounded-lg bg-cyan-500/10 flex items-center justify-center mb-2">
                       <MessageSquare className="h-6 w-6 text-cyan-400" />
                     </div>
-                    <p>No mentions found</p>
+                    <p>Scanning for mentions...</p>
                   </div>
                 )}
               </ScrollArea>
@@ -736,7 +736,7 @@ export default function CTTracker() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-4">No ticker data available</p>
+                <p className="text-center text-muted-foreground py-4">Loading ticker data...</p>
               )}
             </div>
           </section>
@@ -746,8 +746,8 @@ export default function CTTracker() {
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="w-full justify-between p-0 h-auto mb-4 hover-elevate">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                      <Target className="h-4 w-4 text-green-400" />
+                    <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center">
+                      <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
                     </div>
                     <span className="text-xl font-semibold">Call Performance</span>
                   </div>
@@ -765,10 +765,10 @@ export default function CTTracker() {
                       <PerformanceTable performance={performance} />
                     ) : (
                       <div className="p-8 text-center text-muted-foreground">
-                        <div className="h-12 w-12 mx-auto rounded-lg bg-green-500/10 flex items-center justify-center mb-2">
-                          <Target className="h-6 w-6 text-green-400" />
+                        <div className="h-12 w-12 mx-auto rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center mb-2">
+                          <Target className="h-6 w-6 text-[var(--trade-bullish)]" />
                         </div>
-                        <p>No tracked calls yet</p>
+                        <p>Tracking will appear here</p>
                       </div>
                     )}
                   </ScrollArea>

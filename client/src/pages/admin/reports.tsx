@@ -235,7 +235,7 @@ export default function AdminReportsPage() {
         <Card className="glass-card w-full max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
               Admin Access Required
             </CardTitle>
           </CardHeader>
@@ -292,7 +292,7 @@ export default function AdminReportsPage() {
           <Button
             onClick={() => generateReportMutation.mutate(selectedPeriod)}
             disabled={generateReportMutation.isPending}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             data-testid="button-generate-report"
           >
             {generateReportMutation.isPending ? (
@@ -326,9 +326,9 @@ export default function AdminReportsPage() {
                   {period} Report
                 </CardTitle>
                 {report?.status === "completed" ? (
-                  <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Completed</Badge>
+                  <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Completed</Badge>
                 ) : report?.status === "generating" ? (
-                  <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">Generating</Badge>
+                  <Badge className="bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30">Generating</Badge>
                 ) : (
                   <Badge variant="secondary">No Data</Badge>
                 )}
@@ -349,13 +349,13 @@ export default function AdminReportsPage() {
                     </p>
                     <div className="flex items-center gap-4 pt-2 text-sm">
                       <span className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3 text-green-400" />
-                        <span className="font-mono tabular-nums text-green-400">
+                        <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
+                        <span className="font-mono tabular-nums text-[var(--trade-bullish)]">
                           {report.overallWinRate != null ? safeToFixed(report.overallWinRate, 1) : "—"}%
                         </span>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Trophy className="h-3 w-3 text-amber-400" />
+                        <Trophy className="h-3 w-3 text-[var(--trade-neutral)]" />
                         <span className="text-muted-foreground">
                           {ENGINE_LABELS[report.bestPerformingEngine || ""] || "—"}
                         </span>
@@ -364,7 +364,7 @@ export default function AdminReportsPage() {
                   </div>
                 ) : (
                   <div className="text-muted-foreground text-sm">
-                    No report generated yet
+                    Report generation pending
                   </div>
                 )}
               </CardContent>
@@ -375,7 +375,7 @@ export default function AdminReportsPage() {
 
       {/* Tabs for different sections */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-slate-800/50">
+        <TabsList className="bg-muted/50">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="engines" data-testid="tab-engines">Engine Performance</TabsTrigger>
           <TabsTrigger value="bots" data-testid="tab-bots">Bot Activity</TabsTrigger>
@@ -409,7 +409,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Open Ideas
                   </p>
-                  <Activity className="h-4 w-4 text-amber-400" />
+                  <Activity className="h-4 w-4 text-[var(--trade-neutral)]" />
                 </div>
                 {statsLoading ? (
                   <Skeleton className="h-8 w-20 mt-2" />
@@ -426,14 +426,14 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Overall Win Rate
                   </p>
-                  <TrendingUp className="h-4 w-4 text-green-400" />
+                  <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
                 {statsLoading ? (
                   <Skeleton className="h-8 w-20 mt-2" />
                 ) : (
                   <p className={cn(
                     "text-2xl font-bold font-mono tabular-nums mt-2",
-                    (stats?.summary.overallWinRate || 0) >= 50 ? "text-green-400" : "text-red-400"
+                    (stats?.summary.overallWinRate || 0) >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )} data-testid="text-win-rate">
                     {stats?.summary.overallWinRate != null ? safeToFixed(stats.summary.overallWinRate, 1) : "—"}%
                   </p>
@@ -446,7 +446,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Best Engine
                   </p>
-                  <Trophy className="h-4 w-4 text-amber-400" />
+                  <Trophy className="h-4 w-4 text-[var(--trade-neutral)]" />
                 </div>
                 {statsLoading ? (
                   <Skeleton className="h-8 w-20 mt-2" />
@@ -521,7 +521,7 @@ export default function AdminReportsPage() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    No asset data available
+                    Asset data loading...
                   </div>
                 )}
               </CardContent>
@@ -556,7 +556,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
                     CT Tracker Mentions
                   </p>
-                  <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-ct-mentions">
+                  <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-bullish)]" data-testid="text-ct-mentions">
                     {stats?.scannerActivity.ctTrackerMentions || 0}
                   </p>
                 </div>
@@ -564,7 +564,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
                     CT Auto-Trades
                   </p>
-                  <p className="text-2xl font-bold font-mono tabular-nums text-amber-400" data-testid="text-ct-trades">
+                  <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-neutral)]" data-testid="text-ct-trades">
                     {stats?.scannerActivity.ctTrackerAutoTrades || 0}
                   </p>
                 </div>
@@ -608,7 +608,7 @@ export default function AdminReportsPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="h-64 flex items-center justify-center text-muted-foreground">
-                  No engine data available
+                  Engine data loading...
                 </div>
               )}
             </CardContent>
@@ -631,7 +631,7 @@ export default function AdminReportsPage() {
                       <span className="text-muted-foreground">Win Rate</span>
                       <span className={cn(
                         "font-mono tabular-nums font-semibold",
-                        (engine.winRate || 0) >= 50 ? "text-green-400" : "text-red-400"
+                        (engine.winRate || 0) >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {engine.winRate != null ? safeToFixed(engine.winRate, 1) : "—"}%
                       </span>
@@ -642,19 +642,19 @@ export default function AdminReportsPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Wins</span>
-                      <span className="font-mono tabular-nums text-green-400">{engine.wins}</span>
+                      <span className="font-mono tabular-nums text-[var(--trade-bullish)]">{engine.wins}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Losses</span>
-                      <span className="font-mono tabular-nums text-red-400">{engine.losses}</span>
+                      <span className="font-mono tabular-nums text-[var(--trade-bearish)]">{engine.losses}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Avg Gain</span>
-                      <span className="font-mono tabular-nums text-green-400">+{safeToFixed(engine.avgGain, 1)}%</span>
+                      <span className="font-mono tabular-nums text-[var(--trade-bullish)]">+{safeToFixed(engine.avgGain, 1)}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Avg Loss</span>
-                      <span className="font-mono tabular-nums text-red-400">-{safeToFixed(engine.avgLoss, 1)}%</span>
+                      <span className="font-mono tabular-nums text-[var(--trade-bearish)]">-{safeToFixed(engine.avgLoss, 1)}%</span>
                     </div>
                   </div>
                 </CardContent>
@@ -691,7 +691,7 @@ export default function AdminReportsPage() {
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className={cn(
                         "font-mono tabular-nums font-semibold",
-                        (stats?.botActivity.autoLotto.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        (stats?.botActivity.autoLotto.pnl || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {(stats?.botActivity.autoLotto.pnl || 0) >= 0 ? "+" : ""}
                         ${safeToFixed(stats?.botActivity.autoLotto.pnl, 2, "0.00")}
@@ -727,7 +727,7 @@ export default function AdminReportsPage() {
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className={cn(
                         "font-mono tabular-nums font-semibold",
-                        (stats?.botActivity.futures.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        (stats?.botActivity.futures.pnl || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {(stats?.botActivity.futures.pnl || 0) >= 0 ? "+" : ""}
                         ${safeToFixed(stats?.botActivity.futures.pnl, 2, "0.00")}
@@ -741,7 +741,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card border-l-2 border-l-green-500" data-testid="card-bot-crypto">
               <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-green-400" />
+                  <Sparkles className="h-4 w-4 text-[var(--trade-bullish)]" />
                   Crypto Bot
                 </CardTitle>
               </CardHeader>
@@ -763,7 +763,7 @@ export default function AdminReportsPage() {
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className={cn(
                         "font-mono tabular-nums font-semibold",
-                        (stats?.botActivity.crypto.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        (stats?.botActivity.crypto.pnl || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {(stats?.botActivity.crypto.pnl || 0) >= 0 ? "+" : ""}
                         ${safeToFixed(stats?.botActivity.crypto.pnl, 2, "0.00")}
@@ -777,7 +777,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card border-l-2 border-l-amber-500" data-testid="card-bot-propfirm">
               <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Target className="h-4 w-4 text-amber-400" />
+                  <Target className="h-4 w-4 text-[var(--trade-neutral)]" />
                   Prop Firm Mode
                 </CardTitle>
               </CardHeader>
@@ -799,7 +799,7 @@ export default function AdminReportsPage() {
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <span className={cn(
                         "font-mono tabular-nums font-semibold",
-                        (stats?.botActivity.propFirm.pnl || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        (stats?.botActivity.propFirm.pnl || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {(stats?.botActivity.propFirm.pnl || 0) >= 0 ? "+" : ""}
                         ${safeToFixed(stats?.botActivity.propFirm.pnl, 2, "0.00")}
@@ -818,7 +818,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-green-400" />
+                  <Trophy className="h-5 w-5 text-[var(--trade-bullish)]" />
                   Top Winning Symbols
                 </CardTitle>
               </CardHeader>
@@ -844,10 +844,10 @@ export default function AdminReportsPage() {
                       {stats.topWinners.map((symbol, i) => (
                         <TableRow key={symbol.symbol} data-testid={`row-winner-${i}`}>
                           <TableCell className="font-mono font-semibold">{symbol.symbol}</TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-green-400">
+                          <TableCell className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">
                             {symbol.wins}
                           </TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-red-400">
+                          <TableCell className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">
                             {symbol.losses}
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums">
@@ -855,7 +855,7 @@ export default function AdminReportsPage() {
                           </TableCell>
                           <TableCell className={cn(
                             "text-right font-mono tabular-nums",
-                            symbol.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+                            symbol.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                           )}>
                             {symbol.totalPnl >= 0 ? "+" : ""}{safeToFixed(symbol.totalPnl, 1)}%
                           </TableCell>
@@ -865,7 +865,7 @@ export default function AdminReportsPage() {
                   </Table>
                 ) : (
                   <div className="text-center text-muted-foreground py-8">
-                    No winning symbols data available
+                    No winning trades recorded yet
                   </div>
                 )}
               </CardContent>
@@ -874,7 +874,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-400" />
+                  <XCircle className="h-5 w-5 text-[var(--trade-bearish)]" />
                   Top Losing Symbols
                 </CardTitle>
               </CardHeader>
@@ -900,10 +900,10 @@ export default function AdminReportsPage() {
                       {stats.topLosers.map((symbol, i) => (
                         <TableRow key={symbol.symbol} data-testid={`row-loser-${i}`}>
                           <TableCell className="font-mono font-semibold">{symbol.symbol}</TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-green-400">
+                          <TableCell className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">
                             {symbol.wins}
                           </TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-red-400">
+                          <TableCell className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">
                             {symbol.losses}
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums">
@@ -911,7 +911,7 @@ export default function AdminReportsPage() {
                           </TableCell>
                           <TableCell className={cn(
                             "text-right font-mono tabular-nums",
-                            symbol.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+                            symbol.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                           )}>
                             {symbol.totalPnl >= 0 ? "+" : ""}{safeToFixed(symbol.totalPnl, 1)}%
                           </TableCell>
@@ -921,7 +921,7 @@ export default function AdminReportsPage() {
                   </Table>
                 ) : (
                   <div className="text-center text-muted-foreground py-8">
-                    No losing symbols data available
+                    No losing trades recorded yet
                   </div>
                 )}
               </CardContent>
@@ -975,7 +975,7 @@ export default function AdminReportsPage() {
                         </TableCell>
                         <TableCell className={cn(
                           "text-right font-mono tabular-nums",
-                          (report.overallWinRate || 0) >= 50 ? "text-green-400" : "text-red-400"
+                          (report.overallWinRate || 0) >= 50 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           {report.overallWinRate != null ? safeToFixed(report.overallWinRate, 1) : "—"}%
                         </TableCell>
@@ -984,11 +984,11 @@ export default function AdminReportsPage() {
                         </TableCell>
                         <TableCell>
                           {report.status === "completed" ? (
-                            <Badge className="bg-green-500/10 text-green-400 border-green-500/30">
+                            <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">
                               Completed
                             </Badge>
                           ) : report.status === "generating" ? (
-                            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+                            <Badge className="bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30">
                               Generating
                             </Badge>
                           ) : (

@@ -1,4 +1,4 @@
-import { QueryClient, QueryFunction, QueryFunctionContext } from "@tanstack/react-query";
+import { QueryClient, QueryFunction, QueryFunctionContext, keepPreviousData } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -104,6 +104,7 @@ export const queryClient = new QueryClient({
       retry: 1, // One retry for transient failures
       retryDelay: 1000,
       networkMode: 'offlineFirst', // Use cache while offline
+      placeholderData: keepPreviousData, // NEVER show blank — keep last data during refetch
     },
     mutations: {
       retry: false,

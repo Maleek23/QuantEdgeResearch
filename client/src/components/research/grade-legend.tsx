@@ -28,7 +28,7 @@ export function GradeLegend({ className }: GradeLegendProps) {
       range: "80-89",
       label: "Strong Buy",
       description: "Excellent fundamentals + technicals, minor weaknesses",
-      color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10",
+      color: "text-[var(--trade-bullish)] border-emerald-500/30 bg-emerald-500/10",
       examples: "Quality stocks in uptrends"
     },
     {
@@ -44,7 +44,7 @@ export function GradeLegend({ className }: GradeLegendProps) {
       range: "60-69",
       label: "Neutral",
       description: "Mixed signals - requires additional confirmation",
-      color: "text-amber-400 border-amber-500/30 bg-amber-500/10",
+      color: "text-[var(--trade-neutral)] border-amber-500/30 bg-amber-500/10",
       examples: "Wait for better setup"
     },
     {
@@ -60,7 +60,7 @@ export function GradeLegend({ className }: GradeLegendProps) {
       range: "0-49",
       label: "Avoid",
       description: "Multiple red flags, high risk of loss",
-      color: "text-red-400 border-red-500/30 bg-red-500/10",
+      color: "text-[var(--trade-bearish)] border-red-500/30 bg-red-500/10",
       examples: "Bearish on all fronts"
     },
   ];
@@ -78,10 +78,10 @@ export function GradeLegend({ className }: GradeLegendProps) {
             <Info className="h-5 w-5 text-cyan-400" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-100 mb-1">
+            <h3 className="text-lg font-bold text-foreground/95 mb-1">
               How Grading Works
             </h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Overall grade = weighted average of 7 analysis engines. Each component contributes based on its portfolio weight.
             </p>
           </div>
@@ -96,18 +96,18 @@ export function GradeLegend({ className }: GradeLegendProps) {
               transition={{ delay: idx * 0.05, duration: 0.2 }}
               className="group relative"
             >
-              <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-3 hover:bg-slate-800/30 hover:border-cyan-500/30 transition-all">
+              <div className="bg-card/50 border border-border rounded-lg p-3 hover:bg-muted/30 hover:border-cyan-500/30 transition-all">
                 <div className="flex items-center justify-between mb-2">
                   <Badge variant="outline" className={cn("text-lg font-bold px-3 py-1", item.color)}>
                     {item.grade}
                   </Badge>
-                  <span className="text-xs text-slate-500 font-mono">{item.range}</span>
+                  <span className="text-xs text-muted-foreground font-mono">{item.range}</span>
                 </div>
 
-                <p className="text-sm font-semibold text-slate-200 mb-1">{item.label}</p>
-                <p className="text-xs text-slate-500 leading-relaxed mb-2">{item.description}</p>
+                <p className="text-sm font-semibold text-foreground/90 mb-1">{item.label}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{item.description}</p>
 
-                <div className="flex items-start gap-1.5 text-xs text-slate-600 italic">
+                <div className="flex items-start gap-1.5 text-xs text-muted-foreground/70 italic">
                   <span className="shrink-0">e.g.</span>
                   <span>{item.examples}</span>
                 </div>
@@ -116,20 +116,20 @@ export function GradeLegend({ className }: GradeLegendProps) {
           ))}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+        <div className="mt-4 pt-4 border-t border-border flex items-start gap-2">
+          <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)] shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              <span className="font-semibold text-slate-300">Pro Tip:</span> Focus on A/B grades for high-probability setups.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground/80">Pro Tip:</span> Focus on A/B grades for high-probability setups.
               C grades need confirmation. D/F grades are either avoid or short candidates depending on your strategy.
             </p>
           </div>
         </div>
 
         <div className="mt-3 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <AlertCircle className="h-4 w-4 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Grades update in real-time as market conditions change. A stock rated A today may drop to C tomorrow if technical setup breaks.
             </p>
           </div>

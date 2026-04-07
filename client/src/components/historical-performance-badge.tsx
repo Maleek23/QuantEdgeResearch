@@ -39,10 +39,10 @@ export function HistoricalPerformanceBadge({
   }
   
   const getWinRateColor = (rate: number) => {
-    if (rate >= 70) return 'text-green-400 bg-green-500/10 border-green-500/30';
+    if (rate >= 70) return 'text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/30';
     if (rate >= 50) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';
-    if (rate >= 35) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
-    return 'text-red-400 bg-red-500/10 border-red-500/30';
+    if (rate >= 35) return 'text-[var(--trade-neutral)] bg-amber-500/10 border-amber-500/30';
+    return 'text-[var(--trade-bearish)] bg-red-500/10 border-red-500/30';
   };
   
   if (compact) {
@@ -93,7 +93,7 @@ export function HistoricalPerformanceBadge({
                   <span className="text-muted-foreground">Expected Value:</span>
                   <span className={cn(
                     "font-bold font-mono",
-                    evData.ev >= 0.02 ? "text-green-400" : evData.ev >= 0 ? "text-cyan-400" : "text-red-400"
+                    evData.ev >= 0.02 ? "text-[var(--trade-bullish)]" : evData.ev >= 0 ? "text-cyan-400" : "text-[var(--trade-bearish)]"
                   )}>
                     {evData.formatted}
                   </span>
@@ -172,9 +172,9 @@ export function HistoricalPerformanceBadge({
               variant="outline" 
               className={cn(
                 "text-[10px] h-5 font-semibold cursor-help font-mono",
-                evData.ev >= 0.02 ? "text-green-400 bg-green-500/10 border-green-500/30" :
+                evData.ev >= 0.02 ? "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/30" :
                 evData.ev >= 0 ? "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" :
-                "text-red-400 bg-red-500/10 border-red-500/30"
+                "text-[var(--trade-bearish)] bg-red-500/10 border-red-500/30"
               )}
               data-testid={`badge-expected-value-${engine}`}
             >

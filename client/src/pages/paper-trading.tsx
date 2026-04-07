@@ -62,7 +62,7 @@ function formatPercent(value: number): string {
 function PnLDisplay({ value, percent, showPercent = true }: { value: number; percent?: number; showPercent?: boolean }) {
   const isProfit = value >= 0;
   return (
-    <span className={cn("font-mono font-medium tabular-nums", isProfit ? "text-green-400" : "text-red-400")}>
+    <span className={cn("font-mono font-medium tabular-nums", isProfit ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
       {isProfit ? "+" : ""}
       {formatCurrency(value)}
       {showPercent && percent !== undefined && (
@@ -79,8 +79,8 @@ function DirectionBadge({ direction }: { direction: string }) {
       className={cn(
         "text-xs",
         direction === "long" 
-          ? "bg-green-500/10 text-green-400 border-green-500/30" 
-          : "bg-red-500/10 text-red-400 border-red-500/30"
+          ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" 
+          : "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
       )}
     >
       {direction === "long" ? "Long" : "Short"}
@@ -90,11 +90,11 @@ function DirectionBadge({ direction }: { direction: string }) {
 
 function AssetTypeBadge({ assetType }: { assetType: string }) {
   const variants: Record<string, string> = {
-    stock: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    option: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    crypto: "bg-green-500/20 text-green-400 border-green-500/30",
-    penny_stock: "bg-red-500/20 text-red-400 border-red-500/30",
-    future: "bg-cyan-600/20 text-emerald-300 border-cyan-400/30",
+    stock: "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/30",
+    option: "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30",
+    crypto: "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30",
+    penny_stock: "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30",
+    future: "bg-cyan-600/20 text-[var(--trade-bullish)] border-cyan-400/30",
   };
   return (
     <Badge variant="outline" className={cn("text-xs", variants[assetType] || "")}>
@@ -138,7 +138,7 @@ function PortfolioSummaryCard({
       <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
-            <DollarSign className="h-5 w-5 text-green-400" />
+            <DollarSign className="h-5 w-5 text-[var(--trade-bullish)]" />
           </div>
           <div>
             <CardTitle className="text-xl font-semibold">{portfolio.name}</CardTitle>
@@ -150,7 +150,7 @@ function PortfolioSummaryCard({
           size="sm"
           onClick={onRefreshPrices}
           disabled={isRefreshing}
-          className="border-slate-700"
+          className="border-border"
           data-testid="button-refresh-prices"
         >
           <RefreshCw className={cn("h-4 w-4 mr-1", isRefreshing && "animate-spin")} />
@@ -191,13 +191,13 @@ function PortfolioSummaryCard({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1 truncate">Win/Loss</p>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1">
-                <Trophy className="h-4 w-4 text-green-400" />
-                <span className="font-bold font-mono text-green-400" data-testid="text-win-count">{portfolio.winCount}</span>
+                <Trophy className="h-4 w-4 text-[var(--trade-bullish)]" />
+                <span className="font-bold font-mono text-[var(--trade-bullish)]" data-testid="text-win-count">{portfolio.winCount}</span>
               </div>
               <span className="text-muted-foreground">/</span>
               <div className="flex items-center gap-1">
-                <XCircle className="h-4 w-4 text-red-400" />
-                <span className="font-bold font-mono text-red-400" data-testid="text-loss-count">{portfolio.lossCount}</span>
+                <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
+                <span className="font-bold font-mono text-[var(--trade-bearish)]" data-testid="text-loss-count">{portfolio.lossCount}</span>
               </div>
             </div>
           </div>
@@ -266,8 +266,8 @@ function OpenPositionsSection({
       <Card className="glass-card" data-testid="card-open-positions">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-              <Activity className="h-4 w-4 text-emerald-400" />
+            <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center border border-[var(--trade-bullish)]/20">
+              <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>
@@ -290,8 +290,8 @@ function OpenPositionsSection({
     <Card className="glass-card" data-testid="card-open-positions">
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-            <Activity className="h-4 w-4 text-emerald-400" />
+          <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center border border-[var(--trade-bullish)]/20">
+            <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>
@@ -320,7 +320,7 @@ function OpenPositionsSection({
               {openPositions.map((position) => (
                 <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
                   <TableCell>
-                    <span className="font-bold font-mono">{position.symbol}</span>
+                    <span className="font-bold font-mono tabular-nums">{position.symbol}</span>
                   </TableCell>
                   <TableCell>
                     {position.optionType ? (
@@ -329,8 +329,8 @@ function OpenPositionsSection({
                         className={cn(
                           "text-xs font-mono",
                           position.optionType === "call" 
-                            ? "bg-green-500/10 text-green-400 border-green-500/30" 
-                            : "bg-red-500/10 text-red-400 border-red-500/30"
+                            ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" 
+                            : "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                         )}
                       >
                         {position.optionType.toUpperCase()}
@@ -339,7 +339,7 @@ function OpenPositionsSection({
                       <AssetTypeBadge assetType={position.assetType} />
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-mono font-bold">
+                  <TableCell className="text-right font-mono font-bold tabular-nums">
                     {position.strikePrice ? `$${position.strikePrice}` : "-"}
                   </TableCell>
                   <TableCell className="font-mono text-sm">
@@ -399,8 +399,8 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
           <CardHeader className="cursor-pointer hover-elevate rounded-t-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                  <TrendingUp className="h-4 w-4 text-green-400" />
+                <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center border border-green-500/20">
+                  <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">History</p>
@@ -434,7 +434,7 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
                   {closedPositions.map((position) => (
                     <TableRow key={position.id} data-testid={`row-closed-position-${position.id}`}>
                       <TableCell>
-                        <span className="font-bold font-mono">{position.symbol}</span>
+                        <span className="font-bold font-mono tabular-nums">{position.symbol}</span>
                       </TableCell>
                       <TableCell>
                         {position.optionType ? (
@@ -443,8 +443,8 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
                             className={cn(
                               "text-xs font-mono",
                               position.optionType === "call" 
-                                ? "bg-green-500/10 text-green-400 border-green-500/30" 
-                                : "bg-red-500/10 text-red-400 border-red-500/30"
+                                ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" 
+                                : "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                             )}
                           >
                             {position.optionType.toUpperCase()}
@@ -453,7 +453,7 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
                           <AssetTypeBadge assetType={position.assetType} />
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-mono font-bold">
+                      <TableCell className="text-right font-mono font-bold tabular-nums">
                         {position.strikePrice ? `$${position.strikePrice}` : "-"}
                       </TableCell>
                       <TableCell className="font-mono text-sm">
@@ -520,7 +520,7 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
-              <TrendingUp className="h-4 w-4 text-green-400" />
+              <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</p>
@@ -530,7 +530,7 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
         </CardHeader>
         <CardContent>
           <div className="h-48 flex items-center justify-center text-muted-foreground">
-            <p>No equity data yet. Trade to see your performance over time.</p>
+            <p>Execute trades to build your equity curve</p>
           </div>
         </CardContent>
       </Card>
@@ -547,7 +547,7 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
       <CardHeader>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
-            <TrendingUp className="h-4 w-4 text-green-400" />
+            <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</p>
@@ -599,10 +599,10 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
 
 function CreatePortfolioCard({ onCreate, isCreating }: { onCreate: () => void; isCreating: boolean }) {
   return (
-    <Card className="glass-card border-dashed border-slate-700" data-testid="card-create-portfolio">
+    <Card className="glass-card border-dashed border-border" data-testid="card-create-portfolio">
       <CardContent className="flex flex-col items-center justify-center py-16">
         <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20 mb-4">
-          <DollarSign className="h-8 w-8 text-green-400" />
+          <DollarSign className="h-8 w-8 text-[var(--trade-bullish)]" />
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
           Get Started
@@ -613,7 +613,7 @@ function CreatePortfolioCard({ onCreate, isCreating }: { onCreate: () => void; i
           Test strategies and track your performance.
         </p>
         <Button 
-          className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" 
+          className="bg-cyan-500 hover:bg-cyan-400 text-foreground" 
           onClick={onCreate} 
           disabled={isCreating} 
           size="lg" 
@@ -733,7 +733,7 @@ export default function PaperTradingPage() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
-            <Wallet className="h-5 w-5 text-green-400" />
+            <Wallet className="h-5 w-5 text-[var(--trade-bullish)]" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

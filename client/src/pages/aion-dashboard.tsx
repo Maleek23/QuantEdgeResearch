@@ -95,9 +95,9 @@ const cardVariant = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function probColor(p: number) {
-  if (p >= 65) return "text-emerald-400";
-  if (p >= 50) return "text-amber-400";
-  return "text-red-400";
+  if (p >= 65) return "text-[var(--trade-bullish)]";
+  if (p >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 function probBarBg(p: number) {
@@ -108,32 +108,32 @@ function probBarBg(p: number) {
 }
 
 function crashBorderColor(prob: number) {
-  if (prob < 10) return "border-emerald-500/60";
-  if (prob < 20) return "border-emerald-500/40";
-  if (prob < 30) return "border-amber-500/50";
+  if (prob < 10) return "border-[var(--trade-bullish)]/60";
+  if (prob < 20) return "border-[var(--trade-bullish)]/40";
+  if (prob < 30) return "border-[var(--trade-neutral)]/50";
   if (prob < 45) return "border-orange-500/50";
-  return "border-red-500/60";
+  return "border-[var(--trade-bearish)]/60";
 }
 
 function crashTextColor(prob: number) {
-  if (prob < 10) return "text-emerald-400";
-  if (prob < 20) return "text-emerald-300";
-  if (prob < 30) return "text-amber-400";
+  if (prob < 10) return "text-[var(--trade-bullish)]";
+  if (prob < 20) return "text-[var(--trade-bullish)]";
+  if (prob < 30) return "text-[var(--trade-neutral)]";
   if (prob < 45) return "text-orange-400";
-  return "text-red-400";
+  return "text-[var(--trade-bearish)]";
 }
 
 function regimeBadgeClass(regime: string) {
   const r = regime.toUpperCase();
   if (r.includes("CONSTRUCTIVE") || r.includes("RISK-ON"))
-    return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+    return "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/30";
   if (r.includes("BALANCED") || r.includes("NORMAL"))
     return "bg-blue-500/15 text-blue-400 border-blue-500/30";
   if (r.includes("MAX DEFENSIVE"))
-    return "bg-red-500/15 text-red-400 border-red-500/30";
+    return "bg-[var(--trade-bearish)]/15 text-[var(--trade-bearish)] border-[var(--trade-bearish)]/30";
   if (r.includes("DEFENSIVE"))
-    return "bg-amber-500/15 text-amber-400 border-amber-500/30";
-  return "bg-slate-500/15 text-slate-400 border-slate-500/30";
+    return "bg-[var(--trade-neutral)]/15 text-[var(--trade-neutral)] border-[var(--trade-neutral)]/30";
+  return "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30";
 }
 
 function formatTime(iso: string) {
@@ -162,7 +162,7 @@ function AIForecastCard({ data }: { data: AionData["aiForecast"] }) {
         {rows.map((r) => (
           <div key={r.label}>
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-slate-400">{r.label}</span>
+              <span className="text-muted-foreground">{r.label}</span>
               <span className={cn("font-bold tabular-nums", probColor(r.value))}>{r.value}%</span>
             </div>
             <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
@@ -176,7 +176,7 @@ function AIForecastCard({ data }: { data: AionData["aiForecast"] }) {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-slate-500 mt-4 cursor-pointer hover:text-slate-400 transition-colors">
+      <p className="text-[11px] text-muted-foreground mt-4 cursor-pointer hover:text-muted-foreground transition-colors">
         Click for history
       </p>
     </DashCard>
@@ -197,26 +197,26 @@ function CrashDetectionCard({ data }: { data: AionData["crashDetection"] }) {
           <span className={cn("text-4xl font-bold tabular-nums", crashTextColor(data.probability))}>
             {data.probability}%
           </span>
-          <span className="text-[11px] text-slate-500 mt-1">20-Day Crash Prob</span>
+          <span className="text-[11px] text-muted-foreground mt-1">20-Day Crash Prob</span>
         </div>
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-slate-400">Action</span>
+          <span className="text-muted-foreground">Action</span>
           <span className="flex items-center gap-1.5">
             <span
               className={cn(
                 "w-2 h-2 rounded-full",
-                data.exposure >= 75 ? "bg-emerald-500" : data.exposure >= 50 ? "bg-amber-500" : "bg-red-500"
+                data.exposure >= 75 ? "bg-[var(--trade-bullish)]" : data.exposure >= 50 ? "bg-[var(--trade-neutral)]" : "bg-[var(--trade-bearish)]"
               )}
             />
-            <span className="text-white font-medium">{data.action}</span>
+            <span className="text-foreground font-medium">{data.action}</span>
           </span>
         </div>
         <div className="flex justify-between items-center text-sm">
-          <span className="text-slate-400">Exposure</span>
-          <span className="text-white font-bold tabular-nums">{data.exposure}%</span>
+          <span className="text-muted-foreground">Exposure</span>
+          <span className="text-foreground font-bold tabular-nums">{data.exposure}%</span>
         </div>
         <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
           <motion.div
@@ -234,7 +234,7 @@ function CrashDetectionCard({ data }: { data: AionData["crashDetection"] }) {
           />
         </div>
       </div>
-      <p className="text-[11px] text-slate-500 mt-4 cursor-pointer hover:text-slate-400 transition-colors">
+      <p className="text-[11px] text-muted-foreground mt-4 cursor-pointer hover:text-muted-foreground transition-colors">
         Click for history
       </p>
     </DashCard>
@@ -252,7 +252,7 @@ function StatisticalModelsCard({
         {data.map((m) => (
           <div key={m.name} className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">{m.name}</span>
+              <span className="text-sm font-medium text-foreground">{m.name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge
@@ -265,10 +265,10 @@ function StatisticalModelsCard({
                 {m.regime}
               </Badge>
             </div>
-            <div className="flex gap-4 text-xs text-slate-400">
+            <div className="flex gap-4 text-xs text-muted-foreground">
               <span>
                 Expected:{" "}
-                <span className={m.expected >= 0 ? "text-emerald-400" : "text-red-400"}>
+                <span className={m.expected >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}>
                   {m.expected >= 0 ? "+" : ""}
                   {m.expected}%
                 </span>
@@ -283,7 +283,7 @@ function StatisticalModelsCard({
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-slate-500 mt-4 cursor-pointer hover:text-slate-400 transition-colors">
+      <p className="text-[11px] text-muted-foreground mt-4 cursor-pointer hover:text-muted-foreground transition-colors">
         Click for history
       </p>
     </DashCard>
@@ -305,13 +305,13 @@ function ModelConsensusCard({ data }: { data: AionData["modelConsensus"] }) {
           <p className="text-xs font-bold text-cyan-400 mt-1 tracking-wider">BULLISH</p>
         </div>
         <div className="text-center">
-          <span className="text-5xl font-black tabular-nums text-red-400">{data.bearish}</span>
-          <p className="text-xs font-bold text-red-400 mt-1 tracking-wider">BEARISH</p>
+          <span className="text-5xl font-black tabular-nums text-[var(--trade-bearish)]">{data.bearish}</span>
+          <p className="text-xs font-bold text-[var(--trade-bearish)] mt-1 tracking-wider">BEARISH</p>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="h-3 rounded-full bg-red-500/30 overflow-hidden">
+      <div className="h-3 rounded-full bg-[var(--trade-bearish)]/30 overflow-hidden">
         <motion.div
           className="h-full rounded-full bg-gradient-to-r from-cyan-600 to-cyan-400"
           initial={{ width: 0 }}
@@ -327,14 +327,14 @@ function ModelConsensusCard({ data }: { data: AionData["modelConsensus"] }) {
             data.verdict === "BULLISH"
               ? "text-cyan-400"
               : data.verdict === "BEARISH"
-              ? "text-red-400"
-              : "text-amber-400"
+              ? "text-[var(--trade-bearish)]"
+              : "text-[var(--trade-neutral)]"
           )}
         >
           {data.verdict}
         </span>
       </div>
-      <p className="text-[11px] text-slate-500 mt-2 cursor-pointer hover:text-slate-400 transition-colors text-center">
+      <p className="text-[11px] text-muted-foreground mt-2 cursor-pointer hover:text-muted-foreground transition-colors text-center">
         Click for history
       </p>
     </DashCard>
@@ -361,13 +361,13 @@ function DashCard({
       variants={cardVariant}
       initial="hidden"
       animate="visible"
-      className="rounded-xl border border-[#1a1a1a] bg-[#111]/80 backdrop-blur-sm p-5 flex flex-col hover:border-[#2a2a2a] transition-colors"
+      className="rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm p-5 flex flex-col hover:border-[#2a2a2a] transition-colors"
     >
       <div className="flex items-center gap-2 mb-1">
         <span className="text-cyan-400">{icon}</span>
-        <h3 className="text-sm font-black tracking-wider text-white">{title}</h3>
+        <h3 className="text-sm font-black tracking-wider text-foreground">{title}</h3>
       </div>
-      <p className="text-[11px] text-slate-500 leading-relaxed">{subtitle}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{subtitle}</p>
       {children}
     </motion.div>
   );
@@ -379,11 +379,11 @@ function RiskMonitorTab({ data }: { data: AionData | null }) {
   if (!data) return null;
   const { crashDetection: cd, statisticalModels: models } = data;
   const riskItems = [
-    { label: "VIX Level", value: cd.vixLevel.toFixed(1), color: cd.vixLevel > 25 ? "text-red-400" : cd.vixLevel > 18 ? "text-amber-400" : "text-emerald-400" },
-    { label: "VIX Regime", value: cd.regime.replace(/_/g, " ").toUpperCase(), color: "text-slate-300" },
+    { label: "VIX Level", value: cd.vixLevel.toFixed(1), color: cd.vixLevel > 25 ? "text-[var(--trade-bearish)]" : cd.vixLevel > 18 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]" },
+    { label: "VIX Regime", value: cd.regime.replace(/_/g, " ").toUpperCase(), color: "text-foreground/80" },
     { label: "Crash Probability", value: `${cd.probability}%`, color: crashTextColor(cd.probability) },
-    { label: "Recommended Exposure", value: `${cd.exposure}%`, color: cd.exposure >= 75 ? "text-emerald-400" : cd.exposure >= 50 ? "text-amber-400" : "text-red-400" },
-    { label: "Action", value: cd.action, color: "text-white" },
+    { label: "Recommended Exposure", value: `${cd.exposure}%`, color: cd.exposure >= 75 ? "text-[var(--trade-bullish)]" : cd.exposure >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]" },
+    { label: "Action", value: cd.action, color: "text-foreground" },
   ];
 
   return (
@@ -392,16 +392,16 @@ function RiskMonitorTab({ data }: { data: AionData | null }) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-[#1a1a1a] bg-[#111]/80 p-5 col-span-1 md:col-span-2 lg:col-span-1"
+        className="rounded-xl border border-border/50 bg-card/80 p-5 col-span-1 md:col-span-2 lg:col-span-1"
       >
         <div className="flex items-center gap-2 mb-4">
-          <ShieldAlert className="w-4 h-4 text-amber-400" />
-          <h3 className="text-sm font-bold text-white">Risk Metrics</h3>
+          <ShieldAlert className="w-4 h-4 text-[var(--trade-neutral)]" />
+          <h3 className="text-sm font-bold text-foreground">Risk Metrics</h3>
         </div>
         <div className="space-y-3">
           {riskItems.map((item) => (
             <div key={item.label} className="flex justify-between items-center text-sm">
-              <span className="text-slate-400">{item.label}</span>
+              <span className="text-muted-foreground">{item.label}</span>
               <span className={cn("font-bold", item.color)}>{item.value}</span>
             </div>
           ))}
@@ -413,11 +413,11 @@ function RiskMonitorTab({ data }: { data: AionData | null }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="rounded-xl border border-[#1a1a1a] bg-[#111]/80 p-5 col-span-1 md:col-span-2"
+        className="rounded-xl border border-border/50 bg-card/80 p-5 col-span-1 md:col-span-2"
       >
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-bold text-white">All Signals Breakdown</h3>
+          <h3 className="text-sm font-bold text-foreground">All Signals Breakdown</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {data.modelConsensus.signals.map((s) => (
@@ -425,14 +425,14 @@ function RiskMonitorTab({ data }: { data: AionData | null }) {
               key={s.label}
               className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.04]"
             >
-              <span className="text-sm text-slate-300">{s.label}</span>
+              <span className="text-sm text-foreground/80">{s.label}</span>
               <Badge
                 variant="outline"
                 className={cn(
                   "text-[10px] font-bold border",
                   s.bullish
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                    : "bg-red-500/10 text-red-400 border-red-500/30"
+                    ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/30"
+                    : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)] border-[var(--trade-bearish)]/30"
                 )}
               >
                 {s.bullish ? "BULLISH" : "BEARISH"}
@@ -452,15 +452,15 @@ function MonteCarloTab() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-6 rounded-xl border border-[#1a1a1a] bg-[#111]/80 p-8 text-center"
+      className="mt-6 rounded-xl border border-border/50 bg-card/80 p-8 text-center"
     >
       <Dice5 className="w-12 h-12 text-purple-400 mx-auto mb-4 opacity-60" />
-      <h3 className="text-lg font-bold text-white mb-2">Monte Carlo Simulation</h3>
-      <p className="text-sm text-slate-400 max-w-md mx-auto">
+      <h3 className="text-lg font-bold text-foreground mb-2">Monte Carlo Simulation</h3>
+      <p className="text-sm text-muted-foreground max-w-md mx-auto">
         Run probabilistic simulations across thousands of market scenarios.
         Configure parameters and visualize outcome distributions.
       </p>
-      <p className="text-xs text-slate-500 mt-4">Coming soon to AION Dashboard</p>
+      <p className="text-xs text-muted-foreground mt-4">Coming soon to AION Dashboard</p>
     </motion.div>
   );
 }
@@ -473,7 +473,7 @@ function AionSkeleton() {
       {[0, 1, 2, 3].map((i) => (
         <div
           key={i}
-          className="rounded-xl border border-[#1a1a1a] bg-[#111]/80 p-5 animate-pulse"
+          className="rounded-xl border border-border/50 bg-card/80 p-5 animate-pulse"
         >
           <div className="h-4 w-32 bg-white/[0.06] rounded mb-2" />
           <div className="h-3 w-48 bg-white/[0.04] rounded mb-6" />
@@ -513,7 +513,7 @@ export default function AionDashboard() {
       <div className="text-center mb-6">
         <div className="flex items-center justify-center gap-3 mb-3">
           <Infinity className="w-10 h-10 text-cyan-400" strokeWidth={2.5} />
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground">
             AION DASHBOARD
           </h1>
         </div>
@@ -522,16 +522,16 @@ export default function AionDashboard() {
         <div className="flex items-center justify-center gap-3 mb-2">
           <Select value={symbol} onValueChange={setSymbol}>
             <SelectTrigger
-              className="w-auto min-w-[180px] h-10 rounded-full bg-emerald-600 hover:bg-emerald-500 border-0 text-white font-bold text-base px-5 transition-colors focus:ring-emerald-400/40"
+              className="w-auto min-w-[180px] h-10 rounded-full bg-emerald-600 hover:bg-[var(--trade-bullish)] border-0 text-foreground font-bold text-base px-5 transition-colors focus:ring-emerald-400/40"
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-[#1a1a1a] border-[#333]">
+            <SelectContent className="bg-muted border-border">
               {SYMBOLS.map((s) => (
                 <SelectItem
                   key={s.value}
                   value={s.value}
-                  className="text-white hover:bg-white/10 focus:bg-white/10"
+                  className="text-foreground hover:bg-white/10 focus:bg-white/10"
                 >
                   {s.label}
                 </SelectItem>
@@ -544,7 +544,7 @@ export default function AionDashboard() {
             size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="text-slate-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
           >
             <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
           </Button>
@@ -552,9 +552,9 @@ export default function AionDashboard() {
 
         {/* Last Updated + Price */}
         {data && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Last updated: {formatTime(data.lastUpdated)}
-            {priceStr && <span className="ml-2 text-slate-400">{priceStr}</span>}
+            {priceStr && <span className="ml-2 text-muted-foreground">{priceStr}</span>}
           </p>
         )}
       </div>
@@ -562,7 +562,7 @@ export default function AionDashboard() {
       {/* ── Tabs ── */}
       <Tabs defaultValue="index" className="w-full">
         <div className="flex justify-center mb-4">
-          <TabsList className="bg-[#111] border border-[#1a1a1a] rounded-full px-1 py-1">
+          <TabsList className="bg-card border border-border/50 rounded-full px-1 py-1">
             <TabsTrigger
               value="index"
               className="rounded-full px-5 py-1.5 text-xs font-bold tracking-wider data-[state=active]:bg-cyan-600/20 data-[state=active]:text-cyan-400"
@@ -572,7 +572,7 @@ export default function AionDashboard() {
             </TabsTrigger>
             <TabsTrigger
               value="risk"
-              className="rounded-full px-5 py-1.5 text-xs font-bold tracking-wider data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-400"
+              className="rounded-full px-5 py-1.5 text-xs font-bold tracking-wider data-[state=active]:bg-amber-600/20 data-[state=active]:text-[var(--trade-neutral)]"
             >
               <ShieldAlert className="w-3.5 h-3.5 mr-1.5" />
               RISK MONITOR
@@ -593,7 +593,7 @@ export default function AionDashboard() {
             <AionSkeleton />
           ) : isError ? (
             <div className="text-center py-16">
-              <p className="text-red-400 mb-2">Failed to load AION data</p>
+              <p className="text-[var(--trade-bearish)] mb-2">Failed to load AION data</p>
               <Button variant="outline" size="sm" onClick={() => refetch()}>
                 Retry
               </Button>

@@ -47,13 +47,13 @@ export function DataStatusBanner() {
   const providerNames = status.degradedProviders.map(p => p.name).join(', ');
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-700/50 text-xs">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/80 border border-border/50 text-xs">
       <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", hasDown ? "bg-red-500" : "bg-amber-500")} />
-      <span className="text-slate-400 flex-1 truncate">
+      <span className="text-muted-foreground flex-1 truncate">
         {providerNames} {totalIssues === 1 ? 'is' : 'are'} experiencing issues
-        {status.cacheEntries > 0 && <span className="text-slate-500"> · Using cached data</span>}
+        {status.cacheEntries > 0 && <span className="text-muted-foreground"> · Using cached data</span>}
       </span>
-      <button onClick={handleDismiss} className="p-0.5 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300 flex-shrink-0">
+      <button onClick={handleDismiss} className="p-0.5 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground/80 flex-shrink-0">
         <X className="h-3 w-3" />
       </button>
     </div>
@@ -77,14 +77,14 @@ export function CachedDataIndicator({ isStale, cacheAge, provider, onRetry }: Ca
     : "recently";
 
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/50 px-2 py-1 rounded">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
       <Database className="h-3 w-3" />
       <span>Cached data from {ageText}</span>
       {onRetry && (
         <Button
           variant="ghost"
           size="sm"
-          className="h-5 px-1 text-slate-400 hover:text-slate-300"
+          className="h-5 px-1 text-muted-foreground hover:text-foreground/80"
           onClick={onRetry}
           data-testid="button-retry-fetch"
         >

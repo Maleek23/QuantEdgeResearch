@@ -111,13 +111,13 @@ export function TradeDeskModeTabs({ mode, onModeChange }: TradeDeskModeTabsProps
                       "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
                       "data-[state=active]:shadow-md",
                       m.isHighRisk && "data-[state=inactive]:border-amber-500/30",
-                      m.isHighRisk && "data-[state=inactive]:text-amber-500/90"
+                      m.isHighRisk && "data-[state=inactive]:text-[var(--trade-neutral)]/90"
                     )}
                     data-testid={`mode-tab-${m.id}`}
                   >
                     <m.icon className={cn(
                       "h-4 w-4",
-                      m.isHighRisk && "text-amber-500"
+                      m.isHighRisk && "text-[var(--trade-neutral)]"
                     )} />
                     <span className="font-semibold hidden sm:inline">{m.label}</span>
                     <span className="font-semibold sm:hidden">{m.label.split(' ')[0]}</span>
@@ -126,7 +126,7 @@ export function TradeDeskModeTabs({ mode, onModeChange }: TradeDeskModeTabsProps
                         variant="outline" 
                         className={cn(
                           "ml-auto text-[10px] px-1.5 py-0.5",
-                          m.isHighRisk && "border-amber-500/50 bg-amber-500/10 text-amber-500"
+                          m.isHighRisk && "border-amber-500/50 bg-amber-500/10 text-[var(--trade-neutral)]"
                         )}
                       >
                         {m.badge}

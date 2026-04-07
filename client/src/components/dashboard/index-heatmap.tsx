@@ -16,11 +16,11 @@ interface IndexHeatmapProps {
 
 export function IndexHeatmap({ indices, className }: IndexHeatmapProps) {
   const getHeatColor = (change: number) => {
-    if (change >= 2) return "bg-green-500/80 text-white";
-    if (change >= 1) return "bg-green-500/60 text-white";
-    if (change >= 0.5) return "bg-green-500/40 text-white";
-    if (change >= 0) return "bg-green-500/20 text-green-400";
-    if (change >= -0.5) return "bg-red-500/20 text-red-400";
+    if (change >= 2) return "bg-[var(--trade-bullish)]/80 text-white";
+    if (change >= 1) return "bg-[var(--trade-bullish)]/60 text-white";
+    if (change >= 0.5) return "bg-[var(--trade-bullish)]/40 text-white";
+    if (change >= 0) return "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]";
+    if (change >= -0.5) return "bg-red-500/20 text-[var(--trade-bearish)]";
     if (change >= -1) return "bg-red-500/40 text-white";
     if (change >= -2) return "bg-red-500/60 text-white";
     return "bg-red-500/80 text-white";
@@ -29,13 +29,13 @@ export function IndexHeatmap({ indices, className }: IndexHeatmapProps) {
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <BarChart3 className="w-4 h-4 text-cyan-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Index Heatmap
         </span>
       </div>
@@ -62,15 +62,15 @@ export function IndexHeatmap({ indices, className }: IndexHeatmapProps) {
         ))}
       </div>
 
-      <div className="flex justify-center gap-1 mt-4 pt-3 border-t border-slate-700/20">
+      <div className="flex justify-center gap-1 mt-4 pt-3 border-t border-border/20">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded bg-red-500/80" />
-          <span className="text-[10px] text-slate-400">-2%</span>
+          <span className="text-[10px] text-muted-foreground">-2%</span>
         </div>
         <div className="flex-1 h-2 rounded bg-gradient-to-r from-red-500/80 via-slate-700/40 to-green-500/80" />
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-slate-400">+2%</span>
-          <div className="w-3 h-3 rounded bg-green-500/80" />
+          <span className="text-[10px] text-muted-foreground">+2%</span>
+          <div className="w-3 h-3 rounded bg-[var(--trade-bullish)]/80" />
         </div>
       </div>
     </div>

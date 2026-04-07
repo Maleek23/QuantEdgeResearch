@@ -96,11 +96,11 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
     
     switch (normalizedStatus) {
       case 'hit_target':
-        return <Badge variant="default" className="bg-green-500/20 dark:bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 dark:border-green-500/20 font-mono text-xs">WIN</Badge>;
+        return <Badge variant="default" className="bg-[var(--trade-bullish)]/20 dark:bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] border-green-500/30 dark:border-green-500/20 font-mono text-xs">WIN</Badge>;
       case 'hit_stop':
-        return <Badge variant="destructive" className="bg-red-500/20 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 dark:border-red-500/20 font-mono text-xs">LOSS</Badge>;
+        return <Badge variant="destructive" className="bg-red-500/20 dark:bg-red-500/10 text-red-600 dark:text-[var(--trade-bearish)] border-red-500/30 dark:border-red-500/20 font-mono text-xs">LOSS</Badge>;
       case 'expired':
-        return <Badge variant="outline" className="bg-amber-500/20 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 dark:border-amber-500/20 font-mono text-xs">EXP</Badge>;
+        return <Badge variant="outline" className="bg-amber-500/20 dark:bg-amber-500/10 text-amber-600 dark:text-[var(--trade-neutral)] border-amber-500/30 dark:border-amber-500/20 font-mono text-xs">EXP</Badge>;
       default:
         return <Badge variant="outline" className="font-mono text-xs">{status?.toUpperCase() || 'N/A'}</Badge>;
     }
@@ -180,19 +180,19 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground text-xs">Entry Price</p>
-                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.entryPrice, 2)}</p>
+                        <p className="font-mono font-bold tabular-nums">${safeToFixed(selectedTrade.entryPrice, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Target Price</p>
-                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.targetPrice, 2)}</p>
+                        <p className="font-mono font-bold tabular-nums">${safeToFixed(selectedTrade.targetPrice, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Stop Loss</p>
-                        <p className="font-mono font-bold">${safeToFixed(selectedTrade.stopLoss, 2)}</p>
+                        <p className="font-mono font-bold tabular-nums">${safeToFixed(selectedTrade.stopLoss, 2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Exit Price</p>
-                        <p className="font-mono font-bold">{selectedTrade.exitPrice ? `$${safeToFixed(selectedTrade.exitPrice, 2)}` : 'N/A'}</p>
+                        <p className="font-mono font-bold tabular-nums">{selectedTrade.exitPrice ? `$${safeToFixed(selectedTrade.exitPrice, 2)}` : 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -249,11 +249,11 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                             variant="outline" 
                             className={cn(
                               "w-fit font-bold",
-                              selectedTrade.probabilityBand === 'A+' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
-                              selectedTrade.probabilityBand === 'A' && "bg-green-500/20 text-green-400 border-green-500/40",
+                              selectedTrade.probabilityBand === 'A+' && "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40",
+                              selectedTrade.probabilityBand === 'A' && "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40",
                               (selectedTrade.probabilityBand === 'B+' || selectedTrade.probabilityBand === 'B') && "bg-blue-500/20 text-blue-400 border-blue-500/40",
-                              (selectedTrade.probabilityBand === 'C+' || selectedTrade.probabilityBand === 'C') && "bg-amber-500/20 text-amber-400 border-amber-500/40",
-                              (selectedTrade.probabilityBand === 'D' || selectedTrade.probabilityBand === 'F') && "bg-red-500/20 text-red-400 border-red-500/40"
+                              (selectedTrade.probabilityBand === 'C+' || selectedTrade.probabilityBand === 'C') && "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/40",
+                              (selectedTrade.probabilityBand === 'D' || selectedTrade.probabilityBand === 'F') && "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/40"
                             )}
                           >
                             {selectedTrade.probabilityBand || 'C'}
@@ -265,7 +265,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">R:R Ratio</p>
-                        <p className="font-mono font-bold">{selectedTrade.riskRewardRatio ? safeToFixed(selectedTrade.riskRewardRatio, 2) : 'N/A'}</p>
+                        <p className="font-mono font-bold tabular-nums">{selectedTrade.riskRewardRatio ? safeToFixed(selectedTrade.riskRewardRatio, 2) : 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">Source</p>
@@ -428,13 +428,13 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                 >
                   <div className="flex items-center gap-1">
                     {row.direction === 'long' ? (
-                      <TrendingUp className="h-3 w-3 text-green-600 dark:text-green-400" />
+                      <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]" />
                     ) : (
-                      <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />
+                      <TrendingDown className="h-3 w-3 text-red-600 dark:text-[var(--trade-bearish)]" />
                     )}
                     <span className={cn(
                       "font-semibold uppercase text-[10px]",
-                      row.direction === 'long' ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                      row.direction === 'long' ? "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]" : "text-red-600 dark:text-[var(--trade-bearish)]"
                     )}>
                       {row.direction}
                     </span>
@@ -455,7 +455,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                 <TableCell 
                   className={cn(
                     "font-mono font-bold text-xs text-right py-2",
-                    isWin ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                    isWin ? "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]" : "text-red-600 dark:text-[var(--trade-bearish)]"
                   )}
                   data-testid={`cell-pnl-${row.id}`}
                 >

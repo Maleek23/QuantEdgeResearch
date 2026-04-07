@@ -216,21 +216,21 @@ export default function AdminBlogPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Blog Management</h1>
-            <p className="text-slate-400 text-sm mt-1">Create and manage SEO-friendly blog content</p>
+            <h1 className="text-2xl font-bold text-foreground">Blog Management</h1>
+            <p className="text-muted-foreground text-sm mt-1">Create and manage SEO-friendly blog content</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-green-400 border-green-400/30">
+            <Badge variant="outline" className="text-[var(--trade-bullish)] border-green-400/30">
               {publishedCount} Published
             </Badge>
-            <Badge variant="outline" className="text-amber-400 border-amber-400/30">
+            <Badge variant="outline" className="text-[var(--trade-neutral)] border-amber-400/30">
               {draftCount} Drafts
             </Badge>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'list' | 'editor')}>
-          <TabsList className="bg-slate-800 border border-slate-700">
+          <TabsList className="bg-muted border border-border">
             <TabsTrigger value="list" data-testid="tab-list">All Posts</TabsTrigger>
             <TabsTrigger value="editor" data-testid="tab-editor">
               {editingPost ? 'Edit Post' : 'New Post'}
@@ -238,20 +238,20 @@ export default function AdminBlogPage() {
           </TabsList>
 
           <TabsContent value="list" className="mt-6">
-            <Card className="bg-slate-900 border-slate-800">
+            <Card className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-white">Blog Posts</CardTitle>
+                  <CardTitle className="text-foreground">Blog Posts</CardTitle>
                   <CardDescription>Manage your published and draft articles</CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search posts..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 w-64 bg-slate-800 border-slate-700"
+                      className="pl-9 w-64 bg-muted border-border"
                       data-testid="input-search-posts"
                     />
                   </div>
@@ -265,14 +265,14 @@ export default function AdminBlogPage() {
                 {isLoading ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map(i => (
-                      <Skeleton key={i} className="h-20 w-full bg-slate-800" />
+                      <Skeleton key={i} className="h-20 w-full bg-muted" />
                     ))}
                   </div>
                 ) : filteredPosts.length === 0 ? (
                   <div className="text-center py-12">
-                    <BookOpen className="h-12 w-12 mx-auto text-slate-600 mb-4" />
-                    <h3 className="text-lg font-medium text-white mb-2">No blog posts yet</h3>
-                    <p className="text-slate-400 mb-4">Start creating SEO-friendly content to attract visitors</p>
+                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/70 mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No posts published yet</h3>
+                    <p className="text-muted-foreground mb-4">Start creating SEO-friendly content to attract visitors</p>
                     <Button onClick={handleNewPost} className="bg-cyan-600 hover:bg-cyan-700">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your First Post
@@ -283,16 +283,16 @@ export default function AdminBlogPage() {
                     {filteredPosts.map(post => (
                       <div 
                         key={post.id} 
-                        className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border hover:border-border transition-colors"
                         data-testid={`blog-post-${post.id}`}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-medium text-white truncate">{post.title}</h3>
+                            <h3 className="font-medium text-foreground truncate">{post.title}</h3>
                             <Badge {...STATUS_BADGES[post.status]}>{STATUS_BADGES[post.status].label}</Badge>
-                            <Badge variant="outline" className="text-slate-400">{post.category}</Badge>
+                            <Badge variant="outline" className="text-muted-foreground">{post.category}</Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {post.publishedAt ? format(new Date(post.publishedAt), 'MMM d, yyyy') : 'Not published'}
@@ -302,7 +302,7 @@ export default function AdminBlogPage() {
                               {post.content.split(/\s+/).length} words
                             </span>
                             {post.metaDescription && (
-                              <span className="flex items-center gap-1 text-green-400">
+                              <span className="flex items-center gap-1 text-[var(--trade-bullish)]">
                                 <CheckCircle2 className="h-3 w-3" />
                                 SEO Ready
                               </span>
@@ -315,7 +315,7 @@ export default function AdminBlogPage() {
                               variant="ghost" 
                               size="sm" 
                               asChild
-                              className="text-slate-400 hover:text-white"
+                              className="text-muted-foreground hover:text-foreground"
                             >
                               <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer">
                                 <ArrowUpRight className="h-4 w-4" />
@@ -326,7 +326,7 @@ export default function AdminBlogPage() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => handleEditPost(post)}
-                            className="text-slate-400 hover:text-white"
+                            className="text-muted-foreground hover:text-foreground"
                             data-testid={`button-edit-${post.id}`}
                           >
                             <Edit className="h-4 w-4" />
@@ -335,7 +335,7 @@ export default function AdminBlogPage() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setPostToDelete(post); setDeleteDialogOpen(true); }}
-                            className="text-red-400 hover:text-red-300"
+                            className="text-[var(--trade-bearish)] hover:text-red-300"
                             data-testid={`button-delete-${post.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -352,17 +352,17 @@ export default function AdminBlogPage() {
           <TabsContent value="editor" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-slate-900 border-slate-800">
+                <Card className="bg-card border-border">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-white">
+                      <CardTitle className="text-foreground">
                         {editingPost ? 'Edit Post' : 'Create New Post'}
                       </CardTitle>
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={() => { resetForm(); setActiveTab('list'); }}
-                        className="text-slate-400"
+                        className="text-muted-foreground"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -370,7 +370,7 @@ export default function AdminBlogPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <Label className="text-slate-300">Title *</Label>
+                      <Label className="text-foreground/80">Title *</Label>
                       <Input
                         value={formData.title}
                         onChange={(e) => {
@@ -381,27 +381,27 @@ export default function AdminBlogPage() {
                           }));
                         }}
                         placeholder="Enter a compelling title..."
-                        className="bg-slate-800 border-slate-700 mt-1"
+                        className="bg-muted border-border mt-1"
                         data-testid="input-title"
                       />
                     </div>
 
                     <div>
-                      <Label className="text-slate-300">URL Slug</Label>
+                      <Label className="text-foreground/80">URL Slug</Label>
                       <Input
                         value={formData.slug}
                         onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
                         placeholder="url-friendly-slug"
-                        className="bg-slate-800 border-slate-700 mt-1 font-mono text-sm"
+                        className="bg-muted border-border mt-1 font-mono text-sm"
                         data-testid="input-slug"
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         URL: /blog/{formData.slug || 'your-post-slug'}
                       </p>
                     </div>
 
                     <Tabs value={editorTab} onValueChange={(v) => setEditorTab(v as 'write' | 'preview' | 'seo')}>
-                      <TabsList className="bg-slate-800">
+                      <TabsList className="bg-muted">
                         <TabsTrigger value="write">Write</TabsTrigger>
                         <TabsTrigger value="preview">Preview</TabsTrigger>
                         <TabsTrigger value="seo">SEO</TabsTrigger>
@@ -412,71 +412,71 @@ export default function AdminBlogPage() {
                           value={formData.content}
                           onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                           placeholder="Write your blog post content in Markdown..."
-                          className="bg-slate-800 border-slate-700 min-h-[400px] font-mono text-sm"
+                          className="bg-muted border-border min-h-[400px] font-mono text-sm"
                           data-testid="textarea-content"
                         />
-                        <p className="text-xs text-slate-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           Supports Markdown: **bold**, *italic*, # headings, - lists, [links](url), etc.
                         </p>
                       </TabsContent>
 
                       <TabsContent value="preview" className="mt-4">
-                        <div className="min-h-[400px] p-6 rounded-lg bg-slate-800 border border-slate-700 prose prose-invert prose-cyan max-w-none">
+                        <div className="min-h-[400px] p-6 rounded-lg bg-muted border border-border prose prose-invert prose-cyan max-w-none">
                           {formData.content ? (
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                               {formData.content}
                             </ReactMarkdown>
                           ) : (
-                            <p className="text-slate-500 italic">No content to preview. Start writing!</p>
+                            <p className="text-muted-foreground italic">No content to preview. Start writing!</p>
                           )}
                         </div>
                       </TabsContent>
 
                       <TabsContent value="seo" className="mt-4 space-y-4">
                         <div>
-                          <Label className="text-slate-300">Meta Description (SEO)</Label>
+                          <Label className="text-foreground/80">Meta Description (SEO)</Label>
                           <Textarea
                             value={formData.metaDescription}
                             onChange={(e) => setFormData(prev => ({ ...prev, metaDescription: e.target.value }))}
                             placeholder="A compelling 150-160 character description for search engines..."
-                            className="bg-slate-800 border-slate-700 mt-1"
+                            className="bg-muted border-border mt-1"
                             rows={3}
                             data-testid="textarea-meta-description"
                           />
                           <p className={`text-xs mt-1 ${
-                            formData.metaDescription.length > 160 ? 'text-red-400' : 
-                            formData.metaDescription.length >= 120 ? 'text-green-400' : 'text-slate-500'
+                            formData.metaDescription.length > 160 ? 'text-[var(--trade-bearish)]' : 
+                            formData.metaDescription.length >= 120 ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground'
                           }`}>
                             {formData.metaDescription.length}/160 characters (120-160 recommended)
                           </p>
                         </div>
 
                         <div>
-                          <Label className="text-slate-300">Meta Keywords</Label>
+                          <Label className="text-foreground/80">Meta Keywords</Label>
                           <Input
                             value={formData.metaKeywords}
                             onChange={(e) => setFormData(prev => ({ ...prev, metaKeywords: e.target.value }))}
                             placeholder="trading, options, risk management, market analysis"
-                            className="bg-slate-800 border-slate-700 mt-1"
+                            className="bg-muted border-border mt-1"
                             data-testid="input-meta-keywords"
                           />
-                          <p className="text-xs text-slate-500 mt-1">Comma-separated keywords for SEO</p>
+                          <p className="text-xs text-muted-foreground mt-1">Comma-separated keywords for SEO</p>
                         </div>
 
                         <div>
-                          <Label className="text-slate-300">Excerpt (Card Preview)</Label>
+                          <Label className="text-foreground/80">Excerpt (Card Preview)</Label>
                           <Textarea
                             value={formData.excerpt}
                             onChange={(e) => setFormData(prev => ({ ...prev, excerpt: e.target.value }))}
                             placeholder="A short summary shown on blog listing cards..."
-                            className="bg-slate-800 border-slate-700 mt-1"
+                            className="bg-muted border-border mt-1"
                             rows={2}
                             data-testid="textarea-excerpt"
                           />
                         </div>
 
-                        <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                          <h4 className="font-medium text-white mb-2 flex items-center gap-2">
+                        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                          <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
                             <Eye className="h-4 w-4" />
                             Google Preview
                           </h4>
@@ -484,10 +484,10 @@ export default function AdminBlogPage() {
                             <p className="text-blue-400 text-lg hover:underline cursor-pointer">
                               {formData.title || 'Your Blog Post Title'}
                             </p>
-                            <p className="text-green-400 text-sm">
+                            <p className="text-[var(--trade-bullish)] text-sm">
                               quantedgelabs.com/blog/{formData.slug || 'your-post-slug'}
                             </p>
-                            <p className="text-slate-400 text-sm">
+                            <p className="text-muted-foreground text-sm">
                               {formData.metaDescription || formData.excerpt || 'Add a meta description to improve click-through rates from search engines...'}
                             </p>
                           </div>
@@ -499,18 +499,18 @@ export default function AdminBlogPage() {
               </div>
 
               <div className="space-y-6">
-                <Card className="bg-slate-900 border-slate-800">
+                <Card className="bg-card border-border">
                   <CardHeader>
-                    <CardTitle className="text-white text-base">Post Settings</CardTitle>
+                    <CardTitle className="text-foreground text-base">Post Settings</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <Label className="text-slate-300">Status</Label>
+                      <Label className="text-foreground/80">Status</Label>
                       <Select
                         value={formData.status}
                         onValueChange={(v) => setFormData(prev => ({ ...prev, status: v as BlogPostStatus }))}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 mt-1" data-testid="select-status">
+                        <SelectTrigger className="bg-muted border-border mt-1" data-testid="select-status">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -522,12 +522,12 @@ export default function AdminBlogPage() {
                     </div>
 
                     <div>
-                      <Label className="text-slate-300">Category</Label>
+                      <Label className="text-foreground/80">Category</Label>
                       <Select
                         value={formData.category}
                         onValueChange={(v) => setFormData(prev => ({ ...prev, category: v as BlogCategory }))}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 mt-1" data-testid="select-category">
+                        <SelectTrigger className="bg-muted border-border mt-1" data-testid="select-category">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -539,49 +539,49 @@ export default function AdminBlogPage() {
                     </div>
 
                     <div>
-                      <Label className="text-slate-300">Tags</Label>
+                      <Label className="text-foreground/80">Tags</Label>
                       <Input
                         value={formData.tags}
                         onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
                         placeholder="options, trading, education"
-                        className="bg-slate-800 border-slate-700 mt-1"
+                        className="bg-muted border-border mt-1"
                         data-testid="input-tags"
                       />
-                      <p className="text-xs text-slate-500 mt-1">Comma-separated tags</p>
+                      <p className="text-xs text-muted-foreground mt-1">Comma-separated tags</p>
                     </div>
 
                     <div>
-                      <Label className="text-slate-300">Author Name</Label>
+                      <Label className="text-foreground/80">Author Name</Label>
                       <Input
                         value={formData.authorName}
                         onChange={(e) => setFormData(prev => ({ ...prev, authorName: e.target.value }))}
-                        className="bg-slate-800 border-slate-700 mt-1"
+                        className="bg-muted border-border mt-1"
                         data-testid="input-author"
                       />
                     </div>
 
                     <div>
-                      <Label className="text-slate-300">Hero Image URL</Label>
+                      <Label className="text-foreground/80">Hero Image URL</Label>
                       <Input
                         value={formData.heroImageUrl}
                         onChange={(e) => setFormData(prev => ({ ...prev, heroImageUrl: e.target.value }))}
                         placeholder="https://..."
-                        className="bg-slate-800 border-slate-700 mt-1"
+                        className="bg-muted border-border mt-1"
                         data-testid="input-hero-image"
                       />
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900 border-slate-800">
+                <Card className="bg-card border-border">
                   <CardHeader>
-                    <CardTitle className="text-white text-base">Actions</CardTitle>
+                    <CardTitle className="text-foreground text-base">Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <Button 
                       onClick={handleSubmit}
                       disabled={createMutation.isPending || updateMutation.isPending}
-                      className="w-full bg-slate-700 hover:bg-slate-600"
+                      className="w-full bg-muted hover:bg-muted"
                       data-testid="button-save-draft"
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -602,13 +602,13 @@ export default function AdminBlogPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900 border-slate-800 border-l-4 border-l-amber-500">
+                <Card className="bg-card border-border border-l-4 border-l-amber-500">
                   <CardContent className="pt-4">
-                    <h4 className="font-medium text-amber-400 mb-2 flex items-center gap-2">
+                    <h4 className="font-medium text-[var(--trade-neutral)] mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       SEO Tips
                     </h4>
-                    <ul className="text-xs text-slate-400 space-y-1">
+                    <ul className="text-xs text-muted-foreground space-y-1">
                       <li>• Use keywords naturally in your title</li>
                       <li>• Write a compelling meta description (120-160 chars)</li>
                       <li>• Use headers (## and ###) to structure content</li>
@@ -623,9 +623,9 @@ export default function AdminBlogPage() {
         </Tabs>
 
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="bg-slate-900 border-slate-700">
+          <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="text-white">Delete Blog Post</DialogTitle>
+              <DialogTitle className="text-foreground">Delete Blog Post</DialogTitle>
               <DialogDescription>
                 Are you sure you want to delete "{postToDelete?.title}"? This action cannot be undone.
               </DialogDescription>

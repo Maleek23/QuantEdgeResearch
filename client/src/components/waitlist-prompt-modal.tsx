@@ -46,14 +46,14 @@ export function WaitlistPromptModal({
       icon: TrendingUp,
       title: "Free Market Data",
       description: "Stock quotes, charts, news, and earnings calendar",
-      color: "text-emerald-400",
+      color: "text-[var(--trade-bullish)]",
       bgColor: "bg-emerald-500/10",
     },
     {
       icon: Zap,
       title: "Free AI Trials",
       description: "Try each AI feature once - summaries, sentiment, predictions",
-      color: "text-amber-400",
+      color: "text-[var(--trade-neutral)]",
       bgColor: "bg-amber-500/10",
     },
     {
@@ -74,13 +74,13 @@ export function WaitlistPromptModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border-slate-700">
+      <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-4">
             <Sparkles className="h-8 w-8 text-cyan-400" />
           </div>
           <DialogTitle className="text-2xl font-bold text-white">{title}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -95,17 +95,17 @@ export function WaitlistPromptModal({
                 </div>
                 <div>
                   <p className="text-sm font-medium text-white">{benefit.title}</p>
-                  <p className="text-xs text-slate-400">{benefit.description}</p>
+                  <p className="text-xs text-muted-foreground">{benefit.description}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Beta Access Note */}
-          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+          <div className="bg-muted/50 rounded-lg p-3 border border-border/50">
             <div className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-slate-300">
+              <Check className="h-4 w-4 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-foreground/80">
                 <span className="font-medium text-white">Free to browse!</span>{" "}
                 Explore market data instantly. Sign up to save watchlists and
                 try AI features. Apply for beta to unlock everything.
@@ -124,7 +124,7 @@ export function WaitlistPromptModal({
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
 
-            <p className="text-xs text-center text-slate-500">
+            <p className="text-xs text-center text-muted-foreground">
               Already have an account?{" "}
               <button
                 className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"

@@ -157,7 +157,7 @@ export function AIResearchPanel({ symbol, tradeIdeaId, defaultOpen = false, clas
                 </ScrollArea>
 
                 <Alert className="bg-amber-500/10 border-amber-500/30" data-testid="alert-research-disclaimer">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                   <AlertDescription className="text-xs text-amber-200/80">
                     {response.disclaimer}
                   </AlertDescription>

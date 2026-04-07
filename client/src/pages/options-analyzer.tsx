@@ -448,21 +448,21 @@ export default function OptionsAnalyzer() {
 
   const getVerdictColor = (verdict: string) => {
     switch (verdict) {
-      case 'STRONG_BUY': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'BUY': return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'HOLD': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'AVOID': return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'STRONG_AVOID': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'STRONG_BUY': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+      case 'BUY': return 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20';
+      case 'HOLD': return 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20';
+      case 'AVOID': return 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20';
+      case 'STRONG_AVOID': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
       default: return 'bg-muted/10 text-muted-foreground';
     }
   };
 
   const getGradeColor = (grade: string) => {
-    if (grade.startsWith('A')) return 'text-green-400';
-    if (grade.startsWith('B')) return 'text-emerald-400';
-    if (grade.startsWith('C')) return 'text-amber-400';
+    if (grade.startsWith('A')) return 'text-[var(--trade-bullish)]';
+    if (grade.startsWith('B')) return 'text-[var(--trade-bullish)]';
+    if (grade.startsWith('C')) return 'text-[var(--trade-neutral)]';
     if (grade.startsWith('D')) return 'text-orange-400';
-    return 'text-red-400';
+    return 'text-[var(--trade-bearish)]';
   };
 
   return (
@@ -471,7 +471,7 @@ export default function OptionsAnalyzer() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-              <Activity className="h-6 w-6 text-emerald-500" />
+              <Activity className="h-6 w-6 text-[var(--trade-bullish)]" />
               Options Analyzer
             </h1>
             <p className="text-sm text-muted-foreground">Analyze options chains, greeks, and volatility metrics</p>
@@ -546,7 +546,7 @@ export default function OptionsAnalyzer() {
         {searchedSymbol && loadingChain && !chainData && !chainError && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Loader2 className="h-12 w-12 mx-auto text-emerald-500 animate-spin mb-4" />
+              <Loader2 className="h-12 w-12 mx-auto text-[var(--trade-bullish)] animate-spin mb-4" />
               <p className="text-muted-foreground">Loading options chain for {searchedSymbol}...</p>
             </CardContent>
           </Card>
@@ -555,7 +555,7 @@ export default function OptionsAnalyzer() {
         {searchedSymbol && (expirationsError || chainError) && !loadingChain && (
           <Card>
             <CardContent className="p-12 text-center">
-              <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+              <AlertTriangle className="h-12 w-12 mx-auto text-[var(--trade-neutral)] mb-4" />
               <h3 className="font-semibold text-lg mb-2">Data Temporarily Unavailable</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
                 Options data for {searchedSymbol} couldn't be loaded. This is usually due to market data provider rate limits.
@@ -581,7 +581,7 @@ export default function OptionsAnalyzer() {
                       </span>
                       <Badge variant={chainData.stockChange >= 0 ? "default" : "destructive"} className={cn(
                         "text-xs",
-                        chainData.stockChange >= 0 ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                        chainData.stockChange >= 0 ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-red-500/10 text-[var(--trade-bearish)]"
                       )}>
                         {chainData.stockChange >= 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
                         {safeToFixed(chainData.stockChangePercent, 2)}%
@@ -612,12 +612,12 @@ export default function OptionsAnalyzer() {
                   ) : (
                     <Tabs defaultValue="calls" className="w-full">
                       <TabsList className="w-full justify-start px-4 bg-transparent border-b rounded-none">
-                        <TabsTrigger value="calls" className="data-[state=active]:bg-green-500/10">
-                          <TrendingUp className="h-4 w-4 mr-1 text-green-500" />
+                        <TabsTrigger value="calls" className="data-[state=active]:bg-[var(--trade-bullish)]/10">
+                          <TrendingUp className="h-4 w-4 mr-1 text-[var(--trade-bullish)]" />
                           Calls ({calls.length})
                         </TabsTrigger>
                         <TabsTrigger value="puts" className="data-[state=active]:bg-red-500/10">
-                          <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
+                          <TrendingDown className="h-4 w-4 mr-1 text-[var(--trade-bearish)]" />
                           Puts ({puts.length})
                         </TabsTrigger>
                       </TabsList>
@@ -666,7 +666,7 @@ export default function OptionsAnalyzer() {
         {!searchedSymbol && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Activity className="h-16 w-16 mx-auto text-emerald-500/50 mb-6" />
+              <Activity className="h-16 w-16 mx-auto text-[var(--trade-bullish)]/50 mb-6" />
               <h2 className="text-xl font-semibold mb-3">Enter a Symbol to Start</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 Search for any optionable stock to view the options chain, run deep analysis on specific strikes, 
@@ -681,7 +681,7 @@ export default function OptionsAnalyzer() {
             {volSurfaceError ? (
               <Card>
                 <CardContent className="p-12 text-center">
-                  <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+                  <AlertTriangle className="h-12 w-12 mx-auto text-[var(--trade-neutral)] mb-4" />
                   <h3 className="font-semibold text-lg mb-2">Volatility Surface Unavailable</h3>
                   <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
                     Unable to calculate volatility surface. Try searching for a symbol with active options chains.
@@ -752,7 +752,7 @@ function OptionsChainTable({
   if (options.length === 0) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        No options available for this expiration
+        No options for this expiry — try another date
       </div>
     );
   }
@@ -795,7 +795,7 @@ function OptionsChainTable({
                   <div className="flex items-center gap-2">
                     ${safeToFixed(opt.strike, 2)}
                     {isATM && <Badge variant="secondary" className="text-[9px] py-0">ATM</Badge>}
-                    {isITM && <Badge variant="secondary" className="text-[9px] py-0 bg-green-500/10 text-green-500">ITM</Badge>}
+                    {isITM && <Badge variant="secondary" className="text-[9px] py-0 bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]">ITM</Badge>}
                   </div>
                 </td>
                 <td className="p-2 text-right font-mono">${safeToFixed(opt.bid, 2)}</td>
@@ -804,7 +804,7 @@ function OptionsChainTable({
                 <td className="p-2 text-right font-mono">{opt.volume.toLocaleString()}</td>
                 <td className="p-2 text-right font-mono">{opt.openInterest.toLocaleString()}</td>
                 <td className="p-2 text-right font-mono">
-                  <span className={opt.delta > 0 ? "text-green-500" : "text-red-500"}>
+                  <span className={opt.delta > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}>
                     {safeToFixed(opt.delta, 2)}
                   </span>
                 </td>
@@ -875,12 +875,12 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-muted/30">
               <p className="text-xs text-muted-foreground mb-1">Mid Price</p>
-              <p className="text-lg font-bold font-mono">${safeToFixed(analysis.midPrice, 2)}</p>
+              <p className="text-lg font-bold font-mono tabular-nums">${safeToFixed(analysis.midPrice, 2)}</p>
               <p className="text-xs text-muted-foreground">${safeToFixed(analysis.midPrice * 100, 0)} / contract</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/30">
               <p className="text-xs text-muted-foreground mb-1">Break Even</p>
-              <p className="text-lg font-bold font-mono">${safeToFixed(analysis.probability.breakEvenPrice, 2)}</p>
+              <p className="text-lg font-bold font-mono tabular-nums">${safeToFixed(analysis.probability.breakEvenPrice, 2)}</p>
               <p className="text-xs text-muted-foreground">
                 {analysis.technical.breakEvenMove > 0 ? '+' : ''}{safeToFixed(analysis.technical.breakEvenMove, 1)}% move
               </p>
@@ -892,7 +892,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4 text-emerald-500" />
+            <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
             Greeks
           </CardTitle>
         </CardHeader>
@@ -915,7 +915,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
             <div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Theta</span>
-                <span className="font-mono text-red-400">{safeToFixed(analysis.greeks.theta, 3)}</span>
+                <span className="font-mono text-[var(--trade-bearish)]">{safeToFixed(analysis.greeks.theta, 3)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">{analysis.greeks.thetaImpact}</p>
             </div>
@@ -953,10 +953,10 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
             <span className="text-sm text-muted-foreground">Premium</span>
             <Badge variant="secondary" className={cn(
               "text-xs",
-              analysis.iv.premiumAssessment === 'cheap' && "bg-green-500/10 text-green-500",
-              analysis.iv.premiumAssessment === 'fair' && "bg-amber-500/10 text-amber-500",
+              analysis.iv.premiumAssessment === 'cheap' && "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]",
+              analysis.iv.premiumAssessment === 'fair' && "bg-amber-500/10 text-[var(--trade-neutral)]",
               analysis.iv.premiumAssessment === 'expensive' && "bg-orange-500/10 text-orange-500",
-              analysis.iv.premiumAssessment === 'extreme' && "bg-red-500/10 text-red-500",
+              analysis.iv.premiumAssessment === 'extreme' && "bg-red-500/10 text-[var(--trade-bearish)]",
             )}>
               {analysis.iv.premiumAssessment.toUpperCase()}
             </Badge>
@@ -968,27 +968,27 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Target className="h-4 w-4 text-green-500" />
+            <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
             Price Ladder (Bagger Targets)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 rounded bg-green-500/10">
+            <div className="flex items-center justify-between p-2 rounded bg-[var(--trade-bullish)]/10">
               <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4 text-green-500" />
+                <Flame className="h-4 w-4 text-[var(--trade-bullish)]" />
                 <span className="text-sm font-medium">2x (Doubler)</span>
               </div>
-              <span className="font-mono font-bold text-green-500" data-testid="text-target-2x">
+              <span className="font-mono font-bold text-[var(--trade-bullish)]" data-testid="text-target-2x">
                 ${safeToFixed(analysis.scenarios.targetPrices.doubler, 2)}
               </span>
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-emerald-500/10">
               <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-emerald-500" />
+                <Star className="h-4 w-4 text-[var(--trade-bullish)]" />
                 <span className="text-sm font-medium">3x (Tripler)</span>
               </div>
-              <span className="font-mono font-bold text-emerald-500" data-testid="text-target-3x">
+              <span className="font-mono font-bold text-[var(--trade-bullish)]" data-testid="text-target-3x">
                 ${safeToFixed(analysis.scenarios.targetPrices.tripler, 2)}
               </span>
             </div>
@@ -1003,10 +1003,10 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
             </div>
             <div className="flex items-center justify-between p-2 rounded bg-amber-500/10">
               <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4 text-amber-500" />
+                <Flame className="h-4 w-4 text-[var(--trade-neutral)]" />
                 <span className="text-sm font-medium">10x (Ten Bagger)</span>
               </div>
-              <span className="font-mono font-bold text-amber-500" data-testid="text-target-10x">
+              <span className="font-mono font-bold text-[var(--trade-neutral)]" data-testid="text-target-10x">
                 ${safeToFixed(analysis.scenarios.targetPrices.tenBagger, 2)}
               </span>
             </div>
@@ -1017,19 +1017,19 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-amber-500" />
+            <BarChart3 className="h-4 w-4 text-[var(--trade-neutral)]" />
             Risk Analysis
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-2 rounded bg-green-500/10">
+            <div className="p-2 rounded bg-[var(--trade-bullish)]/10">
               <p className="text-xs text-muted-foreground">Max Profit</p>
-              <p className="font-mono text-green-500">${safeToFixed(analysis.probability.maxProfit, 0)}</p>
+              <p className="font-mono text-[var(--trade-bullish)]">${safeToFixed(analysis.probability.maxProfit, 0)}</p>
             </div>
             <div className="p-2 rounded bg-red-500/10">
               <p className="text-xs text-muted-foreground">Max Loss</p>
-              <p className="font-mono text-red-500">${safeToFixed(analysis.probability.maxLoss, 0)}</p>
+              <p className="font-mono text-[var(--trade-bearish)]">${safeToFixed(analysis.probability.maxLoss, 0)}</p>
             </div>
           </div>
           <div className="flex justify-between items-center text-sm">
@@ -1052,7 +1052,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
           <CardContent className="p-4 space-y-3">
             {analysis.keyEdges.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-green-500 mb-2 flex items-center gap-1">
+                <h4 className="text-sm font-medium text-[var(--trade-bullish)] mb-2 flex items-center gap-1">
                   <ArrowUpRight className="h-4 w-4" />
                   Edges
                 </h4>
@@ -1065,7 +1065,7 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
             )}
             {analysis.keyRisks.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-red-500 mb-2 flex items-center gap-1">
+                <h4 className="text-sm font-medium text-[var(--trade-bearish)] mb-2 flex items-center gap-1">
                   <AlertTriangle className="h-4 w-4" />
                   Risks
                 </h4>
@@ -1091,21 +1091,21 @@ function DeepAnalysisPanel({ analysis }: { analysis: DeepAnalysis }) {
 
 function getVerdictBadgeColor(verdict: string): string {
   switch (verdict) {
-    case 'STRONG_BUY': return 'bg-green-500/20 text-green-400 border-green-500/30';
-    case 'BUY': return 'bg-green-500/10 text-green-400 border-green-500/20';
-    case 'HOLD': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    case 'AVOID': return 'bg-red-500/10 text-red-400 border-red-500/20';
-    case 'STRONG_AVOID': return 'bg-red-500/20 text-red-400 border-red-500/30';
+    case 'STRONG_BUY': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+    case 'BUY': return 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20';
+    case 'HOLD': return 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20';
+    case 'AVOID': return 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20';
+    case 'STRONG_AVOID': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     default: return 'bg-muted/10 text-muted-foreground';
   }
 }
 
 function getGradeTextColor(grade: string): string {
-  if (grade.startsWith('A')) return 'text-green-400';
-  if (grade.startsWith('B')) return 'text-emerald-400';
-  if (grade.startsWith('C')) return 'text-amber-400';
+  if (grade.startsWith('A')) return 'text-[var(--trade-bullish)]';
+  if (grade.startsWith('B')) return 'text-[var(--trade-bullish)]';
+  if (grade.startsWith('C')) return 'text-[var(--trade-neutral)]';
   if (grade.startsWith('D')) return 'text-orange-400';
-  return 'text-red-400';
+  return 'text-[var(--trade-bearish)]';
 }
 
 function VolatilitySurfacePanel({
@@ -1137,7 +1137,7 @@ function VolatilitySurfacePanel({
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <Loader2 className="h-12 w-12 mx-auto text-emerald-500 animate-spin mb-4" />
+          <Loader2 className="h-12 w-12 mx-auto text-[var(--trade-bullish)] animate-spin mb-4" />
           <p className="text-muted-foreground">Loading volatility surface for {symbol}...</p>
         </CardContent>
       </Card>
@@ -1148,7 +1148,7 @@ function VolatilitySurfacePanel({
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <AlertTriangle className="h-12 w-12 mx-auto text-amber-500 mb-4" />
+          <AlertTriangle className="h-12 w-12 mx-auto text-[var(--trade-neutral)] mb-4" />
           <p className="text-muted-foreground">Failed to load volatility surface. Please try again.</p>
           <Button onClick={onRefresh} className="mt-4" data-testid="button-retry-surface">
             <RefreshCw className="h-4 w-4 mr-2" /> Retry
@@ -1167,7 +1167,7 @@ function VolatilitySurfacePanel({
           <CardHeader className="py-3 px-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-emerald-500" />
+                <BarChart3 className="h-5 w-5 text-[var(--trade-bullish)]" />
                 Volatility Surface - {symbol}
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={onRefresh} data-testid="button-refresh-surface">
@@ -1191,7 +1191,7 @@ function VolatilitySurfacePanel({
                             <div 
                               className={cn(
                                 "w-full rounded-t transition-all hover:opacity-80",
-                                isAtm ? "bg-amber-500" : strike < spotPrice ? "bg-red-500/70" : "bg-green-500/70"
+                                isAtm ? "bg-[var(--trade-neutral)]" : strike < spotPrice ? "bg-red-500/70" : "bg-[var(--trade-bullish)]/70"
                               )}
                               style={{ height: `${normalizedIv}%` }}
                             />
@@ -1283,7 +1283,7 @@ function VolatilitySurfacePanel({
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+              <Info className="h-4 w-4 text-[var(--trade-bullish)] shrink-0 mt-0.5" />
               <div className="text-xs text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Interpreting Skew</p>
                 <p>Positive put/call skew indicates demand for downside protection (bearish sentiment). Steep term structure suggests near-term uncertainty.</p>
@@ -1322,7 +1322,7 @@ function PricingLabPanel({
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-emerald-500" />
+            <Calculator className="h-5 w-5 text-[var(--trade-bullish)]" />
             Black-Scholes Pricing
           </CardTitle>
         </CardHeader>
@@ -1418,7 +1418,7 @@ function PricingLabPanel({
               <CardTitle className="text-sm">Theoretical Price</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
-              <div className="text-3xl font-bold font-mono text-emerald-400" data-testid="text-bs-price">
+              <div className="text-3xl font-bold font-mono text-[var(--trade-bullish)]" data-testid="text-bs-price">
                 ${safeToFixed(bsResult.theoreticalPrice, 4)}
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
@@ -1453,7 +1453,7 @@ function PricingLabPanel({
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Theta (Θ)/day</span>
-                  <span className="font-mono font-medium text-red-400">{safeToFixed(bsResult.greeks.theta, 4)}</span>
+                  <span className="font-mono font-medium text-[var(--trade-bearish)]">{safeToFixed(bsResult.greeks.theta, 4)}</span>
                 </div>
                 <div className="p-2 rounded bg-muted/30">
                   <span className="text-muted-foreground block text-xs">Vega (ν)/1%</span>
@@ -1483,7 +1483,7 @@ function PricingLabPanel({
             <Card>
               <CardHeader className="py-3 px-4">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Gauge className="h-4 w-4 text-amber-500" />
+                  <Gauge className="h-4 w-4 text-[var(--trade-neutral)]" />
                   Monte Carlo Comparison ({mcResult.monteCarlo.paths.toLocaleString()} paths)
                 </CardTitle>
               </CardHeader>
@@ -1619,15 +1619,15 @@ function StrategyLabPanel({
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 rounded bg-green-500/10">
+                <div className="p-3 rounded bg-[var(--trade-bullish)]/10">
                   <p className="text-xs text-muted-foreground">Max Profit</p>
-                  <p className="font-mono font-bold text-green-500" data-testid="text-strategy-max-profit">
+                  <p className="font-mono font-bold text-[var(--trade-bullish)]" data-testid="text-strategy-max-profit">
                     {typeof strategyResult.maxProfit === 'number' ? `$${safeToFixed(strategyResult.maxProfit, 0)}` : strategyResult.maxProfit}
                   </p>
                 </div>
                 <div className="p-3 rounded bg-red-500/10">
                   <p className="text-xs text-muted-foreground">Max Loss</p>
-                  <p className="font-mono font-bold text-red-500" data-testid="text-strategy-max-loss">
+                  <p className="font-mono font-bold text-[var(--trade-bearish)]" data-testid="text-strategy-max-loss">
                     {typeof strategyResult.maxLoss === 'number' ? `$${safeToFixed(strategyResult.maxLoss, 0)}` : strategyResult.maxLoss}
                   </p>
                 </div>
@@ -1670,7 +1670,7 @@ function StrategyLabPanel({
                         <div 
                           className={cn(
                             "w-full transition-all",
-                            isPositive ? "bg-green-500" : "bg-red-500",
+                            isPositive ? "bg-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]",
                             isPositive ? "self-end" : "self-start"
                           )}
                           style={{ 
@@ -1716,7 +1716,7 @@ function StrategyLabPanel({
                 </div>
                 <div className="text-center p-2 rounded bg-muted/30">
                   <span className="text-xs text-muted-foreground block">Theta</span>
-                  <span className="font-mono text-red-400">{safeToFixed(strategyResult.greeksAggregate.theta, 3)}</span>
+                  <span className="font-mono text-[var(--trade-bearish)]">{safeToFixed(strategyResult.greeksAggregate.theta, 3)}</span>
                 </div>
               </div>
             </CardContent>

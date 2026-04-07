@@ -34,50 +34,50 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         return {
           icon: Eye,
           title: 'BOT SCANNING',
-          bgClass: 'bg-slate-800/90 border-slate-700/50',
-          iconClass: 'text-slate-400',
-          titleClass: 'text-slate-400',
+          bgClass: 'bg-muted/90 border-border/50',
+          iconClass: 'text-muted-foreground',
+          titleClass: 'text-muted-foreground',
         };
       case 'entry':
         return {
           icon: TrendingUp,
           title: 'TRADE ENTERED',
-          bgClass: 'bg-green-500/20 border-green-500/50',
-          iconClass: 'text-green-400',
-          titleClass: 'text-green-400',
+          bgClass: 'bg-[var(--trade-bullish)]/20 border-green-500/50',
+          iconClass: 'text-[var(--trade-bullish)]',
+          titleClass: 'text-[var(--trade-bullish)]',
         };
       case 'exit':
         const isProfit = (notification.pnl || 0) >= 0;
         return {
           icon: isProfit ? TrendingUp : TrendingDown,
           title: isProfit ? 'TRADE CLOSED +' : 'TRADE CLOSED -',
-          bgClass: isProfit ? 'bg-green-500/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50',
-          iconClass: isProfit ? 'text-green-400' : 'text-red-400',
-          titleClass: isProfit ? 'text-green-400' : 'text-red-400',
+          bgClass: isProfit ? 'bg-[var(--trade-bullish)]/20 border-green-500/50' : 'bg-red-500/20 border-red-500/50',
+          iconClass: isProfit ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]',
+          titleClass: isProfit ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]',
         };
       case 'skip':
         return {
           icon: AlertTriangle,
           title: 'SKIPPED',
-          bgClass: 'bg-slate-500/20 border-slate-500/50',
-          iconClass: 'text-slate-400',
-          titleClass: 'text-slate-400',
+          bgClass: 'bg-muted-foreground/20 border-muted-foreground/50',
+          iconClass: 'text-muted-foreground',
+          titleClass: 'text-muted-foreground',
         };
       case 'error':
         return {
           icon: AlertTriangle,
           title: 'ERROR',
           bgClass: 'bg-red-500/20 border-red-500/50',
-          iconClass: 'text-red-400',
-          titleClass: 'text-red-400',
+          iconClass: 'text-[var(--trade-bearish)]',
+          titleClass: 'text-[var(--trade-bearish)]',
         };
       default:
         return {
           icon: Eye,
           title: 'BOT ACTIVITY',
           bgClass: 'bg-emerald-500/20 border-emerald-500/50',
-          iconClass: 'text-emerald-400',
-          titleClass: 'text-emerald-400',
+          iconClass: 'text-[var(--trade-bullish)]',
+          titleClass: 'text-[var(--trade-bullish)]',
         };
     }
   };
@@ -110,7 +110,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         isVisible && !isLeaving ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       )}
     >
-      <div className={cn('flex-shrink-0 p-1.5 rounded-full bg-black/30', config.iconClass)}>
+      <div className={cn('flex-shrink-0 p-1.5 rounded-full bg-[var(--surface-base)]/30', config.iconClass)}>
         <Icon className="h-3.5 w-3.5" />
       </div>
       
@@ -129,7 +129,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
           )}
           {notification.confidence && notification.confidence >= 90 && (
             <span 
-              className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-medium"
+              className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-[var(--trade-bullish)] font-medium"
               data-testid="badge-a-plus"
             >
               A+
@@ -138,12 +138,12 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-white">{notification.symbol}</span>
-          <span className="text-sm text-slate-300">{formatOptionDetails()}</span>
+          <span className="text-lg font-bold text-foreground">{notification.symbol}</span>
+          <span className="text-sm text-foreground/80">{formatOptionDetails()}</span>
         </div>
         
         {notification.confidence && (
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             Confidence: {safeToFixed(notification.confidence, 0)}%
           </div>
         )}
@@ -151,14 +151,14 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         {notification.pnl !== undefined && notification.eventType === 'exit' && (
           <div className={cn(
             'text-sm font-bold mt-1',
-            notification.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+            notification.pnl >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
           )}>
             P&L: {notification.pnl >= 0 ? '+' : ''}${safeToFixed(notification.pnl, 2)}
           </div>
         )}
         
         {notification.reason && (
-          <div className="text-xs text-slate-400 mt-1 line-clamp-2">
+          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
             {notification.reason}
           </div>
         )}
@@ -169,7 +169,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         className="flex-shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
         data-testid="button-dismiss-notification"
       >
-        <X className="h-4 w-4 text-slate-400" />
+        <X className="h-4 w-4 text-muted-foreground" />
       </button>
     </div>
   );
@@ -189,7 +189,7 @@ export function BotNotificationPopup() {
     <div className="fixed top-14 right-4 z-40 flex flex-col gap-3 w-96 max-w-[calc(100vw-2rem)]">
       {!isConnected && (
         <div className="flex items-center justify-end gap-2 text-xs mb-1">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-500/10 border border-slate-500/20 text-slate-400">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted-foreground/10 border border-muted-foreground/20 text-muted-foreground">
             <WifiOff className="h-3 w-3" />
             <span>Reconnecting...</span>
           </div>

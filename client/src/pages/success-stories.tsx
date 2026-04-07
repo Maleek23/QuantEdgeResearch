@@ -26,7 +26,7 @@ export default function SuccessStories() {
       <SEOHead pageKey="successStories" />
       
       {/* Hero Section */}
-      <section className="border-b border-slate-800 py-12 md:py-16 bg-gradient-to-b from-slate-900/50 to-background">
+      <section className="border-b border-border py-12 md:py-16 bg-gradient-to-b from-slate-900/50 to-background">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
@@ -107,7 +107,7 @@ export default function SuccessStories() {
         ) : winningTrades.length === 0 ? (
           <div className="glass-card rounded-lg p-12 text-center">
             <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center mx-auto mb-4">
-              <Award className="h-8 w-8 text-slate-300" />
+              <Award className="h-8 w-8 text-foreground/80" />
             </div>
             <h3 className="text-xl font-semibold mb-2">No Success Stories Yet</h3>
             <p className="text-muted-foreground mb-6">
@@ -115,7 +115,7 @@ export default function SuccessStories() {
             </p>
             <Button 
               onClick={() => setLocation('/trade-desk')} 
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
               data-testid="button-view-trades"
             >
               <ArrowRight className="h-4 w-4 mr-2" />
@@ -136,18 +136,18 @@ export default function SuccessStories() {
                       <h3 className="text-xl font-bold font-mono mb-1">{trade.symbol}</h3>
                       <Badge 
                         className={trade.direction === 'long' 
-                          ? 'bg-green-500/10 text-green-400 border-green-500/30' 
-                          : 'bg-red-500/10 text-red-400 border-red-500/30'
+                          ? 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30' 
+                          : 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30'
                         }
                       >
                         {trade.direction.toUpperCase()}
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold font-mono tabular-nums text-green-400">
+                      <div className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-bullish)]">
                         +{safeToFixed(trade.percentGain, 1)}%
                       </div>
-                      <CheckCircle2 className="h-4 w-4 text-green-400 ml-auto mt-1" />
+                      <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)] ml-auto mt-1" />
                     </div>
                   </div>
 
@@ -160,7 +160,7 @@ export default function SuccessStories() {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Exit</span>
-                      <span className="font-mono font-semibold tabular-nums text-green-400">
+                      <span className="font-mono font-semibold tabular-nums text-[var(--trade-bullish)]">
                         ${safeToFixed(trade.exitPrice || trade.targetPrice, 2)}
                       </span>
                     </div>
@@ -194,7 +194,7 @@ export default function SuccessStories() {
       </section>
 
       {/* CTA Section */}
-      <section className="border-t border-slate-800 py-12 md:py-16 bg-gradient-to-b from-background to-slate-900/30">
+      <section className="border-t border-border py-12 md:py-16 bg-gradient-to-b from-background to-slate-900/30">
         <div className="container mx-auto px-6 text-center">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
             Start Trading
@@ -205,7 +205,7 @@ export default function SuccessStories() {
           </p>
           <Button
             onClick={() => setLocation('/trade-desk')}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             data-testid="button-get-started"
           >
             Get Started <ArrowRight className="ml-2 h-4 w-4" />

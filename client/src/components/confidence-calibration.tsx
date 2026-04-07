@@ -40,10 +40,10 @@ function CustomTooltip({ active, payload }: any) {
           <p className="text-muted-foreground">
             Trades: <span className="font-mono text-foreground">{data.trades}</span>
           </p>
-          <p className="text-green-500">
+          <p className="text-[var(--trade-bullish)]">
             Wins: <span className="font-mono">{data.wins}</span>
           </p>
-          <p className="text-red-500">
+          <p className="text-[var(--trade-bearish)]">
             Losses: <span className="font-mono">{data.losses}</span>
           </p>
           <p className="font-semibold mt-2">
@@ -92,7 +92,7 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
       <Card data-testid="card-signal-analysis-empty">
         <CardHeader>
           <CardTitle>Signal Performance Analysis</CardTitle>
-          <CardDescription>No data available</CardDescription>
+          <CardDescription>Data loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -125,7 +125,7 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
             </p>
             {engineEV && evValue !== null && (
               <p className="text-xs text-muted-foreground mt-1">
-                {selectedEngine?.toUpperCase()} Expected Value: <span className="font-mono font-bold">{formatExpectedValue(evValue)}</span> based on {engineEV.totalTrades} trades
+                {selectedEngine?.toUpperCase()} Expected Value: <span className="font-mono font-bold tabular-nums">{formatExpectedValue(evValue)}</span> based on {engineEV.totalTrades} trades
               </p>
             )}
           </div>

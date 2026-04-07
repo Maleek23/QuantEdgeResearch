@@ -54,15 +54,15 @@ const reasonIcons: Record<WatchReason['type'], typeof Eye> = {
 };
 
 const priorityColors: Record<WatchSuggestion['priority'], string> = {
-  hot: 'bg-red-500/20 text-red-400 border-red-500/30',
+  hot: 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30',
   warm: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   watch: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
 };
 
 const impactColors: Record<WatchReason['impact'], string> = {
-  high: 'bg-red-500/20 text-red-400',
-  medium: 'bg-amber-500/20 text-amber-400',
-  low: 'bg-slate-500/20 text-slate-400',
+  high: 'bg-red-500/20 text-[var(--trade-bearish)]',
+  medium: 'bg-amber-500/20 text-[var(--trade-neutral)]',
+  low: 'bg-muted-foreground/20 text-muted-foreground',
 };
 
 function ReasonBadge({ reason }: { reason: WatchReason }) {
@@ -103,7 +103,7 @@ function SuggestionCard({ suggestion }: { suggestion: WatchSuggestion }) {
           {DirectionIcon && (
             <DirectionIcon 
               className={`h-4 w-4 ${
-                suggestion.direction === 'bullish' ? 'text-green-400' : 'text-red-400'
+                suggestion.direction === 'bullish' ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
               }`}
             />
           )}

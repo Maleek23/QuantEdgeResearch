@@ -50,7 +50,7 @@ const strategies = [
     title: "AI Stock Picker",
     description: "AI-selected daily top stocks with highest conviction based on 6-engine analysis",
     icon: TrendingUp,
-    iconColor: "text-emerald-500",
+    iconColor: "text-[var(--trade-bullish)]",
     performance: { winRate: 68.5, annualizedReturn: 156, sharpeRatio: 1.82 },
     badge: "STOCKS",
   },
@@ -68,7 +68,7 @@ const strategies = [
     title: "Day Trading",
     description: "Intraday signals for quick trades with strict risk controls and tight stops",
     icon: Zap,
-    iconColor: "text-amber-500",
+    iconColor: "text-[var(--trade-neutral)]",
     performance: { winRate: 58.7, sharpeRatio: 1.45 },
     badge: "STOCKS",
   },
@@ -233,7 +233,7 @@ export default function StrategyPlaybooks() {
 
         <section>
           {winnersLoading ? (
-            <Skeleton className="h-48 w-full bg-slate-800/50 rounded-xl" />
+            <Skeleton className="h-48 w-full bg-muted/50 rounded-xl" />
           ) : winners.length > 0 ? (
             <WinnersShowcase
               winners={winners}
@@ -256,7 +256,7 @@ export default function StrategyPlaybooks() {
 
         <section>
           {earningsLoading ? (
-            <Skeleton className="h-48 w-full bg-slate-800/50 rounded-xl" />
+            <Skeleton className="h-48 w-full bg-muted/50 rounded-xl" />
           ) : earnings.length > 0 ? (
             <EarningsPredictionSection
               earnings={earnings}
@@ -265,7 +265,7 @@ export default function StrategyPlaybooks() {
             />
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No upcoming earnings to display
+              No earnings this week to display
             </div>
           )}
         </section>

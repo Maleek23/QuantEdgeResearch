@@ -100,17 +100,17 @@ export function TradeIdeaDetailModal({
       'Strong R:R (2:1+)': {
         points: 28,
         description: 'Risk/reward ratio of 2:1 or better. You risk $1 to potentially make $2+, providing excellent upside potential.',
-        color: 'bg-green-500'
+        color: 'bg-[var(--trade-bullish)]'
       },
       'Good R:R (1.5:1+)': {
         points: 15,
         description: 'Risk/reward ratio of 1.5:1 or better. Solid upside potential with manageable downside risk.',
-        color: 'bg-green-400'
+        color: 'bg-[var(--trade-bullish)]'
       },
       'Acceptable R:R (1.2:1+)': {
         points: 8,
         description: 'Risk/reward ratio of 1.2:1 or better. Meets minimum threshold for day trading setups.',
-        color: 'bg-emerald-400'
+        color: 'bg-[var(--trade-bullish)]'
       },
       'Confirmed Volume': {
         points: 18,
@@ -120,7 +120,7 @@ export function TradeIdeaDetailModal({
       'Strong Volume': {
         points: 12,
         description: 'Volume is above average, providing adequate liquidity for entry and exit.',
-        color: 'bg-emerald-400'
+        color: 'bg-[var(--trade-bullish)]'
       },
       'Strong Signal': {
         points: 25,
@@ -204,7 +204,7 @@ export function TradeIdeaDetailModal({
                     <span>•</span>
                     <span className={cn(
                       "font-semibold",
-                      priceChangePercent >= 0 ? "text-green-500" : "text-red-500"
+                      priceChangePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>
                       {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                     </span>
@@ -234,12 +234,12 @@ export function TradeIdeaDetailModal({
               <div>
                 <h3 className="text-sm font-semibold mb-2">Current Price</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold font-mono">
+                  <span className="text-2xl font-bold font-mono tabular-nums">
                     {formatCurrency(currentPrice)}
                   </span>
                   <span className={cn(
                     "text-sm font-medium",
-                    priceChangePercent >= 0 ? "text-green-500" : "text-red-500"
+                    priceChangePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )}>
                     {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                   </span>
@@ -253,15 +253,15 @@ export function TradeIdeaDetailModal({
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 rounded-lg bg-muted/30">
                   <div className="text-xs text-muted-foreground mb-1">Entry</div>
-                  <div className="text-lg font-bold font-mono">{formatCurrency(idea.entryPrice)}</div>
+                  <div className="text-lg font-bold font-mono tabular-nums">{formatCurrency(idea.entryPrice)}</div>
                 </div>
-                <div className="p-3 rounded-lg bg-green-500/10">
+                <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10">
                   <div className="text-xs text-muted-foreground mb-1">Target</div>
-                  <div className="text-lg font-bold font-mono text-green-500">{formatCurrency(idea.targetPrice)}</div>
+                  <div className="text-lg font-bold font-mono text-[var(--trade-bullish)]">{formatCurrency(idea.targetPrice)}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-red-500/10">
                   <div className="text-xs text-muted-foreground mb-1">Stop Loss</div>
-                  <div className="text-lg font-bold font-mono text-red-500">{formatCurrency(idea.stopLoss)}</div>
+                  <div className="text-lg font-bold font-mono text-[var(--trade-bearish)]">{formatCurrency(idea.stopLoss)}</div>
                 </div>
               </div>
             </div>
@@ -281,13 +281,13 @@ export function TradeIdeaDetailModal({
               />
               <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-emerald-500 inline-block" /> Entry: {formatCurrency(idea.entryPrice)}
+                  <span className="w-2 h-0.5 bg-[var(--trade-bullish)] inline-block" /> Entry: {formatCurrency(idea.entryPrice)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-green-500 inline-block" /> Target: {formatCurrency(idea.targetPrice)}
+                  <span className="w-2 h-0.5 bg-[var(--trade-bullish)] inline-block" /> Target: {formatCurrency(idea.targetPrice)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-red-500 inline-block" /> Stop: {formatCurrency(idea.stopLoss)}
+                  <span className="w-2 h-0.5 bg-[var(--trade-bearish)] inline-block" /> Stop: {formatCurrency(idea.stopLoss)}
                 </span>
               </div>
             </div>
@@ -296,8 +296,8 @@ export function TradeIdeaDetailModal({
             {idea.outcomeStatus === 'open' && (
               <div className="p-4 rounded-lg border bg-gradient-to-br from-emerald-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-emerald-400" />
-                  <span className="text-emerald-400">Trade Entry Information</span>
+                  <Clock className="h-4 w-4 text-[var(--trade-bullish)]" />
+                  <span className="text-[var(--trade-bullish)]">Trade Entry Information</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -364,12 +364,12 @@ export function TradeIdeaDetailModal({
                 {/* Timing Analytics - Data-Backed Probabilities */}
                 {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
                   <div className="p-3 rounded-lg border bg-gradient-to-br from-emerald-500/5 to-purple-500/5">
-                    <div className="text-xs font-semibold text-emerald-400 mb-2">Quantitative Backing</div>
+                    <div className="text-xs font-semibold text-[var(--trade-bullish)] mb-2">Quantitative Backing</div>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       {idea.targetHitProbability && (
                         <div>
                           <span className="text-muted-foreground">Target Hit Probability:</span>
-                          <div className="font-semibold text-green-400 mt-0.5">
+                          <div className="font-semibold text-[var(--trade-bullish)] mt-0.5">
                             {safeToFixed(idea.targetHitProbability, 1)}%
                           </div>
                         </div>
@@ -377,7 +377,7 @@ export function TradeIdeaDetailModal({
                       {idea.timingConfidence && (
                         <div>
                           <span className="text-muted-foreground">Timing Confidence:</span>
-                          <div className="font-semibold text-emerald-400 mt-0.5">
+                          <div className="font-semibold text-[var(--trade-bullish)] mt-0.5">
                             {safeToFixed(idea.timingConfidence, 0)}%
                           </div>
                         </div>
@@ -408,8 +408,8 @@ export function TradeIdeaDetailModal({
             {idea.outcomeStatus !== 'open' && (
               <div className="p-4 rounded-lg border bg-gradient-to-br from-emerald-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-emerald-400" />
-                  <span className="text-emerald-400">Trade Timing Analysis</span>
+                  <Clock className="h-4 w-4 text-[var(--trade-bullish)]" />
+                  <span className="text-[var(--trade-bullish)]">Trade Timing Analysis</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -563,11 +563,11 @@ export function TradeIdeaDetailModal({
                 
                 {/* Grading Scale */}
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 90 ? "bg-green-500/20 text-green-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 90 ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] font-semibold" : "bg-muted/30 text-muted-foreground")}>
                     <div className="font-bold">A+ / A</div>
                     <div>90-100</div>
                   </div>
-                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-emerald-500/20 text-emerald-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-emerald-500/20 text-[var(--trade-bullish)] font-semibold" : "bg-muted/30 text-muted-foreground")}>
                     <div className="font-bold">B+ / B</div>
                     <div>80-89</div>
                   </div>
@@ -630,7 +630,7 @@ export function TradeIdeaDetailModal({
                     {idea.rsiValue != null && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">RSI (14)</div>
-                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.rsiValue, 1)}</div>
+                        <div className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.rsiValue, 1)}</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.rsiValue <= 30 ? 'Oversold - Reversal likely' : idea.rsiValue >= 70 ? 'Overbought - Reversal likely' : 'Neutral zone'}
                         </div>
@@ -639,7 +639,7 @@ export function TradeIdeaDetailModal({
                     {idea.volumeRatio != null && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Volume Ratio</div>
-                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.volumeRatio, 1)}x</div>
+                        <div className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.volumeRatio, 1)}x</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.volumeRatio >= 2 ? 'Strong confirmation' : idea.volumeRatio >= 1.2 ? 'Confirmed' : 'Below average'}
                         </div>
@@ -648,7 +648,7 @@ export function TradeIdeaDetailModal({
                     {idea.riskRewardRatio > 0 && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Risk/Reward</div>
-                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.riskRewardRatio, 1)}:1</div>
+                        <div className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.riskRewardRatio, 1)}:1</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.riskRewardRatio >= 2 ? 'Excellent setup' : idea.riskRewardRatio >= 1.5 ? 'Good setup' : 'Acceptable'}
                         </div>
@@ -657,7 +657,7 @@ export function TradeIdeaDetailModal({
                     {idea.confidenceScore > 0 && (
                       <div className="p-3 rounded-lg bg-muted/30">
                         <div className="text-xs text-muted-foreground mb-1">Confidence Score</div>
-                        <div className="text-lg font-bold font-mono">{safeToFixed(idea.confidenceScore, 0)}</div>
+                        <div className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.confidenceScore, 0)}</div>
                         <div className="text-xs text-muted-foreground">
                           {idea.confidenceScore >= 90 ? 'Very high confidence' : idea.confidenceScore >= 85 ? 'High confidence' : 'Moderate confidence'}
                         </div>
@@ -684,8 +684,8 @@ export function TradeIdeaDetailModal({
               <div className="p-4 rounded-lg bg-muted/30">
                 <h3 className="text-sm font-semibold mb-3">Market Sentiment</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-green-500/10">
-                    <div className="text-2xl font-bold text-green-500">
+                  <div className="text-center p-3 rounded-lg bg-[var(--trade-bullish)]/10">
+                    <div className="text-2xl font-bold text-[var(--trade-bullish)]">
                       {isLong ? '68%' : '32%'}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">Bullish</div>
@@ -695,7 +695,7 @@ export function TradeIdeaDetailModal({
                     <div className="text-xs text-muted-foreground mt-1">Neutral</div>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-red-500/10">
-                    <div className="text-2xl font-bold text-red-500">
+                    <div className="text-2xl font-bold text-[var(--trade-bearish)]">
                       {isLong ? '11%' : '47%'}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">Bearish</div>

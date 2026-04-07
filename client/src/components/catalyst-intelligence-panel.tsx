@@ -98,7 +98,7 @@ const getScoreColor = (score: number) => {
   if (score >= 25) return 'text-primary';
   if (score >= 0) return 'text-muted-foreground';
   if (score >= -25) return 'text-neutral';
-  if (score >= -50) return 'text-amber-500';
+  if (score >= -50) return 'text-[var(--trade-neutral)]';
   return 'text-destructive';
 };
 
@@ -277,7 +277,7 @@ export function CatalystIntelligencePanel({ symbol, compact = false }: CatalystI
                     <FileText className="h-4 w-4" />
                     <span className="text-sm">SEC Filings (90d)</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono">{filings.length}</div>
+                  <div className="text-2xl font-bold font-mono tabular-nums">{filings.length}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {filings.filter(f => f.sentiment === 'bullish').length} bullish,{' '}
                     {filings.filter(f => f.sentiment === 'bearish').length} bearish
@@ -289,7 +289,7 @@ export function CatalystIntelligencePanel({ symbol, compact = false }: CatalystI
                     <Building2 className="h-4 w-4" />
                     <span className="text-sm">Gov Contracts (90d)</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono">{contracts.length}</div>
+                  <div className="text-2xl font-bold font-mono tabular-nums">{contracts.length}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {formatContractAmount(contracts.reduce((sum, c) => sum + (c.awardAmount || 0), 0))} total
                   </div>

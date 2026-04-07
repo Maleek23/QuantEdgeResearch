@@ -27,7 +27,7 @@ export default function TermsOfService() {
 
       <Card className="glass-card border-amber-500/30 bg-amber-500/5">
         <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-amber-500">
+          <CardTitle className="flex items-center gap-3 text-[var(--trade-neutral)]">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg">
               <AlertTriangle className="h-5 w-5 text-white" />
             </div>
@@ -146,7 +146,7 @@ export default function TermsOfService() {
             <li>We are not liable for indirect, consequential, or punitive damages</li>
             <li>Our total liability shall not exceed the amount you paid for premium services (if any)</li>
           </ul>
-          <div className="flex items-center gap-2 text-amber-500 text-xs mt-4">
+          <div className="flex items-center gap-2 text-[var(--trade-neutral)] text-xs mt-4">
             <AlertTriangle className="h-4 w-4" />
             <span>You assume all risk when using this platform for trading research.</span>
           </div>
@@ -196,7 +196,7 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card className="glass-card border-slate-500/20">
+      <Card className="glass-card border-muted-foreground/20">
         <CardContent className="pt-6 space-y-2 text-sm">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
             Contact & Governing Law

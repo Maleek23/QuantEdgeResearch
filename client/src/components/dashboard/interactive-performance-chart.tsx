@@ -43,7 +43,7 @@ export function InteractivePerformanceChart({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-xl p-6 border border-slate-800"
+      className="glass-card rounded-xl p-6 border border-border"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -53,7 +53,7 @@ export function InteractivePerformanceChart({
             <span className="text-3xl font-bold font-mono tabular-nums">
               {activeMetric === "winRate" ? `${safeToFixed(currentValue, 1)}%` : `$${safeToFixed(currentValue, 0)}`}
             </span>
-            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
               {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               <span>{isPositive ? '+' : ''}{changePercent}%</span>
             </div>
@@ -72,7 +72,7 @@ export function InteractivePerformanceChart({
                 className={`relative px-3 py-2 rounded-lg transition-all ${
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-400'
-                    : 'hover:bg-slate-800 text-muted-foreground'
+                    : 'hover:bg-muted text-muted-foreground'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -133,7 +133,7 @@ export function InteractivePerformanceChart({
                 if (!active || !payload?.[0]) return null;
                 const data = payload[0].payload;
                 return (
-                  <div className="glass-card border border-slate-700 rounded-lg p-3 shadow-xl">
+                  <div className="glass-card border border-border rounded-lg p-3 shadow-xl">
                     <p className="text-xs text-muted-foreground mb-2">{data.date}</p>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-4">
@@ -142,7 +142,7 @@ export function InteractivePerformanceChart({
                       </div>
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-xs text-muted-foreground">P&L</span>
-                        <span className={`text-sm font-semibold ${data.profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className={`text-sm font-semibold ${data.profit >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                           ${safeToFixed(data.profit, 0)}
                         </span>
                       </div>
@@ -169,7 +169,7 @@ export function InteractivePerformanceChart({
       </div>
 
       {/* Footer Stats */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-slate-800">
+      <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-border">
         <div>
           <p className="text-xs text-muted-foreground mb-1">Total Trades</p>
           <p className="text-lg font-bold font-mono tabular-nums">
@@ -185,7 +185,7 @@ export function InteractivePerformanceChart({
         <div>
           <p className="text-xs text-muted-foreground mb-1">Total P&L</p>
           <p className={`text-lg font-bold font-mono tabular-nums ${
-            data.reduce((sum, d) => sum + d.profit, 0) >= 0 ? 'text-green-400' : 'text-red-400'
+            data.reduce((sum, d) => sum + d.profit, 0) >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
           }`}>
             ${safeToFixed(data.reduce((sum, d) => sum + d.profit, 0), 0)}
           </p>

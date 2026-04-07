@@ -22,9 +22,9 @@ export function QuantEnginePanel({
   className,
 }: QuantEnginePanelProps) {
   const signalConfig = {
-    bullish: { color: "text-green-400", icon: TrendingUp },
-    bearish: { color: "text-red-400", icon: TrendingDown },
-    neutral: { color: "text-amber-400", icon: Minus },
+    bullish: { color: "text-[var(--trade-bullish)]", icon: TrendingUp },
+    bearish: { color: "text-[var(--trade-bearish)]", icon: TrendingDown },
+    neutral: { color: "text-[var(--trade-neutral)]", icon: Minus },
   };
 
   const config = signalConfig[overallSignal];
@@ -33,14 +33,14 @@ export function QuantEnginePanel({
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <BarChart2 className="w-4 h-4 text-blue-400" />
-          <span className="text-xs uppercase tracking-widest text-slate-400">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Quant Engine
           </span>
         </div>
@@ -52,23 +52,23 @@ export function QuantEnginePanel({
         </div>
       </div>
 
-      <div className="bg-slate-800/40 rounded-lg p-3 mb-4">
+      <div className="bg-muted/40 rounded-lg p-3 mb-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">Composite Z-Score</span>
+          <span className="text-xs text-muted-foreground">Composite Z-Score</span>
           <span
             className={cn(
               "text-xl font-mono tabular-nums font-bold",
-              zScore > 1 ? "text-green-400" : zScore < -1 ? "text-red-400" : "text-slate-300"
+              zScore > 1 ? "text-[var(--trade-bullish)]" : zScore < -1 ? "text-[var(--trade-bearish)]" : "text-foreground/80"
             )}
           >
             {zScore >= 0 ? "+" : ""}{safeToFixed(zScore, 2)}σ
           </span>
         </div>
-        <div className="mt-2 h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full transition-all duration-300",
-              zScore > 0 ? "bg-green-400" : "bg-red-400"
+              zScore > 0 ? "bg-[var(--trade-bullish)]" : "bg-red-400"
             )}
             style={{
               width: `${Math.min(Math.abs(zScore) * 20, 100)}%`,
@@ -86,12 +86,12 @@ export function QuantEnginePanel({
           return (
             <div
               key={metric.name}
-              className="flex items-center justify-between p-2 bg-slate-800/30 rounded hover:bg-slate-800/50 transition-colors"
+              className="flex items-center justify-between p-2 bg-muted/30 rounded hover:bg-muted/50 transition-colors"
               title={metric.description}
             >
               <div className="flex items-center gap-2">
                 <MetricIcon className={cn("w-3 h-3", metricConfig.color)} />
-                <span className="text-xs text-slate-300">{metric.name}</span>
+                <span className="text-xs text-foreground/80">{metric.name}</span>
               </div>
               <span className={cn("text-sm font-mono tabular-nums font-medium", metricConfig.color)}>
                 {safeToFixed(metric.value, 2)}

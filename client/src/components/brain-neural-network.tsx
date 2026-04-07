@@ -67,7 +67,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
         </CardHeader>
         <CardContent>
           <Alert className="border-amber-500/50 bg-amber-500/10 mb-4">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
             <AlertDescription className="text-muted-foreground">
               WebGL is not available in your browser. Showing performance metrics in 2D mode.
             </AlertDescription>
@@ -76,7 +76,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Avg Win Rate</div>
-              <div className="text-xl font-bold text-green-400">{safeToFixed(avgWinRate * 100, 1)}%</div>
+              <div className="text-xl font-bold text-[var(--trade-bullish)]">{safeToFixed(avgWinRate * 100, 1)}%</div>
             </div>
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Top Signal</div>
@@ -85,7 +85,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
             </div>
             <div className="rounded-lg bg-card/50 border border-border/50 p-3">
               <div className="text-xs text-muted-foreground mb-1">Improving</div>
-              <div className="text-sm font-semibold text-amber-400 truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
+              <div className="text-sm font-semibold text-[var(--trade-neutral)] truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
               <div className="text-xs text-muted-foreground">{safeToFixed(bottomPerformer?.winRate, 0)}% wins</div>
             </div>
           </div>
@@ -102,7 +102,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
                 <CardContent className="space-y-2 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Win Rate:</span>
-                    <span className="text-green-400 font-medium">{safeToFixed(signal.winRate, 1)}%</span>
+                    <span className="text-[var(--trade-bullish)] font-medium">{safeToFixed(signal.winRate, 1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Avg Gain:</span>
@@ -156,7 +156,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Avg Win Rate</div>
-            <div className="text-xl font-bold text-green-400">{safeToFixed(avgWinRate * 100, 1)}%</div>
+            <div className="text-xl font-bold text-[var(--trade-bullish)]">{safeToFixed(avgWinRate * 100, 1)}%</div>
           </div>
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Top Signal</div>
@@ -165,17 +165,17 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
           </div>
           <div className="rounded-lg bg-card/50 border border-border/50 p-3">
             <div className="text-xs text-muted-foreground mb-1">Improving</div>
-            <div className="text-sm font-semibold text-amber-400 truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
+            <div className="text-sm font-semibold text-[var(--trade-neutral)] truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
             <div className="text-xs text-muted-foreground">{safeToFixed(bottomPerformer?.winRate, 0)}% wins</div>
           </div>
         </div>
 
         {/* 3D Visualization */}
-        <div className="relative w-full h-[600px] rounded-lg overflow-hidden border border-primary/20 bg-black">
+        <div className="relative w-full h-[600px] rounded-lg overflow-hidden border border-primary/20 bg-[var(--surface-base)]">
           <WebGLErrorBoundary fallback={
             <div className="h-full flex items-center justify-center">
               <Alert className="border-red-500/50 bg-red-500/10 max-w-md">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <AlertTriangle className="h-5 w-5 text-[var(--trade-bearish)]" />
                 <AlertDescription className="text-muted-foreground">
                   WebGL rendering failed. Please refresh the page or try a different browser.
                 </AlertDescription>
@@ -199,7 +199,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
         <div className="mt-4 flex items-center gap-4 text-sm flex-wrap">
           <span className="text-muted-foreground">Signal Grades:</span>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <div className="w-3 h-3 rounded-full bg-[var(--trade-bullish)]" />
             <span className="text-xs text-muted-foreground">60%+ Win Rate</span>
           </div>
           <div className="flex items-center gap-2">

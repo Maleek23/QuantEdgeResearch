@@ -210,11 +210,11 @@ export function StockChart({ symbol, data, height = 400, chartType = 'area', onP
     <div className="relative w-full">
       {/* Hover tooltip */}
       {hoverData && (
-        <div className="absolute top-2 left-2 z-10 bg-slate-900/90 backdrop-blur-sm rounded-lg px-3 py-2 pointer-events-none">
+        <div className="absolute top-2 left-2 z-10 bg-card/90 backdrop-blur-sm rounded-lg px-3 py-2 pointer-events-none">
           <div className="text-[13px] font-semibold text-white">${safeToFixed(hoverData.price, 2)}</div>
           <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-slate-400">{hoverData.time}</span>
-            <span className={safeNumber(hoverData.change) >= 0 ? "text-green-400" : "text-red-400"}>
+            <span className="text-muted-foreground">{hoverData.time}</span>
+            <span className={safeNumber(hoverData.change) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}>
               {safeNumber(hoverData.change) >= 0 ? '+' : ''}{safeToFixed(hoverData.change, 2)}%
             </span>
           </div>

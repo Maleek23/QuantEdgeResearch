@@ -70,13 +70,13 @@ function StatusIndicator({ status }: { status: string }) {
   return (
     <div className={cn(
       "h-2.5 w-2.5 rounded-full",
-      status === 'healthy' && "bg-green-400",
-      status === 'available' && "bg-green-400",
+      status === 'healthy' && "bg-[var(--trade-bullish)]",
+      status === 'available' && "bg-[var(--trade-bullish)]",
       status === 'degraded' && "bg-amber-400",
       status === 'rate_limited' && "bg-amber-400",
       status === 'down' && "bg-red-400",
       status === 'unavailable' && "bg-red-400",
-      status === 'unknown' && "bg-slate-400"
+      status === 'unknown' && "bg-muted-foreground"
     )} />
   );
 }
@@ -183,23 +183,23 @@ function AdminSystemContent() {
         <div className="flex items-center gap-3">
           <div className={cn(
             "p-2 rounded-lg",
-            healthyCount === services.length ? "bg-green-500/10" : "bg-amber-500/10"
+            healthyCount === services.length ? "bg-[var(--trade-bullish)]/10" : "bg-amber-500/10"
           )}>
             {healthyCount === services.length ? (
-              <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <CheckCircle2 className="h-5 w-5 text-[var(--trade-bullish)]" />
             ) : (
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
             )}
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-white">{overallHealth}</h2>
-            <p className="text-sm text-slate-500">{healthyCount}/{services.length} services healthy</p>
+            <h2 className="text-lg font-semibold text-foreground">{overallHealth}</h2>
+            <p className="text-sm text-muted-foreground">{healthyCount}/{services.length} services healthy</p>
           </div>
         </div>
         <Button
           variant="outline"
           onClick={refreshAll}
-          className="border-slate-700 text-slate-300"
+          className="border-border text-foreground/80"
           data-testid="button-refresh-all"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -208,42 +208,42 @@ function AdminSystemContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Server className="h-5 w-5 text-cyan-400" />
               Services
             </CardTitle>
-            <CardDescription className="text-slate-500">
+            <CardDescription className="text-muted-foreground">
               Core platform services status
             </CardDescription>
           </CardHeader>
           <CardContent>
             {healthLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 bg-slate-800" />)}
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-14 bg-muted" />)}
               </div>
             ) : (
               <div className="space-y-3">
                 {services.map((service) => (
                   <div 
                     key={service.name}
-                    className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border/50"
                   >
                     <div className="flex items-center gap-3">
                       <StatusIndicator status={service.status} />
-                      <span className="text-white font-medium">{service.name}</span>
+                      <span className="text-foreground font-medium">{service.name}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       {service.latency && (
-                        <span className="text-sm text-slate-500">{service.latency}ms</span>
+                        <span className="text-sm text-muted-foreground">{service.latency}ms</span>
                       )}
                       <Badge 
                         variant="outline"
                         className={cn(
-                          service.status === 'healthy' && "text-green-400 border-green-500/20",
-                          service.status === 'degraded' && "text-amber-400 border-amber-500/20",
-                          service.status === 'down' && "text-red-400 border-red-500/20"
+                          service.status === 'healthy' && "text-[var(--trade-bullish)] border-green-500/20",
+                          service.status === 'degraded' && "text-[var(--trade-neutral)] border-amber-500/20",
+                          service.status === 'down' && "text-[var(--trade-bearish)] border-red-500/20"
                         )}
                       >
                         {service.status}
@@ -256,20 +256,20 @@ function AdminSystemContent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="text-foreground flex items-center gap-2">
               <Brain className="h-5 w-5 text-purple-400" />
               AI Providers
             </CardTitle>
-            <CardDescription className="text-slate-500">
+            <CardDescription className="text-muted-foreground">
               LLM service availability
             </CardDescription>
           </CardHeader>
           <CardContent>
             {aiLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 bg-slate-800" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 bg-muted" />)}
               </div>
             ) : (
               <div className="space-y-3">
@@ -280,23 +280,23 @@ function AdminSystemContent() {
                 ]).map((provider: AIProviderStatus) => (
                   <div 
                     key={provider.name}
-                    className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border/50"
                   >
                     <div className="flex items-center gap-3">
                       <StatusIndicator status={provider.status} />
                       <div>
-                        <span className="text-white font-medium">{provider.name}</span>
+                        <span className="text-foreground font-medium">{provider.name}</span>
                         {provider.model && (
-                          <p className="text-xs text-slate-500">{provider.model}</p>
+                          <p className="text-xs text-muted-foreground">{provider.model}</p>
                         )}
                       </div>
                     </div>
                     <Badge 
                       variant="outline"
                       className={cn(
-                        provider.status === 'available' && "text-green-400 border-green-500/20",
-                        provider.status === 'rate_limited' && "text-amber-400 border-amber-500/20",
-                        provider.status === 'unavailable' && "text-red-400 border-red-500/20"
+                        provider.status === 'available' && "text-[var(--trade-bullish)] border-green-500/20",
+                        provider.status === 'rate_limited' && "text-[var(--trade-neutral)] border-amber-500/20",
+                        provider.status === 'unavailable' && "text-[var(--trade-bearish)] border-red-500/20"
                       )}
                     >
                       {provider.status.replace('_', ' ')}
@@ -310,15 +310,15 @@ function AdminSystemContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="text-foreground flex items-center gap-2">
                   <Database className="h-5 w-5 text-cyan-400" />
                   Database
                 </CardTitle>
-                <CardDescription className="text-slate-500">
+                <CardDescription className="text-muted-foreground">
                   PostgreSQL (Neon) health
                 </CardDescription>
               </div>
@@ -327,7 +327,7 @@ function AdminSystemContent() {
                 variant="outline"
                 onClick={() => optimizeDbMutation.mutate()}
                 disabled={optimizeDbMutation.isPending}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-foreground/80"
                 data-testid="button-optimize-db"
               >
                 {optimizeDbMutation.isPending ? (
@@ -342,37 +342,37 @@ function AdminSystemContent() {
           <CardContent>
             {dbLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 bg-slate-800" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 bg-muted" />)}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                    <p className="text-sm text-slate-400">Tables</p>
-                    <p className="text-2xl font-bold text-white">{dbHealth?.tableCount || 0}</p>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                    <p className="text-sm text-muted-foreground">Tables</p>
+                    <p className="text-2xl font-bold text-foreground">{dbHealth?.tableCount || 0}</p>
                   </div>
-                  <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                    <p className="text-sm text-slate-400">Total Rows</p>
-                    <p className="text-2xl font-bold text-white">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                    <p className="text-sm text-muted-foreground">Total Rows</p>
+                    <p className="text-2xl font-bold text-foreground">
                       {safeToFixed((dbHealth?.totalRows || 0) / 1000, 1)}k
                     </p>
                   </div>
                 </div>
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-400">Connection Pool</p>
-                    <p className="text-sm text-white">
+                    <p className="text-sm text-muted-foreground">Connection Pool</p>
+                    <p className="text-sm text-foreground">
                       {dbHealth?.activeConnections || 0}/{dbHealth?.maxConnections || 10}
                     </p>
                   </div>
                   <Progress 
                     value={(dbHealth?.activeConnections || 0) / (dbHealth?.maxConnections || 10) * 100}
-                    className="h-2 bg-slate-700"
+                    className="h-2 bg-muted"
                   />
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-slate-500" />
-                  <span className="text-slate-400">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">
                     Avg query time: {dbHealth?.avgQueryTime || '< 1'}ms
                   </span>
                 </div>
@@ -381,61 +381,61 @@ function AdminSystemContent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-400" />
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-[var(--trade-bullish)]" />
               API Metrics
             </CardTitle>
-            <CardDescription className="text-slate-500">
+            <CardDescription className="text-muted-foreground">
               Request volume and performance
             </CardDescription>
           </CardHeader>
           <CardContent>
             {metricsLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 bg-slate-800" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 bg-muted" />)}
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                    <p className="text-sm text-slate-400">Requests Today</p>
-                    <p className="text-2xl font-bold text-white">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                    <p className="text-sm text-muted-foreground">Requests Today</p>
+                    <p className="text-2xl font-bold text-foreground">
                       {apiMetrics?.requestsToday?.toLocaleString() || 0}
                     </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                    <p className="text-sm text-slate-400">Avg Response</p>
-                    <p className="text-2xl font-bold text-white">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                    <p className="text-sm text-muted-foreground">Avg Response</p>
+                    <p className="text-2xl font-bold text-foreground">
                       {apiMetrics?.avgResponseTime || 0}ms
                     </p>
                   </div>
                 </div>
-                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-slate-400">Success Rate</p>
-                    <p className="text-sm text-green-400">
+                    <p className="text-sm text-muted-foreground">Success Rate</p>
+                    <p className="text-sm text-[var(--trade-bullish)]">
                       {apiMetrics?.successRate || 99.9}%
                     </p>
                   </div>
                   <Progress 
                     value={apiMetrics?.successRate || 99.9}
-                    className="h-2 bg-slate-700"
+                    className="h-2 bg-muted"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 rounded bg-green-500/10 border border-green-500/20">
-                    <p className="text-lg font-bold text-green-400">{apiMetrics?.status2xx || 0}</p>
-                    <p className="text-xs text-slate-500">2xx</p>
+                  <div className="p-2 rounded bg-[var(--trade-bullish)]/10 border border-green-500/20">
+                    <p className="text-lg font-bold text-[var(--trade-bullish)]">{apiMetrics?.status2xx || 0}</p>
+                    <p className="text-xs text-muted-foreground">2xx</p>
                   </div>
                   <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20">
-                    <p className="text-lg font-bold text-amber-400">{apiMetrics?.status4xx || 0}</p>
-                    <p className="text-xs text-slate-500">4xx</p>
+                    <p className="text-lg font-bold text-[var(--trade-neutral)]">{apiMetrics?.status4xx || 0}</p>
+                    <p className="text-xs text-muted-foreground">4xx</p>
                   </div>
                   <div className="p-2 rounded bg-red-500/10 border border-red-500/20">
-                    <p className="text-lg font-bold text-red-400">{apiMetrics?.status5xx || 0}</p>
-                    <p className="text-xs text-slate-500">5xx</p>
+                    <p className="text-lg font-bold text-[var(--trade-bearish)]">{apiMetrics?.status5xx || 0}</p>
+                    <p className="text-xs text-muted-foreground">5xx</p>
                   </div>
                 </div>
               </div>
@@ -444,15 +444,15 @@ function AdminSystemContent() {
         </Card>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <Wifi className="h-5 w-5 text-cyan-400" />
                 Market Data APIs
               </CardTitle>
-              <CardDescription className="text-slate-500">
+              <CardDescription className="text-muted-foreground">
                 External data provider status and rate limits
               </CardDescription>
             </div>
@@ -460,7 +460,7 @@ function AdminSystemContent() {
               size="sm"
               variant="outline"
               onClick={() => refetchMarketApis()}
-              className="border-slate-700 text-slate-300"
+              className="border-border text-foreground/80"
               data-testid="button-refresh-market-apis"
             >
               <RefreshCw className="h-4 w-4" />
@@ -470,34 +470,34 @@ function AdminSystemContent() {
         <CardContent>
           {marketApisLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 bg-slate-800" />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 bg-muted" />)}
             </div>
           ) : (
             <div className="space-y-3">
               {(marketApis?.providers || []).map((api: MarketAPIStatus) => (
                 <div 
                   key={api.name}
-                  className="p-4 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                  className="p-4 rounded-lg bg-muted/50 border border-border/50"
                   data-testid={`api-status-${api.name}`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <StatusIndicator status={api.status} />
                       <div>
-                        <span className="text-white font-medium">{api.displayName}</span>
+                        <span className="text-foreground font-medium">{api.displayName}</span>
                         {api.statusReason && (
-                          <p className="text-xs text-slate-500">{api.statusReason}</p>
+                          <p className="text-xs text-muted-foreground">{api.statusReason}</p>
                         )}
                       </div>
                     </div>
                     <Badge 
                       variant="outline"
                       className={cn(
-                        api.status === 'healthy' && "text-green-400 border-green-500/20",
-                        api.status === 'degraded' && "text-amber-400 border-amber-500/20",
-                        api.status === 'rate_limited' && "text-amber-400 border-amber-500/20",
-                        api.status === 'down' && "text-red-400 border-red-500/20",
-                        api.status === 'unknown' && "text-slate-400 border-slate-500/20"
+                        api.status === 'healthy' && "text-[var(--trade-bullish)] border-green-500/20",
+                        api.status === 'degraded' && "text-[var(--trade-neutral)] border-amber-500/20",
+                        api.status === 'rate_limited' && "text-[var(--trade-neutral)] border-amber-500/20",
+                        api.status === 'down' && "text-[var(--trade-bearish)] border-red-500/20",
+                        api.status === 'unknown' && "text-muted-foreground border-muted-foreground/20"
                       )}
                     >
                       {api.status.replace('_', ' ')}
@@ -506,29 +506,29 @@ function AdminSystemContent() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                     {api.quota && (
                       <>
-                        <div className="text-center p-2 rounded bg-slate-700/30">
-                          <p className="text-lg font-mono font-bold text-white">
+                        <div className="text-center p-2 rounded bg-muted/30">
+                          <p className="text-lg font-mono font-bold text-foreground">
                             {api.quota.remaining}/{api.quota.limit}
                           </p>
-                          <p className="text-xs text-slate-500">Remaining</p>
+                          <p className="text-xs text-muted-foreground">Remaining</p>
                         </div>
-                        <div className="text-center p-2 rounded bg-slate-700/30">
-                          <p className="text-xs font-medium text-slate-400">{api.quota.period}</p>
-                          <p className="text-xs text-slate-500">Rate Limit</p>
+                        <div className="text-center p-2 rounded bg-muted/30">
+                          <p className="text-xs font-medium text-muted-foreground">{api.quota.period}</p>
+                          <p className="text-xs text-muted-foreground">Rate Limit</p>
                         </div>
                       </>
                     )}
-                    <div className="text-center p-2 rounded bg-green-500/10">
-                      <p className="text-sm font-bold text-green-400">{api.rollingCounts.success24h}</p>
-                      <p className="text-xs text-slate-500">Success</p>
+                    <div className="text-center p-2 rounded bg-[var(--trade-bullish)]/10">
+                      <p className="text-sm font-bold text-[var(--trade-bullish)]">{api.rollingCounts.success24h}</p>
+                      <p className="text-xs text-muted-foreground">Success</p>
                     </div>
                     <div className="text-center p-2 rounded bg-red-500/10">
-                      <p className="text-sm font-bold text-red-400">{api.rollingCounts.error24h + api.rollingCounts.rateLimitHits24h}</p>
-                      <p className="text-xs text-slate-500">Errors</p>
+                      <p className="text-sm font-bold text-[var(--trade-bearish)]">{api.rollingCounts.error24h + api.rollingCounts.rateLimitHits24h}</p>
+                      <p className="text-xs text-muted-foreground">Errors</p>
                     </div>
                   </div>
                   {api.lastSuccessAt && (
-                    <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       Last success: {new Date(api.lastSuccessAt).toLocaleTimeString()}
                     </p>
@@ -536,9 +536,9 @@ function AdminSystemContent() {
                 </div>
               ))}
               {(!marketApis?.providers || marketApis.providers.length === 0) && (
-                <div className="text-center py-8 text-slate-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <Wifi className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No API activity recorded yet</p>
+                  <p>API activity will appear here</p>
                   <p className="text-xs">Stats will appear as APIs are called</p>
                 </div>
               )}

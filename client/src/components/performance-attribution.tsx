@@ -42,11 +42,11 @@ interface PerformanceAttributionProps {
 
 const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   S: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/40' },
-  A: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/40' },
+  A: { bg: 'bg-emerald-500/20', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40' },
   B: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/40' },
-  C: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/40' },
+  C: { bg: 'bg-amber-500/20', text: 'text-[var(--trade-neutral)]', border: 'border-amber-500/40' },
   D: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/40' },
-  F: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/40' },
+  F: { bg: 'bg-red-500/20', text: 'text-[var(--trade-bearish)]', border: 'border-red-500/40' },
 };
 
 function formatPnl(pnl: number): string {
@@ -60,7 +60,7 @@ function TierRow({ tier, data }: { tier: string; data: TierPerformance }) {
   if (data.watched === 0) return null;
   
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30" data-testid={`tier-row-${tier}`}>
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/30" data-testid={`tier-row-${tier}`}>
       <div className={cn(
         "w-10 h-10 rounded-lg flex items-center justify-center font-bold font-mono text-lg border",
         colors.bg, colors.text, colors.border
@@ -70,37 +70,37 @@ function TierRow({ tier, data }: { tier: string; data: TierPerformance }) {
       
       <div className="flex-1 grid grid-cols-5 gap-2 text-sm">
         <div>
-          <span className="text-xs text-slate-500 block">Watched</span>
+          <span className="text-xs text-muted-foreground block">Watched</span>
           <span className="font-mono">{data.watched}</span>
         </div>
         <div>
-          <span className="text-xs text-slate-500 block">Traded</span>
+          <span className="text-xs text-muted-foreground block">Traded</span>
           <span className="font-mono">{data.traded} ({safeToFixed(data.conversionRate, 0, '0')}%)</span>
         </div>
         <div>
-          <span className="text-xs text-slate-500 block">Win Rate</span>
+          <span className="text-xs text-muted-foreground block">Win Rate</span>
           <span className={cn(
             "font-mono font-semibold",
-            data.winRate >= 60 ? "text-green-400" :
-            data.winRate >= 40 ? "text-amber-400" : "text-red-400"
+            data.winRate >= 60 ? "text-[var(--trade-bullish)]" :
+            data.winRate >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
           )}>
             {safeToFixed(data.winRate, 0, '0')}%
           </span>
         </div>
         <div>
-          <span className="text-xs text-slate-500 block">Avg Return</span>
+          <span className="text-xs text-muted-foreground block">Avg Return</span>
           <span className={cn(
             "font-mono font-semibold",
-            data.avgReturn >= 0 ? "text-green-400" : "text-red-400"
+            data.avgReturn >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
             {data.avgReturn >= 0 ? '+' : ''}{safeToFixed(data.avgReturn, 1, '0.0')}%
           </span>
         </div>
         <div>
-          <span className="text-xs text-slate-500 block">Total P&L</span>
+          <span className="text-xs text-muted-foreground block">Total P&L</span>
           <span className={cn(
             "font-mono font-semibold",
-            data.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+            data.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
             {formatPnl(data.totalPnl)}
           </span>
@@ -166,7 +166,7 @@ export default function PerformanceAttribution({
             {eliteStats && (
               <Badge variant="outline" className={cn(
                 "text-xs",
-                eliteStats.avgWinRate >= 60 ? "border-green-500/40 text-green-400" : "border-amber-500/40 text-amber-400"
+                eliteStats.avgWinRate >= 60 ? "border-green-500/40 text-[var(--trade-bullish)]" : "border-amber-500/40 text-[var(--trade-neutral)]"
               )}>
                 {safeToFixed(eliteStats.avgWinRate, 0, '0')}% WR
               </Badge>
@@ -176,25 +176,25 @@ export default function PerformanceAttribution({
           {eliteStats ? (
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <p className="text-xs text-slate-500">S+A Watched</p>
+                <p className="text-xs text-muted-foreground">S+A Watched</p>
                 <p className="font-mono font-semibold">{eliteStats.watched}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Traded</p>
+                <p className="text-xs text-muted-foreground">Traded</p>
                 <p className="font-mono font-semibold">{eliteStats.traded}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">P&L</p>
+                <p className="text-xs text-muted-foreground">P&L</p>
                 <p className={cn(
                   "font-mono font-semibold",
-                  eliteStats.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+                  eliteStats.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {formatPnl(eliteStats.totalPnl)}
                 </p>
               </div>
             </div>
           ) : (
-            <p className="text-xs text-slate-400 text-center">No elite setup activity yet</p>
+            <p className="text-xs text-muted-foreground text-center">No elite setup activity yet</p>
           )}
         </CardContent>
       </Card>
@@ -222,31 +222,31 @@ export default function PerformanceAttribution({
             </div>
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-xs text-slate-500">Symbols Watched</p>
-                <p className="text-xl font-bold font-mono">{eliteStats.watched}</p>
+                <p className="text-xs text-muted-foreground">Symbols Watched</p>
+                <p className="text-xl font-bold font-mono tabular-nums">{eliteStats.watched}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Symbols Traded</p>
-                <p className="text-xl font-bold font-mono">{eliteStats.traded}</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">Symbols Traded</p>
+                <p className="text-xl font-bold font-mono tabular-nums">{eliteStats.traded}</p>
+                <p className="text-xs text-muted-foreground">
                   {safeToFixed((eliteStats.traded / eliteStats.watched) * 100, 0, '0')}% conversion
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Win Rate</p>
+                <p className="text-xs text-muted-foreground">Win Rate</p>
                 <p className={cn(
                   "text-xl font-bold font-mono",
-                  eliteStats.avgWinRate >= 60 ? "text-green-400" :
-                  eliteStats.avgWinRate >= 40 ? "text-amber-400" : "text-red-400"
+                  eliteStats.avgWinRate >= 60 ? "text-[var(--trade-bullish)]" :
+                  eliteStats.avgWinRate >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {safeToFixed(eliteStats.avgWinRate, 0, '0')}%
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Total P&L</p>
+                <p className="text-xs text-muted-foreground">Total P&L</p>
                 <p className={cn(
                   "text-xl font-bold font-mono",
-                  eliteStats.totalPnl >= 0 ? "text-green-400" : "text-red-400"
+                  eliteStats.totalPnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {formatPnl(eliteStats.totalPnl)}
                 </p>
@@ -256,7 +256,7 @@ export default function PerformanceAttribution({
         )}
 
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-slate-400 flex items-center gap-2">
+          <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Performance by Tier
           </h4>
@@ -267,13 +267,13 @@ export default function PerformanceAttribution({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400 text-center py-4">No tier data available</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No tier data available</p>
           )}
         </div>
 
         {missedOps && missedOps.length > 0 && (
           <div className="mt-4">
-            <h4 className="text-sm font-medium text-amber-400 flex items-center gap-2 mb-3">
+            <h4 className="text-sm font-medium text-[var(--trade-neutral)] flex items-center gap-2 mb-3">
               <AlertCircle className="h-4 w-4" />
               Missed Opportunities
             </h4>
@@ -291,14 +291,14 @@ export default function PerformanceAttribution({
                     <span className="font-mono font-semibold">{op.symbol}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-green-400 font-mono font-semibold">
+                    <span className="text-[var(--trade-bullish)] font-mono font-semibold">
                       +{safeToFixed(op.priceSinceAdded, 1, '0.0')}%
                     </span>
-                    <span className="text-xs text-slate-500 ml-2">since added</span>
+                    <span className="text-xs text-muted-foreground ml-2">since added</span>
                   </div>
                 </div>
               ))}
-              <p className="text-xs text-slate-400 text-center mt-2">
+              <p className="text-xs text-muted-foreground text-center mt-2">
                 Lesson: Trade more of your S/A-tier ideas
               </p>
             </div>

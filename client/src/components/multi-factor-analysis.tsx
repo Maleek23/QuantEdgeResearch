@@ -120,24 +120,24 @@ interface MultiFactorAnalysisProps {
 function getTierColor(tier: string) {
   switch (tier) {
     case "INSIDER":
-      return "text-green-400 bg-green-400/10 border-green-400/30";
+      return "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-400/30";
     case "PRIORITY":
       return "text-cyan-400 bg-cyan-400/10 border-cyan-400/30";
     case "WATCH":
-      return "text-amber-400 bg-amber-400/10 border-amber-400/30";
+      return "text-[var(--trade-neutral)] bg-amber-400/10 border-amber-400/30";
     case "AVOID":
-      return "text-red-400 bg-red-400/10 border-red-400/30";
+      return "text-[var(--trade-bearish)] bg-red-400/10 border-red-400/30";
     default:
       return "text-muted-foreground bg-muted/10 border-muted/30";
   }
 }
 
 function getGradeColor(grade: string) {
-  if (grade.startsWith("A")) return "text-green-400";
+  if (grade.startsWith("A")) return "text-[var(--trade-bullish)]";
   if (grade.startsWith("B")) return "text-cyan-400";
-  if (grade.startsWith("C")) return "text-amber-400";
+  if (grade.startsWith("C")) return "text-[var(--trade-neutral)]";
   if (grade.startsWith("D")) return "text-orange-400";
-  return "text-red-400";
+  return "text-[var(--trade-bearish)]";
 }
 
 function SignalBadge({ signal, value }: { signal: string; value?: number }) {
@@ -149,8 +149,8 @@ function SignalBadge({ signal, value }: { signal: string; value?: number }) {
       variant="outline"
       className={cn(
         "text-xs",
-        isBullish && "text-green-400 border-green-400/30",
-        isBearish && "text-red-400 border-red-400/30",
+        isBullish && "text-[var(--trade-bullish)] border-green-400/30",
+        isBearish && "text-[var(--trade-bearish)] border-red-400/30",
         !isBullish && !isBearish && "text-muted-foreground border-muted/30"
       )}
     >
@@ -204,7 +204,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
     return (
       <Card className="glass-card border-red-400/30">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-2 text-red-400">
+          <div className="flex items-center gap-2 text-[var(--trade-bearish)]">
             <AlertTriangle className="w-5 h-5" />
             <span>Unable to analyze {symbol}. Data unavailable.</span>
           </div>
@@ -259,11 +259,11 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">Score Breakdown</h4>
             <div className="grid gap-2">
-              <ScoreBar label="Technicals (30%)" value={score.technicals} color={score.technicals >= 60 ? "text-green-400" : score.technicals >= 40 ? "text-amber-400" : "text-red-400"} />
-              <ScoreBar label="Momentum (25%)" value={score.momentum} color={score.momentum >= 60 ? "text-green-400" : score.momentum >= 40 ? "text-amber-400" : "text-red-400"} />
-              <ScoreBar label="Sentiment (15%)" value={score.sentiment} color={score.sentiment >= 60 ? "text-green-400" : score.sentiment >= 40 ? "text-amber-400" : "text-red-400"} />
-              <ScoreBar label="Fundamentals (15%)" value={score.fundamentals} color={score.fundamentals >= 60 ? "text-green-400" : score.fundamentals >= 40 ? "text-amber-400" : "text-red-400"} />
-              <ScoreBar label="Market Context (15%)" value={score.marketContext} color={score.marketContext >= 60 ? "text-green-400" : score.marketContext >= 40 ? "text-amber-400" : "text-red-400"} />
+              <ScoreBar label="Technicals (30%)" value={score.technicals} color={score.technicals >= 60 ? "text-[var(--trade-bullish)]" : score.technicals >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"} />
+              <ScoreBar label="Momentum (25%)" value={score.momentum} color={score.momentum >= 60 ? "text-[var(--trade-bullish)]" : score.momentum >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"} />
+              <ScoreBar label="Sentiment (15%)" value={score.sentiment} color={score.sentiment >= 60 ? "text-[var(--trade-bullish)]" : score.sentiment >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"} />
+              <ScoreBar label="Fundamentals (15%)" value={score.fundamentals} color={score.fundamentals >= 60 ? "text-[var(--trade-bullish)]" : score.fundamentals >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"} />
+              <ScoreBar label="Market Context (15%)" value={score.marketContext} color={score.marketContext >= 60 ? "text-[var(--trade-bullish)]" : score.marketContext >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"} />
             </div>
           </div>
 
@@ -296,9 +296,9 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Overall:</span>
                 <Badge variant="outline" className={cn(
-                  regime.overall === "bullish" && "text-green-400 border-green-400/30",
-                  regime.overall === "bearish" && "text-red-400 border-red-400/30",
-                  regime.overall === "neutral" && "text-amber-400 border-amber-400/30"
+                  regime.overall === "bullish" && "text-[var(--trade-bullish)] border-green-400/30",
+                  regime.overall === "bearish" && "text-[var(--trade-bearish)] border-red-400/30",
+                  regime.overall === "neutral" && "text-[var(--trade-neutral)] border-amber-400/30"
                 )}>
                   {regime.overall.charAt(0).toUpperCase() + regime.overall.slice(1)}
                 </Badge>
@@ -306,10 +306,10 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Volatility:</span>
                 <Badge variant="outline" className={cn(
-                  regime.volatility === "low" && "text-green-400 border-green-400/30",
+                  regime.volatility === "low" && "text-[var(--trade-bullish)] border-green-400/30",
                   regime.volatility === "normal" && "text-cyan-400 border-cyan-400/30",
-                  regime.volatility === "high" && "text-amber-400 border-amber-400/30",
-                  regime.volatility === "extreme" && "text-red-400 border-red-400/30"
+                  regime.volatility === "high" && "text-[var(--trade-neutral)] border-amber-400/30",
+                  regime.volatility === "extreme" && "text-[var(--trade-bearish)] border-red-400/30"
                 )}>
                   {regime.volatility.charAt(0).toUpperCase() + regime.volatility.slice(1)}
                 </Badge>
@@ -332,7 +332,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
           {technicals && (
             <div className="space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
-                <LineChart className="w-4 h-4 text-amber-400" />
+                <LineChart className="w-4 h-4 text-[var(--trade-neutral)]" />
                 Technical Indicators
               </h4>
               
@@ -360,7 +360,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                   <span className="text-muted-foreground">ADX</span>
                   <div className="flex items-center gap-2">
                     <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.adx.value, 1)}</span>
-                    <Badge variant="outline" className={technicals.adx.trending ? "text-green-400 border-green-400/30" : "text-muted-foreground"}>
+                    <Badge variant="outline" className={technicals.adx.trending ? "text-[var(--trade-bullish)] border-green-400/30" : "text-muted-foreground"}>
                       {technicals.adx.trending ? "Trending" : "Ranging"}
                     </Badge>
                   </div>
@@ -372,7 +372,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                   <div className="flex items-center gap-2">
                     <span className="font-mono tabular-nums font-medium">{safeToFixed(technicals.volume.ratio, 1)}x</span>
                     {technicals.volume.unusual && (
-                      <Badge variant="outline" className="text-amber-400 border-amber-400/30">
+                      <Badge variant="outline" className="text-[var(--trade-neutral)] border-amber-400/30">
                         <Zap className="w-3 h-3 mr-1" />
                         Unusual
                       </Badge>
@@ -386,25 +386,25 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                 <span className="text-muted-foreground text-xs">Moving Averages</span>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className={cn("text-xs",
-                    technicals.movingAverages.priceVsSMA20 === "above" ? "text-green-400 border-green-400/30" : "text-red-400 border-red-400/30"
+                    technicals.movingAverages.priceVsSMA20 === "above" ? "text-[var(--trade-bullish)] border-green-400/30" : "text-[var(--trade-bearish)] border-red-400/30"
                   )}>
                     SMA20: {technicals.movingAverages.priceVsSMA20 === "above" ? "Above" : "Below"}
                   </Badge>
                   <Badge variant="outline" className={cn("text-xs",
-                    technicals.movingAverages.priceVsSMA50 === "above" ? "text-green-400 border-green-400/30" : "text-red-400 border-red-400/30"
+                    technicals.movingAverages.priceVsSMA50 === "above" ? "text-[var(--trade-bullish)] border-green-400/30" : "text-[var(--trade-bearish)] border-red-400/30"
                   )}>
                     SMA50: {technicals.movingAverages.priceVsSMA50 === "above" ? "Above" : "Below"}
                   </Badge>
                   <Badge variant="outline" className={cn("text-xs",
-                    technicals.movingAverages.priceVsSMA200 === "above" ? "text-green-400 border-green-400/30" : "text-red-400 border-red-400/30"
+                    technicals.movingAverages.priceVsSMA200 === "above" ? "text-[var(--trade-bullish)] border-green-400/30" : "text-[var(--trade-bearish)] border-red-400/30"
                   )}>
                     SMA200: {technicals.movingAverages.priceVsSMA200 === "above" ? "Above" : "Below"}
                   </Badge>
                   {technicals.movingAverages.goldenCross && (
-                    <Badge className="bg-green-400/20 text-green-400 border-green-400/30">Golden Cross</Badge>
+                    <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-400/30">Golden Cross</Badge>
                   )}
                   {technicals.movingAverages.deathCross && (
-                    <Badge className="bg-red-400/20 text-red-400 border-red-400/30">Death Cross</Badge>
+                    <Badge className="bg-red-400/20 text-[var(--trade-bearish)] border-red-400/30">Death Cross</Badge>
                   )}
                 </div>
               </div>
@@ -412,16 +412,16 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
               {/* Support/Resistance */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-3 h-3 text-green-400" />
+                  <Shield className="w-3 h-3 text-[var(--trade-bullish)]" />
                   <span className="text-muted-foreground">Support:</span>
-                  <span className="font-mono tabular-nums font-medium text-green-400">
+                  <span className="font-mono tabular-nums font-medium text-[var(--trade-bullish)]">
                     {formatCurrency(technicals.support)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Target className="w-3 h-3 text-red-400" />
+                  <Target className="w-3 h-3 text-[var(--trade-bearish)]" />
                   <span className="text-muted-foreground">Resistance:</span>
-                  <span className="font-mono tabular-nums font-medium text-red-400">
+                  <span className="font-mono tabular-nums font-medium text-[var(--trade-bearish)]">
                     {formatCurrency(technicals.resistance)}
                   </span>
                 </div>
@@ -442,7 +442,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
           {/* Risk/Reward */}
           <div className="space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-2">
-              <Target className="w-4 h-4 text-green-400" />
+              <Target className="w-4 h-4 text-[var(--trade-bullish)]" />
               Risk/Reward Setup
             </h4>
             <div className="grid grid-cols-3 gap-3 text-xs">
@@ -454,13 +454,13 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
               </div>
               <div className="space-y-1">
                 <span className="text-muted-foreground">Stop Loss</span>
-                <div className="font-mono tabular-nums text-red-400">
+                <div className="font-mono tabular-nums text-[var(--trade-bearish)]">
                   {formatCurrency(thesis.stopLoss)}
                 </div>
               </div>
               <div className="space-y-1">
                 <span className="text-muted-foreground">R:R Ratio</span>
-                <div className="font-mono tabular-nums text-green-400 font-bold">
+                <div className="font-mono tabular-nums text-[var(--trade-bullish)] font-bold">
                   {safeToFixed(thesis.riskReward, 1)}:1
                 </div>
               </div>
@@ -468,7 +468,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
             <div className="space-y-1">
               <span className="text-muted-foreground text-xs">Price Target</span>
               <div className="flex gap-2">
-                <Badge variant="outline" className="text-green-400 border-green-400/30 font-mono tabular-nums">
+                <Badge variant="outline" className="text-[var(--trade-bullish)] border-green-400/30 font-mono tabular-nums">
                   {formatCurrency(thesis.targetPrice)}
                 </Badge>
               </div>
@@ -499,7 +499,7 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
             {thesis.keyRisks.length > 0 && (
               <div className="mt-2">
                 <span className="text-xs text-muted-foreground">Key Risks:</span>
-                <ul className="text-xs text-red-400/80 list-disc list-inside mt-1">
+                <ul className="text-xs text-[var(--trade-bearish)]/80 list-disc list-inside mt-1">
                   {thesis.keyRisks.slice(0, 3).map((risk, i) => (
                     <li key={i}>{risk}</li>
                   ))}
@@ -526,8 +526,8 @@ export function MultiFactorAnalysis({ symbol, onClose }: MultiFactorAnalysisProp
                           {news.title}
                         </a>
                         <Badge variant="outline" className={cn("shrink-0 text-xs",
-                          news.overall_sentiment_label?.includes("Bullish") && "text-green-400 border-green-400/30",
-                          news.overall_sentiment_label?.includes("Bearish") && "text-red-400 border-red-400/30",
+                          news.overall_sentiment_label?.includes("Bullish") && "text-[var(--trade-bullish)] border-green-400/30",
+                          news.overall_sentiment_label?.includes("Bearish") && "text-[var(--trade-bearish)] border-red-400/30",
                           !news.overall_sentiment_label?.includes("Bullish") && !news.overall_sentiment_label?.includes("Bearish") && "text-muted-foreground"
                         )}>
                           {news.overall_sentiment_label || "Neutral"}

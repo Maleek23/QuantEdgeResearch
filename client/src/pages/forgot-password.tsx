@@ -43,8 +43,8 @@ export default function ForgotPassword() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
-              <CheckCircle className="h-6 w-6 text-green-500" />
+            <div className="mx-auto w-12 h-12 rounded-full bg-[var(--trade-bullish)]/10 flex items-center justify-center mb-4">
+              <CheckCircle className="h-6 w-6 text-[var(--trade-bullish)]" />
             </div>
             <CardTitle>Check Your Email</CardTitle>
             <CardDescription>

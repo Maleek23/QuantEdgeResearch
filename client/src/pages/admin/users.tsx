@@ -161,10 +161,10 @@ function AdminUsersContent() {
 
   const getTierBadge = (tier: string) => {
     const styles = {
-      admin: "bg-red-500/10 text-red-400 border-red-500/20",
+      admin: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
       pro: "bg-purple-500/10 text-purple-400 border-purple-500/20",
       advanced: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-      free: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+      free: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
     };
     const icons = {
       admin: <Shield className="h-3 w-3" />,
@@ -185,12 +185,12 @@ function AdminUsersContent() {
 
   const getExperienceBadge = (level?: string) => {
     const labels: Record<string, { label: string; color: string }> = {
-      beginner: { label: "Beginner", color: "bg-green-500/10 text-green-400 border-green-500/20" },
+      beginner: { label: "Beginner", color: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20" },
       intermediate: { label: "Intermediate", color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" },
       advanced: { label: "Advanced", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-      professional: { label: "Professional", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+      professional: { label: "Professional", color: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20" },
     };
-    const config = labels[level || ""] || { label: level || "Unknown", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+    const config = labels[level || ""] || { label: level || "Unknown", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" };
     return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
   };
 
@@ -199,42 +199,42 @@ function AdminUsersContent() {
       conservative: { label: "Conservative", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
       moderate: { label: "Moderate", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
       aggressive: { label: "Aggressive", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-      very_aggressive: { label: "Very Aggressive", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+      very_aggressive: { label: "Very Aggressive", color: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20" },
     };
-    const config = labels[risk || ""] || { label: risk || "Unknown", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" };
+    const config = labels[risk || ""] || { label: risk || "Unknown", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" };
     return <Badge variant="outline" className={config.color}>{config.label}</Badge>;
   };
 
   return (
     <div className="space-y-6">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <Users className="h-5 w-5 text-cyan-400" />
                 User Management
               </CardTitle>
-              <CardDescription className="text-slate-500">
+              <CardDescription className="text-muted-foreground">
                 {filteredUsers.length} users {tierFilter !== 'all' && `(${tierFilter})`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white w-full sm:w-64"
+                  className="pl-10 bg-muted border-border text-foreground w-full sm:w-64"
                   data-testid="input-search-users"
                 />
               </div>
               <Select value={tierFilter} onValueChange={setTierFilter}>
-                <SelectTrigger className="w-full sm:w-40 bg-slate-800 border-slate-700 text-white" data-testid="select-tier-filter">
+                <SelectTrigger className="w-full sm:w-40 bg-muted border-border text-foreground" data-testid="select-tier-filter">
                   <SelectValue placeholder="Filter by tier" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-muted border-border">
                   <SelectItem value="all">All Tiers</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="pro">Pro</SelectItem>
@@ -249,43 +249,43 @@ function AdminUsersContent() {
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-16 bg-slate-800" />
+                <Skeleton key={i} className="h-16 bg-muted" />
               ))}
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No users found</p>
+              <p>No matching users</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800 hover:bg-transparent">
-                    <TableHead className="text-slate-400">User</TableHead>
-                    <TableHead className="text-slate-400">Tier</TableHead>
-                    <TableHead className="text-slate-400">Beta Access</TableHead>
-                    <TableHead className="text-slate-400">Joined</TableHead>
-                    <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">User</TableHead>
+                    <TableHead className="text-muted-foreground">Tier</TableHead>
+                    <TableHead className="text-muted-foreground">Beta Access</TableHead>
+                    <TableHead className="text-muted-foreground">Joined</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id} className="border-slate-800" data-testid={`row-user-${user.id}`}>
+                    <TableRow key={user.id} className="border-border" data-testid={`row-user-${user.id}`}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-700 flex items-center justify-center">
-                            <span className="text-sm font-medium text-white">
+                          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-sm font-medium text-foreground">
                               {user.firstName?.[0] || user.email[0].toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="font-medium text-white">
+                            <p className="font-medium text-foreground">
                               {user.firstName && user.lastName 
                                 ? `${user.firstName} ${user.lastName}` 
                                 : user.email.split('@')[0]}
                             </p>
-                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Mail className="h-3 w-3" />
                               {user.email}
                             </p>
@@ -300,7 +300,7 @@ function AdminUsersContent() {
                           <SelectTrigger className="w-32 h-8 bg-transparent border-none p-0" data-testid={`select-tier-${user.id}`}>
                             {getTierBadge(user.subscriptionTier)}
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-700">
+                          <SelectContent className="bg-muted border-border">
                             <SelectItem value="free">Free</SelectItem>
                             <SelectItem value="advanced">Advanced</SelectItem>
                             <SelectItem value="pro">Pro</SelectItem>
@@ -310,19 +310,19 @@ function AdminUsersContent() {
                       </TableCell>
                       <TableCell>
                         {user.hasBetaAccess ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                          <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/20">
+                          <Badge variant="outline" className="bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20">
                             <XCircle className="h-3 w-3 mr-1" />
                             No Access
                           </Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 text-slate-400 text-sm">
+                        <div className="flex items-center gap-1 text-muted-foreground text-sm">
                           <Calendar className="h-3 w-3" />
                           {user.createdAt 
                             ? format(new Date(user.createdAt), 'MMM d, yyyy')
@@ -343,7 +343,7 @@ function AdminUsersContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300 hover:bg-red-500/10"
                             onClick={() => setDeleteUserId(user.id)}
                             data-testid={`button-delete-${user.id}`}
                           >
@@ -361,24 +361,24 @@ function AdminUsersContent() {
       </Card>
 
       <Dialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-white">Delete User</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-foreground">Delete User</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete this user? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {userToDelete && (
-            <div className="p-4 bg-slate-800 rounded-lg">
-              <p className="font-medium text-white">{userToDelete.email}</p>
-              <p className="text-sm text-slate-400">{userToDelete.subscriptionTier} tier</p>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="font-medium text-foreground">{userToDelete.email}</p>
+              <p className="text-sm text-muted-foreground">{userToDelete.subscriptionTier} tier</p>
             </div>
           )}
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
               onClick={() => setDeleteUserId(null)}
-              className="border-slate-700 text-slate-300"
+              className="border-border text-foreground/80"
             >
               Cancel
             </Button>
@@ -395,13 +395,13 @@ function AdminUsersContent() {
       </Dialog>
 
       <Sheet open={!!selectedUserId} onOpenChange={() => setSelectedUserId(null)}>
-        <SheetContent className="bg-slate-900 border-slate-700 w-full sm:max-w-lg">
+        <SheetContent className="bg-card border-border w-full sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle className="text-white flex items-center gap-2">
+            <SheetTitle className="text-foreground flex items-center gap-2">
               <User className="h-5 w-5 text-cyan-400" />
               User Details
             </SheetTitle>
-            <SheetDescription className="text-slate-400">
+            <SheetDescription className="text-muted-foreground">
               View complete user profile and activity
             </SheetDescription>
           </SheetHeader>
@@ -416,19 +416,19 @@ function AdminUsersContent() {
                     </span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-foreground">
                       {selectedUser.firstName && selectedUser.lastName 
                         ? `${selectedUser.firstName} ${selectedUser.lastName}` 
                         : selectedUser.email.split('@')[0]}
                     </h3>
-                    <p className="text-slate-400 flex items-center gap-1 text-sm">
+                    <p className="text-muted-foreground flex items-center gap-1 text-sm">
                       <Mail className="h-3 w-3" />
                       {selectedUser.email}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       {getTierBadge(selectedUser.subscriptionTier)}
                       {selectedUser.hasBetaAccess && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                        <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">
                           Beta Access
                         </Badge>
                       )}
@@ -436,60 +436,60 @@ function AdminUsersContent() {
                   </div>
                 </div>
 
-                <Separator className="bg-slate-700" />
+                <Separator className="bg-muted" />
 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-cyan-400" />
                     Profile Information
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                      <p className="text-xs text-slate-500 mb-1">Occupation</p>
-                      <p className="text-sm text-white">{selectedUser.occupation || "Not specified"}</p>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Occupation</p>
+                      <p className="text-sm text-foreground">{selectedUser.occupation || "Not specified"}</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                      <p className="text-xs text-slate-500 mb-1">Referral Source</p>
-                      <p className="text-sm text-white">{selectedUser.referralSource || "Not specified"}</p>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Referral Source</p>
+                      <p className="text-sm text-foreground">{selectedUser.referralSource || "Not specified"}</p>
                     </div>
                     {selectedUser.discordUsername && (
-                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 col-span-2">
-                        <p className="text-xs text-slate-500 mb-1">Discord</p>
-                        <p className="text-sm text-white">{selectedUser.discordUsername}</p>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/50 col-span-2">
+                        <p className="text-xs text-muted-foreground mb-1">Discord</p>
+                        <p className="text-sm text-foreground">{selectedUser.discordUsername}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <Separator className="bg-slate-700" />
+                <Separator className="bg-muted" />
 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-cyan-400" />
                     Trading Profile
                   </h4>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                      <span className="text-sm text-slate-400">Experience Level</span>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <span className="text-sm text-muted-foreground">Experience Level</span>
                       {getExperienceBadge(selectedUser.tradingExperienceLevel)}
                     </div>
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                      <span className="text-sm text-slate-400">Risk Tolerance</span>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <span className="text-sm text-muted-foreground">Risk Tolerance</span>
                       {getRiskBadge(selectedUser.riskTolerance)}
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                      <p className="text-xs text-slate-500 mb-2">Investment Goals</p>
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-2">Investment Goals</p>
                       <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
                         <Target className="h-3 w-3 mr-1" />
                         {selectedUser.investmentGoals?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Not specified"}
                       </Badge>
                     </div>
                     {selectedUser.knowledgeFocus && selectedUser.knowledgeFocus.length > 0 && (
-                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                        <p className="text-xs text-slate-500 mb-2">Knowledge Focus</p>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-2">Knowledge Focus</p>
                         <div className="flex flex-wrap gap-1">
                           {selectedUser.knowledgeFocus.map((focus) => (
-                            <Badge key={focus} variant="outline" className="bg-slate-700/50 text-slate-300 border-slate-600 text-xs">
+                            <Badge key={focus} variant="outline" className="bg-muted/50 text-foreground/80 border-border text-xs">
                               {focus.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                             </Badge>
                           ))}
@@ -499,41 +499,41 @@ function AdminUsersContent() {
                   </div>
                 </div>
 
-                <Separator className="bg-slate-700" />
+                <Separator className="bg-muted" />
 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                     <Clock className="h-4 w-4 text-cyan-400" />
                     Account Timeline
                   </h4>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400 flex items-center gap-2">
+                      <span className="text-muted-foreground flex items-center gap-2">
                         <Calendar className="h-3 w-3" />
                         Joined
                       </span>
-                      <span className="text-white">
+                      <span className="text-foreground">
                         {selectedUser.createdAt ? format(new Date(selectedUser.createdAt), 'MMM d, yyyy') : 'Unknown'}
                       </span>
                     </div>
                     {selectedUser.onboardingCompletedAt && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400 flex items-center gap-2">
+                        <span className="text-muted-foreground flex items-center gap-2">
                           <CheckCircle2 className="h-3 w-3" />
                           Onboarding Completed
                         </span>
-                        <span className="text-white">
+                        <span className="text-foreground">
                           {format(new Date(selectedUser.onboardingCompletedAt), 'MMM d, yyyy')}
                         </span>
                       </div>
                     )}
                     {selectedUser.updatedAt && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-400 flex items-center gap-2">
+                        <span className="text-muted-foreground flex items-center gap-2">
                           <Clock className="h-3 w-3" />
                           Last Updated
                         </span>
-                        <span className="text-white">
+                        <span className="text-foreground">
                           {format(new Date(selectedUser.updatedAt), 'MMM d, yyyy')}
                         </span>
                       </div>
@@ -543,15 +543,15 @@ function AdminUsersContent() {
 
                 {selectedUser.stripeCustomerId && (
                   <>
-                    <Separator className="bg-slate-700" />
+                    <Separator className="bg-muted" />
                     <div className="space-y-4">
-                      <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                      <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                         <CreditCard className="h-4 w-4 text-cyan-400" />
                         Billing
                       </h4>
-                      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                        <p className="text-xs text-slate-500 mb-1">Stripe Customer ID</p>
-                        <p className="text-xs font-mono text-slate-400">{selectedUser.stripeCustomerId}</p>
+                      <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Stripe Customer ID</p>
+                        <p className="text-xs font-mono text-muted-foreground">{selectedUser.stripeCustomerId}</p>
                       </div>
                     </div>
                   </>

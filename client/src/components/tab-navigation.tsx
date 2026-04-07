@@ -164,7 +164,7 @@ export function TabNavigation() {
                     "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all",
                     isActive
                       ? "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20"
-                      : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/50"
+                      : "text-muted-foreground hover:text-foreground/95 hover:bg-muted/50"
                   )}
                   data-testid={`nav-${page.label.toLowerCase()}`}
                 >

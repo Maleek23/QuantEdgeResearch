@@ -131,7 +131,7 @@ export function WatchlistTracker() {
 
   const getPriceChangeColor = (changePercent?: number) => {
     if (!changePercent) return 'text-muted-foreground';
-    return changePercent >= 0 ? 'text-green-400' : 'text-red-400';
+    return changePercent >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]';
   };
 
   return (
@@ -139,7 +139,7 @@ export function WatchlistTracker() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
+            <Star className="h-5 w-5 text-[var(--trade-neutral)] fill-amber-400" />
             <CardTitle className="text-lg">My Watchlist</CardTitle>
             <Badge variant="outline" className="text-xs">
               {watchlist.length} stocks
@@ -288,7 +288,7 @@ export function WatchlistTracker() {
                           {recentFlows.length > 0 && megaWhales.length === 0 && (
                             <Tooltip>
                               <TooltipTrigger>
-                                <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+                                <Badge variant="outline" className="bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30 text-xs">
                                   WHALE {recentFlows.length}
                                 </Badge>
                               </TooltipTrigger>
@@ -325,7 +325,7 @@ export function WatchlistTracker() {
                               <div key={flow.id} className="text-xs text-muted-foreground flex items-center gap-2">
                                 <Badge
                                   variant="outline"
-                                  className={flow.optionType === 'call' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}
+                                  className={flow.optionType === 'call' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30' : 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30'}
                                 >
                                   {flow.optionType.toUpperCase()}
                                 </Badge>

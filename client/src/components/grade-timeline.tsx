@@ -48,11 +48,11 @@ interface GradeTimelineProps {
 function getTierColor(tier: string | null): string {
   switch (tier) {
     case 'S': return 'text-purple-400';
-    case 'A': return 'text-green-400';
+    case 'A': return 'text-[var(--trade-bullish)]';
     case 'B': return 'text-cyan-400';
-    case 'C': return 'text-amber-400';
+    case 'C': return 'text-[var(--trade-neutral)]';
     case 'D': return 'text-orange-400';
-    case 'F': return 'text-red-400';
+    case 'F': return 'text-[var(--trade-bearish)]';
     default: return 'text-muted-foreground';
   }
 }
@@ -60,7 +60,7 @@ function getTierColor(tier: string | null): string {
 function getTierBackground(tier: string | null): string {
   switch (tier) {
     case 'S': return 'bg-purple-500/20';
-    case 'A': return 'bg-green-500/20';
+    case 'A': return 'bg-[var(--trade-bullish)]/20';
     case 'B': return 'bg-cyan-500/20';
     case 'C': return 'bg-amber-500/20';
     case 'D': return 'bg-orange-500/20';
@@ -75,7 +75,7 @@ function CustomTooltip({ active, payload, label }: any) {
   const data = payload[0].payload;
   
   return (
-    <div className="bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-lg p-3 shadow-xl">
+    <div className="bg-muted/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-xl">
       <p className="text-xs text-muted-foreground mb-1">
         {format(parseISO(data.snapshotDate), 'MMM d, yyyy')}
       </p>
@@ -97,7 +97,7 @@ function CustomTooltip({ active, payload, label }: any) {
           {data.priceChange !== null && (
             <span className={cn(
               "text-xs font-mono",
-              data.priceChange >= 0 ? "text-green-400" : "text-red-400"
+              data.priceChange >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {data.priceChange >= 0 ? '+' : ''}{safeToFixed(data.priceChange, 1)}%
             </span>
@@ -105,7 +105,7 @@ function CustomTooltip({ active, payload, label }: any) {
         </div>
         <div className="flex items-center gap-2 mt-2">
           {data.hasTrade && (
-            <Badge variant="outline" className="text-xs bg-green-500/20 text-green-400">
+            <Badge variant="outline" className="text-xs bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]">
               <DollarSign className="h-3 w-3 mr-0.5" /> Traded
             </Badge>
           )}
@@ -115,7 +115,7 @@ function CustomTooltip({ active, payload, label }: any) {
             </Badge>
           )}
           {data.hasEarnings && (
-            <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-400">
+            <Badge variant="outline" className="text-xs bg-amber-500/20 text-[var(--trade-neutral)]">
               <Calendar className="h-3 w-3 mr-0.5" /> Earnings
             </Badge>
           )}
@@ -142,7 +142,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-800/30 backdrop-blur-sm">
+      <Card className="bg-muted/30 backdrop-blur-sm">
         <CardHeader className="pb-2">
           <Skeleton className="h-5 w-48" />
         </CardHeader>
@@ -155,7 +155,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
 
   if (error || !history || history.length === 0) {
     return (
-      <Card className="bg-slate-800/30 backdrop-blur-sm">
+      <Card className="bg-muted/30 backdrop-blur-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Calendar className="h-4 w-4 text-cyan-400" />
@@ -187,7 +187,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
   const tradeDays = history.filter(h => h.hasTrade).length;
 
   return (
-    <Card className="bg-slate-800/30 backdrop-blur-sm" data-testid="grade-timeline">
+    <Card className="bg-muted/30 backdrop-blur-sm" data-testid="grade-timeline">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
             </Badge>
             <span className={cn(
               "text-xs font-mono",
-              gradeChange >= 0 ? "text-green-400" : "text-red-400"
+              gradeChange >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {gradeChange >= 0 ? '+' : ''}{safeToFixed(gradeChange, 0)} pts
             </span>
@@ -210,7 +210,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
           <span>{sortedHistory.length} days tracked</span>
           <span>Price: {priceChange >= 0 ? '+' : ''}{safeToFixed(priceChange, 1)}%</span>
           {tradeDays > 0 && (
-            <span className="text-green-400">{tradeDays} trade(s)</span>
+            <span className="text-[var(--trade-bullish)]">{tradeDays} trade(s)</span>
           )}
         </div>
       </CardHeader>
@@ -279,7 +279,7 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
         
         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)]" />
             <span>Trade</span>
           </div>
           <div className="flex items-center gap-1">
@@ -291,11 +291,11 @@ export default function GradeTimeline({ symbol, year, height = "h-64", showPrice
             <span>Earnings</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="h-0.5 w-4 bg-green-500 opacity-50" style={{ borderTop: '1px dashed' }} />
+            <div className="h-0.5 w-4 bg-[var(--trade-bullish)] opacity-50" style={{ borderTop: '1px dashed' }} />
             <span>A-tier (80+)</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="h-0.5 w-4 bg-amber-500 opacity-50" style={{ borderTop: '1px dashed' }} />
+            <div className="h-0.5 w-4 bg-[var(--trade-neutral)] opacity-50" style={{ borderTop: '1px dashed' }} />
             <span>C-tier (60+)</span>
           </div>
         </div>

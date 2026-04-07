@@ -296,9 +296,9 @@ function getSwingGradeVariant(grade: string): "default" | "secondary" | "destruc
 }
 
 function getTrendIcon(trend: string) {
-  if (trend === 'bullish') return <TrendingUp className="w-4 h-4 text-green-500" />;
-  if (trend === 'bearish') return <TrendingDown className="w-4 h-4 text-red-500" />;
-  return <Activity className="w-4 h-4 text-gray-500" />;
+  if (trend === 'bullish') return <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />;
+  if (trend === 'bearish') return <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />;
+  return <Activity className="w-4 h-4 text-muted-foreground" />;
 }
 
 const formatPrice = (price: number) => {
@@ -355,7 +355,7 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
               <Badge variant="secondary" className="text-xs">Large Cap</Badge>
             )}
             {stock.currentPrice < 5 && (
-              <Badge variant="outline" className="text-xs text-amber-400 border-amber-400/30">Penny</Badge>
+              <Badge variant="outline" className="text-xs text-[var(--trade-neutral)] border-amber-400/30">Penny</Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate max-w-[200px]" data-testid={`text-name-${stock.symbol}`}>
@@ -371,7 +371,7 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
           </p>
         </div>
         
-        <div className={`min-w-[80px] flex items-center justify-end gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`min-w-[80px] flex items-center justify-end gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
           {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
           <span className="font-mono font-medium" data-testid={`text-change-${stock.symbol}`}>
             {formatPercentage(change)}
@@ -397,9 +397,9 @@ function SectorCard({ sector, data }: { sector: string; data: { avg: number; cou
     <div className="bg-card border border-border/50 rounded-lg p-4 hover-elevate">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-foreground">{sector}</span>
-        <div className={`flex items-center gap-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`flex items-center gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
           {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-          <span className="font-mono font-bold">{formatPercentage(data.avg)}</span>
+          <span className="font-mono font-bold tabular-nums">{formatPercentage(data.avg)}</span>
         </div>
       </div>
     </div>
@@ -408,18 +408,18 @@ function SectorCard({ sector, data }: { sector: string; data: { avg: number; cou
 
 function getRiskBadgeColor(risk: string) {
   switch (risk) {
-    case 'low': return 'bg-green-500/20 text-green-400 border-green-500/30';
-    case 'medium': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+    case 'low': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+    case 'medium': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
     case 'high': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-    case 'speculative': return 'bg-red-500/20 text-red-400 border-red-500/30';
+    case 'speculative': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
 }
 
 function getPolarityColor(polarity: string) {
   switch (polarity) {
-    case 'bullish': return 'text-green-400';
-    case 'bearish': return 'text-red-400';
+    case 'bullish': return 'text-[var(--trade-bullish)]';
+    case 'bearish': return 'text-[var(--trade-bearish)]';
     default: return 'text-muted-foreground';
   }
 }
@@ -493,7 +493,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
         {/* Catalyst Events */}
         <div className="bg-card/50 border border-border/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-emerald-400" />
+            <FileText className="w-4 h-4 text-[var(--trade-bullish)]" />
             <span className="text-sm font-medium">Catalyst Events</span>
           </div>
           
@@ -512,7 +512,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                   {filing.sentiment && (
                     <Badge 
                       variant="secondary" 
-                      className={`text-[10px] ${filing.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400' : filing.sentiment === 'bearish' ? 'bg-red-500/20 text-red-400' : ''}`}
+                      className={`text-[10px] ${filing.sentiment === 'bullish' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' : filing.sentiment === 'bearish' ? 'bg-red-500/20 text-[var(--trade-bearish)]' : ''}`}
                     >
                       {filing.sentiment}
                     </Badge>
@@ -523,13 +523,13 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
               {catalyst.governmentContracts?.slice(0, 2).map((contract, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <Award className="w-3 h-3 text-amber-400" />
+                    <Award className="w-3 h-3 text-[var(--trade-neutral)]" />
                     <span className="text-muted-foreground truncate max-w-[150px]">
                       Gov Contract
                     </span>
                   </div>
                   {contract.awardAmount && (
-                    <span className="text-green-400 font-mono">
+                    <span className="text-[var(--trade-bullish)] font-mono">
                       ${safeToFixed(contract.awardAmount / 1e6, 1, '0.0')}M
                     </span>
                   )}
@@ -542,7 +542,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                     {event.title}
                   </span>
                   {event.isActive && (
-                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/20 text-emerald-400">
+                    <Badge variant="secondary" className="text-[10px] bg-emerald-500/20 text-[var(--trade-bullish)]">
                       Active
                     </Badge>
                   )}
@@ -557,7 +557,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
         {/* Historical Performance */}
         <div className="bg-card/50 border border-border/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-3">
-            <Clock className="w-4 h-4 text-green-400" />
+            <Clock className="w-4 h-4 text-[var(--trade-bullish)]" />
             <span className="text-sm font-medium">Historical Performance</span>
           </div>
           
@@ -565,7 +565,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-lg font-mono font-bold text-green-400">{historical.winRate}%</p>
+                  <p className="text-lg font-mono font-bold text-[var(--trade-bullish)]">{historical.winRate}%</p>
                   <p className="text-[10px] text-muted-foreground">Win Rate</p>
                 </div>
                 <div>
@@ -573,7 +573,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                   <p className="text-[10px] text-muted-foreground">Trades</p>
                 </div>
                 <div>
-                  <p className="text-lg font-mono font-bold text-emerald-400">+{historical.avgGain}%</p>
+                  <p className="text-lg font-mono font-bold text-[var(--trade-bullish)]">+{historical.avgGain}%</p>
                   <p className="text-[10px] text-muted-foreground">Avg Gain</p>
                 </div>
               </div>
@@ -588,7 +588,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                       </span>
                       <Badge 
                         variant="secondary"
-                        className={`text-[10px] ${trade.outcome === 'hit_target' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                        className={`text-[10px] ${trade.outcome === 'hit_target' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' : 'bg-red-500/20 text-[var(--trade-bearish)]'}`}
                       >
                         {trade.outcome === 'hit_target' ? 'WIN' : 'LOSS'} {trade.gain > 0 ? '+' : ''}{safeToFixed(trade.gain, 1, '0.0')}%
                       </Badge>
@@ -609,7 +609,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
       <div className="bg-card/50 border border-border/50 rounded-lg p-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-amber-400" />
+            <Calendar className="w-4 h-4 text-[var(--trade-neutral)]" />
             <span className="text-sm font-medium">Multi-Year Outlook</span>
           </div>
           <div className="flex gap-1">
@@ -648,8 +648,8 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
                     <span className="font-mono font-medium">{year}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-muted-foreground">{stats.trades} trades</span>
-                      <span className="text-green-400">{stats.trades > 0 ? safeToFixed((stats.wins / stats.trades) * 100, 0, '0') : 0}% win</span>
-                      <span className={`font-mono ${avgGainNum >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className="text-[var(--trade-bullish)]">{stats.trades > 0 ? safeToFixed((stats.wins / stats.trades) * 100, 0, '0') : 0}% win</span>
+                      <span className={`font-mono ${avgGainNum >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                         {avgGainNum >= 0 ? '+' : ''}{safeToFixed(avgGainNum, 1, '0.0')}%
                       </span>
                     </div>
@@ -687,7 +687,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover-elevate">
         <div className="flex items-center justify-between w-full pr-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 text-[var(--trade-bullish)] font-bold text-sm">
               {index + 1}
             </div>
             <div className="text-left">
@@ -697,7 +697,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
                   {pick.tradeIdea.riskLevel}
                 </Badge>
                 {pick.score >= 80 && (
-                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Star className="w-4 h-4 text-[var(--trade-neutral)] fill-amber-400" />
                 )}
               </div>
               <p className="text-xs text-muted-foreground truncate max-w-[200px]">{pick.name}</p>
@@ -707,14 +707,14 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
           <div className="flex items-center gap-6 text-right">
             <div>
               <p className="font-mono font-medium">{formatPrice(pick.currentPrice)}</p>
-              <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`flex items-center justify-end gap-1 text-sm ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                 {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 <span className="font-mono">{formatPercentage(pick.changePercent)}</span>
               </div>
             </div>
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Score</p>
-              <p className="font-mono font-bold text-emerald-400">{pick.score}</p>
+              <p className="font-mono font-bold text-[var(--trade-bullish)]">{pick.score}</p>
             </div>
           </div>
         </div>
@@ -724,7 +724,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
         <div className="space-y-4 pt-2">
           <div className="bg-muted/30 rounded-lg p-4">
             <div className="flex items-start gap-2 mb-3">
-              <Lightbulb className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <Lightbulb className="w-5 h-5 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Trade Thesis</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.thesis}</p>
@@ -732,7 +732,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Zap className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <Zap className="w-5 h-5 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Entry Reason</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.entryReason}</p>
@@ -740,7 +740,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             </div>
             
             <div className="flex items-start gap-2 mt-3">
-              <Target className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <Target className="w-5 h-5 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Suggested Action</p>
                 <p className="text-sm text-muted-foreground mt-1">{pick.tradeIdea.suggestedAction}</p>
@@ -763,7 +763,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               <p className="text-xs text-muted-foreground">Volume</p>
               <p className="font-mono font-medium">{formatVolume(pick.volume)}</p>
               {pick.volumeRatio > 1 && (
-                <p className="text-xs text-emerald-400">{safeToFixed(pick.volumeRatio, 1, '0.0')}x avg</p>
+                <p className="text-xs text-[var(--trade-bullish)]">{safeToFixed(pick.volumeRatio, 1, '0.0')}x avg</p>
               )}
             </div>
             <div className="bg-card border border-border/50 rounded-lg p-3">
@@ -773,7 +773,7 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
             {pick.distanceFrom52High !== undefined && (
               <div className="bg-card border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">From 52W High</p>
-                <p className="font-mono font-medium text-amber-400">-{safeToFixed(pick.distanceFrom52High, 1, '0.0')}%</p>
+                <p className="font-mono font-medium text-[var(--trade-neutral)]">-{safeToFixed(pick.distanceFrom52High, 1, '0.0')}%</p>
               </div>
             )}
             {pick.week52High && (
@@ -988,7 +988,7 @@ export default function MarketScanner() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-3" data-testid="page-title">
-              <BarChart3 className="w-8 h-8 text-emerald-400" />
+              <BarChart3 className="w-8 h-8 text-[var(--trade-bullish)]" />
               Market Scanner
             </h1>
             <p className="text-muted-foreground mt-1">
@@ -1032,13 +1032,13 @@ export default function MarketScanner() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-500/20 rounded-lg">
-                  <Zap className="w-6 h-6 text-red-400" />
+                  <Zap className="w-6 h-6 text-[var(--trade-bearish)]" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-red-400 flex items-center gap-2" data-testid="surge-scanner-title">
+                  <CardTitle className="text-xl text-[var(--trade-bearish)] flex items-center gap-2" data-testid="surge-scanner-title">
                     Surge Scanner
                     {surgeQuery.data && surgeQuery.data.highPriority > 0 && (
-                      <Badge className="bg-red-500 text-white animate-pulse" data-testid="badge-surge-hot-count">{surgeQuery.data.highPriority} HOT</Badge>
+                      <Badge className="bg-[var(--trade-bearish)] text-foreground animate-pulse" data-testid="badge-surge-hot-count">{surgeQuery.data.highPriority} HOT</Badge>
                     )}
                   </CardTitle>
                   <CardDescription>Real-time breakout detection across 800+ symbols</CardDescription>
@@ -1097,29 +1097,29 @@ export default function MarketScanner() {
                         <Badge 
                           data-testid={`badge-severity-${surge.symbol}`}
                           className={
-                            surge.severity === 'CRITICAL' ? 'bg-red-500 text-white' :
-                            surge.severity === 'HIGH' ? 'bg-orange-500 text-white' :
-                            surge.severity === 'MEDIUM' ? 'bg-amber-500 text-black' :
-                            'bg-slate-500 text-white'
+                            surge.severity === 'CRITICAL' ? 'bg-[var(--trade-bearish)] text-foreground' :
+                            surge.severity === 'HIGH' ? 'bg-orange-500 text-foreground' :
+                            surge.severity === 'MEDIUM' ? 'bg-[var(--trade-neutral)] text-black' :
+                            'bg-muted-foreground text-foreground'
                           }
                         >
                           {surge.severity}
                         </Badge>
                       </div>
-                      <div className={`font-mono font-bold ${surge.priceChangePercent > 0 ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-change-${surge.symbol}`}>
+                      <div className={`font-mono font-bold ${surge.priceChangePercent > 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`} data-testid={`text-change-${surge.symbol}`}>
                         {surge.priceChangePercent > 0 ? '+' : ''}{safeToFixed(surge.priceChangePercent, 1, '0.0')}%
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
                       <span className="font-mono" data-testid={`text-price-${surge.symbol}`}>${safeToFixed(surge.currentPrice, 2)}</span>
-                      <span className="text-emerald-400" data-testid={`text-volume-${surge.symbol}`}>{safeToFixed(surge.volumeRatio, 1, '0.0')}x vol</span>
+                      <span className="text-[var(--trade-bullish)]" data-testid={`text-volume-${surge.symbol}`}>{safeToFixed(surge.volumeRatio, 1, '0.0')}x vol</span>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       <Badge variant="outline" className="text-xs" data-testid={`badge-type-${surge.symbol}`}>
                         {surge.surgeType.replace('_', ' ')}
                       </Badge>
                       {surge.breakingResistance && (
-                        <Badge className="bg-green-500/20 text-green-400 text-xs" data-testid={`badge-high52-${surge.symbol}`}>52W HIGH!</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] text-xs" data-testid={`badge-high52-${surge.symbol}`}>52W HIGH!</Badge>
                       )}
                     </div>
                     {surge.signals.length > 0 && (
@@ -1212,7 +1212,7 @@ export default function MarketScanner() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2 text-emerald-400" data-testid="smart-watchlist-title">
+                  <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]" data-testid="smart-watchlist-title">
                     <Star className="w-5 h-5" />
                     Smart Watchlist - {timeframeLabels[timeframe]} Picks
                   </CardTitle>
@@ -1221,7 +1221,7 @@ export default function MarketScanner() {
                   </CardDescription>
                 </div>
                 {watchlistQuery.data && (
-                <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+                <Badge variant="outline" className="text-[var(--trade-bullish)] border-emerald-500/30">
                   {watchlistQuery.data.count} picks
                 </Badge>
               )}
@@ -1230,17 +1230,17 @@ export default function MarketScanner() {
             <CardContent>
               {watchlistQuery.isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                  <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                   <span className="ml-3 text-muted-foreground">Analyzing stocks...</span>
                 </div>
               ) : watchlistQuery.error ? (
-                <div className="flex items-center justify-center py-12 text-red-400">
+                <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                   <AlertTriangle className="w-5 h-5 mr-2" />
                   Failed to generate watchlist. Try refreshing.
                 </div>
               ) : watchlistQuery.data?.picks.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  No picks available for this timeframe
+                  Loading picks for this timeframe...
                 </div>
               ) : (
                 <Accordion type="single" collapsible className="w-full" data-testid="smart-watchlist">
@@ -1257,7 +1257,7 @@ export default function MarketScanner() {
               <div className="grid lg:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-green-400">
+                    <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]">
                       <TrendingUp className="w-5 h-5" />
                       Top Gainers
                     </CardTitle>
@@ -1278,15 +1278,15 @@ export default function MarketScanner() {
                     
                     {moversQuery.isLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                        <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                       </div>
                     ) : moversQuery.error ? (
-                      <div className="flex items-center justify-center py-12 text-red-400">
+                      <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                         Failed to load data. Try refreshing.
                       </div>
                     ) : moversQuery.data?.gainers.length === 0 ? (
                       <div className="flex items-center justify-center py-12 text-muted-foreground">
-                        No gainers found for this timeframe
+                        Loading market movers...
                       </div>
                     ) : (
                       <div className="max-h-[500px] overflow-y-auto" data-testid="gainers-list">
@@ -1300,7 +1300,7 @@ export default function MarketScanner() {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-red-400">
+                    <CardTitle className="flex items-center gap-2 text-[var(--trade-bearish)]">
                       <TrendingDown className="w-5 h-5" />
                       Top Losers
                     </CardTitle>
@@ -1321,10 +1321,10 @@ export default function MarketScanner() {
                     
                     {moversQuery.isLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                        <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
                       </div>
                     ) : moversQuery.error ? (
-                      <div className="flex items-center justify-center py-12 text-red-400">
+                      <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
                         Failed to load data. Try refreshing.
                       </div>
                     ) : moversQuery.data?.losers.length === 0 ? (
@@ -1415,8 +1415,8 @@ export default function MarketScanner() {
                             <div className="flex items-center gap-2">
                               {ticker.rank && ticker.rank <= 3 && (
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                  ticker.rank === 1 ? 'bg-amber-500/20 text-amber-400' :
-                                  ticker.rank === 2 ? 'bg-slate-400/20 text-slate-300' :
+                                  ticker.rank === 1 ? 'bg-amber-500/20 text-[var(--trade-neutral)]' :
+                                  ticker.rank === 2 ? 'bg-muted-foreground/20 text-foreground/80' :
                                   'bg-orange-600/20 text-orange-400'
                                 }`}>
                                   {ticker.rank}
@@ -1426,9 +1426,9 @@ export default function MarketScanner() {
                             </div>
                             <Badge
                               className={`text-xs ${
-                                ticker.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400' :
-                                ticker.sentiment === 'bearish' ? 'bg-red-500/20 text-red-400' :
-                                'bg-slate-500/20 text-slate-300'
+                                ticker.sentiment === 'bullish' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' :
+                                ticker.sentiment === 'bearish' ? 'bg-red-500/20 text-[var(--trade-bearish)]' :
+                                'bg-muted-foreground/20 text-foreground/80'
                               }`}
                             >
                               {ticker.sentiment}
@@ -1449,9 +1449,9 @@ export default function MarketScanner() {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">Sentiment Score</span>
                               <span className={`font-mono font-medium ${
-                                ticker.sentimentScore > 0 ? 'text-green-400' :
-                                ticker.sentimentScore < 0 ? 'text-red-400' :
-                                'text-slate-400'
+                                ticker.sentimentScore > 0 ? 'text-[var(--trade-bullish)]' :
+                                ticker.sentimentScore < 0 ? 'text-[var(--trade-bearish)]' :
+                                'text-muted-foreground'
                               }`}>
                                 {ticker.sentimentScore > 0 ? '+' : ''}{safeToFixed(ticker.sentimentScore, 0, '0')}
                               </span>
@@ -1461,7 +1461,7 @@ export default function MarketScanner() {
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">24h Momentum</span>
                                 <span className={`font-mono font-medium ${
-                                  ticker.change24h > 0 ? 'text-green-400' : 'text-red-400'
+                                  ticker.change24h > 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                                 }`}>
                                   {ticker.change24h > 0 ? '+' : ''}{safeToFixed(ticker.change24h, 1, '0.0')}%
                                 </span>
@@ -1516,7 +1516,7 @@ export default function MarketScanner() {
             <div className="space-y-6">
               <Card className="bg-emerald-950/20 border-emerald-600/30">
                 <CardContent className="py-3">
-                  <p className="text-emerald-200 text-sm flex items-center gap-2">
+                  <p className="text-[var(--trade-bullish)] text-sm flex items-center gap-2">
                     <DollarSign className="w-4 h-4" />
                     <span>
                       <strong>Earnings Calendar:</strong> Upcoming earnings reports for the next 7 days.
@@ -1528,7 +1528,7 @@ export default function MarketScanner() {
 
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-emerald-400" />
+                  <Calendar className="w-5 h-5 text-[var(--trade-bullish)]" />
                   Upcoming Earnings
                 </h2>
                 <Button
@@ -1575,9 +1575,9 @@ export default function MarketScanner() {
                             <span className="font-mono font-bold text-lg">${event.symbol}</span>
                             <Badge
                               className={`text-xs ${
-                                event.time === 'bmo' ? 'bg-amber-500/20 text-amber-400' :
+                                event.time === 'bmo' ? 'bg-amber-500/20 text-[var(--trade-neutral)]' :
                                 event.time === 'amc' ? 'bg-purple-500/20 text-purple-400' :
-                                'bg-slate-500/20 text-slate-300'
+                                'bg-muted-foreground/20 text-foreground/80'
                               }`}
                             >
                               {event.time === 'bmo' ? 'Pre-Market' :
@@ -1605,7 +1605,7 @@ export default function MarketScanner() {
                             {event.estimatedEPS !== undefined && event.estimatedEPS !== null && (
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">Est. EPS</span>
-                                <span className="font-mono font-medium text-emerald-400">
+                                <span className="font-mono font-medium text-[var(--trade-bullish)]">
                                   ${safeToFixed(event.estimatedEPS, 2)}
                                 </span>
                               </div>
@@ -1615,7 +1615,7 @@ export default function MarketScanner() {
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">Last Surprise</span>
                                 <span className={`font-mono font-medium ${
-                                  event.surprise >= 0 ? 'text-green-400' : 'text-red-400'
+                                  event.surprise >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                                 }`}>
                                   {event.surprise >= 0 ? '+' : ''}{safeToFixed(event.surprise, 1, '0.0')}%
                                 </span>
@@ -1646,7 +1646,7 @@ export default function MarketScanner() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-amber-500/20 text-amber-400">BMO</Badge>
+                      <Badge className="bg-amber-500/20 text-[var(--trade-neutral)]">BMO</Badge>
                       <span className="text-muted-foreground">Before Market Open</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1654,7 +1654,7 @@ export default function MarketScanner() {
                       <span className="text-muted-foreground">After Market Close</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-slate-500/20 text-slate-300">TBD</Badge>
+                      <Badge className="bg-muted-foreground/20 text-foreground/80">TBD</Badge>
                       <span className="text-muted-foreground">Time Not Announced</span>
                     </div>
                   </div>
@@ -1727,9 +1727,9 @@ export default function MarketScanner() {
                             <span className="font-mono font-bold text-lg">${signal.symbol}</span>
                             <Badge
                               className={`text-xs ${
-                                signal.score >= 80 ? 'bg-green-500/20 text-green-400' :
-                                signal.score >= 60 ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-slate-500/20 text-slate-300'
+                                signal.score >= 80 ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' :
+                                signal.score >= 60 ? 'bg-amber-500/20 text-[var(--trade-neutral)]' :
+                                'bg-muted-foreground/20 text-foreground/80'
                               }`}
                             >
                               Score: {signal.score}
@@ -1754,7 +1754,7 @@ export default function MarketScanner() {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">% From Breakout</span>
                               <span className={`font-mono font-medium ${
-                                signal.percentFromBreakout >= 0 ? 'text-green-400' : 'text-red-400'
+                                signal.percentFromBreakout >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                               }`}>
                                 {signal.percentFromBreakout >= 0 ? '+' : ''}{safeToFixed(signal.percentFromBreakout, 1, '0.0')}%
                               </span>
@@ -1763,7 +1763,7 @@ export default function MarketScanner() {
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">Volume Ratio</span>
                               <span className={`font-mono font-medium ${
-                                signal.volumeRatio >= 1.5 ? 'text-emerald-400' : 'text-slate-400'
+                                signal.volumeRatio >= 1.5 ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground'
                               }`}>
                                 {safeToFixed(signal.volumeRatio, 1, '0.0')}x
                               </span>
@@ -1890,25 +1890,25 @@ export default function MarketScanner() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
                             <span className="text-muted-foreground">VWAP:</span>
-                            <span className={`ml-2 font-mono ${opp.vwapDistance > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`ml-2 font-mono ${opp.vwapDistance > 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
                               ${safeToFixed(opp.vwap, 2)} ({opp.vwapDistance > 0 ? '+' : ''}{safeToFixed(opp.vwapDistance, 1, '0.0')}%)
                             </span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">RSI(2):</span>
-                            <span className={`ml-2 font-mono ${opp.rsi2 < 20 ? 'text-red-400' : opp.rsi2 > 80 ? 'text-green-400' : ''}`}>
+                            <span className={`ml-2 font-mono ${opp.rsi2 < 20 ? 'text-[var(--trade-bearish)]' : opp.rsi2 > 80 ? 'text-[var(--trade-bullish)]' : ''}`}>
                               {safeToFixed(opp.rsi2, 0, '0')}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Target className="w-3 h-3 text-green-500" />
-                            <span className="text-green-400">
+                            <Target className="w-3 h-3 text-[var(--trade-bullish)]" />
+                            <span className="text-[var(--trade-bullish)]">
                               ${safeToFixed(opp.target, 2)} (+{safeToFixed(opp.targetPercent, 1, '0.0')}%)
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-red-500" />
-                            <span className="text-red-400">
+                            <AlertTriangle className="w-3 h-3 text-[var(--trade-bearish)]" />
+                            <span className="text-[var(--trade-bearish)]">
                               ${safeToFixed(opp.stopLoss, 2)} (-{safeToFixed(opp.stopPercent, 1, '0.0')}%)
                             </span>
                           </div>
@@ -1919,7 +1919,7 @@ export default function MarketScanner() {
                             <Activity className="w-3 h-3" />
                             <span>{safeToFixed(opp.volumeSpike, 1, '0.0')}x vol</span>
                           </div>
-                          <Badge variant="outline" className={`text-xs ${opp.riskReward >= 2 ? 'text-green-400 border-green-500/30' : ''}`}>
+                          <Badge variant="outline" className={`text-xs ${opp.riskReward >= 2 ? 'text-[var(--trade-bullish)] border-green-500/30' : ''}`}>
                             R:R {safeToFixed(opp.riskReward, 1, '0.0')}:1
                           </Badge>
                         </div>
@@ -1957,19 +1957,19 @@ export default function MarketScanner() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div className="space-y-1">
-                      <div className="font-medium text-emerald-400">VWAP Strategy</div>
+                      <div className="font-medium text-[var(--trade-bullish)]">VWAP Strategy</div>
                       <div className="text-muted-foreground">Price vs VWAP for direction bias</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-emerald-400">RSI(2) Extreme</div>
+                      <div className="font-medium text-[var(--trade-bullish)]">RSI(2) Extreme</div>
                       <div className="text-muted-foreground">Oversold {"<"}20 or overbought {">"}80</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-emerald-400">Volume Spike</div>
+                      <div className="font-medium text-[var(--trade-bullish)]">Volume Spike</div>
                       <div className="text-muted-foreground">1.5x+ average volume required</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="font-medium text-emerald-400">Hold Time</div>
+                      <div className="font-medium text-[var(--trade-bullish)]">Hold Time</div>
                       <div className="text-muted-foreground">Same-day to next-day exits</div>
                     </div>
                   </div>
@@ -2033,19 +2033,19 @@ export default function MarketScanner() {
                           </div>
                           <div>
                             <span className="text-muted-foreground">RSI(14):</span>
-                            <span className={`ml-2 font-mono ${opp.rsi14 < 30 ? 'text-red-400' : opp.rsi14 < 40 ? 'text-orange-400' : ''}`}>
+                            <span className={`ml-2 font-mono ${opp.rsi14 < 30 ? 'text-[var(--trade-bearish)]' : opp.rsi14 < 40 ? 'text-orange-400' : ''}`}>
                               {safeToFixed(opp.rsi14, 1, '0.0')}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Target className="w-3 h-3 text-green-500" />
-                            <span className="text-green-400">
+                            <Target className="w-3 h-3 text-[var(--trade-bullish)]" />
+                            <span className="text-[var(--trade-bullish)]">
                               ${safeToFixed(opp.targetPrice, 2)} (+{safeToFixed(opp.targetPercent, 1, '0.0')}%)
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-red-500" />
-                            <span className="text-red-400">
+                            <AlertTriangle className="w-3 h-3 text-[var(--trade-bearish)]" />
+                            <span className="text-[var(--trade-bearish)]">
                               ${safeToFixed(opp.stopLoss, 2)} (-{safeToFixed(opp.stopLossPercent, 1, '0.0')}%)
                             </span>
                           </div>
@@ -2125,7 +2125,7 @@ export default function MarketScanner() {
         <Card className="bg-amber-500/10 border-amber-500/30">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
-              <Search className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <Search className="w-5 h-5 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm text-amber-300 font-medium">Data Refresh</p>
                 <p className="text-xs text-muted-foreground mt-1">

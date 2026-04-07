@@ -22,7 +22,7 @@ export function ComparisonTable() {
   ];
 
   return (
-    <section className="py-12 lg:py-20 bg-slate-900/30">
+    <section className="py-12 lg:py-20 bg-card/30">
       <div className="container mx-auto px-6">
         <div className="text-center mb-12">
           <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
@@ -35,16 +35,16 @@ export function ComparisonTable() {
         </div>
 
         {/* Desktop Table */}
-        <div className="hidden md:block max-w-5xl mx-auto overflow-hidden rounded-xl border border-slate-800">
+        <div className="hidden md:block max-w-5xl mx-auto overflow-hidden rounded-xl border border-border">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-800">
-                  <th className="text-left p-4 bg-slate-950">
+                <tr className="border-b border-border">
+                  <th className="text-left p-4 bg-card">
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">Feature</span>
                   </th>
                   {competitors.map((comp, idx) => (
-                    <th key={idx} className={`p-4 text-center ${comp.highlight ? 'bg-cyan-500/5 border-x-2 border-cyan-500/30' : 'bg-slate-950'}`}>
+                    <th key={idx} className={`p-4 text-center ${comp.highlight ? 'bg-cyan-500/5 border-x-2 border-cyan-500/30' : 'bg-card'}`}>
                       <div className="text-sm font-semibold mb-1">{comp.name}</div>
                       <div className={`text-xs font-mono ${comp.highlight ? 'text-cyan-400' : 'text-muted-foreground'}`}>
                         {comp.price}
@@ -61,37 +61,37 @@ export function ComparisonTable() {
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: idx * 0.05 }}
-                    className="border-b border-slate-800/50"
+                    className="border-b border-border/50"
                   >
-                    <td className="p-4 text-sm bg-slate-950/50">
+                    <td className="p-4 text-sm bg-card/50">
                       {feature.name}
                     </td>
                     <td className="p-4 text-center bg-cyan-500/5 border-x-2 border-cyan-500/30">
                       {feature.quantEdge ? (
                         <Check className="h-5 w-5 text-cyan-400 mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-slate-600 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/70 mx-auto" />
                       )}
                     </td>
-                    <td className="p-4 text-center bg-slate-950/50">
+                    <td className="p-4 text-center bg-card/50">
                       {feature.tradingView ? (
-                        <Check className="h-5 w-5 text-slate-400 mx-auto" />
+                        <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-slate-700 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
                       )}
                     </td>
-                    <td className="p-4 text-center bg-slate-950/50">
+                    <td className="p-4 text-center bg-card/50">
                       {feature.benzinga ? (
-                        <Check className="h-5 w-5 text-slate-400 mx-auto" />
+                        <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-slate-700 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
                       )}
                     </td>
-                    <td className="p-4 text-center bg-slate-950/50">
+                    <td className="p-4 text-center bg-card/50">
                       {feature.finviz ? (
-                        <Check className="h-5 w-5 text-slate-400 mx-auto" />
+                        <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-slate-700 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
                       )}
                     </td>
                   </motion.tr>
@@ -110,7 +110,7 @@ export function ComparisonTable() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.05 }}
-              className="glass-card rounded-lg p-4 border border-slate-800"
+              className="glass-card rounded-lg p-4 border border-border"
             >
               <div className="font-semibold text-sm mb-3">{feature.name}</div>
               <div className="grid grid-cols-4 gap-2">
@@ -121,9 +121,9 @@ export function ComparisonTable() {
                      (compIdx === 1 && feature.tradingView) ||
                      (compIdx === 2 && feature.benzinga) ||
                      (compIdx === 3 && feature.finviz) ? (
-                      <Check className={`h-4 w-4 mx-auto ${comp.highlight ? 'text-cyan-400' : 'text-slate-400'}`} />
+                      <Check className={`h-4 w-4 mx-auto ${comp.highlight ? 'text-cyan-400' : 'text-muted-foreground'}`} />
                     ) : (
-                      <X className="h-4 w-4 text-slate-700 mx-auto" />
+                      <X className="h-4 w-4 text-muted-foreground/50 mx-auto" />
                     )}
                   </div>
                 ))}

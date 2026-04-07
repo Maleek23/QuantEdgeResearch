@@ -31,23 +31,23 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
     },
     active: {
       icon: Activity,
-      color: "text-amber-400",
+      color: "text-[var(--trade-neutral)]",
       bg: "bg-amber-500/10",
       border: "border-amber-500/30",
       label: "Active",
     },
     resolved: {
       icon: CheckCircle2,
-      color: "text-green-400",
-      bg: "bg-green-500/10",
+      color: "text-[var(--trade-bullish)]",
+      bg: "bg-[var(--trade-bullish)]/10",
       border: "border-green-500/30",
       label: "Resolved",
     },
     expired: {
       icon: XCircle,
-      color: "text-slate-400",
-      bg: "bg-slate-500/10",
-      border: "border-slate-500/30",
+      color: "text-muted-foreground",
+      bg: "bg-muted-foreground/10",
+      border: "border-muted-foreground/30",
       label: "Expired",
     },
   };
@@ -64,13 +64,13 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-cyan-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Idea Lifecycle
         </span>
       </div>
@@ -92,7 +92,7 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
               <span className="text-lg font-mono font-bold block">
                 {stageCounts[stage]}
               </span>
-              <span className="text-[10px] text-slate-400">{config.label}</span>
+              <span className="text-[10px] text-muted-foreground">{config.label}</span>
             </div>
           );
         })}
@@ -108,19 +108,19 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
           return (
             <div
               key={idea.id}
-              className="flex items-center justify-between p-2 bg-slate-800/30 rounded hover:bg-slate-800/50 transition-colors"
+              className="flex items-center justify-between p-2 bg-muted/30 rounded hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Icon className={cn("w-3 h-3", config.color)} />
-                <span className="font-mono text-sm font-medium text-slate-200">
+                <span className="font-mono text-sm font-medium text-foreground/90">
                   {idea.symbol}
                 </span>
                 <span
                   className={cn(
                     "text-[10px] uppercase px-1.5 py-0.5 rounded",
                     idea.direction === "long"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-red-500/20 text-red-400"
+                      ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"
+                      : "bg-red-500/20 text-[var(--trade-bearish)]"
                   )}
                 >
                   {idea.direction}
@@ -130,12 +130,12 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
                 <span
                   className={cn(
                     "text-xs font-mono tabular-nums",
-                    pnl >= 0 ? "text-green-400" : "text-red-400"
+                    pnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )}
                 >
                   {pnl >= 0 ? "+" : ""}{safeToFixed(pnl, 2)}%
                 </span>
-                <span className="text-[10px] text-slate-500">{idea.createdAt}</span>
+                <span className="text-[10px] text-muted-foreground">{idea.createdAt}</span>
               </div>
             </div>
           );
@@ -143,7 +143,7 @@ export function IdeaLifecycleTracker({ ideas, className }: IdeaLifecycleTrackerP
       </div>
 
       {ideas.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
           <Activity className="w-8 h-8 mb-2 opacity-50" />
           <span className="text-sm">No active ideas</span>
         </div>

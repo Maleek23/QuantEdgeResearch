@@ -21,13 +21,13 @@ interface EngineData {
 }
 
 function getSignalColor(score: number): string {
-  if (score >= 60) return 'text-green-400';
-  if (score <= 40) return 'text-red-400';
-  return 'text-amber-400';
+  if (score >= 60) return 'text-[var(--trade-bullish)]';
+  if (score <= 40) return 'text-[var(--trade-bearish)]';
+  return 'text-[var(--trade-neutral)]';
 }
 
 function getBgColor(score: number): string {
-  if (score >= 60) return 'bg-green-500/10 border-green-500/20';
+  if (score >= 60) return 'bg-[var(--trade-bullish)]/10 border-green-500/20';
   if (score <= 40) return 'bg-red-500/10 border-red-500/20';
   return 'bg-amber-500/10 border-amber-500/20';
 }
@@ -53,7 +53,7 @@ function EngineDot({ engine, compact }: { engine: EngineData; compact?: boolean 
           )}
         </div>
       </TooltipTrigger>
-      <TooltipContent side="top" className="bg-slate-900 border-slate-700">
+      <TooltipContent side="top" className="bg-card border-border">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-xs">{engine.name}</span>
           <span className={cn("font-bold font-mono", color)}>{engine.score}%</span>
@@ -96,14 +96,14 @@ export function EngineMiniScores({
         <TooltipTrigger asChild>
           <div className={cn(
             "flex items-center gap-1 px-2 py-0.5 rounded-full border font-mono text-xs font-bold cursor-help",
-            avgScore >= 60 ? 'bg-green-500/15 border-green-500/30 text-green-400' :
-            avgScore <= 40 ? 'bg-red-500/15 border-red-500/30 text-red-400' :
-            'bg-amber-500/15 border-amber-500/30 text-amber-400'
+            avgScore >= 60 ? 'bg-[var(--trade-bullish)]/15 border-green-500/30 text-[var(--trade-bullish)]' :
+            avgScore <= 40 ? 'bg-red-500/15 border-red-500/30 text-[var(--trade-bearish)]' :
+            'bg-amber-500/15 border-amber-500/30 text-[var(--trade-neutral)]'
           )} data-testid="engine-consensus-badge">
             {avgScore}%
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="bg-slate-900 border-slate-700">
+        <TooltipContent side="top" className="bg-card border-border">
           <div className="text-xs">
             <div className="font-bold">6-Engine Consensus</div>
             <div className="text-muted-foreground mt-1">
@@ -133,15 +133,15 @@ export function EngineConsensusBadge({
         <div className={cn(
           "flex items-center gap-1.5 rounded-full border font-mono font-bold cursor-help",
           isSmall ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-sm",
-          score >= 60 ? 'bg-green-500/15 border-green-500/30 text-green-400' :
-          score <= 40 ? 'bg-red-500/15 border-red-500/30 text-red-400' :
-          'bg-amber-500/15 border-amber-500/30 text-amber-400'
+          score >= 60 ? 'bg-[var(--trade-bullish)]/15 border-green-500/30 text-[var(--trade-bullish)]' :
+          score <= 40 ? 'bg-red-500/15 border-red-500/30 text-[var(--trade-bearish)]' :
+          'bg-amber-500/15 border-amber-500/30 text-[var(--trade-neutral)]'
         )} data-testid="engine-consensus-badge">
           <Brain className={cn(isSmall ? "h-3 w-3" : "h-4 w-4")} />
           <span>{score}%</span>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="top" className="bg-slate-900 border-slate-700">
+      <TooltipContent side="top" className="bg-card border-border">
         <div className="text-xs">
           <div className="font-bold">6-Engine Intelligence Score</div>
           <div className="text-muted-foreground mt-1">
@@ -150,7 +150,7 @@ export function EngineConsensusBadge({
           <div className="mt-2">
             <span className={cn(
               "font-bold",
-              alignment >= 4 ? 'text-green-400' : alignment <= 2 ? 'text-red-400' : 'text-amber-400'
+              alignment >= 4 ? 'text-[var(--trade-bullish)]' : alignment <= 2 ? 'text-[var(--trade-bearish)]' : 'text-[var(--trade-neutral)]'
             )}>
               {alignment}/6
             </span>

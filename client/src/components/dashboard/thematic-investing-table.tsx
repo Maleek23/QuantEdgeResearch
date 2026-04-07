@@ -29,9 +29,9 @@ export function ThematicInvestingTable({
   const getConvictionBadge = (conviction: ConvictionLevel) => {
     switch (conviction) {
       case "high":
-        return { label: "high", color: "text-green-400 bg-green-500/20" };
+        return { label: "high", color: "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/20" };
       case "medium":
-        return { label: "medium", color: "text-amber-400 bg-amber-500/20" };
+        return { label: "medium", color: "text-[var(--trade-neutral)] bg-amber-500/20" };
       case "speculative":
         return { label: "speculative", color: "text-purple-400 bg-purple-500/20" };
     }
@@ -41,43 +41,43 @@ export function ThematicInvestingTable({
     const sectorColors: Record<string, string> = {
       "Quantum Computing": "bg-purple-500/20 text-purple-400",
       "Space": "bg-blue-500/20 text-blue-400",
-      "Nuclear/Clean Energy": "bg-green-500/20 text-green-400",
+      "Nuclear/Clean Energy": "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]",
       "AI/ML": "bg-cyan-500/20 text-cyan-400",
-      "eVTOL/Flying Cars": "bg-amber-500/20 text-amber-400",
+      "eVTOL/Flying Cars": "bg-amber-500/20 text-[var(--trade-neutral)]",
       "Crypto/Mining": "bg-orange-500/20 text-orange-400",
       "Healthcare/Telehealth": "bg-pink-500/20 text-pink-400",
-      "Biotech/Synbio": "bg-emerald-500/20 text-emerald-400",
+      "Biotech/Synbio": "bg-emerald-500/20 text-[var(--trade-bullish)]",
       "AI/Automation": "bg-indigo-500/20 text-indigo-400",
     };
-    return sectorColors[sector] || "bg-slate-500/20 text-slate-400";
+    return sectorColors[sector] || "bg-muted-foreground/20 text-muted-foreground";
   };
 
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-semibold text-slate-200">{title}</span>
+          <span className="text-sm font-semibold text-foreground/90">{title}</span>
         </div>
-        <span className="text-xs text-slate-400">{stocks.length} stocks</span>
+        <span className="text-xs text-muted-foreground">{stocks.length} stocks</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-700/30">
-              <th className="text-left text-xs text-slate-400 font-medium py-2 px-2">Symbol</th>
-              <th className="text-left text-xs text-slate-400 font-medium py-2 px-2">Sector</th>
-              <th className="text-right text-xs text-slate-400 font-medium py-2 px-2">Entry</th>
-              <th className="text-right text-xs text-slate-400 font-medium py-2 px-2">Target</th>
-              <th className="text-right text-xs text-slate-400 font-medium py-2 px-2">Upside</th>
-              <th className="text-center text-xs text-slate-400 font-medium py-2 px-2">Conviction</th>
-              <th className="text-left text-xs text-slate-400 font-medium py-2 px-2">Thesis</th>
+            <tr className="border-b border-border/30">
+              <th className="text-left text-xs text-muted-foreground font-medium py-2 px-2">Symbol</th>
+              <th className="text-left text-xs text-muted-foreground font-medium py-2 px-2">Sector</th>
+              <th className="text-right text-xs text-muted-foreground font-medium py-2 px-2">Entry</th>
+              <th className="text-right text-xs text-muted-foreground font-medium py-2 px-2">Target</th>
+              <th className="text-right text-xs text-muted-foreground font-medium py-2 px-2">Upside</th>
+              <th className="text-center text-xs text-muted-foreground font-medium py-2 px-2">Conviction</th>
+              <th className="text-left text-xs text-muted-foreground font-medium py-2 px-2">Thesis</th>
             </tr>
           </thead>
           <tbody>
@@ -86,7 +86,7 @@ export function ThematicInvestingTable({
               return (
                 <tr
                   key={stock.symbol}
-                  className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors cursor-pointer"
+                  className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
                   onClick={() => onSymbolClick?.(stock.symbol)}
                 >
                   <td className="py-3 px-2">
@@ -100,17 +100,17 @@ export function ThematicInvestingTable({
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className="font-mono text-sm tabular-nums text-slate-300">
+                    <span className="font-mono text-sm tabular-nums text-foreground/80">
                       ${safeToFixed(stock.entry, 2)}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className="font-mono text-sm tabular-nums text-green-400">
+                    <span className="font-mono text-sm tabular-nums text-[var(--trade-bullish)]">
                       ${safeToFixed(stock.target, 0)}
                     </span>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className="font-mono text-sm tabular-nums text-green-400">
+                    <span className="font-mono text-sm tabular-nums text-[var(--trade-bullish)]">
                       +{safeToFixed(stock.upside, 0)}%
                     </span>
                   </td>
@@ -120,7 +120,7 @@ export function ThematicInvestingTable({
                     </span>
                   </td>
                   <td className="py-3 px-2">
-                    <span className="text-xs text-slate-400 line-clamp-1 max-w-[200px]">
+                    <span className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
                       {stock.thesis}
                     </span>
                   </td>
@@ -132,7 +132,7 @@ export function ThematicInvestingTable({
       </div>
 
       {stocks.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-8 text-slate-500">
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
           <Layers className="w-8 h-8 mb-2 opacity-50" />
           <span className="text-sm">No thematic stocks</span>
         </div>

@@ -33,7 +33,7 @@ export function EnginePerformanceChart() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        No data available
+        Data loading...
       </div>
     );
   }

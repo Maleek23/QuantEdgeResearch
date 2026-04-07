@@ -31,19 +31,19 @@ interface SimilarStocksPanelProps {
 export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStocksPanelProps) {
   const getGradeColor = (grade: string) => {
     if (grade.startsWith('S')) return 'text-purple-400 border-purple-500/30 bg-purple-500/10';
-    if (grade.startsWith('A')) return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+    if (grade.startsWith('A')) return 'text-[var(--trade-bullish)] border-emerald-500/30 bg-emerald-500/10';
     if (grade.startsWith('B')) return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
-    if (grade.startsWith('C')) return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+    if (grade.startsWith('C')) return 'text-[var(--trade-neutral)] border-amber-500/30 bg-amber-500/10';
     if (grade.startsWith('D')) return 'text-orange-400 border-orange-500/30 bg-orange-500/10';
-    return 'text-red-400 border-red-500/30 bg-red-500/10';
+    return 'text-[var(--trade-bearish)] border-red-500/30 bg-red-500/10';
   };
 
   return (
-    <Card className={cn("p-6 bg-slate-900/90 border-slate-800", className)}>
+    <Card className={cn("p-6 bg-card/90 border-border", className)}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-bold text-slate-100">Similar Stocks</h3>
-          <p className="text-xs text-slate-500 mt-1">Based on sector, market cap, and metrics</p>
+          <h3 className="text-lg font-bold text-foreground/95">Similar Stocks</h3>
+          <p className="text-xs text-muted-foreground mt-1">Based on sector, market cap, and metrics</p>
         </div>
         {onCompare && (
           <Button
@@ -69,11 +69,11 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
             >
-              <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 hover:border-cyan-500/30 transition-all cursor-pointer group">
+              <Card className="p-4 bg-gradient-to-br from-slate-900 to-slate-800 border-border hover:border-cyan-500/30 transition-all cursor-pointer group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="text-lg font-bold text-slate-100 group-hover:text-cyan-400 transition-colors">
+                      <h4 className="text-lg font-bold text-foreground/95 group-hover:text-cyan-400 transition-colors">
                         {stock.symbol}
                       </h4>
                       <Badge
@@ -83,28 +83,28 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
                         {stock.grade}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-500 truncate">{stock.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{stock.name}</p>
                   </div>
                   <button
-                    className="shrink-0 p-1.5 rounded-lg bg-slate-800 hover:bg-cyan-500/20 transition-colors"
+                    className="shrink-0 p-1.5 rounded-lg bg-muted hover:bg-cyan-500/20 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       onCompare && onCompare([stock.symbol]);
                     }}
                   >
-                    <Plus className="h-4 w-4 text-slate-400 hover:text-cyan-400" />
+                    <Plus className="h-4 w-4 text-muted-foreground hover:text-cyan-400" />
                   </button>
                 </div>
 
                 <div className="space-y-2">
                   {/* Price */}
                   <div className="flex items-baseline justify-between">
-                    <span className="text-2xl font-bold font-mono text-slate-100">
+                    <span className="text-2xl font-bold font-mono text-foreground/95">
                       ${safeToFixed(stock.price, 2)}
                     </span>
                     <div className={cn(
                       "flex items-center gap-1 text-sm font-semibold",
-                      isPositive ? "text-emerald-400" : "text-red-400"
+                      isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>
                       {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                       <span>{isPositive ? '+' : ''}{safeToFixed(stock.changePercent, 2)}%</span>
@@ -113,11 +113,11 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
 
                   {/* Score Bar */}
                   <div>
-                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                       <span>Score</span>
                       <span className="font-mono text-cyan-400">{stock.score}/100</span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-full h-1.5">
+                    <div className="w-full bg-muted rounded-full h-1.5">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${stock.score}%` }}
@@ -133,7 +133,7 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
                   </div>
 
                   {/* Meta Info */}
-                  <div className="flex items-center justify-between text-xs text-slate-600 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground/70 pt-2 border-t border-border">
                     <span>{stock.sector}</span>
                     <span>{stock.marketCap}</span>
                   </div>
@@ -146,8 +146,8 @@ export function SimilarStocksPanel({ stocks, className, onCompare }: SimilarStoc
 
       {stocks.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-slate-400 mb-2">No similar stocks found</p>
-          <p className="text-xs text-slate-600">Try a different symbol or sector</p>
+          <p className="text-muted-foreground mb-2">No similar stocks found</p>
+          <p className="text-xs text-muted-foreground/70">Try a different symbol or sector</p>
         </div>
       )}
     </Card>

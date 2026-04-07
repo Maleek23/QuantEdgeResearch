@@ -45,19 +45,19 @@ interface AutoLottoBotPerformance {
 // Convert win rate to letter grade
 function getGrade(winRate: number | null): { grade: string; color: string; bgColor: string } {
   if (winRate === null) return { grade: "?", color: "text-muted-foreground", bgColor: "bg-muted/20" };
-  if (winRate >= 80) return { grade: "A+", color: "text-green-400", bgColor: "bg-green-500/10" };
-  if (winRate >= 70) return { grade: "A", color: "text-green-400", bgColor: "bg-green-500/10" };
+  if (winRate >= 80) return { grade: "A+", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
+  if (winRate >= 70) return { grade: "A", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
   if (winRate >= 60) return { grade: "B", color: "text-cyan-400", bgColor: "bg-cyan-500/10" };
-  if (winRate >= 50) return { grade: "C", color: "text-amber-400", bgColor: "bg-amber-500/10" };
+  if (winRate >= 50) return { grade: "C", color: "text-[var(--trade-neutral)]", bgColor: "bg-amber-500/10" };
   if (winRate >= 40) return { grade: "D", color: "text-orange-400", bgColor: "bg-orange-500/10" };
-  return { grade: "F", color: "text-red-400", bgColor: "bg-red-500/10" };
+  return { grade: "F", color: "text-[var(--trade-bearish)]", bgColor: "bg-red-500/10" };
 }
 
 function getWinRateColor(rate: number | null): string {
   if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-green-400";
-  if (rate >= 50) return "text-amber-400";
-  return "text-red-400";
+  if (rate >= 70) return "text-[var(--trade-bullish)]";
+  if (rate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 const ENGINE_CONFIG = {
@@ -142,7 +142,7 @@ export function UserPerformanceSummary() {
                 <p className="text-xs text-muted-foreground uppercase">Avg Gain</p>
                 <p className={cn(
                   "text-2xl font-bold font-mono",
-                  (stats?.overall?.avgPercentGain ?? 0) >= 0 ? "text-green-400" : "text-red-400"
+                  (stats?.overall?.avgPercentGain ?? 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {(stats?.overall?.avgPercentGain ?? 0) >= 0 ? '+' : ''}{safeToFixed(stats?.overall?.avgPercentGain ?? 0, 1)}%
                 </p>
@@ -151,7 +151,7 @@ export function UserPerformanceSummary() {
                 <p className="text-xs text-muted-foreground uppercase">Bot P&L</p>
                 <p className={cn(
                   "text-2xl font-bold font-mono",
-                  (botData?.overall?.totalPnL ?? 0) >= 0 ? "text-green-400" : "text-red-400"
+                  (botData?.overall?.totalPnL ?? 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {(botData?.overall?.totalPnL ?? 0) >= 0 ? '+' : ''}${safeToFixed(botData?.overall?.totalPnL ?? 0, 0)}
                 </p>
@@ -197,11 +197,11 @@ export function UserPerformanceSummary() {
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-400" />
+                      <CheckCircle className="h-3 w-3 text-[var(--trade-bullish)]" />
                       {metrics?.tradesWon ?? 0}
                     </span>
                     <span className="flex items-center gap-1">
-                      <XCircle className="h-3 w-3 text-red-400" />
+                      <XCircle className="h-3 w-3 text-[var(--trade-bearish)]" />
                       {metrics?.tradesLost ?? 0}
                     </span>
                   </div>
@@ -218,7 +218,7 @@ export function UserPerformanceSummary() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-amber-400" />
+                <Bot className="h-5 w-5 text-[var(--trade-neutral)]" />
                 <CardTitle className="text-base">Auto-Lotto Bot</CardTitle>
               </div>
               <Badge variant="outline" className="text-xs">
@@ -230,7 +230,7 @@ export function UserPerformanceSummary() {
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Trades</p>
-                <p className="text-xl font-bold font-mono">{botData.overall.totalTrades}</p>
+                <p className="text-xl font-bold font-mono tabular-nums">{botData.overall.totalTrades}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Win Rate</p>
@@ -241,16 +241,16 @@ export function UserPerformanceSummary() {
               <div>
                 <p className="text-xs text-muted-foreground uppercase">W/L</p>
                 <p className="font-mono text-lg">
-                  <span className="text-green-400">{botData.overall.wins}</span>
+                  <span className="text-[var(--trade-bullish)]">{botData.overall.wins}</span>
                   <span className="text-muted-foreground">/</span>
-                  <span className="text-red-400">{botData.overall.losses}</span>
+                  <span className="text-[var(--trade-bearish)]">{botData.overall.losses}</span>
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Total P&L</p>
                 <p className={cn(
                   "text-xl font-bold font-mono",
-                  botData.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400"
+                  botData.overall.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {botData.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(botData.overall.totalPnL, 0)}
                 </p>
@@ -269,7 +269,7 @@ export function UserPerformanceSummary() {
               <p className="font-medium mb-1">What do these numbers mean?</p>
               <p className="text-muted-foreground">
                 Our trading engines analyze market data to generate trade ideas. The win rate shows
-                how often ideas that hit their target vs stop loss. A <span className="text-green-400 font-medium">70%+ win rate</span> indicates
+                how often ideas that hit their target vs stop loss. A <span className="text-[var(--trade-bullish)] font-medium">70%+ win rate</span> indicates
                 strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies.
               </p>
             </div>

@@ -43,7 +43,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
       <Card data-testid="card-streak-tracker-empty">
         <CardHeader>
           <CardTitle>Streak Tracker</CardTitle>
-          <CardDescription>No data available</CardDescription>
+          <CardDescription>Data loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -80,7 +80,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
               <Badge 
                 variant="default" 
                 className={cn(
-                  "text-2xl px-6 py-3 bg-green-500 hover:bg-green-600 text-white",
+                  "text-2xl px-6 py-3 bg-[var(--trade-bullish)] hover:bg-green-600 text-white",
                   isLongWinStreak && ""
                 )}
                 data-testid="badge-current-win-streak"
@@ -89,7 +89,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
                 {data.currentStreak} Win Streak
               </Badge>
               {isRecordWinStreak && (
-                <div className="flex items-center justify-center gap-2 text-amber-500">
+                <div className="flex items-center justify-center gap-2 text-[var(--trade-neutral)]">
                   <Trophy className="w-4 h-4" />
                   <span className="text-sm font-semibold">New Record!</span>
                 </div>
@@ -106,7 +106,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
             </Badge>
           )}
           {isOnWinStreak && (
-            <p className="text-sm text-green-500 font-semibold mt-3">
+            <p className="text-sm text-[var(--trade-bullish)] font-semibold mt-3">
               Keep the momentum going!
             </p>
           )}
@@ -119,11 +119,11 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
               <span className="text-sm">Longest Win Streak</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold font-mono text-green-500">
+              <span className="text-4xl font-bold font-mono text-[var(--trade-bullish)]">
                 {data.longestWinStreak}
               </span>
               {isRecordWinStreak && data.longestWinStreak > 0 && (
-                <span className="text-2xl text-emerald-400 font-bold">NEW RECORD</span>
+                <span className="text-2xl text-[var(--trade-bullish)] font-bold">NEW RECORD</span>
               )}
             </div>
             {data.longestWinStreak === 0 && (
@@ -136,7 +136,7 @@ export default function StreakTracker({ selectedEngine }: StreakTrackerProps) {
               <TrendingDown className="w-4 h-4" />
               <span className="text-sm">Longest Loss Streak</span>
             </div>
-            <div className="text-4xl font-bold font-mono text-red-500">
+            <div className="text-4xl font-bold font-mono text-[var(--trade-bearish)]">
               {data.longestLossStreak}
             </div>
             {data.longestLossStreak === 0 && (

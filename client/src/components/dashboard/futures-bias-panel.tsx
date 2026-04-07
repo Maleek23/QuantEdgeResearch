@@ -24,35 +24,35 @@ export function FuturesBiasPanel({ futures, className }: FuturesBiasPanelProps) 
   const getTrendIcon = (trend: TrendDirection) => {
     switch (trend) {
       case "bullish":
-        return <TrendingUp className="w-4 h-4 text-green-400" />;
+        return <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />;
       case "bearish":
-        return <TrendingDown className="w-4 h-4 text-red-400" />;
+        return <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />;
       default:
-        return <Minus className="w-4 h-4 text-amber-400" />;
+        return <Minus className="w-4 h-4 text-[var(--trade-neutral)]" />;
     }
   };
 
   const getTrendColor = (trend: TrendDirection) => {
     switch (trend) {
       case "bullish":
-        return "text-green-400";
+        return "text-[var(--trade-bullish)]";
       case "bearish":
-        return "text-red-400";
+        return "text-[var(--trade-bearish)]";
       default:
-        return "text-amber-400";
+        return "text-[var(--trade-neutral)]";
     }
   };
 
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <LineChart className="w-4 h-4 text-blue-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Futures Bias
         </span>
       </div>
@@ -61,14 +61,14 @@ export function FuturesBiasPanel({ futures, className }: FuturesBiasPanelProps) 
         {futures.map((future) => (
           <div
             key={future.symbol}
-            className="bg-slate-800/40 rounded-lg p-3 hover:bg-slate-800/60 transition-colors"
+            className="bg-muted/40 rounded-lg p-3 hover:bg-muted/60 transition-colors"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="font-mono font-semibold text-slate-200">
+                <span className="font-mono font-semibold text-foreground/90">
                   {future.symbol}
                 </span>
-                <span className="text-xs text-slate-400">{future.name}</span>
+                <span className="text-xs text-muted-foreground">{future.name}</span>
               </div>
               <div className="flex items-center gap-2">
                 {getTrendIcon(future.trend)}
@@ -79,38 +79,38 @@ export function FuturesBiasPanel({ futures, className }: FuturesBiasPanelProps) 
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xl font-mono tabular-nums font-bold text-slate-100">
+              <span className="text-xl font-mono tabular-nums font-bold text-foreground/95">
                 {future.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
               <span
                 className={cn(
                   "font-mono text-sm tabular-nums",
-                  future.changePercent >= 0 ? "text-green-400" : "text-red-400"
+                  future.changePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}
               >
                 {future.changePercent >= 0 ? "+" : ""}{safeToFixed(future.changePercent, 2)}%
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-700/20">
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border/20">
               <div className="text-center">
-                <span className="text-[10px] text-slate-400 block">Pivot H</span>
-                <span className="text-xs font-mono tabular-nums text-slate-300">
+                <span className="text-[10px] text-muted-foreground block">Pivot H</span>
+                <span className="text-xs font-mono tabular-nums text-foreground/80">
                   {future.pivotHigh.toLocaleString()}
                 </span>
               </div>
               <div className="text-center">
-                <span className="text-[10px] text-slate-400 block">Pivot L</span>
-                <span className="text-xs font-mono tabular-nums text-slate-300">
+                <span className="text-[10px] text-muted-foreground block">Pivot L</span>
+                <span className="text-xs font-mono tabular-nums text-foreground/80">
                   {future.pivotLow.toLocaleString()}
                 </span>
               </div>
               <div className="text-center">
-                <span className="text-[10px] text-slate-400 block">Tick Bias</span>
+                <span className="text-[10px] text-muted-foreground block">Tick Bias</span>
                 <span
                   className={cn(
                     "text-xs font-mono tabular-nums",
-                    future.tickBias > 0 ? "text-green-400" : future.tickBias < 0 ? "text-red-400" : "text-slate-300"
+                    future.tickBias > 0 ? "text-[var(--trade-bullish)]" : future.tickBias < 0 ? "text-[var(--trade-bearish)]" : "text-foreground/80"
                   )}
                 >
                   {future.tickBias > 0 ? "+" : ""}{future.tickBias}

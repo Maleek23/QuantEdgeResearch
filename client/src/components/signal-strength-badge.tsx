@@ -14,11 +14,11 @@ interface SignalStrengthBadgeProps {
 }
 
 function getSignalStrengthColor(count: number) {
-  if (count >= 5) return { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/40' };
-  if (count >= 4) return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/40' };
+  if (count >= 5) return { bg: 'bg-emerald-500/20', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40' };
+  if (count >= 4) return { bg: 'bg-[var(--trade-bullish)]/20', text: 'text-[var(--trade-bullish)]', border: 'border-green-500/40' };
   if (count >= 3) return { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/40' };
-  if (count >= 2) return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/40' };
-  return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/40' };
+  if (count >= 2) return { bg: 'bg-amber-500/20', text: 'text-[var(--trade-neutral)]', border: 'border-amber-500/40' };
+  return { bg: 'bg-red-500/20', text: 'text-[var(--trade-bearish)]', border: 'border-red-500/40' };
 }
 
 function getSignalLabel(count: number) {
@@ -93,9 +93,9 @@ export function SignalStrengthBadge({
           {showExpectedValue && evData && (
             <span className={cn(
               "text-[10px] font-mono",
-              evData.ev >= 0.02 ? "text-green-400" :
+              evData.ev >= 0.02 ? "text-[var(--trade-bullish)]" :
               evData.ev >= 0 ? "text-cyan-400" :
-              "text-red-400"
+              "text-[var(--trade-bearish)]"
             )}>
               {evData.formatted}
             </span>
@@ -139,7 +139,7 @@ function SignalStrengthTooltipContent({
       
       <div className="space-y-1.5">
         <div className="flex items-center gap-2 text-xs">
-          <CheckCircle2 className="h-3 w-3 text-green-400" />
+          <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
           <span className="text-muted-foreground">Indicators Agreeing:</span>
           <span className="font-bold">{signalCount} of 5</span>
         </div>
@@ -158,9 +158,9 @@ function SignalStrengthTooltipContent({
             <span className="text-muted-foreground">Expected Value:</span>
             <span className={cn(
               "font-bold font-mono",
-              evData.ev >= 0.02 ? "text-green-400" :
+              evData.ev >= 0.02 ? "text-[var(--trade-bullish)]" :
               evData.ev >= 0 ? "text-cyan-400" :
-              "text-red-400"
+              "text-[var(--trade-bearish)]"
             )}>
               {evData.formatted}
             </span>
@@ -189,7 +189,7 @@ function SignalStrengthTooltipContent({
       
       <div className="pt-2 border-t border-border/50">
         <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
-          <AlertTriangle className="h-3 w-3 text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-3 w-3 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
           <span>
             <strong>Signal Confluence</strong> shows how many technical indicators agree on direction. 
             The <strong>Trade Grade</strong> (A+, B, etc.) is based on overall confidence score.

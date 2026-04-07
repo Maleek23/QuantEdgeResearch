@@ -165,7 +165,7 @@ const QEPanelHeader = React.forwardRef<HTMLDivElement, QEPanelHeaderProps>(
     >
       <div className="flex items-center gap-2.5 min-w-0">
         {icon && (
-          <span className="flex-shrink-0 text-slate-400">{icon}</span>
+          <span className="flex-shrink-0 text-muted-foreground">{icon}</span>
         )}
         <div className="min-w-0">
           {marker && (
@@ -182,7 +182,7 @@ const QEPanelHeader = React.forwardRef<HTMLDivElement, QEPanelHeaderProps>(
             )}
           </div>
           {subtitle && (
-            <p className="text-xs text-slate-500 mt-0.5 truncate">{subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{subtitle}</p>
           )}
         </div>
       </div>
@@ -263,7 +263,7 @@ function QEStatCard({
   return (
     <QEPanelStat className={cn("flex items-start gap-3", className)} {...props}>
       {icon && (
-        <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-slate-400 flex-shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-muted-foreground flex-shrink-0">
           {icon}
         </div>
       )}
@@ -278,9 +278,9 @@ function QEStatCard({
         {change && (
           <div className={cn(
             "text-xs font-medium mt-0.5",
-            changeType === "positive" && "text-emerald-400",
-            changeType === "negative" && "text-red-400",
-            changeType === "neutral" && "text-slate-400"
+            changeType === "positive" && "text-[var(--trade-bullish)]",
+            changeType === "negative" && "text-[var(--trade-bearish)]",
+            changeType === "neutral" && "text-muted-foreground"
           )}>
             {change}
           </div>
@@ -317,16 +317,16 @@ function QEGradeDisplay({ grade, label, size = "sm", className, ...props }: QEGr
         "flex items-center justify-center font-bold rounded-sm",
         sizeClasses,
         grade === "S" && "bg-[#00d4ff]/20 border border-[#00d4ff]/40 text-[#00d4ff]",
-        grade === "A" && "bg-emerald-500/20 border border-emerald-500/40 text-emerald-400",
-        grade === "B" && "bg-white/[0.05] border border-white/[0.10] text-slate-400",
-        grade === "C" && "bg-amber-500/10 border border-amber-500/30 text-amber-400",
-        grade === "D" && "bg-red-500/10 border border-red-500/30 text-red-400",
-        grade === "F" && "bg-red-500/20 border border-red-500/40 text-red-500",
+        grade === "A" && "bg-emerald-500/20 border border-emerald-500/40 text-[var(--trade-bullish)]",
+        grade === "B" && "bg-white/[0.05] border border-white/[0.10] text-muted-foreground",
+        grade === "C" && "bg-amber-500/10 border border-amber-500/30 text-[var(--trade-neutral)]",
+        grade === "D" && "bg-red-500/10 border border-red-500/30 text-[var(--trade-bearish)]",
+        grade === "F" && "bg-red-500/20 border border-red-500/40 text-[var(--trade-bearish)]",
       )}>
         {grade}
       </div>
       {label && (
-        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
       )}
@@ -366,7 +366,7 @@ function QEConfidenceBar({ value, showLabel, size = "sm", className, ...props }:
         />
       </div>
       {showLabel && (
-        <span className="text-[10px] font-bold font-mono text-slate-400 flex-shrink-0 w-8 text-right">
+        <span className="text-[10px] font-bold font-mono text-muted-foreground flex-shrink-0 w-8 text-right">
           {clamped}%
         </span>
       )}
@@ -389,7 +389,7 @@ function QEStatusDot({ status, label, className, ...props }: QEStatusDotProps) {
     <span className={cn("inline-flex items-center gap-1.5", className)} {...props}>
       <span className={componentStyles.status[status]} />
       {label && (
-        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
       )}

@@ -194,7 +194,7 @@ function AIInsightCard({
               phase === 'complete' ? "text-teal-400" : "text-teal-400/60"
             )} />
           </motion.div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">AI Research Summary</h3>
+          <h3 className="text-sm font-semibold text-foreground dark:text-foreground">AI Research Summary</h3>
           {phase !== 'complete' && (
             <motion.div
               className="flex gap-1 ml-auto"
@@ -228,7 +228,7 @@ function AIInsightCard({
               <div className="space-y-2">
                 {['Technical Analysis', 'Fundamental Analysis', 'Sentiment Analysis', 'Quant Models', 'ML Predictions', 'Options Flow'].map((engine, i) => (
                   <div key={engine} className="flex items-center gap-2">
-                    <div className="h-1.5 flex-1 bg-gray-100 dark:bg-[#1a1a1a] rounded overflow-hidden">
+                    <div className="h-1.5 flex-1 bg-gray-100 dark:bg-muted rounded overflow-hidden">
                       <motion.div
                         className="h-full bg-gradient-to-r from-teal-500 to-cyan-500"
                         initial={{ width: '0%' }}
@@ -236,7 +236,7 @@ function AIInsightCard({
                         transition={{ duration: 0.8, delay: i * 0.15, ease: 'easeInOut' }}
                       />
                     </div>
-                    <span className="text-[10px] text-slate-600 w-28">{engine}</span>
+                    <span className="text-[10px] text-muted-foreground/70 w-28">{engine}</span>
                   </div>
                 ))}
               </div>
@@ -249,7 +249,7 @@ function AIInsightCard({
               className="space-y-3"
             >
               {displayText.split('\n\n').map((paragraph, i) => (
-                <p key={i} className="text-xs text-slate-300 leading-relaxed">
+                <p key={i} className="text-xs text-foreground/80 leading-relaxed">
                   {paragraph}
                 </p>
               ))}
@@ -284,7 +284,7 @@ function AIInsightCard({
                   <span>Moderate Setup</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 bg-amber-500/20 text-amber-400 text-xs px-2.5 py-1 rounded-full">
+                <div className="flex items-center gap-1.5 bg-amber-500/20 text-[var(--trade-neutral)] text-xs px-2.5 py-1 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
                   <span>Exercise Caution</span>
                 </div>
@@ -489,8 +489,8 @@ export default function StockDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] flex items-center justify-center transition-colors">
-        <div className="text-sm text-slate-400 flex items-center gap-2">
+      <div className="min-h-screen bg-[#fafafa] dark:bg-[var(--surface-base)] flex items-center justify-center transition-colors">
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
           <Activity className="w-4 h-4 animate-pulse text-teal-500" />
           Loading {symbol}...
         </div>
@@ -537,135 +537,137 @@ export default function StockDetailPage() {
   const getTierColor = (t: string) => {
     if (t === 'S' || t.startsWith('A')) return 'text-teal-400 border-teal-500/40 bg-teal-500/10';
     if (t.startsWith('B')) return 'text-cyan-400 border-cyan-500/40 bg-cyan-500/10';
-    if (t.startsWith('C')) return 'text-amber-400 border-amber-500/40 bg-amber-500/10';
-    return 'text-slate-400 border-slate-500/40 bg-slate-500/10';
+    if (t.startsWith('C')) return 'text-[var(--trade-neutral)] border-amber-500/40 bg-amber-500/10';
+    return 'text-muted-foreground border-muted-foreground/40 bg-muted-foreground/10';
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[var(--surface-base)] transition-colors">
       <div className="max-w-[1800px] mx-auto px-6 py-5">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Link href="/trade-desk">
-              <Button variant="ghost" size="sm" className="text-gray-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-gray-100 dark:hover:bg-white dark:bg-[#111]">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Trade Desk
-              </Button>
-            </Link>
-            <div className="h-6 w-px bg-gray-200 dark:bg-slate-800" />
-            <div>
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-30 bg-[#fafafa]/95 dark:bg-[var(--surface-base)]/95 backdrop-blur-md -mx-6 px-6 py-3 mb-4 border-b border-transparent [&:not(:first-child)]:border-border/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link href="/trade-desk">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-[var(--brand-teal)]">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border" />
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-900 dark:text-white">{symbol}</h1>
+                <h1 className="text-xl font-bold text-foreground font-mono">{symbol}</h1>
                 <div className={cn("text-xs font-bold px-2.5 py-1 rounded-md", getTierColor(tier))}>
                   {tier}
                 </div>
+                {price > 0 && (
+                  <span className="text-lg font-bold text-foreground font-mono ml-2">
+                    ${safeToFixed(price, 2)}
+                  </span>
+                )}
+                {price > 0 && (
+                  <span className={cn(
+                    "text-sm font-mono font-medium",
+                    isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                  )}>
+                    {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-gray-500 dark:text-slate-500 mt-0.5">{companyName}</p>
+              <p className="text-sm text-muted-foreground hidden md:block">{companyName}</p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Link href={`/chart-analysis?symbol=${symbol}`}>
-              <Button variant="outline" size="sm" className="border-teal-500/30 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10 hover:text-teal-500 dark:hover:text-teal-300 hover:border-teal-500/50">
-                <BarChart2 className="w-4 h-4 mr-2" />
-                Deep Chart
+            <div className="flex items-center gap-2">
+              <Link href={`/chart-analysis?symbol=${symbol}`}>
+                <Button variant="outline" size="sm" className="border-[var(--brand-teal)]/30 text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/10">
+                  <BarChart2 className="w-4 h-4 mr-1.5" />
+                  Chart
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground">
+                <Star className="w-4 h-4 mr-1.5" />
+                Watch
               </Button>
-            </Link>
-            <Button variant="outline" size="sm" className="border-gray-200 dark:border-gray-200 dark:border-[#222] text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white dark:bg-[#111] hover:text-gray-900 dark:hover:text-white">
-              <Star className="w-4 h-4 mr-2" />
-              Watchlist
-            </Button>
-            <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0">
-              <Plus className="w-4 h-4 mr-2" />
-              Trade
-            </Button>
+              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0">
+                <Plus className="w-4 h-4 mr-1.5" />
+                Trade
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Price Header */}
-        <div className="mb-6 flex items-end gap-6">
-          <div>
-            <div className="text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
-              {price > 0 ? `$${safeToFixed(price, 2)}` : '—'}
-            </div>
-            {price > 0 && (
-              <div className={cn(
-                "flex items-center gap-2 mt-2 text-sm font-medium",
-                isPositive ? "text-teal-400" : "text-red-400"
-              )}>
-                {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                {isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)
-                <span className="text-slate-600 font-normal ml-2">Today</span>
-              </div>
-            )}
+        {/* Key Stats Bar */}
+        <div className="flex items-center gap-6 mb-5 text-sm flex-wrap">
+          <div className="flex items-center gap-2">
+            {isPositive ? <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" /> : <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />}
+            <span className={cn("font-mono font-medium", isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+              {isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)
+            </span>
+            <span className="text-muted-foreground text-xs">Today</span>
           </div>
-
-          {/* Key Stats */}
-          <div className="flex gap-6 ml-auto text-sm">
-            <div>
-              <span className="text-slate-500">Volume</span>
-              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">High</span>
-              <span className="ml-2 text-emerald-400 font-medium">{quoteData?.high ? `$${safeToFixed(quoteData.high, 2)}` : '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">Low</span>
-              <span className="ml-2 text-red-400 font-medium">{quoteData?.low ? `$${safeToFixed(quoteData.low, 2)}` : '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">Prev Close</span>
-              <span className="ml-2 text-gray-700 dark:text-slate-200 font-medium">{price ? `$${safeToFixed(price - change, 2)}` : '—'}</span>
-            </div>
+          <div className="h-4 w-px bg-border" />
+          <div>
+            <span className="text-muted-foreground text-xs">Vol</span>
+            <span className="ml-1.5 text-foreground/80 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">High</span>
+            <span className="ml-1.5 text-[var(--trade-bullish)] font-mono font-medium">{quoteData?.high ? `$${safeToFixed(quoteData.high, 2)}` : '—'}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Low</span>
+            <span className="ml-1.5 text-[var(--trade-bearish)] font-mono font-medium">{quoteData?.low ? `$${safeToFixed(quoteData.low, 2)}` : '—'}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Prev</span>
+            <span className="ml-1.5 text-foreground/80 font-mono font-medium">{price ? `$${safeToFixed(price - change, 2)}` : '—'}</span>
           </div>
         </div>
 
         {/* Compact Quick Stats Bar - Key metrics at a glance */}
         <div className="grid grid-cols-6 gap-3 mb-6">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-bold",
-              tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-amber-400" :
+              tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-[var(--trade-neutral)]" :
               tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
-              tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-amber-400"
+              tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-[var(--trade-neutral)]"
             )}>
               {tier}
             </div>
             <div>
-              <div className="text-[10px] text-slate-500 uppercase">AI Grade</div>
-              <div className="text-sm font-bold text-gray-900 dark:text-white">{analysisData?.overall?.confidence || 0}%</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide">AI Grade</div>
+              <div className="text-sm font-bold text-foreground dark:text-foreground">{analysisData?.overall?.confidence || 0}%</div>
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-            <div className="text-[10px] text-slate-500 uppercase">Market Cap</div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</div>
+          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Market Cap</div>
+            <div className="text-sm font-bold text-foreground dark:text-foreground">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-            <div className="text-[10px] text-slate-500 uppercase">P/E Ratio</div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{safeToFixed(quoteData?.pe, 1, '—')}</div>
+          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">P/E Ratio</div>
+            <div className="text-sm font-bold text-foreground dark:text-foreground">{safeToFixed(quoteData?.pe, 1, '—')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-            <div className="text-[10px] text-slate-500 uppercase">52W High</div>
-            <div className="text-sm font-bold text-emerald-400">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}</div>
+          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">52W High</div>
+            <div className="text-sm font-bold text-[var(--trade-bullish)]">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-            <div className="text-[10px] text-slate-500 uppercase">52W Low</div>
-            <div className="text-sm font-bold text-red-400">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')}</div>
+          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">52W Low</div>
+            <div className="text-sm font-bold text-[var(--trade-bearish)]">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222]">
-            <div className="text-[10px] text-slate-500 uppercase">Avg Volume</div>
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
+          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Avg Volume</div>
+            <div className="text-sm font-bold text-foreground dark:text-foreground">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
           </div>
         </div>
 
         {/* Main Content - Full Width */}
         <div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] rounded-xl p-1.5 mb-5">
+              <TabsList className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-1.5 mb-5">
                 <TabsTrigger
                   value="ai-report"
-                  className="px-5 py-2 text-sm font-medium text-slate-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white rounded-lg transition-all hover:text-slate-300 flex items-center gap-2"
+                  className="px-5 py-2 text-sm font-medium text-muted-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-foreground rounded-lg transition-all hover:text-foreground/80 flex items-center gap-2"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   AI Report
@@ -674,7 +676,7 @@ export default function StockDetailPage() {
                   <TabsTrigger
                     key={tab}
                     value={tab.toLowerCase()}
-                    className="px-5 py-2 text-sm font-medium text-slate-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white rounded-lg transition-all hover:text-slate-300"
+                    className="px-5 py-2 text-sm font-medium text-muted-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-foreground rounded-lg transition-all hover:text-foreground/80"
                   >
                     {tab}
                   </TabsTrigger>
@@ -690,20 +692,20 @@ export default function StockDetailPage() {
                     {/* Top Row: Grade + Recommendation + Trade Levels */}
                     <div className="flex items-stretch gap-5">
                       {/* Left: Overall Grade */}
-                      <div className="flex items-center gap-4 pr-5 border-r border-[#1a1a1a]">
+                      <div className="flex items-center gap-4 pr-5 border-r border-border/50">
                         <div className={cn("w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold",
-                          tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-amber-400" :
+                          tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-[var(--trade-neutral)]" :
                           tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
-                          tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-amber-400"
+                          tier.startsWith('B') ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-[var(--trade-neutral)]"
                         )}>
                           {tier}
                         </div>
                         <div>
-                          <div className="text-xs text-slate-500 uppercase tracking-wider">QuantEdge Score</div>
-                          <div className="text-2xl font-bold text-gray-900 dark:text-white">{analysisData?.overall?.score || '--'}%</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wider">QuantEdge Score</div>
+                          <div className="text-2xl font-bold text-foreground dark:text-foreground">{analysisData?.overall?.score || '--'}%</div>
                           <div className={cn("text-sm font-semibold",
                             tier === 'S' || tier.startsWith('A') ? "text-teal-400" :
-                            tier.startsWith('B') ? "text-cyan-400" : "text-amber-400"
+                            tier.startsWith('B') ? "text-cyan-400" : "text-[var(--trade-neutral)]"
                           )}>
                             {tier === 'S' || tier.startsWith('A') ? 'STRONG BUY' : tier.startsWith('B') ? 'HOLD' : 'WAIT'}
                           </div>
@@ -714,36 +716,36 @@ export default function StockDetailPage() {
                       <div className="flex-1 grid grid-cols-4 gap-3">
                         {bestTradeIdea ? (
                           <>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-emerald-500/20">
-                              <div className="text-xs text-slate-500">Entry</div>
-                              <div className="text-sm font-mono font-bold text-gray-900 dark:text-white">${safeToFixed(bestTradeIdea.entryPrice, 2)}</div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-emerald-500/20">
+                              <div className="text-xs text-muted-foreground">Entry</div>
+                              <div className="text-sm font-mono font-bold text-foreground dark:text-foreground">${safeToFixed(bestTradeIdea.entryPrice, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-teal-500/30">
-                              <div className="text-xs text-slate-500">Target</div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-teal-500/30">
+                              <div className="text-xs text-muted-foreground">Target</div>
                               <div className="text-sm font-mono font-bold text-teal-400">${safeToFixed(bestTradeIdea.targetPrice, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] border border-red-500/20">
-                              <div className="text-xs text-slate-500">Stop Loss</div>
-                              <div className="text-sm font-mono font-bold text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2)}</div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-red-500/20">
+                              <div className="text-xs text-muted-foreground">Stop Loss</div>
+                              <div className="text-sm font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(bestTradeIdea.stopLoss, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                              <div className="text-xs text-slate-500">R:R</div>
+                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                              <div className="text-xs text-muted-foreground">R:R</div>
                               <div className="text-sm font-bold text-teal-400">{safeToFixed(bestTradeIdea.riskRewardRatio, 1)}:1</div>
                             </div>
                           </>
                         ) : (
-                          <div className="col-span-4 p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a] text-center">
-                            <div className="text-xs text-slate-500">No active trade setup — waiting for signal</div>
+                          <div className="col-span-4 p-3 rounded-lg bg-gray-100 dark:bg-muted text-center">
+                            <div className="text-xs text-muted-foreground">Waiting for trade signal from engines</div>
                           </div>
                         )}
                       </div>
                     </div>
 
                     {/* Simplified Engine Summary - Links to Radar */}
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-[#222]/40">
+                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-border/40">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Engine Summary</span>
-                        <span className="text-xs text-slate-600">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Engine Summary</span>
+                        <span className="text-xs text-muted-foreground/70">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                       </div>
                       {/* Compact Engine Badges - Click radar below for details */}
                       <div className="grid grid-cols-6 gap-2">
@@ -757,21 +759,21 @@ export default function StockDetailPage() {
                         ].map((engine) => {
                           const colorMap: Record<string, string> = {
                             cyan: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
-                            emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-                            amber: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+                            emerald: 'bg-emerald-500/10 border-emerald-500/30 text-[var(--trade-bullish)]',
+                            amber: 'bg-amber-500/10 border-amber-500/30 text-[var(--trade-neutral)]',
                             violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
                             rose: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
                             purple: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
                           };
                           return (
-                            <div key={engine.name} className={cn("p-2 rounded-lg border text-center", engine.grade ? colorMap[engine.color] : 'bg-slate-500/5 border-slate-700/30 text-slate-600')}>
-                              <div className="text-[10px] text-slate-400">{engine.name}</div>
+                            <div key={engine.name} className={cn("p-2 rounded-lg border text-center", engine.grade ? colorMap[engine.color] : 'bg-muted-foreground/5 border-border/30 text-muted-foreground/70')}>
+                              <div className="text-[10px] text-muted-foreground">{engine.name}</div>
                               <div className="text-lg font-bold">{engine.grade || '--'}</div>
                             </div>
                           );
                         })}
                       </div>
-                      <p className="text-[10px] text-slate-500 text-center mt-2">Click engine labels on radar below for detailed breakdown</p>
+                      <p className="text-[10px] text-muted-foreground text-center mt-2">Click engine labels on radar below for detailed breakdown</p>
                     </div>
                   </div>
                 </Card>
@@ -779,13 +781,13 @@ export default function StockDetailPage() {
                 {/* Visual Analysis Section - Radar Chart + Bulls vs Bears */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pentagon Radar Chart - 6 Engine Visualization */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222] p-5">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border p-5">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl" />
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1.5 rounded-lg bg-teal-500/20">
                         <PieChart className="w-4 h-4 text-teal-400" />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Engine Performance Radar</h3>
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Engine Performance Radar</h3>
                     </div>
 
                     {/* SVG Radar Chart */}
@@ -906,11 +908,11 @@ export default function StockDetailPage() {
                             className={cn(
                               positions[item.pos],
                               "text-center px-2 py-1 rounded-lg border transition-all cursor-pointer hover:scale-105",
-                              isSelected ? colorMap[item.color] : "border-transparent hover:border-slate-600 hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
+                              isSelected ? colorMap[item.color] : "border-transparent hover:border-border hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
                             )}
                           >
-                            <div className="text-[10px] text-slate-400">{item.name}</div>
-                            <div className="text-xs font-bold text-gray-900 dark:text-white">{item.score}%</div>
+                            <div className="text-[10px] text-muted-foreground">{item.name}</div>
+                            <div className="text-xs font-bold text-foreground dark:text-foreground">{item.score}%</div>
                           </button>
                         );
                       })}
@@ -918,7 +920,7 @@ export default function StockDetailPage() {
 
                     {/* Expanded Engine Detail Panel */}
                     {expandedEngine && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-[#222]/40">
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-border/40">
                         {(() => {
                           const engineData: Record<string, { grade: string; calculations: Array<{ label: string; value: string; status: string }>; reasoning: string; color: string }> = {
                             technical: {
@@ -991,8 +993,8 @@ export default function StockDetailPage() {
                           const engine = engineData[expandedEngine];
                           const colorStyles: Record<string, { bg: string; text: string; border: string }> = {
                             cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
-                            emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-                            amber: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
+                            emerald: { bg: 'bg-emerald-500/10', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/30' },
+                            amber: { bg: 'bg-amber-500/10', text: 'text-[var(--trade-neutral)]', border: 'border-amber-500/30' },
                             violet: { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/30' },
                             rose: { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30' },
                             purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
@@ -1007,16 +1009,16 @@ export default function StockDetailPage() {
                               </div>
                               <div className="grid grid-cols-2 gap-2 mb-3">
                                 {engine.calculations.map((calc, i) => (
-                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-gray-100 dark:bg-[#1a1a1a]">
-                                    <span className="text-slate-400">{calc.label}</span>
+                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-gray-100 dark:bg-muted">
+                                    <span className="text-muted-foreground">{calc.label}</span>
                                     <span className={cn("font-mono font-medium",
                                       calc.status === 'bullish' ? "text-teal-400" :
-                                      calc.status === 'bearish' ? "text-red-400" : "text-slate-300"
+                                      calc.status === 'bearish' ? "text-[var(--trade-bearish)]" : "text-foreground/80"
                                     )}>{calc.value}</span>
                                   </div>
                                 ))}
                               </div>
-                              <p className="text-[11px] text-slate-500 italic">{engine.reasoning}</p>
+                              <p className="text-[11px] text-muted-foreground italic">{engine.reasoning}</p>
                             </div>
                           );
                         })()}
@@ -1025,15 +1027,15 @@ export default function StockDetailPage() {
                   </Card>
 
                   {/* Bulls vs Bears Panel */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222] p-5">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border p-5">
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-3xl" />
 
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1.5 rounded-lg bg-gradient-to-r from-emerald-500/20 to-red-500/20">
-                        <Gauge className="w-4 h-4 text-slate-300" />
+                        <Gauge className="w-4 h-4 text-foreground/80" />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Bulls vs Bears Sentiment</h3>
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Bulls vs Bears Sentiment</h3>
                     </div>
 
                     {/* Main Gauge */}
@@ -1055,7 +1057,7 @@ export default function StockDetailPage() {
                           }}
                         />
                         {/* Center marker */}
-                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-400/50 -translate-x-1/2" />
+                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-muted-foreground/50 -translate-x-1/2" />
                       </div>
 
                       {/* Marker arrow */}
@@ -1073,52 +1075,52 @@ export default function StockDetailPage() {
                     {/* Labels */}
                     <div className="flex items-center justify-between text-sm mb-4">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="font-bold text-emerald-400">
+                        <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
+                        <span className="font-bold text-[var(--trade-bullish)]">
                           {tier === 'S' || tier.startsWith('A') ? '65' : tier.startsWith('B') ? '55' : '40'}% Bulls
                         </span>
                       </div>
                       <Badge className={cn(
                         "text-xs font-bold",
-                        tier === 'S' || tier.startsWith('A') ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-                        tier.startsWith('B') ? "bg-slate-500/20 text-slate-300 border-slate-500/30" :
-                        "bg-red-500/20 text-red-400 border-red-500/30"
+                        tier === 'S' || tier.startsWith('A') ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30" :
+                        tier.startsWith('B') ? "bg-muted-foreground/20 text-foreground/80 border-muted-foreground/30" :
+                        "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
                       )}>
                         {tier === 'S' || tier.startsWith('A') ? 'BULLISH' : tier.startsWith('B') ? 'NEUTRAL' : 'BEARISH'}
                       </Badge>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-red-400">
+                        <span className="font-bold text-[var(--trade-bearish)]">
                           {tier === 'S' || tier.startsWith('A') ? '15' : tier.startsWith('B') ? '25' : '35'}% Bears
                         </span>
-                        <TrendingDown className="w-4 h-4 text-red-400" />
+                        <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
                       </div>
                     </div>
 
                     {/* Detailed Breakdown */}
-                    <div className="space-y-3 pt-3 border-t border-[#1a1a1a]">
+                    <div className="space-y-3 pt-3 border-t border-border/50">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wide">Strong Buy</span>
-                            <span className="text-sm font-bold text-emerald-400">{analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : tier.startsWith('A') ? 12 : 5)}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide">Strong Buy</span>
+                            <span className="text-sm font-bold text-[var(--trade-bullish)]">{analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : tier.startsWith('A') ? 12 : 5)}</span>
                           </div>
-                          <div className="h-1 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : 8)) * 4}%` }} />
+                          <div className="h-1 bg-gray-200 dark:bg-muted/50 rounded-full mt-1.5 overflow-hidden">
+                            <div className="h-full bg-[var(--trade-bullish)] rounded-full" style={{ width: `${(analystData?.consensus?.strongBuy || (tier === 'S' ? 15 : 8)) * 4}%` }} />
                           </div>
                         </div>
                         <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wide">Strong Sell</span>
-                            <span className="text-sm font-bold text-red-400">{analystData?.consensus?.strongSell || (tier.startsWith('C') || tier.startsWith('D') ? 8 : 2)}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wide">Strong Sell</span>
+                            <span className="text-sm font-bold text-[var(--trade-bearish)]">{analystData?.consensus?.strongSell || (tier.startsWith('C') || tier.startsWith('D') ? 8 : 2)}</span>
                           </div>
-                          <div className="h-1 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
-                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${(analystData?.consensus?.strongSell || 2) * 4}%` }} />
+                          <div className="h-1 bg-gray-200 dark:bg-muted/50 rounded-full mt-1.5 overflow-hidden">
+                            <div className="h-full bg-[var(--trade-bearish)] rounded-full" style={{ width: `${(analystData?.consensus?.strongSell || 2) * 4}%` }} />
                           </div>
                         </div>
                       </div>
 
                       {/* Sentiment Sources */}
-                      <div className="flex items-center justify-center gap-4 text-[10px] text-slate-500">
+                      <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
                         <span>{analystData?.analysts?.length || 25}+ Analysts</span>
                         <span>•</span>
                         <span>News Sentiment</span>
@@ -1131,27 +1133,27 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid - Key Trading Levels */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Day Low</div>
-                    <div className="text-lg font-mono font-bold text-red-400">${safeToFixed(quoteData?.low, 2, '--')}</div>
-                    <div className="text-[10px] text-slate-600">Today's low</div>
+                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                    <div className="text-xs text-muted-foreground">Day Low</div>
+                    <div className="text-lg font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(quoteData?.low, 2, '--')}</div>
+                    <div className="text-[10px] text-muted-foreground/70">Today's low</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Day High</div>
+                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                    <div className="text-xs text-muted-foreground">Day High</div>
                     <div className="text-lg font-mono font-bold text-teal-400">${safeToFixed(quoteData?.high, 2, '--')}</div>
-                    <div className="text-[10px] text-slate-600">Today's high</div>
+                    <div className="text-[10px] text-muted-foreground/70">Today's high</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Volatility (30d)</div>
+                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                    <div className="text-xs text-muted-foreground">Volatility (30d)</div>
                     <div className={cn("text-lg font-bold",
-                      safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? "text-red-400" : "text-white"
+                      safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? "text-[var(--trade-bearish)]" : "text-foreground"
                     )}>{analysisData?.components?.quantitative?.breakdown?.[0]?.value || '--'}%</div>
-                    <div className="text-[10px] text-slate-600">{safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? 'High Risk' : 'Moderate'}</div>
+                    <div className="text-[10px] text-muted-foreground/70">{safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? 'High Risk' : 'Moderate'}</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-3">
-                    <div className="text-xs text-slate-500">Inst. Ownership</div>
+                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                    <div className="text-xs text-muted-foreground">Inst. Ownership</div>
                     <div className="text-lg font-bold text-purple-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
-                    <div className="text-[10px] text-slate-600">{institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}+ funds</div>
+                    <div className="text-[10px] text-muted-foreground/70">{institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}+ funds</div>
                   </Card>
                 </div>
 
@@ -1171,13 +1173,13 @@ export default function StockDetailPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Brain className="w-4 h-4 text-teal-400" />
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">Active Trade Idea</span>
+                        <span className="text-sm font-semibold text-foreground dark:text-foreground">Active Trade Idea</span>
                         {bestTradeIdea.probabilityBand && (
                           <Badge className={cn(
                             "text-[10px]",
-                            bestTradeIdea.probabilityBand.startsWith('A') ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                            bestTradeIdea.probabilityBand.startsWith('A') ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30" :
                             bestTradeIdea.probabilityBand.startsWith('B') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
-                            "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                            "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30"
                           )}>
                             Grade {bestTradeIdea.probabilityBand}
                           </Badge>
@@ -1192,25 +1194,25 @@ export default function StockDetailPage() {
 
                     {/* Trade Idea Quick Info - Clickable for full analysis */}
                     <Card
-                      className="p-4 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-[#222] cursor-pointer hover:border-teal-500/50 transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/10"
+                      className="p-4 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-border cursor-pointer hover:border-teal-500/50 transition-all duration-200 hover:shadow-lg hover:shadow-teal-500/10"
                       onClick={() => setTradeIdeaModalOpen(true)}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <Badge className={cn(
                             "text-xs font-bold",
-                            bestTradeIdea.direction?.toLowerCase() === 'long' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                            bestTradeIdea.direction?.toLowerCase() === 'long' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                           )}>
                             {bestTradeIdea.direction?.toUpperCase() || 'LONG'}
                           </Badge>
-                          <span className="text-sm text-slate-400">{bestTradeIdea.strategy || 'Swing Trade'}</span>
+                          <span className="text-sm text-muted-foreground">{bestTradeIdea.strategy || 'Swing Trade'}</span>
                           {bestTradeIdea.confidenceScore && (
-                            <span className="text-xs text-slate-500">{bestTradeIdea.confidenceScore}% confidence</span>
+                            <span className="text-xs text-muted-foreground">{bestTradeIdea.confidenceScore}% confidence</span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           {bestTradeIdea.timestamp && (
-                            <span className="text-[10px] text-slate-600">
+                            <span className="text-[10px] text-muted-foreground/70">
                               {new Date(bestTradeIdea.timestamp).toLocaleDateString()}
                             </span>
                           )}
@@ -1221,22 +1223,22 @@ export default function StockDetailPage() {
                       </div>
 
                       <div className="grid grid-cols-3 gap-3 mb-3">
-                        <div className="p-2 rounded bg-slate-800/50">
-                          <div className="text-[10px] text-slate-500">Entry</div>
-                          <div className="text-sm font-mono text-white">${safeToFixed(bestTradeIdea.entryPrice, 2) || safeToFixed(safePrice, 2)}</div>
+                        <div className="p-2 rounded bg-muted/50">
+                          <div className="text-[10px] text-muted-foreground">Entry</div>
+                          <div className="text-sm font-mono text-foreground">${safeToFixed(bestTradeIdea.entryPrice, 2) || safeToFixed(safePrice, 2)}</div>
                         </div>
                         <div className="p-2 rounded bg-emerald-500/10">
-                          <div className="text-[10px] text-slate-500">Target</div>
-                          <div className="text-sm font-mono text-emerald-400">${safeToFixed(bestTradeIdea.targetPrice, 2) || '--'}</div>
+                          <div className="text-[10px] text-muted-foreground">Target</div>
+                          <div className="text-sm font-mono text-[var(--trade-bullish)]">${safeToFixed(bestTradeIdea.targetPrice, 2) || '--'}</div>
                         </div>
                         <div className="p-2 rounded bg-red-500/10">
-                          <div className="text-[10px] text-slate-500">Stop</div>
-                          <div className="text-sm font-mono text-red-400">${safeToFixed(bestTradeIdea.stopLoss, 2) || '--'}</div>
+                          <div className="text-[10px] text-muted-foreground">Stop</div>
+                          <div className="text-sm font-mono text-[var(--trade-bearish)]">${safeToFixed(bestTradeIdea.stopLoss, 2) || '--'}</div>
                         </div>
                       </div>
 
                       {bestTradeIdea.catalyst && (
-                        <p className="text-xs text-slate-400 line-clamp-2 mb-3">{bestTradeIdea.catalyst}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{bestTradeIdea.catalyst}</p>
                       )}
                     </Card>
 
@@ -1253,7 +1255,7 @@ export default function StockDetailPage() {
                 )}
 
                 {/* Compact Disclaimer */}
-                <div className="text-center text-[10px] text-slate-600 px-4">
+                <div className="text-center text-[10px] text-muted-foreground/70 px-4">
                   This AI analysis is for informational purposes only and is not financial advice. Past performance ≠ future results. Trade at your own risk.
                   <span className="mx-2">•</span>Report ID: QE-{symbol}-{new Date().toISOString().split('T')[0].replace(/-/g, '')}
                 </div>
@@ -1261,14 +1263,14 @@ export default function StockDetailPage() {
 
               <TabsContent value="overview" className="space-y-4">
                 {/* Professional Trading Chart Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-[#222]">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border">
                   {/* Decorative elements */}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/50 via-cyan-500/50 to-teal-500/50" />
                   <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl" />
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl" />
 
                   {/* Chart Header - Professional Trading Terminal Style */}
-                  <div className="relative p-4 border-b border-gray-200 dark:border-[#222]">
+                  <div className="relative p-4 border-b border-gray-200 dark:border-border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         {/* Symbol & Price */}
@@ -1278,16 +1280,16 @@ export default function StockDetailPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-gray-900 dark:text-white">{symbol}</span>
-                              <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600 text-[10px]">
+                              <span className="text-lg font-bold text-foreground dark:text-foreground">{symbol}</span>
+                              <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border text-[10px]">
                                 {chartRange}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-sm font-mono text-gray-900 dark:text-white">${safeToFixed(price, 2)}</span>
+                              <span className="text-sm font-mono text-foreground dark:text-foreground">${safeToFixed(price, 2)}</span>
                               <span className={cn(
                                 "text-xs font-medium flex items-center gap-0.5",
-                                isPositive ? "text-emerald-400" : "text-red-400"
+                                isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                               )}>
                                 {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                 {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
@@ -1297,17 +1299,17 @@ export default function StockDetailPage() {
                         </div>
 
                         {/* Divider */}
-                        <div className="h-10 w-px bg-gray-200 dark:bg-slate-700/50" />
+                        <div className="h-10 w-px bg-gray-200 dark:bg-muted/50" />
 
                         {/* Chart Type Toggle */}
-                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-lg p-1 border border-[#1a1a1a]">
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-muted rounded-lg p-1 border border-border/50">
                           <button
                             onClick={() => setChartType('area')}
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'area'
-                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
-                                : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
+                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-foreground shadow-lg"
+                                : "text-muted-foreground hover:text-foreground hover:bg-gray-200 dark:bg-muted/50"
                             )}
                           >
                             <LineChart className="w-3.5 h-3.5" />
@@ -1318,8 +1320,8 @@ export default function StockDetailPage() {
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
                               chartType === 'candlestick'
-                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
-                                : "text-slate-400 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
+                                ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-foreground shadow-lg"
+                                : "text-muted-foreground hover:text-foreground hover:bg-gray-200 dark:bg-muted/50"
                             )}
                           >
                             <BarChart2 className="w-3.5 h-3.5" />
@@ -1334,7 +1336,7 @@ export default function StockDetailPage() {
                             "p-2 rounded-lg transition-all border",
                             chartExpanded
                               ? "bg-teal-600/20 border-teal-500/30 text-teal-400"
-                              : "border-[#1a1a1a] text-slate-400 hover:text-white hover:border-slate-600"
+                              : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
                           )}
                         >
                           {chartExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1342,7 +1344,7 @@ export default function StockDetailPage() {
                       </div>
 
                       {/* Time Range Selector - Pill Style */}
-                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1a] rounded-xl p-1 border border-gray-200 dark:border-[#222]/40">
+                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-muted rounded-xl p-1 border border-gray-200 dark:border-border/40">
                         {['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'].map((range) => (
                           <button
                             key={range}
@@ -1350,8 +1352,8 @@ export default function StockDetailPage() {
                             className={cn(
                               "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all",
                               chartRange === range
-                                ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md"
-                                : "text-slate-500 hover:text-white hover:bg-gray-200 dark:bg-slate-700/50"
+                                ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-foreground shadow-md"
+                                : "text-muted-foreground hover:text-foreground hover:bg-gray-200 dark:bg-muted/50"
                             )}
                           >
                             {range}
@@ -1361,31 +1363,31 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Live Indicator & Stats Bar */}
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-[#222]">
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-border">
                       <div className="flex items-center gap-4">
                         {/* Live Indicator */}
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                          <span className="text-xs text-emerald-400 font-medium">Live</span>
+                          <div className="w-2 h-2 bg-[var(--trade-bullish)] rounded-full" />
+                          <span className="text-xs text-[var(--trade-bullish)] font-medium">Live</span>
                         </div>
 
                         {/* Quick Stats */}
                         <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
-                            <span className="text-slate-500">H:</span>
-                            <span className="text-emerald-400 font-mono font-medium">${safeToFixed(quoteData?.high, 2, '—')}</span>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                            <span className="text-muted-foreground">H:</span>
+                            <span className="text-[var(--trade-bullish)] font-mono font-medium">${safeToFixed(quoteData?.high, 2, '—')}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
-                            <span className="text-slate-500">L:</span>
-                            <span className="text-red-400 font-mono font-medium">${safeToFixed(quoteData?.low, 2, '—')}</span>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                            <span className="text-muted-foreground">L:</span>
+                            <span className="text-[var(--trade-bearish)] font-mono font-medium">${safeToFixed(quoteData?.low, 2, '—')}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
-                            <span className="text-slate-500">O:</span>
-                            <span className="text-slate-300 font-mono font-medium">${safeToFixed(quoteData?.open, 2) || safeToFixed(price - change, 2)}</span>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                            <span className="text-muted-foreground">O:</span>
+                            <span className="text-foreground/80 font-mono font-medium">${safeToFixed(quoteData?.open, 2) || safeToFixed(price - change, 2)}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#1a1a1a]">
-                            <Volume2 className="w-3 h-3 text-slate-500" />
-                            <span className="text-slate-300 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                            <Volume2 className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-foreground/80 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
                           </div>
                         </div>
                       </div>
@@ -1394,25 +1396,25 @@ export default function StockDetailPage() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          safeNumber(analysisData?.components?.technical?.rsi, 50) > 70 ? "bg-red-500/20 text-red-400" :
-                          safeNumber(analysisData?.components?.technical?.rsi, 50) < 30 ? "bg-emerald-500/20 text-emerald-400" :
-                          "bg-gray-200 dark:bg-slate-700/50 text-slate-300"
+                          safeNumber(analysisData?.components?.technical?.rsi, 50) > 70 ? "bg-red-500/20 text-[var(--trade-bearish)]" :
+                          safeNumber(analysisData?.components?.technical?.rsi, 50) < 30 ? "bg-emerald-500/20 text-[var(--trade-bullish)]" :
+                          "bg-gray-200 dark:bg-muted/50 text-foreground/80"
                         )}>
-                          <span className="text-slate-500">RSI</span>
+                          <span className="text-muted-foreground">RSI</span>
                           <span>{safeToFixed(analysisData?.components?.technical?.rsi, 0, '50')}</span>
                         </div>
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          analysisData?.components?.technical?.macdSignal === 'bullish' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          analysisData?.components?.technical?.macdSignal === 'bullish' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                         )}>
-                          <span className="text-slate-500">MACD</span>
+                          <span className="text-muted-foreground">MACD</span>
                           <span>{analysisData?.components?.technical?.macdSignal?.toUpperCase() || 'NEUTRAL'}</span>
                         </div>
                         <div className={cn(
                           "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium",
-                          price > (safePrice * 0.98) ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          price > (safePrice * 0.98) ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                         )}>
-                          <span className="text-slate-500">50 DMA</span>
+                          <span className="text-muted-foreground">50 DMA</span>
                           <span>{price > (safePrice * 0.98) ? 'ABOVE' : 'BELOW'}</span>
                         </div>
                       </div>
@@ -1427,7 +1429,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {chartLoading ? (
-                      <div className="flex flex-col items-center justify-center text-slate-400" style={{ height: chartHeight }}>
+                      <div className="flex flex-col items-center justify-center text-muted-foreground" style={{ height: chartHeight }}>
                         <div className="relative mb-3">
                           <Activity className="w-8 h-8 text-teal-500" />
                           <motion.div
@@ -1441,37 +1443,37 @@ export default function StockDetailPage() {
                     ) : historicalData?.data ? (
                       <StockChart symbol={symbol} data={historicalData.data} height={chartHeight} chartType={chartType} />
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-slate-400" style={{ height: chartHeight }}>
-                        <BarChart2 className="w-10 h-10 text-slate-600 mb-2" />
-                        <span className="text-sm">No chart data available</span>
+                      <div className="flex flex-col items-center justify-center text-muted-foreground" style={{ height: chartHeight }}>
+                        <BarChart2 className="w-10 h-10 text-muted-foreground/70 mb-2" />
+                        <span className="text-sm">Loading chart...</span>
                       </div>
                     )}
                   </div>
 
                   {/* Chart Footer - Key Levels */}
                   <div className="relative px-4 pb-4">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#151515] border border-[#1a1a1a]">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[var(--surface-raised)] border border-border/50">
                       <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500" />
-                          <span className="text-xs text-slate-400">Support</span>
-                          <span className="text-xs font-mono font-bold text-red-400">${safeToFixed(quoteData?.low, 2, '--')}</span>
+                          <div className="w-3 h-3 rounded-full bg-red-500/30 border border-[var(--trade-bearish)]" />
+                          <span className="text-xs text-muted-foreground">Support</span>
+                          <span className="text-xs font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(quoteData?.low, 2, '--')}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500" />
-                          <span className="text-xs text-slate-400">Resistance</span>
-                          <span className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(quoteData?.high, 2, '--')}</span>
+                          <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-[var(--trade-bullish)]" />
+                          <span className="text-xs text-muted-foreground">Resistance</span>
+                          <span className="text-xs font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(quoteData?.high, 2, '--')}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500" />
-                          <span className="text-xs text-slate-400">52W Range</span>
-                          <span className="text-xs font-mono text-slate-300">
+                          <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-[var(--trade-neutral)]" />
+                          <span className="text-xs text-muted-foreground">52W Range</span>
+                          <span className="text-xs font-mono text-foreground/80">
                             ${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')} - ${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}
                           </span>
                         </div>
                       </div>
                       <Link href={`/chart-analysis?symbol=${symbol}`}>
-                        <Button className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white shadow-lg">
+                        <Button className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-foreground shadow-lg">
                           <BarChart2 className="w-4 h-4 mr-2" />
                           Deep Chart Analysis
                           <ArrowUpRight className="w-4 h-4 ml-2" />
@@ -1483,14 +1485,14 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid Below Chart */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-teal-500/20">
                         <Target className="w-3.5 h-3.5 text-teal-400" />
                       </div>
-                      <span className="text-xs text-slate-500">Day Range</span>
+                      <span className="text-xs text-muted-foreground">Day Range</span>
                     </div>
-                    <div className="relative h-2 bg-gray-200 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                    <div className="relative h-2 bg-gray-200 dark:bg-muted/50 rounded-full overflow-hidden">
                       <div
                         className="absolute h-full bg-gradient-to-r from-red-500 via-amber-500 to-emerald-500 rounded-full"
                         style={{
@@ -1509,54 +1511,54 @@ export default function StockDetailPage() {
                       />
                     </div>
                     <div className="flex justify-between mt-2 text-[10px]">
-                      <span className="text-red-400 font-mono">${safeToFixed(quoteData?.low, 2, '—')}</span>
-                      <span className="text-emerald-400 font-mono">${safeToFixed(quoteData?.high, 2, '—')}</span>
+                      <span className="text-[var(--trade-bearish)] font-mono">${safeToFixed(quoteData?.low, 2, '—')}</span>
+                      <span className="text-[var(--trade-bullish)] font-mono">${safeToFixed(quoteData?.high, 2, '—')}</span>
                     </div>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-purple-500/20">
                         <PieChart className="w-3.5 h-3.5 text-purple-400" />
                       </div>
-                      <span className="text-xs text-slate-500">Market Cap</span>
+                      <span className="text-xs text-muted-foreground">Market Cap</span>
                     </div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</p>
-                    <p className="text-[10px] text-slate-600 mt-1">Enterprise Value</p>
+                    <p className="text-lg font-bold text-foreground dark:text-foreground">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Enterprise Value</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-amber-500/20">
-                        <Activity className="w-3.5 h-3.5 text-amber-400" />
+                        <Activity className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
                       </div>
-                      <span className="text-xs text-slate-500">Avg Volume</span>
+                      <span className="text-xs text-muted-foreground">Avg Volume</span>
                     </div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</p>
-                    <p className="text-[10px] text-slate-600 mt-1">10-day average</p>
+                    <p className="text-lg font-bold text-foreground dark:text-foreground">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">10-day average</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-cyan-500/20">
                         <Clock className="w-3.5 h-3.5 text-cyan-400" />
                       </div>
-                      <span className="text-xs text-slate-500">P/E Ratio</span>
+                      <span className="text-xs text-muted-foreground">P/E Ratio</span>
                     </div>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">{safeToFixed(quoteData?.pe, 1) || safeToFixed(analysisData?.components?.fundamental?.pe, 1, '—')}</p>
-                    <p className="text-[10px] text-slate-600 mt-1">TTM earnings</p>
+                    <p className="text-lg font-bold text-foreground dark:text-foreground">{safeToFixed(quoteData?.pe, 1) || safeToFixed(analysisData?.components?.fundamental?.pe, 1, '—')}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">TTM earnings</p>
                   </Card>
                 </div>
               </TabsContent>
 
               <TabsContent value="options" className="space-y-4">
                 {/* Whale Flow */}
-                <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
-                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
+                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-amber-500" />
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Whale Flow Activity</h3>
-                      <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">Live</Badge>
+                      <Zap className="w-4 h-4 text-[var(--trade-neutral)]" />
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Whale Flow Activity</h3>
+                      <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30 text-xs">Live</Badge>
                     </div>
                     <Link href="/trade-desk">
                       <Button variant="ghost" size="sm" className="text-teal-400 hover:text-teal-300">
@@ -1566,49 +1568,49 @@ export default function StockDetailPage() {
                   </div>
                   <div className="p-4 space-y-2">
                     {flowData && flowData.length > 0 ? flowData.map((flow: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-[#1a1a1a] hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-muted hover:bg-gray-200 dark:hover:bg-muted transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className={cn("w-2 h-2 rounded-full", flow.direction === 'long' ? "bg-emerald-500" : "bg-red-500")} />
-                          <span className={cn("text-sm font-medium", flow.direction === 'long' ? "text-emerald-400" : "text-red-400")}>
+                          <div className={cn("w-2 h-2 rounded-full", flow.direction === 'long' ? "bg-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]")} />
+                          <span className={cn("text-sm font-medium", flow.direction === 'long' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                             {flow.strategy || (flow.direction === 'long' ? 'BULLISH' : 'BEARISH')}
                           </span>
-                          {flow.expiry && <span className="text-xs text-slate-500">{flow.expiry}</span>}
+                          {flow.expiry && <span className="text-xs text-muted-foreground">{flow.expiry}</span>}
                         </div>
                         <div className="flex items-center gap-4">
-                          {flow.volume && <span className="text-xs text-slate-400">{formatVolume(flow.volume)} vol</span>}
-                          <span className="font-mono text-sm text-gray-700 dark:text-slate-200">${safeToFixed(flow.entryPrice, 2)}</span>
+                          {flow.volume && <span className="text-xs text-muted-foreground">{formatVolume(flow.volume)} vol</span>}
+                          <span className="font-mono text-sm text-foreground/80 dark:text-foreground/90">${safeToFixed(flow.entryPrice, 2)}</span>
                           <Badge variant="outline" className={cn(
                             "text-xs",
-                            flow.confidenceScore >= 80 ? "text-emerald-400 border-emerald-500/40" :
-                            flow.confidenceScore >= 70 ? "text-teal-400 border-teal-500/40" : "text-slate-400 border-slate-600"
+                            flow.confidenceScore >= 80 ? "text-[var(--trade-bullish)] border-emerald-500/40" :
+                            flow.confidenceScore >= 70 ? "text-teal-400 border-teal-500/40" : "text-muted-foreground border-border"
                           )}>
                             {flow.confidenceScore}%
                           </Badge>
                         </div>
                       </div>
                     )) : (
-                      <div className="text-center py-4 text-slate-500 text-sm">
-                        No whale flow activity detected for {symbol}
+                      <div className="text-center py-4 text-muted-foreground text-sm">
+                        No whale flow detected yet for {symbol}
                       </div>
                     )}
                   </div>
                 </Card>
 
                 {/* Options Chain */}
-                <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
-                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
+                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Options Chain</h3>
-                      {optionsData?.stockPrice && <span className="text-xs text-slate-400">@ ${safeToFixed(optionsData.stockPrice, 2)}</span>}
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Options Chain</h3>
+                      {optionsData?.stockPrice && <span className="text-xs text-muted-foreground">@ ${safeToFixed(optionsData.stockPrice, 2)}</span>}
                     </div>
                     <Link href={`/options-analyzer?symbol=${symbol}`}>
-                      <Button variant="outline" size="sm" className="border-gray-200 dark:border-[#222] text-slate-300 hover:bg-teal-600 hover:text-white hover:border-teal-600">
+                      <Button variant="outline" size="sm" className="border-gray-200 dark:border-border text-foreground/80 hover:bg-teal-600 hover:text-foreground hover:border-teal-600">
                         <BarChart2 className="w-4 h-4 mr-2" /> Analyzer
                       </Button>
                     </Link>
                   </div>
                   {optionsLoading ? (
-                    <div className="p-8 text-center text-slate-400">
+                    <div className="p-8 text-center text-muted-foreground">
                       <Activity className="w-6 h-6 mx-auto mb-2 animate-pulse" />
                       Loading options chain...
                     </div>
@@ -1616,14 +1618,14 @@ export default function StockDetailPage() {
                     <div className="p-4 grid grid-cols-2 gap-6">
                       {/* Calls */}
                       <div>
-                        <div className="text-xs font-semibold text-emerald-400 mb-3 flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" /> CALLS
-                          <span className="text-slate-500 font-normal ml-auto">
+                        <div className="text-xs font-semibold text-[var(--trade-bullish)] mb-3 flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)]" /> CALLS
+                          <span className="text-muted-foreground font-normal ml-auto">
                             {optionsData?.calls?.filter((o: any) => o.inTheMoney).length || 0} ITM
                           </span>
                         </div>
                         {/* Header */}
-                        <div className="flex items-center text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-2">
+                        <div className="flex items-center text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2 px-2">
                           <span className="w-16">Exp</span>
                           <span className="w-16 text-right">Strike</span>
                           <span className="w-14 text-right">Bid</span>
@@ -1634,27 +1636,27 @@ export default function StockDetailPage() {
                           {optionsData?.calls?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-emerald-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
+                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-[var(--trade-bullish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
                             )}>
-                              <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-emerald-300" : "text-gray-700 dark:text-slate-200")}>${safeToFixed(opt.strike, 2, '—')}</span>
-                              <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
-                              <span className="font-mono text-emerald-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
-                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
+                              <span className="text-muted-foreground w-16">{opt.expiration?.slice(5)}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-[var(--trade-bullish)]" : "text-foreground/80 dark:text-foreground/90")}>${safeToFixed(opt.strike, 2, '—')}</span>
+                              <span className="font-mono text-[var(--trade-bullish)] w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
+                              <span className="font-mono text-[var(--trade-bullish)] w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
+                              <span className="text-muted-foreground w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                       {/* Puts */}
                       <div>
-                        <div className="text-xs font-semibold text-red-400 mb-3 flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-red-500" /> PUTS
-                          <span className="text-slate-500 font-normal ml-auto">
+                        <div className="text-xs font-semibold text-[var(--trade-bearish)] mb-3 flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[var(--trade-bearish)]" /> PUTS
+                          <span className="text-muted-foreground font-normal ml-auto">
                             {optionsData?.puts?.filter((o: any) => o.inTheMoney).length || 0} ITM
                           </span>
                         </div>
                         {/* Header */}
-                        <div className="flex items-center text-[10px] text-slate-500 uppercase tracking-wider mb-2 px-2">
+                        <div className="flex items-center text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2 px-2">
                           <span className="w-16">Exp</span>
                           <span className="w-16 text-right">Strike</span>
                           <span className="w-14 text-right">Bid</span>
@@ -1665,21 +1667,21 @@ export default function StockDetailPage() {
                           {optionsData?.puts?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-red-500" : "bg-gray-50 dark:bg-[#151515] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-[#1a1a1a]"
+                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-[var(--trade-bearish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
                             )}>
-                              <span className="text-slate-400 w-16">{opt.expiration?.slice(5)}</span>
-                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-gray-700 dark:text-slate-200")}>${safeToFixed(opt.strike, 2, '—')}</span>
-                              <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
-                              <span className="font-mono text-red-400 w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
-                              <span className="text-slate-500 w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
+                              <span className="text-muted-foreground w-16">{opt.expiration?.slice(5)}</span>
+                              <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-foreground/80 dark:text-foreground/90")}>${safeToFixed(opt.strike, 2, '—')}</span>
+                              <span className="font-mono text-[var(--trade-bearish)] w-14 text-right">{safeToFixed(opt.bid, 2, '—')}</span>
+                              <span className="font-mono text-[var(--trade-bearish)] w-14 text-right">{safeToFixed(opt.ask, 2, '—')}</span>
+                              <span className="text-muted-foreground w-12 text-right">{opt.iv ? `${safeToFixed(safeNumber(opt.iv) * 100, 0)}%` : '—'}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      No options data available for {symbol}
+                    <div className="p-8 text-center text-muted-foreground">
+                      Options chain loading... for {symbol}
                     </div>
                   )}
                 </Card>
@@ -1687,7 +1689,7 @@ export default function StockDetailPage() {
 
               <TabsContent value="news" className="space-y-4">
                 {/* News Header Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-gray-200 dark:border-[#222] p-4">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-gray-200 dark:border-border p-4">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
                   <div className="relative flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1695,8 +1697,8 @@ export default function StockDetailPage() {
                         <Newspaper className="w-5 h-5 text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{symbol} News Feed</h3>
-                        <p className="text-xs text-slate-500">Latest news and market coverage</p>
+                        <h3 className="text-lg font-semibold text-foreground dark:text-foreground">{symbol} News Feed</h3>
+                        <p className="text-xs text-muted-foreground">Latest news and market coverage</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1704,7 +1706,7 @@ export default function StockDetailPage() {
                         <div className="w-2 h-2 bg-blue-500 rounded-full" />
                         <span className="text-xs text-blue-400 font-medium">Live</span>
                       </div>
-                      <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
+                      <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                         {newsData?.length || 0} Articles
                       </Badge>
                     </div>
@@ -1714,8 +1716,8 @@ export default function StockDetailPage() {
                 {/* News Articles Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   {newsLoading ? (
-                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222] p-8">
-                      <div className="flex flex-col items-center justify-center text-slate-400">
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border p-8">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <motion.div
                           className="mb-3"
                           animate={{ rotate: 360 }}
@@ -1729,7 +1731,7 @@ export default function StockDetailPage() {
                   ) : newsData && newsData.length > 0 ? (
                     <>
                       {/* Featured Article - First One */}
-                      <Card className="col-span-2 relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800/50 border-[#1a1a1a] hover:border-blue-500/50 transition-all group">
+                      <Card className="col-span-2 relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800/50 border-border/50 hover:border-blue-500/50 transition-all group">
                         <a
                           href={newsData[0]?.url || newsData[0]?.link}
                           target="_blank"
@@ -1737,21 +1739,21 @@ export default function StockDetailPage() {
                           className="block p-5"
                         >
                           <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 mb-3">Featured</Badge>
-                          <h4 className="text-lg font-semibold text-white leading-tight group-hover:text-blue-400 transition-colors">
+                          <h4 className="text-lg font-semibold text-foreground leading-tight group-hover:text-blue-400 transition-colors">
                             {newsData[0]?.title || newsData[0]?.headline}
                           </h4>
                           {newsData[0]?.summary && (
-                            <p className="text-sm text-slate-400 mt-2 line-clamp-2">{newsData[0].summary}</p>
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{newsData[0].summary}</p>
                           )}
                           <div className="flex items-center gap-4 mt-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center">
-                                <Building2 className="w-3 h-3 text-slate-400" />
+                              <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-muted flex items-center justify-center">
+                                <Building2 className="w-3 h-3 text-muted-foreground" />
                               </div>
                               <span className="text-xs text-blue-400 font-medium">{newsData[0]?.source}</span>
                             </div>
-                            <span className="text-xs text-slate-500">{formatTimeAgo(newsData[0]?.publishedAt || newsData[0]?.timestamp)}</span>
-                            <ArrowUpRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors ml-auto" />
+                            <span className="text-xs text-muted-foreground">{formatTimeAgo(newsData[0]?.publishedAt || newsData[0]?.timestamp)}</span>
+                            <ArrowUpRight className="w-4 h-4 text-muted-foreground/70 group-hover:text-blue-400 transition-colors ml-auto" />
                           </div>
                         </a>
                       </Card>
@@ -1760,7 +1762,7 @@ export default function StockDetailPage() {
                       {newsData.slice(1).map((item: any, i: number) => (
                         <Card
                           key={i}
-                          className="relative overflow-hidden bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] hover:border-gray-200 dark:border-[#222] transition-all group"
+                          className="relative overflow-hidden bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border hover:border-gray-200 dark:border-border transition-all group"
                         >
                           <a
                             href={item.url || item.link}
@@ -1769,25 +1771,25 @@ export default function StockDetailPage() {
                             className="block p-4"
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <h4 className="text-sm font-medium text-gray-700 dark:text-slate-200 leading-snug group-hover:text-white transition-colors line-clamp-2">
+                              <h4 className="text-sm font-medium text-foreground/80 dark:text-foreground/90 leading-snug group-hover:text-foreground transition-colors line-clamp-2">
                                 {item.title || item.headline}
                               </h4>
-                              <ArrowUpRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 transition-colors shrink-0" />
+                              <ArrowUpRight className="w-4 h-4 text-muted-foreground/70 group-hover:text-teal-400 transition-colors shrink-0" />
                             </div>
                             <div className="flex items-center gap-3 mt-3">
                               <span className="text-xs text-blue-400">{item.source}</span>
-                              <span className="text-xs text-slate-600">•</span>
-                              <span className="text-xs text-slate-500">{formatTimeAgo(item.publishedAt || item.timestamp)}</span>
+                              <span className="text-xs text-muted-foreground/70">•</span>
+                              <span className="text-xs text-muted-foreground">{formatTimeAgo(item.publishedAt || item.timestamp)}</span>
                             </div>
                           </a>
                         </Card>
                       ))}
                     </>
                   ) : (
-                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222] p-8">
-                      <div className="flex flex-col items-center justify-center text-slate-500">
-                        <Newspaper className="w-10 h-10 text-slate-600 mb-2" />
-                        <span className="text-sm">No news articles available for {symbol}</span>
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border p-8">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Newspaper className="w-10 h-10 text-muted-foreground/70 mb-2" />
+                        <span className="text-sm">Loading news feed... for {symbol}</span>
                       </div>
                     </Card>
                   )}
@@ -1797,73 +1799,73 @@ export default function StockDetailPage() {
               <TabsContent value="analysts" className="space-y-4">
                 {/* Analyst Consensus Header */}
                 <div className="grid grid-cols-3 gap-4">
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                          <Users className="w-4 h-4 text-emerald-400" />
+                          <Users className="w-4 h-4 text-[var(--trade-bullish)]" />
                         </div>
-                        <span className="text-xs text-slate-500">Analyst Consensus</span>
+                        <span className="text-xs text-muted-foreground">Analyst Consensus</span>
                       </div>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                      <div className="text-2xl font-bold text-foreground dark:text-foreground">
                         {analystData?.consensus?.recommendation || 'Moderate Buy'}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
+                      <div className="text-xs text-muted-foreground mt-1">
                         Based on {analystData?.consensus?.totalAnalysts || analystData?.ratings?.length || 0} analysts
                       </div>
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="p-1.5 rounded-lg bg-teal-500/20">
                           <Target className="w-4 h-4 text-teal-400" />
                         </div>
-                        <span className="text-xs text-slate-500">Avg Price Target</span>
+                        <span className="text-xs text-muted-foreground">Avg Price Target</span>
                       </div>
                       <div className="text-2xl font-bold text-teal-400">
                         ${safeToFixed(analystData?.priceTarget?.average, 2) || safeToFixed(0, 2)}
                       </div>
                       <div className={cn("text-xs mt-1",
-                        safeNumber(analystData?.priceTarget?.average, price * 1.15) > price ? "text-emerald-400" : "text-red-400"
+                        safeNumber(analystData?.priceTarget?.average, price * 1.15) > price ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {safeToFixed(((safeNumber(analystData?.priceTarget?.average, 0) - safePrice) / safePrice) * 100, 1)}% upside
                       </div>
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-[#222] p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="p-1.5 rounded-lg bg-amber-500/20">
-                          <TrendingUp className="w-4 h-4 text-amber-400" />
+                          <TrendingUp className="w-4 h-4 text-[var(--trade-neutral)]" />
                         </div>
-                        <span className="text-xs text-slate-500">Target Range</span>
+                        <span className="text-xs text-muted-foreground">Target Range</span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-sm text-red-400">${safeToFixed(analystData?.priceTarget?.low, 2) || safeToFixed(analystData?.priceTarget?.low, 2, '--')}</span>
-                        <span className="text-xs text-slate-600">-</span>
-                        <span className="text-sm text-emerald-400">${safeToFixed(analystData?.priceTarget?.high, 2) || safeToFixed(analystData?.priceTarget?.high, 2, '--')}</span>
+                        <span className="text-sm text-[var(--trade-bearish)]">${safeToFixed(analystData?.priceTarget?.low, 2) || safeToFixed(analystData?.priceTarget?.low, 2, '--')}</span>
+                        <span className="text-xs text-muted-foreground/70">-</span>
+                        <span className="text-sm text-[var(--trade-bullish)]">${safeToFixed(analystData?.priceTarget?.high, 2) || safeToFixed(analystData?.priceTarget?.high, 2, '--')}</span>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">Low - High estimates</div>
+                      <div className="text-xs text-muted-foreground mt-1">Low - High estimates</div>
                     </div>
                   </Card>
                 </div>
 
                 {/* Rating Distribution */}
-                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Rating Distribution</h3>
+                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-4">
+                  <h3 className="text-sm font-semibold text-foreground dark:text-foreground mb-4">Rating Distribution</h3>
                   <div className="flex items-center gap-3">
                     {[
-                      { label: 'Strong Buy', value: analystData?.consensus?.strongBuy || 3, color: 'bg-emerald-500' },
+                      { label: 'Strong Buy', value: analystData?.consensus?.strongBuy || 3, color: 'bg-[var(--trade-bullish)]' },
                       { label: 'Buy', value: analystData?.consensus?.buy || 8, color: 'bg-teal-500' },
-                      { label: 'Hold', value: analystData?.consensus?.hold || 5, color: 'bg-amber-500' },
+                      { label: 'Hold', value: analystData?.consensus?.hold || 5, color: 'bg-[var(--trade-neutral)]' },
                       { label: 'Sell', value: analystData?.consensus?.sell || 1, color: 'bg-orange-500' },
-                      { label: 'Strong Sell', value: analystData?.consensus?.strongSell || 0, color: 'bg-red-500' },
+                      { label: 'Strong Sell', value: analystData?.consensus?.strongSell || 0, color: 'bg-[var(--trade-bearish)]' },
                     ].map((item, i) => {
                       const total = (analystData?.consensus?.strongBuy || 3) + (analystData?.consensus?.buy || 8) + (analystData?.consensus?.hold || 5) + (analystData?.consensus?.sell || 1) + (analystData?.consensus?.strongSell || 0);
                       const pct = total > 0 ? (item.value / total) * 100 : 0;
@@ -1876,8 +1878,8 @@ export default function StockDetailPage() {
                             />
                           </div>
                           <div className="text-center mt-2">
-                            <div className="text-xs font-bold text-gray-900 dark:text-white">{item.value}</div>
-                            <div className="text-[10px] text-slate-500 mt-0.5">{item.label}</div>
+                            <div className="text-xs font-bold text-foreground dark:text-foreground">{item.value}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">{item.label}</div>
                           </div>
                         </div>
                       );
@@ -1886,39 +1888,39 @@ export default function StockDetailPage() {
                 </Card>
 
                 {/* Recent Ratings Table */}
-                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Recent Analyst Actions</h3>
-                    <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
+                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Recent Analyst Actions</h3>
+                    <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                       {analystData?.ratings?.length || 0} Ratings
                     </Badge>
                   </div>
                   {analystLoading ? (
-                    <div className="p-8 text-center text-slate-400">
+                    <div className="p-8 text-center text-muted-foreground">
                       <Activity className="w-6 h-6 mx-auto mb-2 animate-pulse" />
                       Loading analyst ratings...
                     </div>
                   ) : analystData?.ratings && analystData.ratings.length > 0 ? (
                     <div className="divide-y divide-slate-800/50">
                       {analystData.ratings.map((rating: any, i: number) => (
-                        <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
+                        <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[var(--surface-raised)] transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800/80 flex items-center justify-center">
-                              <Building2 className="w-5 h-5 text-slate-500" />
+                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-muted/80 flex items-center justify-center">
+                              <Building2 className="w-5 h-5 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-white">{rating.firm || rating.analyst}</p>
-                              <p className="text-xs text-slate-500 mt-0.5">{formatDate(rating.date)}</p>
+                              <p className="text-sm font-medium text-foreground">{rating.firm || rating.analyst}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{formatDate(rating.date)}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <Badge className={cn(
                               "text-xs px-3 py-1",
                               rating.rating?.toLowerCase().includes('buy') || rating.rating?.toLowerCase().includes('overweight')
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30"
                                 : rating.rating?.toLowerCase().includes('sell') || rating.rating?.toLowerCase().includes('underweight')
-                                ? "bg-red-500/20 text-red-400 border-red-500/30"
-                                : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                ? "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
+                                : "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30"
                             )}>
                               {rating.rating}
                             </Badge>
@@ -1926,7 +1928,7 @@ export default function StockDetailPage() {
                               <div className="text-right">
                                 <span className="font-mono text-sm font-bold text-teal-400">${rating.priceTarget}</span>
                                 <div className={cn("text-[10px]",
-                                  rating.priceTarget > price ? "text-emerald-400" : "text-red-400"
+                                  rating.priceTarget > price ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                 )}>
                                   {safePrice > 0 ? safeToFixed((safeNumber(rating.priceTarget) - safePrice) / safePrice * 100, 1) : '0.0'}%
                                 </div>
@@ -1937,9 +1939,9 @@ export default function StockDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      <Users className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm">No analyst ratings available for {symbol}</p>
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Users className="w-10 h-10 text-muted-foreground/70 mx-auto mb-2" />
+                      <p className="text-sm">Analyst data loading... for {symbol}</p>
                     </div>
                   )}
                 </Card>
@@ -1961,36 +1963,36 @@ export default function StockDetailPage() {
 
                     return (
                       <>
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
                               <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                                <ArrowUpRight className="w-4 h-4 text-[var(--trade-bullish)]" />
                               </div>
-                              <span className="text-xs text-slate-500">Insider Buys</span>
+                              <span className="text-xs text-muted-foreground">Insider Buys</span>
                             </div>
-                            <div className="text-2xl font-bold text-emerald-400">{buys.length}</div>
-                            <div className="text-xs text-slate-500 mt-1">${formatVolume(totalBuyValue)} total</div>
+                            <div className="text-2xl font-bold text-[var(--trade-bullish)]">{buys.length}</div>
+                            <div className="text-xs text-muted-foreground mt-1">${formatVolume(totalBuyValue)} total</div>
                           </div>
                         </Card>
 
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-gray-200 dark:border-[#222] p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-gray-200 dark:border-border p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
                               <div className="p-1.5 rounded-lg bg-red-500/20">
-                                <ArrowDownRight className="w-4 h-4 text-red-400" />
+                                <ArrowDownRight className="w-4 h-4 text-[var(--trade-bearish)]" />
                               </div>
-                              <span className="text-xs text-slate-500">Insider Sells</span>
+                              <span className="text-xs text-muted-foreground">Insider Sells</span>
                             </div>
-                            <div className="text-2xl font-bold text-red-400">{sells.length}</div>
-                            <div className="text-xs text-slate-500 mt-1">${formatVolume(totalSellValue)} total</div>
+                            <div className="text-2xl font-bold text-[var(--trade-bearish)]">{sells.length}</div>
+                            <div className="text-xs text-muted-foreground mt-1">${formatVolume(totalSellValue)} total</div>
                           </div>
                         </Card>
 
                         <Card className={cn(
-                          "relative overflow-hidden border-gray-200 dark:border-[#222] p-4",
+                          "relative overflow-hidden border-gray-200 dark:border-border p-4",
                           netActivity >= 0
                             ? "bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30"
                             : "bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/30"
@@ -2007,14 +2009,14 @@ export default function StockDetailPage() {
                                   netActivity >= 0 ? "text-teal-400" : "text-orange-400"
                                 )} />
                               </div>
-                              <span className="text-xs text-slate-500">Net Activity</span>
+                              <span className="text-xs text-muted-foreground">Net Activity</span>
                             </div>
                             <div className={cn("text-2xl font-bold",
                               netActivity >= 0 ? "text-teal-400" : "text-orange-400"
                             )}>
                               {netActivity >= 0 ? '+' : '-'}${formatVolume(Math.abs(netActivity))}
                             </div>
-                            <div className="text-xs text-slate-500 mt-1">
+                            <div className="text-xs text-muted-foreground mt-1">
                               {netActivity >= 0 ? 'Net buying' : 'Net selling'} activity
                             </div>
                           </div>
@@ -2025,23 +2027,23 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Insider Transactions Table */}
-                <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
+                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
                         <Shield className="w-4 h-4 text-purple-400" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Insider Transactions</h3>
-                        <p className="text-xs text-slate-500">Recent executive & director trades</p>
+                        <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Insider Transactions</h3>
+                        <p className="text-xs text-muted-foreground">Recent executive & director trades</p>
                       </div>
                     </div>
-                    <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
+                    <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                       {insiderData?.transactions?.length || 0} Trades
                     </Badge>
                   </div>
                   {insiderLoading ? (
-                    <div className="p-8 text-center text-slate-400">
+                    <div className="p-8 text-center text-muted-foreground">
                       <Activity className="w-6 h-6 mx-auto mb-2 animate-pulse" />
                       Loading insider data...
                     </div>
@@ -2054,7 +2056,7 @@ export default function StockDetailPage() {
                         const totalValue = shares * pricePerShare;
 
                         return (
-                          <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
+                          <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[var(--surface-raised)] transition-colors">
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-3">
                                 <div className={cn(
@@ -2062,53 +2064,53 @@ export default function StockDetailPage() {
                                   isBuy ? "bg-emerald-500/20" : "bg-red-500/20"
                                 )}>
                                   {isBuy ? (
-                                    <ArrowUpRight className="w-5 h-5 text-emerald-400" />
+                                    <ArrowUpRight className="w-5 h-5 text-[var(--trade-bullish)]" />
                                   ) : (
-                                    <ArrowDownRight className="w-5 h-5 text-red-400" />
+                                    <ArrowDownRight className="w-5 h-5 text-[var(--trade-bearish)]" />
                                   )}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-white">{trade.name || trade.insiderName}</p>
+                                  <p className="text-sm font-medium text-foreground">{trade.name || trade.insiderName}</p>
                                   <p className="text-xs text-purple-400 mt-0.5">{trade.title || trade.position}</p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <Badge className={cn(
                                   "text-xs mb-2",
-                                  isBuy ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"
+                                  isBuy ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30" : "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
                                 )}>
                                   {trade.transactionType}
                                 </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-[#222]">
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-border">
                               <div className="flex items-center gap-4 text-xs">
                                 <div>
-                                  <span className="text-slate-500">Shares:</span>
-                                  <span className="ml-1 font-mono text-white">{formatVolume(shares)}</span>
+                                  <span className="text-muted-foreground">Shares:</span>
+                                  <span className="ml-1 font-mono text-foreground">{formatVolume(shares)}</span>
                                 </div>
                                 <div>
-                                  <span className="text-slate-500">Price:</span>
-                                  <span className="ml-1 font-mono text-white">${safeToFixed(pricePerShare, 2)}</span>
+                                  <span className="text-muted-foreground">Price:</span>
+                                  <span className="ml-1 font-mono text-foreground">${safeToFixed(pricePerShare, 2)}</span>
                                 </div>
                                 <div>
-                                  <span className="text-slate-500">Value:</span>
+                                  <span className="text-muted-foreground">Value:</span>
                                   <span className={cn("ml-1 font-mono font-medium",
-                                    isBuy ? "text-emerald-400" : "text-red-400"
+                                    isBuy ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                   )}>${formatVolume(totalValue)}</span>
                                 </div>
                               </div>
-                              <span className="text-xs text-slate-500">{formatDate(trade.transactionDate || trade.date)}</span>
+                              <span className="text-xs text-muted-foreground">{formatDate(trade.transactionDate || trade.date)}</span>
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      <Shield className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-                      <p className="text-sm">No insider transactions available for {symbol}</p>
-                      <p className="text-xs text-slate-600 mt-1">SEC filings may take time to appear</p>
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Shield className="w-10 h-10 text-muted-foreground/70 mx-auto mb-2" />
+                      <p className="text-sm">Insider data loading... for {symbol}</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">SEC filings may take time to appear</p>
                     </div>
                   )}
                 </Card>
@@ -2116,8 +2118,8 @@ export default function StockDetailPage() {
 
               <TabsContent value="institutions" className="space-y-4">
                 {institutionLoading ? (
-                  <Card className="bg-white/80 dark:bg-white dark:bg-[#111]/80 border-gray-200 dark:border-[#222]">
-                    <div className="p-8 flex flex-col items-center justify-center text-slate-400">
+                  <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
+                    <div className="p-8 flex flex-col items-center justify-center text-muted-foreground">
                       <motion.div
                         className="mb-3"
                         animate={{ rotate: 360 }}
@@ -2132,100 +2134,100 @@ export default function StockDetailPage() {
                   <>
                     {/* Ownership Overview */}
                     <div className="grid grid-cols-4 gap-4">
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-[#222] p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="p-1.5 rounded-lg bg-teal-500/20">
                               <Building2 className="w-4 h-4 text-teal-400" />
                             </div>
-                            <span className="text-xs text-slate-500">Institutional</span>
+                            <span className="text-xs text-muted-foreground">Institutional</span>
                           </div>
                           <div className="text-3xl font-bold text-teal-400">
                             {safeToFixed(institutionData?.breakdown?.institutionsPercent, 1, '65.0')}%
                           </div>
-                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-muted/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-teal-500 rounded-full" style={{ width: `${institutionData?.breakdown?.institutionsPercent || 65}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-gray-200 dark:border-[#222] p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-gray-200 dark:border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="p-1.5 rounded-lg bg-purple-500/20">
                               <Shield className="w-4 h-4 text-purple-400" />
                             </div>
-                            <span className="text-xs text-slate-500">Insiders</span>
+                            <span className="text-xs text-muted-foreground">Insiders</span>
                           </div>
                           <div className="text-3xl font-bold text-purple-400">
                             {safeToFixed(institutionData?.breakdown?.insidersPercent, 2, '0.50')}%
                           </div>
-                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
+                          <div className="h-1.5 bg-gray-200 dark:bg-muted/50 rounded-full mt-3 overflow-hidden">
                             <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((institutionData?.breakdown?.insidersPercent || 0.5) * 10, 100)}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-[#222] p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                              <PieChart className="w-4 h-4 text-emerald-400" />
+                              <PieChart className="w-4 h-4 text-[var(--trade-bullish)]" />
                             </div>
-                            <span className="text-xs text-slate-500">Float</span>
+                            <span className="text-xs text-muted-foreground">Float</span>
                           </div>
-                          <div className="text-3xl font-bold text-emerald-400">
+                          <div className="text-3xl font-bold text-[var(--trade-bullish)]">
                             {safeToFixed(institutionData?.breakdown?.floatPercent, 1, '85.0')}%
                           </div>
-                          <div className="h-1.5 bg-gray-200 dark:bg-slate-700/50 rounded-full mt-3 overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${institutionData?.breakdown?.floatPercent || 85}%` }} />
+                          <div className="h-1.5 bg-gray-200 dark:bg-muted/50 rounded-full mt-3 overflow-hidden">
+                            <div className="h-full bg-[var(--trade-bullish)] rounded-full" style={{ width: `${institutionData?.breakdown?.floatPercent || 85}%` }} />
                           </div>
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-[#222] p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="p-1.5 rounded-lg bg-amber-500/20">
-                              <Users className="w-4 h-4 text-amber-400" />
+                              <Users className="w-4 h-4 text-[var(--trade-neutral)]" />
                             </div>
-                            <span className="text-xs text-slate-500"># Institutions</span>
+                            <span className="text-xs text-muted-foreground"># Institutions</span>
                           </div>
-                          <div className="text-3xl font-bold text-amber-400">
+                          <div className="text-3xl font-bold text-[var(--trade-neutral)]">
                             {institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}
                           </div>
-                          <p className="text-[10px] text-slate-600 mt-2">Funds holding {symbol}</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-2">Funds holding {symbol}</p>
                         </div>
                       </Card>
                     </div>
 
                     {/* Ownership Pie Visualization */}
-                    <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] p-5">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Ownership Distribution</h3>
+                    <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-5">
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground mb-4">Ownership Distribution</h3>
                       <div className="flex items-center gap-8">
                         {/* Simple visual bar breakdown */}
                         <div className="flex-1">
                           <div className="h-6 rounded-full overflow-hidden flex">
                             <div className="bg-teal-500" style={{ width: `${institutionData?.breakdown?.institutionsPercent || 65}%` }} />
                             <div className="bg-purple-500" style={{ width: `${(institutionData?.breakdown?.insidersPercent || 0.5) * 5}%` }} />
-                            <div className="bg-emerald-500 flex-1" />
+                            <div className="bg-[var(--trade-bullish)] flex-1" />
                           </div>
                           <div className="flex justify-between mt-3">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-sm bg-teal-500" />
-                              <span className="text-xs text-slate-400">Institutions ({safeToFixed(institutionData?.breakdown?.institutionsPercent, 1, '65')}%)</span>
+                              <span className="text-xs text-muted-foreground">Institutions ({safeToFixed(institutionData?.breakdown?.institutionsPercent, 1, '65')}%)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-sm bg-purple-500" />
-                              <span className="text-xs text-slate-400">Insiders ({safeToFixed(institutionData?.breakdown?.insidersPercent, 2, '0.5')}%)</span>
+                              <span className="text-xs text-muted-foreground">Insiders ({safeToFixed(institutionData?.breakdown?.insidersPercent, 2, '0.5')}%)</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-                              <span className="text-xs text-slate-400">Retail & Other</span>
+                              <div className="w-3 h-3 rounded-sm bg-[var(--trade-bullish)]" />
+                              <span className="text-xs text-muted-foreground">Retail & Other</span>
                             </div>
                           </div>
                         </div>
@@ -2233,44 +2235,44 @@ export default function StockDetailPage() {
                     </Card>
 
                     {/* Top Institutional Holders */}
-                    <Card className="bg-white dark:bg-white dark:bg-[#111] border-gray-200 dark:border-gray-200 dark:border-[#222] overflow-hidden">
-                      <div className="p-4 border-b border-gray-200 dark:border-[#222] flex items-center justify-between">
+                    <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
+                      <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30">
                             <Building2 className="w-5 h-5 text-teal-400" />
                           </div>
                           <div>
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Top Institutional Holders</h3>
-                            <p className="text-xs text-slate-500">Major fund positions in {symbol}</p>
+                            <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Top Institutional Holders</h3>
+                            <p className="text-xs text-muted-foreground">Major fund positions in {symbol}</p>
                           </div>
                         </div>
-                        <Badge className="bg-gray-200 dark:bg-slate-700/50 text-slate-300 border-slate-600">
+                        <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                           {institutionData?.holders?.length || 0} Holders
                         </Badge>
                       </div>
                       {institutionData?.holders && institutionData.holders.length > 0 ? (
                         <div className="divide-y divide-slate-800/50">
                           {institutionData.holders.map((holder: any, i: number) => (
-                            <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[#151515] transition-colors">
+                            <div key={i} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[var(--surface-raised)] transition-colors">
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-lg font-bold text-slate-400">
+                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-lg font-bold text-muted-foreground">
                                     {i + 1}
                                   </div>
                                   <div>
-                                    <p className="text-sm font-medium text-white">{holder.name || holder.holder}</p>
+                                    <p className="text-sm font-medium text-foreground">{holder.name || holder.holder}</p>
                                     <div className="flex items-center gap-3 mt-1 text-xs">
-                                      <span className="text-slate-500">{formatVolume(holder.shares)} shares</span>
+                                      <span className="text-muted-foreground">{formatVolume(holder.shares)} shares</span>
                                       <span className="text-teal-400 font-medium">{safeToFixed(holder.percentOwnership, 2) || safeToFixed(holder.percentage, 2)}% ownership</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-sm font-bold text-gray-900 dark:text-white">${formatVolume(holder.value)}</p>
+                                  <p className="text-sm font-bold text-foreground dark:text-foreground">${formatVolume(holder.value)}</p>
                                   {holder.changePercent !== undefined && holder.changePercent !== 0 && (
                                     <div className={cn(
                                       "flex items-center gap-1 justify-end text-xs mt-1",
-                                      holder.changePercent >= 0 ? "text-emerald-400" : "text-red-400"
+                                      holder.changePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                     )}>
                                       {holder.changePercent >= 0 ? (
                                         <ArrowUpRight className="w-3 h-3" />
@@ -2288,9 +2290,9 @@ export default function StockDetailPage() {
                       ) : (
                         <div className="p-6">
                           <div className="text-center mb-6">
-                            <Building2 className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                            <p className="text-sm text-slate-400">13F institutional holder data pending</p>
-                            <p className="text-xs text-slate-600">SEC filings typically update quarterly</p>
+                            <Building2 className="w-8 h-8 text-muted-foreground/70 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">13F institutional holder data pending</p>
+                            <p className="text-xs text-muted-foreground/70">SEC filings typically update quarterly</p>
                           </div>
                           {/* Show QuantEdge Flow Analysis instead */}
                           <div className="bg-gradient-to-br from-teal-950/30 to-slate-900 rounded-xl p-4 border border-teal-500/20">
@@ -2298,32 +2300,32 @@ export default function StockDetailPage() {
                               <div className="p-1.5 rounded-lg bg-teal-500/20">
                                 <Brain className="w-4 h-4 text-teal-400" />
                               </div>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white">QuantEdge Flow Analysis</span>
+                              <span className="text-sm font-semibold text-foreground dark:text-foreground">QuantEdge Flow Analysis</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                                <div className="text-xs text-slate-500">Options Flow Grade</div>
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                                <div className="text-xs text-muted-foreground">Options Flow Grade</div>
                                 <div className="text-lg font-bold text-rose-400">{analysisData?.components?.flow?.grade || 'B+'}</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                                <div className="text-xs text-slate-500">Flow Score</div>
-                                <div className="text-lg font-bold text-gray-900 dark:text-white">{analysisData?.components?.flow?.score || 0}%</div>
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                                <div className="text-xs text-muted-foreground">Flow Score</div>
+                                <div className="text-lg font-bold text-foreground dark:text-foreground">{analysisData?.components?.flow?.score || 0}%</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                                <div className="text-xs text-slate-500">Smart Money Signal</div>
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                                <div className="text-xs text-muted-foreground">Smart Money Signal</div>
                                 <div className={cn("text-sm font-bold",
-                                  (analysisData?.components?.flow?.score || 0) >= 70 ? "text-emerald-400" :
-                                  (analysisData?.components?.flow?.score || 0) >= 50 ? "text-amber-400" : "text-red-400"
+                                  (analysisData?.components?.flow?.score || 0) >= 70 ? "text-[var(--trade-bullish)]" :
+                                  (analysisData?.components?.flow?.score || 0) >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                                 )}>
                                   {(analysisData?.components?.flow?.score || 0) >= 70 ? 'Bullish' : (analysisData?.components?.flow?.score || 0) >= 50 ? 'Neutral' : 'Bearish'}
                                 </div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-[#1a1a1a]">
-                                <div className="text-xs text-slate-500">Institutional Est.</div>
+                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                                <div className="text-xs text-muted-foreground">Institutional Est.</div>
                                 <div className="text-lg font-bold text-teal-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                               </div>
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-3 text-center">Based on QuantEdge 6-engine analysis</p>
+                            <p className="text-[10px] text-muted-foreground mt-3 text-center">Based on QuantEdge 6-engine analysis</p>
                           </div>
                         </div>
                       )}

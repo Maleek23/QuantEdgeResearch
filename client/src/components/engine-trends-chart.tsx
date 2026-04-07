@@ -40,7 +40,7 @@ export default function EngineTrendsChart() {
       <Card data-testid="card-engine-trends-empty">
         <CardHeader>
           <CardTitle>Engine Performance Trends (Last 8 Weeks)</CardTitle>
-          <CardDescription>No data available</CardDescription>
+          <CardDescription>Data loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">

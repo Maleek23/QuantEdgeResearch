@@ -52,7 +52,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: CheckCircle,
         message: 'Target reached! Consider taking profit',
         action: 'EXIT NOW',
-        color: 'text-green-500'
+        color: 'text-[var(--trade-bullish)]'
       };
     }
     
@@ -63,7 +63,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: TrendingUp,
         message: 'Near target - Consider partial profit',
         action: 'TAKE PROFIT',
-        color: 'text-green-500'
+        color: 'text-[var(--trade-bullish)]'
       };
     }
     
@@ -74,7 +74,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: AlertCircle,
         message: 'Stop loss triggered!',
         action: 'EXIT',
-        color: 'text-red-500'
+        color: 'text-[var(--trade-bearish)]'
       };
     }
     
@@ -86,7 +86,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: AlertCircle,
         message: 'Near stop loss - High risk',
         action: 'WATCH CLOSELY',
-        color: 'text-amber-500'
+        color: 'text-[var(--trade-neutral)]'
       };
     }
     
@@ -110,7 +110,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
           icon: TrendingUp,
           message: 'In profit - Trailing stop recommended',
           action: 'HOLD',
-          color: 'text-green-500'
+          color: 'text-[var(--trade-bullish)]'
         };
       }
       return {
@@ -118,7 +118,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: TrendingUp,
         message: 'Trade moving in your favor',
         action: 'HOLD',
-        color: 'text-green-500'
+        color: 'text-[var(--trade-bullish)]'
       };
     }
     
@@ -129,7 +129,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: AlertCircle,
         message: 'Price moved away - Wait for better entry',
         action: 'WAIT',
-        color: 'text-amber-500'
+        color: 'text-[var(--trade-neutral)]'
       };
     }
     
@@ -150,7 +150,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
   return (
     <div className={cn(
       "flex items-center justify-between p-3 rounded-lg border",
-      advice.type === 'success' && "bg-green-500/10 border-green-500/30",
+      advice.type === 'success' && "bg-[var(--trade-bullish)]/10 border-green-500/30",
       advice.type === 'danger' && "bg-red-500/10 border-red-500/30",
       advice.type === 'warning' && "bg-amber-500/10 border-amber-500/30",
       advice.type === 'info' && "bg-cyan-500/10 border-cyan-500/30",
@@ -175,7 +175,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         }
         className={cn(
           "font-bold",
-          advice.type === 'warning' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+          advice.type === 'warning' && "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30",
           advice.type === 'info' && "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
         )}
       >

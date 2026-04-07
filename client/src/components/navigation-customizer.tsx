@@ -134,7 +134,7 @@ function SortableNavItem({ item, onRemove }: { item: NavigationItemType; onRemov
       <IconComponent className="h-4 w-4 text-muted-foreground" />
       <span className="flex-1 text-sm">{item.title}</span>
       {item.badge && (
-        <Badge variant="outline" className="text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/30">
+        <Badge variant="outline" className="text-xs bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30">
           {item.badge}
         </Badge>
       )}

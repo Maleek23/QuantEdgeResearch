@@ -27,13 +27,13 @@ interface EarningsCardProps extends EarningsItem {
 const predictionConfig = {
   beat: {
     label: "Beat",
-    color: "text-emerald-500",
+    color: "text-[var(--trade-bullish)]",
     bgColor: "bg-emerald-500/10",
     icon: TrendingUp,
   },
   miss: {
     label: "Miss",
-    color: "text-red-500",
+    color: "text-[var(--trade-bearish)]",
     bgColor: "bg-red-500/10",
     icon: TrendingDown,
   },

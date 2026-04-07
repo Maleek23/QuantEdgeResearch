@@ -17,21 +17,21 @@ interface RollingWinRateProps {
 
 export function RollingWinRate({ data, overallWinRate, className }: RollingWinRateProps) {
   const getWinRateColor = (rate: number) => {
-    if (rate >= 60) return "text-green-400";
-    if (rate >= 50) return "text-amber-400";
-    return "text-red-400";
+    if (rate >= 60) return "text-[var(--trade-bullish)]";
+    if (rate >= 50) return "text-[var(--trade-neutral)]";
+    return "text-[var(--trade-bearish)]";
   };
 
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
-        <Trophy className="w-4 h-4 text-amber-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <Trophy className="w-4 h-4 text-[var(--trade-neutral)]" />
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Rolling Win Rate
         </span>
       </div>
@@ -46,7 +46,7 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
               fill="none"
               stroke="currentColor"
               strokeWidth="8"
-              className="text-slate-800"
+              className="text-foreground/80"
             />
             <circle
               cx="48"
@@ -65,7 +65,7 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
             <span className={cn("text-2xl font-bold font-mono tabular-nums", getWinRateColor(overallWinRate))}>
               {safeToFixed(overallWinRate, 0)}%
             </span>
-            <span className="text-[10px] text-slate-400">All Time</span>
+            <span className="text-[10px] text-muted-foreground">All Time</span>
           </div>
         </div>
       </div>
@@ -74,9 +74,9 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
         {data.map((item) => (
           <div
             key={item.period}
-            className="bg-slate-800/40 rounded-lg p-2 text-center"
+            className="bg-muted/40 rounded-lg p-2 text-center"
           >
-            <span className="text-[10px] text-slate-400 block mb-1">
+            <span className="text-[10px] text-muted-foreground block mb-1">
               {item.period}
             </span>
             <span
@@ -87,7 +87,7 @@ export function RollingWinRate({ data, overallWinRate, className }: RollingWinRa
             >
               {safeToFixed(item.winRate, 0)}%
             </span>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[10px] text-muted-foreground">
               {item.wins}W / {item.losses}L
             </span>
           </div>

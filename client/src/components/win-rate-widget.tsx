@@ -48,16 +48,16 @@ export function WinRateWidget() {
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
+      <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
-            <Trophy className="h-4 w-4 text-amber-400" />
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground/90">
+            <Trophy className="h-4 w-4 text-[var(--trade-neutral)]" />
             Performance
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Skeleton className="h-8 w-full bg-slate-800/50" />
-          <Skeleton className="h-16 w-full bg-slate-800/50" />
+          <Skeleton className="h-8 w-full bg-muted/50" />
+          <Skeleton className="h-16 w-full bg-muted/50" />
         </CardContent>
       </Card>
     );
@@ -70,26 +70,26 @@ export function WinRateWidget() {
   const monthlyWinRate = stats?.monthly?.winRate || 0;
 
   const getWinRateColor = (rate: number) => {
-    if (rate >= 60) return 'text-green-400';
-    if (rate >= 50) return 'text-amber-400';
-    return 'text-red-400';
+    if (rate >= 60) return 'text-[var(--trade-bullish)]';
+    if (rate >= 50) return 'text-[var(--trade-neutral)]';
+    return 'text-[var(--trade-bearish)]';
   };
 
   const getWinRateBg = (rate: number) => {
-    if (rate >= 60) return 'bg-green-500/20 border-green-500/40';
+    if (rate >= 60) return 'bg-[var(--trade-bullish)]/20 border-green-500/40';
     if (rate >= 50) return 'bg-amber-500/20 border-amber-500/40';
     return 'bg-red-500/20 border-red-500/40';
   };
 
   return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)] hover:shadow-[0_0_40px_-10px_rgba(34,211,238,0.1)] transition-all duration-300" data-testid="widget-win-rate">
+    <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)] hover:shadow-[0_0_40px_-10px_rgba(34,211,238,0.1)] transition-all duration-300" data-testid="widget-win-rate">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
-            <Trophy className="h-4 w-4 text-amber-400" />
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground/90">
+            <Trophy className="h-4 w-4 text-[var(--trade-neutral)]" />
             Performance
           </CardTitle>
-          <Badge className="text-xs bg-slate-800/60 text-slate-300 border border-slate-700/50">
+          <Badge className="text-xs bg-muted/60 text-foreground/80 border border-border/50">
             {totalTrades} trades
           </Badge>
         </div>
@@ -109,32 +109,32 @@ export function WinRateWidget() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
-            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">7-Day</div>
+          <div className="text-center p-3 rounded-lg bg-muted/40 border border-border/30">
+            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1">7-Day</div>
             <div className={cn("text-lg font-bold font-mono tabular-nums", getWinRateColor(weeklyWinRate))}>
               {safeToFixed(weeklyWinRate, 0)}%
             </div>
           </div>
-          <div className="text-center p-3 rounded-lg bg-slate-800/40 border border-slate-700/30">
-            <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">30-Day</div>
+          <div className="text-center p-3 rounded-lg bg-muted/40 border border-border/30">
+            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1">30-Day</div>
             <div className={cn("text-lg font-bold font-mono tabular-nums", getWinRateColor(monthlyWinRate))}>
               {safeToFixed(monthlyWinRate, 0)}%
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-slate-700/30">
+        <div className="flex items-center justify-between pt-3 border-t border-border/30">
           <div className="flex items-center gap-2">
             {totalPnL >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-400" />
+              <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
             ) : (
-              <TrendingDown className="h-4 w-4 text-red-400" />
+              <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
             )}
-            <span className="text-xs text-slate-500">Total P&L:</span>
+            <span className="text-xs text-muted-foreground">Total P&L:</span>
           </div>
           <span className={cn(
             "font-bold font-mono tabular-nums",
-            totalPnL >= 0 ? 'text-green-400' : 'text-red-400'
+            totalPnL >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
           )}>
             {totalPnL >= 0 ? '+' : ''}${safeToFixed(totalPnL, 2)}
           </span>
@@ -142,22 +142,22 @@ export function WinRateWidget() {
 
         {stats?.topSymbols && stats.topSymbols.length > 0 && (
           <div className="space-y-2">
-            <div className="text-xs text-slate-500 flex items-center gap-1">
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
               <Target className="h-3 w-3" /> Top Performers
             </div>
             {stats.topSymbols.slice(0, 3).map((s, i) => (
               <div key={i} className="flex items-center justify-between text-xs">
-                <span className="font-medium font-mono text-slate-200">{s.symbol}</span>
+                <span className="font-medium font-mono text-foreground/90">{s.symbol}</span>
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "font-mono",
-                    s.winRate >= 50 ? 'text-green-400' : 'text-red-400'
+                    s.winRate >= 50 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                   )}>
                     {safeToFixed(s.winRate, 0)}%
                   </span>
                   <span className={cn(
                     "font-mono tabular-nums",
-                    s.pnl >= 0 ? 'text-green-400' : 'text-red-400'
+                    s.pnl >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                   )}>
                     {s.pnl >= 0 ? '+' : ''}${safeToFixed(s.pnl, 0)}
                   </span>

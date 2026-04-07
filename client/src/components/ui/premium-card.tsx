@@ -20,13 +20,13 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm",
-        glass: "rounded-2xl bg-slate-900/60 border border-slate-700/50 backdrop-blur-md",
-        elevated: "rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm shadow-xl",
-        interactive: "rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm hover:border-teal-500/30 cursor-pointer",
-        feature: "rounded-3xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-slate-800/50 backdrop-blur-sm",
-        glow: "rounded-2xl bg-slate-900/80 border border-slate-800/50 backdrop-blur-sm hover:border-teal-500/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.1)]",
-        ghost: "rounded-2xl bg-transparent border border-transparent hover:bg-slate-900/40 hover:border-slate-800/50",
+        default: "rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm",
+        glass: "rounded-2xl bg-card/60 border border-border/50 backdrop-blur-md",
+        elevated: "rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm shadow-xl",
+        interactive: "rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm hover:border-teal-500/30 cursor-pointer",
+        feature: "rounded-3xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-border/50 backdrop-blur-sm",
+        glow: "rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm hover:border-teal-500/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.1)]",
+        ghost: "rounded-2xl bg-transparent border border-transparent hover:bg-card/40 hover:border-border/50",
       },
       padding: {
         none: "",
@@ -93,8 +93,8 @@ const colorMap = {
   cyan: "bg-cyan-500/20 text-cyan-400",
   blue: "bg-blue-500/20 text-blue-400",
   purple: "bg-purple-500/20 text-purple-400",
-  amber: "bg-amber-500/20 text-amber-400",
-  emerald: "bg-emerald-500/20 text-emerald-400",
+  amber: "bg-amber-500/20 text-[var(--trade-neutral)]",
+  emerald: "bg-emerald-500/20 text-[var(--trade-bullish)]",
   rose: "bg-rose-500/20 text-rose-400",
 };
 
@@ -135,7 +135,7 @@ const PremiumCardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-slate-400", className)}
+    className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ));
@@ -157,7 +157,7 @@ const PremiumCardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("mt-4 pt-4 border-t border-slate-800/50 flex items-center justify-between", className)}
+    className={cn("mt-4 pt-4 border-t border-border/50 flex items-center justify-between", className)}
     {...props}
   />
 ));

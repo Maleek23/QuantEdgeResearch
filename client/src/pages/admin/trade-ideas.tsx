@@ -76,12 +76,12 @@ interface TradeIdea {
 const sourceLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   quant_signal: { label: "Quant Signal", color: "text-purple-400 border-purple-500/20 bg-purple-500/10", icon: <BarChart3 className="h-3 w-3" /> },
   bot_screener: { label: "Bot Screener", color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/10", icon: <Bot className="h-3 w-3" /> },
-  ai_analysis: { label: "AI Analysis", color: "text-amber-400 border-amber-500/20 bg-amber-500/10", icon: <Zap className="h-3 w-3" /> },
-  options_flow: { label: "Options Flow", color: "text-green-400 border-green-500/20 bg-green-500/10", icon: <TrendingUp className="h-3 w-3" /> },
+  ai_analysis: { label: "AI Analysis", color: "text-[var(--trade-neutral)] border-amber-500/20 bg-amber-500/10", icon: <Zap className="h-3 w-3" /> },
+  options_flow: { label: "Options Flow", color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
   market_scanner: { label: "Market Scanner", color: "text-blue-400 border-blue-500/20 bg-blue-500/10", icon: <Target className="h-3 w-3" /> },
   sentiment: { label: "Sentiment", color: "text-pink-400 border-pink-500/20 bg-pink-500/10", icon: <Eye className="h-3 w-3" /> },
-  whale_flow: { label: "Whale Flow", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10", icon: <TrendingUp className="h-3 w-3" /> },
-  bullish_trend: { label: "Bullish Trend", color: "text-green-400 border-green-500/20 bg-green-500/10", icon: <TrendingUp className="h-3 w-3" /> },
+  whale_flow: { label: "Whale Flow", color: "text-[var(--trade-bullish)] border-emerald-500/20 bg-emerald-500/10", icon: <TrendingUp className="h-3 w-3" /> },
+  bullish_trend: { label: "Bullish Trend", color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
 };
 
 function AdminTradeIdeasContent() {
@@ -169,12 +169,12 @@ function AdminTradeIdeasContent() {
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Total Ideas</p>
-                <p className="text-2xl font-bold text-white">{stats.total}</p>
+                <p className="text-sm text-muted-foreground">Total Ideas</p>
+                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
               </div>
               <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
                 <Zap className="h-5 w-5 text-cyan-400" />
@@ -183,40 +183,40 @@ function AdminTradeIdeasContent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Active</p>
-                <p className="text-2xl font-bold text-green-400">{stats.active}</p>
+                <p className="text-sm text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold text-[var(--trade-bullish)]">{stats.active}</p>
               </div>
-              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/20">
+                <CheckCircle2 className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Expired</p>
-                <p className="text-2xl font-bold text-slate-400">{stats.expired}</p>
+                <p className="text-sm text-muted-foreground">Expired</p>
+                <p className="text-2xl font-bold text-muted-foreground">{stats.expired}</p>
               </div>
-              <div className="p-3 rounded-lg bg-slate-500/10 border border-slate-500/20">
-                <Clock className="h-5 w-5 text-slate-400" />
+              <div className="p-3 rounded-lg bg-muted-foreground/10 border border-muted-foreground/20">
+                <Clock className="h-5 w-5 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-400">Sources</p>
-                <p className="text-2xl font-bold text-white">{uniqueSources.length}</p>
+                <p className="text-sm text-muted-foreground">Sources</p>
+                <p className="text-2xl font-bold text-foreground">{uniqueSources.length}</p>
               </div>
               <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
                 <Bot className="h-5 w-5 text-purple-400" />
@@ -227,33 +227,33 @@ function AdminTradeIdeasContent() {
       </div>
 
       {/* Main Table */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <Zap className="h-5 w-5 text-cyan-400" />
                 Trade Ideas Management
               </CardTitle>
-              <CardDescription className="text-slate-500">
+              <CardDescription className="text-muted-foreground">
                 {filteredIdeas.length} ideas {statusFilter !== "all" && `(${statusFilter})`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search symbols..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white w-full sm:w-48"
+                  className="pl-10 bg-muted border-border text-foreground w-full sm:w-48"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-32 bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="w-full sm:w-32 bg-muted border-border text-foreground">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-muted border-border">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
@@ -261,10 +261,10 @@ function AdminTradeIdeasContent() {
                 </SelectContent>
               </Select>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-full sm:w-40 bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="w-full sm:w-40 bg-muted border-border text-foreground">
                   <SelectValue placeholder="Source" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-muted border-border">
                   <SelectItem value="all">All Sources</SelectItem>
                   {uniqueSources.map((source) => (
                     <SelectItem key={source} value={source}>
@@ -277,7 +277,7 @@ function AdminTradeIdeasContent() {
                 variant="outline"
                 size="icon"
                 onClick={() => refetch()}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-foreground/80"
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -288,43 +288,43 @@ function AdminTradeIdeasContent() {
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-16 bg-slate-800" />
+                <Skeleton key={i} className="h-16 bg-muted" />
               ))}
             </div>
           ) : filteredIdeas.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-muted-foreground">
               <Zap className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No trade ideas found</p>
+              <p>Loading trade ideas...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800 hover:bg-transparent">
-                    <TableHead className="text-slate-400">Symbol</TableHead>
-                    <TableHead className="text-slate-400">Direction</TableHead>
-                    <TableHead className="text-slate-400">Confidence</TableHead>
-                    <TableHead className="text-slate-400">Source</TableHead>
-                    <TableHead className="text-slate-400">Status</TableHead>
-                    <TableHead className="text-slate-400">Created</TableHead>
-                    <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Symbol</TableHead>
+                    <TableHead className="text-muted-foreground">Direction</TableHead>
+                    <TableHead className="text-muted-foreground">Confidence</TableHead>
+                    <TableHead className="text-muted-foreground">Source</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-muted-foreground">Created</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredIdeas.slice(0, 50).map((idea) => {
                     const sourceConfig = sourceLabels[idea.source] || {
                       label: idea.source,
-                      color: "text-slate-400 border-slate-500/20 bg-slate-500/10",
+                      color: "text-muted-foreground border-muted-foreground/20 bg-muted-foreground/10",
                       icon: <Zap className="h-3 w-3" />,
                     };
 
                     return (
-                      <TableRow key={idea.id} className="border-slate-800">
+                      <TableRow key={idea.id} className="border-border">
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-cyan-400">{idea.symbol}</span>
                             {idea.catalyst && (
-                              <span className="text-xs text-slate-500 truncate max-w-[100px]">
+                              <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                                 {idea.catalyst}
                               </span>
                             )}
@@ -336,8 +336,8 @@ function AdminTradeIdeasContent() {
                             className={cn(
                               "flex items-center gap-1 w-fit",
                               idea.direction === "bullish"
-                                ? "text-green-400 border-green-500/20 bg-green-500/10"
-                                : "text-red-400 border-red-500/20 bg-red-500/10"
+                                ? "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10"
+                                : "text-[var(--trade-bearish)] border-red-500/20 bg-red-500/10"
                             )}
                           >
                             {idea.direction === "bullish" ? (
@@ -350,12 +350,12 @@ function AdminTradeIdeasContent() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                               <div
                                 className={cn(
                                   "h-full rounded-full",
                                   idea.confidenceScore >= 80
-                                    ? "bg-green-400"
+                                    ? "bg-[var(--trade-bullish)]"
                                     : idea.confidenceScore >= 60
                                     ? "bg-amber-400"
                                     : "bg-red-400"
@@ -363,7 +363,7 @@ function AdminTradeIdeasContent() {
                                 style={{ width: `${idea.confidenceScore}%` }}
                               />
                             </div>
-                            <span className="text-sm text-white font-mono">
+                            <span className="text-sm text-foreground font-mono">
                               {idea.confidenceScore}%
                             </span>
                           </div>
@@ -379,10 +379,10 @@ function AdminTradeIdeasContent() {
                             variant="outline"
                             className={cn(
                               idea.status === "active"
-                                ? "text-green-400 border-green-500/20"
+                                ? "text-[var(--trade-bullish)] border-green-500/20"
                                 : idea.status === "expired"
-                                ? "text-slate-400 border-slate-500/20"
-                                : "text-amber-400 border-amber-500/20"
+                                ? "text-muted-foreground border-muted-foreground/20"
+                                : "text-[var(--trade-neutral)] border-amber-500/20"
                             )}
                           >
                             {idea.status === "active" && <CheckCircle2 className="h-3 w-3 mr-1" />}
@@ -391,7 +391,7 @@ function AdminTradeIdeasContent() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="text-sm text-slate-400">
+                          <div className="text-sm text-muted-foreground">
                             {format(new Date(idea.createdAt), "MMM d, HH:mm")}
                           </div>
                         </TableCell>
@@ -399,7 +399,7 @@ function AdminTradeIdeasContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300 hover:bg-red-500/10"
                             onClick={() => setDeleteIdeaId(idea.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -417,29 +417,29 @@ function AdminTradeIdeasContent() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteIdeaId} onOpenChange={() => setDeleteIdeaId(null)}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-white">Delete Trade Idea</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-foreground">Delete Trade Idea</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete this trade idea? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {ideaToDelete && (
-            <div className="p-4 bg-slate-800 rounded-lg">
+            <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-3">
                 <span className="font-semibold text-cyan-400">{ideaToDelete.symbol}</span>
                 <Badge
                   variant="outline"
                   className={cn(
                     ideaToDelete.direction === "bullish"
-                      ? "text-green-400 border-green-500/20"
-                      : "text-red-400 border-red-500/20"
+                      ? "text-[var(--trade-bullish)] border-green-500/20"
+                      : "text-[var(--trade-bearish)] border-red-500/20"
                   )}
                 >
                   {ideaToDelete.direction}
                 </Badge>
               </div>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {ideaToDelete.confidenceScore}% confidence • {ideaToDelete.source}
               </p>
             </div>
@@ -448,7 +448,7 @@ function AdminTradeIdeasContent() {
             <Button
               variant="outline"
               onClick={() => setDeleteIdeaId(null)}
-              className="border-slate-700 text-slate-300"
+              className="border-border text-foreground/80"
             >
               Cancel
             </Button>

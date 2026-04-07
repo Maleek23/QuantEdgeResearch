@@ -47,17 +47,17 @@ function SignalIcon({ signal }: { signal: 'bullish' | 'bearish' | 'neutral' }) {
 
 function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolean }) {
   const signalColors: Record<string, string> = {
-    bullish: 'text-green-400',
-    bearish: 'text-red-400',
-    neutral: 'text-amber-400',
-    pending: 'text-slate-400'
+    bullish: 'text-[var(--trade-bullish)]',
+    bearish: 'text-[var(--trade-bearish)]',
+    neutral: 'text-[var(--trade-neutral)]',
+    pending: 'text-muted-foreground'
   };
   
   const borderColors: Record<string, string> = {
-    bullish: 'border-green-500/30 hover:border-green-500/50',
-    bearish: 'border-red-500/30 hover:border-red-500/50',
-    neutral: 'border-amber-500/30 hover:border-amber-500/50',
-    pending: 'border-slate-500/30 hover:border-slate-500/50'
+    bullish: 'border-[var(--trade-bullish)]/30 hover:border-[var(--trade-bullish)]/50',
+    bearish: 'border-[var(--trade-bearish)]/30 hover:border-[var(--trade-bearish)]/50',
+    neutral: 'border-[var(--trade-neutral)]/30 hover:border-[var(--trade-neutral)]/50',
+    pending: 'border-muted-foreground/30 hover:border-muted-foreground/50'
   };
 
   const bgGlows: Record<string, string> = {
@@ -71,7 +71,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
     <Tooltip>
       <TooltipTrigger asChild>
         <div className={cn(
-          "relative flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-900/60 backdrop-blur-md border transition-all duration-300 cursor-help group",
+          "relative flex flex-col items-center gap-2 p-3 rounded-xl bg-card/60 backdrop-blur-md border transition-all duration-300 cursor-help group",
           borderColors[engine.signal],
           bgGlows[engine.signal],
           "hover:scale-[1.02]"
@@ -90,7 +90,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
             {engine.icon}
           </div>
           
-          <div className="relative text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="relative text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             {engine.name}
           </div>
           
@@ -98,7 +98,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
             <span className={cn("text-xl font-bold font-mono tabular-nums", signalColors[engine.signal])}>
               {engine.score}
             </span>
-            <span className="text-xs text-slate-500">%</span>
+            <span className="text-xs text-muted-foreground">%</span>
           </div>
           
           <div className={cn(
@@ -109,7 +109,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
             {engine.signal}
           </div>
           
-          <div className="relative w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div className="relative w-full h-1 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all duration-500",
@@ -122,7 +122,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
           </div>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-xs bg-slate-900 border-slate-700">
+      <TooltipContent side="bottom" className="max-w-xs bg-card border-border">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="font-bold">{engine.name} Engine</span>
@@ -153,21 +153,21 @@ function CompositeScore({ engines }: { engines: EngineScore[] }) {
   const convergence = Math.max(bullishCount, bearishCount) / engines.length * 100;
   
   const signalColors = {
-    bullish: 'text-green-400',
-    bearish: 'text-red-400',
-    neutral: 'text-amber-400'
+    bullish: 'text-[var(--trade-bullish)]',
+    bearish: 'text-[var(--trade-bearish)]',
+    neutral: 'text-[var(--trade-neutral)]'
   };
   
   const borderColors = {
-    bullish: 'border-green-500/50',
-    bearish: 'border-red-500/50',
-    neutral: 'border-amber-500/50'
+    bullish: 'border-[var(--trade-bullish)]/50',
+    bearish: 'border-[var(--trade-bearish)]/50',
+    neutral: 'border-[var(--trade-neutral)]/50'
   };
   
   const bgColors = {
-    bullish: 'bg-green-500/10',
-    bearish: 'bg-red-500/10',
-    neutral: 'bg-amber-500/10'
+    bullish: 'bg-[var(--trade-bullish)]/10',
+    bearish: 'bg-[var(--trade-bearish)]/10',
+    neutral: 'bg-[var(--trade-neutral)]/10'
   };
 
   return (
@@ -184,11 +184,11 @@ function CompositeScore({ engines }: { engines: EngineScore[] }) {
           {convergence >= 66 ? (
             <CheckCircle2 className={cn("h-6 w-6", signalColors[dominantSignal])} />
           ) : (
-            <AlertTriangle className="h-6 w-6 text-amber-400" />
+            <AlertTriangle className="h-6 w-6 text-[var(--trade-neutral)]" />
           )}
         </div>
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             6-Engine Consensus
           </div>
           <div className="flex items-center gap-2 mt-1">
@@ -204,20 +204,20 @@ function CompositeScore({ engines }: { engines: EngineScore[] }) {
       
       <div className="flex items-center gap-6">
         <div className="text-center">
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Alignment</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Alignment</div>
           <div className={cn("text-lg font-bold font-mono", signalColors[dominantSignal])}>
             {bullishCount}/{engines.length}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Confidence</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Confidence</div>
           <div className="text-lg font-bold font-mono text-cyan-400">
             {avgConfidence}%
           </div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-slate-400 uppercase tracking-wide">Convergence</div>
-          <div className={cn("text-lg font-bold font-mono", convergence >= 66 ? signalColors[dominantSignal] : 'text-amber-400')}>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Convergence</div>
+          <div className={cn("text-lg font-bold font-mono", convergence >= 66 ? signalColors[dominantSignal] : 'text-[var(--trade-neutral)]')}>
             {Math.round(convergence)}%
           </div>
         </div>
@@ -280,8 +280,8 @@ export function SixEnginePanel({
       score: flowScore,
       signal: getSignal(flowScore),
       confidence: 75,
-      icon: <Activity className="h-5 w-5 text-green-400" />,
-      color: 'bg-green-500/15 border-green-500/25',
+      icon: <Activity className="h-5 w-5 text-[var(--trade-bullish)]" />,
+      color: 'bg-[var(--trade-bullish)]/15 border-[var(--trade-bullish)]/25',
       factors: ['Institutional activity', 'Dark pool prints', 'Options flow', 'Block trades']
     },
     {
@@ -289,8 +289,8 @@ export function SixEnginePanel({
       score: mlData?.sentiment?.score ? Math.round(mlData.sentiment.score * 100) : sentimentScore,
       signal: getSignal(mlData?.sentiment?.score ? mlData.sentiment.score * 100 : sentimentScore),
       confidence: 70,
-      icon: <MessageSquare className="h-5 w-5 text-amber-400" />,
-      color: 'bg-amber-500/15 border-amber-500/25',
+      icon: <MessageSquare className="h-5 w-5 text-[var(--trade-neutral)]" />,
+      color: 'bg-[var(--trade-neutral)]/15 border-[var(--trade-neutral)]/25',
       factors: ['News sentiment', 'Social signals', 'Analyst ratings', 'Earnings sentiment']
     },
     {
@@ -307,9 +307,9 @@ export function SixEnginePanel({
   // Show loading state only briefly - if error or loading too long, show with fallback data
   if (mlLoading && !mlError) {
     return (
-      <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30" data-testid="six-engine-panel">
+      <Card className="bg-card/50 backdrop-blur-xl border-border/30" data-testid="six-engine-panel">
         <CardContent className="py-12 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-slate-400">
+          <div className="flex items-center gap-3 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">Initializing 6-Engine Analysis...</span>
           </div>
@@ -322,7 +322,7 @@ export function SixEnginePanel({
   const showDataWarning = mlError;
 
   return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 shadow-[0_0_40px_-15px_rgba(34,211,238,0.08)]" data-testid="six-engine-panel">
+    <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-[0_0_40px_-15px_rgba(34,211,238,0.08)]" data-testid="six-engine-panel">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -333,18 +333,18 @@ export function SixEnginePanel({
               <CardTitle className="text-base font-bold tracking-tight">
                 6-Engine Intelligence
               </CardTitle>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Multi-factor analysis for {symbol}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {showDataWarning && (
-              <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-400 text-xs">
+              <Badge variant="outline" className="bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/30 text-[var(--trade-neutral)] text-xs">
                 Using cached data
               </Badge>
             )}
-            <Badge variant="outline" className="bg-slate-800/50 border-cyan-500/30 text-cyan-400 text-xs">
+            <Badge variant="outline" className="bg-muted/50 border-cyan-500/30 text-cyan-400 text-xs">
               {assetClass.toUpperCase()}
             </Badge>
           </div>

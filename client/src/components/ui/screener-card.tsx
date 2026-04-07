@@ -20,9 +20,9 @@ const defaultImages = {
 };
 
 const sentimentColors = {
-  bullish: "bg-emerald-500 text-white",
-  bearish: "bg-red-500 text-white",
-  neutral: "bg-slate-500 text-white",
+  bullish: "bg-[var(--trade-bullish)] text-white",
+  bearish: "bg-[var(--trade-bearish)] text-white",
+  neutral: "bg-muted-foreground text-white",
 };
 
 export function ScreenerCard({

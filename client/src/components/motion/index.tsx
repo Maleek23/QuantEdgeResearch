@@ -276,9 +276,9 @@ export const AnimatedBadge = ({
 }) => {
   const colors = {
     default: "bg-primary/10 text-primary",
-    success: "bg-green-500/10 text-green-500",
-    warning: "bg-amber-500/10 text-amber-500",
-    danger: "bg-red-500/10 text-red-500"
+    success: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]",
+    warning: "bg-amber-500/10 text-[var(--trade-neutral)]",
+    danger: "bg-red-500/10 text-[var(--trade-bearish)]"
   };
   
   return (
@@ -320,7 +320,7 @@ export const TrendArrow = ({
     <motion.span
       initial={{ opacity: 0, y: direction === "up" ? 5 : -5 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`inline-flex ${direction === "up" ? "text-green-500" : "text-red-500"}`}
+      className={`inline-flex ${direction === "up" ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}`}
     >
       <Icon size={size} />
     </motion.span>

@@ -49,9 +49,9 @@ function formatCT(dateStr: string | null | undefined): string {
 
 function getOutcomeColor(status: string | null): string {
   switch (status) {
-    case "hit_target": return "text-green-400";
-    case "hit_stop": return "text-red-400";
-    case "expired": return "text-amber-400";
+    case "hit_target": return "text-[var(--trade-bullish)]";
+    case "hit_stop": return "text-[var(--trade-bearish)]";
+    case "expired": return "text-[var(--trade-neutral)]";
     default: return "text-cyan-400";
   }
 }
@@ -59,11 +59,11 @@ function getOutcomeColor(status: string | null): string {
 function getOutcomeBadge(status: string | null) {
   switch (status) {
     case "hit_target":
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Target Hit</Badge>;
+      return <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30">Target Hit</Badge>;
     case "hit_stop":
-      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Stop Hit</Badge>;
+      return <Badge className="bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30">Stop Hit</Badge>;
     case "expired":
-      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Expired</Badge>;
+      return <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30">Expired</Badge>;
     default:
       return <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">Open</Badge>;
   }
@@ -72,11 +72,11 @@ function getOutcomeBadge(status: string | null) {
 function getEventIcon(eventType: string) {
   switch (eventType) {
     case "target_hit":
-      return <CheckCircle className="h-4 w-4 text-green-400" />;
+      return <CheckCircle className="h-4 w-4 text-[var(--trade-bullish)]" />;
     case "stop_hit":
-      return <XCircle className="h-4 w-4 text-red-400" />;
+      return <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />;
     case "expired":
-      return <Clock className="h-4 w-4 text-amber-400" />;
+      return <Clock className="h-4 w-4 text-[var(--trade-neutral)]" />;
     case "idea_published":
       return <FileText className="h-4 w-4 text-cyan-400" />;
     case "validation_check":
@@ -120,7 +120,7 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className={cn(
-            isLong ? "border-green-500/50 text-green-400" : "border-red-500/50 text-red-400"
+            isLong ? "border-green-500/50 text-[var(--trade-bullish)]" : "border-red-500/50 text-[var(--trade-bearish)]"
           )}>
             {isLong ? "LONG" : "SHORT"}
           </Badge>
@@ -128,7 +128,7 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
           <Badge variant="secondary">{idea.assetType}</Badge>
           {idea.assetType === 'option' && idea.optionType && (
             <Badge variant="outline" className={cn(
-              idea.optionType === 'call' ? "border-green-500/50 text-green-400" : "border-red-500/50 text-red-400"
+              idea.optionType === 'call' ? "border-green-500/50 text-[var(--trade-bullish)]" : "border-red-500/50 text-[var(--trade-bearish)]"
             )}>
               {idea.optionType.toUpperCase()} ${idea.strikePrice} {idea.expiryDate}
             </Badge>
@@ -142,14 +142,14 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Target Price</p>
-            <p className="font-mono text-lg font-bold tabular-nums text-green-400">
+            <p className="font-mono text-lg font-bold tabular-nums text-[var(--trade-bullish)]">
               ${safeToFixed(Number(idea.targetPrice), 2)}
               <span className="text-xs ml-1 opacity-70">+{potentialGain}%</span>
             </p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Stop Loss</p>
-            <p className="font-mono text-lg font-bold tabular-nums text-red-400">${safeToFixed(Number(idea.stopLoss), 2)}</p>
+            <p className="font-mono text-lg font-bold tabular-nums text-[var(--trade-bearish)]">${safeToFixed(Number(idea.stopLoss), 2)}</p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Risk/Reward</p>
@@ -201,15 +201,15 @@ function getLetterGrade(score: number): string {
 }
 
 function getGradeColor(score: number): string {
-  if (score >= 85) return 'text-green-400';
-  if (score >= 70) return 'text-amber-400';
-  return 'text-red-400';
+  if (score >= 85) return 'text-[var(--trade-bullish)]';
+  if (score >= 70) return 'text-[var(--trade-neutral)]';
+  return 'text-[var(--trade-bearish)]';
 }
 
 function getSignalInfo(signal: string): { points: number; description: string; color: string } {
   const signalMap: Record<string, { points: number; description: string; color: string }> = {
-    'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-green-500' },
-    'Good R:R (1.5:1+)': { points: 15, description: 'Risk/reward ratio of 1.5:1 or better', color: 'bg-green-400' },
+    'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-[var(--trade-bullish)]' },
+    'Good R:R (1.5:1+)': { points: 15, description: 'Risk/reward ratio of 1.5:1 or better', color: 'bg-[var(--trade-bullish)]' },
     'Acceptable R:R (1.2:1+)': { points: 8, description: 'Risk/reward ratio of 1.2:1 or better', color: 'bg-cyan-400' },
     'Confirmed Volume': { points: 18, description: 'Volume 1.5x+ average, institutional interest', color: 'bg-cyan-500' },
     'Strong Volume': { points: 12, description: 'Volume above average, adequate liquidity', color: 'bg-cyan-400' },
@@ -235,7 +235,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
-            <Scale className="h-5 w-5 text-amber-400" />
+            <Scale className="h-5 w-5 text-[var(--trade-neutral)]" />
           </div>
           <div className="flex-1">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Confidence Analysis</p>
@@ -260,7 +260,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
             <div 
               className={cn(
                 "h-full rounded-full transition-all duration-500",
-                score >= 85 ? "bg-green-500" : score >= 70 ? "bg-amber-500" : "bg-red-500"
+                score >= 85 ? "bg-[var(--trade-bullish)]" : score >= 70 ? "bg-amber-500" : "bg-red-500"
               )}
               style={{ width: `${score}%` }}
             />
@@ -301,7 +301,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
               {idea.targetHitProbability && (
                 <div className="stat-glass rounded-lg p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Target Hit Prob</p>
-                  <p className="font-mono font-bold text-green-400">{safeToFixed(idea.targetHitProbability, 1)}%</p>
+                  <p className="font-mono font-bold text-[var(--trade-bullish)]">{safeToFixed(idea.targetHitProbability, 1)}%</p>
                 </div>
               )}
               {idea.timingConfidence && (
@@ -353,7 +353,7 @@ function FullAnalysisCard({ idea }: { idea: TradeIdea }) {
         {idea.catalyst && (
           <div className="pt-3 border-t border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
-              <Zap className="h-3 w-3 text-amber-400" />
+              <Zap className="h-3 w-3 text-[var(--trade-neutral)]" />
               Catalyst
             </p>
             <p className="text-sm leading-relaxed">{idea.catalyst}</p>
@@ -410,12 +410,12 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-10 w-10 rounded-lg flex items-center justify-center",
-            isWin ? "bg-green-500/10" : isLoss ? "bg-red-500/10" : "bg-cyan-500/10"
+            isWin ? "bg-[var(--trade-bullish)]/10" : isLoss ? "bg-red-500/10" : "bg-cyan-500/10"
           )}>
             {isWin ? (
-              <TrendingUp className="h-5 w-5 text-green-400" />
+              <TrendingUp className="h-5 w-5 text-[var(--trade-bullish)]" />
             ) : isLoss ? (
-              <TrendingDown className="h-5 w-5 text-red-400" />
+              <TrendingDown className="h-5 w-5 text-[var(--trade-bearish)]" />
             ) : (
               <Activity className="h-5 w-5 text-cyan-400" />
             )}
@@ -460,13 +460,13 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">High Reached</p>
-                <p className="font-mono text-lg font-bold tabular-nums text-green-400">
+                <p className="font-mono text-lg font-bold tabular-nums text-[var(--trade-bullish)]">
                   ${safeToFixed(Number(idea.highestPriceReached || 0), 2)}
                 </p>
               </div>
               <div className="stat-glass rounded-lg p-3">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Low Reached</p>
-                <p className="font-mono text-lg font-bold tabular-nums text-red-400">
+                <p className="font-mono text-lg font-bold tabular-nums text-[var(--trade-bearish)]">
                   ${safeToFixed(Number(idea.lowestPriceReached || 0), 2)}
                 </p>
               </div>
@@ -628,7 +628,7 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Scale className="h-5 w-5 text-amber-400" />
+            <Scale className="h-5 w-5 text-[var(--trade-neutral)]" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Analysis</p>
@@ -650,13 +650,13 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
             <tbody>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Target Price</td>
-                <td className="text-right font-mono tabular-nums text-green-400">${safeToFixed(targetPrice, 2)}</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">${safeToFixed(targetPrice, 2)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Stop Loss</td>
-                <td className="text-right font-mono tabular-nums text-red-400">${safeToFixed(stopLoss, 2)}</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">${safeToFixed(stopLoss, 2)}</td>
                 <td className="text-right font-mono tabular-nums">—</td>
                 <td className="text-right font-mono tabular-nums">—</td>
               </tr>
@@ -670,23 +670,23 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
               </tr>
               <tr className="border-b border-border/30 hover-elevate">
                 <td className="py-3">Max Upside</td>
-                <td className="text-right font-mono tabular-nums text-green-400">+{safeToFixed(targetPct, 1)}%</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bullish)]">+{safeToFixed(targetPct, 1)}%</td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
-                  actualPct >= 0 ? "text-green-400" : "text-red-400"
+                  actualPct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {actualPct >= 0 ? "+" : ""}{safeToFixed(actualPct, 1)}%
                 </td>
                 <td className={cn(
                   "text-right font-mono tabular-nums",
-                  actualPct >= targetPct ? "text-green-400" : "text-amber-400"
+                  actualPct >= targetPct ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
                 )}>
                   {safeToFixed(actualPct - targetPct, 1)}%
                 </td>
               </tr>
               <tr className="hover-elevate">
                 <td className="py-3">Max Risk</td>
-                <td className="text-right font-mono tabular-nums text-red-400">{safeToFixed(stopPct, 1)}%</td>
+                <td className="text-right font-mono tabular-nums text-[var(--trade-bearish)]">{safeToFixed(stopPct, 1)}%</td>
                 <td className="text-right font-mono tabular-nums">
                   {idea.outcomeStatus === "hit_stop" ? `${safeToFixed(actualPct, 1)}%` : "—"}
                 </td>
@@ -765,7 +765,7 @@ export default function TradeAudit() {
         <Card className="glass-card">
           <CardContent className="py-12 text-center">
             <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-6 w-6 text-amber-400" />
+              <AlertTriangle className="h-6 w-6 text-[var(--trade-neutral)]" />
             </div>
             <h2 className="text-xl font-bold mb-2">Trade Not Found</h2>
             <p className="text-muted-foreground">
@@ -853,10 +853,10 @@ export default function TradeAudit() {
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-amber-400">Educational Disclaimer</p>
+              <p className="text-sm font-medium text-[var(--trade-neutral)]">Educational Disclaimer</p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 This audit trail is provided for educational and research purposes only. 
                 Past performance does not guarantee future results. All trade ideas are 

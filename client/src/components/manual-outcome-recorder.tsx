@@ -157,19 +157,19 @@ export function ManualOutcomeRecorder({
               <SelectContent>
                 <SelectItem value="won" data-testid="option-outcome-won">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <CheckCircle className="w-4 h-4 text-[var(--trade-bullish)]" />
                     <span>Won (Hit Target)</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="lost" data-testid="option-outcome-lost">
                   <div className="flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-red-500" />
+                    <XCircle className="w-4 h-4 text-[var(--trade-bearish)]" />
                     <span>Lost (Hit Stop)</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="breakeven" data-testid="option-outcome-breakeven">
                   <div className="flex items-center gap-2">
-                    <MinusCircle className="w-4 h-4 text-amber-500" />
+                    <MinusCircle className="w-4 h-4 text-[var(--trade-neutral)]" />
                     <span>Breakeven (Manual Exit)</span>
                   </div>
                 </SelectItem>

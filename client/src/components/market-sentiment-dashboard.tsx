@@ -45,7 +45,7 @@ function SentimentGauge({ score, sentiment }: { score: number; sentiment: string
   return (
     <div className="flex flex-col items-center gap-4 p-6">
       <div className="relative w-48 h-24 overflow-hidden">
-        <div className="absolute inset-0 bg-slate-800/50 rounded-t-full border border-slate-700/50" />
+        <div className="absolute inset-0 bg-muted/50 rounded-t-full border border-border/50" />
         <div 
           className={cn(
             "absolute bottom-0 left-1/2 w-2 h-20 -translate-x-1/2 origin-bottom transition-transform duration-700",
@@ -53,18 +53,18 @@ function SentimentGauge({ score, sentiment }: { score: number; sentiment: string
           )}
           style={{ transform: `translateX(-50%) rotate(${(score - 50) * 1.8}deg)` }}
         />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-slate-700 border-2 border-slate-500" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-muted border-2 border-muted-foreground" />
       </div>
       <div className="text-center">
         <div className={cn(
           "text-3xl font-bold font-mono flex items-center gap-2 justify-center",
-          score >= 55 ? "text-green-400" : score >= 45 ? "text-yellow-400" : "text-red-400"
+          score >= 55 ? "text-[var(--trade-bullish)]" : score >= 45 ? "text-yellow-400" : "text-[var(--trade-bearish)]"
         )}>
           {getIcon()}
           {safeToFixed(score, 0)}
         </div>
-        <div className="text-lg font-semibold text-slate-300 mt-1">{getLabel()}</div>
-        <div className="text-xs text-slate-500 uppercase tracking-wide mt-1">
+        <div className="text-lg font-semibold text-foreground/80 mt-1">{getLabel()}</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wide mt-1">
           {sentiment.replace(/_/g, ' ')}
         </div>
       </div>
@@ -86,17 +86,17 @@ function MarketConditionCard({
   status: 'positive' | 'negative' | 'neutral' | 'warning';
 }) {
   const statusColors = {
-    positive: "border-green-500/30 bg-green-500/10",
+    positive: "border-green-500/30 bg-[var(--trade-bullish)]/10",
     negative: "border-red-500/30 bg-red-500/10",
-    neutral: "border-slate-500/30 bg-slate-500/10",
+    neutral: "border-muted-foreground/30 bg-muted-foreground/10",
     warning: "border-amber-500/30 bg-amber-500/10",
   };
   
   const iconColors = {
-    positive: "text-green-400",
-    negative: "text-red-400",
-    neutral: "text-slate-400",
-    warning: "text-amber-400",
+    positive: "text-[var(--trade-bullish)]",
+    negative: "text-[var(--trade-bearish)]",
+    neutral: "text-muted-foreground",
+    warning: "text-[var(--trade-neutral)]",
   };
 
   return (
@@ -106,13 +106,13 @@ function MarketConditionCard({
     )}>
       <div className="flex items-center gap-3 mb-2">
         <Icon className={cn("w-5 h-5", iconColors[status])} />
-        <span className="text-xs text-slate-400 uppercase tracking-wide">{title}</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-wide">{title}</span>
       </div>
       <div className={cn("text-2xl font-bold font-mono", iconColors[status])}>
         {value}
       </div>
       {subtitle && (
-        <div className="text-xs text-slate-500 mt-1">{subtitle}</div>
+        <div className="text-xs text-muted-foreground mt-1">{subtitle}</div>
       )}
     </div>
   );
@@ -125,7 +125,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
         recommendation: "WAIT", 
         reason: "Market closed or unfavorable conditions",
         icon: XCircle,
-        color: "text-red-400"
+        color: "text-[var(--trade-bearish)]"
       };
     }
     
@@ -134,7 +134,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
         recommendation: "CAUTION", 
         reason: "High volatility - reduce position sizes, wider stops",
         icon: AlertTriangle,
-        color: "text-amber-400"
+        color: "text-[var(--trade-neutral)]"
       };
     }
     
@@ -143,7 +143,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
         recommendation: "BUY CALLS", 
         reason: "Strong uptrend with momentum - look for pullback entries",
         icon: ArrowUp,
-        color: "text-green-400"
+        color: "text-[var(--trade-bullish)]"
       };
     }
     
@@ -152,7 +152,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
         recommendation: "BUY PUTS", 
         reason: "Downtrend confirmed - look for bounce rejections",
         icon: ArrowDown,
-        color: "text-red-400"
+        color: "text-[var(--trade-bearish)]"
       };
     }
     
@@ -169,7 +169,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
       recommendation: "NEUTRAL", 
       reason: "Mixed signals - wait for clearer direction",
       icon: Timer,
-      color: "text-slate-400"
+      color: "text-muted-foreground"
     };
   };
 
@@ -193,7 +193,7 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
   const TimingIcon = timing.icon;
 
   return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30">
+    <Card className="bg-card/50 backdrop-blur-xl border-border/30">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Target className="w-4 h-4 text-purple-400" />
@@ -201,31 +201,31 @@ function TimingGuidance({ context }: { context: MarketContextData }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/30">
+        <div className="p-4 rounded-xl bg-muted/50 border border-border/30">
           <div className="flex items-center gap-3 mb-3">
             <div className={cn(
               "p-2 rounded-lg",
-              timing.color === "text-green-400" ? "bg-green-500/15 border border-green-500/30" :
-              timing.color === "text-red-400" ? "bg-red-500/15 border border-red-500/30" :
-              timing.color === "text-amber-400" ? "bg-amber-500/15 border border-amber-500/30" :
-              "bg-slate-500/15 border border-slate-500/30"
+              timing.color === "text-[var(--trade-bullish)]" ? "bg-[var(--trade-bullish)]/15 border border-green-500/30" :
+              timing.color === "text-[var(--trade-bearish)]" ? "bg-red-500/15 border border-red-500/30" :
+              timing.color === "text-[var(--trade-neutral)]" ? "bg-amber-500/15 border border-amber-500/30" :
+              "bg-muted-foreground/15 border border-muted-foreground/30"
             )}>
               <TimingIcon className={cn("w-5 h-5", timing.color)} />
             </div>
             <div>
-              <div className="text-xs text-slate-500 uppercase tracking-wide">Entry Signal</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">Entry Signal</div>
               <div className={cn("text-lg font-bold", timing.color)}>{timing.recommendation}</div>
             </div>
           </div>
-          <p className="text-sm text-slate-400">{timing.reason}</p>
+          <p className="text-sm text-muted-foreground">{timing.reason}</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/30">
+        <div className="p-4 rounded-xl bg-muted/50 border border-border/30">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs text-slate-500 uppercase tracking-wide">Exit Strategy</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Exit Strategy</span>
           </div>
-          <p className="text-sm text-slate-300">{getExitTiming()}</p>
+          <p className="text-sm text-foreground/80">{getExitTiming()}</p>
         </div>
       </CardContent>
     </Card>
@@ -269,10 +269,10 @@ function WarningsPanel({ context }: { context: MarketContextData }) {
   }
 
   return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30">
+    <Card className="bg-card/50 backdrop-blur-xl border-border/30">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          <AlertTriangle className="w-4 h-4 text-[var(--trade-neutral)]" />
           Market Warnings
         </CardTitle>
       </CardHeader>
@@ -285,21 +285,21 @@ function WarningsPanel({ context }: { context: MarketContextData }) {
                 "flex items-start gap-3 p-3 rounded-lg border",
                 warning.severity === 'high' ? "bg-red-500/10 border-red-500/30" :
                 warning.severity === 'medium' ? "bg-amber-500/10 border-amber-500/30" :
-                "bg-slate-500/10 border-slate-500/30"
+                "bg-muted-foreground/10 border-muted-foreground/30"
               )}
             >
               {warning.severity === 'high' ? (
-                <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <XCircle className="w-4 h-4 text-[var(--trade-bearish)] flex-shrink-0 mt-0.5" />
               ) : warning.severity === 'medium' ? (
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
               ) : (
-                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
               )}
               <span className={cn(
                 "text-sm",
                 warning.severity === 'high' ? "text-red-300" :
                 warning.severity === 'medium' ? "text-amber-300" :
-                "text-slate-300"
+                "text-foreground/80"
               )}>
                 {warning.text}
               </span>
@@ -313,7 +313,7 @@ function WarningsPanel({ context }: { context: MarketContextData }) {
 
 function ReasonsPanel({ reasons }: { reasons: string[] }) {
   return (
-    <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30">
+    <Card className="bg-card/50 backdrop-blur-xl border-border/30">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Activity className="w-4 h-4 text-cyan-400" />
@@ -325,10 +325,10 @@ function ReasonsPanel({ reasons }: { reasons: string[] }) {
           {reasons.map((reason, i) => (
             <div 
               key={i}
-              className="flex items-start gap-2 p-2 rounded bg-slate-800/30 border border-slate-700/20"
+              className="flex items-start gap-2 p-2 rounded bg-muted/30 border border-border/20"
             >
               <Zap className="w-3 h-3 text-cyan-400 flex-shrink-0 mt-1" />
-              <span className="text-sm text-slate-300">{reason}</span>
+              <span className="text-sm text-foreground/80">{reason}</span>
             </div>
           ))}
         </div>
@@ -346,7 +346,7 @@ export function MarketSentimentDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-slate-500">Loading market data...</div>
+        <div className="animate-pulse text-muted-foreground">Loading market data...</div>
       </div>
     );
   }
@@ -389,7 +389,7 @@ export function MarketSentimentDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-700/30 lg:row-span-2">
+        <Card className="bg-card/50 backdrop-blur-xl border-border/30 lg:row-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Gauge className="w-4 h-4 text-cyan-400" />
@@ -399,25 +399,25 @@ export function MarketSentimentDashboard() {
           <CardContent>
             <SentimentGauge score={context.score} sentiment={context.riskSentiment} />
             
-            <div className="mt-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/30">
+            <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border/30">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-slate-500 uppercase">Trading Status</span>
+                <span className="text-xs text-muted-foreground uppercase">Trading Status</span>
                 <Badge className={cn(
                   "text-[10px]",
                   context.shouldTrade 
-                    ? "bg-green-500/20 text-green-400 border-green-500/40" 
-                    : "bg-red-500/20 text-red-400 border-red-500/40"
+                    ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40" 
+                    : "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/40"
                 )}>
                   {context.shouldTrade ? "ACTIVE" : "PAUSED"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 uppercase">Regime</span>
+                <span className="text-xs text-muted-foreground uppercase">Regime</span>
                 <span className={cn(
                   "text-sm font-bold",
-                  context.regime === 'trending_up' ? "text-green-400" :
-                  context.regime === 'trending_down' ? "text-red-400" :
-                  context.regime === 'volatile' ? "text-amber-400" : "text-slate-400"
+                  context.regime === 'trending_up' ? "text-[var(--trade-bullish)]" :
+                  context.regime === 'trending_down' ? "text-[var(--trade-bearish)]" :
+                  context.regime === 'volatile' ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
                 )}>
                   {getRegimeLabel()}
                 </span>

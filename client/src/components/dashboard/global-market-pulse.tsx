@@ -86,7 +86,7 @@ function MarketGauge({ value, label, size = "default" }: { value: number; label:
         </svg>
       </div>
       <span className={cn("font-bold font-mono text-white", isSmall ? "text-xl mt-1" : "text-2xl mt-2")}>{Math.round(value)}</span>
-      <span className={cn("text-slate-400", isSmall ? "text-[10px]" : "text-xs")}>{label}</span>
+      <span className={cn("text-muted-foreground", isSmall ? "text-[10px]" : "text-xs")}>{label}</span>
     </div>
   );
 }
@@ -95,21 +95,21 @@ function AssetTicker({ asset }: { asset: AssetData }) {
   const isPositive = asset.change >= 0;
   
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-3">
         <div className={cn(
           "w-8 h-8 rounded-lg flex items-center justify-center",
           asset.type === "crypto" ? "bg-amber-500/20" : "bg-cyan-500/20"
         )}>
           {asset.type === "crypto" ? (
-            <Bitcoin className="w-4 h-4 text-amber-400" />
+            <Bitcoin className="w-4 h-4 text-[var(--trade-neutral)]" />
           ) : (
             <BarChart3 className="w-4 h-4 text-cyan-400" />
           )}
         </div>
         <div>
           <span className="block text-sm font-medium text-white">{asset.symbol}</span>
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider">{asset.name}</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">{asset.name}</span>
         </div>
       </div>
       <div className="text-right">
@@ -118,7 +118,7 @@ function AssetTicker({ asset }: { asset: AssetData }) {
         </span>
         <span className={cn(
           "text-xs font-mono flex items-center justify-end gap-1",
-          isPositive ? "text-emerald-400" : "text-red-400"
+          isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
         )}>
           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
           {isPositive ? "+" : ""}{safeToFixed(asset.change, 2)}%
@@ -215,12 +215,12 @@ export function GlobalMarketPulse() {
   }, [marketContext]);
   
   const regimeColor = useMemo(() => {
-    if (!marketContext) return "text-slate-400";
+    if (!marketContext) return "text-muted-foreground";
     switch (marketContext.regime) {
-      case 'trending_up': return "text-emerald-400";
-      case 'trending_down': return "text-red-400";
-      case 'volatile': return "text-amber-400";
-      default: return "text-slate-400";
+      case 'trending_up': return "text-[var(--trade-bullish)]";
+      case 'trending_down': return "text-[var(--trade-bearish)]";
+      case 'volatile': return "text-[var(--trade-neutral)]";
+      default: return "text-muted-foreground";
     }
   }, [marketContext]);
   
@@ -239,7 +239,7 @@ export function GlobalMarketPulse() {
   }, [assets]);
   
   return (
-    <Card className="bg-slate-900/50 border-slate-800/50 overflow-hidden" data-testid="card-global-market-pulse">
+    <Card className="bg-card/50 border-border/50 overflow-hidden" data-testid="card-global-market-pulse">
       <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Globe className="w-5 h-5 text-cyan-400" />
@@ -248,14 +248,14 @@ export function GlobalMarketPulse() {
             variant="outline" 
             className={cn(
               "text-xs ml-2",
-              isConnected ? "border-emerald-500/50 text-emerald-400" : "border-slate-600 text-slate-400"
+              isConnected ? "border-emerald-500/50 text-[var(--trade-bullish)]" : "border-border text-muted-foreground"
             )}
           >
             <Activity className={cn("w-3 h-3 mr-1", isConnected && "animate-pulse")} />
             {isConnected ? "Live" : "Cached"}
           </Badge>
         </CardTitle>
-        <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
           <Button
             size="sm"
             variant={activeView === 'all' ? 'default' : 'ghost'}
@@ -290,14 +290,14 @@ export function GlobalMarketPulse() {
                 <AssetTicker key={asset.symbol} asset={asset} />
               ))
             ) : (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-muted-foreground">
                 <Activity className="w-6 h-6 mx-auto mb-2 animate-pulse" />
                 Loading market data...
               </div>
             )}
           </div>
           
-          <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl bg-slate-800/30">
+          <div className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl bg-muted/30">
             <div className="text-center mb-1">
               <span className={cn("text-sm font-bold uppercase tracking-wider", regimeColor)}>
                 {marketContext?.regime === 'trending_up' && <ArrowUpRight className="w-4 h-4 inline mr-1" />}
@@ -305,27 +305,27 @@ export function GlobalMarketPulse() {
                 {regimeLabel}
               </span>
               {marketContext?.vixLevel && (
-                <div className="text-[10px] text-slate-500 mt-0.5">
+                <div className="text-[10px] text-muted-foreground mt-0.5">
                   VIX: {safeToFixed(marketContext.vixLevel, 1, '0.0')}
                 </div>
               )}
             </div>
             <MarketGauge value={marketSentiment} label="Market Sentiment" />
-            <div className="grid grid-cols-2 gap-3 w-full pt-3 border-t border-slate-700/50">
+            <div className="grid grid-cols-2 gap-3 w-full pt-3 border-t border-border/50">
               <MarketGauge value={equityStrength} label="Equities" size="small" />
               <MarketGauge value={cryptoStrength} label="Crypto" size="small" />
             </div>
           </div>
         </div>
         
-        <div className="flex items-center justify-center gap-4 pt-4 mt-4 border-t border-slate-800">
+        <div className="flex items-center justify-center gap-4 pt-4 mt-4 border-t border-border">
           <Link href="/market">
             <Button variant="ghost" size="sm" className="text-cyan-400" data-testid="link-market-overview">
               Market Overview <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
           <Link href="/ct-tracker">
-            <Button variant="ghost" size="sm" className="text-amber-400" data-testid="link-crypto-tracker">
+            <Button variant="ghost" size="sm" className="text-[var(--trade-neutral)]" data-testid="link-crypto-tracker">
               Crypto Tracker <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>

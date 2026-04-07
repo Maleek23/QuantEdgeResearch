@@ -67,7 +67,7 @@ function NoteCard({ note, onEdit, onDelete }: {
   };
 
   return (
-    <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover-elevate">
+    <div className="p-3 bg-muted/50 rounded-lg border border-border/50 hover-elevate">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {typeIcon()}
@@ -77,9 +77,9 @@ function NoteCard({ note, onEdit, onDelete }: {
             </span>
           )}
           {note.isPrivate ? (
-            <Lock className="h-3 w-3 text-amber-400" />
+            <Lock className="h-3 w-3 text-[var(--trade-neutral)]" />
           ) : (
-            <Unlock className="h-3 w-3 text-green-400" />
+            <Unlock className="h-3 w-3 text-[var(--trade-bullish)]" />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -95,7 +95,7 @@ function NoteCard({ note, onEdit, onDelete }: {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-6 w-6 text-red-400 hover:text-red-300"
+            className="h-6 w-6 text-[var(--trade-bearish)] hover:text-red-300"
             onClick={() => onDelete(note.id)}
             data-testid={`button-delete-note-${note.id}`}
           >
@@ -235,7 +235,7 @@ export default function NotesPanel({ symbol, userId = 'default', compact = false
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-800/30 backdrop-blur-sm">
+      <Card className="bg-muted/30 backdrop-blur-sm">
         <CardHeader className="pb-2">
           <Skeleton className="h-5 w-32" />
         </CardHeader>
@@ -250,7 +250,7 @@ export default function NotesPanel({ symbol, userId = 'default', compact = false
   }
 
   return (
-    <Card className="bg-slate-800/30 backdrop-blur-sm" data-testid="notes-panel">
+    <Card className="bg-muted/30 backdrop-blur-sm" data-testid="notes-panel">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">

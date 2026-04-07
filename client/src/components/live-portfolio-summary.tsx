@@ -69,7 +69,7 @@ export function LivePortfolioSummary() {
 
   if (isLoading) {
     return (
-      <Card className="bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-slate-700/50">
+      <Card className="bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-border/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="w-5 h-5 text-cyan-400 animate-pulse" />
@@ -88,15 +88,15 @@ export function LivePortfolioSummary() {
   }
 
   return (
-    <Card className="bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-slate-700/50 hover:border-cyan-500/30 transition-all duration-300">
+    <Card className="bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-800/40 border-border/50 hover:border-cyan-500/30 transition-all duration-300">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="w-5 h-5 text-cyan-400" />
             Live Portfolio
           </CardTitle>
-          <Badge variant="outline" className="text-xs border-green-500/30 text-green-400">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-1.5" />
+          <Badge variant="outline" className="text-xs border-green-500/30 text-[var(--trade-bullish)]">
+            <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1.5" />
             LIVE
           </Badge>
         </div>
@@ -105,15 +105,15 @@ export function LivePortfolioSummary() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {/* Active Trades */}
-          <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs text-slate-400">Active</span>
+              <span className="text-xs text-muted-foreground">Active</span>
             </div>
             <div className="text-2xl font-bold font-mono text-white">
               {activeTrades.length}
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {tradesWithPrices.length} with prices
             </div>
           </div>
@@ -122,24 +122,24 @@ export function LivePortfolioSummary() {
           <div className={cn(
             "p-3 rounded-lg border",
             totalPL >= 0
-              ? "bg-green-500/10 border-green-500/30"
+              ? "bg-[var(--trade-bullish)]/10 border-green-500/30"
               : "bg-red-500/10 border-red-500/30"
           )}>
             <div className="flex items-center gap-2 mb-1">
               {totalPL >= 0 ? (
-                <TrendingUp className="w-4 h-4 text-green-400" />
+                <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
               ) : (
-                <TrendingDown className="w-4 h-4 text-red-400" />
+                <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
               )}
-              <span className="text-xs text-slate-400">Avg P/L</span>
+              <span className="text-xs text-muted-foreground">Avg P/L</span>
             </div>
             <div className={cn(
               "text-2xl font-bold font-mono",
-              totalPL >= 0 ? "text-green-400" : "text-red-400"
+              totalPL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {totalPL >= 0 ? '+' : ''}{safeToFixed(totalPL, 1)}%
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {tradesWithPrices.length > 0 ? 'portfolio avg' : 'no data'}
             </div>
           </div>
@@ -154,18 +154,18 @@ export function LivePortfolioSummary() {
               : "bg-red-500/10 border-red-500/30"
           )}>
             <div className="flex items-center gap-2 mb-1">
-              <Target className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs text-slate-400">Win Rate</span>
+              <Target className="w-4 h-4 text-[var(--trade-bullish)]" />
+              <span className="text-xs text-muted-foreground">Win Rate</span>
             </div>
             <div className={cn(
               "text-2xl font-bold font-mono",
-              winRate >= 60 ? "text-emerald-400" :
-              winRate >= 40 ? "text-amber-400" :
-              "text-red-400"
+              winRate >= 60 ? "text-[var(--trade-bullish)]" :
+              winRate >= 40 ? "text-[var(--trade-neutral)]" :
+              "text-[var(--trade-bearish)]"
             )}>
               {safeToFixed(winRate, 0)}%
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">
+            <div className="text-[10px] text-muted-foreground mt-0.5">
               {winners}W / {losers}L
             </div>
           </div>
@@ -174,26 +174,26 @@ export function LivePortfolioSummary() {
           <div className="p-3 rounded-lg bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/30">
             <div className="flex items-center gap-2 mb-1">
               <Award className="w-4 h-4 text-purple-400" />
-              <span className="text-xs text-slate-400">Top Trade</span>
+              <span className="text-xs text-muted-foreground">Top Trade</span>
             </div>
             {topPerformer ? (
               <>
                 <div className="text-lg font-bold font-mono text-white">
                   {topPerformer.symbol}
                 </div>
-                <div className="text-xs font-mono text-green-400">
+                <div className="text-xs font-mono text-[var(--trade-bullish)]">
                   +{safeToFixed(topPerformer.plPercent, 1)}%
                 </div>
               </>
             ) : (
-              <div className="text-sm text-slate-500">No data</div>
+              <div className="text-sm text-muted-foreground">No data</div>
             )}
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
-          <div className="text-xs text-slate-500">
+        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+          <div className="text-xs text-muted-foreground">
             Last updated: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
           <Link href="/trade-desk">

@@ -63,7 +63,7 @@ export function HeaderNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 dark:border-emerald-900/30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm transition-colors shadow-sm dark:shadow-emerald-500/5">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 dark:border-emerald-900/30 bg-white/95 dark:bg-card/95 backdrop-blur-sm transition-colors shadow-sm dark:shadow-emerald-500/5">
       {/* Main Header Row */}
       <div className="flex items-center justify-between h-14 px-4 max-w-[1800px] mx-auto">
         {/* Left: Logo */}
@@ -98,7 +98,7 @@ export function HeaderNav() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="text-muted-foreground dark:text-muted-foreground hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)] hover:bg-muted dark:hover:bg-muted"
             data-testid="button-notifications"
           >
             <Bell className="w-4 h-4" />
@@ -112,7 +112,7 @@ export function HeaderNav() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="text-muted-foreground dark:text-muted-foreground hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)] hover:bg-muted dark:hover:bg-muted"
                 >
                   <User className="w-4 h-4" />
                 </Button>
@@ -121,7 +121,7 @@ export function HeaderNav() {
                 variant="ghost"
                 size="icon"
                 onClick={handleLogout}
-                className="text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                className="text-muted-foreground dark:text-muted-foreground hover:text-[var(--trade-bearish)] dark:hover:text-[var(--trade-bearish)] hover:bg-red-50 dark:hover:bg-red-500/10"
                 data-testid="button-logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -133,7 +133,7 @@ export function HeaderNav() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                  className="text-muted-foreground/70 dark:text-muted-foreground hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)]"
                 >
                   Log in
                 </Button>
@@ -153,7 +153,7 @@ export function HeaderNav() {
       </div>
 
       {/* Navigation Row */}
-      <div className="border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="border-t border-border dark:border-border/50 bg-muted/50/50 dark:bg-card/50">
         <div className="flex items-center h-11 px-4 max-w-[1800px] mx-auto gap-1">
           {/* Main Nav Items */}
           {navItems.map((item) => (
@@ -162,14 +162,14 @@ export function HeaderNav() {
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
                   isActive(item.href)
-                    ? "bg-gradient-to-r from-emerald-500/15 to-purple-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10"
-                    : "text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                    ? "bg-gradient-to-r from-emerald-500/15 to-purple-500/15 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] border border-emerald-500/20 shadow-sm shadow-emerald-500/10"
+                    : "text-muted-foreground/70 dark:text-muted-foreground hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)] hover:bg-muted dark:hover:bg-muted/50"
                 )}
                 data-testid={`nav-${item.id}`}
               >
                 <item.icon className={cn(
                   "w-4 h-4",
-                  isActive(item.href) && "text-emerald-500 dark:text-emerald-400"
+                  isActive(item.href) && "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]"
                 )} />
                 <span className="hidden sm:inline">{item.label}</span>
               </button>
@@ -180,14 +180,14 @@ export function HeaderNav() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all duration-200"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground/70 dark:text-muted-foreground hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)] hover:bg-muted dark:hover:bg-muted/50 transition-all duration-200"
                 data-testid="nav-more"
               >
                 <span className="hidden sm:inline">More</span>
                 <ChevronDown className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-card border-border dark:border-border">
               {moreItems.map((item) => (
                 <DropdownMenuItem key={item.id} asChild className="hover:bg-emerald-50 dark:hover:bg-emerald-500/10 focus:bg-emerald-50 dark:focus:bg-emerald-500/10">
                   <Link href={item.href}>
@@ -195,14 +195,14 @@ export function HeaderNav() {
                       className={cn(
                         "flex items-center gap-2 w-full cursor-pointer transition-colors",
                         isActive(item.href)
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+                          ? "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]"
+                          : "text-muted-foreground/50 dark:text-foreground/80 hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)]"
                       )}
                       data-testid={`nav-${item.id}`}
                     >
                       <item.icon className={cn(
                         "w-4 h-4",
-                        isActive(item.href) && "text-emerald-500"
+                        isActive(item.href) && "text-[var(--trade-bullish)]"
                       )} />
                       {item.label}
                     </div>

@@ -31,13 +31,13 @@ export function ExitStrategyDisplay({
   const getRecommendationStyles = () => {
     switch (recommendation) {
       case 'high_conviction':
-        return { bg: 'bg-green-500/20', border: 'border-green-500/40', text: 'text-green-400', label: 'High Conviction' };
+        return { bg: 'bg-[var(--trade-bullish)]/20', border: 'border-green-500/40', text: 'text-[var(--trade-bullish)]', label: 'High Conviction' };
       case 'standard':
         return { bg: 'bg-cyan-500/20', border: 'border-cyan-500/40', text: 'text-cyan-400', label: 'Standard' };
       case 'cautious':
-        return { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-400', label: 'Cautious' };
+        return { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-[var(--trade-neutral)]', label: 'Cautious' };
       case 'skip':
-        return { bg: 'bg-red-500/20', border: 'border-red-500/40', text: 'text-red-400', label: 'Low Edge' };
+        return { bg: 'bg-red-500/20', border: 'border-red-500/40', text: 'text-[var(--trade-bearish)]', label: 'Low Edge' };
       default:
         return { bg: 'bg-muted', border: 'border-border', text: 'text-muted-foreground', label: '' };
     }
@@ -74,7 +74,7 @@ export function ExitStrategyDisplay({
                   <ChevronRight className="h-3 w-3 text-muted-foreground" />
                   <span>+{safeToFixed(stage.targetPercent, 0)}%: Exit {stage.exitPercent}%</span>
                   {stage.trailAfter && (
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-green-400">
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-[var(--trade-bullish)]">
                       Trail
                     </Badge>
                   )}
@@ -82,7 +82,7 @@ export function ExitStrategyDisplay({
               ))}
             </div>
             {trailingStop > 0 && (
-              <div className="text-xs text-amber-400 flex items-center gap-1">
+              <div className="text-xs text-[var(--trade-neutral)] flex items-center gap-1">
                 <Shield className="h-3 w-3" />
                 Trailing stop: -{trailingStop}% from high
               </div>
@@ -123,7 +123,7 @@ export function ExitStrategyDisplay({
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "font-mono font-medium",
-                    isReached ? "text-green-400" : "text-muted-foreground"
+                    isReached ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
                   )}>
                     Stage {i + 1}: +{safeToFixed(stage.targetPercent, 0)}%
                   </span>
@@ -136,7 +136,7 @@ export function ExitStrategyDisplay({
                 </div>
                 <span className={cn(
                   "font-medium",
-                  isReached ? "text-green-400" : "text-muted-foreground"
+                  isReached ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
                 )}>
                   Exit {stage.exitPercent}%
                 </span>
@@ -152,8 +152,8 @@ export function ExitStrategyDisplay({
 
       {trailingStop > 0 && (
         <div className="flex items-center gap-2 pt-1 border-t border-border/50">
-          <Shield className="h-3.5 w-3.5 text-amber-400" />
-          <span className="text-xs text-amber-400">
+          <Shield className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />
+          <span className="text-xs text-[var(--trade-neutral)]">
             Trailing stop: -{trailingStop}% from highest gain
           </span>
         </div>
@@ -186,17 +186,17 @@ export function CalibratedConfidenceDisplay({
 }: CalibratedConfidenceDisplayProps) {
   
   const getConfidenceColor = () => {
-    if (calibratedScore >= 75) return 'text-green-400';
+    if (calibratedScore >= 75) return 'text-[var(--trade-bullish)]';
     if (calibratedScore >= 55) return 'text-cyan-400';
-    if (calibratedScore >= 40) return 'text-amber-400';
-    return 'text-red-400';
+    if (calibratedScore >= 40) return 'text-[var(--trade-neutral)]';
+    return 'text-[var(--trade-bearish)]';
   };
 
   const getRecommendationIcon = () => {
     switch (recommendation) {
-      case 'high_conviction': return <Zap className="h-3.5 w-3.5 text-green-400" />;
+      case 'high_conviction': return <Zap className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />;
       case 'standard': return <Target className="h-3.5 w-3.5 text-cyan-400" />;
-      case 'cautious': return <Shield className="h-3.5 w-3.5 text-amber-400" />;
+      case 'cautious': return <Shield className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />;
       default: return null;
     }
   };
@@ -266,7 +266,7 @@ export function CalibratedConfidenceDisplay({
 
 function FactorBar({ label, value }: { label: string; value: number }) {
   const getColor = () => {
-    if (value >= 70) return 'bg-green-500';
+    if (value >= 70) return 'bg-[var(--trade-bullish)]';
     if (value >= 50) return 'bg-cyan-500';
     if (value >= 30) return 'bg-amber-500';
     return 'bg-red-500';

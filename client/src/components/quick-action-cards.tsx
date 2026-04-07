@@ -55,7 +55,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     description: '6 bot trading engines',
     icon: <Brain className="h-6 w-6" />,
     url: '/trade-desk',
-    color: 'text-emerald-500',
+    color: 'text-[var(--trade-bullish)]',
     gradient: 'from-emerald-500/10 to-emerald-500/5',
   },
   {

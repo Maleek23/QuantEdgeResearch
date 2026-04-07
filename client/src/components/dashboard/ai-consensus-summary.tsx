@@ -28,21 +28,21 @@ export function AIConsensusSummary({
   const consensusConfig = {
     bullish: {
       icon: TrendingUp,
-      color: "text-green-400",
-      bg: "bg-green-500/10",
+      color: "text-[var(--trade-bullish)]",
+      bg: "bg-[var(--trade-bullish)]/10",
       border: "border-green-500/30",
       glow: "shadow-[0_0_15px_rgba(74,222,128,0.2)]",
     },
     bearish: {
       icon: TrendingDown,
-      color: "text-red-400",
+      color: "text-[var(--trade-bearish)]",
       bg: "bg-red-500/10",
       border: "border-red-500/30",
       glow: "shadow-[0_0_15px_rgba(248,113,113,0.2)]",
     },
     mixed: {
       icon: Minus,
-      color: "text-amber-400",
+      color: "text-[var(--trade-neutral)]",
       bg: "bg-amber-500/10",
       border: "border-amber-500/30",
       glow: "shadow-[0_0_15px_rgba(251,191,36,0.2)]",
@@ -55,13 +55,13 @@ export function AIConsensusSummary({
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <Brain className="w-4 h-4 text-purple-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           AI Consensus
         </span>
       </div>
@@ -80,14 +80,14 @@ export function AIConsensusSummary({
             <span className={cn("text-lg font-semibold uppercase", config.color)}>
               {consensus}
             </span>
-            <span className="text-sm font-mono tabular-nums text-slate-300">
+            <span className="text-sm font-mono tabular-nums text-foreground/80">
               {overallConfidence}% conf
             </span>
           </div>
         </div>
       </div>
 
-      <p className="text-sm text-slate-300 leading-relaxed mb-4 line-clamp-2">
+      <p className="text-sm text-foreground/80 leading-relaxed mb-4 line-clamp-2">
         {summary}
       </p>
 
@@ -95,29 +95,29 @@ export function AIConsensusSummary({
         {providers.map((provider) => (
           <div
             key={provider.name}
-            className="flex items-center justify-between p-2 bg-slate-800/30 rounded"
+            className="flex items-center justify-between p-2 bg-muted/30 rounded"
           >
             <div className="flex items-center gap-2">
               <div
                 className={cn(
                   "w-2 h-2 rounded-full",
                   provider.sentiment === "bullish"
-                    ? "bg-green-400"
+                    ? "bg-[var(--trade-bullish)]"
                     : provider.sentiment === "bearish"
                       ? "bg-red-400"
                       : "bg-amber-400"
                 )}
               />
-              <span className="text-xs text-slate-300">{provider.name}</span>
+              <span className="text-xs text-foreground/80">{provider.name}</span>
             </div>
             <span
               className={cn(
                 "text-xs font-mono tabular-nums",
                 provider.sentiment === "bullish"
-                  ? "text-green-400"
+                  ? "text-[var(--trade-bullish)]"
                   : provider.sentiment === "bearish"
-                    ? "text-red-400"
-                    : "text-amber-400"
+                    ? "text-[var(--trade-bearish)]"
+                    : "text-[var(--trade-neutral)]"
               )}
             >
               {provider.confidence}%

@@ -99,7 +99,7 @@ export default function PrivacyPolicy() {
             <li>Regular security audits and updates</li>
             <li>API key encryption for external service integrations</li>
           </ul>
-          <p className="text-amber-500 text-xs mt-4">
+          <p className="text-[var(--trade-neutral)] text-xs mt-4">
             No security system is impenetrable. While we strive to protect your data, 
             we cannot guarantee absolute security.
           </p>
@@ -152,7 +152,7 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
 
-      <Card className="glass-card overflow-visible hover-elevate border-slate-700/50">
+      <Card className="glass-card overflow-visible hover-elevate border-border/50">
         <CardContent className="pt-6 space-y-2 text-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">

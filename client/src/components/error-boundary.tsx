@@ -67,7 +67,7 @@ export class ErrorBoundary extends Component<Props, State> {
       // Friendly UI for chunk load errors (stale deployment)
       if (this.state.isChunkError) {
         return (
-          <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-8">
+          <div className="min-h-screen bg-card text-white flex items-center justify-center p-8">
             <div className="max-w-md text-center">
               <div className="mb-6">
                 <svg className="h-16 w-16 mx-auto text-cyan-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 </svg>
               </div>
               <h1 className="text-xl font-bold text-white mb-2">Updating Quant Edge...</h1>
-              <p className="text-slate-400 mb-6 text-sm">
+              <p className="text-muted-foreground mb-6 text-sm">
                 A new version was deployed. Refreshing to load the latest build.
               </p>
               <button
@@ -94,24 +94,24 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Generic error UI for non-chunk errors
       return (
-        <div className="min-h-screen bg-slate-900 text-white p-8">
+        <div className="min-h-screen bg-card text-white p-8">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold text-red-500 mb-4">Something went wrong</h1>
-            <div className="bg-slate-800 rounded-lg p-4 mb-4">
-              <h2 className="text-lg font-semibold text-red-400 mb-2">Error Message:</h2>
+            <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">Something went wrong</h1>
+            <div className="bg-muted rounded-lg p-4 mb-4">
+              <h2 className="text-lg font-semibold text-[var(--trade-bearish)] mb-2">Error Message:</h2>
               <pre className="text-sm text-red-300 whitespace-pre-wrap break-all">
                 {this.state.error?.message}
               </pre>
             </div>
-            <div className="bg-slate-800 rounded-lg p-4 mb-4">
+            <div className="bg-muted rounded-lg p-4 mb-4">
               <h2 className="text-lg font-semibold text-yellow-400 mb-2">Stack Trace:</h2>
-              <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all overflow-auto max-h-64">
+              <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
                 {this.state.error?.stack}
               </pre>
             </div>
-            <div className="bg-slate-800 rounded-lg p-4">
+            <div className="bg-muted rounded-lg p-4">
               <h2 className="text-lg font-semibold text-cyan-400 mb-2">Component Stack:</h2>
-              <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all overflow-auto max-h-64">
+              <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
                 {this.state.errorInfo?.componentStack}
               </pre>
             </div>

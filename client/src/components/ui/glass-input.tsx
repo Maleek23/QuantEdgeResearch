@@ -37,21 +37,21 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
     };
 
     const variantClasses = {
-      glass: "bg-slate-800/50 backdrop-blur-md border-slate-700/40 focus:border-cyan-500/60 focus:ring-cyan-500/20",
-      solid: "bg-slate-800 border-slate-700 focus:border-cyan-500 focus:ring-cyan-500/30",
+      glass: "bg-muted/50 backdrop-blur-md border-border/40 focus:border-cyan-500/60 focus:ring-cyan-500/20",
+      solid: "bg-muted border-border focus:border-cyan-500 focus:ring-cyan-500/30",
     };
 
     return (
       <div className="space-y-1">
         <div className="relative">
           {IconLeft && (
-            <IconLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <IconLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           )}
           <input
             type={type}
             className={cn(
               "flex w-full rounded-lg border",
-              "text-slate-200 placeholder:text-slate-500",
+              "text-foreground/90 placeholder:text-muted-foreground",
               "transition-colors duration-200",
               "focus:outline-none focus:ring-2 focus:ring-offset-0",
               "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -60,7 +60,7 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
               font === "mono" && "font-mono tabular-nums",
               IconLeft && "pl-10",
               hasRightContent && "pr-10",
-              error && "border-red-500/60 focus:border-red-500 focus:ring-red-500/20",
+              error && "border-red-500/60 focus:border-[var(--trade-bearish)] focus:ring-red-500/20",
               className
             )}
             ref={ref}
@@ -68,7 +68,7 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
             {...props}
           />
           {IconRight && (
-            <IconRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <IconRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           )}
           {rightIcon && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -77,10 +77,10 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
           )}
         </div>
         {hint && !error && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
         )}
         {error && (
-          <p className="text-xs text-red-400">{error}</p>
+          <p className="text-xs text-[var(--trade-bearish)]">{error}</p>
         )}
       </div>
     );

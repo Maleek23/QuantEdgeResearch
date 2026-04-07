@@ -17,7 +17,7 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
       return {
         icon: AlertTriangle,
         label: 'Estimated Strike',
-        color: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        color: 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20',
         tooltip: 'Options strike price estimated (±2% from current price). Tradier API needed for real delta targeting (0.30-0.40).',
         variant: 'warning' as const
       };
@@ -28,7 +28,7 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
       return {
         icon: CheckCircle2,
         label: 'Real Greeks',
-        color: 'bg-green-500/10 text-green-400 border-green-500/20',
+        color: 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20',
         tooltip: 'Real options data from Tradier API. Strike selected using delta targeting (0.30-0.40).',
         variant: 'success' as const
       };
@@ -39,7 +39,7 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
       return {
         icon: CheckCircle2,
         label: 'Real Data',
-        color: 'bg-green-500/10 text-green-400 border-green-500/20',
+        color: 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20',
         tooltip: 'Real crypto data from CoinGecko API. Includes 60-day historical prices for RSI/MACD calculation.',
         variant: 'success' as const
       };
@@ -50,7 +50,7 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
       return {
         icon: CheckCircle2,
         label: 'Real Data',
-        color: 'bg-green-500/10 text-green-400 border-green-500/20',
+        color: 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20',
         tooltip: `Real stock data from ${dataSource === 'yahoo' ? 'Yahoo Finance' : dataSource === 'alphavantage' ? 'Alpha Vantage' : 'Tradier'} API. Includes historical prices for technical analysis.`,
         variant: 'success' as const
       };
@@ -94,21 +94,21 @@ export function DataSourceStatus({ stocks, options, crypto, optionsEstimated }: 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground">
       <div className="flex items-center gap-1">
-        <CheckCircle2 className="h-3 w-3 text-green-400" />
+        <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
         <span>{stocks} Stocks (Real)</span>
       </div>
       <div className="flex items-center gap-1">
-        <CheckCircle2 className="h-3 w-3 text-green-400" />
+        <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
         <span>{crypto} Crypto (Real)</span>
       </div>
       {optionsEstimated > 0 ? (
         <div className="flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3 text-amber-400" />
+          <AlertTriangle className="h-3 w-3 text-[var(--trade-neutral)]" />
           <span>{optionsEstimated} Options (Estimated)</span>
         </div>
       ) : options > 0 ? (
         <div className="flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3 text-green-400" />
+          <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />
           <span>{options} Options (Real)</span>
         </div>
       ) : null}

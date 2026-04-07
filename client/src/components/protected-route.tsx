@@ -71,11 +71,11 @@ export function ProtectedRoute({
       <>
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
           <div className="text-center">
-            <Lock className="mx-auto h-12 w-12 text-slate-600 mb-4" />
-            <h2 className="text-xl font-semibold text-white mb-2">
+            <Lock className="mx-auto h-12 w-12 text-muted-foreground/70 mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">
               Account Required
             </h2>
-            <p className="text-slate-400 mb-4">
+            <p className="text-muted-foreground mb-4">
               Create a free account to access this feature
             </p>
             <Button onClick={() => setShowWaitlistModal(true)}>
@@ -151,7 +151,7 @@ export function ProtectedRoute({
         <Card className="w-full max-w-md glass-card border-amber-500/20">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
-              <Lock className="h-8 w-8 text-amber-400" />
+              <Lock className="h-8 w-8 text-[var(--trade-neutral)]" />
             </div>
             <CardTitle className="text-xl font-bold">Beta Access Required</CardTitle>
             <CardDescription>
@@ -185,10 +185,10 @@ export function ProtectedRoute({
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-700" />
+                <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-slate-900 px-2 text-muted-foreground">Or</span>
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
               </div>
             </div>
 
@@ -256,9 +256,9 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-slate-700 mb-4">404</h1>
-          <h2 className="text-xl font-semibold text-white mb-2">Page Not Found</h2>
-          <p className="text-slate-400 mb-6">
+          <h1 className="text-6xl font-bold text-muted-foreground/50 mb-4">404</h1>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Page Not Found</h2>
+          <p className="text-muted-foreground mb-6">
             The page you're looking for doesn't exist.
           </p>
           <Button onClick={() => setLocation("/")}>

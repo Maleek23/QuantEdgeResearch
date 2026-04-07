@@ -53,8 +53,8 @@ export function SignalCorrelationHeatmap({ combinations }: SignalCorrelationHeat
   });
 
   const getHeatColor = (winRate: number) => {
-    if (winRate >= 0.75) return 'bg-green-500/80 border-green-500';
-    if (winRate >= 0.65) return 'bg-green-500/60 border-green-500/80';
+    if (winRate >= 0.75) return 'bg-[var(--trade-bullish)]/80 border-green-500';
+    if (winRate >= 0.65) return 'bg-[var(--trade-bullish)]/60 border-green-500/80';
     if (winRate >= 0.55) return 'bg-cyan-500/60 border-cyan-500/80';
     if (winRate >= 0.45) return 'bg-amber-500/60 border-amber-500/80';
     return 'bg-red-500/60 border-red-500/80';
@@ -173,11 +173,11 @@ export function SignalCorrelationHeatmap({ combinations }: SignalCorrelationHeat
         {/* Legend */}
         <div className="mt-6 flex items-center justify-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-green-500/80 border-2 border-green-500"></div>
+            <div className="h-4 w-4 rounded bg-[var(--trade-bullish)]/80 border-2 border-green-500"></div>
             <span className="text-xs text-muted-foreground">75%+ WR</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-green-500/60 border-2 border-green-500/80"></div>
+            <div className="h-4 w-4 rounded bg-[var(--trade-bullish)]/60 border-2 border-green-500/80"></div>
             <span className="text-xs text-muted-foreground">65-74% WR</span>
           </div>
           <div className="flex items-center gap-2">

@@ -49,13 +49,13 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
   // Get color based on P/L
   const getPLColor = (plPercent: number) => {
     if (plPercent >= 10) return 'bg-green-600/80 border-green-500 text-white';
-    if (plPercent >= 5) return 'bg-green-500/60 border-green-400 text-white';
-    if (plPercent >= 2) return 'bg-green-500/40 border-green-400/60 text-green-50';
-    if (plPercent >= 0) return 'bg-green-500/20 border-green-400/40 text-green-100';
+    if (plPercent >= 5) return 'bg-[var(--trade-bullish)]/60 border-green-400 text-white';
+    if (plPercent >= 2) return 'bg-[var(--trade-bullish)]/40 border-green-400/60 text-[var(--trade-bullish)]';
+    if (plPercent >= 0) return 'bg-[var(--trade-bullish)]/20 border-green-400/40 text-[var(--trade-bullish)]';
     if (plPercent >= -2) return 'bg-red-500/20 border-red-400/40 text-red-100';
     if (plPercent >= -5) return 'bg-red-500/40 border-red-400/60 text-red-50';
     if (plPercent >= -10) return 'bg-red-500/60 border-red-400 text-white';
-    return 'bg-red-600/80 border-red-500 text-white';
+    return 'bg-red-600/80 border-[var(--trade-bearish)] text-white';
   };
 
   // Get trend icon
@@ -77,7 +77,7 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-green-500/60 border border-green-400" />
+            <div className="w-3 h-3 rounded bg-[var(--trade-bullish)]/60 border border-green-400" />
             Winning
           </span>
           <span className="flex items-center gap-1">
@@ -157,7 +157,7 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                         <p>Current: ${safeToFixed(trade.currentPrice, 2)}</p>
                         <p className={cn(
                           "font-bold",
-                          trade.plPercent >= 0 ? "text-green-400" : "text-red-400"
+                          trade.plPercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           P/L: {trade.plPercent >= 0 ? '+' : ''}{safeToFixed(trade.plPercent, 2)}%
                         </p>
@@ -184,16 +184,16 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
 
           return (
             <>
-              <div className="text-center p-2 rounded-lg bg-green-500/10">
+              <div className="text-center p-2 rounded-lg bg-[var(--trade-bullish)]/10">
                 <div className="text-xs text-muted-foreground mb-0.5">Winners</div>
-                <div className="text-lg font-bold text-green-400">{winners.length}</div>
+                <div className="text-lg font-bold text-[var(--trade-bullish)]">{winners.length}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {withPrices.length > 0 ? safeToFixed((winners.length / withPrices.length) * 100, 0) : 0}%
                 </div>
               </div>
               <div className="text-center p-2 rounded-lg bg-red-500/10">
                 <div className="text-xs text-muted-foreground mb-0.5">Losers</div>
-                <div className="text-lg font-bold text-red-400">{losers.length}</div>
+                <div className="text-lg font-bold text-[var(--trade-bearish)]">{losers.length}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {withPrices.length > 0 ? safeToFixed((losers.length / withPrices.length) * 100, 0) : 0}%
                 </div>
@@ -202,7 +202,7 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
                 <div className="text-xs text-muted-foreground mb-0.5">Avg P/L</div>
                 <div className={cn(
                   "text-lg font-bold font-mono",
-                  avgPL >= 0 ? "text-green-400" : "text-red-400"
+                  avgPL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {avgPL >= 0 ? '+' : ''}{safeToFixed(avgPL, 1)}%
                 </div>
@@ -228,21 +228,21 @@ export function TradeHeatmap({ trades, priceMap, onTradeClick }: TradeHeatmapPro
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Entry Price</div>
-                  <div className="font-mono font-bold">${safeToFixed(selectedTrade.entryPrice, 2)}</div>
+                  <div className="font-mono font-bold tabular-nums">${safeToFixed(selectedTrade.entryPrice, 2)}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Current Price</div>
-                  <div className="font-mono font-bold">
+                  <div className="font-mono font-bold tabular-nums">
                     {selectedTrade.currentPrice ? `$${safeToFixed(selectedTrade.currentPrice, 2)}` : 'N/A'}
                   </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Target</div>
-                  <div className="font-mono font-bold text-green-400">${safeToFixed(selectedTrade.targetPrice, 2)}</div>
+                  <div className="font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(selectedTrade.targetPrice, 2)}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground text-xs mb-1">Stop Loss</div>
-                  <div className="font-mono font-bold text-red-400">${safeToFixed(selectedTrade.stopLoss, 2)}</div>
+                  <div className="font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(selectedTrade.stopLoss, 2)}</div>
                 </div>
               </div>
               {selectedTrade.catalyst && (

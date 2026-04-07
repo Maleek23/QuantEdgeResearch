@@ -38,7 +38,7 @@ function StatItem({
   label, 
   value, 
   subValue, 
-  color = 'text-slate-400'
+  color = 'text-muted-foreground'
 }: { 
   icon: any; 
   label: string; 
@@ -50,9 +50,9 @@ function StatItem({
     <div className="flex items-center gap-2">
       <Icon className={cn("h-4 w-4", color)} />
       <div className="flex-1 min-w-0">
-        <span className="text-xs text-slate-500 block truncate">{label}</span>
+        <span className="text-xs text-muted-foreground block truncate">{label}</span>
         <span className="font-mono text-sm">{value}</span>
-        {subValue && <span className="text-xs text-slate-500 ml-1">{subValue}</span>}
+        {subValue && <span className="text-xs text-muted-foreground ml-1">{subValue}</span>}
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ export default function ResearchPulseWidget({
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50">
+      <Card className="bg-muted/50 backdrop-blur-sm border-border/50">
         <CardHeader className="pb-2">
           <Skeleton className="h-5 w-40" />
         </CardHeader>
@@ -88,7 +88,7 @@ export default function ResearchPulseWidget({
 
   if (!stats || stats.total === 0) {
     return (
-      <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50" data-testid="research-pulse-empty">
+      <Card className="bg-muted/50 backdrop-blur-sm border-border/50" data-testid="research-pulse-empty">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-cyan-400" />
@@ -96,7 +96,7 @@ export default function ResearchPulseWidget({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-slate-400 text-center py-4">
+          <p className="text-sm text-muted-foreground text-center py-4">
             No research activity yet. Start tracking your signal decisions to build your personal edge analytics.
           </p>
         </CardContent>
@@ -117,35 +117,35 @@ export default function ResearchPulseWidget({
 
   if (compact) {
     return (
-      <Card className="p-3 bg-slate-800/50 backdrop-blur-sm border-slate-700/50" data-testid="research-pulse-compact">
+      <Card className="p-3 bg-muted/50 backdrop-blur-sm border-border/50" data-testid="research-pulse-compact">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-slate-400">{year} Research</span>
+          <span className="text-xs font-medium text-muted-foreground">{year} Research</span>
           <Badge variant="outline" className={cn(
             "text-xs",
-            qualityScore >= 70 ? 'border-green-500/50 text-green-400' :
-            qualityScore >= 50 ? 'border-amber-500/50 text-amber-400' :
-            'border-red-500/50 text-red-400'
+            qualityScore >= 70 ? 'border-green-500/50 text-[var(--trade-bullish)]' :
+            qualityScore >= 50 ? 'border-amber-500/50 text-[var(--trade-neutral)]' :
+            'border-red-500/50 text-[var(--trade-bearish)]'
           )}>
             {qualityScore}/100
           </Badge>
         </div>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1">
-            <Target className="h-3 w-3 text-green-400" />
+            <Target className="h-3 w-3 text-[var(--trade-bullish)]" />
             {stats.traded}
           </span>
           <span className="flex items-center gap-1">
             <Eye className="h-3 w-3 text-cyan-400" />
             {stats.watched}
           </span>
-          <span className="font-mono text-green-400">{safeToFixed(stats.winRate, 0)}% WR</span>
+          <span className="font-mono text-[var(--trade-bullish)]">{safeToFixed(stats.winRate, 0)}% WR</span>
         </div>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50" data-testid="research-pulse-widget">
+    <Card className="bg-muted/50 backdrop-blur-sm border-border/50" data-testid="research-pulse-widget">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center justify-between">
           <span className="flex items-center gap-2">
@@ -153,9 +153,9 @@ export default function ResearchPulseWidget({
             {year} Research Dashboard
           </span>
           <Badge variant="outline" className={cn(
-            qualityScore >= 70 ? 'border-green-500/50 text-green-400' :
-            qualityScore >= 50 ? 'border-amber-500/50 text-amber-400' :
-            'border-red-500/50 text-red-400'
+            qualityScore >= 70 ? 'border-green-500/50 text-[var(--trade-bullish)]' :
+            qualityScore >= 50 ? 'border-amber-500/50 text-[var(--trade-neutral)]' :
+            'border-red-500/50 text-[var(--trade-bearish)]'
           )}>
             Quality: {qualityScore}/100
           </Badge>
@@ -163,75 +163,75 @@ export default function ResearchPulseWidget({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-center mb-4">
-          <span className="text-3xl font-mono font-bold">{stats.total.toLocaleString()}</span>
-          <span className="text-sm text-slate-400 block">Signals Reviewed</span>
+          <span className="text-3xl font-mono font-bold tabular-nums">{stats.total.toLocaleString()}</span>
+          <span className="text-sm text-muted-foreground block">Signals Reviewed</span>
         </div>
         
         <div className="grid grid-cols-3 gap-2">
-          <div className="text-center p-2 bg-green-500/10 rounded-md border border-green-500/30">
-            <Target className="h-4 w-4 text-green-400 mx-auto mb-1" />
+          <div className="text-center p-2 bg-[var(--trade-bullish)]/10 rounded-md border border-green-500/30">
+            <Target className="h-4 w-4 text-[var(--trade-bullish)] mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.traded}</span>
-            <span className="text-xs text-slate-400">Traded</span>
-            <span className="text-xs text-green-400 block">({safeToFixed(tradedPercent, 1)}%)</span>
+            <span className="text-xs text-muted-foreground">Traded</span>
+            <span className="text-xs text-[var(--trade-bullish)] block">({safeToFixed(tradedPercent, 1)}%)</span>
           </div>
           <div className="text-center p-2 bg-cyan-500/10 rounded-md border border-cyan-500/30">
             <Eye className="h-4 w-4 text-cyan-400 mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.watched}</span>
-            <span className="text-xs text-slate-400">Watched</span>
+            <span className="text-xs text-muted-foreground">Watched</span>
             <span className="text-xs text-cyan-400 block">({safeToFixed(watchedPercent, 1)}%)</span>
           </div>
-          <div className="text-center p-2 bg-slate-500/10 rounded-md border border-slate-500/30">
-            <Ban className="h-4 w-4 text-slate-400 mx-auto mb-1" />
+          <div className="text-center p-2 bg-muted-foreground/10 rounded-md border border-muted-foreground/30">
+            <Ban className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
             <span className="font-mono text-lg block">{stats.ignored}</span>
-            <span className="text-xs text-slate-400">Ignored</span>
-            <span className="text-xs text-slate-400 block">({safeToFixed(ignoredPercent, 1)}%)</span>
+            <span className="text-xs text-muted-foreground">Ignored</span>
+            <span className="text-xs text-muted-foreground block">({safeToFixed(ignoredPercent, 1)}%)</span>
           </div>
         </div>
         
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-700/50">
+        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
           <div className="flex items-center gap-2">
             <div className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center",
-              stats.winRate >= 50 ? 'bg-green-500/20' : 'bg-red-500/20'
+              stats.winRate >= 50 ? 'bg-[var(--trade-bullish)]/20' : 'bg-red-500/20'
             )}>
               {stats.winRate >= 50 ? (
-                <TrendingUp className="h-4 w-4 text-green-400" />
+                <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-red-400" />
+                <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
               )}
             </div>
             <div>
-              <span className="text-xs text-slate-500 block">Win Rate</span>
+              <span className="text-xs text-muted-foreground block">Win Rate</span>
               <span className={cn(
                 "font-mono text-lg",
-                stats.winRate >= 50 ? 'text-green-400' : 'text-red-400'
+                stats.winRate >= 50 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
               )}>{safeToFixed(stats.winRate, 0)}%</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center",
-              stats.avgReturn >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'
+              stats.avgReturn >= 0 ? 'bg-[var(--trade-bullish)]/20' : 'bg-red-500/20'
             )}>
               {stats.avgReturn >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-green-400" />
+                <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-red-400" />
+                <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
               )}
             </div>
             <div>
-              <span className="text-xs text-slate-500 block">Avg Return</span>
+              <span className="text-xs text-muted-foreground block">Avg Return</span>
               <span className={cn(
                 "font-mono text-lg",
-                stats.avgReturn >= 0 ? 'text-green-400' : 'text-red-400'
+                stats.avgReturn >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
               )}>{stats.avgReturn >= 0 ? '+' : ''}{safeToFixed(stats.avgReturn, 1)}%</span>
             </div>
           </div>
         </div>
         
         {stats.topPatterns.length > 0 && (
-          <div className="pt-2 border-t border-slate-700/50">
-            <span className="text-xs text-slate-500 mb-2 block">Top Winning Patterns</span>
+          <div className="pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground mb-2 block">Top Winning Patterns</span>
             <div className="space-y-2">
               {stats.topPatterns.slice(0, 3).map((p, i) => (
                 <div key={i} className="flex items-center justify-between">
@@ -239,11 +239,11 @@ export default function ResearchPulseWidget({
                     {p.pattern.replace(/_/g, ' ')}
                   </Badge>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">{p.count} trades</span>
+                    <span className="text-xs text-muted-foreground">{p.count} trades</span>
                     <span className={cn(
                       "font-mono text-sm",
-                      p.winRate >= 60 ? 'text-green-400' : 
-                      p.winRate >= 50 ? 'text-amber-400' : 'text-red-400'
+                      p.winRate >= 60 ? 'text-[var(--trade-bullish)]' : 
+                      p.winRate >= 50 ? 'text-[var(--trade-neutral)]' : 'text-[var(--trade-bearish)]'
                     )}>{safeToFixed(p.winRate, 0)}%</span>
                   </div>
                 </div>

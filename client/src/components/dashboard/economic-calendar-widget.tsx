@@ -24,23 +24,23 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
     switch (impact) {
       case "high":
         return {
-          color: "text-red-400",
-          bg: "bg-red-500/20",
-          border: "border-red-500/40",
+          color: "text-[var(--trade-bearish)]",
+          bg: "bg-[var(--trade-bearish)]/20",
+          border: "border-[var(--trade-bearish)]/40",
           dots: 3,
         };
       case "medium":
         return {
-          color: "text-amber-400",
-          bg: "bg-amber-500/20",
-          border: "border-amber-500/40",
+          color: "text-[var(--trade-neutral)]",
+          bg: "bg-[var(--trade-neutral)]/20",
+          border: "border-[var(--trade-neutral)]/40",
           dots: 2,
         };
       default:
         return {
-          color: "text-slate-400",
-          bg: "bg-slate-500/20",
-          border: "border-slate-500/40",
+          color: "text-muted-foreground",
+          bg: "bg-muted-foreground/20",
+          border: "border-muted-foreground/40",
           dots: 1,
         };
     }
@@ -52,18 +52,18 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs uppercase tracking-widest text-slate-400">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Economic Calendar
           </span>
         </div>
-        <span className="text-xs text-slate-500">Today</span>
+        <span className="text-xs text-muted-foreground">Today</span>
       </div>
 
       {upcomingEvents.length > 0 && (
@@ -93,11 +93,11 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
                         />
                       ))}
                     </div>
-                    <span className="text-sm text-slate-200 truncate max-w-[140px]">
+                    <span className="text-sm text-foreground/90 truncate max-w-[140px]">
                       {event.name}
                     </span>
                   </div>
-                  <span className="text-xs font-mono text-slate-400">
+                  <span className="text-xs font-mono text-muted-foreground">
                     {event.time}
                   </span>
                 </div>
@@ -109,14 +109,14 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
 
       {recentEvents.length > 0 && (
         <div>
-          <span className="text-xs text-slate-500 mb-2 block">Recent</span>
+          <span className="text-xs text-muted-foreground mb-2 block">Recent</span>
           <div className="space-y-2">
             {recentEvents.map((event) => {
               const config = getImpactConfig(event.impact);
               return (
                 <div
                   key={event.id}
-                  className="flex items-center justify-between p-2 rounded bg-slate-800/30"
+                  className="flex items-center justify-between p-2 rounded bg-muted/30"
                 >
                   <div className="flex items-center gap-2">
                     <div className="flex gap-0.5">
@@ -127,7 +127,7 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
                         />
                       ))}
                     </div>
-                    <span className="text-sm text-slate-400 truncate max-w-[100px]">
+                    <span className="text-sm text-muted-foreground truncate max-w-[100px]">
                       {event.name}
                     </span>
                   </div>
@@ -136,15 +136,15 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
                       "text-xs font-mono",
                       event.actual && event.forecast &&
                         parseFloat(event.actual) > parseFloat(event.forecast)
-                        ? "text-green-400"
+                        ? "text-[var(--trade-bullish)]"
                         : event.actual && event.forecast &&
                             parseFloat(event.actual) < parseFloat(event.forecast)
-                          ? "text-red-400"
-                          : "text-slate-300"
+                          ? "text-[var(--trade-bearish)]"
+                          : "text-foreground/80"
                     )}>
                       {event.actual ?? "—"}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       vs {event.forecast ?? "—"}
                     </span>
                   </div>
@@ -156,7 +156,7 @@ export function EconomicCalendarWidget({ events, className }: EconomicCalendarWi
       )}
 
       {events.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
           <Calendar className="w-8 h-8 mb-2 opacity-50" />
           <span className="text-sm">No events today</span>
         </div>

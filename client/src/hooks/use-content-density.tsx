@@ -71,14 +71,14 @@ export function DensityControl({ className }: { className?: string }) {
   const { density, setDensity } = useContentDensity();
   
   return (
-    <div className={`flex space-x-1 bg-slate-800/50 rounded p-1 ${className || ''}`}>
+    <div className={`flex space-x-1 bg-muted/50 rounded p-1 ${className || ''}`}>
       <button
         data-testid="button-density-minimal"
         onClick={() => setDensity('minimal')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'minimal' 
-            ? 'bg-cyan-500 text-slate-950' 
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+            ? 'bg-cyan-500 text-foreground' 
+            : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >
         Minimal
@@ -88,8 +88,8 @@ export function DensityControl({ className }: { className?: string }) {
         onClick={() => setDensity('standard')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'standard' 
-            ? 'bg-cyan-500 text-slate-950' 
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+            ? 'bg-cyan-500 text-foreground' 
+            : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >
         Standard
@@ -99,8 +99,8 @@ export function DensityControl({ className }: { className?: string }) {
         onClick={() => setDensity('detailed')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'detailed' 
-            ? 'bg-cyan-500 text-slate-950' 
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+            ? 'bg-cyan-500 text-foreground' 
+            : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >
         Detailed

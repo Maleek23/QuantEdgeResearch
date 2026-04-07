@@ -176,10 +176,10 @@ export function ShouldIBuy({
   const verdict = getVerdict();
   const verdictColor =
     verdict.includes("BUY")
-      ? "text-emerald-400"
+      ? "text-[var(--trade-bullish)]"
       : verdict.includes("SELL")
-      ? "text-red-400"
-      : "text-amber-400";
+      ? "text-[var(--trade-bearish)]"
+      : "text-[var(--trade-neutral)]";
   const verdictBg =
     verdict.includes("BUY")
       ? "bg-emerald-500/10 border-emerald-500/20"
@@ -267,7 +267,7 @@ export function ShouldIBuy({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Confidence Score */}
-        <div className="bg-slate-800/50 rounded-lg p-4">
+        <div className="bg-muted/50 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">AI Confidence</span>
             <span className="text-lg font-bold text-white">
@@ -291,47 +291,47 @@ export function ShouldIBuy({
           {/* Bull Case */}
           <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
-              <span className="text-sm font-medium text-emerald-400">Bull Case</span>
+              <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
+              <span className="text-sm font-medium text-[var(--trade-bullish)]">Bull Case</span>
             </div>
             {bullCase.length > 0 ? (
               <ul className="space-y-1">
                 {bullCase.map((signal, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                    <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
                     <span>{signal}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-400">No strong bullish signals</p>
+              <p className="text-xs text-muted-foreground">No strong bullish signals</p>
             )}
           </div>
 
           {/* Bear Case */}
           <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingDown className="h-4 w-4 text-red-400" />
-              <span className="text-sm font-medium text-red-400">Bear Case</span>
+              <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
+              <span className="text-sm font-medium text-[var(--trade-bearish)]">Bear Case</span>
             </div>
             {bearCase.length > 0 ? (
               <ul className="space-y-1">
                 {bearCase.map((signal, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
-                    <XCircle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                    <XCircle className="h-3 w-3 text-[var(--trade-bearish)] mt-0.5 flex-shrink-0" />
                     <span>{signal}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-400">No strong bearish signals</p>
+              <p className="text-xs text-muted-foreground">No strong bearish signals</p>
             )}
           </div>
         </div>
 
         {/* Trade Idea */}
         {data.tradeIdea && (
-          <div className="bg-slate-800/50 rounded-lg p-4">
+          <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
               <Target className="h-4 w-4 text-cyan-400" />
               <span className="text-sm font-medium text-white">Trade Setup</span>
@@ -345,23 +345,23 @@ export function ShouldIBuy({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Target</p>
-                <p className="text-sm font-bold text-emerald-400">
+                <p className="text-sm font-bold text-[var(--trade-bullish)]">
                   ${safeToFixed(data.tradeIdea?.target, 2)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Stop Loss</p>
-                <p className="text-sm font-bold text-red-400">
+                <p className="text-sm font-bold text-[var(--trade-bearish)]">
                   ${safeToFixed(data.tradeIdea?.stopLoss, 2)}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <div className="flex items-center gap-2">
-                <Scale className="h-4 w-4 text-amber-400" />
+                <Scale className="h-4 w-4 text-[var(--trade-neutral)]" />
                 <span className="text-xs text-muted-foreground">R:R Ratio</span>
               </div>
-              <span className="text-sm font-medium text-amber-400">
+              <span className="text-sm font-medium text-[var(--trade-neutral)]">
                 {data.tradeIdea.riskReward}
               </span>
             </div>
@@ -370,7 +370,7 @@ export function ShouldIBuy({
 
         {/* Risk Warning */}
         <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+          <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] mt-0.5 flex-shrink-0" />
           <p className="text-xs text-amber-200">
             This is AI-generated analysis, not financial advice. Always do your own research
             and consider your risk tolerance before trading.
@@ -408,10 +408,10 @@ export function QuickVerdict({ symbol, className }: { symbol: string; className?
 
   const verdictColor =
     verdict === "BUY"
-      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+      ? "bg-emerald-500/10 text-[var(--trade-bullish)] border-emerald-500/20"
       : verdict === "SELL"
-      ? "bg-red-500/10 text-red-400 border-red-500/20"
-      : "bg-amber-500/10 text-amber-400 border-amber-500/20";
+      ? "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20"
+      : "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20";
 
   return (
     <Badge variant="outline" className={cn("text-xs font-medium", verdictColor, className)}>

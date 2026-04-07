@@ -66,16 +66,16 @@ export function SignalWeightsPanel() {
   };
 
   const getWeightColor = (weight: number) => {
-    if (weight >= 1.5) return 'text-green-400';
-    if (weight >= 1.2) return 'text-green-300';
-    if (weight <= 0.5) return 'text-red-400';
+    if (weight >= 1.5) return 'text-[var(--trade-bullish)]';
+    if (weight >= 1.2) return 'text-[var(--trade-bullish)]';
+    if (weight <= 0.5) return 'text-[var(--trade-bearish)]';
     if (weight <= 0.8) return 'text-red-300';
     return 'text-muted-foreground';
   };
 
   const getWeightIcon = (weight: number) => {
-    if (weight >= 1.2) return <TrendingUp className="h-3 w-3 text-green-400" />;
-    if (weight <= 0.8) return <TrendingDown className="h-3 w-3 text-red-400" />;
+    if (weight >= 1.2) return <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />;
+    if (weight <= 0.8) return <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />;
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   };
 
@@ -98,12 +98,12 @@ export function SignalWeightsPanel() {
             <div className="text-xl font-bold" data-testid="text-total-signals">{data.totalSignals}</div>
             <div className="text-xs text-muted-foreground">Total</div>
           </div>
-          <div className="p-2 rounded bg-green-500/10">
-            <div className="text-xl font-bold text-green-400" data-testid="text-boosted-count">{data.boostedCount}</div>
+          <div className="p-2 rounded bg-[var(--trade-bullish)]/10">
+            <div className="text-xl font-bold text-[var(--trade-bullish)]" data-testid="text-boosted-count">{data.boostedCount}</div>
             <div className="text-xs text-muted-foreground">Boosted</div>
           </div>
           <div className="p-2 rounded bg-red-500/10">
-            <div className="text-xl font-bold text-red-400" data-testid="text-reduced-count">{data.reducedCount}</div>
+            <div className="text-xl font-bold text-[var(--trade-bearish)]" data-testid="text-reduced-count">{data.reducedCount}</div>
             <div className="text-xs text-muted-foreground">Reduced</div>
           </div>
           <div className="p-2 rounded bg-muted/50">
@@ -119,7 +119,7 @@ export function SignalWeightsPanel() {
           </div>
           <div className="flex h-2 rounded overflow-hidden">
             <div 
-              className="bg-green-500" 
+              className="bg-[var(--trade-bullish)]" 
               style={{ width: `${(data.boostedCount / data.totalSignals) * 100}%` }}
             />
             <div 

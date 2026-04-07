@@ -83,14 +83,14 @@ export function MLTimingIndicator({
     : confidence;
 
   const getMomentumColor = (score: number) => {
-    if (score >= 75) return 'text-green-400';
+    if (score >= 75) return 'text-[var(--trade-bullish)]';
     if (score >= 50) return 'text-cyan-400';
-    if (score >= 25) return 'text-amber-400';
-    return 'text-red-400';
+    if (score >= 25) return 'text-[var(--trade-neutral)]';
+    return 'text-[var(--trade-bearish)]';
   };
 
   const getMomentumBg = (score: number) => {
-    if (score >= 75) return 'bg-green-500/20';
+    if (score >= 75) return 'bg-[var(--trade-bullish)]/20';
     if (score >= 50) return 'bg-cyan-500/20';
     if (score >= 25) return 'bg-amber-500/20';
     return 'bg-red-500/20';
@@ -123,7 +123,7 @@ export function MLTimingIndicator({
             <Target className="h-3 w-3" />
             Progress to Target
           </span>
-          <span className={cn("font-mono font-medium", currentProgress > 0 ? 'text-green-400' : 'text-muted-foreground')}>
+          <span className={cn("font-mono font-medium", currentProgress > 0 ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground')}>
             {safeToFixed(currentProgress, 1)}%
           </span>
         </div>
@@ -133,12 +133,12 @@ export function MLTimingIndicator({
         />
         <div className="flex justify-between text-xs text-muted-foreground font-mono">
           <span>${safeToFixed(entryPrice, 2)}</span>
-          <span className="text-green-400">${safeToFixed(targetPrice, 2)}</span>
+          <span className="text-[var(--trade-bullish)]">${safeToFixed(targetPrice, 2)}</span>
         </div>
       </div>
 
       {/* Risk/Reward Ratio */}
-      <div className="flex items-center justify-between py-1.5 px-2 rounded bg-slate-800/50">
+      <div className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/50">
         <div className="flex items-center gap-1.5">
           <Shield className="h-3.5 w-3.5 text-cyan-400" />
           <span className="text-xs font-medium">Risk/Reward</span>
@@ -147,9 +147,9 @@ export function MLTimingIndicator({
           variant="outline"
           className={cn(
             "font-mono",
-            riskRewardRatio >= 2 ? "bg-green-500/20 text-green-400" :
+            riskRewardRatio >= 2 ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" :
             riskRewardRatio >= 1 ? "bg-cyan-500/20 text-cyan-400" :
-            "bg-amber-500/20 text-amber-400"
+            "bg-amber-500/20 text-[var(--trade-neutral)]"
           )}
         >
           1:{safeToFixed(riskRewardRatio, 1)}
@@ -160,9 +160,9 @@ export function MLTimingIndicator({
       {timeDecay && (
         <div className={cn(
           "flex items-center gap-2 py-1.5 px-2 rounded text-xs",
-          timeDecay.level === 'critical' ? 'bg-red-500/20 text-red-400' :
-          timeDecay.level === 'high' ? 'bg-amber-500/20 text-amber-400' :
-          'bg-slate-800/50 text-muted-foreground'
+          timeDecay.level === 'critical' ? 'bg-red-500/20 text-[var(--trade-bearish)]' :
+          timeDecay.level === 'high' ? 'bg-amber-500/20 text-[var(--trade-neutral)]' :
+          'bg-muted/50 text-muted-foreground'
         )}>
           <Clock className="h-3.5 w-3.5" />
           <span className="flex-1 font-medium">
@@ -173,19 +173,19 @@ export function MLTimingIndicator({
       )}
 
       {/* Entry/Exit Zones */}
-      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
         <div className="text-center">
-          <div className="text-xs text-red-400 mb-1">Stop Loss</div>
+          <div className="text-xs text-[var(--trade-bearish)] mb-1">Stop Loss</div>
           <div className="text-xs font-mono font-medium">${safeToFixed(stopLoss, 2)}</div>
           <div className="text-xs text-muted-foreground">-{safeToFixed(stopDistance, 1)}%</div>
         </div>
-        <div className="text-center border-x border-slate-800">
+        <div className="text-center border-x border-border">
           <div className="text-xs text-muted-foreground mb-1">Entry</div>
           <div className="text-xs font-mono font-medium text-cyan-400">${safeToFixed(entryPrice, 2)}</div>
           <div className="text-xs text-muted-foreground">Base</div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-green-400 mb-1">Target</div>
+          <div className="text-xs text-[var(--trade-bullish)] mb-1">Target</div>
           <div className="text-xs font-mono font-medium">${safeToFixed(targetPrice, 2)}</div>
           <div className="text-xs text-muted-foreground">+{safeToFixed(targetDistance, 1)}%</div>
         </div>

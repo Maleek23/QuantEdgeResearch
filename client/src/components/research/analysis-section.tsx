@@ -54,16 +54,16 @@ export function AnalysisSection({
     amber: {
       border: "border-amber-500/20",
       gradient: "from-amber-900/10",
-      icon: "text-amber-400",
-      badge: "text-amber-400 border-amber-500/30",
-      score: "text-amber-400"
+      icon: "text-[var(--trade-neutral)]",
+      badge: "text-[var(--trade-neutral)] border-amber-500/30",
+      score: "text-[var(--trade-neutral)]"
     },
     emerald: {
       border: "border-emerald-500/20",
       gradient: "from-emerald-900/10",
-      icon: "text-emerald-400",
-      badge: "text-emerald-400 border-emerald-500/30",
-      score: "text-emerald-400"
+      icon: "text-[var(--trade-bullish)]",
+      badge: "text-[var(--trade-bullish)] border-emerald-500/30",
+      score: "text-[var(--trade-bullish)]"
     }
   };
 
@@ -72,11 +72,11 @@ export function AnalysisSection({
   // Get grade badge color
   const getGradeBadgeColor = (g: string) => {
     if (g.startsWith('S')) return 'text-purple-400 border-purple-500/30 bg-purple-500/10';
-    if (g.startsWith('A')) return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+    if (g.startsWith('A')) return 'text-[var(--trade-bullish)] border-emerald-500/30 bg-emerald-500/10';
     if (g.startsWith('B')) return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
-    if (g.startsWith('C')) return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+    if (g.startsWith('C')) return 'text-[var(--trade-neutral)] border-amber-500/30 bg-amber-500/10';
     if (g.startsWith('D')) return 'text-orange-400 border-orange-500/30 bg-orange-500/10';
-    return 'text-red-400 border-red-500/30 bg-red-500/10';
+    return 'text-[var(--trade-bearish)] border-red-500/30 bg-red-500/10';
   };
 
   return (
@@ -85,15 +85,15 @@ export function AnalysisSection({
       colors.border
     )}>
       {/* Section Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className={cn("p-2 rounded-lg bg-slate-800/50")}>
+          <div className={cn("p-2 rounded-lg bg-muted/50")}>
             <Icon className={cn("h-5 w-5", colors.icon)} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-100">{title}</h3>
+            <h3 className="text-xl font-bold text-foreground/95">{title}</h3>
             {metricCount !== undefined && (
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {metricCount} metrics
                 {weight !== undefined && ` • ${safeToFixed(weight * 100, 0)}% portfolio weight`}
               </p>
@@ -110,9 +110,9 @@ export function AnalysisSection({
               </Badge>
             )}
             {score !== undefined && (
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 <span className={cn("font-mono font-semibold", colors.score)}>{score}</span>
-                <span className="text-slate-600">/100</span>
+                <span className="text-muted-foreground/70">/100</span>
               </p>
             )}
           </div>

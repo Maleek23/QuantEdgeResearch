@@ -48,14 +48,14 @@ interface HistoricalStats {
 
 function getWinRateColor(rate: number | null): string {
   if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-green-500";
-  if (rate >= 50) return "text-amber-500";
-  return "text-red-500";
+  if (rate >= 70) return "text-[var(--trade-bullish)]";
+  if (rate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 function getPnlColor(pnl: number | null): string {
   if (pnl === null || pnl === 0) return "text-muted-foreground";
-  return pnl > 0 ? "text-green-500" : "text-red-500";
+  return pnl > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
 }
 
 function HeroStats({ stats }: { stats: HistoricalStats }) {
@@ -74,7 +74,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-4 pb-3">
           <div className="flex flex-col items-center">
-            <CheckCircle className="h-6 w-6 text-green-400 mb-1" />
+            <CheckCircle className="h-6 w-6 text-[var(--trade-bullish)] mb-1" />
             <p className={cn("text-2xl font-bold", getWinRateColor(stats.overall.winRate))}>
               {safeToFixed(stats.overall.winRate, 1)}%
             </p>
@@ -86,7 +86,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-4 pb-3">
           <div className="flex flex-col items-center">
-            <Target className="h-6 w-6 text-amber-400 mb-1" />
+            <Target className="h-6 w-6 text-[var(--trade-neutral)] mb-1" />
             <p className="text-2xl font-bold">{stats.overall.wins}</p>
             <p className="text-xs text-muted-foreground">Wins</p>
           </div>
@@ -97,7 +97,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
         <CardContent className="pt-4 pb-3">
           <div className="flex flex-col items-center">
             <BarChart3 className="h-6 w-6 text-purple-400 mb-1" />
-            <p className={cn("text-2xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-green-500" : stats.overall.profitFactor >= 1 ? "text-amber-500" : "text-red-500")}>
+            <p className={cn("text-2xl font-bold", stats.overall.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : stats.overall.profitFactor >= 1 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]")}>
               {safeToFixed(stats.overall.profitFactor, 2)}x
             </p>
             <p className="text-xs text-muted-foreground">Profit Factor</p>
@@ -142,7 +142,7 @@ function TopPerformers({ stats }: { stats: HistoricalStats }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2 text-green-400">
+          <CardTitle className="text-sm flex items-center gap-2 text-[var(--trade-bullish)]">
             <TrendingUp className="h-4 w-4" />
             Top Performers
           </CardTitle>
@@ -173,7 +173,7 @@ function TopPerformers({ stats }: { stats: HistoricalStats }) {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2 text-red-400">
+          <CardTitle className="text-sm flex items-center gap-2 text-[var(--trade-bearish)]">
             <TrendingDown className="h-4 w-4" />
             Worst Performers
           </CardTitle>
@@ -221,9 +221,9 @@ function DirectionBreakdown({ stats }: { stats: HistoricalStats }) {
               <div className="flex justify-between items-center text-sm">
                 <div className="flex items-center gap-2">
                   {direction === 'long' ? (
-                    <TrendingUp className="h-3.5 w-3.5 text-green-400" />
+                    <TrendingUp className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
                   ) : (
-                    <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+                    <TrendingDown className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
                   )}
                   <span className="capitalize font-medium">{direction}</span>
                   <span className="text-xs text-muted-foreground">{data.ideas} ideas</span>
@@ -287,7 +287,7 @@ export default function HistoricalIntelligenceTab() {
     return (
       <Card>
         <CardContent className="py-8 text-center">
-          <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+          <AlertTriangle className="h-12 w-12 text-[var(--trade-neutral)] mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">Failed to Load Historical Intelligence</h2>
           <p className="text-muted-foreground text-sm mb-4">There was an error loading the analytics data.</p>
           <Button onClick={() => window.location.reload()} size="sm">

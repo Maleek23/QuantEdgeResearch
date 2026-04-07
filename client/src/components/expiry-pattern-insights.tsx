@@ -55,9 +55,9 @@ interface PatternSummary {
 function getSentimentIcon(sentiment: string) {
   switch (sentiment) {
     case 'bullish':
-      return <TrendingUp className="h-4 w-4 text-green-500" />;
+      return <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />;
     case 'bearish':
-      return <TrendingDown className="h-4 w-4 text-red-500" />;
+      return <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />;
     default:
       return <Minus className="h-4 w-4 text-muted-foreground" />;
   }
@@ -66,9 +66,9 @@ function getSentimentIcon(sentiment: string) {
 function getSentimentColor(sentiment: string) {
   switch (sentiment) {
     case 'bullish':
-      return 'bg-green-500/20 text-green-400 border-green-500/30';
+      return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
     case 'bearish':
-      return 'bg-red-500/20 text-red-400 border-red-500/30';
+      return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
     default:
       return 'bg-muted text-muted-foreground';
   }
@@ -144,8 +144,8 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
 
         {summary && (
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 rounded bg-green-500/10">
-              <div className="text-lg font-bold text-green-400">{summary.bullishExpiries}</div>
+            <div className="p-2 rounded bg-[var(--trade-bullish)]/10">
+              <div className="text-lg font-bold text-[var(--trade-bullish)]">{summary.bullishExpiries}</div>
               <div className="text-xs text-muted-foreground">Bullish</div>
             </div>
             <div className="p-2 rounded bg-muted/50">
@@ -153,7 +153,7 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
               <div className="text-xs text-muted-foreground">Neutral</div>
             </div>
             <div className="p-2 rounded bg-red-500/10">
-              <div className="text-lg font-bold text-red-400">{summary.bearishExpiries}</div>
+              <div className="text-lg font-bold text-[var(--trade-bearish)]">{summary.bearishExpiries}</div>
               <div className="text-xs text-muted-foreground">Bearish</div>
             </div>
           </div>
@@ -175,8 +175,8 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3 text-xs">
-                    <span className="text-green-400">{week.totalCalls} calls</span>
-                    <span className="text-red-400">{week.totalPuts} puts</span>
+                    <span className="text-[var(--trade-bullish)]">{week.totalCalls} calls</span>
+                    <span className="text-[var(--trade-bearish)]">{week.totalPuts} puts</span>
                     <span className="text-muted-foreground">
                       {week.priceDirection === 'up' ? '↑' : week.priceDirection === 'down' ? '↓' : '→'}
                       {safeToFixed(week.confidenceLevel, 0, '0')}%
@@ -207,7 +207,7 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
-                    <span className={pattern.avgPnL >= 0 ? 'text-green-400' : 'text-red-400'}>
+                    <span className={pattern.avgPnL >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
                       ${safeToFixed(pattern.avgPnL, 0, '0')} avg
                     </span>
                     <span className="text-muted-foreground">

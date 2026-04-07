@@ -64,7 +64,7 @@ function Neuron({ position, signal, index, totalSignals }: NeuronProps) {
           userSelect: 'none',
         }}
       >
-        <Card className="bg-black/90 backdrop-blur-sm border border-cyan-500/30 p-3 shadow-2xl min-w-[180px]">
+        <Card className="bg-[var(--surface-base)]/90 backdrop-blur-sm border border-cyan-500/30 p-3 shadow-2xl min-w-[180px]">
           <div className="text-cyan-400 text-xs font-semibold mb-2 truncate">
             {signal.signalName}
           </div>
@@ -75,7 +75,7 @@ function Neuron({ position, signal, index, totalSignals }: NeuronProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Win Rate:</span>
-              <span className="text-green-400 font-medium">{safeToFixed(signal.winRate, 1)}%</span>
+              <span className="text-[var(--trade-bullish)] font-medium">{safeToFixed(signal.winRate, 1)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Avg Gain:</span>

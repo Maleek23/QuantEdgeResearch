@@ -45,7 +45,7 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
       <Card data-testid="card-time-heatmap-empty">
         <CardHeader>
           <CardTitle>Time of Day Performance</CardTitle>
-          <CardDescription>No data available</CardDescription>
+          <CardDescription>Data loading...</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -72,10 +72,10 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
             <p className="text-muted-foreground">
               Trades: <span className="font-mono text-foreground">{data.trades}</span>
             </p>
-            <p className="text-green-500">
+            <p className="text-[var(--trade-bullish)]">
               Wins: <span className="font-mono">{data.wins}</span>
             </p>
-            <p className="text-red-500">
+            <p className="text-[var(--trade-bearish)]">
               Losses: <span className="font-mono">{data.losses}</span>
             </p>
             <p className="font-semibold">

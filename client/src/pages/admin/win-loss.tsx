@@ -258,7 +258,7 @@ export default function AdminWinLossAnalysis() {
         <Card className="glass-card w-full max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
               Admin Access Required
             </CardTitle>
           </CardHeader>
@@ -269,7 +269,7 @@ export default function AdminWinLossAnalysis() {
             <Button 
               onClick={() => setLocation("/admin")} 
               data-testid="button-go-to-admin"
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             >
               Go to Admin Panel
             </Button>
@@ -280,8 +280,8 @@ export default function AdminWinLossAnalysis() {
   }
 
   const currentSimulation = simData?.simulations?.find(s => s.thresholdPercent === stopLossThreshold);
-  const reliabilityColor = summary?.sampleReliability === 'high' ? 'text-green-500' : 
-                          summary?.sampleReliability === 'medium' ? 'text-amber-500' : 'text-red-500';
+  const reliabilityColor = summary?.sampleReliability === 'high' ? 'text-[var(--trade-bullish)]' : 
+                          summary?.sampleReliability === 'medium' ? 'text-[var(--trade-neutral)]' : 'text-[var(--trade-bearish)]';
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -311,7 +311,7 @@ export default function AdminWinLossAnalysis() {
             onClick={() => exportMutation.mutate()}
             disabled={exportMutation.isPending}
             data-testid="button-export"
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
           >
             <Download className="h-4 w-4 mr-1" />
             Export ML Data
@@ -338,24 +338,24 @@ export default function AdminWinLossAnalysis() {
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <Card className="bg-green-500/10 border-green-500/20">
+              <Card className="bg-[var(--trade-bullish)]/10 border-green-500/20">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Wins</p>
-                  <p className="text-2xl font-bold text-green-500" data-testid="text-wins">{summary.wins}</p>
+                  <p className="text-2xl font-bold text-[var(--trade-bullish)]" data-testid="text-wins">{summary.wins}</p>
                   <p className="text-xs text-muted-foreground">of {summary.decidedTrades}</p>
                 </CardContent>
               </Card>
               <Card className="bg-red-500/10 border-red-500/20">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Losses</p>
-                  <p className="text-2xl font-bold text-red-500" data-testid="text-losses">{summary.losses}</p>
+                  <p className="text-2xl font-bold text-[var(--trade-bearish)]" data-testid="text-losses">{summary.losses}</p>
                   <p className="text-xs text-muted-foreground">&gt;3% drawdown</p>
                 </CardContent>
               </Card>
               <Card className="bg-amber-500/10 border-amber-500/20">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Breakeven</p>
-                  <p className="text-2xl font-bold text-amber-500">{summary.breakeven}</p>
+                  <p className="text-2xl font-bold text-[var(--trade-neutral)]">{summary.breakeven}</p>
                   <p className="text-xs text-muted-foreground">&lt;3% loss</p>
                 </CardContent>
               </Card>
@@ -384,7 +384,7 @@ export default function AdminWinLossAnalysis() {
                     <TooltipUI>
                       <TooltipTrigger className="w-full text-left">
                         <p className="text-xs text-muted-foreground">Expectancy</p>
-                        <p className={cn("text-2xl font-bold", summary.expectancy >= 0 ? "text-green-500" : "text-red-500")} data-testid="text-expectancy">
+                        <p className={cn("text-2xl font-bold", summary.expectancy >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")} data-testid="text-expectancy">
                           {summary.expectancy >= 0 ? '+' : ''}{summary.expectancy}%
                         </p>
                         <p className="text-xs text-muted-foreground">per trade</p>
@@ -404,8 +404,8 @@ export default function AdminWinLossAnalysis() {
                       <TooltipTrigger className="w-full text-left">
                         <p className="text-xs text-muted-foreground">Profit Factor</p>
                         <p className={cn("text-2xl font-bold", 
-                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1.5 ? "text-green-500" :
-                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1 ? "text-cyan-500" : "text-red-500"
+                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" :
+                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1 ? "text-cyan-500" : "text-[var(--trade-bearish)]"
                         )} data-testid="text-profit-factor">
                           {summary.profitFactor}
                         </p>
@@ -429,17 +429,17 @@ export default function AdminWinLossAnalysis() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Avg Win</span>
-                    <span className="text-green-500 font-mono font-semibold">+{summary.avgWinPercent}%</span>
+                    <span className="text-[var(--trade-bullish)] font-mono font-semibold">+{summary.avgWinPercent}%</span>
                   </div>
-                  <Progress value={Math.min(100, summary.avgWinPercent * 5)} className="h-2 bg-green-500/20" />
+                  <Progress value={Math.min(100, summary.avgWinPercent * 5)} className="h-2 bg-[var(--trade-bullish)]/20" />
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Avg Loss</span>
-                    <span className="text-red-500 font-mono font-semibold">{summary.avgLossPercent}%</span>
+                    <span className="text-[var(--trade-bearish)] font-mono font-semibold">{summary.avgLossPercent}%</span>
                   </div>
                   <Progress value={Math.min(100, Math.abs(summary.avgLossPercent) * 5)} className="h-2 bg-red-500/20" />
                   <div className="pt-2 border-t flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Payoff Ratio</span>
-                    <span className={cn("font-mono font-semibold", summary.payoffRatio >= 1.5 ? "text-green-500" : "text-amber-500")}>
+                    <span className={cn("font-mono font-semibold", summary.payoffRatio >= 1.5 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]")}>
                       {summary.payoffRatio}:1
                     </span>
                   </div>
@@ -488,11 +488,11 @@ export default function AdminWinLossAnalysis() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Max Win</p>
-                    <p className="text-green-500 font-mono">+{summary.maxWinPercent}%</p>
+                    <p className="text-[var(--trade-bullish)] font-mono">+{summary.maxWinPercent}%</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Max Loss</p>
-                    <p className="text-red-500 font-mono">{summary.maxLossPercent}%</p>
+                    <p className="text-[var(--trade-bearish)] font-mono">{summary.maxLossPercent}%</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Expired Trades</p>
@@ -511,7 +511,7 @@ export default function AdminWinLossAnalysis() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-amber-400" />
+                  <Zap className="h-5 w-5 text-[var(--trade-neutral)]" />
                   Stop-Loss Threshold Simulator
                 </CardTitle>
                 <CardDescription>
@@ -533,7 +533,7 @@ export default function AdminWinLossAnalysis() {
                         onClick={() => setStopLossThreshold(threshold)}
                         className={cn(
                           "min-w-[48px] font-mono",
-                          stopLossThreshold === threshold && "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                          stopLossThreshold === threshold && "bg-cyan-500 hover:bg-cyan-400 text-foreground"
                         )}
                         data-testid={`button-threshold-${threshold}`}
                       >
@@ -555,18 +555,18 @@ export default function AdminWinLossAnalysis() {
                     </div>
                     <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
                       <p className="text-xs text-muted-foreground">Expectancy</p>
-                      <p className={cn("text-xl font-bold", currentSimulation.expectancy >= 0 ? "text-green-500" : "text-red-500")}>
+                      <p className={cn("text-xl font-bold", currentSimulation.expectancy >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                         {currentSimulation.expectancy >= 0 ? '+' : ''}{currentSimulation.expectancy}%
                       </p>
                     </div>
                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <p className="text-xs text-muted-foreground">Losses Counted</p>
-                      <p className="text-xl font-bold text-amber-500">{currentSimulation.losses}</p>
+                      <p className="text-xl font-bold text-[var(--trade-neutral)]">{currentSimulation.losses}</p>
                       <p className="text-xs text-muted-foreground">{currentSimulation.breakeven} breakeven</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/20">
                       <p className="text-xs text-muted-foreground">Profit Factor</p>
-                      <p className="text-xl font-bold text-green-500">
+                      <p className="text-xl font-bold text-[var(--trade-bullish)]">
                         {currentSimulation.profitFactor === Infinity ? '∞' : currentSimulation.profitFactor}
                       </p>
                     </div>
@@ -669,10 +669,10 @@ export default function AdminWinLossAnalysis() {
                           <span className="text-sm text-muted-foreground">{asset.totalTrades} trades</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={cn("text-sm font-mono", asset.winRate >= 60 ? "text-green-500" : asset.winRate >= 50 ? "text-amber-500" : "text-red-500")}>
+                          <span className={cn("text-sm font-mono", asset.winRate >= 60 ? "text-[var(--trade-bullish)]" : asset.winRate >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]")}>
                             {asset.winRate}%
                           </span>
-                          <span className={cn("text-sm font-mono", asset.avgGain >= 0 ? "text-green-500" : "text-red-500")}>
+                          <span className={cn("text-sm font-mono", asset.avgGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                             {asset.avgGain >= 0 ? '+' : ''}{asset.avgGain}%
                           </span>
                         </div>
@@ -696,14 +696,14 @@ export default function AdminWinLossAnalysis() {
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            <CheckCircle className="h-3 w-3 text-[var(--trade-bullish)]" />
                             <span className="text-xs">{src.wins}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <XCircle className="h-3 w-3 text-red-500" />
+                            <XCircle className="h-3 w-3 text-[var(--trade-bearish)]" />
                             <span className="text-xs">{src.losses}</span>
                           </div>
-                          <span className={cn("text-sm font-mono font-semibold", src.winRate >= 60 ? "text-green-500" : src.winRate >= 50 ? "text-amber-500" : "text-red-500")}>
+                          <span className={cn("text-sm font-mono font-semibold", src.winRate >= 60 ? "text-[var(--trade-bullish)]" : src.winRate >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]")}>
                             {src.winRate}%
                           </span>
                         </div>
@@ -724,7 +724,7 @@ export default function AdminWinLossAnalysis() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No expired trades found for analysis</p>
+                  <p className="text-muted-foreground">No closed trades to analyze yet</p>
                 </CardContent>
               </Card>
             ) : expirationData ? (
@@ -732,7 +732,7 @@ export default function AdminWinLossAnalysis() {
                 <Card className="border-amber-500/20 bg-amber-500/5">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-amber-400" />
+                      <Clock className="h-5 w-5 text-[var(--trade-neutral)]" />
                       Expiration Forensics
                     </CardTitle>
                     <CardDescription>
@@ -747,16 +747,16 @@ export default function AdminWinLossAnalysis() {
                       </div>
                       <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                         <div className="text-xs text-muted-foreground mb-1">Almost Hit Target (75%+)</div>
-                        <div className="text-2xl font-bold text-amber-400">
+                        <div className="text-2xl font-bold text-[var(--trade-neutral)]">
                           {expirationData.summary.almostHitTargetPercent ?? 0}%
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {expirationData.summary.almostHitTargetCount ?? 0} trades
                         </div>
                       </div>
-                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/20">
                         <div className="text-xs text-muted-foreground mb-1">Very Close (90%+)</div>
-                        <div className="text-2xl font-bold text-green-400">
+                        <div className="text-2xl font-bold text-[var(--trade-bullish)]">
                           {expirationData.summary.veryClosePercent ?? 0}%
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -774,7 +774,7 @@ export default function AdminWinLossAnalysis() {
                     {expirationData.recommendations.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="text-sm font-semibold flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                           Recommendations
                         </h4>
                         {expirationData.recommendations.map((rec, i) => (
@@ -787,8 +787,8 @@ export default function AdminWinLossAnalysis() {
                               rec.severity === 'info' && "bg-blue-500/10 border-blue-500/30"
                             )}
                           >
-                            {rec.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />}
-                            {rec.severity === 'warning' && <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />}
+                            {rec.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-[var(--trade-bearish)] shrink-0 mt-0.5" />}
+                            {rec.severity === 'warning' && <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)] shrink-0 mt-0.5" />}
                             {rec.severity === 'info' && <Info className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />}
                             <p className="text-sm">{rec.message}</p>
                           </div>
@@ -805,7 +805,7 @@ export default function AdminWinLossAnalysis() {
                     </CardHeader>
                     <CardContent>
                       {expirationData.byHoldingPeriod.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-4">No data by holding period</p>
+                        <p className="text-muted-foreground text-center py-4">Accumulating holding period data...</p>
                       ) : (
                         <div className="space-y-3">
                           {expirationData.byHoldingPeriod.map((period) => (
@@ -817,7 +817,7 @@ export default function AdminWinLossAnalysis() {
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div>
                                   <span className="text-muted-foreground">Almost hit target:</span>
-                                  <span className={cn("ml-1 font-semibold", period.almostHitTargetPercent >= 40 ? "text-amber-400" : "text-muted-foreground")}>
+                                  <span className={cn("ml-1 font-semibold", period.almostHitTargetPercent >= 40 ? "text-[var(--trade-neutral)]" : "text-muted-foreground")}>
                                     {period.almostHitTargetPercent}%
                                   </span>
                                 </div>
@@ -842,7 +842,7 @@ export default function AdminWinLossAnalysis() {
                     </CardHeader>
                     <CardContent>
                       {expirationData.byAssetType.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-4">No data by asset type</p>
+                        <p className="text-muted-foreground text-center py-4">Accumulating asset type data...</p>
                       ) : (
                         <div className="space-y-3">
                           {expirationData.byAssetType.map((asset) => (
@@ -854,7 +854,7 @@ export default function AdminWinLossAnalysis() {
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div>
                                   <span className="text-muted-foreground">Almost hit target:</span>
-                                  <span className={cn("ml-1 font-semibold", asset.almostHitTargetPercent >= 40 ? "text-amber-400" : "text-muted-foreground")}>
+                                  <span className={cn("ml-1 font-semibold", asset.almostHitTargetPercent >= 40 ? "text-[var(--trade-neutral)]" : "text-muted-foreground")}>
                                     {asset.almostHitTargetPercent}%
                                   </span>
                                 </div>
@@ -891,7 +891,7 @@ export default function AdminWinLossAnalysis() {
                           key={trade.id} 
                           className={cn(
                             "p-3 rounded-lg border flex items-center justify-between",
-                            trade.veryClose && "bg-green-500/5 border-green-500/20",
+                            trade.veryClose && "bg-[var(--trade-bullish)]/5 border-green-500/20",
                             trade.almostHitTarget && !trade.veryClose && "bg-amber-500/5 border-amber-500/20",
                             !trade.almostHitTarget && "bg-muted/30"
                           )}
@@ -913,8 +913,8 @@ export default function AdminWinLossAnalysis() {
                               <span className="text-xs text-muted-foreground">Progress:</span>
                               <span className={cn(
                                 "font-mono font-semibold",
-                                trade.progressToTargetPercent >= 90 && "text-green-400",
-                                trade.progressToTargetPercent >= 75 && trade.progressToTargetPercent < 90 && "text-amber-400",
+                                trade.progressToTargetPercent >= 90 && "text-[var(--trade-bullish)]",
+                                trade.progressToTargetPercent >= 75 && trade.progressToTargetPercent < 90 && "text-[var(--trade-neutral)]",
                                 trade.progressToTargetPercent < 75 && "text-muted-foreground"
                               )}>
                                 {trade.progressToTargetPercent}%
@@ -937,7 +937,7 @@ export default function AdminWinLossAnalysis() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-red-400" />
+                  <TrendingDown className="h-5 w-5 text-[var(--trade-bearish)]" />
                   Loss Pattern Analysis
                 </CardTitle>
                 <CardDescription>
@@ -946,7 +946,7 @@ export default function AdminWinLossAnalysis() {
               </CardHeader>
               <CardContent>
                 {summary.lossPatterns.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No loss patterns analyzed yet</p>
+                  <p className="text-muted-foreground text-center py-8">Run analysis after more trades close</p>
                 ) : (
                   <div className="space-y-3">
                     {summary.lossPatterns.map((pattern, i) => (
@@ -972,7 +972,7 @@ export default function AdminWinLossAnalysis() {
       ) : (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">No trade data available for analysis</p>
+            <p className="text-muted-foreground">Waiting for trade data to accumulate</p>
           </CardContent>
         </Card>
       )}

@@ -68,7 +68,7 @@ function WinnerCard({
         <div className="text-right flex-shrink-0">
           <div className={cn(
             "text-lg font-bold",
-            isPositive ? "text-emerald-500" : "text-red-500"
+            isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
             {isPositive ? "+" : ""}{safeToFixed(totalReturn, 2)}%
           </div>

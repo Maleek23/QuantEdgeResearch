@@ -52,7 +52,7 @@ export default function Features() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] relative">
+    <div className="min-h-screen bg-[var(--surface-base)] relative">
       <SEOHead
         pageKey="features"
         title="Platform Features | Quant Edge Labs"
@@ -66,12 +66,12 @@ export default function Features() {
       <div className="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 pointer-events-none z-[2]" />
       
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--surface-base)]/80 backdrop-blur-md border-b border-white/5" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex items-center gap-3" data-testid="link-logo">
               <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
-              <span className="hidden sm:block text-lg font-semibold text-white">Quant Edge Labs</span>
+              <span className="hidden sm:block text-lg font-semibold text-foreground">Quant Edge Labs</span>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -116,14 +116,14 @@ export default function Features() {
                   <Button 
                     variant="outline" 
                     onClick={() => setLocation('/login')}
-                    className="hidden sm:inline-flex border-[#222]"
+                    className="hidden sm:inline-flex border-border"
                     data-testid="button-login"
                   >
                     Login
                   </Button>
                   <Button
                     onClick={() => setLocation('/signup')}
-                    className="bg-cyan-500 text-slate-950"
+                    className="bg-cyan-500 text-foreground"
                     data-testid="button-join-beta"
                   >
                     Sign Up
@@ -143,11 +143,11 @@ export default function Features() {
             <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400 mb-4">
               Complete Platform Overview
             </p>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-white">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 text-foreground">
               Everything You Get with{" "}
-              <span className="text-emerald-400">Quant Edge Labs</span>
+              <span className="text-[var(--trade-bullish)]">Quant Edge Labs</span>
             </h1>
-            <p className="text-lg text-slate-400 leading-relaxed mb-8">
+            <p className="text-lg text-muted-foreground leading-relaxed mb-8">
               A comprehensive research platform combining AI analysis, quantitative signals,
               institutional flow detection, and full performance transparency.
             </p>
@@ -156,23 +156,23 @@ export default function Features() {
             <div className="flex flex-wrap justify-center gap-4 md:gap-8">
               <div className="text-center px-4">
                 <div className="text-3xl font-bold text-cyan-400 font-mono">6</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider">Trading Engines</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Trading Engines</div>
               </div>
               <div className="text-center px-4">
                 <div className="text-3xl font-bold text-purple-400 font-mono">5</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider">Trading Bots</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Trading Bots</div>
               </div>
               <div className="text-center px-4">
-                <div className="text-3xl font-bold text-emerald-400 font-mono">8+</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider">Scanners</div>
+                <div className="text-3xl font-bold text-[var(--trade-bullish)] font-mono">8+</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Scanners</div>
               </div>
               <div className="text-center px-4">
-                <div className="text-3xl font-bold text-amber-400 font-mono">300+</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider">API Endpoints</div>
+                <div className="text-3xl font-bold text-[var(--trade-neutral)] font-mono">300+</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">API Endpoints</div>
               </div>
               <div className="text-center px-4">
                 <div className="text-3xl font-bold text-pink-400 font-mono">15+</div>
-                <div className="text-xs text-slate-500 uppercase tracking-wider">Analytics Dashboards</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Analytics Dashboards</div>
               </div>
             </div>
           </div>
@@ -186,8 +186,8 @@ export default function Features() {
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Core Analysis Engines
             </p>
-            <h2 className="text-2xl font-bold text-white">Six Trading Engines Working Together</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">Six Trading Engines Working Together</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Each engine specializes in a different aspect of market analysis.
               When multiple engines converge, you get higher-conviction trade ideas.
             </p>
@@ -195,20 +195,20 @@ export default function Features() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* ML Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-pink-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">ML Engine</h3>
-                  <p className="text-xs text-slate-500">Predictive Analytics</p>
+                  <h3 className="font-semibold text-lg text-foreground">ML Engine</h3>
+                  <p className="text-xs text-muted-foreground">Predictive Analytics</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Machine learning predictions using regime detection, confidence calibration, and historical pattern analysis.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Market regime detection
                 </li>
@@ -225,20 +225,20 @@ export default function Features() {
             </div>
 
             {/* AI Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">AI Engine</h3>
-                  <p className="text-xs text-slate-500">Multi-LLM Analysis</p>
+                  <h3 className="font-semibold text-lg text-foreground">AI Engine</h3>
+                  <p className="text-xs text-muted-foreground">Multi-LLM Analysis</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Multi-LLM consensus using Claude, GPT, and Gemini for SEC filings, earnings, and news catalyst analysis.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> SEC filing analysis
                 </li>
@@ -255,20 +255,20 @@ export default function Features() {
             </div>
 
             {/* Quant Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Calculator className="h-6 w-6 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">Quant Engine</h3>
-                  <p className="text-xs text-slate-500">Statistical Signals</p>
+                  <h3 className="font-semibold text-lg text-foreground">Quant Engine</h3>
+                  <p className="text-xs text-muted-foreground">Statistical Signals</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Systematic signal generation using RSI, VWAP, volume analysis, and statistical edge detection for day traders.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> RSI mean reversion
                 </li>
@@ -285,20 +285,20 @@ export default function Features() {
             </div>
 
             {/* Flow Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                   <Activity className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">Flow Engine</h3>
-                  <p className="text-xs text-slate-500">Smart Money Tracking</p>
+                  <h3 className="font-semibold text-lg text-foreground">Flow Engine</h3>
+                  <p className="text-xs text-muted-foreground">Smart Money Tracking</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Track institutional order flow, dark pool prints, and whale trades in real-time to follow smart money.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Unusual options volume
                 </li>
@@ -315,20 +315,20 @@ export default function Features() {
             </div>
 
             {/* Sentiment Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Target className="h-6 w-6 text-amber-400" />
+                  <Target className="h-6 w-6 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">Sentiment Engine</h3>
-                  <p className="text-xs text-slate-500">Market Psychology</p>
+                  <h3 className="font-semibold text-lg text-foreground">Sentiment Engine</h3>
+                  <p className="text-xs text-muted-foreground">Market Psychology</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Social media sentiment analysis with Fear & Greed tracking to gauge market psychology and retail positioning.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Social sentiment analysis
                 </li>
@@ -345,20 +345,20 @@ export default function Features() {
             </div>
 
             {/* Technical Engine */}
-            <div className="bg-[#111] backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CandlestickChart className="h-6 w-6 text-green-400" />
+                <div className="h-12 w-12 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center">
+                  <CandlestickChart className="h-6 w-6 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-white">Technical Engine</h3>
-                  <p className="text-xs text-slate-500">Pattern Recognition</p>
+                  <h3 className="font-semibold text-lg text-foreground">Technical Engine</h3>
+                  <p className="text-xs text-muted-foreground">Pattern Recognition</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 AI-powered chart pattern recognition with automated support, resistance, and trend line detection.
               </p>
-              <ul className="space-y-2 text-sm text-slate-400">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Chart pattern AI
                 </li>
@@ -378,73 +378,73 @@ export default function Features() {
       </section>
 
       {/* Market Scanners & Discovery */}
-      <section className="py-12 lg:py-16 relative z-10 border-t border-[#222]" id="scanners" data-testid="section-scanners">
+      <section className="py-12 lg:py-16 relative z-10 border-t border-border" id="scanners" data-testid="section-scanners">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-emerald-400 mb-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--trade-bullish)] mb-2">
               Real-Time Scanning
             </p>
-            <h2 className="text-2xl font-bold text-white">Market Scanners & Discovery</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">Market Scanners & Discovery</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               8+ specialized scanners to find opportunities across the entire market in real-time.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <div className="bg-[#111] rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
-                <Search className="h-5 w-5 text-emerald-400" />
+                <Search className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Market Scanner</h3>
-              <p className="text-sm text-slate-400 mb-3">
+              <h3 className="font-semibold mb-2 text-foreground">Market Scanner</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 Full market-wide scanner with sector heat maps, top movers, volume surges, and growth stock filtering.
               </p>
-              <ul className="space-y-1 text-xs text-slate-500">
-                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Sector performance</li>
-                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Volume spike detection</li>
-                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-400" /> Smart watchlist</li>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--trade-bullish)]" /> Sector performance</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--trade-bullish)]" /> Volume spike detection</li>
+                <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-[var(--trade-bullish)]" /> Smart watchlist</li>
               </ul>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-orange-500/20 hover:border-orange-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-orange-500/20 hover:border-orange-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
                 <Flame className="h-5 w-5 text-orange-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Bullish Trends</h3>
-              <p className="text-sm text-slate-400 mb-3">
+              <h3 className="font-semibold mb-2 text-foreground">Bullish Trends</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 Momentum scanner with sector heatmaps, breakout tracking, and multi-source convergence analysis.
               </p>
-              <ul className="space-y-1 text-xs text-slate-500">
+              <ul className="space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Sector heat maps</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Breakout detection</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-400" /> Source convergence</li>
               </ul>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
                 <Radar className="h-5 w-5 text-purple-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Swing Scanner</h3>
-              <p className="text-sm text-slate-400 mb-3">
+              <h3 className="font-semibold mb-2 text-foreground">Swing Scanner</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 Multi-day swing trade opportunities with entry/exit levels and risk:reward calculations.
               </p>
-              <ul className="space-y-1 text-xs text-slate-500">
+              <ul className="space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> Swing setups</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> R:R calculation</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-400" /> Discord alerts</li>
               </ul>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
                 <Timer className="h-5 w-5 text-cyan-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Day Trade Scanner</h3>
-              <p className="text-sm text-slate-400 mb-3">
+              <h3 className="font-semibold mb-2 text-foreground">Day Trade Scanner</h3>
+              <p className="text-sm text-muted-foreground mb-3">
                 Intraday opportunities with real-time gap detection and momentum tracking.
               </p>
-              <ul className="space-y-1 text-xs text-slate-500">
+              <ul className="space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Gap detection</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Momentum tracking</li>
                 <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-cyan-400" /> Intraday signals</li>
@@ -455,45 +455,45 @@ export default function Features() {
       </section>
 
       {/* Smart Money Intelligence */}
-      <section className="py-12 lg:py-16 relative z-10 bg-[#0d0d0d]" id="smart-money" data-testid="section-smart-money">
+      <section className="py-12 lg:py-16 relative z-10 bg-[var(--surface-base)]" id="smart-money" data-testid="section-smart-money">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-amber-400 mb-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--trade-neutral)] mb-2">
               Institutional Intelligence
             </p>
-            <h2 className="text-2xl font-bold text-white">Smart Money Tracking</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">Smart Money Tracking</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Follow the whales. Track insider trades, analyst ratings, and institutional flow.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <div className="bg-[#111] rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-4">
-                <Users className="h-5 w-5 text-amber-400" />
+                <Users className="h-5 w-5 text-[var(--trade-neutral)]" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Insider Trades</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Insider Trades</h3>
+              <p className="text-sm text-muted-foreground">
                 Track executive and director buys/sells with transaction details and historical patterns.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
                 <Building2 className="h-5 w-5 text-blue-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Institutional Flow</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Institutional Flow</h3>
+              <p className="text-sm text-muted-foreground">
                 Dark pool prints, block trades, and unusual options activity from smart money.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
-                <Target className="h-5 w-5 text-green-400" />
+            <div className="bg-card rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all">
+              <div className="h-10 w-10 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center mb-4">
+                <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Analyst Ratings</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Analyst Ratings</h3>
+              <p className="text-sm text-muted-foreground">
                 Price targets and rating changes from Wall Street analysts with historical accuracy.
               </p>
             </div>
@@ -508,49 +508,49 @@ export default function Features() {
             <p className="text-xs font-medium uppercase tracking-wider text-purple-400 mb-2">
               Derivatives Analysis
             </p>
-            <h2 className="text-2xl font-bold text-white">Options Risk Lab</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">Options Risk Lab</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Full options chain analysis with Greeks, probability calculations, and strategy builder.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
                 <Calculator className="h-5 w-5 text-purple-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Greeks Analysis</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Greeks Analysis</h3>
+              <p className="text-sm text-muted-foreground">
                 Delta, gamma, theta, vega calculations with risk visualization.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
                 <BarChart3 className="h-5 w-5 text-cyan-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">IV Analysis</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">IV Analysis</h3>
+              <p className="text-sm text-muted-foreground">
                 IV rank, percentile, skew analysis for volatility trading.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
-                <Target className="h-5 w-5 text-emerald-400" />
+                <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Probability Calc</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Probability Calc</h3>
+              <p className="text-sm text-muted-foreground">
                 Win probability and expected value calculations for strategies.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4">
                 <Layers className="h-5 w-5 text-pink-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Strategy Builder</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Strategy Builder</h3>
+              <p className="text-sm text-muted-foreground">
                 Build and analyze multi-leg options strategies with P&L charts.
               </p>
             </div>
@@ -559,69 +559,69 @@ export default function Features() {
       </section>
 
       {/* Trading Bots & Automation */}
-      <section className="py-12 lg:py-16 relative z-10 bg-[#0d0d0d]" id="bots" data-testid="section-bots">
+      <section className="py-12 lg:py-16 relative z-10 bg-[var(--surface-base)]" id="bots" data-testid="section-bots">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Automated Trading Research
             </p>
-            <h2 className="text-2xl font-bold text-white">5 Trading Bots</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">5 Trading Bots</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Autonomous paper trading bots that test strategies with full transparency.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
-            <div className="bg-[#111] rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all text-center">
+            <div className="bg-card rounded-xl p-5 border border-cyan-500/20 hover:border-cyan-500/40 transition-all text-center">
               <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
                 <Bot className="h-6 w-6 text-cyan-400" />
               </div>
-              <h3 className="font-semibold text-white">Auto-Lotto</h3>
-              <p className="text-xs text-slate-500 mt-1">High R:R Options</p>
+              <h3 className="font-semibold text-foreground">Auto-Lotto</h3>
+              <p className="text-xs text-muted-foreground mt-1">High R:R Options</p>
               <Badge variant="outline" className="mt-2 text-[10px] border-cyan-500/30 text-cyan-400">
                 Paper Trading
               </Badge>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all text-center">
-              <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
-                <CandlestickChart className="h-6 w-6 text-green-400" />
+            <div className="bg-card rounded-xl p-5 border border-green-500/20 hover:border-green-500/40 transition-all text-center">
+              <div className="h-12 w-12 rounded-full bg-[var(--trade-bullish)]/10 flex items-center justify-center mx-auto mb-3">
+                <CandlestickChart className="h-6 w-6 text-[var(--trade-bullish)]" />
               </div>
-              <h3 className="font-semibold text-white">Futures Bot</h3>
-              <p className="text-xs text-slate-500 mt-1">ES, NQ, GC</p>
-              <Badge variant="outline" className="mt-2 text-[10px] border-green-500/30 text-green-400">
+              <h3 className="font-semibold text-foreground">Futures Bot</h3>
+              <p className="text-xs text-muted-foreground mt-1">ES, NQ, GC</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-green-500/30 text-[var(--trade-bullish)]">
                 Paper Trading
               </Badge>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all text-center">
+            <div className="bg-card rounded-xl p-5 border border-amber-500/20 hover:border-amber-500/40 transition-all text-center">
               <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
-                <Coins className="h-6 w-6 text-amber-400" />
+                <Coins className="h-6 w-6 text-[var(--trade-neutral)]" />
               </div>
-              <h3 className="font-semibold text-white">Crypto Bot</h3>
-              <p className="text-xs text-slate-500 mt-1">BTC, ETH, Alts</p>
-              <Badge variant="outline" className="mt-2 text-[10px] border-amber-500/30 text-amber-400">
+              <h3 className="font-semibold text-foreground">Crypto Bot</h3>
+              <p className="text-xs text-muted-foreground mt-1">BTC, ETH, Alts</p>
+              <Badge variant="outline" className="mt-2 text-[10px] border-amber-500/30 text-[var(--trade-neutral)]">
                 Paper Trading
               </Badge>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all text-center">
+            <div className="bg-card rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all text-center">
               <div className="h-12 w-12 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
                 <Radar className="h-6 w-6 text-purple-400" />
               </div>
-              <h3 className="font-semibold text-white">Swing Bot</h3>
-              <p className="text-xs text-slate-500 mt-1">Multi-Day Holds</p>
+              <h3 className="font-semibold text-foreground">Swing Bot</h3>
+              <p className="text-xs text-muted-foreground mt-1">Multi-Day Holds</p>
               <Badge variant="outline" className="mt-2 text-[10px] border-purple-500/30 text-purple-400">
                 Paper Trading
               </Badge>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all text-center">
+            <div className="bg-card rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all text-center">
               <div className="h-12 w-12 rounded-full bg-pink-500/10 flex items-center justify-center mx-auto mb-3">
                 <Timer className="h-6 w-6 text-pink-400" />
               </div>
-              <h3 className="font-semibold text-white">Day Trade Bot</h3>
-              <p className="text-xs text-slate-500 mt-1">Intraday Only</p>
+              <h3 className="font-semibold text-foreground">Day Trade Bot</h3>
+              <p className="text-xs text-muted-foreground mt-1">Intraday Only</p>
               <Badge variant="outline" className="mt-2 text-[10px] border-pink-500/30 text-pink-400">
                 Paper Trading
               </Badge>
@@ -629,7 +629,7 @@ export default function Features() {
           </div>
 
           <div className="text-center mt-8">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               All bots are paper trading only. Track performance with full audit trails.
             </p>
           </div>
@@ -643,39 +643,39 @@ export default function Features() {
             <p className="text-xs font-medium uppercase tracking-wider text-pink-400 mb-2">
               Self-Improving System
             </p>
-            <h2 className="text-2xl font-bold text-white">AI Learning Dashboard</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">AI Learning Dashboard</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Watch your engines learn and improve from every trade with ML visualization.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <div className="bg-[#111] rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-pink-500/20 hover:border-pink-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4">
                 <Network className="h-5 w-5 text-pink-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Neural Visualization</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Neural Visualization</h3>
+              <p className="text-sm text-muted-foreground">
                 See the 6 engines as interconnected nodes, learning from each trade outcome.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-purple-500/20 hover:border-purple-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
                 <Sparkles className="h-5 w-5 text-purple-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Learning Insights</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Learning Insights</h3>
+              <p className="text-sm text-muted-foreground">
                 AI-generated insights on timing, asset allocation, and confluence optimization.
               </p>
             </div>
 
-            <div className="bg-[#111] rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+            <div className="bg-card rounded-xl p-5 border border-blue-500/20 hover:border-blue-500/40 transition-all">
               <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
                 <Radar className="h-5 w-5 text-blue-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-white">Engine Radar</h3>
-              <p className="text-sm text-slate-400">
+              <h3 className="font-semibold mb-2 text-foreground">Engine Radar</h3>
+              <p className="text-sm text-muted-foreground">
                 Compare engine performance across accuracy, timing, and risk metrics.
               </p>
             </div>
@@ -684,14 +684,14 @@ export default function Features() {
       </section>
 
       {/* Research Tools Section */}
-      <section className="py-12 lg:py-16 relative z-10 border-y border-[#222]" id="research-tools" data-testid="section-research-tools">
+      <section className="py-12 lg:py-16 relative z-10 border-y border-border" id="research-tools" data-testid="section-research-tools">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Research Workbench
             </p>
-            <h2 className="text-2xl font-bold text-white">Professional-Grade Tools</h2>
-            <p className="text-slate-400 mt-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-foreground">Professional-Grade Tools</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Everything you need for comprehensive market research in one platform.
             </p>
           </div>
@@ -699,7 +699,7 @@ export default function Features() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             <div className="glass-card rounded-lg p-5 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-chart-analysis">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mb-4">
-                <Target className="h-5 w-5 text-amber-400" />
+                <Target className="h-5 w-5 text-[var(--trade-neutral)]" />
               </div>
               <h3 className="font-semibold mb-2">Chart Analysis</h3>
               <p className="text-sm text-muted-foreground">
@@ -741,7 +741,7 @@ export default function Features() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mt-6">
             <div className="glass-card rounded-lg p-5 border-l-2 border-green-500/50 hover-elevate" data-testid="card-futures-terminal">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center mb-4">
-                <CandlestickChart className="h-5 w-5 text-green-400" />
+                <CandlestickChart className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
               <h3 className="font-semibold mb-2">Futures Terminal</h3>
               <p className="text-sm text-muted-foreground">
@@ -761,7 +761,7 @@ export default function Features() {
 
             <div className="glass-card rounded-lg p-5 border-l-2 border-emerald-500/50 hover-elevate" data-testid="card-historical">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center mb-4">
-                <History className="h-5 w-5 text-emerald-400" />
+                <History className="h-5 w-5 text-[var(--trade-bullish)]" />
               </div>
               <h3 className="font-semibold mb-2">Historical Intelligence</h3>
               <p className="text-sm text-muted-foreground">
@@ -814,7 +814,7 @@ export default function Features() {
             
             <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-crypto">
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mx-auto mb-3">
-                <Coins className="h-6 w-6 text-amber-400" />
+                <Coins className="h-6 w-6 text-[var(--trade-neutral)]" />
               </div>
               <h3 className="font-semibold">Crypto</h3>
               <p className="text-xs text-muted-foreground mt-1">BTC, ETH, Altcoins</p>
@@ -822,7 +822,7 @@ export default function Features() {
             
             <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-futures">
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center mx-auto mb-3">
-                <CandlestickChart className="h-6 w-6 text-green-400" />
+                <CandlestickChart className="h-6 w-6 text-[var(--trade-bullish)]" />
               </div>
               <h3 className="font-semibold">Futures</h3>
               <p className="text-xs text-muted-foreground mt-1">NQ, GC Contracts</p>
@@ -832,7 +832,7 @@ export default function Features() {
       </section>
 
       {/* Analytics & Risk Section */}
-      <section className="py-12 lg:py-16 bg-[#111]/30 dark:bg-[#111]/30" id="analytics" data-testid="section-analytics">
+      <section className="py-12 lg:py-16 bg-card/30 dark:bg-card/30" id="analytics" data-testid="section-analytics">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -857,7 +857,7 @@ export default function Features() {
             
             <div className="glass-card rounded-lg p-5 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-loss-analysis">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mb-4">
-                <AlertTriangle className="h-5 w-5 text-amber-400" />
+                <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
               </div>
               <h3 className="font-semibold mb-2">Loss Analysis</h3>
               <p className="text-sm text-muted-foreground">
@@ -936,7 +936,7 @@ export default function Features() {
       </section>
 
       {/* Education Section */}
-      <section className="py-12 lg:py-16 bg-[#111]/30 dark:bg-[#111]/30" id="education" data-testid="section-education">
+      <section className="py-12 lg:py-16 bg-card/30 dark:bg-card/30" id="education" data-testid="section-education">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -1025,7 +1025,7 @@ export default function Features() {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button 
-                className="bg-cyan-500 text-slate-950"
+                className="bg-cyan-500 text-foreground"
                 onClick={() => setLocation('/')}
                 data-testid="button-cta-join-beta"
               >
@@ -1034,7 +1034,7 @@ export default function Features() {
               <Button 
                 variant="outline"
                 onClick={() => setLocation('/pricing')}
-                className="border-[#222]"
+                className="border-border"
                 data-testid="button-cta-pricing"
               >
                 View Pricing
@@ -1045,7 +1045,7 @@ export default function Features() {
       </section>
 
       {/* Educational Disclaimer */}
-      <section className="py-8 border-t border-[#222]" data-testid="section-disclaimer">
+      <section className="py-8 border-t border-border" data-testid="section-disclaimer">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-xs text-muted-foreground/60 leading-relaxed">
@@ -1059,7 +1059,7 @@ export default function Features() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-[#222]">
+      <footer className="py-8 border-t border-border">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">

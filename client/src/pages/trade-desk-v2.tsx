@@ -36,15 +36,15 @@ export default function TradeDesk() {
   return (
     <div className="min-h-screen bg-background text-white">
       {/* Header */}
-      <div className="border-b border-slate-800/40 px-4 py-3">
+      <div className="border-b border-border/40 px-4 py-3">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
-              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <Activity className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
             </div>
             <div>
               <h1 className="text-sm font-semibold text-white">Trade Desk</h1>
-              <p className="text-[10px] text-slate-600">
+              <p className="text-[10px] text-muted-foreground/70">
                 {isWeekend ? 'Weekend — showing last week' : 'Live signals from your watchlist'}
               </p>
             </div>
@@ -69,9 +69,9 @@ export default function TradeDesk() {
         <div className="flex-1 min-w-0">
           {/* Selected symbol indicator */}
           {selectedSymbol && (
-            <div className="px-3 py-1.5 bg-slate-800/30 border-b border-slate-800/40 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                Showing signals for <span className="text-white font-mono font-bold">{selectedSymbol}</span>
+            <div className="px-3 py-1.5 bg-muted/30 border-b border-border/40 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Showing signals for <span className="text-white font-mono font-bold tabular-nums">{selectedSymbol}</span>
               </span>
               <button
                 onClick={() => setSelectedSymbol(null)}

@@ -31,10 +31,10 @@ export function getAssetClass(symbol: string): { label: string; color: string } 
   const s = symbol.toUpperCase();
   if (INDEX_SYMBOLS.has(s)) return { label: 'INDEX', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
   if (SECTOR_ETFS.has(s)) return { label: 'SECTOR', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
-  if (COMMODITY_SYMBOLS.has(s)) return { label: 'COMMODITY', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+  if (COMMODITY_SYMBOLS.has(s)) return { label: 'COMMODITY', color: 'bg-[var(--trade-neutral)]/10 text-[var(--trade-neutral)] border-amber-500/20' };
   if (BOND_SYMBOLS.has(s)) return { label: 'BOND', color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' };
-  if (DEFENSE_SYMBOLS.has(s)) return { label: 'DEFENSE', color: 'bg-red-500/10 text-red-500 border-red-500/20' };
-  return { label: 'STOCK', color: 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700' };
+  if (DEFENSE_SYMBOLS.has(s)) return { label: 'DEFENSE', color: 'bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)] border-red-500/20' };
+  return { label: 'STOCK', color: 'bg-gray-100 dark:bg-muted text-muted-foreground dark:text-muted-foreground border-gray-200 dark:border-border' };
 }
 
 interface MarketQuote {
@@ -64,7 +64,7 @@ export function CrossAssetOverview({ variant = "default" }: { variant?: "default
     {
       label: 'Commodities',
       icon: Fuel,
-      color: 'text-amber-500',
+      color: 'text-[var(--trade-neutral)]',
       assets: [
         { symbol: 'USO', name: 'Oil' },
         { symbol: 'GLD', name: 'Gold' },
@@ -83,7 +83,7 @@ export function CrossAssetOverview({ variant = "default" }: { variant?: "default
     {
       label: 'Fear',
       icon: Activity,
-      color: 'text-red-500',
+      color: 'text-[var(--trade-bearish)]',
       assets: [
         { symbol: 'VIX', name: 'Volatility' },
         { symbol: 'BTC-USD', name: 'Bitcoin' },
@@ -95,22 +95,22 @@ export function CrossAssetOverview({ variant = "default" }: { variant?: "default
 
   return (
     <Card className={cn(
-      "border-gray-200 dark:border-[#222]",
-      isLanding ? "bg-slate-900/50 border-slate-700/50 backdrop-blur-sm" : "bg-white dark:bg-[#111]"
+      "border-gray-200 dark:border-border",
+      isLanding ? "bg-card/50 border-border/50 backdrop-blur-sm" : "bg-white dark:bg-card"
     )}>
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
             <Globe className="w-4 h-4 text-blue-500" />
           </div>
-          <h3 className={cn("font-semibold", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>Cross-Asset Overview</h3>
+          <h3 className={cn("font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>Cross-Asset Overview</h3>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {assetGroups.map((group) => (
             <div key={group.label} className="space-y-2">
               <div className="flex items-center gap-1.5 mb-1">
                 <group.icon className={cn("w-3.5 h-3.5", group.color)} />
-                <span className={cn("text-[11px] font-semibold uppercase tracking-wider", isLanding ? "text-slate-400" : "text-gray-500 dark:text-slate-400")}>{group.label}</span>
+                <span className={cn("text-[11px] font-semibold uppercase tracking-wider", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>{group.label}</span>
               </div>
               {group.assets.map((asset) => {
                 const quote = marketData?.quotes?.[asset.symbol];
@@ -121,22 +121,22 @@ export function CrossAssetOverview({ variant = "default" }: { variant?: "default
                     <div className={cn(
                       "flex items-center justify-between p-2 rounded-lg border transition-colors cursor-pointer",
                       isLanding
-                        ? "bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/50"
-                        : "bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border-gray-100 dark:border-[#1a1a1a]"
+                        ? "bg-muted/50 hover:bg-muted/50 border-border/50"
+                        : "bg-gray-50 dark:bg-[var(--surface-base)] hover:bg-gray-100 dark:hover:bg-[var(--surface-raised)] border-gray-100 dark:border-border/50"
                     )}>
                       <div>
-                        <span className={cn("text-xs font-semibold", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>{asset.symbol}</span>
-                        <div className={cn("text-[10px]", isLanding ? "text-slate-500" : "text-gray-500 dark:text-slate-500")}>{asset.name}</div>
+                        <span className={cn("text-xs font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>{asset.symbol}</span>
+                        <div className={cn("text-[10px]", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>{asset.name}</div>
                       </div>
                       <div className="text-right">
                         {price > 0 && (
-                          <div className={cn("text-[10px] font-mono", isLanding ? "text-slate-400" : "text-gray-500 dark:text-slate-400")}>
+                          <div className={cn("text-[10px] font-mono", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>
                             ${price < 100 ? safeToFixed(price, 2) : safeToFixed(price, 0)}
                           </div>
                         )}
                         <span className={cn(
                           "text-xs font-mono font-bold",
-                          change >= 0 ? "text-emerald-500" : "text-red-500"
+                          change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                         </span>
@@ -180,9 +180,9 @@ export function EconomicCalendarWidget({ variant = "default" }: { variant?: "def
   const isLanding = variant === "landing";
 
   const importanceColor = (imp: string) => {
-    if (imp === 'high') return 'bg-red-500/10 text-red-500 border-red-500/20';
-    if (imp === 'medium') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-    return 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-slate-700';
+    if (imp === 'high') return 'bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)] border-red-500/20';
+    if (imp === 'medium') return 'bg-[var(--trade-neutral)]/10 text-[var(--trade-neutral)] border-amber-500/20';
+    return 'bg-gray-100 dark:bg-muted text-muted-foreground dark:text-muted-foreground border-gray-200 dark:border-border';
   };
 
   const formatEventDate = (date: string) => {
@@ -198,18 +198,18 @@ export function EconomicCalendarWidget({ variant = "default" }: { variant?: "def
 
   return (
     <Card className={cn(
-      "border-gray-200 dark:border-[#222]",
-      isLanding ? "bg-slate-900/50 border-slate-700/50 backdrop-blur-sm" : "bg-white dark:bg-[#111]"
+      "border-gray-200 dark:border-border",
+      isLanding ? "bg-card/50 border-border/50 backdrop-blur-sm" : "bg-white dark:bg-card"
     )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
-              <Calendar className="w-4 h-4 text-red-500" />
+              <Calendar className="w-4 h-4 text-[var(--trade-bearish)]" />
             </div>
-            <h3 className={cn("font-semibold", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>Economic Calendar</h3>
+            <h3 className={cn("font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>Economic Calendar</h3>
           </div>
-          <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">
+          <Badge variant="outline" className="text-[10px] border-red-500/30 text-[var(--trade-bearish)]">
             {data?.today && data.today.length > 0 ? `${data.today.length} today` : 'Macro'}
           </Badge>
         </div>
@@ -227,38 +227,38 @@ export function EconomicCalendarWidget({ variant = "default" }: { variant?: "def
                 className={cn(
                   "flex items-center justify-between p-2.5 rounded-lg border",
                   isLanding
-                    ? "bg-slate-800/50 border-slate-700/50"
-                    : "bg-gray-50 dark:bg-[#0a0a0a] border-gray-100 dark:border-[#1a1a1a]"
+                    ? "bg-muted/50 border-border/50"
+                    : "bg-gray-50 dark:bg-[var(--surface-base)] border-gray-100 dark:border-border/50"
                 )}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className={cn(
                     "w-2 h-2 rounded-full flex-shrink-0",
-                    event.importance === 'high' ? 'bg-red-500' :
-                    event.importance === 'medium' ? 'bg-amber-500' : 'bg-gray-400'
+                    event.importance === 'high' ? 'bg-[var(--trade-bearish)]' :
+                    event.importance === 'medium' ? 'bg-[var(--trade-neutral)]' : 'bg-gray-400'
                   )} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={cn("font-medium text-sm truncate", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>{event.name}</span>
+                      <span className={cn("font-medium text-sm truncate", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>{event.name}</span>
                       <span className={cn("text-[9px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0", importanceColor(event.importance))}>
                         {event.importance.toUpperCase()}
                       </span>
                     </div>
-                    <span className={cn("text-[10px] truncate block", isLanding ? "text-slate-500" : "text-gray-500 dark:text-slate-500")}>
+                    <span className={cn("text-[10px] truncate block", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>
                       {event.description.slice(0, 60)}{event.description.length > 60 ? '...' : ''}
                     </span>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
-                  <div className={cn("text-xs font-medium", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>{formatEventDate(event.date)}</div>
-                  <div className={cn("text-[10px]", isLanding ? "text-slate-500" : "text-gray-500 dark:text-slate-500")}>{event.time}</div>
+                  <div className={cn("text-xs font-medium", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>{formatEventDate(event.date)}</div>
+                  <div className={cn("text-[10px]", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>{event.time}</div>
                 </div>
               </div>
             ))
           ) : (
             <div className={cn(
               "text-sm text-center py-8 rounded-lg flex flex-col items-center gap-2",
-              isLanding ? "text-slate-500 bg-slate-800/50" : "text-gray-500 dark:text-slate-500 bg-gray-50 dark:bg-[#0a0a0a]"
+              isLanding ? "text-muted-foreground bg-muted/50" : "text-muted-foreground dark:text-muted-foreground bg-gray-50 dark:bg-[var(--surface-base)]"
             )}>
               <Calendar className="w-5 h-5" />
               No upcoming economic events
@@ -302,8 +302,8 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
 
   return (
     <Card className={cn(
-      "border-gray-200 dark:border-[#222]",
-      isLanding ? "bg-slate-900/50 border-slate-700/50 backdrop-blur-sm" : "bg-white dark:bg-[#111]"
+      "border-gray-200 dark:border-border",
+      isLanding ? "bg-card/50 border-border/50 backdrop-blur-sm" : "bg-white dark:bg-card"
     )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
@@ -311,10 +311,10 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
               <Newspaper className="w-4 h-4 text-orange-500" />
             </div>
-            <h3 className={cn("font-semibold", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>Breaking News</h3>
+            <h3 className={cn("font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>Breaking News</h3>
           </div>
-          <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse mr-1.5" />
+          <Badge variant="outline" className="text-[10px] border-red-500/30 text-[var(--trade-bearish)]">
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bearish)] animate-pulse mr-1.5" />
             Live
           </Badge>
         </div>
@@ -335,8 +335,8 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
                 className={cn(
                   "block p-3 rounded-lg border transition-colors group",
                   isLanding
-                    ? "bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/50"
-                    : "bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border-gray-100 dark:border-[#1a1a1a]"
+                    ? "bg-muted/50 hover:bg-muted/50 border-border/50"
+                    : "bg-gray-50 dark:bg-[var(--surface-base)] hover:bg-gray-100 dark:hover:bg-[var(--surface-raised)] border-gray-100 dark:border-border/50"
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -344,24 +344,24 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
                     <p className={cn(
                       "text-sm font-medium line-clamp-2 transition-colors",
                       isLanding
-                        ? "text-white group-hover:text-emerald-400"
-                        : "text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400"
+                        ? "text-foreground group-hover:text-[var(--trade-bullish)]"
+                        : "text-foreground dark:text-foreground group-hover:text-[var(--trade-bullish)] dark:group-hover:text-[var(--trade-bullish)]"
                     )}>
                       {article.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className={cn("text-[10px]", isLanding ? "text-slate-500" : "text-gray-500 dark:text-slate-500")}>{article.source}</span>
-                      <span className={cn(isLanding ? "text-slate-600" : "text-gray-300 dark:text-slate-600")}>·</span>
-                      <span className={cn("text-[10px] flex items-center gap-1", isLanding ? "text-slate-500" : "text-gray-500 dark:text-slate-500")}>
+                      <span className={cn("text-[10px]", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>{article.source}</span>
+                      <span className={cn(isLanding ? "text-muted-foreground/70" : "text-foreground/80 dark:text-muted-foreground/70")}>·</span>
+                      <span className={cn("text-[10px] flex items-center gap-1", isLanding ? "text-muted-foreground" : "text-muted-foreground dark:text-muted-foreground")}>
                         <Clock className="w-3 h-3" />
                         {formatTimeAgo(article.publishedAt)}
                       </span>
                       {article.tickers && article.tickers.length > 0 && (
                         <>
-                          <span className={cn(isLanding ? "text-slate-600" : "text-gray-300 dark:text-slate-600")}>·</span>
+                          <span className={cn(isLanding ? "text-muted-foreground/70" : "text-foreground/80 dark:text-muted-foreground/70")}>·</span>
                           <div className="flex gap-1">
                             {article.tickers.slice(0, 2).map((ticker) => (
-                              <span key={ticker} className="text-[10px] font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                              <span key={ticker} className="text-[10px] font-medium text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 px-1.5 py-0.5 rounded">
                                 ${ticker}
                               </span>
                             ))}
@@ -370,16 +370,16 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
                       )}
                     </div>
                   </div>
-                  <ExternalLink className={cn("w-3.5 h-3.5 flex-shrink-0 group-hover:text-emerald-500 transition-colors", isLanding ? "text-slate-600" : "text-gray-400 dark:text-slate-600")} />
+                  <ExternalLink className={cn("w-3.5 h-3.5 flex-shrink-0 group-hover:text-[var(--trade-bullish)] transition-colors", isLanding ? "text-muted-foreground/70" : "text-muted-foreground dark:text-muted-foreground/70")} />
                 </div>
               </a>
             ))
           ) : (
             <div className={cn(
               "text-sm text-center py-8 rounded-lg",
-              isLanding ? "text-slate-500 bg-slate-800/50" : "text-gray-500 dark:text-slate-500 bg-gray-50 dark:bg-[#0a0a0a]"
+              isLanding ? "text-muted-foreground bg-muted/50" : "text-muted-foreground dark:text-muted-foreground bg-gray-50 dark:bg-[var(--surface-base)]"
             )}>
-              No breaking news right now
+              Monitoring news feeds... right now
             </div>
           )}
         </div>
@@ -416,19 +416,19 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
 
   return (
     <Card className={cn(
-      "border-gray-200 dark:border-[#222]",
-      isLanding ? "bg-slate-900/50 border-slate-700/50 backdrop-blur-sm" : "bg-white dark:bg-[#111]"
+      "border-gray-200 dark:border-border",
+      isLanding ? "bg-card/50 border-border/50 backdrop-blur-sm" : "bg-white dark:bg-card"
     )}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-              <Brain className="w-4 h-4 text-emerald-500" />
+              <Brain className="w-4 h-4 text-[var(--trade-bullish)]" />
             </div>
-            <h3 className={cn("font-semibold", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>AI Trade Ideas</h3>
+            <h3 className={cn("font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>AI Trade Ideas</h3>
           </div>
           <Link href="/trade-desk">
-            <span className="text-xs text-emerald-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+            <span className="text-xs text-[var(--trade-bullish)] hover:text-[var(--trade-bullish)] flex items-center gap-1 cursor-pointer">
               View all <ChevronRight className="h-3 w-3" />
             </span>
           </Link>
@@ -442,22 +442,22 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
                 <div className={cn(
                   "flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer",
                   isLanding
-                    ? "bg-slate-800/50 hover:bg-slate-700/50 border-slate-700/50"
-                    : "bg-gray-50 dark:bg-[#0a0a0a] hover:bg-gray-100 dark:hover:bg-[#151515] border-gray-100 dark:border-[#1a1a1a]"
+                    ? "bg-muted/50 hover:bg-muted/50 border-border/50"
+                    : "bg-gray-50 dark:bg-[var(--surface-base)] hover:bg-gray-100 dark:hover:bg-[var(--surface-raised)] border-gray-100 dark:border-border/50"
                 )}>
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs",
-                      isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                      isLong ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
                     )}>
                       {idea.symbol.slice(0, 2)}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className={cn("font-semibold text-sm", isLanding ? "text-white" : "text-gray-900 dark:text-white")}>{idea.symbol}</span>
+                        <span className={cn("font-semibold text-sm", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>{idea.symbol}</span>
                         <span className={cn(
                           "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                          isLong ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                          isLong ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
                         )}>
                           {isLong ? "LONG" : "SHORT"}
                         </span>
@@ -466,14 +466,14 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
                         </span>
                       </div>
                       {idea.timestamp && (
-                        <span className={cn("text-[10px]", isLanding ? "text-slate-600" : "text-gray-400 dark:text-slate-600")}>{getRelativeTime(idea.timestamp)}</span>
+                        <span className={cn("text-[10px]", isLanding ? "text-muted-foreground/70" : "text-muted-foreground dark:text-muted-foreground/70")}>{getRelativeTime(idea.timestamp)}</span>
                       )}
                     </div>
                   </div>
                   <Badge variant="outline" className={cn(
                     "font-mono",
-                    idea.confidenceScore >= 75 ? "border-emerald-500/30 text-emerald-500" :
-                    idea.confidenceScore >= 60 ? "border-amber-500/30 text-amber-500" : "border-gray-300 dark:border-slate-600 text-gray-500 dark:text-slate-400"
+                    idea.confidenceScore >= 75 ? "border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]" :
+                    idea.confidenceScore >= 60 ? "border-amber-500/30 text-[var(--trade-neutral)]" : "border-gray-300 dark:border-border text-muted-foreground dark:text-muted-foreground"
                   )}>
                     {idea.confidenceScore}%
                   </Badge>
@@ -483,7 +483,7 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
           }) : (
             <div className={cn(
               "text-sm text-center py-8 rounded-lg",
-              isLanding ? "text-slate-500 bg-slate-800/50" : "text-gray-500 dark:text-slate-500 bg-gray-50 dark:bg-[#0a0a0a]"
+              isLanding ? "text-muted-foreground bg-muted/50" : "text-muted-foreground dark:text-muted-foreground bg-gray-50 dark:bg-[var(--surface-base)]"
             )}>
               No active ideas right now
             </div>
@@ -493,7 +493,7 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
         {isLanding && ideas.length > 0 && (
           <div className="mt-4 text-center">
             <Link href="/join-beta">
-              <Button variant="outline" size="sm" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+              <Button variant="outline" size="sm" className="border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)] hover:bg-[var(--trade-bullish)]/10">
                 Sign up for full access <ArrowRight className="w-3 h-3 ml-1.5" />
               </Button>
             </Link>

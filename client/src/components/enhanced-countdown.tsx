@@ -64,22 +64,22 @@ export function EnhancedCountdown({ exitBy, className, showFullDate = false, ass
   const urgencyStyles = {
     expired: {
       bg: 'bg-red-500/10',
-      text: 'text-red-600 dark:text-red-400',
+      text: 'text-red-600 dark:text-[var(--trade-bearish)]',
       border: 'border-red-500/50'
     },
     critical: {
       bg: 'bg-red-500/10',
-      text: 'text-red-600 dark:text-red-400',
+      text: 'text-red-600 dark:text-[var(--trade-bearish)]',
       border: 'border-red-500/50 animate-pulse'
     },
     warning: {
       bg: 'bg-amber-500/10',
-      text: 'text-amber-600 dark:text-amber-400',
+      text: 'text-amber-600 dark:text-[var(--trade-neutral)]',
       border: 'border-amber-500/50'
     },
     active: {
-      bg: 'bg-green-500/10',
-      text: 'text-green-600 dark:text-green-400',
+      bg: 'bg-[var(--trade-bullish)]/10',
+      text: 'text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]',
       border: 'border-green-500/50'
     },
     safe: {

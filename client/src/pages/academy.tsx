@@ -198,7 +198,7 @@ export default function Academy() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={isActive ? "bg-purple-500 text-white" : "border-slate-700"}
+                  className={isActive ? "bg-purple-500 text-white" : "border-border"}
                   data-testid={`category-${cat.id}`}
                 >
                   <cat.icon className="h-4 w-4 mr-2" />
@@ -214,7 +214,7 @@ export default function Academy() {
         {/* Quick Links */}
         <div className="grid sm:grid-cols-3 gap-4 mb-10">
           <Link href="/technical-guide">
-            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-technical-guide">
+            <Card className="glass-card hover-elevate h-full border-border/50 cursor-pointer" data-testid="link-technical-guide">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
                   <BookOpen className="h-5 w-5 text-white" />
@@ -228,7 +228,7 @@ export default function Academy() {
             </Card>
           </Link>
           <Link href="/trading-rules">
-            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-trading-rules">
+            <Card className="glass-card hover-elevate h-full border-border/50 cursor-pointer" data-testid="link-trading-rules">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
                   <Shield className="h-5 w-5 text-white" />
@@ -242,7 +242,7 @@ export default function Academy() {
             </Card>
           </Link>
           <Link href="/blog">
-            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-blog">
+            <Card className="glass-card hover-elevate h-full border-border/50 cursor-pointer" data-testid="link-blog">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                   <FileText className="h-5 w-5 text-white" />
@@ -279,7 +279,7 @@ export default function Academy() {
         </div>
 
         {/* Disclaimer */}
-        <div className="glass-card rounded-xl p-5 border border-slate-700/50 border-l-2 border-l-amber-500/50">
+        <div className="glass-card rounded-xl p-5 border border-border/50 border-l-2 border-l-amber-500/50">
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 flex-shrink-0">
               <Shield className="h-4 w-4 text-white" />
@@ -361,10 +361,10 @@ function ArticleCard({ article }: { article: Article }) {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'technical': return 'text-blue-400';
-      case 'risk': return 'text-green-400';
+      case 'risk': return 'text-[var(--trade-bullish)]';
       case 'psychology': return 'text-orange-400';
       case 'options': return 'text-purple-400';
-      default: return 'text-emerald-400';
+      default: return 'text-[var(--trade-bullish)]';
     }
   };
 
@@ -382,7 +382,7 @@ function ArticleCard({ article }: { article: Article }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-          <Badge variant="secondary" className="text-xs bg-black/50 backdrop-blur-sm border-none">
+          <Badge variant="secondary" className="text-xs bg-[var(--surface-base)]/50 backdrop-blur-sm border-none">
             {article.level}
           </Badge>
           <span className="text-xs text-white/80 flex items-center gap-1">
@@ -393,7 +393,7 @@ function ArticleCard({ article }: { article: Article }) {
       </div>
       
       {/* Content */}
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <p className={`text-xs font-medium uppercase tracking-wider mb-2 ${getCategoryColor(article.category)}`}>
           {article.category === 'technical' ? 'Technical Analysis' : 
            article.category === 'risk' ? 'Risk Management' :

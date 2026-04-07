@@ -462,7 +462,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                       maximumFractionDigits: marketData.currentPrice >= 100 ? 2 : 4
                     })}
                   </div>
-                  <div className={`text-sm font-medium flex items-center gap-1 justify-end ${isPositive ? 'text-green-500' : 'text-red-500'}`} data-testid="text-dialog-change">
+                  <div className={`text-sm font-medium flex items-center gap-1 justify-end ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`} data-testid="text-dialog-change">
                     {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {isPositive ? '+' : ''}{safeToFixed(marketData.changePercent, 2)}%
                   </div>
@@ -610,9 +610,9 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                           <Badge 
                             variant="outline" 
                             className={
-                              recommendation.confidence === 'high' ? 'border-green-500 text-green-500' :
-                              recommendation.confidence === 'medium' ? 'border-amber-500 text-amber-500' :
-                              'border-red-500 text-red-500'
+                              recommendation.confidence === 'high' ? 'border-green-500 text-[var(--trade-bullish)]' :
+                              recommendation.confidence === 'medium' ? 'border-[var(--trade-neutral)] text-[var(--trade-neutral)]' :
+                              'border-[var(--trade-bearish)] text-[var(--trade-bearish)]'
                             }
                             data-testid="badge-recommendation-confidence"
                           >
@@ -628,9 +628,9 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                     {recommendation.direction !== 'neutral' && (
                       <div className="flex items-center gap-2 text-xs" data-testid="text-recommendation-direction">
                         {recommendation.direction === 'long' ? (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
+                          <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
+                          <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
                         )}
                         <span className="text-muted-foreground">
                           Suggested Direction: <span className="font-medium">{recommendation.direction.toUpperCase()}</span>
@@ -639,7 +639,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                     )}
 
                     {marketData.currentPrice < 5 && (
-                      <div className="flex items-start gap-2 text-xs text-amber-500" data-testid="text-liquidity-warning">
+                      <div className="flex items-start gap-2 text-xs text-[var(--trade-neutral)]" data-testid="text-liquidity-warning">
                         <AlertTriangle className="h-3 w-3 mt-0.5" />
                         <span>Low liquidity warning: Penny stocks may have limited options markets</span>
                       </div>

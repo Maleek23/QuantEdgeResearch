@@ -87,11 +87,11 @@ function getCSRFToken(): string | null {
 
 function getTierColor(tier: string) {
   switch (tier) {
-    case 'free': return 'bg-slate-500/20 text-slate-400';
+    case 'free': return 'bg-muted-foreground/20 text-muted-foreground';
     case 'advanced': return 'bg-purple-500/20 text-purple-400';
-    case 'pro': return 'bg-amber-500/20 text-amber-400';
-    case 'admin': return 'bg-red-500/20 text-red-400';
-    default: return 'bg-slate-500/20 text-slate-400';
+    case 'pro': return 'bg-amber-500/20 text-[var(--trade-neutral)]';
+    case 'admin': return 'bg-red-500/20 text-[var(--trade-bearish)]';
+    default: return 'bg-muted-foreground/20 text-muted-foreground';
   }
 }
 
@@ -271,11 +271,11 @@ export default function AdminCredits() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Used</span>
-                          <span className="font-mono text-amber-400">{stats.totalCreditsUsed.toLocaleString()}</span>
+                          <span className="font-mono text-[var(--trade-neutral)]">{stats.totalCreditsUsed.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Remaining</span>
-                          <span className="font-mono text-green-400">
+                          <span className="font-mono text-[var(--trade-bullish)]">
                             {(stats.totalCreditsAllocated - stats.totalCreditsUsed).toLocaleString()}
                           </span>
                         </div>
@@ -345,7 +345,7 @@ export default function AdminCredits() {
             ) : (
               <Card>
                 <CardContent className="flex items-center justify-center py-8">
-                  <AlertTriangle className="w-5 h-5 text-amber-400 mr-2" />
+                  <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)] mr-2" />
                   <span className="text-muted-foreground">No credit stats available</span>
                 </CardContent>
               </Card>
@@ -410,8 +410,8 @@ export default function AdminCredits() {
                             <TableCell className="text-right">
                               <span className={cn(
                                 "font-mono",
-                                remaining <= 5 ? "text-red-400" :
-                                remaining <= 20 ? "text-amber-400" : "text-green-400"
+                                remaining <= 5 ? "text-[var(--trade-bearish)]" :
+                                remaining <= 20 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
                               )}>
                                 {remaining}
                               </span>

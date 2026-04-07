@@ -85,7 +85,7 @@ export function FeatureGate({
           {/* Free Trial Banner */}
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-400" />
+              <Zap className="h-4 w-4 text-[var(--trade-neutral)]" />
               <span className="text-sm text-amber-200">
                 <strong>Free Trial:</strong> Try this feature once for free
               </span>
@@ -93,7 +93,7 @@ export function FeatureGate({
             <Button
               size="sm"
               variant="outline"
-              className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              className="border-amber-500/30 text-[var(--trade-neutral)] hover:bg-amber-500/10"
               onClick={handleStartTrial}
             >
               Start Trial
@@ -124,11 +124,11 @@ export function FeatureGate({
           </div>
 
           {/* Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm rounded-lg">
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--surface-base)]/60 backdrop-blur-sm rounded-lg">
             <div className="text-center p-6 max-w-sm">
               {/* Icon */}
               <div className="mx-auto w-14 h-14 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4 ring-2 ring-amber-500/20">
-                <Lock className="h-7 w-7 text-amber-400" />
+                <Lock className="h-7 w-7 text-[var(--trade-neutral)]" />
               </div>
 
               {/* Badge */}
@@ -138,7 +138,7 @@ export function FeatureGate({
                   "mb-3",
                   access.freeTrialUsed
                     ? "border-purple-500/30 bg-purple-500/10 text-purple-400"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                    : "border-amber-500/30 bg-amber-500/10 text-[var(--trade-neutral)]"
                 )}
               >
                 {access.freeTrialUsed ? (
@@ -155,14 +155,14 @@ export function FeatureGate({
               </Badge>
 
               {/* Title & Description */}
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {feature?.name || "Premium Feature"}
               </h3>
-              <p className="text-sm text-slate-400 mb-4">{access.lockMessage}</p>
+              <p className="text-sm text-muted-foreground mb-4">{access.lockMessage}</p>
 
               {/* CTA */}
               <Button
-                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-medium"
+                className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-foreground font-medium"
                 onClick={() => setShowModal(true)}
               >
                 Apply for Beta
@@ -192,10 +192,10 @@ export function FeatureGate({
         )}
 
         {/* Lock overlay on hover */}
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/90 rounded-full border border-slate-600/50">
-            <Lock className="h-4 w-4 text-amber-400" />
-            <span className="text-sm font-medium text-white">
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--surface-base)]/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+          <div className="flex items-center gap-2 px-4 py-2 bg-muted/90 rounded-full border border-border/50">
+            <Lock className="h-4 w-4 text-[var(--trade-neutral)]" />
+            <span className="text-sm font-medium text-foreground">
               {access.reason === "requires_auth" ? "Sign up to unlock" : "Beta feature"}
             </span>
           </div>
@@ -234,7 +234,7 @@ export function LockedBadge({
         onClick={() => setShowModal(true)}
         className={cn(
           "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-          "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+          "bg-amber-500/10 text-[var(--trade-neutral)] border border-amber-500/20",
           "hover:bg-amber-500/20 transition-colors",
           className
         )}
@@ -270,7 +270,7 @@ export function FreeTrialBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-        "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+        "bg-emerald-500/10 text-[var(--trade-bullish)] border border-emerald-500/20",
         className
       )}
     >
@@ -332,30 +332,30 @@ function JoinBetaModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border-slate-700">
+      <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center mb-4">
             <CategoryIcon className="h-8 w-8 text-cyan-400" />
           </div>
-          <DialogTitle className="text-xl font-bold text-white">
+          <DialogTitle className="text-xl font-bold text-foreground">
             {feature?.name || "Premium Feature"}
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             {feature?.description || "This feature requires beta access"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* What's included in beta */}
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+          <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              <span className="text-sm font-medium text-white">Beta Access Includes:</span>
+              <Sparkles className="h-4 w-4 text-[var(--trade-neutral)]" />
+              <span className="text-sm font-medium text-foreground">Beta Access Includes:</span>
             </div>
             <ul className="space-y-2">
               {betaFeatures.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-slate-300">
-                  <Check className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <li key={item} className="flex items-start gap-2 text-sm text-foreground/80">
+                  <Check className="h-4 w-4 text-[var(--trade-bullish)] flex-shrink-0 mt-0.5" />
                   {item}
                 </li>
               ))}
@@ -365,7 +365,7 @@ function JoinBetaModal({
           {/* CTA */}
           <div className="space-y-3">
             <Button
-              className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-medium"
+              className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-foreground font-medium"
               size="lg"
               onClick={handleJoinBeta}
             >
@@ -374,7 +374,7 @@ function JoinBetaModal({
             </Button>
 
             {requiresAuth && (
-              <p className="text-xs text-center text-slate-500">
+              <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{" "}
                 <button
                   className="text-cyan-400 hover:text-cyan-300 hover:underline"
@@ -387,7 +387,7 @@ function JoinBetaModal({
           </div>
 
           {/* Note */}
-          <p className="text-xs text-center text-slate-500">
+          <p className="text-xs text-center text-muted-foreground">
             {requiresAuth
               ? "Sign up to get 10 free daily credits and try AI features."
               : "Beta spots are limited. We're reviewing applications daily."}

@@ -171,24 +171,24 @@ function TrendingTickerRow({
 }: TrendingTickerRowProps) {
   const sentimentColor =
     ticker.sentiment === "bullish"
-      ? "text-emerald-400"
+      ? "text-[var(--trade-bullish)]"
       : ticker.sentiment === "bearish"
-      ? "text-red-400"
-      : "text-slate-400";
+      ? "text-[var(--trade-bearish)]"
+      : "text-muted-foreground";
 
   const sentimentBg =
     ticker.sentiment === "bullish"
       ? "bg-emerald-500/10 border-emerald-500/20"
       : ticker.sentiment === "bearish"
       ? "bg-red-500/10 border-red-500/20"
-      : "bg-slate-500/10 border-slate-500/20";
+      : "bg-muted-foreground/10 border-muted-foreground/20";
 
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-3 p-2 rounded-lg",
-        "hover:bg-slate-800/50 transition-colors",
+        "hover:bg-muted/50 transition-colors",
         "text-left group"
       )}
     >
@@ -196,7 +196,7 @@ function TrendingTickerRow({
       <span
         className={cn(
           "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-          rank <= 3 ? "bg-orange-500/20 text-orange-400" : "bg-slate-700 text-slate-400"
+          rank <= 3 ? "bg-orange-500/20 text-orange-400" : "bg-muted text-muted-foreground"
         )}
       >
         {rank}
@@ -259,12 +259,12 @@ export function WSBTrendingInline({ limit = 3 }: { limit?: number }) {
             key={ticker.symbol}
             onClick={() => setLocation(`/stock/${ticker.symbol}`)}
             className={cn(
-              "px-2 py-0.5 rounded text-xs font-medium hover:bg-slate-700 transition-colors",
+              "px-2 py-0.5 rounded text-xs font-medium hover:bg-muted transition-colors",
               ticker.sentiment === "bullish"
-                ? "text-emerald-400"
+                ? "text-[var(--trade-bullish)]"
                 : ticker.sentiment === "bearish"
-                ? "text-red-400"
-                : "text-slate-300"
+                ? "text-[var(--trade-bearish)]"
+                : "text-foreground/80"
             )}
           >
             ${ticker.symbol}

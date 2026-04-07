@@ -34,8 +34,8 @@ interface BreakoutStock {
 
 function getStrengthColor(strength: string) {
   switch (strength) {
-    case 'strong': return 'bg-green-500/20 text-green-400 border-green-500/30';
-    case 'moderate': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+    case 'strong': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
+    case 'moderate': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
     case 'emerging': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
@@ -71,8 +71,8 @@ export function BullishPatternWidget() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-green-500/20 border border-green-500/30">
-              <TrendingUp className="h-4 w-4 text-green-400" />
+            <div className="p-1.5 rounded-md bg-[var(--trade-bullish)]/20 border border-green-500/30">
+              <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
             </div>
             <CardTitle className="text-sm font-bold">Bullish Patterns</CardTitle>
           </div>
@@ -92,7 +92,7 @@ export function BullishPatternWidget() {
           <>
             {topTrends.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">
                   <Flame className="h-3 w-3 text-orange-400" />
                   Top Momentum
                 </div>
@@ -100,14 +100,14 @@ export function BullishPatternWidget() {
                   {topTrends.map((trend) => (
                     <div 
                       key={trend.symbol}
-                      className="p-2 rounded-md bg-slate-800/50 border border-slate-700/50 hover-elevate cursor-pointer"
+                      className="p-2 rounded-md bg-muted/50 border border-border/50 hover-elevate cursor-pointer"
                       data-testid={`trend-${trend.symbol}`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-mono text-xs font-bold">{trend.symbol}</span>
                         <span className={cn(
                           "text-[10px] font-mono",
-                          trend.changePercent >= 0 ? "text-green-400" : "text-red-400"
+                          trend.changePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           {trend.changePercent >= 0 ? "+" : ""}{safeToFixed(trend.changePercent, 1)}%
                         </span>
@@ -117,7 +117,7 @@ export function BullishPatternWidget() {
                           {trend.strength}
                         </Badge>
                         {trend.momentumScore && trend.momentumScore > 70 && (
-                          <Zap className="h-2.5 w-2.5 text-amber-400" />
+                          <Zap className="h-2.5 w-2.5 text-[var(--trade-neutral)]" />
                         )}
                       </div>
                     </div>
@@ -128,7 +128,7 @@ export function BullishPatternWidget() {
 
             {topBreakouts.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">
                   <ArrowUpRight className="h-3 w-3 text-cyan-400" />
                   Active Breakouts
                 </div>
@@ -154,7 +154,7 @@ export function BullishPatternWidget() {
                         )}
                         <span className={cn(
                           "text-[10px] font-mono",
-                          breakout.changePercent >= 0 ? "text-green-400" : "text-red-400"
+                          breakout.changePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           {breakout.changePercent >= 0 ? "+" : ""}{safeToFixed(breakout.changePercent, 1)}%
                         </span>
@@ -167,7 +167,7 @@ export function BullishPatternWidget() {
 
             {topTrends.length === 0 && topBreakouts.length === 0 && (
               <div className="flex flex-col items-center justify-center py-4 text-center">
-                <AlertTriangle className="h-6 w-6 text-amber-400 mb-2" />
+                <AlertTriangle className="h-6 w-6 text-[var(--trade-neutral)] mb-2" />
                 <p className="text-xs text-muted-foreground">
                   No active bullish patterns detected
                 </p>
@@ -263,8 +263,8 @@ export function SectorHeatWidget() {
                     </Badge>
                     <div className={cn(
                       "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold",
-                      heatLevel === 'hot' ? 'bg-red-500 text-red-950' :
-                      heatLevel === 'warm' ? 'bg-amber-500 text-amber-950' :
+                      heatLevel === 'hot' ? 'bg-[var(--trade-bearish)] text-red-950' :
+                      heatLevel === 'warm' ? 'bg-[var(--trade-neutral)] text-amber-950' :
                       'bg-blue-500 text-blue-950'
                     )}>
                       {Math.round(sector.avgHeat)}

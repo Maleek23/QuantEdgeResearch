@@ -185,9 +185,9 @@ function KPICard({
 }) {
   const colorClasses = {
     cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-    green: "text-green-400 bg-green-500/10 border-green-500/20",
-    red: "text-red-400 bg-red-500/10 border-red-500/20",
-    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    green: "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20",
+    red: "text-[var(--trade-bearish)] bg-red-500/10 border-red-500/20",
+    amber: "text-[var(--trade-neutral)] bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/20",
     purple: "text-purple-400 bg-purple-500/10 border-purple-500/20",
   };
   
@@ -208,8 +208,8 @@ function KPICard({
   return (
     <Card 
       className={cn(
-        "bg-slate-900/60 border-slate-700/50 overflow-hidden",
-        onClick && "cursor-pointer hover:border-slate-500/50 hover:bg-slate-800/60 transition-all"
+        "bg-card/60 border-border/50 overflow-hidden",
+        onClick && "cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/60 transition-all"
       )} 
       data-testid={testId}
       onClick={handleClick}
@@ -230,7 +230,7 @@ function KPICard({
           {trend && (
             <div className={cn(
               "flex items-center gap-1 text-xs font-medium",
-              trend === "up" ? "text-green-400" : trend === "down" ? "text-red-400" : "text-muted-foreground"
+              trend === "up" ? "text-[var(--trade-bullish)]" : trend === "down" ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
             )}>
               {trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : 
                trend === "down" ? <ArrowDownRight className="h-3 w-3" /> : null}
@@ -261,9 +261,9 @@ function KPICard({
 
 function SessionHeatmap({ data }: { data: { session: string; winRate: number; trades: number }[] }) {
   const getHeatColor = (winRate: number) => {
-    if (winRate >= 70) return "bg-green-500/40 border-green-500/50";
-    if (winRate >= 55) return "bg-green-500/20 border-green-500/30";
-    if (winRate >= 45) return "bg-amber-500/20 border-amber-500/30";
+    if (winRate >= 70) return "bg-[var(--trade-bullish)]/40 border-green-500/50";
+    if (winRate >= 55) return "bg-[var(--trade-bullish)]/20 border-green-500/30";
+    if (winRate >= 45) return "bg-[var(--trade-neutral)]/20 border-[var(--trade-neutral)]/30";
     if (winRate >= 30) return "bg-red-500/20 border-red-500/30";
     return "bg-red-500/40 border-red-500/50";
   };
@@ -279,7 +279,7 @@ function SessionHeatmap({ data }: { data: { session: string; winRate: number; tr
           )}
         >
           <p className="text-xs font-medium text-muted-foreground mb-1">{item.session}</p>
-          <p className="text-lg font-bold font-mono">{item.winRate}%</p>
+          <p className="text-lg font-bold font-mono tabular-nums">{item.winRate}%</p>
           <p className="text-[10px] text-muted-foreground">{item.trades} trades</p>
         </div>
       ))}
@@ -400,14 +400,14 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
 
   return (
     <div 
-      className="flex flex-col p-3 rounded-lg bg-slate-800/40 border border-slate-700/30 hover:border-slate-600/50 transition-colors gap-2"
+      className="flex flex-col p-3 rounded-lg bg-muted/40 border border-border/30 hover:border-border/50 transition-colors gap-2"
       data-testid={`trade-row-${position.id}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-1 h-10 rounded-full",
-            isProfit ? "bg-green-500" : "bg-red-500"
+            isProfit ? "bg-[var(--trade-bullish)]" : "bg-red-500"
           )} />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -422,8 +422,8 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
                 className={cn(
                   "text-[10px]",
                   position.status === 'open' 
-                    ? "border-amber-500/30 text-amber-400" 
-                    : "border-slate-500/30 text-slate-400"
+                    ? "border-[var(--trade-neutral)]/30 text-[var(--trade-neutral)]" 
+                    : "border-muted-foreground/30 text-muted-foreground"
                 )}
                 data-testid={`trade-status-${position.id}`}
               >
@@ -446,22 +446,22 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
         <div className="text-right">
           <p className={cn(
             "text-lg font-bold font-mono",
-            isProfit ? "text-green-400" : "text-red-400"
+            isProfit ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )} data-testid={`trade-pnl-${position.id}`}>
             {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{safeToFixed(Math.abs(pnl), 2)}
           </p>
           <p className={cn(
             "text-xs font-mono",
-            isProfit ? "text-green-400/70" : "text-red-400/70"
+            isProfit ? "text-[var(--trade-bullish)]/70" : "text-[var(--trade-bearish)]/70"
           )}>
             {isProfit ? "+" : ""}{safeToFixed(pnlPercent, 1)}%
           </p>
         </div>
       </div>
       {position.exitReason && position.status === 'closed' && (
-        <div className="text-xs text-muted-foreground pl-4 border-l-2 border-slate-600/50">
-          <span className="text-slate-400">Exit: </span>
-          <span className={isProfit ? "text-green-400" : "text-red-400"}>{position.exitReason}</span>
+        <div className="text-xs text-muted-foreground pl-4 border-l-2 border-border/50">
+          <span className="text-muted-foreground">Exit: </span>
+          <span className={isProfit ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}>{position.exitReason}</span>
         </div>
       )}
     </div>
@@ -718,15 +718,15 @@ export function AutoLottoDashboard() {
       <div className="rounded-xl bg-gradient-to-r from-cyan-500/10 via-slate-900/80 to-purple-500/10 border border-cyan-500/20 p-6" data-testid="hero-status-bar">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl border-2 transition-all duration-300 bg-green-500/20 border-green-500/40 animate-pulse">
-              <Rocket className="h-8 w-8 transition-colors text-green-400" />
+            <div className="p-3 rounded-xl border-2 transition-all duration-300 bg-[var(--trade-bullish)]/20 border-green-500/40 animate-pulse">
+              <Rocket className="h-8 w-8 transition-colors text-[var(--trade-bullish)]" />
             </div>
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Hub</h2>
                 <Badge 
                   variant="outline" 
-                  className="font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border-green-500/40 animate-pulse"
+                  className="font-bold uppercase tracking-wider bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40 animate-pulse"
                   data-testid="badge-bot-status"
                 >
                   LIVE
@@ -825,14 +825,14 @@ export function AutoLottoDashboard() {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg bg-slate-900/60 border border-slate-700/50" data-testid="filter-toolbar">
+      <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg bg-card/60 border border-border/50" data-testid="filter-toolbar">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Filter className="h-4 w-4" />
           <span className="text-sm font-medium">Filters</span>
         </div>
         
         <Select value={timeframe} onValueChange={setTimeframe}>
-          <SelectTrigger className="w-[130px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-timeframe">
+          <SelectTrigger className="w-[130px] h-9 bg-muted/60 border-border" data-testid="select-timeframe">
             <Calendar className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -845,7 +845,7 @@ export function AutoLottoDashboard() {
         </Select>
 
         <Select value={assetFilter} onValueChange={setAssetFilter}>
-          <SelectTrigger className="w-[130px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-asset">
+          <SelectTrigger className="w-[130px] h-9 bg-muted/60 border-border" data-testid="select-asset">
             <BarChart3 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -859,7 +859,7 @@ export function AutoLottoDashboard() {
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[120px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-status">
+          <SelectTrigger className="w-[120px] h-9 bg-muted/60 border-border" data-testid="select-status">
             <Activity className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
             <SelectValue />
           </SelectTrigger>
@@ -879,7 +879,7 @@ export function AutoLottoDashboard() {
 
       {/* View Tabs */}
       <Tabs value={activeView} onValueChange={setActiveView} className="space-y-6">
-        <TabsList className="h-10 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1">
+        <TabsList className="h-10 bg-muted/40 border border-border/50 rounded-lg p-1">
           <TabsTrigger 
             value="dashboard" 
             className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
@@ -951,7 +951,7 @@ export function AutoLottoDashboard() {
 
           {/* Charts Row */}
           <div className="grid lg:grid-cols-2 gap-6">
-            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-pnl">
+            <Card className="bg-card/60 border-border/50" data-testid="chart-pnl">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-cyan-400" />
@@ -964,10 +964,10 @@ export function AutoLottoDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-winrate">
+            <Card className="bg-card/60 border-border/50" data-testid="chart-winrate">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Target className="h-4 w-4 text-green-400" />
+                  <Target className="h-4 w-4 text-[var(--trade-bullish)]" />
                   Win Rate Trend
                 </CardTitle>
                 <CardDescription>Rolling 14-day performance</CardDescription>
@@ -979,13 +979,13 @@ export function AutoLottoDashboard() {
           </div>
 
           {/* Open Positions - Most Visible Section */}
-          <Card className="bg-slate-900/60 border-amber-500/30" data-testid="card-open-positions">
-            <CardHeader className="pb-2 border-b border-amber-500/20">
+          <Card className="bg-card/60 border-[var(--trade-neutral)]/30" data-testid="card-open-positions">
+            <CardHeader className="pb-2 border-b border-[var(--trade-neutral)]/20">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-amber-400" />
+                  <Wallet className="h-4 w-4 text-[var(--trade-neutral)]" />
                   Bot Open Positions
-                  <Badge variant="outline" className="text-xs font-mono border-amber-500/40 text-amber-400 animate-pulse">
+                  <Badge variant="outline" className="text-xs font-mono border-[var(--trade-neutral)]/40 text-[var(--trade-neutral)] animate-pulse">
                     {allPositions.filter(p => p.status === 'open').length} LIVE
                   </Badge>
                 </CardTitle>
@@ -1017,10 +1017,10 @@ export function AutoLottoDashboard() {
           </Card>
 
           {/* Session Heatmap */}
-          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-session-heatmap">
+          <Card className="bg-card/60 border-border/50" data-testid="card-session-heatmap">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-amber-400" />
+                <Clock className="h-4 w-4 text-[var(--trade-neutral)]" />
                 Session Performance
               </CardTitle>
               <CardDescription>Win rate by market session</CardDescription>
@@ -1034,7 +1034,7 @@ export function AutoLottoDashboard() {
         {/* Analytics View */}
         <TabsContent value="analytics" className="space-y-6">
           <div className="grid lg:grid-cols-2 gap-6">
-            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-asset-distribution">
+            <Card className="bg-card/60 border-border/50" data-testid="chart-asset-distribution">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <PieChartIcon className="h-4 w-4 text-cyan-400" />
@@ -1047,7 +1047,7 @@ export function AutoLottoDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-strategy-performance">
+            <Card className="bg-card/60 border-border/50" data-testid="card-strategy-performance">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Brain className="h-4 w-4 text-purple-400" />
@@ -1063,13 +1063,13 @@ export function AutoLottoDashboard() {
                     { name: "Volume Spike", winRate: 55, trades: 28, color: "amber" },
                     { name: "Momentum", winRate: 52, trades: 21, color: "purple" },
                   ].map((strategy) => (
-                    <div key={strategy.name} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-700/30" data-testid={`strategy-row-${strategy.name.replace(/\s+/g, '-').toLowerCase()}`}>
+                    <div key={strategy.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border/30" data-testid={`strategy-row-${strategy.name.replace(/\s+/g, '-').toLowerCase()}`}>
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "w-2 h-8 rounded-full",
                           strategy.color === "cyan" ? "bg-cyan-500" :
-                          strategy.color === "green" ? "bg-green-500" :
-                          strategy.color === "amber" ? "bg-amber-500" : "bg-purple-500"
+                          strategy.color === "green" ? "bg-[var(--trade-bullish)]" :
+                          strategy.color === "amber" ? "bg-[var(--trade-neutral)]" : "bg-purple-500"
                         )} />
                         <div>
                           <p className="font-medium text-sm">{strategy.name}</p>
@@ -1079,7 +1079,7 @@ export function AutoLottoDashboard() {
                       <div className="text-right">
                         <p className={cn(
                           "font-bold font-mono",
-                          strategy.winRate >= 55 ? "text-green-400" : "text-red-400"
+                          strategy.winRate >= 55 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         )}>
                           {strategy.winRate}%
                         </p>
@@ -1092,32 +1092,32 @@ export function AutoLottoDashboard() {
           </div>
 
           {/* Portfolio Stats */}
-          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-portfolio-overview">
+          <Card className="bg-card/60 border-border/50" data-testid="card-portfolio-overview">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-green-400" />
+                <Wallet className="h-4 w-4 text-[var(--trade-bullish)]" />
                 Portfolio Overview
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
                   <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-starting-capital">${safeToFixed(lottoPortfolio?.startingCapital || 150, 0)}</p>
                 </div>
-                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Current Value</p>
                   <p className="text-xl font-bold font-mono text-cyan-400" data-testid="portfolio-current-value">${safeToFixed(lottoPortfolio?.totalValue || 0, 2)}</p>
                 </div>
-                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash Balance</p>
                   <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-cash-balance">${safeToFixed(lottoPortfolio?.cashBalance || 0, 2)}</p>
                 </div>
-                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Unrealized P&L</p>
                   <p className={cn(
                     "text-xl font-bold font-mono",
-                    (lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                    (lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )} data-testid="portfolio-unrealized-pnl">
                     {(lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "+" : ""}${safeToFixed(lottoPortfolio?.unrealizedPnL || 0, 2)}
                   </p>
@@ -1129,7 +1129,7 @@ export function AutoLottoDashboard() {
 
         {/* Trade History View */}
         <TabsContent value="history" className="space-y-4">
-          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-trade-history">
+          <Card className="bg-card/60 border-border/50" data-testid="card-trade-history">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1166,15 +1166,15 @@ export function AutoLottoDashboard() {
       {/* Portfolio Trades Modal - Only render when selectedPortfolio is set */}
       {selectedPortfolio && (
         <Dialog open={true} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-          <DialogContent className="max-w-2xl bg-slate-800 dark:bg-slate-800 border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
+          <DialogContent className="max-w-2xl bg-muted dark:bg-muted border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-3 text-white">
+              <DialogTitle className="flex items-center gap-3 text-foreground">
                 <div className={cn(
                   "p-2 rounded-lg border",
                   selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
                   selectedInfo?.color === 'purple' && "text-purple-400 bg-purple-500/10 border-purple-500/20",
-                  selectedInfo?.color === 'amber' && "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                  selectedInfo?.color === 'green' && "text-green-400 bg-green-500/10 border-green-500/20"
+                  selectedInfo?.color === 'amber' && "text-[var(--trade-neutral)] bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/20",
+                  selectedInfo?.color === 'green' && "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20"
                 )}>
                   {selectedPortfolio === 'options' && <Target className="h-4 w-4" />}
                   {selectedPortfolio === 'futures' && <TrendingUp className="h-4 w-4" />}
@@ -1184,12 +1184,12 @@ export function AutoLottoDashboard() {
                 <span data-testid="text-modal-title">{selectedInfo?.name || 'Portfolio'}</span>
               </DialogTitle>
               <DialogDescription className="flex items-center gap-4 pt-2">
-                <span className="text-slate-400">
-                  Balance: <span className="font-mono text-white">${safeToFixed(selectedInfo?.portfolio?.totalValue, 2)}</span>
+                <span className="text-muted-foreground">
+                  Balance: <span className="font-mono text-foreground">${safeToFixed(selectedInfo?.portfolio?.totalValue, 2)}</span>
                 </span>
                 <span className={cn(
                   "font-mono font-medium",
-                  portfolioTotalPnL >= 0 ? "text-green-400" : "text-red-400"
+                  portfolioTotalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )} data-testid="text-modal-pnl">
                   Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${safeToFixed(portfolioTotalPnL, 2)}
                 </span>
@@ -1198,10 +1198,10 @@ export function AutoLottoDashboard() {
 
             <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as 'open' | 'closed' | 'all')} className="mt-2">
               <TabsList className="grid w-full grid-cols-3 bg-muted/50">
-                <TabsTrigger value="open" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400" data-testid="tab-open">
+                <TabsTrigger value="open" className="data-[state=active]:bg-[var(--trade-neutral)]/20 data-[state=active]:text-[var(--trade-neutral)]" data-testid="tab-open">
                   Open ({openCount})
                 </TabsTrigger>
-                <TabsTrigger value="closed" className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-300" data-testid="tab-closed">
+                <TabsTrigger value="closed" className="data-[state=active]:bg-muted-foreground/20 data-[state=active]:text-foreground/80" data-testid="tab-closed">
                   Closed ({closedCount})
                 </TabsTrigger>
                 <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-all">
@@ -1217,7 +1217,7 @@ export function AutoLottoDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-slate-400">
+                  <div className="text-center py-12 text-muted-foreground">
                     <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>No {portfolioTab === 'all' ? '' : portfolioTab} trades in this portfolio</p>
                   </div>

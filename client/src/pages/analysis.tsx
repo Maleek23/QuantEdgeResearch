@@ -62,8 +62,8 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Options probability calculator, Greeks analysis, and risk/reward optimization',
       icon: Shield,
       href: `/options-analyzer?symbol=${symbol}`,
-      color: 'text-green-400',
-      bgColor: 'bg-green-500/10',
+      color: 'text-[var(--trade-bullish)]',
+      bgColor: 'bg-[var(--trade-bullish)]/10',
       borderColor: 'border-green-500/30',
       features: ['Greeks analysis', 'Probability calculator', 'IV analysis', 'Risk/reward', 'Strategy builder'],
       available: assetClass === 'stock' || assetClass === 'options',
@@ -75,7 +75,7 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Learn from past trades, patterns, and historical win rates for this symbol',
       icon: History,
       href: `/historical-intelligence?symbol=${symbol}`,
-      color: 'text-amber-400',
+      color: 'text-[var(--trade-neutral)]',
       bgColor: 'bg-amber-500/10',
       borderColor: 'border-amber-500/30',
       features: ['Past performance', 'Win rate history', 'Pattern success', 'Behavioral analysis', 'Similar setups'],
@@ -101,7 +101,7 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Test trading strategies with historical data and performance metrics',
       icon: FileText,
       href: `/backtest?symbol=${symbol}`,
-      color: 'text-emerald-400',
+      color: 'text-[var(--trade-bullish)]',
       bgColor: 'bg-emerald-500/10',
       borderColor: 'border-emerald-500/30',
       features: ['RSI strategies', 'MACD strategies', 'Performance metrics', 'Win rate analysis', 'Drawdown analysis'],
@@ -124,7 +124,7 @@ function AnalysisCard({ link }: { link: AnalysisLink }) {
         )} 
         data-testid={`card-${link.id}`}
       >
-        <CardContent className="p-5">
+        <CardContent className="p-4">
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-3">
               <div className={cn("p-3 rounded-xl", link.bgColor, "border", link.borderColor)}>
@@ -281,15 +281,15 @@ export default function AnalysisPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold font-mono">{symbol}</h2>
+                    <h2 className="text-3xl font-bold font-mono tabular-nums">{symbol}</h2>
                     <Badge variant="outline" className="text-[10px] mt-1">{assetClass.toUpperCase()}</Badge>
                   </div>
                   <div className="h-10 w-px bg-border" />
                   <div>
-                    <div className="text-2xl font-bold font-mono">${safeToFixed(quoteData.price, 2, '--')}</div>
+                    <div className="text-2xl font-bold font-mono tabular-nums">${safeToFixed(quoteData.price, 2, '--')}</div>
                     <div className={cn(
                       "text-sm font-mono",
-                      (quoteData.changePercent || 0) >= 0 ? "text-green-400" : "text-red-400"
+                      (quoteData.changePercent || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>
                       {(quoteData.changePercent || 0) >= 0 ? '+' : ''}{safeToFixed(quoteData.changePercent, 2, '0')}%
                     </div>
@@ -345,7 +345,7 @@ export default function AnalysisPage() {
           {riskLinks.filter(l => l.available).length > 0 && (
             <div>
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-green-400" />
+                <Shield className="h-4 w-4 text-[var(--trade-bullish)]" />
                 Risk & Probability
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -359,7 +359,7 @@ export default function AnalysisPage() {
           {fundamentalLinks.filter(l => l.available).length > 0 && (
             <div>
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-emerald-400" />
+                <FileText className="h-4 w-4 text-[var(--trade-bullish)]" />
                 Fundamental Research
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

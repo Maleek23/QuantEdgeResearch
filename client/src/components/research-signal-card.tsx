@@ -51,16 +51,16 @@ interface ResearchSignalCardProps {
 }
 
 function getGradeColor(grade: string): string {
-  if (!grade) return 'text-slate-400';
+  if (!grade) return 'text-muted-foreground';
   const letter = grade.charAt(0).toUpperCase();
   switch (letter) {
-    case 'S': return 'text-amber-400';
-    case 'A': return 'text-green-400';
+    case 'S': return 'text-[var(--trade-neutral)]';
+    case 'A': return 'text-[var(--trade-bullish)]';
     case 'B': return 'text-cyan-400';
-    case 'C': return 'text-slate-400';
+    case 'C': return 'text-muted-foreground';
     case 'D': return 'text-orange-400';
-    case 'F': return 'text-red-400';
-    default: return 'text-slate-400';
+    case 'F': return 'text-[var(--trade-bearish)]';
+    default: return 'text-muted-foreground';
   }
 }
 
@@ -74,7 +74,7 @@ function PersonalizedConfidence({ raw, personal, symbol }: { raw: number; person
       {Math.abs(diff) > 3 && (
         <span className={cn(
           "font-mono text-sm",
-          isPositive ? "text-green-400" : "text-amber-400"
+          isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
         )}>
           → {personal}%
         </span>
@@ -151,7 +151,7 @@ export default function ResearchSignalCard({
 
   if (compact) {
     return (
-      <Card className="p-3 bg-slate-800/50 backdrop-blur-sm border-slate-700/50 hover-elevate" data-testid={`signal-card-${symbol}`}>
+      <Card className="p-3 bg-muted/50 backdrop-blur-sm border-border/50 hover-elevate" data-testid={`signal-card-${symbol}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-mono font-bold text-lg">{symbol}</span>
@@ -159,13 +159,13 @@ export default function ResearchSignalCard({
               "text-xs",
               engine === 'AI' ? 'border-purple-500/50 text-purple-400' :
               engine === 'QUANT' ? 'border-cyan-500/50 text-cyan-400' :
-              'border-amber-500/50 text-amber-400'
+              'border-amber-500/50 text-[var(--trade-neutral)]'
             )}>
               {engine}
             </Badge>
             <Badge variant="outline" className={cn(
               "text-xs",
-              isLong ? 'border-green-500/50 text-green-400' : 'border-red-500/50 text-red-400'
+              isLong ? 'border-green-500/50 text-[var(--trade-bullish)]' : 'border-red-500/50 text-[var(--trade-bearish)]'
             )}>
               {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
               {direction.toUpperCase()}
@@ -175,18 +175,18 @@ export default function ResearchSignalCard({
           <div className="flex items-center gap-3">
             <PersonalizedConfidence raw={rawConfidence} personal={personalConfidence} symbol={symbol} />
             <span className={cn("font-bold text-lg", getGradeColor(grade))}>{grade}</span>
-            <span className="font-mono text-slate-400">R:R {safeToFixed(riskReward, 1)}</span>
+            <span className="font-mono text-muted-foreground">R:R {safeToFixed(riskReward, 1)}</span>
           </div>
         </div>
         
         {symbolHistory && symbolHistory.timesTraded > 0 && (
-          <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center gap-4 text-xs text-slate-400">
+          <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-4 text-xs text-muted-foreground">
             <span>Traded: {symbolHistory.timesTraded}x</span>
-            <span className={symbolHistory.yourWinRate >= 50 ? 'text-green-400' : 'text-red-400'}>
+            <span className={symbolHistory.yourWinRate >= 50 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
               Your Win Rate: {safeToFixed(symbolHistory.yourWinRate, 0)}%
             </span>
             {symbolHistory.lastOutcome && (
-              <span className={symbolHistory.lastOutcome === 'hit_target' ? 'text-green-400' : 'text-red-400'}>
+              <span className={symbolHistory.lastOutcome === 'hit_target' ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
                 Last: {symbolHistory.lastOutcome === 'hit_target' ? 'Win' : 'Loss'}
               </span>
             )}
@@ -198,7 +198,7 @@ export default function ResearchSignalCard({
 
   return (
     <Card className={cn(
-      "p-4 bg-slate-800/70 backdrop-blur-xl border-slate-700/60",
+      "p-4 bg-muted/70 backdrop-blur-xl border-border/60",
       isCoolingDown && "border-amber-500/40",
       shouldAvoid && "border-red-500/40"
     )} data-testid={`signal-card-${symbol}`}>
@@ -209,38 +209,38 @@ export default function ResearchSignalCard({
             <Badge variant="outline" className={cn(
               engine === 'AI' ? 'border-purple-500/50 text-purple-400' :
               engine === 'QUANT' ? 'border-cyan-500/50 text-cyan-400' :
-              'border-amber-500/50 text-amber-400'
+              'border-amber-500/50 text-[var(--trade-neutral)]'
             )}>
               {engine}
             </Badge>
             <Badge variant="outline" className={cn(
-              isLong ? 'border-green-500/50 text-green-400' : 'border-red-500/50 text-red-400'
+              isLong ? 'border-green-500/50 text-[var(--trade-bullish)]' : 'border-red-500/50 text-[var(--trade-bearish)]'
             )}>
               {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
               {direction.toUpperCase()}
             </Badge>
-            <span className="font-mono text-slate-400">R:R {safeToFixed(riskReward, 1)}</span>
+            <span className="font-mono text-muted-foreground">R:R {safeToFixed(riskReward, 1)}</span>
           </div>
           
           <div className="flex items-center gap-4 mb-3">
             <div>
-              <span className="text-xs text-slate-500 block">Confidence</span>
+              <span className="text-xs text-muted-foreground block">Confidence</span>
               <PersonalizedConfidence raw={rawConfidence} personal={personalConfidence} symbol={symbol} />
             </div>
             <div>
-              <span className="text-xs text-slate-500 block">Grade</span>
+              <span className="text-xs text-muted-foreground block">Grade</span>
               <span className={cn("font-bold text-2xl", getGradeColor(grade))}>{grade}</span>
             </div>
             {entryPrice && (
               <div>
-                <span className="text-xs text-slate-500 block">Entry</span>
+                <span className="text-xs text-muted-foreground block">Entry</span>
                 <span className="font-mono text-lg">${safeToFixed(entryPrice, 2)}</span>
               </div>
             )}
           </div>
           
           {technicals && (
-            <div className="flex items-center gap-4 text-xs text-slate-400 font-mono">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
               {technicals.rsi && <span>RSI: {safeToFixed(technicals.rsi, 1)}</span>}
               {technicals.adx && <span>ADX: {safeToFixed(technicals.adx, 1)}</span>}
             </div>
@@ -249,12 +249,12 @@ export default function ResearchSignalCard({
         
         <div className="flex flex-col gap-2">
           {isCoolingDown ? (
-            <div className="bg-amber-500/15 text-amber-400 border border-amber-500/40 rounded-md px-3 py-2 text-center">
+            <div className="bg-amber-500/15 text-[var(--trade-neutral)] border border-amber-500/40 rounded-md px-3 py-2 text-center">
               <Clock className="h-4 w-4 mx-auto mb-1" />
               <span className="text-xs block">Cooling down</span>
             </div>
           ) : shouldAvoid ? (
-            <div className="bg-red-500/15 text-red-400 border border-red-500/40 rounded-md px-3 py-2 text-center">
+            <div className="bg-red-500/15 text-[var(--trade-bearish)] border border-red-500/40 rounded-md px-3 py-2 text-center">
               <AlertTriangle className="h-4 w-4 mx-auto mb-1" />
               <span className="text-xs block">Avoid</span>
             </div>
@@ -295,10 +295,10 @@ export default function ResearchSignalCard({
       </div>
       
       {symbolHistory && (symbolHistory.timesWatched > 0 || symbolHistory.timesTraded > 0) && (
-        <div className="mt-4 pt-4 border-t border-slate-700/50">
+        <div className="mt-4 pt-4 border-t border-border/50">
           <button 
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground/90 transition-colors"
             data-testid={`btn-history-${symbol}`}
           >
             <History className="h-4 w-4" />
@@ -307,38 +307,38 @@ export default function ResearchSignalCard({
           </button>
           
           {showHistory && (
-            <div className="mt-3 grid grid-cols-2 gap-4 bg-slate-800/30 backdrop-blur-sm rounded-md p-3 border border-slate-700/30">
+            <div className="mt-3 grid grid-cols-2 gap-4 bg-muted/30 backdrop-blur-sm rounded-md p-3 border border-border/30">
               <div className="flex flex-col">
-                <span className="text-xs text-slate-500">Watched</span>
+                <span className="text-xs text-muted-foreground">Watched</span>
                 <span className="font-mono text-lg">{symbolHistory.timesWatched} times</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-slate-500">Traded</span>
+                <span className="text-xs text-muted-foreground">Traded</span>
                 <span className="font-mono text-lg">{symbolHistory.timesTraded} times</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-slate-500">Your Win Rate</span>
+                <span className="text-xs text-muted-foreground">Your Win Rate</span>
                 <span className={cn(
                   "font-mono text-lg",
-                  symbolHistory.yourWinRate >= 50 ? 'text-green-400' : 'text-red-400'
+                  symbolHistory.yourWinRate >= 50 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                 )}>
                   {safeToFixed(symbolHistory.yourWinRate, 0)}%
                 </span>
               </div>
               <div className="flex flex-col">
-                <span className="text-xs text-slate-500">Last Outcome</span>
+                <span className="text-xs text-muted-foreground">Last Outcome</span>
                 <span className={cn(
                   "font-mono text-lg capitalize",
-                  symbolHistory.lastOutcome === 'hit_target' ? 'text-green-400' : 
-                  symbolHistory.lastOutcome === 'hit_stop' ? 'text-red-400' : 'text-slate-400'
+                  symbolHistory.lastOutcome === 'hit_target' ? 'text-[var(--trade-bullish)]' : 
+                  symbolHistory.lastOutcome === 'hit_stop' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground'
                 )}>
                   {symbolHistory.lastOutcome?.replace('_', ' ') || 'None'}
                 </span>
               </div>
               {symbolHistory.lessonLearned && (
-                <div className="col-span-2 mt-2 pt-2 border-t border-slate-700/30">
-                  <span className="text-xs text-slate-500 block mb-1">Lesson Learned</span>
-                  <p className="text-sm text-amber-400 italic">{symbolHistory.lessonLearned}</p>
+                <div className="col-span-2 mt-2 pt-2 border-t border-border/30">
+                  <span className="text-xs text-muted-foreground block mb-1">Lesson Learned</span>
+                  <p className="text-sm text-[var(--trade-neutral)] italic">{symbolHistory.lessonLearned}</p>
                 </div>
               )}
             </div>

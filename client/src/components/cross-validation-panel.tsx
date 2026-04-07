@@ -203,7 +203,7 @@ export function CrossValidationPanel() {
               key={idx}
               className={`rounded-lg border p-3 transition-all ${
                 validation.valid
-                  ? 'bg-green-500/5 border-green-500/30'
+                  ? 'bg-[var(--trade-bullish)]/5 border-green-500/30'
                   : validation.severity === 'error'
                   ? 'bg-red-500/10 border-red-500/50'
                   : 'bg-amber-500/10 border-amber-500/30'
@@ -214,11 +214,11 @@ export function CrossValidationPanel() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     {validation.valid ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)]" />
                     ) : validation.severity === 'error' ? (
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
                     ) : (
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                      <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                     )}
                     <span className="font-semibold text-sm">{validation.metric}</span>
                   </div>
@@ -234,14 +234,14 @@ export function CrossValidationPanel() {
                       <span className="text-muted-foreground">→</span>
                       <div>
                         <span className="text-muted-foreground">Actual:</span>{' '}
-                        <span className={validation.severity === 'error' ? 'text-red-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                        <span className={validation.severity === 'error' ? 'text-[var(--trade-bearish)] font-semibold' : 'text-[var(--trade-neutral)] font-semibold'}>
                           {validation.actual}
                         </span>
                       </div>
                     </div>
                   )}
                   {validation.valid && (
-                    <div className="ml-6 mt-1 text-xs font-mono text-green-400">
+                    <div className="ml-6 mt-1 text-xs font-mono text-[var(--trade-bullish)]">
                       ✓ {validation.actual}
                     </div>
                   )}
@@ -252,7 +252,7 @@ export function CrossValidationPanel() {
         </div>
 
         {errors === 0 && warnings === 0 && (
-          <Alert className="bg-green-500/10 border-green-500/30 text-green-300">
+          <Alert className="bg-[var(--trade-bullish)]/10 border-green-500/30 text-[var(--trade-bullish)]">
             <CheckCircle2 className="h-4 w-4" />
             <AlertDescription>
               All metrics validated successfully. Platform data is consistent across all endpoints.

@@ -17,7 +17,7 @@ function getDteCategory(expiryDate: string | null | undefined): { label: string;
   const diffMs = expiry.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 0) return { label: 'EXPIRED', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', isExpired: true };
+  if (diffDays < 0) return { label: 'EXPIRED', color: 'bg-gray-500/20 text-muted-foreground border-gray-500/40', isExpired: true };
   if (diffDays === 0) return { label: '0DTE', color: 'bg-red-500/20 text-red-300 border-red-500/40', isExpired: false };
   if (diffDays <= 2) return { label: '1-2 DTE', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40', isExpired: false };
   if (diffDays <= 7) return { label: '3-7 DTE', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40', isExpired: false };
@@ -30,15 +30,15 @@ function getOutcomeStatus(outcomeStatus: string | null | undefined): { label: st
 
   switch (outcomeStatus) {
     case 'hit_target':
-      return { label: 'HIT TARGET', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', icon: 'win' };
+      return { label: 'HIT TARGET', color: 'bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40', icon: 'win' };
     case 'hit_stop':
       return { label: 'STOPPED OUT', color: 'bg-red-500/20 text-red-300 border-red-500/40', icon: 'loss' };
     case 'expired':
-      return { label: 'EXPIRED', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', icon: 'neutral' };
+      return { label: 'EXPIRED', color: 'bg-gray-500/20 text-muted-foreground border-gray-500/40', icon: 'neutral' };
     case 'manual_exit':
       return { label: 'CLOSED', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40', icon: 'neutral' };
     default:
-      return { label: outcomeStatus.toUpperCase(), color: 'bg-gray-500/20 text-gray-400 border-gray-500/40', icon: 'neutral' };
+      return { label: outcomeStatus.toUpperCase(), color: 'bg-gray-500/20 text-muted-foreground border-gray-500/40', icon: 'neutral' };
   }
 }
 
@@ -125,7 +125,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                     {outcome.icon === 'neutral' && <MinusCircle className="h-3 w-3" />}
                     {outcome.label}
                     {idea.percentGain != null && (
-                      <span className={outcome.icon === 'win' ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={outcome.icon === 'win' ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
                         ({idea.percentGain >= 0 ? '+' : ''}{safeToFixed(idea.percentGain, 1)}%)
                       </span>
                     )}
@@ -142,9 +142,9 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                       : idea.source === 'hybrid'
                       ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/50"
                       : idea.source === 'news'
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
+                      ? "bg-amber-500/10 text-amber-600 dark:text-[var(--trade-neutral)] border-amber-500/50"
                       : idea.source === 'flow'
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
+                      ? "bg-emerald-500/10 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] border-emerald-500/50"
                       : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
                   )}
                   data-testid={`badge-source-${idea.symbol}`}
@@ -191,7 +191,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
                 <Badge variant="secondary" className={cn(
                   "text-xs font-semibold gap-1",
-                  idea.optionType === 'call' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                  idea.optionType === 'call' ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]' : 'bg-red-500/20 text-red-300'
                 )} data-testid={`badge-strike-${idea.symbol}`}>
                   ${idea.strikePrice} {idea.optionType.toUpperCase()}
                   {idea.expiryDate && ` | ${formatDateOnly(idea.expiryDate)}`}
@@ -263,7 +263,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
           <div 
             className={cn(
               "rounded-lg p-3 border-2 transition-all",
-              dynamicSignal.color === 'green' && "bg-green-500/10 border-green-500/50",
+              dynamicSignal.color === 'green' && "bg-[var(--trade-bullish)]/10 border-green-500/50",
               dynamicSignal.color === 'blue' && "bg-cyan-500/10 border-cyan-500/50",
               dynamicSignal.color === 'yellow' && "bg-amber-500/10 border-amber-500/50",
               dynamicSignal.color === 'red' && "bg-red-500/10 border-red-500/50",
@@ -279,7 +279,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                     variant="outline" 
                     className={cn(
                       "font-bold text-xs",
-                      dynamicSignal.color === 'green' && "bg-green-500/20 text-green-300 border-green-500/30",
+                      dynamicSignal.color === 'green' && "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30",
                       dynamicSignal.color === 'blue' && "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
                       dynamicSignal.color === 'yellow' && "bg-amber-500/20 text-amber-300 border-amber-500/30",
                       dynamicSignal.color === 'red' && "bg-red-500/20 text-red-300 border-red-500/30",
@@ -390,13 +390,13 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                   {idea.futuresMultiplier && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Multiplier:</span>
-                      <span className="font-mono font-bold">${idea.futuresMultiplier}/point</span>
+                      <span className="font-mono font-bold tabular-nums">${idea.futuresMultiplier}/point</span>
                     </div>
                   )}
                   {idea.futuresTickSize && idea.futuresMultiplier && (
                     <div className="flex items-center justify-between text-sm" data-testid={`text-futures-tick-${idea.symbol}`}>
                       <span className="text-muted-foreground">Tick:</span>
-                      <span className="font-mono font-bold">{idea.futuresTickSize} = ${safeToFixed(safeNumber(idea.futuresTickSize) * safeNumber(idea.futuresMultiplier), 0)}</span>
+                      <span className="font-mono font-bold tabular-nums">{idea.futuresTickSize} = ${safeToFixed(safeNumber(idea.futuresTickSize) * safeNumber(idea.futuresMultiplier), 0)}</span>
                     </div>
                   )}
                 </div>
@@ -406,7 +406,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-sm" data-testid={`text-futures-margin-${idea.id}`}>
                     <span className="text-muted-foreground">Initial:</span>
-                    <span className="font-mono font-bold">
+                    <span className="font-mono font-bold tabular-nums">
                       {idea.futuresInitialMargin 
                         ? `$${idea.futuresInitialMargin.toLocaleString()}` 
                         : 'N/A'}

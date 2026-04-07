@@ -230,9 +230,9 @@ export const PriceTicker = ({
 
           return (
             <div key={`${symbol}-${index}`} className="flex items-center gap-3 flex-shrink-0">
-              <span className="text-slate-400">{symbol}</span>
-              <span className="text-slate-200">${safeToFixed(data.price, 2)}</span>
-              <span className={isPositive ? "text-green-400" : "text-red-400"}>
+              <span className="text-muted-foreground">{symbol}</span>
+              <span className="text-foreground/90">${safeToFixed(data.price, 2)}</span>
+              <span className={isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}>
                 {isPositive ? "↑" : "↓"} {safeToFixed(Math.abs(data.change), 2)}%
               </span>
             </div>

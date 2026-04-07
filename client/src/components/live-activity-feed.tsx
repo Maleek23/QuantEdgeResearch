@@ -58,17 +58,17 @@ export function LiveActivityFeed() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ duration: 0.3 }}
-              className="glass-card rounded-lg px-3 py-2.5 border border-slate-800/50"
+              className="glass-card rounded-lg px-3 py-2.5 border border-border/50"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2 flex-1 min-w-0">
                   {activity.type === "win" ? (
-                    <div className="h-6 w-6 rounded bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <TrendingUp className="h-3.5 w-3.5 text-green-400" />
+                    <div className="h-6 w-6 rounded bg-[var(--trade-bullish)]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <TrendingUp className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
                     </div>
                   ) : activity.type === "loss" ? (
                     <div className="h-6 w-6 rounded bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+                      <TrendingDown className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
                     </div>
                   ) : (
                     <div className="h-6 w-6 rounded bg-cyan-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -80,7 +80,7 @@ export function LiveActivityFeed() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xs font-mono font-semibold text-foreground">{activity.symbol}</span>
                       {activity.profit && (
-                        <span className="text-xs font-mono font-bold text-green-400">{activity.profit}</span>
+                        <span className="text-xs font-mono font-bold text-[var(--trade-bullish)]">{activity.profit}</span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{activity.action}</p>

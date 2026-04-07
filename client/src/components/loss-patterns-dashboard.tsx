@@ -36,13 +36,13 @@ interface LossSummary {
 
 // Human-readable reason labels with hex colors for charts
 const REASON_LABELS: Record<string, { label: string; icon: JSX.Element; color: string; hexColor: string; description: string }> = {
-  market_reversal: { label: "Market Reversal", icon: <TrendingDown className="w-4 h-4" />, color: "text-red-500", hexColor: "#ef4444", description: "Market turned against position" },
+  market_reversal: { label: "Market Reversal", icon: <TrendingDown className="w-4 h-4" />, color: "text-[var(--trade-bearish)]", hexColor: "#ef4444", description: "Market turned against position" },
   sector_weakness: { label: "Sector Weakness", icon: <Activity className="w-4 h-4" />, color: "text-orange-500", hexColor: "#f97316", description: "Sector-wide headwinds" },
   bad_timing: { label: "Bad Timing", icon: <Clock className="w-4 h-4" />, color: "text-yellow-500", hexColor: "#eab308", description: "Poor entry timing" },
   news_catalyst_failed: { label: "News Failed", icon: <AlertCircle className="w-4 h-4" />, color: "text-purple-500", hexColor: "#a855f7", description: "Expected catalyst didn't materialize" },
   stop_too_tight: { label: "Stop Too Tight", icon: <Target className="w-4 h-4" />, color: "text-blue-500", hexColor: "#3b82f6", description: "Normal volatility triggered stop" },
-  overconfident_signal: { label: "Overconfident Signal", icon: <Zap className="w-4 h-4" />, color: "text-amber-500", hexColor: "#f59e0b", description: "High confidence but still failed" },
-  low_volume_trap: { label: "Low Volume Trap", icon: <Volume2 className="w-4 h-4" />, color: "text-gray-500", hexColor: "#6b7280", description: "Trapped in illiquid name" },
+  overconfident_signal: { label: "Overconfident Signal", icon: <Zap className="w-4 h-4" />, color: "text-[var(--trade-neutral)]", hexColor: "#f59e0b", description: "High confidence but still failed" },
+  low_volume_trap: { label: "Low Volume Trap", icon: <Volume2 className="w-4 h-4" />, color: "text-muted-foreground", hexColor: "#6b7280", description: "Trapped in illiquid name" },
   gap_down_open: { label: "Gap Down Open", icon: <TrendingDown className="w-4 h-4" />, color: "text-red-600", hexColor: "#dc2626", description: "Gapped past stop loss" },
   trend_exhaustion: { label: "Trend Exhaustion", icon: <Activity className="w-4 h-4" />, color: "text-orange-600", hexColor: "#ea580c", description: "Entered at extended move" },
   fundamental_miss: { label: "Fundamental Miss", icon: <Lightbulb className="w-4 h-4" />, color: "text-blue-600", hexColor: "#2563eb", description: "AI missed fundamental red flag" },
@@ -50,7 +50,7 @@ const REASON_LABELS: Record<string, { label: string; icon: JSX.Element; color: s
   options_decay: { label: "Options Decay", icon: <Clock className="w-4 h-4" />, color: "text-pink-500", hexColor: "#ec4899", description: "Theta ate into position" },
   volatility_crush: { label: "Volatility Crush", icon: <TrendingDown className="w-4 h-4" />, color: "text-rose-500", hexColor: "#f43f5e", description: "IV crush after catalyst" },
   correlation_blindspot: { label: "Correlation Blindspot", icon: <Shield className="w-4 h-4" />, color: "text-violet-500", hexColor: "#8b5cf6", description: "Missed correlation risk" },
-  unknown: { label: "Unknown", icon: <AlertCircle className="w-4 h-4" />, color: "text-gray-400", hexColor: "#9ca3af", description: "Requires manual review" },
+  unknown: { label: "Unknown", icon: <AlertCircle className="w-4 h-4" />, color: "text-muted-foreground", hexColor: "#9ca3af", description: "Requires manual review" },
 };
 
 // Engine config for charts
@@ -176,7 +176,7 @@ export function LossPatternsDashboard() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)]" />
             Loss Patterns Dashboard
           </CardTitle>
         </CardHeader>
@@ -196,7 +196,7 @@ export function LossPatternsDashboard() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)]" />
             Loss Patterns Dashboard
           </CardTitle>
         </CardHeader>
@@ -212,7 +212,7 @@ export function LossPatternsDashboard() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)]" />
             Loss Patterns Dashboard
           </CardTitle>
           <CardDescription>Post-mortem analysis of failed trades</CardDescription>
@@ -230,7 +230,7 @@ export function LossPatternsDashboard() {
     <Card className="w-full" data-testid="loss-patterns-dashboard">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
+          <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)]" />
           Loss Patterns Dashboard
         </CardTitle>
         <CardDescription>Post-mortem analysis of {summary.totalLosses} failed trades</CardDescription>
@@ -239,11 +239,11 @@ export function LossPatternsDashboard() {
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4" data-testid="loss-summary-stats">
           <div className="text-center p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-            <p className="text-2xl font-bold text-red-500">{summary.totalLosses}</p>
+            <p className="text-2xl font-bold text-[var(--trade-bearish)]">{summary.totalLosses}</p>
             <p className="text-sm text-muted-foreground">Total Losses</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <p className="text-2xl font-bold text-amber-500">{safeToFixed(summary.avgLoss, 2)}%</p>
+            <p className="text-2xl font-bold text-[var(--trade-neutral)]">{safeToFixed(summary.avgLoss, 2)}%</p>
             <p className="text-sm text-muted-foreground">Avg Loss</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
@@ -283,7 +283,7 @@ export function LossPatternsDashboard() {
                               <Badge variant="outline" className="text-xs">
                                 {reason.count} trades
                               </Badge>
-                              <span className="text-red-500 text-xs font-mono">
+                              <span className="text-[var(--trade-bearish)] text-xs font-mono">
                                 {safeToFixed(reason.avgLoss, 2)}% avg
                               </span>
                             </div>
@@ -321,14 +321,14 @@ export function LossPatternsDashboard() {
                       <span className="text-sm font-medium">{formatEngine(engine.engine)}</span>
                       <div className="text-right">
                         <span className="text-sm text-muted-foreground">{engine.count}</span>
-                        <span className="text-xs text-red-500 ml-2">({safeToFixed(engine.avgLoss, 1)}%)</span>
+                        <span className="text-xs text-[var(--trade-bearish)] ml-2">({safeToFixed(engine.avgLoss, 1)}%)</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">No engine data available</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Engine data loading...</p>
             )}
           </div>
         </div>
@@ -337,7 +337,7 @@ export function LossPatternsDashboard() {
         {summary.worstSymbols.length > 0 && (
           <div data-testid="worst-symbols-section">
             <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-red-500" />
+              <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
               Worst Performing Symbols
             </h4>
             <div className="flex flex-wrap gap-2">
@@ -348,8 +348,8 @@ export function LossPatternsDashboard() {
                   className="bg-red-500/10 border-red-500/20"
                   data-testid={`worst-symbol-${symbol.symbol}`}
                 >
-                  <span className="font-mono font-bold">{symbol.symbol}</span>
-                  <span className="ml-2 text-red-500">
+                  <span className="font-mono font-bold tabular-nums">{symbol.symbol}</span>
+                  <span className="ml-2 text-[var(--trade-bearish)]">
                     {safeToFixed(symbol.totalLoss, 1)}%
                   </span>
                   <span className="ml-1 text-muted-foreground">

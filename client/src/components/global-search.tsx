@@ -103,7 +103,7 @@ function addRecentSearch(symbol: string) {
 
 function getAssetIcon(type: string) {
   switch (type) {
-    case 'crypto': return <Bitcoin className="h-4 w-4 text-amber-400" />;
+    case 'crypto': return <Bitcoin className="h-4 w-4 text-[var(--trade-neutral)]" />;
     case 'future': return <Rocket className="h-4 w-4 text-cyan-400" />;
     case 'penny_stock': return <DollarSign className="h-4 w-4 text-pink-400" />;
     default: return <BarChart3 className="h-4 w-4 text-primary" />;
@@ -282,10 +282,10 @@ export function GlobalSearch({
   const getIntentIcon = (intent: string) => {
     switch (intent) {
       case 'stock_analysis': return <ChartLine className="h-4 w-4 text-cyan-400" />;
-      case 'trading_strategy': return <Sparkles className="h-4 w-4 text-amber-400" />;
-      case 'market_question': return <BarChart3 className="h-4 w-4 text-emerald-400" />;
+      case 'trading_strategy': return <Sparkles className="h-4 w-4 text-[var(--trade-neutral)]" />;
+      case 'market_question': return <BarChart3 className="h-4 w-4 text-[var(--trade-bullish)]" />;
       case 'education': return <BookOpen className="h-4 w-4 text-purple-400" />;
-      default: return <MessageSquare className="h-4 w-4 text-slate-400" />;
+      default: return <MessageSquare className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -378,7 +378,7 @@ export function GlobalSearch({
 
                 {/* AI Response Content */}
                 <div className="px-3 py-3 rounded-lg bg-gray-100 dark:bg-muted/20 mb-3">
-                  <div className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                  <div className="text-sm text-foreground/80 dark:text-foreground/90 whitespace-pre-wrap leading-relaxed">
                     {aiResponse.response}
                   </div>
                 </div>
@@ -433,7 +433,7 @@ export function GlobalSearch({
                         <button
                           key={i}
                           onClick={() => handleFollowUp(followUp)}
-                          className="w-full text-left px-3 py-2 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-muted/30 rounded-lg transition-all"
+                          className="w-full text-left px-3 py-2 text-sm text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground/90 hover:bg-gray-100 dark:hover:bg-muted/30 rounded-lg transition-all"
                         >
                           {followUp}
                         </button>
@@ -519,7 +519,7 @@ export function GlobalSearch({
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold font-mono">{result.symbol}</span>
+                                <span className="font-bold font-mono tabular-nums">{result.symbol}</span>
                                 <Badge variant="outline" className="text-[10px]">
                                   {result.type.replace('_', ' ')}
                                 </Badge>
@@ -535,13 +535,13 @@ export function GlobalSearch({
                             </div>
                             {result.price != null && (
                               <div className="text-right">
-                                <div className="font-mono font-bold">
+                                <div className="font-mono font-bold tabular-nums">
                                   ${safeToFixed(result.price, 2)}
                                 </div>
                                 {result.change != null && (
                                   <div className={cn(
                                     "text-xs font-mono flex items-center justify-end gap-1",
-                                    result.change >= 0 ? "text-green-400" : "text-red-400"
+                                    result.change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                   )}>
                                     {result.change >= 0 ? (
                                       <TrendingUp className="h-3 w-3" />
@@ -560,7 +560,7 @@ export function GlobalSearch({
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-10 px-3 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20"
+                              className="h-10 px-3 text-[var(--trade-neutral)] hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/20"
                               onClick={(e) => handleGenerateAnalysis(result.symbol, e)}
                               disabled={analyzingSymbol === result.symbol}
                               title="Generate Trade Thesis"

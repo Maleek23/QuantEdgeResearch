@@ -108,9 +108,9 @@ function gexCellColor(val: number, maxAbs: number): string {
   const intensity = Math.min(1, Math.abs(val) / (maxAbs * 0.6));
   if (val > 0) {
     if (intensity > 0.7) return 'bg-emerald-600/70 text-white';
-    if (intensity > 0.4) return 'bg-emerald-500/50 text-emerald-100';
-    if (intensity > 0.15) return 'bg-emerald-500/25 text-emerald-200';
-    return 'bg-emerald-500/10 text-emerald-300';
+    if (intensity > 0.4) return 'bg-emerald-500/50 text-[var(--trade-bullish)]';
+    if (intensity > 0.15) return 'bg-emerald-500/25 text-[var(--trade-bullish)]';
+    return 'bg-emerald-500/10 text-[var(--trade-bullish)]';
   } else {
     if (intensity > 0.7) return 'bg-red-600/70 text-white';
     if (intensity > 0.4) return 'bg-red-500/50 text-red-100';
@@ -303,37 +303,37 @@ function HeatmapPanel({ data }: { data: GEXHeatmapData }) {
   , strikes[0]);
 
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
+    <Card className="bg-card/60 border-border/50">
       <CardHeader className="pb-2 px-4 pt-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-1.5">
             <Grid3x3 className="w-4 h-4 text-violet-400" /> Heatmap
           </CardTitle>
-          <div className="flex items-center gap-4 text-[10px] text-slate-500">
+          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span>Spot: <span className="font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</span></span>
             {flipPoint && <span>Flip: <span className="font-mono font-bold text-violet-400">${safeToFixed(flipPoint, 0)}</span></span>}
-            <span>Max γ: <span className="font-mono font-bold text-amber-400">${safeToFixed(maxGammaStrike, 0)}</span></span>
+            <span>Max γ: <span className="font-mono font-bold text-[var(--trade-neutral)]">${safeToFixed(maxGammaStrike, 0)}</span></span>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         {/* Legend */}
-        <div className="flex items-center gap-4 text-[10px] text-slate-500 px-4 pb-2">
+        <div className="flex items-center gap-4 text-[10px] text-muted-foreground px-4 pb-2">
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-500/60" /><span>Positive (Call γ)</span></div>
           <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-500/60" /><span>Negative (Put γ)</span></div>
-          <div className="flex items-center gap-1"><Star className="w-3 h-3 text-amber-400" /><span>Spot</span></div>
+          <div className="flex items-center gap-1"><Star className="w-3 h-3 text-[var(--trade-neutral)]" /><span>Spot</span></div>
           <div className="flex items-center gap-1"><Zap className="w-3 h-3 text-violet-400" /><span>Flip</span></div>
         </div>
 
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-slate-900">
-                <th className="sticky left-0 z-20 bg-slate-900 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 border-r border-slate-800/50 w-20">
+              <tr className="bg-card">
+                <th className="sticky left-0 z-20 bg-card px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/50 w-20">
                   Strike
                 </th>
                 {expirations.map(exp => (
-                  <th key={exp} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 min-w-[90px]">
+                  <th key={exp} className="px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground min-w-[90px]">
                     {formatExpDate(exp)}
                   </th>
                 ))}
@@ -350,22 +350,22 @@ function HeatmapPanel({ data }: { data: GEXHeatmapData }) {
                   <tr
                     key={strike}
                     className={cn(
-                      "border-t border-slate-800/30 transition-colors",
+                      "border-t border-border/30 transition-colors",
                       isSpot && "ring-1 ring-amber-500/40 bg-amber-500/[0.04]",
                       isFlip && !isSpot && "ring-1 ring-violet-500/30",
                     )}
                   >
                     <td className={cn(
-                      "sticky left-0 z-10 px-3 py-1.5 font-mono font-bold text-right border-r border-slate-800/50 whitespace-nowrap",
-                      isSpot ? "bg-slate-900 text-amber-400" :
-                      isFlip ? "bg-slate-900 text-violet-400" :
-                      isMaxGamma ? "bg-slate-900 text-white" :
-                      "bg-slate-900 text-slate-300"
+                      "sticky left-0 z-10 px-3 py-1.5 font-mono font-bold text-right border-r border-border/50 whitespace-nowrap",
+                      isSpot ? "bg-card text-[var(--trade-neutral)]" :
+                      isFlip ? "bg-card text-violet-400" :
+                      isMaxGamma ? "bg-card text-white" :
+                      "bg-card text-foreground/80"
                     )}>
                       <div className="flex items-center justify-end gap-1">
-                        {isSpot && <Star className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                        {isSpot && <Star className="w-3 h-3 text-[var(--trade-neutral)] flex-shrink-0" />}
                         {isFlip && !isSpot && <Zap className="w-3 h-3 text-violet-400 flex-shrink-0" />}
-                        {isMaxGamma && !isSpot && !isFlip && <Crosshair className="w-3 h-3 text-emerald-400 flex-shrink-0" />}
+                        {isMaxGamma && !isSpot && !isFlip && <Crosshair className="w-3 h-3 text-[var(--trade-bullish)] flex-shrink-0" />}
                         ${strike}
                       </div>
                     </td>
@@ -399,57 +399,57 @@ function KeyLevelsPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKey
   const { spotPrice } = data;
 
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
+    <Card className="bg-card/60 border-border/50">
       <CardHeader className="pb-2 px-4 pt-3">
-        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           Key Levels
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
         <div className="flex items-center gap-4">
           <div>
-            <div className="text-[9px] text-slate-500 uppercase">Anchor</div>
-            <div className="text-2xl font-mono font-black text-emerald-400">${levels.anchor}</div>
+            <div className="text-[9px] text-muted-foreground uppercase">Anchor</div>
+            <div className="text-2xl font-mono font-black text-[var(--trade-bullish)]">${levels.anchor}</div>
           </div>
           <div>
-            <div className="text-[9px] text-slate-500 uppercase">Flip</div>
+            <div className="text-[9px] text-muted-foreground uppercase">Flip</div>
             <div className="text-2xl font-mono font-black text-violet-400">
               {levels.flip ? `$${levels.flip}` : 'N/A'}
             </div>
           </div>
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-muted/50" />
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-400">Price</span>
+            <span className="text-muted-foreground">Price</span>
             <span className="font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">GEX Rating</span>
-            <span className="font-mono font-bold text-amber-400">{levels.gexRating}/5</span>
+            <span className="text-muted-foreground">GEX Rating</span>
+            <span className="font-mono font-bold text-[var(--trade-neutral)]">{levels.gexRating}/5</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Bias</span>
+            <span className="text-muted-foreground">Bias</span>
             <span className={cn(
               "font-bold",
-              levels.bias === 'Long Gamma' ? "text-emerald-400" :
-              levels.bias === 'Short Gamma' ? "text-red-400" : "text-yellow-400"
+              levels.bias === 'Long Gamma' ? "text-[var(--trade-bullish)]" :
+              levels.bias === 'Short Gamma' ? "text-[var(--trade-bearish)]" : "text-yellow-400"
             )}>
               {levels.bias}
             </span>
           </div>
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-muted/50" />
 
         <div>
-          <div className="text-[9px] text-slate-500 uppercase font-bold mb-2">Defense Lines</div>
+          <div className="text-[9px] text-muted-foreground uppercase font-bold mb-2">Defense Lines</div>
           <div className="space-y-1.5">
             {levels.defenseLines.map((strike, i) => (
               <div key={strike} className="flex justify-between text-sm">
-                <span className="text-slate-400">Level {i + 1}</span>
+                <span className="text-muted-foreground">Level {i + 1}</span>
                 <span className="font-mono font-bold text-white">${strike}</span>
               </div>
             ))}
@@ -481,46 +481,46 @@ function AIAnalysisPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKe
     : `Neutral gamma regime. Dealers are balanced. Price action likely range-bound between ${supportWalls.length > 0 ? '$' + supportWalls[0] : 'support'} and ${resistWalls.length > 0 ? '$' + resistWalls[0] : 'resistance'}.`;
 
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
+    <Card className="bg-card/60 border-border/50">
       <CardHeader className="pb-2 px-4 pt-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+          <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Brain className="h-3.5 w-3.5" /> AI Analysis
           </CardTitle>
-          <Badge variant="outline" className="text-[10px] border-slate-700 text-slate-400">{data.symbol}</Badge>
+          <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">{data.symbol}</Badge>
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
         <div>
-          <div className="text-xs font-bold text-slate-300 mb-1">Outlook</div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">{outlook}</p>
+          <div className="text-xs font-bold text-foreground/80 mb-1">Outlook</div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{outlook}</p>
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-muted/50" />
 
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold text-slate-300">Levels</span>
+            <span className="text-xs font-bold text-foreground/80">Levels</span>
             <Badge variant="outline" className={cn(
               "text-[8px] font-bold",
-              levels.regime === 'POSITIVE' ? "border-emerald-500/30 text-emerald-400" :
-              levels.regime === 'NEGATIVE' ? "border-red-500/30 text-red-400" :
+              levels.regime === 'POSITIVE' ? "border-emerald-500/30 text-[var(--trade-bullish)]" :
+              levels.regime === 'NEGATIVE' ? "border-red-500/30 text-[var(--trade-bearish)]" :
               "border-yellow-500/30 text-yellow-400"
             )}>
               {levels.regime === 'POSITIVE' ? `Brk ${levels.anchor}` : levels.regime === 'NEGATIVE' ? `Def ${levels.flip || ''}` : 'Range'}
             </Badge>
           </div>
-          <div className="text-[11px] text-slate-400 space-y-1">
+          <div className="text-[11px] text-muted-foreground space-y-1">
             <div>Sup: {supportWalls.length > 0 ? supportWalls.join(' / ') : 'N/A'}</div>
             <div>Res: {resistWalls.length > 0 ? resistWalls.join(' / ') : 'N/A'}</div>
           </div>
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-muted/50" />
 
         <div>
-          <div className="text-xs font-bold text-slate-300 mb-1">Strategy</div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
+          <div className="text-xs font-bold text-foreground/80 mb-1">Strategy</div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
             {levels.bias === 'Long Gamma'
               ? `Dealers long gamma — sell vol, buy dips toward $${supportWalls[0] || levels.anchor}. Target: $${levels.anchor}. Mean reversion plays favored.`
               : levels.bias === 'Short Gamma'
@@ -529,21 +529,21 @@ function AIAnalysisPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKe
           </p>
         </div>
 
-        <Separator className="bg-slate-800/50" />
+        <Separator className="bg-muted/50" />
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold text-slate-300">Risk</span>
+            <span className="text-xs font-bold text-foreground/80">Risk</span>
             <Badge variant="outline" className={cn(
               "text-[8px] font-bold",
-              levels.gexRating >= 4 ? "border-emerald-500/30 text-emerald-400" :
+              levels.gexRating >= 4 ? "border-emerald-500/30 text-[var(--trade-bullish)]" :
               levels.gexRating >= 2 ? "border-yellow-500/30 text-yellow-400" :
-              "border-red-500/30 text-red-400"
+              "border-red-500/30 text-[var(--trade-bearish)]"
             )}>
               {levels.gexRating}/5
             </Badge>
           </div>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-muted-foreground">
             {levels.gexRating >= 4
               ? 'High GEX concentration near spot. Dealer activity provides strong support/resistance. Lower risk for directional plays.'
               : levels.gexRating >= 2
@@ -566,9 +566,9 @@ function GammaWallsPanel({ data }: { data: GEXHeatmapData }) {
     .slice(0, 6);
 
   return (
-    <Card className="bg-slate-900/60 border-slate-800/50">
+    <Card className="bg-card/60 border-border/50">
       <CardHeader className="pb-2 px-4 pt-3">
-        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Layers className="w-3.5 h-3.5 text-violet-400" /> Gamma Walls
         </CardTitle>
       </CardHeader>
@@ -583,13 +583,13 @@ function GammaWallsPanel({ data }: { data: GEXHeatmapData }) {
                 <div className="w-14 text-right">
                   <span className={cn(
                     "font-mono text-xs font-bold",
-                    strike === maxGammaStrike ? "text-amber-400" :
+                    strike === maxGammaStrike ? "text-[var(--trade-neutral)]" :
                     flipPoint && strike === flipPoint ? "text-violet-400" : "text-white"
                   )}>
                     ${strike}
                   </span>
                 </div>
-                <div className="flex-1 h-5 bg-slate-800/50 rounded overflow-hidden relative">
+                <div className="flex-1 h-5 bg-muted/50 rounded overflow-hidden relative">
                   <div
                     className={cn(
                       "h-full rounded transition-all duration-500",
@@ -602,8 +602,8 @@ function GammaWallsPanel({ data }: { data: GEXHeatmapData }) {
                   </span>
                 </div>
                 <Badge variant="outline" className={cn(
-                  "text-[8px] font-bold w-20 justify-center border-slate-700",
-                  isPositive ? "text-emerald-400" : "text-red-400"
+                  "text-[8px] font-bold w-20 justify-center border-border",
+                  isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {isPositive ? (isAbove ? 'MAGNET ↑' : 'SUPPORT') : (isAbove ? 'RESIST' : 'BOUNCE')}
                 </Badge>
@@ -622,10 +622,10 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
 
   if (signals.length === 0) {
     return (
-      <Card className="bg-slate-900/60 border-slate-800/50 p-6 text-center">
-        <Crosshair className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-        <p className="text-sm text-slate-500">No sniper signals detected</p>
-        <p className="text-[10px] text-slate-600 mt-1">Signals generate when extreme GEX concentrations appear near spot</p>
+      <Card className="bg-card/60 border-border/50 p-6 text-center">
+        <Crosshair className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">No sniper signals detected</p>
+        <p className="text-[10px] text-muted-foreground/70 mt-1">Signals generate when extreme GEX concentrations appear near spot</p>
       </Card>
     );
   }
@@ -633,9 +633,9 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Crosshair className="w-4 h-4 text-red-400" />
+        <Crosshair className="w-4 h-4 text-[var(--trade-bearish)]" />
         <span className="text-sm font-bold text-white">Sniper Signals</span>
-        <Badge variant="outline" className="text-[9px] border-slate-700 text-slate-400">{signals.length} detected</Badge>
+        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">{signals.length} detected</Badge>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -648,7 +648,7 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
                 ? "bg-gradient-to-br from-red-950/40 to-slate-900/60 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
                 : sig.conviction === 'A'
                   ? "bg-gradient-to-br from-amber-950/20 to-slate-900/60 border-amber-500/20"
-                  : "bg-slate-900/60 border-slate-800/50"
+                  : "bg-card/60 border-border/50"
             )}
           >
             <CardContent className="px-4 py-3 space-y-3">
@@ -659,63 +659,63 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
                     sig.direction === 'LONG' ? "bg-emerald-500/15" : "bg-red-500/15"
                   )}>
                     {sig.direction === 'LONG'
-                      ? <TrendingUp className="w-4 h-4 text-emerald-400" />
-                      : <TrendingDown className="w-4 h-4 text-red-400" />}
+                      ? <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
+                      : <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-white">${sig.strike}</span>
                       <Badge variant="outline" className={cn(
                         "text-[8px] font-bold",
-                        sig.direction === 'LONG' ? "border-emerald-500/30 text-emerald-400" : "border-red-500/30 text-red-400"
+                        sig.direction === 'LONG' ? "border-emerald-500/30 text-[var(--trade-bullish)]" : "border-red-500/30 text-[var(--trade-bearish)]"
                       )}>
                         {sig.direction}
                       </Badge>
                     </div>
-                    <div className="text-[9px] text-slate-500 font-mono">
+                    <div className="text-[9px] text-muted-foreground font-mono">
                       {sig.type.replace(/_/g, ' ')} · {sig.distancePct.toFixed(1)}% from spot
                     </div>
                   </div>
                 </div>
                 <div className={cn(
                   "text-lg font-black",
-                  sig.conviction === 'S+' ? "text-red-400" :
-                  sig.conviction === 'A' ? "text-amber-400" : "text-slate-400"
+                  sig.conviction === 'S+' ? "text-[var(--trade-bearish)]" :
+                  sig.conviction === 'A' ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
                 )}>
                   {sig.conviction}
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-slate-800/40 rounded px-2 py-1.5">
-                  <div className="text-[8px] font-bold uppercase tracking-wider text-slate-500">Entry Zone</div>
+                <div className="bg-muted/40 rounded px-2 py-1.5">
+                  <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Entry Zone</div>
                   <div className="text-xs font-mono font-bold text-white">${safeToFixed(spotPrice, 2)}</div>
                 </div>
-                <div className="bg-slate-800/40 rounded px-2 py-1.5">
-                  <div className="text-[8px] font-bold uppercase tracking-wider text-emerald-500">Target</div>
-                  <div className="text-xs font-mono font-bold text-emerald-400">${safeToFixed(sig.targetStrike, 0)}</div>
+                <div className="bg-muted/40 rounded px-2 py-1.5">
+                  <div className="text-[8px] font-bold uppercase tracking-wider text-[var(--trade-bullish)]">Target</div>
+                  <div className="text-xs font-mono font-bold text-[var(--trade-bullish)]">${safeToFixed(sig.targetStrike, 0)}</div>
                 </div>
-                <div className="bg-slate-800/40 rounded px-2 py-1.5">
-                  <div className="text-[8px] font-bold uppercase tracking-wider text-red-500">Stop</div>
-                  <div className="text-xs font-mono font-bold text-red-400">${safeToFixed(sig.stopStrike, 0)}</div>
+                <div className="bg-muted/40 rounded px-2 py-1.5">
+                  <div className="text-[8px] font-bold uppercase tracking-wider text-[var(--trade-bearish)]">Stop</div>
+                  <div className="text-xs font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(sig.stopStrike, 0)}</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 text-[10px]">
-                <Zap className={cn("w-3 h-3", sig.gexValue > 0 ? "text-emerald-400" : "text-red-400")} />
-                <span className="text-slate-400">Net GEX:</span>
-                <span className={cn("font-mono font-bold", sig.gexValue > 0 ? "text-emerald-400" : "text-red-400")}>
+                <Zap className={cn("w-3 h-3", sig.gexValue > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")} />
+                <span className="text-muted-foreground">Net GEX:</span>
+                <span className={cn("font-mono font-bold", sig.gexValue > 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                   {formatGexValue(sig.gexValue)}
                 </span>
                 {sig.expiration && (
                   <>
-                    <span className="text-slate-600">·</span>
-                    <span className="text-slate-500">Exp: {formatExpDate(sig.expiration)}</span>
+                    <span className="text-muted-foreground/70">·</span>
+                    <span className="text-muted-foreground">Exp: {formatExpDate(sig.expiration)}</span>
                   </>
                 )}
               </div>
 
-              <p className="text-[10px] text-slate-400 leading-relaxed">{sig.reasoning}</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{sig.reasoning}</p>
             </CardContent>
           </Card>
         ))}
@@ -766,9 +766,9 @@ export default function GEXDashboard() {
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 font-mono">GAMMA // EXPOSURE</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-mono">GAMMA // EXPOSURE</div>
             <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              <Crosshair className="w-6 h-6 text-red-400" />
+              <Crosshair className="w-6 h-6 text-[var(--trade-bearish)]" />
               GEX Dashboard
             </h1>
           </div>
@@ -776,8 +776,8 @@ export default function GEXDashboard() {
             {levels && (
               <Badge variant="outline" className={cn(
                 "text-xs font-bold",
-                levels.regime === 'POSITIVE' ? "border-emerald-500/30 text-emerald-400" :
-                levels.regime === 'NEGATIVE' ? "border-red-500/30 text-red-400" :
+                levels.regime === 'POSITIVE' ? "border-emerald-500/30 text-[var(--trade-bullish)]" :
+                levels.regime === 'NEGATIVE' ? "border-red-500/30 text-[var(--trade-bearish)]" :
                 "border-yellow-500/30 text-yellow-400"
               )}>
                 {levels.regime === 'POSITIVE' ? 'POSITIVE γ — MEAN REVERT' :
@@ -787,7 +787,7 @@ export default function GEXDashboard() {
             <button
               onClick={() => refetch()}
               disabled={isFetching}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors"
             >
               <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
               Refresh
@@ -806,8 +806,8 @@ export default function GEXDashboard() {
                 className={cn(
                   "text-xs font-bold px-3 py-1.5 rounded-lg border transition-all duration-200",
                   activeSymbol === sym
-                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                    : "border-slate-800/50 text-slate-500 hover:text-slate-300 hover:border-slate-700"
+                    ? "bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30"
+                    : "border-border/50 text-muted-foreground hover:text-foreground/80 hover:border-border"
                 )}
               >
                 {sym}
@@ -818,19 +818,19 @@ export default function GEXDashboard() {
           {/* Search */}
           <div className="flex items-center gap-2 flex-1 max-w-sm">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Any symbol... PLTR, NVDA, AAPL"
                 value={inputSymbol}
                 onChange={e => setInputSymbol(e.target.value.toUpperCase())}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                className="w-full pl-10 pr-3 py-1.5 text-sm bg-slate-900/60 border border-slate-800/50 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-700"
+                className="w-full pl-10 pr-3 py-1.5 text-sm bg-card/60 border border-border/50 rounded-lg text-white placeholder:text-muted-foreground/70 focus:outline-none focus:border-border"
               />
             </div>
             <button
               onClick={handleSearch}
-              className="px-3 py-1.5 text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/25 transition-colors"
+              className="px-3 py-1.5 text-xs font-bold bg-emerald-500/15 text-[var(--trade-bullish)] border border-emerald-500/30 rounded-lg hover:bg-emerald-500/25 transition-colors"
             >
               Go
             </button>
@@ -839,8 +839,8 @@ export default function GEXDashboard() {
           {/* Active symbol display */}
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">{activeSymbol}</span>
-            {isProxy && <span className="text-[9px] text-slate-500">(via SPY)</span>}
-            {data && <span className="text-sm font-mono text-slate-400">${safeToFixed(data.spotPrice, 2)}</span>}
+            {isProxy && <span className="text-[9px] text-muted-foreground">(via SPY)</span>}
+            {data && <span className="text-sm font-mono text-muted-foreground">${safeToFixed(data.spotPrice, 2)}</span>}
           </div>
         </div>
 
@@ -848,18 +848,18 @@ export default function GEXDashboard() {
         {isLoading && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <div className="lg:col-span-3 h-[500px] bg-slate-900/60 border border-slate-800/50 rounded-lg animate-pulse" />
+              <div className="lg:col-span-3 h-[500px] bg-card/60 border border-border/50 rounded-lg animate-pulse" />
               <div className="space-y-4">
-                <div className="h-64 bg-slate-900/60 border border-slate-800/50 rounded-lg animate-pulse" />
-                <div className="h-64 bg-slate-900/60 border border-slate-800/50 rounded-lg animate-pulse" />
+                <div className="h-64 bg-card/60 border border-border/50 rounded-lg animate-pulse" />
+                <div className="h-64 bg-card/60 border border-border/50 rounded-lg animate-pulse" />
               </div>
             </div>
           </div>
         )}
 
         {isError && !isLoading && (
-          <Card className="bg-slate-900/60 border-slate-800/50 p-8 text-center">
-            <p className="text-red-400 mb-2">Failed to load GEX data for {activeSymbol}</p>
+          <Card className="bg-card/60 border-border/50 p-8 text-center">
+            <p className="text-[var(--trade-bearish)] mb-2">Failed to load GEX data for {activeSymbol}</p>
             <button onClick={() => refetch()} className="text-xs text-cyan-400 hover:text-cyan-300 font-bold">Retry</button>
           </Card>
         )}
@@ -885,13 +885,13 @@ export default function GEXDashboard() {
             <SniperSignalsPanel data={data} />
 
             {/* Explainer */}
-            <Card className="bg-slate-900/40 border-slate-800/30">
+            <Card className="bg-card/40 border-border/30">
               <CardContent className="px-4 py-3">
                 <div className="flex items-start gap-2">
-                  <Brain className="w-4 h-4 text-slate-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-[10px] text-slate-600 leading-relaxed space-y-1">
-                    <p><span className="font-bold text-slate-500">GEX Dashboard</span> analyzes dealer gamma exposure across strikes and expirations to identify high-probability trading zones.</p>
-                    <p><span className="text-emerald-500">Positive γ</span> = dealers hedge by selling rallies/buying dips (mean reversion). <span className="text-red-500">Negative γ</span> = dealers amplify moves (momentum/trend).</p>
+                  <Brain className="w-4 h-4 text-muted-foreground/70 mt-0.5 flex-shrink-0" />
+                  <div className="text-[10px] text-muted-foreground/70 leading-relaxed space-y-1">
+                    <p><span className="font-bold text-muted-foreground">GEX Dashboard</span> analyzes dealer gamma exposure across strikes and expirations to identify high-probability trading zones.</p>
+                    <p><span className="text-[var(--trade-bullish)]">Positive γ</span> = dealers hedge by selling rallies/buying dips (mean reversion). <span className="text-[var(--trade-bearish)]">Negative γ</span> = dealers amplify moves (momentum/trend).</p>
                     <p>Extreme GEX concentrations at specific strikes create magnetic targets and reversal zones — the same levels institutional desks watch.</p>
                   </div>
                 </div>
@@ -899,7 +899,7 @@ export default function GEXDashboard() {
             </Card>
 
             {/* Timestamp */}
-            <div className="text-[10px] text-slate-600 text-right">
+            <div className="text-[10px] text-muted-foreground/70 text-right">
               Updated: {new Date(data.timestamp).toLocaleString()}
             </div>
           </>

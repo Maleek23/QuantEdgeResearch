@@ -22,31 +22,31 @@ interface NavItem {
 // TRADING - Core trading tools
 const tradingNav: NavItem[] = [
   { icon: Crosshair, label: "Trading Engine", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
-  { icon: Sparkles, label: "Trade Desk", href: "/trade-desk", color: "text-emerald-400", glow: "rgba(52,211,153,0.3)" },
+  { icon: Sparkles, label: "Trade Desk", href: "/trade-desk", color: "text-[var(--trade-bullish)]", glow: "rgba(52,211,153,0.3)" },
   { icon: TrendingUp, label: "Markets", href: "/market", color: "text-blue-400", glow: "rgba(96,165,250,0.3)" },
   { icon: Bot, label: "Automations", href: "/automations", color: "text-pink-400", glow: "rgba(244,114,182,0.3)" },
 ];
 
 // ANALYSIS - Market analysis tools
 const analysisNav: NavItem[] = [
-  { icon: Search, label: "Market Scanner", href: "/market-scanner", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: BarChart3, label: "Chart Analysis", href: "/chart-analysis", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: DollarSign, label: "Smart Money", href: "/smart-money", color: "text-amber-400", glow: "rgba(251,191,36,0.3)" },
-  { icon: Eye, label: "Watchlist", href: "/watchlist", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+  { icon: Search, label: "Market Scanner", href: "/market-scanner", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: BarChart3, label: "Chart Analysis", href: "/chart-analysis", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: DollarSign, label: "Smart Money", href: "/smart-money", color: "text-[var(--trade-neutral)]", glow: "rgba(251,191,36,0.3)" },
+  { icon: Eye, label: "Watchlist", href: "/watchlist", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
 ];
 
 // RESEARCH - Research & insights
 const researchNav: NavItem[] = [
   { icon: TrendingUp, label: "Discover", href: "/discover", color: "text-purple-400", glow: "rgba(192,132,252,0.3)" },
-  { icon: History, label: "Historical AI", href: "/historical-intelligence", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: LineChart, label: "Backtest", href: "/backtest", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+  { icon: History, label: "Historical AI", href: "/historical-intelligence", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: LineChart, label: "Backtest", href: "/backtest", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
 ];
 
 // ACCOUNT - User account & settings
 const accountNav: NavItem[] = [
   { icon: PieChart, label: "Performance", href: "/performance", color: "text-cyan-400", glow: "rgba(34,211,238,0.3)" },
-  { icon: GraduationCap, label: "Academy", href: "/academy", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
-  { icon: Settings, label: "Settings", href: "/settings", color: "text-slate-400", glow: "rgba(148,163,184,0.3)" },
+  { icon: GraduationCap, label: "Academy", href: "/academy", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: Settings, label: "Settings", href: "/settings", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
 ];
 
 // Keep old names for backwards compatibility
@@ -65,8 +65,8 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
             className={cn(
               "relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 cursor-pointer group",
               isActive 
-                ? "bg-slate-800/80" 
-                : "hover:bg-slate-800/40"
+                ? "bg-muted/80" 
+                : "hover:bg-muted/40"
             )}
             style={{
               boxShadow: isActive ? `0 0 20px ${item.glow || 'rgba(34,211,238,0.3)'}` : 'none'
@@ -86,7 +86,7 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
                 "w-5 h-5 relative z-10 transition-all duration-200",
                 isActive 
                   ? (item.color || "text-cyan-400") 
-                  : "text-slate-500 group-hover:text-slate-300"
+                  : "text-muted-foreground group-hover:text-foreground/80"
               )} 
             />
             {isActive && (
@@ -106,7 +106,7 @@ function NavIcon({ item, isActive }: { item: NavItem; isActive: boolean }) {
       <TooltipContent 
         side="right" 
         sideOffset={12}
-        className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl px-3 py-1.5"
+        className="bg-card/95 border-border/50 backdrop-blur-xl px-3 py-1.5"
       >
         <span className="text-xs font-medium">{item.label}</span>
       </TooltipContent>
@@ -123,8 +123,8 @@ function NavIconExpanded({ item, isActive }: { item: NavItem; isActive: boolean 
         className={cn(
           "relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 cursor-pointer group",
           isActive 
-            ? "bg-slate-800/80" 
-            : "hover:bg-slate-800/40"
+            ? "bg-muted/80" 
+            : "hover:bg-muted/40"
         )}
         style={{
           boxShadow: isActive ? `0 0 20px ${item.glow || 'rgba(34,211,238,0.3)'}` : 'none'
@@ -144,12 +144,12 @@ function NavIconExpanded({ item, isActive }: { item: NavItem; isActive: boolean 
             "w-5 h-5 relative z-10 transition-all duration-200",
             isActive 
               ? (item.color || "text-cyan-400") 
-              : "text-slate-500 group-hover:text-slate-300"
+              : "text-muted-foreground group-hover:text-foreground/80"
           )} 
         />
         <span className={cn(
           "text-sm font-medium relative z-10 transition-colors",
-          isActive ? "text-slate-100" : "text-slate-400 group-hover:text-slate-200"
+          isActive ? "text-foreground/95" : "text-muted-foreground group-hover:text-foreground/90"
         )}>
           {item.label}
         </span>
@@ -179,30 +179,30 @@ export function CommandRail() {
     <aside
       className={cn(
         "fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300",
-        "backdrop-blur-2xl border-r border-slate-800/30",
+        "backdrop-blur-2xl border-r border-border/30",
         collapsed ? "w-[68px]" : "w-[200px]"
       )}
       data-testid="command-rail"
     >
       <div className={cn(
-        "flex items-center h-12 border-b border-slate-800/30",
+        "flex items-center h-12 border-b border-border/30",
         collapsed ? "justify-center px-3" : "justify-between px-4"
       )}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-            <Zap className="w-4 h-4 text-slate-950" />
+            <Zap className="w-4 h-4 text-foreground" />
           </div>
           {!collapsed && (
             <span className="font-bold text-sm tracking-tight">
               <span className="text-cyan-400">Q</span>
-              <span className="text-slate-300">E</span>
+              <span className="text-foreground/80">E</span>
             </span>
           )}
         </div>
         {!collapsed && (
           <button
             onClick={() => setCollapsed(true)}
-            className="text-slate-500 hover:text-slate-300 transition-colors p-1"
+            className="text-muted-foreground hover:text-foreground/80 transition-colors p-1"
             data-testid="button-collapse-rail"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -216,7 +216,7 @@ export function CommandRail() {
       )}>
         {/* TRADING SECTION */}
         {!collapsed && (
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             Trading
           </div>
         )}
@@ -236,7 +236,7 @@ export function CommandRail() {
 
         {/* ANALYSIS SECTION */}
         {!collapsed && (
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             Analysis
           </div>
         )}
@@ -256,7 +256,7 @@ export function CommandRail() {
 
         {/* RESEARCH SECTION */}
         {!collapsed && (
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             Research
           </div>
         )}
@@ -276,7 +276,7 @@ export function CommandRail() {
 
         {/* ACCOUNT SECTION */}
         {!collapsed && (
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             Account
           </div>
         )}
@@ -292,14 +292,14 @@ export function CommandRail() {
       </nav>
 
       <div className={cn(
-        "border-t border-slate-800/30 p-3",
+        "border-t border-border/30 p-3",
         collapsed && "flex justify-center"
       )}>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
             "flex items-center justify-center gap-2 rounded-lg transition-all duration-200",
-            "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30",
+            "text-muted-foreground hover:text-foreground/80 hover:bg-muted/30",
             collapsed ? "w-10 h-10" : "w-full px-3 py-2"
           )}
           data-testid="button-toggle-rail"

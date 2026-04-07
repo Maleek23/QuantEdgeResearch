@@ -30,7 +30,7 @@ export default function InviteWelcome() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--surface-base)] flex items-center justify-center p-6 relative overflow-hidden">
       {/* Subtle gradient accent */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       
@@ -51,7 +51,7 @@ export default function InviteWelcome() {
         </div>
 
         {/* Main Card with subtle border glow */}
-        <div className="bg-[#111111] border border-neutral-800/80 rounded-2xl p-8 shadow-2xl shadow-black/50 relative">
+        <div className="bg-card border border-neutral-800/80 rounded-2xl p-8 shadow-2xl shadow-black/50 relative">
           {/* Subtle top accent line */}
           <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
           

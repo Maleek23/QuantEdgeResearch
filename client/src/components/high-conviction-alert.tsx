@@ -167,27 +167,27 @@ export function HighConvictionAlertProvider({
             key={idea.id || idx}
             className={cn(
               "p-3 border-2 shadow-2xl animate-in slide-in-from-right-5 duration-300",
-              "bg-[#111] border-emerald-500/50",
+              "bg-card border-emerald-500/50",
             )}
           >
             {/* Header */}
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                  <Zap className="w-4 h-4 text-emerald-400" />
+                  <Zap className="w-4 h-4 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide">
+                    <span className="text-xs font-bold text-[var(--trade-bullish)] uppercase tracking-wide">
                       High Conviction Alert
                     </span>
                     {idea.probabilityBand && (
-                      <Badge className="text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                      <Badge className="text-[10px] bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30">
                         {idea.probabilityBand}
                       </Badge>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-muted-foreground">
                     {idea.confidenceScore}% confidence
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export function HighConvictionAlertProvider({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-slate-500 hover:text-white"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-white"
                   onClick={() => setIsMuted(!isMuted)}
                 >
                   <Volume2 className={cn("w-3 h-3", isMuted && "opacity-30")} />
@@ -204,7 +204,7 @@ export function HighConvictionAlertProvider({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 w-6 p-0 text-slate-500 hover:text-white"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-white"
                   onClick={() => dismissAlert(idea.id || '')}
                 >
                   <X className="w-4 h-4" />
@@ -221,8 +221,8 @@ export function HighConvictionAlertProvider({
                 className={cn(
                   "text-xs font-bold",
                   idea.direction?.toLowerCase() === 'long' || idea.direction === 'bullish'
-                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                    : "bg-red-500/20 text-red-400 border-red-500/30"
+                    ? "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30"
+                    : "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30"
                 )}
               >
                 {idea.direction?.toLowerCase() === 'long' || idea.direction === 'bullish' ? (
@@ -236,21 +236,21 @@ export function HighConvictionAlertProvider({
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-              <div className="p-2 rounded bg-slate-800/50">
-                <div className="text-[10px] text-slate-500">Entry</div>
+              <div className="p-2 rounded bg-muted/50">
+                <div className="text-[10px] text-muted-foreground">Entry</div>
                 <div className="text-sm font-mono text-white">
                   ${safeToFixed(idea.entryPrice, 2, '—')}
                 </div>
               </div>
               <div className="p-2 rounded bg-emerald-500/10">
-                <div className="text-[10px] text-slate-500">Target</div>
-                <div className="text-sm font-mono text-emerald-400">
+                <div className="text-[10px] text-muted-foreground">Target</div>
+                <div className="text-sm font-mono text-[var(--trade-bullish)]">
                   ${safeToFixed(idea.targetPrice, 2, '—')}
                 </div>
               </div>
               <div className="p-2 rounded bg-red-500/10">
-                <div className="text-[10px] text-slate-500">Stop</div>
-                <div className="text-sm font-mono text-red-400">
+                <div className="text-[10px] text-muted-foreground">Stop</div>
+                <div className="text-sm font-mono text-[var(--trade-bearish)]">
                   ${safeToFixed(idea.stopLoss, 2, '—')}
                 </div>
               </div>
@@ -258,14 +258,14 @@ export function HighConvictionAlertProvider({
 
             {/* Catalyst/Analysis Preview */}
             {idea.catalyst && (
-              <p className="text-xs text-slate-400 mb-3 line-clamp-2">
+              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                 {idea.catalyst}
               </p>
             )}
 
             {/* Action Button */}
             <Button
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+              className="w-full bg-emerald-600 hover:bg-[var(--trade-bullish)] text-white font-medium"
               onClick={() => goToTradeDesk(idea)}
             >
               View in Trade Desk

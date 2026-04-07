@@ -110,8 +110,8 @@ export function EngineStatusGrid() {
   if (error) {
     return (
       <div className="p-8 text-center border rounded-lg bg-red-500/10 border-red-500/30">
-        <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-        <p className="text-sm text-red-400">Failed to load engine data</p>
+        <AlertCircle className="h-8 w-8 text-[var(--trade-bearish)] mx-auto mb-2" />
+        <p className="text-sm text-[var(--trade-bearish)]">Failed to load engine data</p>
         <p className="text-xs text-muted-foreground mt-1">Check server connection</p>
       </div>
     );
@@ -126,8 +126,8 @@ export function EngineStatusGrid() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="h-48 rounded-xl bg-slate-900/60 border border-slate-800 animate-pulse flex items-center justify-center">
-              <Loader2 className="h-6 w-6 text-slate-600 animate-spin" />
+            <div key={i} className="h-48 rounded-xl bg-card/60 border border-border animate-pulse flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-muted-foreground/70 animate-spin" />
             </div>
           ))}
         </div>
@@ -148,7 +148,7 @@ export function EngineStatusGrid() {
         </div>
         <div className="flex items-center gap-2 text-sm">
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${activeEngines > 0 ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
+            <div className={`w-2 h-2 rounded-full ${activeEngines > 0 ? 'bg-[var(--trade-bullish)] animate-pulse' : 'bg-muted-foreground'}`} />
             <span className="text-muted-foreground">
               {activeEngines} of {totalEngines} Active
             </span>
@@ -172,27 +172,27 @@ export function EngineStatusGrid() {
               className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${engine.bgGradient} border cursor-pointer transition-all ${
                 isSelected
                   ? `border-[${engine.color}] shadow-lg`
-                  : 'border-slate-800 hover:border-slate-700'
+                  : 'border-border hover:border-border'
               }`}
             >
               {/* Status Indicator */}
               <div className="absolute top-3 right-3 flex items-center gap-1">
                 {engine.status === "active" && (
                   <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-                    <span className="text-[10px] text-green-400 font-medium">ACTIVE</span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
+                    <span className="text-[10px] text-[var(--trade-bullish)] font-medium">ACTIVE</span>
                   </>
                 )}
                 {engine.status === "processing" && (
                   <>
-                    <Zap className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-amber-400 font-medium">PROCESSING</span>
+                    <Zap className="h-3.5 w-3.5 text-[var(--trade-neutral)] animate-pulse" />
+                    <span className="text-[10px] text-[var(--trade-neutral)] font-medium">PROCESSING</span>
                   </>
                 )}
                 {engine.status === "standby" && (
                   <>
-                    <AlertCircle className="h-3.5 w-3.5 text-slate-500" />
-                    <span className="text-[10px] text-slate-500 font-medium">STANDBY</span>
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground font-medium">STANDBY</span>
                   </>
                 )}
               </div>
@@ -212,7 +212,7 @@ export function EngineStatusGrid() {
                   <div className="flex-1">
                     <h3 className="font-semibold mb-1">{engine.name}</h3>
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${engine.score}%` }}
@@ -231,11 +231,11 @@ export function EngineStatusGrid() {
                 {/* Metrics */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="glass-subtle rounded-lg p-2.5">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Signals</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Signals</p>
                     <p className="text-lg font-bold font-mono tabular-nums">{engine.recentSignals}</p>
                   </div>
                   <div className="glass-subtle rounded-lg p-2.5">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Win Rate</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Win Rate</p>
                     <p
                       className="text-lg font-bold font-mono tabular-nums"
                       style={{ color: engine.color }}
@@ -254,7 +254,7 @@ export function EngineStatusGrid() {
                   }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-3 pt-3 border-t border-slate-800">
+                  <div className="mt-3 pt-3 border-t border-border">
                     <p className="text-xs text-muted-foreground">
                       Last signal: 3m ago • Confidence: {engine.score}%
                     </p>

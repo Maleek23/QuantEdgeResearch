@@ -41,31 +41,31 @@ const variantDefaults: Record<EmptyStateVariant, {
     icon: Database,
     title: 'No Data Available',
     message: 'Data has not been loaded yet. Try refreshing or check back later.',
-    iconColor: 'text-slate-600',
+    iconColor: 'text-muted-foreground/70',
   },
   'no-signals': {
     icon: BarChart3,
     title: 'No Signals Found',
     message: 'Market is in ranging regime. Try adjusting scanner settings or wait for volatility.',
-    iconColor: 'text-slate-600',
+    iconColor: 'text-muted-foreground/70',
   },
   'no-results': {
     icon: Search,
     title: 'No Results Found',
     message: 'Your search did not match any records. Try adjusting your filters.',
-    iconColor: 'text-slate-600',
+    iconColor: 'text-muted-foreground/70',
   },
   'error': {
     icon: AlertTriangle,
     title: 'Something Went Wrong',
     message: 'An error occurred while loading data. Please try again.',
-    iconColor: 'text-red-400',
+    iconColor: 'text-[var(--trade-bearish)]',
   },
   'offline': {
     icon: Wifi,
     title: 'Connection Lost',
     message: 'Unable to connect to the server. Check your internet connection.',
-    iconColor: 'text-amber-400',
+    iconColor: 'text-[var(--trade-neutral)]',
   },
   'coming-soon': {
     icon: Clock,
@@ -94,8 +94,8 @@ export function EmptyState({
       className
     )}>
       <Icon className={cn("h-12 w-12 mb-4", defaults.iconColor)} />
-      <h3 className="text-lg font-semibold text-slate-300 mb-2">{displayTitle}</h3>
-      <p className="text-sm text-slate-400 max-w-md mb-6">{displayMessage}</p>
+      <h3 className="text-lg font-semibold text-foreground/80 mb-2">{displayTitle}</h3>
+      <p className="text-sm text-muted-foreground max-w-md mb-6">{displayMessage}</p>
       
       {actions && actions.length > 0 && (
         <div className="flex items-center gap-3">
@@ -105,7 +105,7 @@ export function EmptyState({
               variant={action.variant === 'primary' ? 'default' : 'outline'}
               onClick={action.onClick}
               className={action.variant === 'primary' 
-                ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950' 
+                ? 'bg-cyan-500 hover:bg-cyan-400 text-foreground' 
                 : ''
               }
             >
@@ -124,10 +124,10 @@ export function InlineEmptyState({
 }: { message?: string; className?: string }) {
   return (
     <div className={cn(
-      "text-sm text-slate-500 font-mono py-4 text-center",
+      "text-sm text-muted-foreground font-mono py-4 text-center",
       className
     )}>
-      <span className="text-slate-600 mr-2">{">"}</span>
+      <span className="text-muted-foreground/70 mr-2">{">"}</span>
       {message}
     </div>
   );

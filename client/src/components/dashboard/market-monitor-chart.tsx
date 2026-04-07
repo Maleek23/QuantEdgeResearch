@@ -93,9 +93,9 @@ export function MarketMonitorChart({
 
   if (!data.length || typeof svgPath === 'string') {
     return (
-      <Card className={cn("bg-slate-900/50 border-slate-800/50", className)}>
+      <Card className={cn("bg-card/50 border-border/50", className)}>
         <CardContent className="p-6 flex items-center justify-center h-64">
-          <span className="text-slate-500">No data available</span>
+          <span className="text-muted-foreground">Data loading...</span>
         </CardContent>
       </Card>
     );
@@ -106,11 +106,11 @@ export function MarketMonitorChart({
   const gradientId = `gradient-${symbol}`;
 
   return (
-    <Card className={cn("bg-slate-900/50 border-slate-800/50 overflow-hidden", className)} data-testid={`chart-${symbol.toLowerCase()}`}>
+    <Card className={cn("bg-card/50 border-border/50 overflow-hidden", className)} data-testid={`chart-${symbol.toLowerCase()}`}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-lg font-medium">{name}</CardTitle>
-          <ChevronRight className="w-4 h-4 text-slate-500" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -213,7 +213,7 @@ export function MarketMonitorChart({
           
           {hoveredPoint && (
             <div
-              className="absolute pointer-events-none bg-slate-800/95 border border-slate-700 rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm"
+              className="absolute pointer-events-none bg-muted/95 border border-border rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm"
               style={{
                 left: hoverPosition.x + 10,
                 top: 10,
@@ -223,7 +223,7 @@ export function MarketMonitorChart({
               <div className="flex items-center gap-2">
                 <Badge className={cn(
                   "text-xs font-mono",
-                  isPositive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                  isPositive ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                 )}>
                   {symbol}
                 </Badge>
@@ -231,13 +231,13 @@ export function MarketMonitorChart({
                   ${safeToFixed(hoveredPoint.price, 3, '0.000')}
                 </span>
               </div>
-              <div className="text-xs text-slate-400 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {hoveredPoint.time}
               </div>
               {hoveredPoint.change !== undefined && (
                 <div className={cn(
                   "text-sm font-mono mt-1",
-                  hoveredPoint.change >= 0 ? "text-emerald-400" : "text-red-400"
+                  hoveredPoint.change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {hoveredPoint.change >= 0 ? '+' : ''}{safeToFixed(hoveredPoint.change, 2)}%
                 </div>
@@ -246,16 +246,16 @@ export function MarketMonitorChart({
           )}
           
           <div className="absolute top-2 left-4">
-            <span className="text-sm text-slate-400">{symbol}</span>
+            <span className="text-sm text-muted-foreground">{symbol}</span>
           </div>
           
-          <div className="absolute bottom-16 right-4 bg-slate-800/90 border border-slate-700 rounded-lg px-3 py-1.5 backdrop-blur-sm">
+          <div className="absolute bottom-16 right-4 bg-muted/90 border border-border rounded-lg px-3 py-1.5 backdrop-blur-sm">
             <span className="text-lg font-bold font-mono text-white">
               ${safeToFixed(currentPrice, 3, '0.000')}
             </span>
             <span className={cn(
               "ml-2 text-sm font-mono",
-              isPositive ? "text-emerald-400" : "text-red-400"
+              isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
             </span>
@@ -334,9 +334,9 @@ export function MarketMonitorSection() {
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-semibold text-white flex items-center gap-2">
               Market Monitor
-              <ChevronRight className="w-5 h-5 text-slate-400" />
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </h2>
-            <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+            <Badge variant="outline" className="text-xs border-border text-muted-foreground">
               <Activity className="w-3 h-3 mr-1 animate-pulse" />
               Connecting...
             </Badge>
@@ -344,17 +344,17 @@ export function MarketMonitorSection() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="lg:col-span-3">
-            <Card className="bg-slate-900/50 border-slate-800/50 h-[300px] flex items-center justify-center">
+            <Card className="bg-card/50 border-border/50 h-[300px] flex items-center justify-center">
               <div className="text-center">
                 <Activity className="w-8 h-8 text-cyan-400 animate-pulse mx-auto mb-2" />
-                <p className="text-slate-400">Loading market data...</p>
+                <p className="text-muted-foreground">Loading market data...</p>
               </div>
             </Card>
           </div>
           <div className="space-y-3">
-            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
-            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
-            <Card className="bg-slate-900/50 border-slate-800/50 h-24 animate-pulse" />
+            <Card className="bg-card/50 border-border/50 h-24 animate-pulse" />
+            <Card className="bg-card/50 border-border/50 h-24 animate-pulse" />
+            <Card className="bg-card/50 border-border/50 h-24 animate-pulse" />
           </div>
         </div>
       </div>
@@ -367,13 +367,13 @@ export function MarketMonitorSection() {
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold text-white flex items-center gap-2">
             Market Monitor
-            <ChevronRight className="w-5 h-5 text-slate-400" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </h2>
           <Badge 
             variant="outline" 
             className={cn(
               "text-xs",
-              isConnected ? "border-emerald-500/50 text-emerald-400" : "border-slate-600 text-slate-400"
+              isConnected ? "border-emerald-500/50 text-[var(--trade-bullish)]" : "border-border text-muted-foreground"
             )}
           >
             <Activity className={cn("w-3 h-3 mr-1", isConnected && "animate-pulse")} />
@@ -424,11 +424,11 @@ function MarketIndexCard({ symbol, name }: { symbol: string; name: string }) {
   const isPositive = changePercent >= 0;
   
   return (
-    <Card className="bg-slate-900/50 border-slate-800/50" data-testid={`card-index-${symbol.toLowerCase()}`}>
+    <Card className="bg-card/50 border-border/50" data-testid={`card-index-${symbol.toLowerCase()}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-slate-400">{name}</span>
-          <Badge variant="outline" className="text-xs border-slate-700 text-slate-300">
+          <span className="text-sm text-muted-foreground">{name}</span>
+          <Badge variant="outline" className="text-xs border-border text-foreground/80">
             {symbol}
           </Badge>
         </div>
@@ -438,7 +438,7 @@ function MarketIndexCard({ symbol, name }: { symbol: string; name: string }) {
           </span>
           <div className={cn(
             "flex items-center gap-1 text-sm font-mono",
-            isPositive ? "text-emerald-400" : "text-red-400"
+            isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {changePercent !== 0 ? `${isPositive ? '+' : ''}${safeToFixed(changePercent, 2)}%` : '--'}

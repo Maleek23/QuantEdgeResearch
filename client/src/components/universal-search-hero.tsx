@@ -60,7 +60,7 @@ function getCategoryIcon(category: string) {
     case 'stocks':
       return <BarChart3 className="h-4 w-4 text-primary" />;
     case 'crypto':
-      return <Bitcoin className="h-4 w-4 text-amber-400" />;
+      return <Bitcoin className="h-4 w-4 text-[var(--trade-neutral)]" />;
     case 'news':
       return <Newspaper className="h-4 w-4 text-blue-400" />;
     case 'ideas':
@@ -68,9 +68,9 @@ function getCategoryIcon(category: string) {
     case 'actions':
       return <Zap className="h-4 w-4 text-cyan-400" />;
     case 'help':
-      return <HelpCircle className="h-4 w-4 text-slate-400" />;
+      return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
     default:
-      return <Search className="h-4 w-4 text-slate-400" />;
+      return <Search className="h-4 w-4 text-muted-foreground" />;
   }
 }
 
@@ -296,10 +296,10 @@ export function UniversalSearchHero({
                           {trend.count}
                         </Badge>
                         {trend.trendDirection === 'up' && (
-                          <TrendingUp className="h-3 w-3 text-green-500" />
+                          <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
                         )}
                         {trend.trendDirection === 'down' && (
-                          <TrendingDown className="h-3 w-3 text-red-500" />
+                          <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
                         )}
                       </button>
                     ))}
@@ -319,7 +319,7 @@ export function UniversalSearchHero({
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left"
                       >
                         {isStock ? (
-                          <div className="w-9 h-9 rounded-lg bg-slate-800/50 border border-slate-700/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-9 h-9 rounded-lg bg-muted/50 border border-border/50 flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img
                               src={getStockLogoUrl(suggestion.text)}
                               alt={suggestion.text}
@@ -384,7 +384,7 @@ export function UniversalSearchHero({
                             >
                               {/* Logo/Icon */}
                               {isStock ? (
-                                <div className="relative w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                <div className="relative w-10 h-10 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center overflow-hidden flex-shrink-0">
                                   <img
                                     src={getStockLogoUrl(stockResult.symbol || result.title)}
                                     alt={stockResult.symbol || result.title}
@@ -403,7 +403,7 @@ export function UniversalSearchHero({
                                   />
                                 </div>
                               ) : (
-                                <div className="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center flex-shrink-0">
                                   {result.icon ? (
                                     <span className="text-lg">{result.icon}</span>
                                   ) : (
@@ -423,7 +423,7 @@ export function UniversalSearchHero({
                                           "text-[10px] px-1.5 py-0",
                                           stockResult.grade?.startsWith('A') ? "border-teal-500/50 text-teal-400" :
                                           stockResult.grade?.startsWith('B') ? "border-cyan-500/50 text-cyan-400" :
-                                          "border-amber-500/50 text-amber-400"
+                                          "border-amber-500/50 text-[var(--trade-neutral)]"
                                         )}>
                                           {stockResult.grade}
                                         </Badge>
@@ -454,7 +454,7 @@ export function UniversalSearchHero({
                                   {stockResult.changePercent !== undefined && (
                                     <div className={cn(
                                       "text-xs font-mono",
-                                      stockResult.changePercent >= 0 ? "text-emerald-400" : "text-red-400"
+                                      stockResult.changePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                                     )}>
                                       {stockResult.changePercent >= 0 ? '+' : ''}{safeToFixed(stockResult.changePercent, 2)}%
                                     </div>

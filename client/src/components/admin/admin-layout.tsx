@@ -128,10 +128,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Loading state
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-card flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <Shield className="h-12 w-12 text-cyan-500" />
-          <p className="text-slate-400">Verifying access...</p>
+          <p className="text-muted-foreground">Verifying access...</p>
         </div>
       </div>
     );
@@ -140,14 +140,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Authentication gate
   if (authStep !== 'authenticated') {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-slate-900 border-slate-800">
+      <div className="min-h-screen bg-card flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto p-3 bg-cyan-500/10 rounded-full w-fit border border-cyan-500/20">
               <Shield className="h-8 w-8 text-cyan-500" />
             </div>
             <CardTitle className="text-2xl text-white">Admin Access</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-muted-foreground">
               {authStep === 'pin' 
                 ? 'Enter your 4-digit access code' 
                 : 'Enter your admin password'}
@@ -168,7 +168,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <InputOTPSlot 
                         key={index} 
                         index={index} 
-                        className="h-14 w-14 text-2xl bg-slate-800 border-slate-700 text-white" 
+                        className="h-14 w-14 text-2xl bg-muted border-border text-white" 
                       />
                     ))}
                   </InputOTPGroup>
@@ -190,7 +190,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                  className="h-12 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                  className="h-12 bg-muted border-border text-white placeholder:text-muted-foreground"
                   data-testid="input-admin-password"
                 />
                 <Button 
@@ -235,10 +235,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full bg-slate-950">
-        <Sidebar className="border-r border-slate-800">
-          <SidebarHeader className="border-b border-slate-800 p-4">
-            <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+      <div className="flex h-screen w-full bg-card">
+        <Sidebar className="border-r border-border">
+          <SidebarHeader className="border-b border-border p-4">
+            <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors">
               <ChevronLeft className="h-4 w-4" />
               <span className="text-sm">Back to App</span>
             </Link>
@@ -248,14 +248,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </div>
               <div>
                 <h2 className="font-semibold text-white">Admin Panel</h2>
-                <p className="text-xs text-slate-500">Quant Edge Labs</p>
+                <p className="text-xs text-muted-foreground">Quant Edge Labs</p>
               </div>
             </div>
           </SidebarHeader>
           
           <SidebarContent className="px-2">
             <SidebarGroup>
-              <SidebarGroupLabel className="text-slate-500 text-xs uppercase tracking-wider px-2">
+              <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider px-2">
                 Management
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -271,7 +271,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                               isActive 
                                 ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
-                                : "text-slate-400 hover:text-white hover:bg-slate-800"
+                                : "text-muted-foreground hover:text-white hover:bg-muted"
                             )}
                             data-testid={`nav-${item.title.toLowerCase()}`}
                           >
@@ -287,7 +287,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel className="text-slate-500 text-xs uppercase tracking-wider px-2">
+              <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider px-2">
                 Advanced
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -303,7 +303,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                               isActive 
                                 ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
-                                : "text-slate-400 hover:text-white hover:bg-slate-800"
+                                : "text-muted-foreground hover:text-white hover:bg-muted"
                             )}
                             data-testid={`nav-${item.title.toLowerCase().replace('/', '-')}`}
                           >
@@ -319,9 +319,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-slate-800 p-4">
+          <SidebarFooter className="border-t border-border p-4">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+              <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">
                 Authenticated
               </Badge>
             </div>
@@ -329,9 +329,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </Sidebar>
 
         <main className="flex-1 overflow-auto">
-          <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+          <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border">
             <div className="flex items-center gap-4 px-6 py-4">
-              <SidebarTrigger className="text-slate-400 hover:text-white" data-testid="button-sidebar-toggle" />
+              <SidebarTrigger className="text-muted-foreground hover:text-white" data-testid="button-sidebar-toggle" />
               <h1 className="text-lg font-semibold text-white">
                 {navItems.find(item => item.href === location)?.title || 
                  advancedItems.find(item => item.href === location)?.title || 

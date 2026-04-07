@@ -127,8 +127,8 @@ function SignalCard({ signal, isNew }: { signal: TradingSignal; isNew: boolean }
             <Badge
               className={`${
                 isLong
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-red-500/20 text-red-400 border-red-500/30'
+                  ? 'bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30'
+                  : 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30'
               }`}
             >
               {isLong ? (
@@ -148,21 +148,21 @@ function SignalCard({ signal, isNew }: { signal: TradingSignal; isNew: boolean }
           </div>
 
           {/* Reason */}
-          <p className="text-sm text-gray-400 mb-3">{signal.reason}</p>
+          <p className="text-sm text-muted-foreground mb-3">{signal.reason}</p>
 
           {/* Price Targets */}
           <div className="grid grid-cols-3 gap-3 text-sm">
             <div>
-              <p className="text-gray-500 text-xs">Entry</p>
+              <p className="text-muted-foreground text-xs">Entry</p>
               <p className="text-white font-medium">${signal.price}</p>
             </div>
             <div>
-              <p className="text-gray-500 text-xs">Target</p>
-              <p className="text-emerald-400 font-medium">${signal.target}</p>
+              <p className="text-muted-foreground text-xs">Target</p>
+              <p className="text-[var(--trade-bullish)] font-medium">${signal.target}</p>
             </div>
             <div>
-              <p className="text-gray-500 text-xs">Stop</p>
-              <p className="text-red-400 font-medium">${signal.stopLoss}</p>
+              <p className="text-muted-foreground text-xs">Stop</p>
+              <p className="text-[var(--trade-bearish)] font-medium">${signal.stopLoss}</p>
             </div>
           </div>
         </div>
@@ -194,19 +194,19 @@ function SignalCard({ signal, isNew }: { signal: TradingSignal; isNew: boolean }
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-lg font-bold text-white">{signal.confidence}</span>
-              <span className="text-[10px] text-gray-500">CONF</span>
+              <span className="text-[10px] text-muted-foreground">CONF</span>
             </div>
           </div>
 
           <div className="mt-2 text-center">
-            <p className="text-xs text-gray-500">R:R</p>
+            <p className="text-xs text-muted-foreground">R:R</p>
             <p className="text-sm font-medium text-blue-400">{safeToFixed(riskReward, 1)}:1</p>
           </div>
         </div>
       </div>
 
       {/* Timestamp */}
-      <div className="flex items-center gap-1 mt-3 text-xs text-gray-500">
+      <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
         <Clock className="w-3 h-3" />
         {signal.timestamp.toLocaleTimeString()}
       </div>
@@ -250,7 +250,7 @@ export function TradingSignalsFeed() {
             <Zap className="w-5 h-5 text-yellow-400" />
             Live Trading Signals
             <motion.div
-              className="w-2 h-2 rounded-full bg-green-500 ml-2"
+              className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] ml-2"
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
@@ -260,7 +260,7 @@ export function TradingSignalsFeed() {
             <Badge variant="secondary" className="bg-gray-800/50">
               {signals.length} Active
             </Badge>
-            <Badge className="bg-emerald-500/20 text-emerald-400">
+            <Badge className="bg-emerald-500/20 text-[var(--trade-bullish)]">
               {highConfidenceCount} High Conf
             </Badge>
           </div>
@@ -269,12 +269,12 @@ export function TradingSignalsFeed() {
         {/* Quick Stats */}
         <div className="flex items-center gap-4 mt-3 text-sm">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span className="text-gray-400">{longCount} Long</span>
+            <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
+            <span className="text-muted-foreground">{longCount} Long</span>
           </div>
           <div className="flex items-center gap-2">
-            <TrendingDown className="w-4 h-4 text-red-400" />
-            <span className="text-gray-400">{signals.length - longCount} Short</span>
+            <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
+            <span className="text-muted-foreground">{signals.length - longCount} Short</span>
           </div>
         </div>
       </CardHeader>
@@ -296,7 +296,7 @@ export function TradingSignalsFeed() {
         </div>
 
         {signals.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>Waiting for signals...</p>
           </div>

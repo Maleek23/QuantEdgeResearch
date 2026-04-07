@@ -111,10 +111,10 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
 
   const getExitWindowBadge = (window: ExitAdvisory['exitWindow']) => {
     const styles: Record<string, string> = {
-      immediate: 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse',
-      soon: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
-      watch: 'bg-emerald-500/20 text-emerald-400 border-cyan-500/40',
-      hold: 'bg-green-500/20 text-green-400 border-green-500/40',
+      immediate: 'bg-red-500/20 text-[var(--trade-bearish)] border-[var(--trade-bearish)]/40 animate-pulse',
+      soon: 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/40',
+      watch: 'bg-emerald-500/20 text-[var(--trade-bullish)] border-cyan-500/40',
+      hold: 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40',
     };
     const labels: Record<string, string> = {
       immediate: 'EXIT NOW',
@@ -131,17 +131,17 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
 
   const getThetaBadge = (urgency: ExitAdvisory['thetaUrgency']) => {
     const styles: Record<string, string> = {
-      critical: 'text-red-400',
-      high: 'text-amber-400',
-      moderate: 'text-emerald-400',
-      low: 'text-green-400',
+      critical: 'text-[var(--trade-bearish)]',
+      high: 'text-[var(--trade-neutral)]',
+      moderate: 'text-[var(--trade-bullish)]',
+      low: 'text-[var(--trade-bullish)]',
     };
     return <span className={cn("text-xs font-mono", styles[urgency])}>θ{urgency}</span>;
   };
 
   const getMomentumIcon = (momentum: string) => {
-    if (momentum.includes('bullish')) return <TrendingUp className="h-3 w-3 text-green-400" />;
-    if (momentum.includes('bearish')) return <TrendingUp className="h-3 w-3 text-red-400 rotate-180" />;
+    if (momentum.includes('bullish')) return <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />;
+    if (momentum.includes('bearish')) return <TrendingUp className="h-3 w-3 text-[var(--trade-bearish)] rotate-180" />;
     return <Activity className="h-3 w-3 text-muted-foreground" />;
   };
 
@@ -153,10 +153,10 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
   const totalPositions = positions.length || 0;
 
   return (
-    <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent" data-testid="card-exit-intelligence">
-      <CardHeader className="py-3 px-4 border-b border-emerald-500/20">
+    <Card className="border-[var(--trade-bullish)]/20 bg-gradient-to-br from-emerald-500/5 to-transparent" data-testid="card-exit-intelligence">
+      <CardHeader className="py-3 px-4 border-b border-[var(--trade-bullish)]/20">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-emerald-400">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-[var(--trade-bullish)]">
             <Activity className="h-4 w-4" />
             Bot Exit Intelligence
             {totalPositions > 0 && (
@@ -200,22 +200,22 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                 key={pos.positionId}
                 className={cn(
                   "p-3 rounded-lg border transition-all duration-200",
-                  pos.exitWindow === 'immediate' ? "bg-red-500/10 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.1)]" :
+                  pos.exitWindow === 'immediate' ? "bg-red-500/10 border-[var(--trade-bearish)]/40 shadow-[0_0_10px_rgba(239,68,68,0.1)]" :
                   pos.exitWindow === 'soon' ? "bg-amber-500/5 border-amber-500/30" :
-                  "bg-slate-800/40 border-slate-700/50"
+                  "bg-muted/40 border-border/50"
                 )}
                 data-testid={`exit-intel-${pos.symbol}`}
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-foreground">{pos.symbol}</span>
-                    <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 uppercase">
+                    <Badge variant="outline" className="text-[10px] border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)] uppercase">
                       {pos.optionType} ${pos.strikePrice}
                     </Badge>
                     {pos.dteRemaining !== null && (
                       <span className={cn(
                         "text-[10px] font-mono",
-                        pos.dteRemaining <= 2 ? "text-red-400 font-bold" : "text-muted-foreground"
+                        pos.dteRemaining <= 2 ? "text-[var(--trade-bearish)] font-bold" : "text-muted-foreground"
                       )}>
                         {pos.dteRemaining}DTE
                       </span>
@@ -237,7 +237,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                     <span className="text-muted-foreground block mb-0.5">Profit</span>
                     <div className={cn(
                       "font-mono font-bold",
-                      pos.unrealizedPnLPercent >= 0 ? "text-green-400" : "text-red-400"
+                      pos.unrealizedPnLPercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                     )}>
                       {pos.unrealizedPnLPercent >= 0 ? '+' : ''}{safeToFixed(pos.unrealizedPnLPercent, 1)}%
                     </div>
@@ -248,12 +248,12 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                   </div>
                 </div>
 
-                <div className="space-y-1.5 p-2 rounded bg-slate-900/40 border border-slate-700/30">
+                <div className="space-y-1.5 p-2 rounded bg-card/40 border border-border/30">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-muted-foreground">Exit Confidence</span>
-                    <span className="font-mono font-bold text-emerald-400">{pos.exitProbability}%</span>
+                    <span className="font-mono font-bold text-[var(--trade-bullish)]">{pos.exitProbability}%</span>
                   </div>
-                  <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
                     <div 
                       className={cn(
                         "h-full transition-all duration-500",
@@ -263,7 +263,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
-                    <span className="text-emerald-400 font-semibold mr-1">ANALYSIS:</span>
+                    <span className="text-[var(--trade-bullish)] font-semibold mr-1">ANALYSIS:</span>
                     {pos.exitReason}
                   </p>
                 </div>
@@ -271,7 +271,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground bg-slate-900/40 rounded-lg border border-dashed border-slate-700/50">
+          <div className="text-center py-8 text-muted-foreground bg-card/40 rounded-lg border border-dashed border-border/50">
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
             <p className="text-sm">No active bot positions monitored</p>
             <p className="text-[11px] mt-1 opacity-60">Bot must enter a play for monitoring to begin</p>
@@ -687,7 +687,7 @@ export default function AutomationsPage() {
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
         <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
           {/* Loading Header Skeleton */}
-          <div className="rounded-xl bg-slate-900/60 backdrop-blur-md border border-slate-700/50 p-6">
+          <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-2">
                 <Skeleton className="h-10 w-64" />
@@ -703,7 +703,7 @@ export default function AutomationsPage() {
             {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40" />)}
           </div>
           <div className="flex items-center justify-center pt-8">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
           </div>
         </div>
       </div>
@@ -721,12 +721,12 @@ export default function AutomationsPage() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
       <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
         {/* Refined Header - Cyan focused, minimal glass */}
-        <div className="rounded-xl bg-slate-900/60 backdrop-blur-md border border-slate-700/50 p-6">
+        <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <Zap className="w-5 h-5 text-emerald-400" />
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-[var(--trade-bullish)]/20">
+                  <Zap className="w-5 h-5 text-[var(--trade-bullish)]" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-semibold text-foreground" data-testid="text-page-title">
                   Automations Hub
@@ -740,13 +740,13 @@ export default function AutomationsPage() {
             <div className="flex items-center gap-6">
               <div className="text-right">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</span>
-                <div className="text-lg font-bold font-mono text-emerald-400">
+                <div className="text-lg font-bold font-mono text-[var(--trade-bullish)]">
                   {[quantBot?.isActive, optionsFlow?.isActive, socialSentiment?.isActive, cryptoData?.status === 'active'].filter(Boolean).length} / 4
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">LIVE</span>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--trade-bullish)]/10 border border-green-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+                <span className="text-xs font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">LIVE</span>
               </div>
             </div>
           </div>
@@ -755,11 +755,11 @@ export default function AutomationsPage() {
         {/* Simplified Tabs Navigation - Focus on trading bots */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto">
-            <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
+            <TabsList className="inline-flex h-11 bg-muted/40 border border-border/50 rounded-lg p-1 gap-1">
               <TabsTrigger 
                 value="overview" 
                 data-testid="tab-overview"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-[var(--trade-bullish)]"
               >
                 <Activity className="w-4 h-4 mr-2" />
                 Trading Bots
@@ -768,7 +768,7 @@ export default function AutomationsPage() {
               <TabsTrigger 
                 value="scanner" 
                 data-testid="tab-scanner"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-[var(--trade-bullish)]"
               >
                 <Search className="w-4 h-4 mr-2" />
                 Market Scanner
@@ -776,7 +776,7 @@ export default function AutomationsPage() {
               <TabsTrigger 
                 value="auto-lotto" 
                 data-testid="tab-auto-lotto" 
-                className="relative rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"
+                className="relative rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-[var(--trade-bullish)]"
               >
                 <Rocket className="w-4 h-4 mr-2" />
                 Positions
@@ -784,7 +784,7 @@ export default function AutomationsPage() {
               <TabsTrigger 
                 value="scanners" 
                 data-testid="tab-scanners"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-[var(--trade-bullish)]"
               >
                 <Bot className="w-4 h-4 mr-2" />
                 Signal Scanners
@@ -792,7 +792,7 @@ export default function AutomationsPage() {
               <TabsTrigger 
                 value="settings" 
                 data-testid="tab-settings"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-[var(--trade-bullish)]"
               >
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
@@ -811,33 +811,33 @@ export default function AutomationsPage() {
           {/* 4 Main Portfolio Bots - Primary Display */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Options Bot - $300 */}
-            <Card className="bg-gradient-to-br from-emerald-500/10 to-slate-900/60 border-emerald-500/30" data-testid="card-options-bot">
+            <Card className="bg-gradient-to-br from-emerald-500/10 to-slate-900/60 border-[var(--trade-bullish)]/30" data-testid="card-options-bot">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
-                      <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    <div className="p-2 rounded-lg bg-emerald-500/20 border border-[var(--trade-bullish)]/30">
+                      <TrendingUp className="w-5 h-5 text-[var(--trade-bullish)]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-foreground">Options Bot</h3>
                       <p className="text-[10px] text-muted-foreground">US Market Hours</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">Capital</p>
-                    <p className="text-lg font-bold font-mono text-emerald-400">${botData?.portfolio?.startingCapital || 300}</p>
+                    <p className="text-lg font-bold font-mono text-[var(--trade-bullish)]">${botData?.portfolio?.startingCapital || 300}</p>
                   </div>
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
-                    <p className={cn("text-lg font-bold font-mono", (botData?.portfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.portfolio?.totalPnL || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                       {(botData?.portfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.portfolio?.totalPnL, 2)}
                     </p>
                   </div>
@@ -862,21 +862,21 @@ export default function AutomationsPage() {
                       <p className="text-[10px] text-muted-foreground">CME Hours (NQ/GC)</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">Capital</p>
                     <p className="text-lg font-bold font-mono text-purple-400">${botData?.futuresPortfolio?.startingCapital || 300}</p>
                   </div>
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
-                    <p className={cn("text-lg font-bold font-mono", (botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                       {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.futuresPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
@@ -894,28 +894,28 @@ export default function AutomationsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30">
-                      <Bitcoin className="w-5 h-5 text-amber-400" />
+                      <Bitcoin className="w-5 h-5 text-[var(--trade-neutral)]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-foreground">Crypto Bot</h3>
                       <p className="text-[10px] text-muted-foreground">24/7 (13 coins)</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">Capital</p>
-                    <p className="text-lg font-bold font-mono text-amber-400">${botData?.cryptoPortfolio?.startingCapital || 300}</p>
+                    <p className="text-lg font-bold font-mono text-[var(--trade-neutral)]">${botData?.cryptoPortfolio?.startingCapital || 300}</p>
                   </div>
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
-                    <p className={cn("text-lg font-bold font-mono", (botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                       {(botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.cryptoPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
@@ -932,29 +932,29 @@ export default function AutomationsPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
-                      <Rocket className="w-5 h-5 text-green-400" />
+                    <div className="p-2 rounded-lg bg-[var(--trade-bullish)]/20 border border-green-500/30">
+                      <Rocket className="w-5 h-5 text-[var(--trade-bullish)]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-sm text-foreground">Small Account</h3>
                       <p className="text-[10px] text-muted-foreground">A+ Lottos Only</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">Capital</p>
-                    <p className="text-lg font-bold font-mono text-green-400">${botData?.smallAccountPortfolio?.startingCapital || 150}</p>
+                    <p className="text-lg font-bold font-mono text-[var(--trade-bullish)]">${botData?.smallAccountPortfolio?.startingCapital || 150}</p>
                   </div>
-                  <div className="p-2 rounded bg-slate-800/50">
+                  <div className="p-2 rounded bg-muted/50">
                     <p className="text-[10px] text-muted-foreground">P&L</p>
-                    <p className={cn("text-lg font-bold font-mono", (botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                       {(botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{safeToFixed(botData?.smallAccountPortfolio?.totalPnL, 2)}
                     </p>
                   </div>
@@ -972,21 +972,21 @@ export default function AutomationsPage() {
 
           {/* Quick Actions Row */}
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <Search className="w-5 h-5 text-emerald-400" />
+                  <Search className="w-5 h-5 text-[var(--trade-bullish)]" />
                   <div>
                     <h4 className="font-semibold text-sm">Market Scanner</h4>
                     <p className="text-xs text-muted-foreground">Find new opportunities</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setActiveTab("scanner")} className="border-emerald-500/30 text-emerald-400">
+                <Button size="sm" variant="outline" onClick={() => setActiveTab("scanner")} className="border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]">
                   Open
                 </Button>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <Wallet className="w-5 h-5 text-purple-400" />
@@ -1000,16 +1000,16 @@ export default function AutomationsPage() {
                 </Button>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <Brain className="w-5 h-5 text-amber-400" />
+                  <Brain className="w-5 h-5 text-[var(--trade-neutral)]" />
                   <div>
                     <h4 className="font-semibold text-sm">Trade Ideas</h4>
                     <p className="text-xs text-muted-foreground">AI-generated research</p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setLocation("/trade-desk")} className="border-amber-500/30 text-amber-400">
+                <Button size="sm" variant="outline" onClick={() => setLocation("/trade-desk")} className="border-amber-500/30 text-[var(--trade-neutral)]">
                   Open
                 </Button>
               </CardContent>
@@ -1019,12 +1019,12 @@ export default function AutomationsPage() {
 
         {/* Market Scanner Tab */}
         <TabsContent value="scanner" className="space-y-6">
-          <Card className="bg-slate-900/60 border-slate-700/50">
+          <Card className="bg-card/60 border-border/50">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Search className="w-5 h-5 text-emerald-400" />
+                    <Search className="w-5 h-5 text-[var(--trade-bullish)]" />
                     Market Scanner
                   </CardTitle>
                   <CardDescription>Find trading opportunities in real-time</CardDescription>
@@ -1039,25 +1039,25 @@ export default function AutomationsPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Button 
                   variant="outline" 
-                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-emerald-500/30"
+                  className="h-auto py-6 flex-col gap-2 border-border/50 hover:border-[var(--trade-bullish)]/30"
                   onClick={() => setLocation("/market-scanner?tab=movers")}
                 >
-                  <TrendingUp className="w-8 h-8 text-emerald-400" />
+                  <TrendingUp className="w-8 h-8 text-[var(--trade-bullish)]" />
                   <span className="font-semibold">Top Movers</span>
                   <span className="text-xs text-muted-foreground">Daily gainers & losers</span>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-emerald-500/30"
+                  className="h-auto py-6 flex-col gap-2 border-border/50 hover:border-[var(--trade-bullish)]/30"
                   onClick={() => setLocation("/market-scanner?tab=daytrade")}
                 >
-                  <Zap className="w-8 h-8 text-amber-400" />
+                  <Zap className="w-8 h-8 text-[var(--trade-neutral)]" />
                   <span className="font-semibold">Day Trade</span>
                   <span className="text-xs text-muted-foreground">Intraday setups</span>
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-emerald-500/30"
+                  className="h-auto py-6 flex-col gap-2 border-border/50 hover:border-[var(--trade-bullish)]/30"
                   onClick={() => setLocation("/market-scanner?tab=swing")}
                 >
                   <Target className="w-8 h-8 text-purple-400" />
@@ -1073,7 +1073,7 @@ export default function AutomationsPage() {
         <TabsContent value="scanners" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             {/* Quant Scanner */}
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -1087,7 +1087,7 @@ export default function AutomationsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Trades Today</span>
-                  <span className="font-mono font-bold">{quantBot?.todayTrades || 0}</span>
+                  <span className="font-mono font-bold tabular-nums">{quantBot?.todayTrades || 0}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Last Scan</span>
@@ -1106,11 +1106,11 @@ export default function AutomationsPage() {
             </Card>
 
             {/* Options Flow Scanner */}
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-emerald-400" />
+                    <Activity className="w-5 h-5 text-[var(--trade-bullish)]" />
                     <CardTitle className="text-base">Options Flow</CardTitle>
                   </div>
                   <StatusBadge active={optionsFlow?.isActive || false} />
@@ -1120,7 +1120,7 @@ export default function AutomationsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Flows Detected</span>
-                  <span className="font-mono font-bold">{optionsFlow?.flowsDetected || 0}</span>
+                  <span className="font-mono font-bold tabular-nums">{optionsFlow?.flowsDetected || 0}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Last Scan</span>
@@ -1139,7 +1139,7 @@ export default function AutomationsPage() {
             </Card>
 
             {/* Social Sentiment Scanner */}
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            <Card className="bg-card/60 border-border/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -1153,7 +1153,7 @@ export default function AutomationsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Mentions Found</span>
-                  <span className="font-mono font-bold">{socialSentiment?.mentionsFound || 0}</span>
+                  <span className="font-mono font-bold tabular-nums">{socialSentiment?.mentionsFound || 0}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Last Scan</span>
@@ -1185,7 +1185,7 @@ export default function AutomationsPage() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <Shield className="w-6 h-6 text-emerald-400" />
+                <Shield className="w-6 h-6 text-[var(--trade-bullish)]" />
                 Professional Risk Controls
               </h2>
               <p className="text-sm text-muted-foreground">Configure comprehensive risk management for all trading strategies</p>
@@ -1227,9 +1227,9 @@ export default function AutomationsPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Per-Trade Risk Controls */}
-            <Card className="border-red-500/20">
+            <Card className="border-[var(--trade-bearish)]/20">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-red-400">
+                <CardTitle className="text-base flex items-center gap-2 text-[var(--trade-bearish)]">
                   <Target className="w-4 h-4" />
                   Per-Trade Risk Controls
                 </CardTitle>
@@ -1239,10 +1239,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                      <TrendingDown className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />
                       Stop Loss
                     </Label>
-                    <span className="font-mono text-red-400 text-sm">-{stopLossPercent}%</span>
+                    <span className="font-mono text-[var(--trade-bearish)] text-sm">-{stopLossPercent}%</span>
                   </div>
                   <Slider value={[stopLossPercent]} onValueChange={([v]) => setStopLossPercent(v)} min={5} max={50} step={5} data-testid="slider-stop-loss" />
                   <p className="text-[10px] text-muted-foreground">Auto-exit when position loses this percentage</p>
@@ -1251,10 +1251,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+                      <TrendingUp className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                       Take Profit
                     </Label>
-                    <span className="font-mono text-green-400 text-sm">+{takeProfitPercent}%</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">+{takeProfitPercent}%</span>
                   </div>
                   <Slider value={[takeProfitPercent]} onValueChange={([v]) => setTakeProfitPercent(v)} min={10} max={200} step={10} data-testid="slider-take-profit" />
                   <p className="text-[10px] text-muted-foreground">Auto-exit when position gains this percentage</p>
@@ -1263,19 +1263,19 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                      <Crosshair className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
                       Trailing Stop
                     </Label>
-                    <span className="font-mono text-amber-400 text-sm">{trailingStopPercent === 0 ? 'OFF' : `-${trailingStopPercent}%`}</span>
+                    <span className="font-mono text-[var(--trade-neutral)] text-sm">{trailingStopPercent === 0 ? 'OFF' : `-${trailingStopPercent}%`}</span>
                   </div>
                   <Slider value={[trailingStopPercent]} onValueChange={([v]) => setTrailingStopPercent(v)} min={0} max={30} step={5} data-testid="slider-trailing-stop" />
                   <p className="text-[10px] text-muted-foreground">Lock in profits with dynamic stop (0 = disabled)</p>
                 </div>
 
-                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 mt-4">
+                <div className="p-3 rounded-lg bg-red-500/5 border border-[var(--trade-bearish)]/20 mt-4">
                   <div className="flex items-center gap-2 text-xs">
-                    <Shield className="w-3.5 h-3.5 text-red-400" />
-                    <span className="font-medium text-red-400">Risk/Reward Ratio</span>
+                    <Shield className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />
+                    <span className="font-medium text-[var(--trade-bearish)]">Risk/Reward Ratio</span>
                     <span className="font-mono ml-auto">{safeToFixed(takeProfitPercent / stopLossPercent, 2)}:1</span>
                   </div>
                 </div>
@@ -1285,7 +1285,7 @@ export default function AutomationsPage() {
             {/* Account-Level Risk Limits */}
             <Card className="border-amber-500/20">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-amber-400">
+                <CardTitle className="text-base flex items-center gap-2 text-[var(--trade-neutral)]">
                   <AlertTriangle className="w-4 h-4" />
                   Account-Level Limits
                 </CardTitle>
@@ -1295,10 +1295,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                      <DollarSign className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                       Max Position Size
                     </Label>
-                    <span className="font-mono text-green-400 text-sm">${maxPositionSize}</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">${maxPositionSize}</span>
                   </div>
                   <Slider value={[maxPositionSize]} onValueChange={([v]) => setMaxPositionSize(v)} min={25} max={500} step={25} data-testid="slider-max-position" />
                 </div>
@@ -1306,10 +1306,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                      <TrendingDown className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />
                       Daily Loss Limit
                     </Label>
-                    <span className="font-mono text-red-400 text-sm">${dailyLossLimit}</span>
+                    <span className="font-mono text-[var(--trade-bearish)] text-sm">${dailyLossLimit}</span>
                   </div>
                   <Slider value={[dailyLossLimit]} onValueChange={([v]) => setDailyLossLimit(v)} min={25} max={500} step={25} data-testid="slider-daily-loss" />
                   <p className="text-[10px] text-muted-foreground">Stop all trading when daily losses hit this limit</p>
@@ -1318,10 +1318,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                      <Layers className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                       Max Concurrent Trades
                     </Label>
-                    <span className="font-mono text-emerald-400 text-sm">{maxConcurrentTrades}</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">{maxConcurrentTrades}</span>
                   </div>
                   <Slider value={[maxConcurrentTrades]} onValueChange={([v]) => setMaxConcurrentTrades(v)} min={1} max={10} step={1} data-testid="slider-max-trades" />
                 </div>
@@ -1329,10 +1329,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      <AlertTriangle className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
                       Max Drawdown
                     </Label>
-                    <span className="font-mono text-amber-400 text-sm">{maxDrawdownPercent}%</span>
+                    <span className="font-mono text-[var(--trade-neutral)] text-sm">{maxDrawdownPercent}%</span>
                   </div>
                   <Slider value={[maxDrawdownPercent]} onValueChange={([v]) => setMaxDrawdownPercent(v)} min={5} max={50} step={5} data-testid="slider-max-drawdown" />
                   <p className="text-[10px] text-muted-foreground">Halt trading if portfolio drops by this amount</p>
@@ -1341,9 +1341,9 @@ export default function AutomationsPage() {
             </Card>
 
             {/* Capital Allocation */}
-            <Card className="border-emerald-500/20">
+            <Card className="border-[var(--trade-bullish)]/20">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-emerald-400">
+                <CardTitle className="text-base flex items-center gap-2 text-[var(--trade-bullish)]">
                   <Wallet className="w-4 h-4" />
                   Capital Allocation
                 </CardTitle>
@@ -1353,10 +1353,10 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm flex items-center gap-2">
-                      <LineChart className="w-3.5 h-3.5 text-emerald-400" />
+                      <LineChart className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                       Options
                     </Label>
-                    <span className="font-mono text-emerald-400 text-sm">{optionsAlloc}%</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">{optionsAlloc}%</span>
                   </div>
                   <Slider value={[optionsAlloc]} onValueChange={([v]) => setOptionsAlloc(v)} max={100} step={5} data-testid="slider-options-allocation" />
                 </div>
@@ -1385,13 +1385,13 @@ export default function AutomationsPage() {
 
                 <div className={cn("p-3 rounded-lg border mt-2", 
                   optionsAlloc + futuresAlloc + cryptoAlloc === 100 
-                    ? "bg-green-500/5 border-green-500/20" 
+                    ? "bg-[var(--trade-bullish)]/5 border-green-500/20" 
                     : "bg-amber-500/5 border-amber-500/20"
                 )}>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Total Allocation</span>
                     <span className={cn("font-mono font-bold", 
-                      optionsAlloc + futuresAlloc + cryptoAlloc === 100 ? "text-green-400" : "text-amber-400"
+                      optionsAlloc + futuresAlloc + cryptoAlloc === 100 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
                     )}>
                       {optionsAlloc + futuresAlloc + cryptoAlloc}%
                     </span>
@@ -1430,7 +1430,7 @@ export default function AutomationsPage() {
                 
                 <div className="space-y-2">
                   <Label className="text-sm flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-amber-400" />
+                    <Shield className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
                     Risk Profile
                   </Label>
                   <Select value={riskTolerance} onValueChange={(v) => setRiskTolerance(v as any)}>
@@ -1447,17 +1447,17 @@ export default function AutomationsPage() {
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <AlertTriangle className="w-4 h-4 text-[var(--trade-bearish)]" />
                     <span className="text-sm">Circuit Breaker</span>
                   </div>
                   <Switch checked={circuitBreakerEnabled} onCheckedChange={setCircuitBreakerEnabled} data-testid="switch-circuit-breaker" />
                 </div>
                 
                 {circuitBreakerEnabled && (
-                  <div className="space-y-2 pl-4 border-l-2 border-red-500/30">
+                  <div className="space-y-2 pl-4 border-l-2 border-[var(--trade-bearish)]/30">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs text-muted-foreground">Consecutive losses to trigger</Label>
-                      <span className="font-mono text-red-400 text-sm">{circuitBreakerLosses}</span>
+                      <span className="font-mono text-[var(--trade-bearish)] text-sm">{circuitBreakerLosses}</span>
                     </div>
                     <Slider value={[circuitBreakerLosses]} onValueChange={([v]) => setCircuitBreakerLosses(v)} min={2} max={10} step={1} data-testid="slider-circuit-losses" />
                     
@@ -1466,7 +1466,7 @@ export default function AutomationsPage() {
                         <Timer className="w-3 h-3" />
                         Cooldown period
                       </Label>
-                      <span className="font-mono text-amber-400 text-sm">{cooldownMinutes}min</span>
+                      <span className="font-mono text-[var(--trade-neutral)] text-sm">{cooldownMinutes}min</span>
                     </div>
                     <Slider value={[cooldownMinutes]} onValueChange={([v]) => setCooldownMinutes(v)} min={15} max={120} step={15} data-testid="slider-cooldown" />
                   </div>
@@ -1474,17 +1474,17 @@ export default function AutomationsPage() {
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30 mt-2">
                   <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <Layers className="w-4 h-4 text-[var(--trade-bullish)]" />
                     <span className="text-sm">Require Confluence</span>
                   </div>
                   <Switch checked={requireConfluence} onCheckedChange={setRequireConfluence} data-testid="switch-confluence" />
                 </div>
                 
                 {requireConfluence && (
-                  <div className="space-y-2 pl-4 border-l-2 border-emerald-500/30">
+                  <div className="space-y-2 pl-4 border-l-2 border-[var(--trade-bullish)]/30">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs text-muted-foreground">Minimum confluence score</Label>
-                      <span className="font-mono text-emerald-400 text-sm">{minConfluenceScore}%</span>
+                      <span className="font-mono text-[var(--trade-bullish)] text-sm">{minConfluenceScore}%</span>
                     </div>
                     <Slider value={[minConfluenceScore]} onValueChange={([v]) => setMinConfluenceScore(v)} min={50} max={95} step={5} data-testid="slider-confluence-score" />
                   </div>
@@ -1494,9 +1494,9 @@ export default function AutomationsPage() {
           </div>
 
           {/* Options Strategy Settings */}
-          <Card className="border-emerald-500/20">
+          <Card className="border-[var(--trade-bullish)]/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-emerald-400">
+              <CardTitle className="text-base flex items-center gap-2 text-[var(--trade-bullish)]">
                 <LineChart className="w-4 h-4" />
                 Options Strategy Configuration
               </CardTitle>
@@ -1507,7 +1507,7 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Preferred DTE</Label>
-                    <span className="font-mono text-emerald-400 text-sm">{optionsPreferredDte}d</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">{optionsPreferredDte}d</span>
                   </div>
                   <Slider value={[optionsPreferredDte]} onValueChange={([v]) => setOptionsPreferredDte(v)} min={1} max={45} step={1} data-testid="slider-preferred-dte" />
                   <p className="text-[10px] text-muted-foreground">Target days to expiration</p>
@@ -1516,7 +1516,7 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Max DTE</Label>
-                    <span className="font-mono text-amber-400 text-sm">{optionsMaxDte}d</span>
+                    <span className="font-mono text-[var(--trade-neutral)] text-sm">{optionsMaxDte}d</span>
                   </div>
                   <Slider value={[optionsMaxDte]} onValueChange={([v]) => setOptionsMaxDte(v)} min={7} max={90} step={7} data-testid="slider-max-dte" />
                   <p className="text-[10px] text-muted-foreground">Maximum days to expiration</p>
@@ -1525,7 +1525,7 @@ export default function AutomationsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Min Delta</Label>
-                    <span className="font-mono text-green-400 text-sm">{safeToFixed(optionsMinDelta, 2)}</span>
+                    <span className="font-mono text-[var(--trade-bullish)] text-sm">{safeToFixed(optionsMinDelta, 2)}</span>
                   </div>
                   <Slider value={[optionsMinDelta * 100]} onValueChange={([v]) => setOptionsMinDelta(v / 100)} min={5} max={50} step={5} data-testid="slider-min-delta" />
                   <p className="text-[10px] text-muted-foreground">Minimum delta for entries</p>
@@ -1547,7 +1547,7 @@ export default function AutomationsPage() {
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
                     <div className="flex items-center gap-2">
-                      <LineChart className="w-4 h-4 text-emerald-400" />
+                      <LineChart className="w-4 h-4 text-[var(--trade-bullish)]" />
                       <span className="text-sm">Options Bot</span>
                     </div>
                     <Switch checked={enableOptions} onCheckedChange={setEnableOptions} data-testid="switch-options-bot" />

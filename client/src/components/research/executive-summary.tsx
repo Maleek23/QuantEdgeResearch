@@ -59,67 +59,67 @@ export function ExecutiveSummary({
   // Get grade color
   const getGradeColor = (grade: string) => {
     if (grade.startsWith('S')) return 'text-purple-400 border-purple-500/30 bg-purple-500/10';
-    if (grade.startsWith('A')) return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+    if (grade.startsWith('A')) return 'text-[var(--trade-bullish)] border-emerald-500/30 bg-emerald-500/10';
     if (grade.startsWith('B')) return 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10';
-    if (grade.startsWith('C')) return 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+    if (grade.startsWith('C')) return 'text-[var(--trade-neutral)] border-amber-500/30 bg-amber-500/10';
     if (grade.startsWith('D')) return 'text-orange-400 border-orange-500/30 bg-orange-500/10';
-    return 'text-red-400 border-red-500/30 bg-red-500/10';
+    return 'text-[var(--trade-bearish)] border-red-500/30 bg-red-500/10';
   };
 
   return (
     <div className="space-y-4">
       {/* Header Section */}
-      <Card className="p-6 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border-slate-700">
+      <Card className="p-6 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border-border">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-slate-100">{symbol}</h1>
-              <Badge variant="outline" className="text-xs text-slate-400 border-slate-600">
+              <h1 className="text-3xl font-bold text-foreground/95">{symbol}</h1>
+              <Badge variant="outline" className="text-xs text-muted-foreground border-border">
                 {sector || 'N/A'}
               </Badge>
             </div>
-            <p className="text-lg text-slate-400 mb-1">{name}</p>
-            <p className="text-xs text-slate-500">{industry || 'N/A'}</p>
+            <p className="text-lg text-muted-foreground mb-1">{name}</p>
+            <p className="text-xs text-muted-foreground">{industry || 'N/A'}</p>
           </div>
 
           {/* Price Display */}
           <div className="text-right">
-            <div className="text-3xl font-bold text-slate-100 mb-1">
+            <div className="text-3xl font-bold text-foreground/95 mb-1">
               ${safeToFixed(price, 2)}
             </div>
             <div className={cn(
               "flex items-center gap-2 justify-end text-sm font-semibold",
-              isPositive ? "text-emerald-400" : "text-red-400"
+              isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               <span>{isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)</span>
             </div>
             {marketCap && (
-              <p className="text-xs text-slate-500 mt-1">Market Cap: {marketCap}</p>
+              <p className="text-xs text-muted-foreground mt-1">Market Cap: {marketCap}</p>
             )}
           </div>
         </div>
 
         {/* Overall Rating */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-border">
           <div className="text-center">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Overall Rating</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Overall Rating</p>
             <div className={cn(
               "text-5xl font-bold mb-2 inline-block px-4 py-2 rounded-lg border-2",
               getGradeColor(overallGrade)
             )}>
               {overallGrade}
             </div>
-            <p className="text-sm text-slate-400 mt-2">Tier {tier}</p>
+            <p className="text-sm text-muted-foreground mt-2">Tier {tier}</p>
           </div>
 
           <div className="text-center">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Composite Score</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Composite Score</p>
             <div className="text-5xl font-bold text-cyan-400">
               {overallScore}
-              <span className="text-2xl text-slate-500">/100</span>
+              <span className="text-2xl text-muted-foreground">/100</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-2 mt-3">
+            <div className="w-full bg-muted rounded-full h-2 mt-3">
               <div
                 className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all"
                 style={{ width: `${overallScore}%` }}
@@ -128,7 +128,7 @@ export function ExecutiveSummary({
           </div>
 
           <div className="text-center">
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Top Component</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Top Component</p>
             {(() => {
               const topComponent = Object.entries(components).reduce((max, [name, data]) =>
                 data.score > max.score ? { name, ...data } : max
@@ -136,11 +136,11 @@ export function ExecutiveSummary({
 
               return (
                 <>
-                  <div className="text-3xl font-bold text-emerald-400 mb-1">
+                  <div className="text-3xl font-bold text-[var(--trade-bullish)] mb-1">
                     {topComponent.grade}
                   </div>
-                  <p className="text-sm text-slate-400 capitalize">{topComponent.name}</p>
-                  <p className="text-xs text-slate-500 mt-1">Score: {topComponent.score}/100</p>
+                  <p className="text-sm text-muted-foreground capitalize">{topComponent.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Score: {topComponent.score}/100</p>
                 </>
               );
             })()}
@@ -149,10 +149,10 @@ export function ExecutiveSummary({
       </Card>
 
       {/* Component Breakdown Table */}
-      <Card className="p-6 bg-slate-900/90 border-slate-800">
+      <Card className="p-6 bg-card/90 border-border">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-100">Analysis Component Breakdown</h3>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
+          <h3 className="text-lg font-bold text-foreground/95">Analysis Component Breakdown</h3>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
             {generatedAt && (
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -169,19 +169,19 @@ export function ExecutiveSummary({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left py-3 px-2 text-xs font-semibold text-slate-400 uppercase">Component</th>
-                <th className="text-center py-3 px-2 text-xs font-semibold text-slate-400 uppercase">Grade</th>
-                <th className="text-center py-3 px-2 text-xs font-semibold text-slate-400 uppercase">Score</th>
-                <th className="text-center py-3 px-2 text-xs font-semibold text-slate-400 uppercase">Weight</th>
-                <th className="text-right py-3 px-2 text-xs font-semibold text-slate-400 uppercase">Contribution</th>
+              <tr className="border-b border-border">
+                <th className="text-left py-3 px-2 text-xs font-semibold text-muted-foreground uppercase">Component</th>
+                <th className="text-center py-3 px-2 text-xs font-semibold text-muted-foreground uppercase">Grade</th>
+                <th className="text-center py-3 px-2 text-xs font-semibold text-muted-foreground uppercase">Score</th>
+                <th className="text-center py-3 px-2 text-xs font-semibold text-muted-foreground uppercase">Weight</th>
+                <th className="text-right py-3 px-2 text-xs font-semibold text-muted-foreground uppercase">Contribution</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(components).map(([name, data]) => (
-                <tr key={name} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                <tr key={name} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                   <td className="py-3 px-2">
-                    <span className="font-medium text-slate-200 capitalize">{name}</span>
+                    <span className="font-medium text-foreground/90 capitalize">{name}</span>
                   </td>
                   <td className="text-center py-3 px-2">
                     <Badge variant="outline" className={cn("font-bold", getGradeColor(data.grade))}>
@@ -190,10 +190,10 @@ export function ExecutiveSummary({
                   </td>
                   <td className="text-center py-3 px-2">
                     <span className="font-mono text-cyan-400">{data.score}</span>
-                    <span className="text-slate-600 text-xs">/100</span>
+                    <span className="text-muted-foreground/70 text-xs">/100</span>
                   </td>
                   <td className="text-center py-3 px-2">
-                    <span className="font-mono text-slate-400">{safeToFixed(safeNumber(data.weight) * 100, 0)}%</span>
+                    <span className="font-mono text-muted-foreground">{safeToFixed(safeNumber(data.weight) * 100, 0)}%</span>
                   </td>
                   <td className="text-right py-3 px-2">
                     <span className="font-mono text-purple-400">
@@ -202,8 +202,8 @@ export function ExecutiveSummary({
                   </td>
                 </tr>
               ))}
-              <tr className="border-t-2 border-slate-700 font-bold">
-                <td className="py-3 px-2 text-slate-200">TOTAL</td>
+              <tr className="border-t-2 border-border font-bold">
+                <td className="py-3 px-2 text-foreground/90">TOTAL</td>
                 <td className="text-center py-3 px-2">
                   <Badge variant="outline" className={cn("font-bold", getGradeColor(overallGrade))}>
                     {overallGrade}
@@ -213,7 +213,7 @@ export function ExecutiveSummary({
                   <span className="font-mono text-cyan-400 text-base">{overallScore}</span>
                 </td>
                 <td className="text-center py-3 px-2">
-                  <span className="font-mono text-slate-400">100%</span>
+                  <span className="font-mono text-muted-foreground">100%</span>
                 </td>
                 <td className="text-right py-3 px-2">
                   <span className="font-mono text-purple-400 text-base">
@@ -230,11 +230,11 @@ export function ExecutiveSummary({
       <Card className="p-4 bg-gradient-to-r from-emerald-900/20 to-transparent border-emerald-500/20">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-emerald-500/20">
-            <CheckCircle className="h-5 w-5 text-emerald-400" />
+            <CheckCircle className="h-5 w-5 text-[var(--trade-bullish)]" />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-semibold text-emerald-400 mb-1">Institutional-Grade Research Analysis</h4>
-            <p className="text-xs text-slate-400">
+            <h4 className="text-sm font-semibold text-[var(--trade-bullish)] mb-1">Institutional-Grade Research Analysis</h4>
+            <p className="text-xs text-muted-foreground">
               All metrics include statistical validation (p-values, z-scores), historical context (percentiles, n=252),
               backtest performance (win rate, Sharpe ratio), and peer-reviewed academic citations (23+ papers).
               Methodology available in expanded metric views.

@@ -19,8 +19,8 @@ export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) 
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
         "relative group",
-        "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white",
-        "hover:bg-gray-100 dark:hover:bg-[#1a1a1a]",
+        "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground",
+        "hover:bg-gray-100 dark:hover:bg-muted",
         "transition-all duration-200",
         className
       )}
@@ -56,8 +56,8 @@ export function ThemeToggleCompact({ className }: { className?: string }) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
         "flex items-center gap-2 px-3 py-1.5 rounded-lg",
-        "bg-gray-100 dark:bg-[#111] border border-gray-200 dark:border-[#222] hover:border-gray-300 dark:hover:border-[#333]",
-        "text-xs text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white",
+        "bg-gray-100 dark:bg-card border border-gray-200 dark:border-border hover:border-gray-300 dark:hover:border-border",
+        "text-xs text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground",
         "transition-all duration-200",
         className
       )}
@@ -84,14 +84,14 @@ export function ThemeSelector({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className={cn("flex items-center gap-1 p-1 bg-gray-100 dark:bg-[#0a0a0a] rounded-lg border border-gray-200 dark:border-[#222]", className)}>
+    <div className={cn("flex items-center gap-1 p-1 bg-gray-100 dark:bg-[var(--surface-base)] rounded-lg border border-gray-200 dark:border-border", className)}>
       <button
         onClick={() => setTheme("light")}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
           theme === "light"
-            ? "bg-white dark:bg-white text-gray-900 shadow-sm"
-            : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#1a1a1a]"
+            ? "bg-white dark:bg-white text-foreground shadow-sm"
+            : "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-gray-200 dark:hover:bg-muted"
         )}
       >
         <Sun className="w-3.5 h-3.5" />
@@ -102,8 +102,8 @@ export function ThemeSelector({ className }: { className?: string }) {
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
           theme === "dark"
-            ? "bg-gray-900 dark:bg-[#222] text-white shadow-sm"
-            : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#1a1a1a]"
+            ? "bg-gray-900 dark:bg-muted text-foreground shadow-sm"
+            : "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-gray-200 dark:hover:bg-muted"
         )}
       >
         <Moon className="w-3.5 h-3.5" />
@@ -114,8 +114,8 @@ export function ThemeSelector({ className }: { className?: string }) {
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
           theme === "system"
-            ? "bg-gray-900 dark:bg-[#222] text-white shadow-sm"
-            : "text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-[#1a1a1a]"
+            ? "bg-gray-900 dark:bg-muted text-foreground shadow-sm"
+            : "text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-gray-200 dark:hover:bg-muted"
         )}
       >
         Auto

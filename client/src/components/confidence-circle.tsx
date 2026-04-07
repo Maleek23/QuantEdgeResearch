@@ -13,13 +13,13 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
   const perfGrade = getPerformanceGrade(score);
   
   const getGradeColor = (grade: string): string => {
-    if (grade === 'A') return 'text-green-500';
-    if (grade === 'A+') return 'text-green-500';
+    if (grade === 'A') return 'text-[var(--trade-bullish)]';
+    if (grade === 'A+') return 'text-[var(--trade-bullish)]';
     if (grade === 'B+') return 'text-cyan-500';
     if (grade === 'B') return 'text-cyan-500';
     if (grade === 'C+') return 'text-yellow-500';
     if (grade === 'C') return 'text-yellow-500';
-    return 'text-red-500';
+    return 'text-[var(--trade-bearish)]';
   };
 
   const getStrokeColor = (grade: string): string => {

@@ -100,19 +100,19 @@ interface DataIntegrityCheck {
 }
 
 const ENGINE_CONFIG = {
-  flow: { label: "Flow", icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  flow: { label: "Flow", icon: Activity, color: "text-[var(--trade-bullish)]", bg: "bg-emerald-500/10" },
   quant: { label: "Quant", icon: BarChart3, color: "text-blue-400", bg: "bg-blue-500/10" },
   ai: { label: "AI", icon: Brain, color: "text-purple-400", bg: "bg-purple-500/10" },
-  lotto: { label: "Lotto", icon: Target, color: "text-amber-400", bg: "bg-amber-500/10" },
+  lotto: { label: "Lotto", icon: Target, color: "text-[var(--trade-neutral)]", bg: "bg-amber-500/10" },
 } as const;
 
 type EngineKey = keyof typeof ENGINE_CONFIG;
 
 function getWinRateColor(rate: number | null): string {
   if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-green-400";
-  if (rate >= 50) return "text-amber-400";
-  return "text-red-400";
+  if (rate >= 70) return "text-[var(--trade-bullish)]";
+  if (rate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 // ============================================================
@@ -164,7 +164,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Bot P&L</p>
-          <p className={cn("text-3xl font-bold font-mono", botPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="stat-pnl">
+          <p className={cn("text-3xl font-bold font-mono", botPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")} data-testid="stat-pnl">
             {botPnL >= 0 ? '+' : ''}${safeToFixed(botPnL, 0)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Realized gains</p>
@@ -175,7 +175,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
       <Card>
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Ideas</p>
-          <p className="text-3xl font-bold font-mono text-emerald-400" data-testid="stat-total">
+          <p className="text-3xl font-bold font-mono text-[var(--trade-bullish)]" data-testid="stat-total">
             {stats.overall.totalIdeas}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -268,7 +268,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-emerald-400" />
+            <Database className="h-5 w-5 text-[var(--trade-bullish)]" />
             <CardTitle className="text-base">Data Integrity Audit</CardTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={() => refetch()} data-testid="button-refresh-audit">
@@ -279,18 +279,18 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
       <CardContent className="space-y-4">
         {/* Methodology Definition */}
         <div className="p-3 rounded-lg bg-muted/30 text-sm space-y-2">
-          <p className="font-medium text-emerald-400">Win/Loss Methodology</p>
+          <p className="font-medium text-[var(--trade-bullish)]">Win/Loss Methodology</p>
           <div className="grid gap-1 text-xs text-muted-foreground">
             <div className="flex gap-2">
-              <CheckCircle className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+              <CheckCircle className="h-3.5 w-3.5 text-[var(--trade-bullish)] mt-0.5 shrink-0" />
               <span><strong>Win:</strong> outcomeStatus = 'hit_target'</span>
             </div>
             <div className="flex gap-2">
-              <XCircle className="h-3.5 w-3.5 text-red-400 mt-0.5 shrink-0" />
+              <XCircle className="h-3.5 w-3.5 text-[var(--trade-bearish)] mt-0.5 shrink-0" />
               <span><strong>Loss:</strong> outcomeStatus = 'hit_stop' AND percentGain ≤ -3%</span>
             </div>
             <div className="flex gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
               <span><strong>Excluded:</strong> Breakeven (&gt;-3%), expired, open trades, buggy data</span>
             </div>
           </div>
@@ -312,11 +312,11 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                 <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/20 text-xs">
                   <div className="flex items-center gap-2">
                     {check.status === 'pass' ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-green-400" />
+                      <CheckCircle className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
                     ) : check.status === 'warning' ? (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />
                     ) : (
-                      <XCircle className="h-3.5 w-3.5 text-red-400" />
+                      <XCircle className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
                     )}
                     <span>{check.checkName}</span>
                   </div>
@@ -353,8 +353,8 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                       <td className="py-1.5 px-2">{trade.source}</td>
                       <td className="py-1.5 px-2">
                         <Badge variant="outline" className={cn("text-[10px]",
-                          trade.outcomeStatus === 'hit_target' ? "text-green-400 border-green-500/50" :
-                          trade.outcomeStatus === 'hit_stop' ? "text-red-400 border-red-500/50" :
+                          trade.outcomeStatus === 'hit_target' ? "text-[var(--trade-bullish)] border-green-500/50" :
+                          trade.outcomeStatus === 'hit_stop' ? "text-[var(--trade-bearish)] border-red-500/50" :
                           "text-muted-foreground"
                         )}>
                           {trade.outcomeStatus}
@@ -367,9 +367,9 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                       </td>
                       <td className="py-1.5 px-2 text-center">
                         {trade.isWin ? (
-                          <Badge className="bg-green-500/20 text-green-400 text-[10px]">WIN</Badge>
+                          <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] text-[10px]">WIN</Badge>
                         ) : trade.isRealLoss ? (
-                          <Badge className="bg-red-500/20 text-red-400 text-[10px]">LOSS</Badge>
+                          <Badge className="bg-red-500/20 text-[var(--trade-bearish)] text-[10px]">LOSS</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px]">EXCL</Badge>
                         )}
@@ -384,19 +384,19 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
 
         {/* Reconciliation */}
         <div className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-xs">
-          <p className="font-medium text-emerald-400 mb-2">Reconciliation Check</p>
+          <p className="font-medium text-[var(--trade-bullish)] mb-2">Reconciliation Check</p>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-muted-foreground">Reported Wins</p>
-              <p className="font-mono font-bold text-green-400">{stats.segmentedWinRates.overall.wins}</p>
+              <p className="font-mono font-bold text-[var(--trade-bullish)]">{stats.segmentedWinRates.overall.wins}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Reported Losses</p>
-              <p className="font-mono font-bold text-red-400">{stats.segmentedWinRates.overall.losses}</p>
+              <p className="font-mono font-bold text-[var(--trade-bearish)]">{stats.segmentedWinRates.overall.losses}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Win Rate</p>
-              <p className="font-mono font-bold">{safeToFixed(stats.segmentedWinRates.overall.winRate, 1)}%</p>
+              <p className="font-mono font-bold tabular-nums">{safeToFixed(stats.segmentedWinRates.overall.winRate, 1)}%</p>
             </div>
           </div>
         </div>
@@ -417,7 +417,7 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-amber-400" />
+            <Bot className="h-4 w-4 text-[var(--trade-neutral)]" />
             <span className="font-medium text-sm">Auto-Lotto Bot</span>
           </div>
           <Badge variant="outline" className="text-xs">
@@ -427,7 +427,7 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
         <div className="grid grid-cols-4 gap-3 text-center">
           <div>
             <p className="text-xs text-muted-foreground">Trades</p>
-            <p className="font-mono font-bold">{data.overall.totalTrades}</p>
+            <p className="font-mono font-bold tabular-nums">{data.overall.totalTrades}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Win Rate</p>
@@ -438,14 +438,14 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
           <div>
             <p className="text-xs text-muted-foreground">W/L</p>
             <p className="font-mono">
-              <span className="text-green-400">{data.overall.wins}</span>
+              <span className="text-[var(--trade-bullish)]">{data.overall.wins}</span>
               <span className="text-muted-foreground">/</span>
-              <span className="text-red-400">{data.overall.losses}</span>
+              <span className="text-[var(--trade-bearish)]">{data.overall.losses}</span>
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">P&L</p>
-            <p className={cn("font-mono font-bold", data.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400")}>
+            <p className={cn("font-mono font-bold", data.overall.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {data.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(data.overall.totalPnL, 0)}
             </p>
           </div>
@@ -538,7 +538,7 @@ export default function PerformancePage() {
           title="Performance"
           description="Track our AI engine reliability"
           icon={Target}
-          iconColor="text-green-400"
+          iconColor="text-[var(--trade-bullish)]"
           iconGradient="from-green-500/20 to-emerald-500/20"
         />
         <div className="flex items-center gap-2">
@@ -606,7 +606,7 @@ export default function PerformancePage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-400" />
+                      <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                       <CardTitle className="text-sm">Weekly Trends</CardTitle>
                     </div>
                   </CardHeader>

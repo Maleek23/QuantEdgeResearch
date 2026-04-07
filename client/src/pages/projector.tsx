@@ -65,24 +65,24 @@ interface ProjectorData {
 }
 
 function trendIcon(trend: string) {
-  if (trend === 'BULLISH') return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (trend === 'BEARISH') return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-  return <Minus className="w-3.5 h-3.5 text-slate-500" />;
+  if (trend === 'BULLISH') return <TrendingUp className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />;
+  if (trend === 'BEARISH') return <TrendingDown className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />;
+  return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
 function trendColor(trend: string) {
-  if (trend === 'BULLISH') return 'text-emerald-400';
-  if (trend === 'BEARISH') return 'text-red-400';
-  return 'text-slate-400';
+  if (trend === 'BULLISH') return 'text-[var(--trade-bullish)]';
+  if (trend === 'BEARISH') return 'text-[var(--trade-bearish)]';
+  return 'text-muted-foreground';
 }
 
 function setupBadge(setup: string) {
   const colors: Record<string, string> = {
-    REVERSAL: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    BREAKOUT: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    REVERSAL: 'bg-amber-500/15 text-[var(--trade-neutral)] border-amber-500/30',
+    BREAKOUT: 'bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30',
     BOUNCE: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-    BREAKDOWN: 'bg-red-500/15 text-red-400 border-red-500/30',
-    HOLD: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    BREAKDOWN: 'bg-red-500/15 text-[var(--trade-bearish)] border-red-500/30',
+    HOLD: 'bg-muted-foreground/15 text-muted-foreground border-muted-foreground/30',
   };
   return colors[setup] || colors.HOLD;
 }
@@ -102,7 +102,7 @@ export default function Projector() {
   });
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-[1200px] mx-auto px-4 py-6 space-y-6">
 
         {/* Header */}
@@ -113,7 +113,7 @@ export default function Projector() {
             </div>
             <div>
               <h1 className="text-lg font-bold">Market Projector</h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {data?.nextSession || 'Next session outlook'}
               </p>
             </div>
@@ -129,14 +129,14 @@ export default function Projector() {
               onClick={() => setTimeframe('weekly')}
               className="h-7 text-xs"
             >Weekly</Button>
-            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 text-xs text-slate-400">
+            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 text-xs text-muted-foreground">
               <RefreshCw className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-48 text-slate-600">
+          <div className="flex items-center justify-center h-48 text-muted-foreground/70">
             <RefreshCw className="w-4 h-4 animate-spin mr-2" />Computing projection...
           </div>
         ) : data ? (
@@ -144,22 +144,22 @@ export default function Projector() {
             {/* Expected Moves — all index ETFs */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {(data.expectedMoves || []).map((em) => (
-                <Card key={em.symbol} className="bg-slate-900/50 border-slate-800">
+                <Card key={em.symbol} className="bg-card/50 border-border">
                   <CardContent className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-white">{em.symbol}</span>
-                      <span className="text-[10px] text-slate-500">{timeframe}</span>
+                      <span className="text-xs font-bold text-foreground">{em.symbol}</span>
+                      <span className="text-[10px] text-muted-foreground">{timeframe}</span>
                     </div>
-                    <div className="text-lg font-bold font-mono text-white mb-1">${em.currentPrice.toFixed(2)}</div>
+                    <div className="text-lg font-bold font-mono text-foreground mb-1">${em.currentPrice.toFixed(2)}</div>
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-[10px] text-red-400 font-mono">${em.lowerBound.toFixed(0)}</span>
-                      <div className="flex-1 h-1.5 rounded-full bg-slate-800 relative overflow-hidden">
+                      <span className="text-[10px] text-[var(--trade-bearish)] font-mono">${em.lowerBound.toFixed(0)}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted relative overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
                         <div className="absolute top-0 bottom-0 w-0.5 bg-white left-1/2 -translate-x-1/2" />
                       </div>
-                      <span className="text-[10px] text-emerald-400 font-mono">${em.upperBound.toFixed(0)}</span>
+                      <span className="text-[10px] text-[var(--trade-bullish)] font-mono">${em.upperBound.toFixed(0)}</span>
                     </div>
-                    <div className="text-[10px] text-slate-500 text-center">+/-{em.expectedMovePct}%</div>
+                    <div className="text-[10px] text-muted-foreground text-center">+/-{em.expectedMovePct}%</div>
                   </CardContent>
                 </Card>
               ))}
@@ -172,25 +172,25 @@ export default function Projector() {
                 "border",
                 data.bias.direction === 'BULLISH' ? "bg-emerald-500/5 border-emerald-500/20" :
                 data.bias.direction === 'BEARISH' ? "bg-red-500/5 border-red-500/20" :
-                "bg-slate-900/50 border-slate-800"
+                "bg-card/50 border-border"
               )}>
                 <CardContent className="p-4">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Directional Bias</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Directional Bias</div>
                   <div className="flex items-center gap-2 mb-3">
                     {trendIcon(data.bias.direction)}
                     <span className={cn("text-xl font-bold", trendColor(data.bias.direction))}>
                       {data.bias.direction}
                     </span>
-                    <span className="text-sm text-slate-400 ml-auto">{data.bias.probability}%</span>
+                    <span className="text-sm text-muted-foreground ml-auto">{data.bias.probability}%</span>
                   </div>
                   <div className="space-y-1.5">
                     {data.bias.factors.map((f, i) => (
                       <div key={i} className="flex items-center gap-2 text-[11px]">
                         <span className={cn(
                           "w-1.5 h-1.5 rounded-full shrink-0",
-                          f.signal === 'bullish' ? "bg-emerald-400" : f.signal === 'bearish' ? "bg-red-400" : "bg-slate-500"
+                          f.signal === 'bullish' ? "bg-[var(--trade-bullish)]" : f.signal === 'bearish' ? "bg-red-400" : "bg-muted-foreground"
                         )} />
-                        <span className="text-slate-400 truncate">{f.detail}</span>
+                        <span className="text-muted-foreground truncate">{f.detail}</span>
                       </div>
                     ))}
                   </div>
@@ -207,19 +207,19 @@ export default function Projector() {
               const catSectors = data.sectors.filter(s => s.category === cat.key);
               if (catSectors.length === 0) return null;
               return (
-                <Card key={cat.key} className="bg-slate-900/50 border-slate-800">
+                <Card key={cat.key} className="bg-card/50 border-border">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-sm">{cat.icon}</span>
-                      <span className="text-sm font-semibold text-white">{cat.label}</span>
-                      <span className="text-[10px] text-slate-600 ml-auto">{catSectors.length} ETFs</span>
+                      <span className="text-sm font-semibold text-foreground">{cat.label}</span>
+                      <span className="text-[10px] text-muted-foreground/70 ml-auto">{catSectors.length} ETFs</span>
                     </div>
                     <div className="space-y-2">
                       {catSectors.map((s) => (
                         <div key={s.etf} className="flex items-center gap-3">
-                          <span className="text-xs text-slate-400 w-28">{s.sector}</span>
-                          <span className="text-xs text-slate-500 font-mono w-12">{s.etf}</span>
-                          <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative">
+                          <span className="text-xs text-muted-foreground w-28">{s.sector}</span>
+                          <span className="text-xs text-muted-foreground font-mono w-12">{s.etf}</span>
+                          <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden relative">
                             {s.trend === 'BULLISH' ? (
                               <div className="absolute left-1/2 top-0 bottom-0 bg-emerald-500/60 rounded-r-full"
                                 style={{ width: `${Math.min(50, s.strength / 2)}%` }} />
@@ -227,11 +227,11 @@ export default function Projector() {
                               <div className="absolute top-0 bottom-0 bg-red-500/60 rounded-l-full"
                                 style={{ width: `${Math.min(50, s.strength / 2)}%`, right: '50%' }} />
                             ) : null}
-                            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-600" />
+                            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-muted" />
                           </div>
                           <span className={cn(
                             "text-xs font-mono w-14 text-right",
-                            s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-500"
+                            s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                           )}>
                             {s.changePct > 0 ? '+' : ''}{s.changePct}%
                           </span>
@@ -257,22 +257,22 @@ export default function Projector() {
               if (sectionSetups.length === 0) return null;
               const actionable = sectionSetups.filter(s => s.direction !== 'NEUTRAL').length;
               return (
-                <Card key={section.key} className="bg-slate-900/50 border-slate-800">
+                <Card key={section.key} className="bg-card/50 border-border">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-sm">{section.icon}</span>
-                      <span className="text-sm font-semibold text-white">{section.label}</span>
+                      <span className="text-sm font-semibold text-foreground">{section.label}</span>
                       {actionable > 0 && (
-                        <Badge variant="outline" className="text-[9px] text-emerald-400 border-emerald-500/30">
+                        <Badge variant="outline" className="text-[9px] text-[var(--trade-bullish)] border-emerald-500/30">
                           {actionable} setup{actionable > 1 ? 's' : ''}
                         </Badge>
                       )}
-                      <span className="text-[10px] text-slate-600 ml-auto">{sectionSetups.length} tickers</span>
+                      <span className="text-[10px] text-muted-foreground/70 ml-auto">{sectionSetups.length} tickers</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-slate-800 text-slate-500">
+                          <tr className="border-b border-border text-muted-foreground">
                             <th className="py-1.5 text-left font-medium">Ticker</th>
                             <th className="py-1.5 text-right font-medium">Price</th>
                             <th className="py-1.5 text-right font-medium">Chg%</th>
@@ -284,11 +284,11 @@ export default function Projector() {
                         </thead>
                         <tbody>
                           {sectionSetups.map((s) => (
-                            <tr key={s.symbol} className="border-b border-slate-800/30 hover:bg-slate-800/20">
-                              <td className="py-1.5 font-mono font-bold text-white">{s.symbol}</td>
-                              <td className="py-1.5 text-right font-mono text-slate-300">${s.price}</td>
+                            <tr key={s.symbol} className="border-b border-border/30 hover:bg-muted/20">
+                              <td className="py-1.5 font-mono font-bold text-foreground">{s.symbol}</td>
+                              <td className="py-1.5 text-right font-mono text-foreground/80">${s.price}</td>
                               <td className={cn("py-1.5 text-right font-mono",
-                                s.changePct > 0 ? "text-emerald-400" : s.changePct < 0 ? "text-red-400" : "text-slate-400"
+                                s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                               )}>
                                 {s.changePct > 0 ? '+' : ''}{s.changePct}%
                               </td>
@@ -299,23 +299,23 @@ export default function Projector() {
                               </td>
                               <td className="py-1.5">
                                 {s.direction === 'LONG' ? (
-                                  <span className="flex items-center gap-1 text-emerald-400">
+                                  <span className="flex items-center gap-1 text-[var(--trade-bullish)]">
                                     <ArrowUpRight className="w-3 h-3" />LONG
                                   </span>
                                 ) : s.direction === 'SHORT' ? (
-                                  <span className="flex items-center gap-1 text-red-400">
+                                  <span className="flex items-center gap-1 text-[var(--trade-bearish)]">
                                     <ArrowDownRight className="w-3 h-3" />SHORT
                                   </span>
                                 ) : (
-                                  <span className="text-slate-500">—</span>
+                                  <span className="text-muted-foreground">—</span>
                                 )}
                               </td>
                               <td className={cn("py-1.5 text-right font-mono",
-                                s.probability >= 70 ? "text-emerald-400" : s.probability >= 60 ? "text-cyan-400" : "text-slate-400"
+                                s.probability >= 70 ? "text-[var(--trade-bullish)]" : s.probability >= 60 ? "text-cyan-400" : "text-muted-foreground"
                               )}>
                                 {s.probability}%
                               </td>
-                              <td className="py-1.5 pl-3 text-slate-500 max-w-[200px] truncate">{s.catalyst}</td>
+                              <td className="py-1.5 pl-3 text-muted-foreground max-w-[200px] truncate">{s.catalyst}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -328,15 +328,15 @@ export default function Projector() {
 
             {/* Key Events */}
             {data.keyEvents.length > 0 && (
-              <Card className="bg-slate-900/50 border-slate-800">
+              <Card className="bg-card/50 border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm font-semibold text-white">Key Events</span>
+                    <span className="text-sm font-semibold text-foreground">Key Events</span>
                   </div>
                   <div className="space-y-1.5">
                     {data.keyEvents.map((e, i) => (
-                      <div key={i} className="text-xs text-slate-400 flex items-center gap-2">
+                      <div key={i} className="text-xs text-muted-foreground flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
                         {e}
                       </div>

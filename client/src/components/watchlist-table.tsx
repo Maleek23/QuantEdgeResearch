@@ -79,8 +79,8 @@ function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boole
   };
 
   const getSentimentColor = (score: number) => {
-    if (score > 0.2) return 'text-green-500';
-    if (score < -0.2) return 'text-red-500';
+    if (score > 0.2) return 'text-[var(--trade-bullish)]';
+    if (score < -0.2) return 'text-[var(--trade-bearish)]';
     return 'text-muted-foreground';
   };
 
@@ -107,7 +107,7 @@ function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boole
 
       {context.catalysts.length > 0 && (
         <div className="flex items-start gap-3">
-          <Zap className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          <Zap className="h-5 w-5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
           <div className="space-y-1 flex-1">
             <span className="text-sm font-medium">Potential Catalysts</span>
             <div className="flex flex-wrap gap-1.5">
@@ -157,11 +157,11 @@ function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boole
 // Tier badge styling with institutional color scheme
 const TIER_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   S: { bg: "bg-purple-500/20 dark:bg-purple-500/30", text: "text-purple-600 dark:text-purple-400", label: "Elite" },
-  A: { bg: "bg-emerald-500/20 dark:bg-emerald-500/30", text: "text-emerald-600 dark:text-emerald-400", label: "Strong" },
+  A: { bg: "bg-emerald-500/20 dark:bg-emerald-500/30", text: "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]", label: "Strong" },
   B: { bg: "bg-cyan-500/20 dark:bg-cyan-500/30", text: "text-cyan-600 dark:text-cyan-400", label: "Solid" },
-  C: { bg: "bg-amber-500/20 dark:bg-amber-500/30", text: "text-amber-600 dark:text-amber-400", label: "Neutral" },
+  C: { bg: "bg-amber-500/20 dark:bg-amber-500/30", text: "text-amber-600 dark:text-[var(--trade-neutral)]", label: "Neutral" },
   D: { bg: "bg-orange-500/20 dark:bg-orange-500/30", text: "text-orange-600 dark:text-orange-400", label: "Weak" },
-  F: { bg: "bg-red-500/20 dark:bg-red-500/30", text: "text-red-600 dark:text-red-400", label: "Avoid" },
+  F: { bg: "bg-red-500/20 dark:bg-red-500/30", text: "text-red-600 dark:text-[var(--trade-bearish)]", label: "Avoid" },
 };
 
 // Grade badge component with tooltip
@@ -224,12 +224,12 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                   <div className="font-medium text-[10px] text-muted-foreground">Levels</div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                     {typeof gradeInputs.supportLevel === 'number' && (
-                      <div className="text-green-600 dark:text-green-400">
+                      <div className="text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]">
                         S: ${safeToFixed(gradeInputs.supportLevel, 2)}
                       </div>
                     )}
                     {typeof gradeInputs.resistanceLevel === 'number' && (
-                      <div className="text-red-600 dark:text-red-400">
+                      <div className="text-red-600 dark:text-[var(--trade-bearish)]">
                         R: ${safeToFixed(gradeInputs.resistanceLevel, 2)}
                       </div>
                     )}
@@ -249,7 +249,7 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                       <div>EPS: ${safeToFixed(gradeInputs.eps, 2)}</div>
                     )}
                     {typeof gradeInputs.revenueGrowth === 'number' && (
-                      <div className={gradeInputs.revenueGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                      <div className={gradeInputs.revenueGrowth >= 0 ? 'text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]' : 'text-red-600 dark:text-[var(--trade-bearish)]'}>
                         Rev: {gradeInputs.revenueGrowth >= 0 ? '+' : ''}{safeToFixed(gradeInputs.revenueGrowth, 0)}%
                       </div>
                     )}
@@ -274,16 +274,16 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
                     {gradeInputs.recommendationKey && (
                       <div className={
                         String(gradeInputs.recommendationKey).toLowerCase().includes('buy') 
-                          ? 'text-green-600 dark:text-green-400' 
+                          ? 'text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]' 
                           : String(gradeInputs.recommendationKey).toLowerCase().includes('sell')
-                            ? 'text-red-600 dark:text-red-400'
+                            ? 'text-red-600 dark:text-[var(--trade-bearish)]'
                             : ''
                       }>
                         {String(gradeInputs.recommendationKey).replace(/_/g, ' ').toUpperCase()}
                       </div>
                     )}
                     {typeof gradeInputs.fairValueUpside === 'number' && (
-                      <div className={gradeInputs.fairValueUpside >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                      <div className={gradeInputs.fairValueUpside >= 0 ? 'text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]' : 'text-red-600 dark:text-[var(--trade-bearish)]'}>
                         {gradeInputs.fairValueUpside >= 0 ? '+' : ''}{safeToFixed(gradeInputs.fairValueUpside, 0)}% to Target
                       </div>
                     )}

@@ -85,7 +85,7 @@ function TradingGuideContent() {
           </p>
           <div className="flex items-center gap-3 mb-4">
             <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-white" />
+              <BookOpen className="h-6 w-6 text-foreground" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold">
               How to Trade Like a Pro
@@ -105,7 +105,7 @@ function TradingGuideContent() {
             { num: 4, label: 'Execute Trade', icon: DollarSign },
           ].map((step) => (
             <div key={step.num} className="flex items-center gap-3 stat-glass rounded-lg p-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold font-mono">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono tabular-nums">
                 {step.num}
               </div>
               <div>
@@ -120,7 +120,7 @@ function TradingGuideContent() {
       {/* Step 1: Find Trade Ideas */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold font-mono text-xl">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
             1
           </div>
           <div>
@@ -140,7 +140,7 @@ function TradingGuideContent() {
               <CardContent className="p-0">
                 <div className="flex items-start gap-4 p-4">
                   <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center shrink-0`}>
-                    <item.icon className="h-6 w-6 text-white" />
+                    <item.icon className="h-6 w-6 text-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">{item.title}</h3>
@@ -158,7 +158,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Understanding</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                <CheckCircle2 className="h-4 w-4 text-white" />
+                <CheckCircle2 className="h-4 w-4 text-foreground" />
               </div>
               Signal Grades
             </CardTitle>
@@ -169,14 +169,14 @@ function TradingGuideContent() {
             </p>
             <div className="space-y-2">
               {[
-                { grade: 'A+', signals: '5 signals', meaning: 'Strong consensus - highest probability', color: 'bg-green-500' },
-                { grade: 'A', signals: '4 signals', meaning: 'Good consensus - reliable setup', color: 'bg-green-400' },
+                { grade: 'A+', signals: '5 signals', meaning: 'Strong consensus - highest probability', color: 'bg-[var(--trade-bullish)]' },
+                { grade: 'A', signals: '4 signals', meaning: 'Good consensus - reliable setup', color: 'bg-[var(--trade-bullish)]' },
                 { grade: 'B', signals: '3 signals', meaning: 'Moderate - proceed with caution', color: 'bg-yellow-500' },
                 { grade: 'C', signals: '2 signals', meaning: 'Weak - consider skipping', color: 'bg-orange-500' },
-                { grade: 'D', signals: '1 signal', meaning: 'Conflicting signals - avoid', color: 'bg-red-500' },
+                { grade: 'D', signals: '1 signal', meaning: 'Conflicting signals - avoid', color: 'bg-[var(--trade-bearish)]' },
               ].map((item) => (
                 <div key={item.grade} className="flex items-center gap-4 p-3 rounded-lg stat-glass">
-                  <Badge className={`${item.color} text-white font-bold font-mono min-w-[40px] justify-center`}>
+                  <Badge className={`${item.color} text-foreground font-bold font-mono min-w-[40px] justify-center`}>
                     {item.grade}
                   </Badge>
                   <span className="text-sm font-medium font-mono w-24">{item.signals}</span>
@@ -203,7 +203,7 @@ function TradingGuideContent() {
       {/* Step 2: Analyze the Chart */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold font-mono text-xl">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
             2
           </div>
           <div>
@@ -245,7 +245,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Weekly Options</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-white" />
+                <Calendar className="h-4 w-4 text-foreground" />
               </div>
               For Weekly Options (Expiring Friday)
             </CardTitle>
@@ -258,7 +258,7 @@ function TradingGuideContent() {
                 { label: 'Confirmation', chart: 'Daily Chart', desc: "Make sure you're trading WITH the larger trend", color: 'from-blue-500 to-cyan-600' },
               ].map((item) => (
                 <div key={item.label} className="text-center p-4 rounded-lg stat-glass">
-                  <Badge className={`bg-gradient-to-r ${item.color} text-white mb-3 border-0`}>{item.label}</Badge>
+                  <Badge className={`bg-gradient-to-r ${item.color} text-foreground mb-3 border-0`}>{item.label}</Badge>
                   <div className="font-bold mb-2 font-mono">{item.chart}</div>
                   <p className="text-xs text-muted-foreground">{item.desc}</p>
                 </div>
@@ -272,9 +272,9 @@ function TradingGuideContent() {
           <Card className="glass-card border-green-500/20 rounded-lg">
             <CardHeader className="pb-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Bullish</p>
-              <CardTitle className="flex items-center gap-2 text-green-500">
+              <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]">
                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-white" />
+                  <TrendingUp className="h-4 w-4 text-foreground" />
                 </div>
                 Bullish Signs
               </CardTitle>
@@ -289,7 +289,7 @@ function TradingGuideContent() {
                   'Volume increasing on up moves',
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)] shrink-0" />
                     <span className="text-muted-foreground">{item}</span>
                   </li>
                 ))}
@@ -300,9 +300,9 @@ function TradingGuideContent() {
           <Card className="glass-card border-red-500/20 rounded-lg">
             <CardHeader className="pb-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Bearish</p>
-              <CardTitle className="flex items-center gap-2 text-red-500">
+              <CardTitle className="flex items-center gap-2 text-[var(--trade-bearish)]">
                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-                  <TrendingDown className="h-4 w-4 text-white" />
+                  <TrendingDown className="h-4 w-4 text-foreground" />
                 </div>
                 Bearish Signs
               </CardTitle>
@@ -317,7 +317,7 @@ function TradingGuideContent() {
                   'Volume increasing on down moves',
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-red-500 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-[var(--trade-bearish)] shrink-0" />
                     <span className="text-muted-foreground">{item}</span>
                   </li>
                 ))}
@@ -330,7 +330,7 @@ function TradingGuideContent() {
       {/* Step 3: Pick Strike & Expiry */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold font-mono text-xl">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
             3
           </div>
           <div>
@@ -372,7 +372,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Expiration</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-white" />
+                <Clock className="h-4 w-4 text-foreground" />
               </div>
               Expiration Selection Rules
             </CardTitle>
@@ -404,7 +404,7 @@ function TradingGuideContent() {
             <div className="grid grid-cols-3 gap-4">
               {[
                 { rr: '2:1', label: 'Minimum R:R', desc: 'Risk $1 to make $2', color: 'text-yellow-500' },
-                { rr: '3:1', label: 'Good R:R', desc: 'Risk $1 to make $3', color: 'text-green-500' },
+                { rr: '3:1', label: 'Good R:R', desc: 'Risk $1 to make $3', color: 'text-[var(--trade-bullish)]' },
                 { rr: '5:1+', label: 'Lotto R:R', desc: 'Risk $1 to make $5+', color: 'text-cyan-500' },
               ].map((item) => (
                 <div key={item.rr} className="text-center p-4 rounded-lg stat-glass">
@@ -421,7 +421,7 @@ function TradingGuideContent() {
       {/* Step 4: Execute the Trade */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold font-mono text-xl">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
             4
           </div>
           <div>
@@ -436,7 +436,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Pre-Entry</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                <Shield className="h-4 w-4 text-white" />
+                <Shield className="h-4 w-4 text-foreground" />
               </div>
               Before You Click Buy
             </CardTitle>
@@ -450,7 +450,7 @@ function TradingGuideContent() {
                 { num: 4, text: 'Write it down in your trading journal' },
               ].map((item) => (
                 <div key={item.num} className="flex items-start gap-3 p-3 rounded-lg stat-glass">
-                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                  <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-foreground flex items-center justify-center text-xs font-bold font-mono shrink-0">
                     {item.num}
                   </div>
                   <span className="text-sm text-muted-foreground">{item.text}</span>
@@ -466,7 +466,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Position Sizing</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-white" />
+                <DollarSign className="h-4 w-4 text-foreground" />
               </div>
               Position Sizing Example
             </CardTitle>
@@ -487,11 +487,11 @@ function TradingGuideContent() {
               ))}
             </div>
             
-            <div className="mt-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+            <div className="mt-6 p-4 rounded-lg bg-[var(--trade-bearish)]/10 border border-red-500/20">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-[var(--trade-bearish)] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-red-400">Golden Rule:</span>
+                  <span className="font-semibold text-[var(--trade-bearish)]">Golden Rule:</span>
                   <span className="text-muted-foreground ml-2">
                     Never risk more than you can afford to lose. Options can go to zero. Only trade with money you can lose completely.
                   </span>
@@ -507,7 +507,7 @@ function TradingGuideContent() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Checklist</p>
             <CardTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                <CheckCircle2 className="h-4 w-4 text-white" />
+                <CheckCircle2 className="h-4 w-4 text-foreground" />
               </div>
               Pre-Trade Checklist
             </CardTitle>
@@ -519,15 +519,15 @@ function TradingGuideContent() {
                 <div 
                   key={item.key} 
                   className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover-elevate ${
-                    checklist[item.key] ? 'bg-green-500/10 border border-green-500/30' : 'stat-glass'
+                    checklist[item.key] ? 'bg-[var(--trade-bullish)]/10 border border-green-500/30' : 'stat-glass'
                   }`}
                   onClick={() => toggleCheck(item.key)}
                 >
                   <Checkbox 
                     checked={checklist[item.key] || false}
-                    className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                    className="data-[state=checked]:bg-[var(--trade-bullish)] data-[state=checked]:border-green-500"
                   />
-                  <span className={`text-sm ${checklist[item.key] ? 'text-green-400' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm ${checklist[item.key] ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground'}`}>
                     {item.label}
                   </span>
                 </div>
@@ -535,9 +535,9 @@ function TradingGuideContent() {
             </div>
             
             {Object.values(checklist).filter(Boolean).length === checklistItems.length && (
-              <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
-                <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                <div className="font-bold text-green-400">All checks passed! You're ready to trade.</div>
+              <div className="mt-4 p-4 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/30 text-center">
+                <CheckCircle2 className="h-8 w-8 text-[var(--trade-bullish)] mx-auto mb-2" />
+                <div className="font-bold text-[var(--trade-bullish)]">All checks passed! You're ready to trade.</div>
               </div>
             )}
           </CardContent>
@@ -546,7 +546,7 @@ function TradingGuideContent() {
 
       {/* Disclaimer */}
       <Card className="glass-card bg-muted/30 border-muted rounded-lg">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <p className="text-sm text-muted-foreground italic">
             <strong>Educational Disclaimer:</strong> This guide is for educational purposes only and does not constitute financial advice. Trading options involves substantial risk of loss and is not suitable for all investors. Past performance does not guarantee future results. Always do your own research and consider consulting a financial advisor before making investment decisions.
           </p>
@@ -557,14 +557,14 @@ function TradingGuideContent() {
       <Card className="glass-card bg-gradient-to-br from-cyan-500/10 via-primary/5 to-purple-500/10 border-cyan-500/20 rounded-lg">
         <CardContent className="p-8 text-center">
           <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="h-6 w-6 text-white" />
+            <Sparkles className="h-6 w-6 text-foreground" />
           </div>
           <h3 className="text-xl font-semibold mb-2">Ready to Start Trading?</h3>
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
             Put what you've learned into practice with our AI-powered research tools
           </p>
           <Link href="/trade-desk">
-            <Button size="lg" className="gap-2 bg-cyan-500 text-slate-950" data-testid="button-go-to-trade-desk">
+            <Button size="lg" className="gap-2 bg-cyan-500 text-foreground" data-testid="button-go-to-trade-desk">
               Go to Trade Desk
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -679,7 +679,7 @@ export default function BlogPostPage() {
             The article you're looking for doesn't exist or has been removed.
           </p>
           <Link href="/blog">
-            <Button variant="outline" className="border-slate-700" data-testid="button-back-to-blog">
+            <Button variant="outline" className="border-border" data-testid="button-back-to-blog">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Blog
             </Button>
@@ -726,7 +726,7 @@ export default function BlogPostPage() {
               
               <div className="flex items-start gap-4 mb-4">
                 <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${visual.gradient} flex items-center justify-center shrink-0`}>
-                  <Icon className="h-6 w-6 text-white" />
+                  <Icon className="h-6 w-6 text-foreground" />
                 </div>
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-semibold" data-testid="text-post-title">

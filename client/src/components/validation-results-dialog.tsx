@@ -40,10 +40,10 @@ export function ValidationResultsDialog({
   const getStatusIcon = (result: ValidationResult) => {
     if (result.wasUpdated) {
       if (result.newStatus === 'hit_target') {
-        return <CheckCircle2 className="w-5 h-5 text-green-500" />;
+        return <CheckCircle2 className="w-5 h-5 text-[var(--trade-bullish)]" />;
       }
       if (result.newStatus === 'hit_stop') {
-        return <XCircle className="w-5 h-5 text-red-500" />;
+        return <XCircle className="w-5 h-5 text-[var(--trade-bearish)]" />;
       }
     }
     return <Clock className="w-5 h-5 text-muted-foreground" />;
@@ -52,10 +52,10 @@ export function ValidationResultsDialog({
   const getStatusBadge = (result: ValidationResult) => {
     if (result.wasUpdated) {
       if (result.newStatus === 'hit_target') {
-        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">CLOSED - HIT TARGET</Badge>;
+        return <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">CLOSED - HIT TARGET</Badge>;
       }
       if (result.newStatus === 'hit_stop') {
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">CLOSED - HIT STOP</Badge>;
+        return <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20">CLOSED - HIT STOP</Badge>;
       }
     }
     return <Badge variant="outline">STILL OPEN</Badge>;
@@ -63,11 +63,11 @@ export function ValidationResultsDialog({
 
   const getPriceColor = (result: ValidationResult) => {
     if (result.direction === 'long') {
-      if (result.currentPrice >= result.targetPrice) return 'text-green-500';
-      if (result.currentPrice <= result.stopLoss) return 'text-red-500';
+      if (result.currentPrice >= result.targetPrice) return 'text-[var(--trade-bullish)]';
+      if (result.currentPrice <= result.stopLoss) return 'text-[var(--trade-bearish)]';
     } else {
-      if (result.currentPrice <= result.targetPrice) return 'text-green-500';
-      if (result.currentPrice >= result.stopLoss) return 'text-red-500';
+      if (result.currentPrice <= result.targetPrice) return 'text-[var(--trade-bullish)]';
+      if (result.currentPrice >= result.stopLoss) return 'text-[var(--trade-bearish)]';
     }
     return 'text-foreground';
   };
@@ -123,24 +123,24 @@ export function ValidationResultsDialog({
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Target Price</p>
-                    <p className="text-sm font-medium text-green-500">${safeToFixed(result.targetPrice, 2)}</p>
+                    <p className="text-sm font-medium text-[var(--trade-bullish)]">${safeToFixed(result.targetPrice, 2)}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Stop Loss</p>
-                    <p className="text-sm font-medium text-red-500">${safeToFixed(result.stopLoss, 2)}</p>
+                    <p className="text-sm font-medium text-[var(--trade-bearish)]">${safeToFixed(result.stopLoss, 2)}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="glass-card p-2 rounded">
                     <p className="text-xs text-muted-foreground mb-1">Distance to Target</p>
-                    <p className={`text-sm font-bold ${Math.abs(result.percentToTarget) < 1 ? 'text-green-500' : 'text-foreground'}`}>
+                    <p className={`text-sm font-bold ${Math.abs(result.percentToTarget) < 1 ? 'text-[var(--trade-bullish)]' : 'text-foreground'}`}>
                       {result.percentToTarget > 0 ? '+' : ''}{safeToFixed(result.percentToTarget, 2)}%
                     </p>
                   </div>
                   <div className="glass-card p-2 rounded">
                     <p className="text-xs text-muted-foreground mb-1">Distance to Stop</p>
-                    <p className={`text-sm font-bold ${Math.abs(result.percentToStop) < 1 ? 'text-red-500' : 'text-foreground'}`}>
+                    <p className={`text-sm font-bold ${Math.abs(result.percentToStop) < 1 ? 'text-[var(--trade-bearish)]' : 'text-foreground'}`}>
                       {result.percentToStop > 0 ? '+' : ''}{safeToFixed(result.percentToStop, 2)}%
                     </p>
                   </div>

@@ -85,23 +85,23 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
       animate={{ opacity: 1, y: 0 }}
       className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 shadow-2xl"
     >
-      <p className="text-gray-400 text-xs mb-2">{label}</p>
+      <p className="text-muted-foreground text-xs mb-2">{label}</p>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-emerald-400" />
+          <DollarSign className="w-4 h-4 text-[var(--trade-bullish)]" />
           <span className="text-white font-semibold">
             ${data.equity.toLocaleString()}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-red-400" />
-          <span className="text-gray-300 text-sm">
+          <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
+          <span className="text-foreground/80 text-sm">
             Drawdown: {data.drawdown}%
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-400" />
-          <span className="text-gray-300 text-sm">
+          <span className="text-foreground/80 text-sm">
             Trades: {data.trades}
           </span>
         </div>
@@ -132,9 +132,9 @@ export function InteractiveEquityCurve() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-white">
-            <TrendingUp className="w-5 h-5 text-emerald-400" />
+            <TrendingUp className="w-5 h-5 text-[var(--trade-bullish)]" />
             Equity Curve
-            <Badge className={`ml-2 ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+            <Badge className={`ml-2 ${isPositive ? 'bg-emerald-500/20 text-[var(--trade-bullish)]' : 'bg-red-500/20 text-[var(--trade-bearish)]'}`}>
               {isPositive ? '+' : ''}{safeToFixed(totalReturn, 1)}%
             </Badge>
           </CardTitle>
@@ -150,7 +150,7 @@ export function InteractiveEquityCurve() {
                 className={`h-7 px-3 text-xs font-medium transition-all ${
                   timeRange === label
                     ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    : 'text-muted-foreground hover:text-white hover:bg-gray-700/50'
                 }`}
               >
                 {label}
@@ -162,21 +162,21 @@ export function InteractiveEquityCurve() {
         {/* Metrics Row */}
         <div className="grid grid-cols-4 gap-4 mt-4">
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-            <p className="text-xs text-gray-500 mb-1">Current Value</p>
+            <p className="text-xs text-muted-foreground mb-1">Current Value</p>
             <p className="text-lg font-bold text-white">${endEquity.toLocaleString()}</p>
           </div>
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-            <p className="text-xs text-gray-500 mb-1">Total Return</p>
-            <p className={`text-lg font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p className="text-xs text-muted-foreground mb-1">Total Return</p>
+            <p className={`text-lg font-bold ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
               {isPositive ? '+' : ''}{safeToFixed(totalReturn, 1)}%
             </p>
           </div>
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-            <p className="text-xs text-gray-500 mb-1">Max Drawdown</p>
-            <p className="text-lg font-bold text-red-400">-{safeToFixed(maxDrawdown, 1)}%</p>
+            <p className="text-xs text-muted-foreground mb-1">Max Drawdown</p>
+            <p className="text-lg font-bold text-[var(--trade-bearish)]">-{safeToFixed(maxDrawdown, 1)}%</p>
           </div>
           <div className="text-center p-3 bg-gray-800/30 rounded-xl">
-            <p className="text-xs text-gray-500 mb-1">Total Trades</p>
+            <p className="text-xs text-muted-foreground mb-1">Total Trades</p>
             <p className="text-lg font-bold text-blue-400">{totalTrades}</p>
           </div>
         </div>

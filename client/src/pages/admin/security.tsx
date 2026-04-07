@@ -148,7 +148,7 @@ export default function AdminSecurityPage() {
         <Card className="glass-card w-full max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)]" />
               Admin Access Required
             </CardTitle>
           </CardHeader>
@@ -159,7 +159,7 @@ export default function AdminSecurityPage() {
             <Button 
               onClick={() => setLocation("/admin")} 
               data-testid="button-go-to-admin"
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             >
               Go to Admin Panel
             </Button>
@@ -192,17 +192,17 @@ export default function AdminSecurityPage() {
   const totalPages = auditLogs ? Math.ceil(auditLogs.total / logsLimit) : 0;
 
   const getStatusColor = (status: number) => {
-    if (status >= 200 && status < 300) return "text-green-400";
+    if (status >= 200 && status < 300) return "text-[var(--trade-bullish)]";
     if (status >= 300 && status < 400) return "text-cyan-400";
-    if (status >= 400 && status < 500) return "text-amber-400";
-    return "text-red-400";
+    if (status >= 400 && status < 500) return "text-[var(--trade-neutral)]";
+    return "text-[var(--trade-bearish)]";
   };
 
   const getStatusBadgeVariant = (status: number) => {
-    if (status >= 200 && status < 300) return "bg-green-500/10 text-green-400 border-green-500/30";
+    if (status >= 200 && status < 300) return "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30";
     if (status >= 300 && status < 400) return "bg-cyan-500/10 text-cyan-400 border-cyan-500/30";
-    if (status >= 400 && status < 500) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
-    return "bg-red-500/10 text-red-400 border-red-500/30";
+    if (status >= 400 && status < 500) return "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30";
+    return "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30";
   };
 
   return (
@@ -223,7 +223,7 @@ export default function AdminSecurityPage() {
             refetchStats();
             refetchLogs();
           }}
-          className="border-slate-700 hover:border-cyan-500"
+          className="border-border hover:border-cyan-500"
           data-testid="button-refresh-security"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -234,7 +234,7 @@ export default function AdminSecurityPage() {
       {/* Security Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="glass-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Total API Requests
@@ -255,19 +255,19 @@ export default function AdminSecurityPage() {
         </Card>
 
         <Card className="glass-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Failed Logins (24h)
               </span>
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
             </div>
             {statsLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <p className={cn(
                 "text-2xl font-bold font-mono tabular-nums",
-                (stats?.failedAttempts || 0) > 0 ? "text-amber-400" : ""
+                (stats?.failedAttempts || 0) > 0 ? "text-[var(--trade-neutral)]" : ""
               )} data-testid="text-failed-logins">
                 {stats?.failedAttempts || 0}
               </p>
@@ -279,19 +279,19 @@ export default function AdminSecurityPage() {
         </Card>
 
         <Card className="glass-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Blocked IPs
               </span>
-              <Ban className="h-4 w-4 text-red-400" />
+              <Ban className="h-4 w-4 text-[var(--trade-bearish)]" />
             </div>
             {statsLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <p className={cn(
                 "text-2xl font-bold font-mono tabular-nums",
-                (stats?.blockedIPs || 0) > 0 ? "text-red-400" : ""
+                (stats?.blockedIPs || 0) > 0 ? "text-[var(--trade-bearish)]" : ""
               )} data-testid="text-blocked-ips">
                 {stats?.blockedIPs || 0}
               </p>
@@ -303,7 +303,7 @@ export default function AdminSecurityPage() {
         </Card>
 
         <Card className="glass-card">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Unique Visitor IPs
@@ -367,7 +367,7 @@ export default function AdminSecurityPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                No data available
+                Data loading...
               </div>
             )}
           </CardContent>
@@ -408,7 +408,7 @@ export default function AdminSecurityPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                No data available
+                Data loading...
               </div>
             )}
           </CardContent>
@@ -445,7 +445,7 @@ export default function AdminSecurityPage() {
               </ResponsiveContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                No data available
+                Data loading...
               </div>
             )}
           </CardContent>
@@ -458,7 +458,7 @@ export default function AdminSecurityPage() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Lock className="h-4 w-4 text-red-400" />
+              <Lock className="h-4 w-4 text-[var(--trade-bearish)]" />
               Blocked IPs & Failed Logins
             </CardTitle>
           </CardHeader>
@@ -474,14 +474,14 @@ export default function AdminSecurityPage() {
                 {stats?.recentFailedLogins.map((item, idx) => (
                   <div 
                     key={idx} 
-                    className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/40"
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/40"
                     data-testid={`row-failed-login-${idx}`}
                   >
                     <div className="flex items-center gap-3">
                       {item.blockedUntil ? (
-                        <Ban className="h-4 w-4 text-red-400" />
+                        <Ban className="h-4 w-4 text-[var(--trade-bearish)]" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)]" />
                       )}
                       <div>
                         <p className="font-mono text-sm">{item.ip}</p>
@@ -491,7 +491,7 @@ export default function AdminSecurityPage() {
                       </div>
                     </div>
                     {item.blockedUntil && (
-                      <Badge className="bg-red-500/10 text-red-400 border-red-500/30">
+                      <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">
                         <Clock className="h-3 w-3 mr-1" />
                         Blocked until {format(new Date(item.blockedUntil), "HH:mm:ss")}
                       </Badge>
@@ -528,7 +528,7 @@ export default function AdminSecurityPage() {
                 {stats?.topIPs.map((item, idx) => (
                   <div 
                     key={idx} 
-                    className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/40"
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/40"
                     data-testid={`row-top-ip-${idx}`}
                   >
                     <div className="flex items-center gap-3">
@@ -610,10 +610,10 @@ export default function AdminSecurityPage() {
                           className={cn(
                             "text-xs font-mono",
                             log.method === "GET" && "text-blue-400 border-blue-500/30",
-                            log.method === "POST" && "text-green-400 border-green-500/30",
-                            log.method === "PUT" && "text-amber-400 border-amber-500/30",
+                            log.method === "POST" && "text-[var(--trade-bullish)] border-green-500/30",
+                            log.method === "PUT" && "text-[var(--trade-neutral)] border-amber-500/30",
                             log.method === "PATCH" && "text-purple-400 border-purple-500/30",
-                            log.method === "DELETE" && "text-red-400 border-red-500/30"
+                            log.method === "DELETE" && "text-[var(--trade-bearish)] border-red-500/30"
                           )}
                         >
                           {log.method}

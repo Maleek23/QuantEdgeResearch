@@ -77,13 +77,13 @@ export default function History() {
     switch (signal?.toUpperCase()) {
       case "BUY":
       case "BULLISH":
-      case "LONG": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      case "LONG": return "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/30";
       case "SELL":
       case "BEARISH":
-      case "SHORT": return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "SHORT": return "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30";
       case "HOLD":
-      case "NEUTRAL": return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-      default: return "bg-slate-500/20 text-slate-400 border-slate-500/30";
+      case "NEUTRAL": return "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30";
+      default: return "bg-muted-foreground/20 text-muted-foreground border-muted-foreground/30";
     }
   };
 
@@ -97,14 +97,14 @@ export default function History() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between mb-6"
         >
-          <h1 className="text-2xl font-semibold text-slate-100">History</h1>
+          <h1 className="text-2xl font-semibold text-foreground/95">History</h1>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search history..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-64 bg-slate-800/50 border-slate-700"
+              className="pl-9 w-64 bg-muted/50 border-border"
               data-testid="input-search-history"
             />
           </div>
@@ -117,7 +117,7 @@ export default function History() {
           transition={{ delay: 0.05 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-slate-800/50 mb-6">
+            <TabsList className="bg-muted/50 mb-6">
               <TabsTrigger
                 value="chat"
                 className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-cyan-400 gap-2"
@@ -138,14 +138,14 @@ export default function History() {
 
             {/* Chat History Tab */}
             <TabsContent value="chat">
-              <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-800">
-                  <p className="text-sm text-slate-400">Your previous AI chat conversations</p>
+              <Card className="bg-card/60 border-border overflow-hidden">
+                <div className="p-4 border-b border-border">
+                  <p className="text-sm text-muted-foreground">Your previous AI chat conversations</p>
                 </div>
                 {chatLoading ? (
                   <div className="p-4 space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 bg-slate-800" />
+                      <Skeleton key={i} className="h-16 bg-muted" />
                     ))}
                   </div>
                 ) : filteredChatHistory.length > 0 ? (
@@ -153,7 +153,7 @@ export default function History() {
                     {filteredChatHistory.map((chat) => (
                       <div
                         key={chat.id}
-                        className="p-4 hover:bg-slate-800/30 transition-colors flex items-center justify-between cursor-pointer"
+                        className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between cursor-pointer"
                         data-testid={`chat-history-${chat.id}`}
                       >
                         <div className="flex items-center gap-4">
@@ -161,8 +161,8 @@ export default function History() {
                             <MessageSquare className="w-5 h-5 text-cyan-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-slate-200">{chat.title}</p>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                            <p className="font-medium text-foreground/90">{chat.title}</p>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                               <Clock className="w-3 h-3" />
                               {formatDate(chat.createdAt)}
                               <span>•</span>
@@ -175,7 +175,7 @@ export default function History() {
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-400">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[var(--trade-bearish)]">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -184,9 +184,9 @@ export default function History() {
                   </div>
                 ) : (
                   <div className="p-12 text-center">
-                    <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-400">No chat history yet</p>
-                    <p className="text-sm text-slate-500 mt-1">Your AI conversations will appear here</p>
+                    <MessageSquare className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No chat history yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">Your AI conversations will appear here</p>
                   </div>
                 )}
               </Card>
@@ -194,14 +194,14 @@ export default function History() {
 
             {/* Research History Tab */}
             <TabsContent value="research">
-              <Card className="bg-slate-900/60 border-slate-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-800">
-                  <p className="text-sm text-slate-400">Every analysis you've run, organized and ready to revisit</p>
+              <Card className="bg-card/60 border-border overflow-hidden">
+                <div className="p-4 border-b border-border">
+                  <p className="text-sm text-muted-foreground">Every analysis you've run, organized and ready to revisit</p>
                 </div>
                 {researchLoading ? (
                   <div className="p-4 space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 bg-slate-800" />
+                      <Skeleton key={i} className="h-16 bg-muted" />
                     ))}
                   </div>
                 ) : filteredResearchHistory.length > 0 ? (
@@ -209,25 +209,25 @@ export default function History() {
                     {filteredResearchHistory.map((research) => (
                       <div
                         key={research.id}
-                        className="p-4 hover:bg-slate-800/30 transition-colors flex items-center justify-between"
+                        className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between"
                         data-testid={`research-history-${research.id}`}
                       >
                         <div className="flex items-center gap-4">
                           <div>
                             <div className="flex items-center gap-2">
                               <Link href={`/chart-analysis?symbol=${research.symbol}`}>
-                                <span className="font-semibold text-cyan-400 hover:text-emerald-300 cursor-pointer">
+                                <span className="font-semibold text-cyan-400 hover:text-[var(--trade-bullish)] cursor-pointer">
                                   {research.symbol}
                                 </span>
                               </Link>
-                              <span className="text-sm text-slate-400">{research.companyName}</span>
+                              <span className="text-sm text-muted-foreground">{research.companyName}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs border-slate-700 text-slate-500">
+                              <Badge variant="outline" className="text-xs border-border text-muted-foreground">
                                 <BarChart3 className="w-3 h-3 mr-1" />
                                 {research.analysisType}
                               </Badge>
-                              <span className="text-xs text-slate-500">• {formatDate(research.createdAt)}</span>
+                              <span className="text-xs text-muted-foreground">• {formatDate(research.createdAt)}</span>
                             </div>
                           </div>
                         </div>
@@ -243,7 +243,7 @@ export default function History() {
                               View
                             </Button>
                           </Link>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-400">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[var(--trade-bearish)]">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -252,9 +252,9 @@ export default function History() {
                   </div>
                 ) : (
                   <div className="p-12 text-center">
-                    <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-400">No research history yet</p>
-                    <p className="text-sm text-slate-500 mt-1">Run an analysis to get started</p>
+                    <FileText className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No research history yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">Run an analysis to get started</p>
                   </div>
                 )}
               </Card>

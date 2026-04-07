@@ -108,7 +108,7 @@ const BROKERS: BrokerConfig[] = [
     hasApi: false,
     csvImport: true,
     instructions: 'Upload CSV with columns: symbol, quantity, cost_basis',
-    color: 'bg-slate-500',
+    color: 'bg-muted-foreground',
   },
 ];
 
@@ -156,8 +156,8 @@ function BrokerCard({
 }) {
   return (
     <Card className={cn(
-      "p-4 transition-all cursor-pointer hover:border-slate-600",
-      isConnected ? "border-emerald-500/40 bg-emerald-500/5" : "border-slate-700/50 bg-slate-900/40"
+      "p-4 transition-all cursor-pointer hover:border-border",
+      isConnected ? "border-emerald-500/40 bg-emerald-500/5" : "border-border/50 bg-card/40"
     )}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -169,24 +169,24 @@ function BrokerCard({
           </div>
           <div>
             <h3 className="font-semibold text-white">{broker.name}</h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {broker.hasApi ? 'API Connected' : 'CSV Import'}
             </p>
           </div>
         </div>
         {isConnected ? (
-          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
+          <Badge className="bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40">
             <Check className="w-3 h-3 mr-1" />
             {positionCount} positions
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-slate-400">
+          <Badge variant="outline" className="text-muted-foreground">
             Not connected
           </Badge>
         )}
       </div>
 
-      <p className="text-xs text-slate-500 mb-3 line-clamp-2">
+      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
         {broker.instructions}
       </p>
 
@@ -195,7 +195,7 @@ function BrokerCard({
         className={cn(
           "w-full",
           isConnected
-            ? "bg-slate-700 hover:bg-slate-600"
+            ? "bg-muted hover:bg-muted"
             : "bg-teal-600 hover:bg-teal-500"
         )}
         onClick={() => onImport(broker.type)}
@@ -308,13 +308,13 @@ function CSVImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 max-w-md">
+      <DialogContent className="bg-card border-border max-w-md">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-teal-400" />
             Import from {broker?.name}
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-muted-foreground">
             {broker?.instructions}
           </DialogDescription>
         </DialogHeader>
@@ -324,7 +324,7 @@ function CSVImportDialog({
             "border-2 border-dashed rounded-xl p-8 text-center transition-colors",
             dragOver
               ? "border-teal-400 bg-teal-500/10"
-              : "border-slate-700 hover:border-slate-600"
+              : "border-border hover:border-border"
           )}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -333,15 +333,15 @@ function CSVImportDialog({
           {importing ? (
             <div className="flex flex-col items-center gap-3">
               <RefreshCw className="w-10 h-10 text-teal-400 animate-spin" />
-              <p className="text-slate-400">Importing positions...</p>
+              <p className="text-muted-foreground">Importing positions...</p>
             </div>
           ) : (
             <>
-              <Upload className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-              <p className="text-slate-300 mb-2">
+              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-foreground/80 mb-2">
                 Drag & drop your CSV file here
               </p>
-              <p className="text-xs text-slate-500 mb-4">
+              <p className="text-xs text-muted-foreground mb-4">
                 or click to browse
               </p>
               <input
@@ -365,7 +365,7 @@ function CSVImportDialog({
           )}
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
           <Info className="w-4 h-4" />
           <span>
             Expected columns: symbol, quantity, cost_basis (or avg_cost)
@@ -379,15 +379,15 @@ function CSVImportDialog({
 // Position Row
 function PositionRow({ position }: { position: Position }) {
   const plColor = (position.unrealizedPLPercent || 0) >= 0
-    ? "text-emerald-400"
-    : "text-red-400";
+    ? "text-[var(--trade-bullish)]"
+    : "text-[var(--trade-bearish)]";
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 hover:bg-slate-800/60 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors">
       <div className="flex items-center gap-3">
         <div className={cn(
           "w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold",
-          position.isOption ? "bg-purple-600" : "bg-slate-600"
+          position.isOption ? "bg-purple-600" : "bg-muted"
         )}>
           {position.symbol.slice(0, 2)}
         </div>
@@ -404,7 +404,7 @@ function PositionRow({ position }: { position: Position }) {
               </Badge>
             )}
           </div>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-muted-foreground">
             {position.quantity} shares @ ${safeToFixed(position.costBasis / Math.abs(position.quantity) / (position.isOption ? 100 : 1), 2)}
           </span>
         </div>
@@ -426,23 +426,23 @@ function PositionRow({ position }: { position: Position }) {
 function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
   const [expanded, setExpanded] = useState(false);
   const plColor = portfolio.unrealizedPLPercent >= 0
-    ? "text-emerald-400"
-    : "text-red-400";
+    ? "text-[var(--trade-bullish)]"
+    : "text-[var(--trade-bearish)]";
 
   const stockPositions = portfolio.positions.filter(p => !p.isOption);
   const optionPositions = portfolio.positions.filter(p => p.isOption);
 
   return (
-    <Card className="bg-slate-900/60 border-slate-700/50 overflow-hidden">
+    <Card className="bg-card/60 border-border/50 overflow-hidden">
       <Collapsible open={expanded} onOpenChange={setExpanded}>
         <CollapsibleTrigger asChild>
-          <div className="p-4 cursor-pointer hover:bg-slate-800/40 transition-colors">
+          <div className="p-4 cursor-pointer hover:bg-muted/40 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Wallet className="w-5 h-5 text-teal-400" />
                 <div>
                   <h3 className="font-semibold text-white">{portfolio.brokerName} Portfolio</h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {portfolio.positions.length} positions
                     {optionPositions.length > 0 && ` (${optionPositions.length} options)`}
                   </p>
@@ -465,9 +465,9 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
                   </div>
                 </div>
                 {expanded ? (
-                  <ChevronUp className="w-5 h-5 text-slate-500" />
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-slate-500" />
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
                 )}
               </div>
             </div>
@@ -475,11 +475,11 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="border-t border-slate-800 p-4 space-y-4">
+          <div className="border-t border-border p-4 space-y-4">
             {/* Stocks */}
             {stockPositions.length > 0 && (
               <div>
-                <h4 className="text-xs font-semibold text-slate-400 uppercase mb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
                   Stocks ({stockPositions.length})
                 </h4>
                 <div className="space-y-2">
@@ -496,7 +496,7 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
                 <h4 className="text-xs font-semibold text-purple-400 uppercase mb-2 flex items-center gap-2">
                   Options ({optionPositions.length})
                   {optionPositions.some(p => p.optionDetails && p.optionDetails.daysToExpiry <= 7) && (
-                    <Badge className="bg-amber-500/20 text-amber-400 text-[9px]">
+                    <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] text-[9px]">
                       <Clock className="w-3 h-3 mr-1" />
                       Expiring soon
                     </Badge>
@@ -510,7 +510,7 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
               </div>
             )}
 
-            <div className="text-xs text-slate-600 text-center">
+            <div className="text-xs text-muted-foreground/70 text-center">
               Last updated: {new Date(portfolio.lastUpdated).toLocaleString()}
             </div>
           </div>
@@ -602,19 +602,19 @@ export default function BrokerImport() {
             <Wallet className="w-6 h-6 text-teal-400" />
             Broker Connections
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Import positions from your brokers to track and analyze your portfolio
           </p>
         </div>
         {portfolioData && portfolioData.length > 0 && (
           <div className="text-right">
-            <div className="text-sm text-slate-500">Total Portfolio Value</div>
+            <div className="text-sm text-muted-foreground">Total Portfolio Value</div>
             <div className="text-2xl font-bold text-white font-mono">
               ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <div className={cn(
               "text-sm font-mono",
-              totalPL >= 0 ? "text-emerald-400" : "text-red-400"
+              totalPL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {totalPL >= 0 ? '+' : ''}${totalPL.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
@@ -641,7 +641,7 @@ export default function BrokerImport() {
       {portfolioData && portfolioData.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-400" />
+            <DollarSign className="w-5 h-5 text-[var(--trade-bullish)]" />
             Your Portfolios
           </h3>
           {portfolioData.map((portfolio, idx) => (
@@ -652,13 +652,13 @@ export default function BrokerImport() {
 
       {/* Empty State */}
       {(!portfolioData || portfolioData.length === 0) && !portfolioLoading && (
-        <Card className="bg-slate-900/40 border-slate-700/50 p-8 text-center">
-          <Link2Off className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+        <Card className="bg-card/40 border-border/50 p-8 text-center">
+          <Link2Off className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No Brokers Connected</h3>
-          <p className="text-sm text-slate-500 mb-4 max-w-md mx-auto">
+          <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
             Connect your broker accounts to track positions, analyze performance, and get AI-powered insights on your portfolio.
           </p>
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/70">
             <Info className="w-4 h-4" />
             <span>Your data is stored locally and never shared</span>
           </div>
@@ -703,7 +703,7 @@ export function BrokerStatusBadge() {
   if (totalPositions === 0) return null;
 
   return (
-    <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+    <Badge variant="outline" className="text-[var(--trade-bullish)] border-emerald-500/30">
       <Wallet className="w-3 h-3 mr-1" />
       {totalPositions} positions
     </Badge>

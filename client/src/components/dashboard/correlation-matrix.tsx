@@ -9,10 +9,10 @@ interface CorrelationMatrixProps {
 
 export function CorrelationMatrix({ assets, correlations, className }: CorrelationMatrixProps) {
   const getCorrelationColor = (value: number) => {
-    if (value >= 0.8) return "bg-green-500/80 text-white";
-    if (value >= 0.6) return "bg-green-500/50 text-green-100";
-    if (value >= 0.3) return "bg-green-500/30 text-green-200";
-    if (value > -0.3) return "bg-slate-700/40 text-slate-300";
+    if (value >= 0.8) return "bg-[var(--trade-bullish)]/80 text-white";
+    if (value >= 0.6) return "bg-[var(--trade-bullish)]/50 text-[var(--trade-bullish)]";
+    if (value >= 0.3) return "bg-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]";
+    if (value > -0.3) return "bg-muted/40 text-foreground/80";
     if (value > -0.6) return "bg-red-500/30 text-red-200";
     if (value > -0.8) return "bg-red-500/50 text-red-100";
     return "bg-red-500/80 text-white";
@@ -21,13 +21,13 @@ export function CorrelationMatrix({ assets, correlations, className }: Correlati
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center gap-2 mb-4">
         <Grid3X3 className="w-4 h-4 text-purple-400" />
-        <span className="text-xs uppercase tracking-widest text-slate-400">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground">
           Correlation Matrix
         </span>
       </div>
@@ -40,7 +40,7 @@ export function CorrelationMatrix({ assets, correlations, className }: Correlati
               {assets.map((asset) => (
                 <th
                   key={asset}
-                  className="p-1 text-[10px] font-mono text-slate-400 text-center"
+                  className="p-1 text-[10px] font-mono text-muted-foreground text-center"
                 >
                   {asset}
                 </th>
@@ -50,7 +50,7 @@ export function CorrelationMatrix({ assets, correlations, className }: Correlati
           <tbody>
             {assets.map((rowAsset, rowIndex) => (
               <tr key={rowAsset}>
-                <td className="p-1 text-[10px] font-mono text-slate-400 text-right pr-2">
+                <td className="p-1 text-[10px] font-mono text-muted-foreground text-right pr-2">
                   {rowAsset}
                 </td>
                 {assets.map((colAsset, colIndex) => {
@@ -78,15 +78,15 @@ export function CorrelationMatrix({ assets, correlations, className }: Correlati
         </table>
       </div>
 
-      <div className="flex justify-center gap-1 mt-4 pt-3 border-t border-slate-700/20">
+      <div className="flex justify-center gap-1 mt-4 pt-3 border-t border-border/20">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded bg-red-500/80" />
-          <span className="text-[10px] text-slate-400">-1</span>
+          <span className="text-[10px] text-muted-foreground">-1</span>
         </div>
         <div className="flex-1 h-2 rounded bg-gradient-to-r from-red-500/80 via-slate-700/40 to-green-500/80" />
         <div className="flex items-center gap-1">
-          <span className="text-[10px] text-slate-400">+1</span>
-          <div className="w-3 h-3 rounded bg-green-500/80" />
+          <span className="text-[10px] text-muted-foreground">+1</span>
+          <div className="w-3 h-3 rounded bg-[var(--trade-bullish)]/80" />
         </div>
       </div>
     </div>

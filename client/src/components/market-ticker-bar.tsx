@@ -77,7 +77,7 @@ export function MarketTickerBar() {
               </span>
               <div className={cn(
                 "flex items-center gap-0.5 text-xs font-medium",
-                ticker.change >= 0 ? "text-green-500" : "text-red-500"
+                ticker.change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {ticker.change >= 0 ? (
                   <TrendingUp className="h-3 w-3" />

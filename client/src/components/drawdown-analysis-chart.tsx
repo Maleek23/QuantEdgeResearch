@@ -63,7 +63,7 @@ function CustomTooltip({ active, payload }: any) {
             <span className="text-muted-foreground">Total Return:</span>
             <span className={cn(
               "font-mono font-semibold",
-              parseFloat(equityReturn) >= 0 ? "text-green-500" : "text-red-500"
+              parseFloat(equityReturn) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {parseFloat(equityReturn) >= 0 ? '+' : ''}{equityReturn}%
             </span>
@@ -76,7 +76,7 @@ function CustomTooltip({ active, payload }: any) {
             <span className="text-muted-foreground">Drawdown:</span>
             <span className={cn(
               "font-mono",
-              data.drawdownPercent > 0 ? "text-red-500" : "text-green-500"
+              data.drawdownPercent > 0 ? "text-[var(--trade-bearish)]" : "text-[var(--trade-bullish)]"
             )}>
               {data.drawdownPercent > 0 ? `-${data.drawdownPercent}%` : 'None'}
             </span>
@@ -149,12 +149,12 @@ export default function DrawdownAnalysisChart() {
             </CardDescription>
           </div>
           {summary.isInDrawdown ? (
-            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+            <Badge variant="outline" className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">
               <AlertTriangle className="h-3 w-3 mr-1" />
               In Drawdown
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
+            <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">
               <CheckCircle className="h-3 w-3 mr-1" />
               At Peak
             </Badge>
@@ -163,11 +163,11 @@ export default function DrawdownAnalysisChart() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+          <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/20">
             <p className="text-xs text-muted-foreground">Total Return</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              summary.totalReturnPercent >= 0 ? "text-green-500" : "text-red-500"
+              summary.totalReturnPercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.totalReturnPercent >= 0 ? '+' : ''}{safeToFixed(summary.totalReturnPercent, 1)}%
             </p>
@@ -175,13 +175,13 @@ export default function DrawdownAnalysisChart() {
           </div>
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <p className="text-xs text-muted-foreground">Max Drawdown</p>
-            <p className="font-semibold font-mono text-lg text-red-500">-{summary.maxDrawdownPercent}%</p>
+            <p className="font-semibold font-mono text-lg text-[var(--trade-bearish)]">-{summary.maxDrawdownPercent}%</p>
           </div>
           <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <p className="text-xs text-muted-foreground">Current DD</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              summary.currentDrawdownPercent > 0 ? "text-amber-500" : "text-green-500"
+              summary.currentDrawdownPercent > 0 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
             )}>
               {summary.currentDrawdownPercent > 0 ? `-${summary.currentDrawdownPercent}%` : 'None'}
             </p>
@@ -194,8 +194,8 @@ export default function DrawdownAnalysisChart() {
                   <p className={cn(
                     "font-semibold font-mono text-lg",
                     summary.calmar.status !== 'valid' && summary.calmar.status !== 'estimated' ? "text-muted-foreground" :
-                    summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-green-500" : 
-                    summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-cyan-500" : "text-amber-500"
+                    summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-[var(--trade-bullish)]" : 
+                    summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-cyan-500" : "text-[var(--trade-neutral)]"
                   )}>
                     {summary.calmar.status === 'insufficient-sample' ? 'N/A' :
                      summary.calmar.status === 'no-drawdown' ? '∞' :
@@ -212,13 +212,13 @@ export default function DrawdownAnalysisChart() {
                     </p>
                   )}
                   {summary.calmar.status === 'insufficient-sample' && (
-                    <p className="text-xs text-amber-500">Insufficient sample (&lt;10 trades)</p>
+                    <p className="text-xs text-[var(--trade-neutral)]">Insufficient sample (&lt;10 trades)</p>
                   )}
                   {summary.calmar.status === 'no-drawdown' && (
-                    <p className="text-xs text-green-500">No drawdown recorded (infinite)</p>
+                    <p className="text-xs text-[var(--trade-bullish)]">No drawdown recorded (infinite)</p>
                   )}
                   {summary.calmar.status === 'estimated' && (
-                    <p className="text-xs text-amber-500">* Estimated (timestamps uncertain)</p>
+                    <p className="text-xs text-[var(--trade-neutral)]">* Estimated (timestamps uncertain)</p>
                   )}
                 </TooltipContent>
               </TooltipUI>
@@ -283,7 +283,7 @@ export default function DrawdownAnalysisChart() {
 
         <div className="flex items-center gap-4 justify-center text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-2 bg-green-500/40 rounded border border-green-500" />
+            <div className="w-3 h-2 bg-[var(--trade-bullish)]/40 rounded border border-green-500" />
             <span className="text-muted-foreground">Equity Curve</span>
           </div>
           <div className="flex items-center gap-1.5">

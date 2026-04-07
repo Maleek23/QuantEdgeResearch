@@ -149,7 +149,7 @@ function QEWorkspaceToolbar({
             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all",
             preset === currentPreset
               ? "bg-[#00d4ff]/10 border border-[#00d4ff]/20 text-[#00d4ff]"
-              : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
+              : "text-muted-foreground hover:text-white hover:bg-white/[0.05]"
           )}
           title={presetLabels[preset]}
         >
@@ -178,14 +178,14 @@ function PanelHeader({ title, icon, isFullscreen, onToggleFullscreen }: PanelHea
   return (
     <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-white/[0.02] flex-shrink-0">
       <div className="flex items-center gap-1.5 min-w-0">
-        {icon && <span className="text-slate-400 flex-shrink-0">{icon}</span>}
-        <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider truncate font-display">
+        {icon && <span className="text-muted-foreground flex-shrink-0">{icon}</span>}
+        <span className="text-[11px] font-semibold text-foreground/80 uppercase tracking-wider truncate font-display">
           {title}
         </span>
       </div>
       <button
         onClick={onToggleFullscreen}
-        className="p-1 rounded hover:bg-white/[0.06] text-slate-500 hover:text-white transition-colors flex-shrink-0"
+        className="p-1 rounded hover:bg-white/[0.06] text-muted-foreground hover:text-white transition-colors flex-shrink-0"
         title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
       >
         {isFullscreen ? (

@@ -217,7 +217,7 @@ export default function TechnicalGuide() {
 
       <Card className="mb-6 border-amber-500/20 bg-amber-500/5">
         <CardContent className="pt-4">
-          <p className="text-sm text-amber-600 dark:text-amber-400">
+          <p className="text-sm text-amber-600 dark:text-[var(--trade-neutral)]">
             <strong>Educational Disclaimer:</strong> This guide is for educational purposes only. 
             Trading involves substantial risk. Past performance does not guarantee future results. 
             Always consult a licensed financial advisor.
@@ -239,7 +239,7 @@ export default function TechnicalGuide() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                       RSI (Relative Strength Index)
                     </CardTitle>
                   </CardHeader>
@@ -247,7 +247,7 @@ export default function TechnicalGuide() {
                     <p>Measures momentum on a 0-100 scale. The most important momentum indicator.</p>
                     <div className="flex gap-2 flex-wrap">
                       <Badge variant="outline" className="bg-red-500/10">RSI &gt; 70 = Overbought</Badge>
-                      <Badge variant="outline" className="bg-green-500/10">RSI &lt; 30 = Oversold</Badge>
+                      <Badge variant="outline" className="bg-[var(--trade-bullish)]/10">RSI &lt; 30 = Oversold</Badge>
                     </div>
                     <p className="text-muted-foreground">
                       <strong>RSI(2)</strong>: Short-term mean reversion. RSI(2) &lt; 10 = strong buy signal.
@@ -267,7 +267,7 @@ export default function TechnicalGuide() {
                   <CardContent className="text-sm space-y-2">
                     <p>Shows trend direction and momentum using 12/26/9 EMAs.</p>
                     <div className="flex gap-2 flex-wrap">
-                      <Badge variant="outline" className="bg-green-500/10">MACD &gt; Signal = Bullish</Badge>
+                      <Badge variant="outline" className="bg-[var(--trade-bullish)]/10">MACD &gt; Signal = Bullish</Badge>
                       <Badge variant="outline" className="bg-red-500/10">MACD &lt; Signal = Bearish</Badge>
                     </div>
                     <p className="text-muted-foreground">
@@ -305,7 +305,7 @@ export default function TechnicalGuide() {
                   <CardContent className="text-sm space-y-2">
                     <p>Average price weighted by volume - the institutional benchmark.</p>
                     <div className="flex gap-2 flex-wrap">
-                      <Badge variant="outline" className="bg-green-500/10">Price &gt; VWAP = Bullish</Badge>
+                      <Badge variant="outline" className="bg-[var(--trade-bullish)]/10">Price &gt; VWAP = Bullish</Badge>
                       <Badge variant="outline" className="bg-red-500/10">Price &lt; VWAP = Bearish</Badge>
                     </div>
                     <p className="text-muted-foreground">
@@ -350,15 +350,15 @@ export default function TechnicalGuide() {
                 </p>
                 <div className="grid gap-2">
                   {[
-                    { grade: "A+", range: "95%+", desc: "Exceptional - Multiple strong signals aligned", color: "text-green-500" },
-                    { grade: "A", range: "93-94%", desc: "Excellent - Strong technical setup with volume", color: "text-green-500" },
-                    { grade: "A-", range: "90-92%", desc: "Very Strong - Clear directional bias", color: "text-green-400" },
+                    { grade: "A+", range: "95%+", desc: "Exceptional - Multiple strong signals aligned", color: "text-[var(--trade-bullish)]" },
+                    { grade: "A", range: "93-94%", desc: "Excellent - Strong technical setup with volume", color: "text-[var(--trade-bullish)]" },
+                    { grade: "A-", range: "90-92%", desc: "Very Strong - Clear directional bias", color: "text-[var(--trade-bullish)]" },
                     { grade: "B+", range: "87-89%", desc: "Strong - Solid setup, patience for entry", color: "text-blue-500" },
                     { grade: "B", range: "83-86%", desc: "Good - Tradeable with moderate conviction", color: "text-blue-400" },
                     { grade: "B-", range: "80-82%", desc: "Above Average - Tight risk management", color: "text-blue-300" },
                     { grade: "C+", range: "77-79%", desc: "Average+ - Speculative, small size", color: "text-yellow-500" },
                     { grade: "C", range: "73-76%", desc: "Average - Higher risk, needs catalyst", color: "text-yellow-400" },
-                    { grade: "D/F", range: "<70%", desc: "Below Average - Not recommended", color: "text-red-500" },
+                    { grade: "D/F", range: "<70%", desc: "Below Average - Not recommended", color: "text-[var(--trade-bearish)]" },
                   ].map((item) => (
                     <div key={item.grade} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
                       <Badge className={`${item.color} bg-transparent border-current w-12 justify-center`}>
@@ -376,7 +376,7 @@ export default function TechnicalGuide() {
           <AccordionItem value="riskReward" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-green-500" />
+                <Shield className="h-5 w-5 text-[var(--trade-bullish)]" />
                 <span className="font-semibold">Risk/Reward Ratios</span>
               </div>
             </AccordionTrigger>
@@ -501,7 +501,7 @@ export default function TechnicalGuide() {
           <AccordionItem value="sizing" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-red-500" />
+                <Shield className="h-5 w-5 text-[var(--trade-bearish)]" />
                 <span className="font-semibold">Position Sizing & Risk Management</span>
               </div>
             </AccordionTrigger>

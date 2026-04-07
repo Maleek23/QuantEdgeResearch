@@ -17,9 +17,9 @@ export function SignalConfidenceGauge({
   className,
 }: SignalConfidenceGaugeProps) {
   const directionConfig = {
-    bullish: { color: "text-green-400", bg: "bg-green-500/20" },
-    bearish: { color: "text-red-400", bg: "bg-red-500/20" },
-    neutral: { color: "text-amber-400", bg: "bg-amber-500/20" },
+    bullish: { color: "text-[var(--trade-bullish)]", bg: "bg-[var(--trade-bullish)]/20" },
+    bearish: { color: "text-[var(--trade-bearish)]", bg: "bg-red-500/20" },
+    neutral: { color: "text-[var(--trade-neutral)]", bg: "bg-amber-500/20" },
   };
 
   const config = directionConfig[direction];
@@ -31,19 +31,19 @@ export function SignalConfidenceGauge({
   return (
     <div
       className={cn(
-        "bg-slate-900/60 backdrop-blur-2xl border border-slate-700/30 rounded-lg p-4",
+        "bg-card/60 backdrop-blur-2xl border border-border/30 rounded-lg p-4",
         className
       )}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs uppercase tracking-widest text-slate-400">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Signal Confidence
           </span>
         </div>
         {symbol && (
-          <span className="text-sm font-mono text-slate-300">{symbol}</span>
+          <span className="text-sm font-mono text-foreground/80">{symbol}</span>
         )}
       </div>
 
@@ -57,7 +57,7 @@ export function SignalConfidenceGauge({
               fill="none"
               stroke="currentColor"
               strokeWidth="8"
-              className="text-slate-800"
+              className="text-foreground/80"
             />
             <circle
               cx="56"
@@ -72,10 +72,10 @@ export function SignalConfidenceGauge({
               className={cn(
                 "transition-all duration-500",
                 direction === "bullish"
-                  ? "text-green-400"
+                  ? "text-[var(--trade-bullish)]"
                   : direction === "bearish"
-                    ? "text-red-400"
-                    : "text-amber-400"
+                    ? "text-[var(--trade-bearish)]"
+                    : "text-[var(--trade-neutral)]"
               )}
               style={{
                 filter: `drop-shadow(0 0 8px ${direction === "bullish" ? "rgb(74, 222, 128)" : direction === "bearish" ? "rgb(248, 113, 113)" : "rgb(251, 191, 36)"})`,
@@ -96,17 +96,17 @@ export function SignalConfidenceGauge({
           {factors.map((factor) => (
             <div key={factor.name} className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">{factor.name}</span>
-                <span className="text-xs font-mono tabular-nums text-slate-300">
+                <span className="text-xs text-muted-foreground">{factor.name}</span>
+                <span className="text-xs font-mono tabular-nums text-foreground/80">
                   {factor.value}%
                 </span>
               </div>
-              <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all duration-300",
                     factor.value >= 70
-                      ? "bg-green-400"
+                      ? "bg-[var(--trade-bullish)]"
                       : factor.value >= 40
                         ? "bg-amber-400"
                         : "bg-red-400"

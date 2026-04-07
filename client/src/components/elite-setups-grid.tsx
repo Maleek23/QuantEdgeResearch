@@ -39,7 +39,7 @@ const ITEMS_PER_PAGE = 24;
 
 const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   S: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/40' },
-  A: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/40' },
+  A: { bg: 'bg-emerald-500/20', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40' },
   B: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/40' },
 };
 
@@ -85,7 +85,7 @@ function CompactSetupRow({
   onTrade?: (symbol: string) => void;
 }) {
   const tier = item.tier || 'C';
-  const colors = TIER_COLORS[tier] || { bg: 'bg-slate-500/20', text: 'text-slate-400', border: 'border-slate-500/40' };
+  const colors = TIER_COLORS[tier] || { bg: 'bg-muted-foreground/20', text: 'text-muted-foreground', border: 'border-muted-foreground/40' };
   const daysWatched = Math.ceil((Date.now() - new Date(item.addedAt).getTime()) / (1000 * 60 * 60 * 24));
   
   const totalTrades = perf?.stats?.totalTrades || item.timesTraded || 0;
@@ -121,7 +121,7 @@ function CompactSetupRow({
           {totalTrades > 0 && (
             <span className={cn(
               "flex items-center gap-1",
-              winRate >= 60 ? "text-green-400" : winRate >= 40 ? "text-amber-400" : "text-red-400"
+              winRate >= 60 ? "text-[var(--trade-bullish)]" : winRate >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {safeToFixed(winRate, 0)}% WR
             </span>
@@ -129,7 +129,7 @@ function CompactSetupRow({
           {pnl !== 0 && (
             <span className={cn(
               "flex items-center gap-1 font-mono",
-              pnl >= 0 ? "text-green-400" : "text-red-400"
+              pnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               <DollarSign className="h-3 w-3" />
               {pnl >= 0 ? '+' : ''}{safeToFixed(pnl, 0)}

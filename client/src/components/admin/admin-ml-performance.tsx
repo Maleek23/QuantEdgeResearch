@@ -94,12 +94,12 @@ function MetricValue({
   let colorClass = "text-muted-foreground";
   if (goodThreshold !== undefined && badThreshold !== undefined) {
     if (inverse) {
-      if (value <= goodThreshold) colorClass = "text-green-500";
-      else if (value >= badThreshold) colorClass = "text-red-500";
+      if (value <= goodThreshold) colorClass = "text-[var(--trade-bullish)]";
+      else if (value >= badThreshold) colorClass = "text-[var(--trade-bearish)]";
       else colorClass = "text-yellow-500";
     } else {
-      if (value >= goodThreshold) colorClass = "text-green-500";
-      else if (value <= badThreshold) colorClass = "text-red-500";
+      if (value >= goodThreshold) colorClass = "text-[var(--trade-bullish)]";
+      else if (value <= badThreshold) colorClass = "text-[var(--trade-bearish)]";
       else colorClass = "text-yellow-500";
     }
   }
@@ -122,11 +122,11 @@ function EngineCard({ metrics }: { metrics: EngineMetrics }) {
           <CardTitle className="text-lg capitalize flex items-center gap-2">
             {metrics.engine}
             {isHealthy ? (
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <CheckCircle2 className="h-4 w-4 text-[var(--trade-bullish)]" />
             ) : isWarning ? (
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
+              <XCircle className="h-4 w-4 text-[var(--trade-bearish)]" />
             )}
           </CardTitle>
           <Badge variant="outline">
@@ -188,9 +188,9 @@ function EngineCard({ metrics }: { metrics: EngineMetrics }) {
           <div>
             <p className="text-xs text-muted-foreground">Avg Win / Loss</p>
             <span className="text-xs font-mono">
-              <span className="text-green-500">+{safeToFixed(metrics.avgWinPercent, 1)}%</span>
+              <span className="text-[var(--trade-bullish)]">+{safeToFixed(metrics.avgWinPercent, 1)}%</span>
               {" / "}
-              <span className="text-red-500">-{safeToFixed(metrics.avgLossPercent, 1)}%</span>
+              <span className="text-[var(--trade-bearish)]">-{safeToFixed(metrics.avgLossPercent, 1)}%</span>
             </span>
           </div>
         </div>
@@ -218,7 +218,7 @@ function CalibrationChart({ bins }: { bins: CalibrationData["bins"] }) {
             <div
               className={cn(
                 "absolute h-full rounded",
-                bin.isCalibrated ? "bg-green-500/50" : "bg-red-500/50"
+                bin.isCalibrated ? "bg-[var(--trade-bullish)]/50" : "bg-red-500/50"
               )}
               style={{ width: `${bin.actualWinRate}%` }}
             />
@@ -233,7 +233,7 @@ function CalibrationChart({ bins }: { bins: CalibrationData["bins"] }) {
           <div className="w-3 h-3 bg-blue-500/30 rounded" /> Predicted
         </span>
         <span className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-green-500/50 rounded" /> Actual (calibrated)
+          <div className="w-3 h-3 bg-[var(--trade-bullish)]/50 rounded" /> Actual (calibrated)
         </span>
         <span className="flex items-center gap-1">
           <div className="w-3 h-3 bg-red-500/50 rounded" /> Actual (miscalibrated)
@@ -334,7 +334,7 @@ export function AdminMLPerformance() {
           <CardContent>
             {mlHealth.issues.length > 0 && (
               <div className="mb-2">
-                <p className="text-sm font-medium text-red-500">Issues:</p>
+                <p className="text-sm font-medium text-[var(--trade-bearish)]">Issues:</p>
                 <ul className="text-sm text-muted-foreground list-disc list-inside">
                   {mlHealth.issues.map((issue, i) => (
                     <li key={i}>{issue}</li>
@@ -353,7 +353,7 @@ export function AdminMLPerformance() {
               </div>
             )}
             {mlHealth.issues.length === 0 && (
-              <p className="text-sm text-green-500 flex items-center gap-1">
+              <p className="text-sm text-[var(--trade-bullish)] flex items-center gap-1">
                 <CheckCircle2 className="h-4 w-4" />
                 All systems operational
               </p>
@@ -377,10 +377,10 @@ export function AdminMLPerformance() {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
+                <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
                 <span className="text-sm text-muted-foreground">Total Wins</span>
               </div>
-              <p className="text-2xl font-bold text-green-500">
+              <p className="text-2xl font-bold text-[var(--trade-bullish)]">
                 {aggregateMetrics.totalWins.toLocaleString()}
               </p>
             </CardContent>
@@ -388,10 +388,10 @@ export function AdminMLPerformance() {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-red-500" />
+                <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
                 <span className="text-sm text-muted-foreground">Total Losses</span>
               </div>
-              <p className="text-2xl font-bold text-red-500">
+              <p className="text-2xl font-bold text-[var(--trade-bearish)]">
                 {aggregateMetrics.totalLosses.toLocaleString()}
               </p>
             </CardContent>
@@ -404,7 +404,7 @@ export function AdminMLPerformance() {
               </div>
               <p className={cn(
                 "text-2xl font-bold",
-                aggregateMetrics.avgExpectancy >= 0 ? "text-green-500" : "text-red-500"
+                aggregateMetrics.avgExpectancy >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {aggregateMetrics.avgExpectancy >= 0 ? "+" : ""}
                 {safeToFixed(aggregateMetrics.avgExpectancy, 2)}%

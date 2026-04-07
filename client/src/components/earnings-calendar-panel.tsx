@@ -22,8 +22,8 @@ export function EarningsCalendarPanel() {
 
   const getDateLabel = (dateStr: string) => {
     const date = parseISO(dateStr);
-    if (isToday(date)) return { label: "Today", color: "text-red-500 bg-red-500/10" };
-    if (isTomorrow(date)) return { label: "Tomorrow", color: "text-amber-500 bg-amber-500/10" };
+    if (isToday(date)) return { label: "Today", color: "text-[var(--trade-bearish)] bg-red-500/10" };
+    if (isTomorrow(date)) return { label: "Tomorrow", color: "text-[var(--trade-neutral)] bg-amber-500/10" };
     const inThisWeek = isWithinInterval(date, { start: new Date(), end: addDays(new Date(), 7) });
     if (inThisWeek) return { label: format(date, "EEE"), color: "text-blue-500 bg-blue-500/10" };
     return { label: format(date, "MMM d"), color: "text-muted-foreground bg-muted" };
@@ -52,7 +52,7 @@ export function EarningsCalendarPanel() {
           </div>
         ) : earnings.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No upcoming earnings this week
+            No earnings this week this week
           </p>
         ) : (
           <div className="space-y-2">

@@ -56,19 +56,19 @@ interface PatternResponse {
 
 function SignalBadge({ direction }: { direction: "bullish" | "bearish" | "neutral" }) {
   if (direction === "bullish") {
-    return <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Bullish</Badge>;
+    return <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Bullish</Badge>;
   }
   if (direction === "bearish") {
-    return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Bearish</Badge>;
+    return <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Bearish</Badge>;
   }
-  return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">Neutral</Badge>;
+  return <Badge className="bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30">Neutral</Badge>;
 }
 
 function PatternBadge({ pattern }: { pattern: PatternData }) {
   const typeColors = {
-    bullish: "bg-green-500/10 text-green-400 border-green-500/30",
-    bearish: "bg-red-500/10 text-red-400 border-red-500/30",
-    neutral: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+    bullish: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30",
+    bearish: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30",
+    neutral: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30",
   };
   
   return (
@@ -349,7 +349,7 @@ export default function BacktestPage() {
             <Button
               onClick={handleSearch}
               disabled={!symbol.trim() || isLoading}
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
               data-testid="button-analyze"
             >
               {isLoading ? (
@@ -364,7 +364,7 @@ export default function BacktestPage() {
                 variant="outline"
                 onClick={() => refetch()}
                 disabled={isLoading}
-                className="border-slate-700"
+                className="border-border"
                 data-testid="button-refresh"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -377,8 +377,8 @@ export default function BacktestPage() {
       {error && (
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-400" />
-            <span className="text-red-400">
+            <AlertTriangle className="h-5 w-5 text-[var(--trade-bearish)]" />
+            <span className="text-[var(--trade-bearish)]">
               Failed to fetch data. Please check the symbol and try again.
             </span>
           </CardContent>
@@ -417,7 +417,7 @@ export default function BacktestPage() {
                 </p>
                 <p className={cn(
                   "text-xl font-bold font-mono tabular-nums flex items-center gap-1",
-                  patternData.priceChange >= 0 ? "text-green-400" : "text-red-400"
+                  patternData.priceChange >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )} data-testid="text-change">
                   {patternData.priceChange >= 0 ? (
                     <TrendingUp className="h-4 w-4" />
@@ -436,7 +436,7 @@ export default function BacktestPage() {
                 </p>
                 <div className="flex items-center gap-2" data-testid="text-signal">
                   <SignalBadge direction={patternData.signalScore.direction} />
-                  <span className="text-lg font-bold font-mono">{patternData.signalScore.score}</span>
+                  <span className="text-lg font-bold font-mono tabular-nums">{patternData.signalScore.score}</span>
                 </div>
               </CardContent>
             </Card>
@@ -445,7 +445,7 @@ export default function BacktestPage() {
           <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Target className="h-5 w-5 text-emerald-400" />
+                <Target className="h-5 w-5 text-[var(--trade-bullish)]" />
                 Price Chart with Bollinger Bands
               </CardTitle>
             </CardHeader>
@@ -522,9 +522,9 @@ export default function BacktestPage() {
                     <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi.value < 30 ? (
-                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Oversold</Badge>
                       ) : patternData.indicators.rsi.value > 70 ? (
-                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Overbought</Badge>
+                        <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Overbought</Badge>
                       ) : (
                         <Badge variant="outline">Neutral</Badge>
                       )}
@@ -535,9 +535,9 @@ export default function BacktestPage() {
                     <TableCell className="font-mono tabular-nums">{safeToFixed(patternData.indicators.rsi2.value, 2)}</TableCell>
                     <TableCell>
                       {patternData.indicators.rsi2.value < 10 ? (
-                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Extreme Oversold</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Extreme Oversold</Badge>
                       ) : patternData.indicators.rsi2.value > 90 ? (
-                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Extreme Overbought</Badge>
+                        <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Extreme Overbought</Badge>
                       ) : (
                         <Badge variant="outline">Normal</Badge>
                       )}
@@ -550,9 +550,9 @@ export default function BacktestPage() {
                     </TableCell>
                     <TableCell>
                       {patternData.indicators.macd.histogram > 0 ? (
-                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Bullish</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Bullish</Badge>
                       ) : (
-                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Bearish</Badge>
+                        <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Bearish</Badge>
                       )}
                     </TableCell>
                   </TableRow>
@@ -565,9 +565,9 @@ export default function BacktestPage() {
                     </TableCell>
                     <TableCell>
                       {patternData.currentPrice < patternData.indicators.bollingerBands.lower ? (
-                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Below Lower</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Below Lower</Badge>
                       ) : patternData.currentPrice > patternData.indicators.bollingerBands.upper ? (
-                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Above Upper</Badge>
+                        <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Above Upper</Badge>
                       ) : (
                         <Badge variant="outline">Within Bands</Badge>
                       )}
@@ -590,9 +590,9 @@ export default function BacktestPage() {
                       </TableCell>
                       <TableCell>
                         {patternData.indicators.stochRSI.k < 20 ? (
-                          <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
+                          <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Oversold</Badge>
                         ) : patternData.indicators.stochRSI.k > 80 ? (
-                          <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Overbought</Badge>
+                          <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Overbought</Badge>
                         ) : (
                           <Badge variant="outline">Neutral</Badge>
                         )}

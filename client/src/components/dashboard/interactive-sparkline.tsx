@@ -140,7 +140,7 @@ export function InteractiveSparkline({
         <motion.div
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute left-1/2 -translate-x-1/2 -top-8 glass-card border border-slate-700 rounded px-2 py-1 shadow-xl pointer-events-none z-10"
+          className="absolute left-1/2 -translate-x-1/2 -top-8 glass-card border border-border rounded px-2 py-1 shadow-xl pointer-events-none z-10"
         >
           <p className="text-xs font-mono font-bold whitespace-nowrap" style={{ color }}>
             {safeToFixed(points[hoveredIndex].value, 2)}

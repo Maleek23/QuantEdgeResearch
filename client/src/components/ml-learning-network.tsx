@@ -161,11 +161,11 @@ export function MLLearningNetwork({ signals, totalTrades }: MLLearningNetworkPro
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
                 <p className="text-muted-foreground mb-1">Historical Trades</p>
-                <p className="text-lg font-bold font-mono">{totalTrades}</p>
+                <p className="text-lg font-bold font-mono tabular-nums">{totalTrades}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Signals Analyzed</p>
-                <p className="text-lg font-bold font-mono">{signals.length}</p>
+                <p className="text-lg font-bold font-mono tabular-nums">{signals.length}</p>
               </div>
             </div>
 
@@ -174,17 +174,17 @@ export function MLLearningNetwork({ signals, totalTrades }: MLLearningNetworkPro
                 <p className="text-xs text-muted-foreground mb-2">Recent Learning Insights:</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
-                    <TrendingUp className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+                    <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
                     <p className="text-xs">
-                      <span className="font-semibold text-green-500">{sortedSignals[0].signal}</span> is top performer
+                      <span className="font-semibold text-[var(--trade-bullish)]">{sortedSignals[0].signal}</span> is top performer
                       ({safeToFixed(sortedSignals[0].winRate * 100, 0)}% WR)
                     </p>
                   </div>
                   {sortedSignals.length > 1 && sortedSignals[sortedSignals.length - 1].winRate < 0.5 && (
                     <div className="flex items-start gap-2">
-                      <TrendingDown className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <TrendingDown className="h-3 w-3 text-[var(--trade-neutral)] mt-0.5 flex-shrink-0" />
                       <p className="text-xs">
-                        <span className="font-semibold text-amber-500">{sortedSignals[sortedSignals.length - 1].signal}</span> needs tuning
+                        <span className="font-semibold text-[var(--trade-neutral)]">{sortedSignals[sortedSignals.length - 1].signal}</span> needs tuning
                         ({safeToFixed(sortedSignals[sortedSignals.length - 1].winRate * 100, 0)}% WR)
                       </p>
                     </div>

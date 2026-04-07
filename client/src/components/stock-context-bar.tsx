@@ -23,7 +23,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
 
   if (!currentStock) return null;
 
-  const changeColor = currentStock.change && currentStock.change >= 0 ? "text-green-400" : "text-red-400";
+  const changeColor = currentStock.change && currentStock.change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
   const changeSign = currentStock.change && currentStock.change >= 0 ? "+" : "";
 
   return (
@@ -38,7 +38,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
             <div className="flex items-center gap-2">
               <span className="text-xl font-bold text-white">{currentStock.symbol}</span>
               {currentStock.name && (
-                <span className="text-sm text-slate-400 hidden sm:inline">
+                <span className="text-sm text-muted-foreground hidden sm:inline">
                   {currentStock.name}
                 </span>
               )}
@@ -64,7 +64,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-slate-300 hover:text-cyan-400 hover:bg-cyan-500/10"
+                className="gap-2 text-foreground/80 hover:text-cyan-400 hover:bg-cyan-500/10"
               >
                 <LineChart className="w-4 h-4" />
                 <span className="hidden md:inline">Chart</span>
@@ -75,7 +75,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-slate-300 hover:text-cyan-400 hover:bg-cyan-500/10"
+                className="gap-2 text-foreground/80 hover:text-cyan-400 hover:bg-cyan-500/10"
               >
                 <Activity className="w-4 h-4" />
                 <span className="hidden md:inline">Options</span>
@@ -86,7 +86,7 @@ export function StockContextBar({ className }: StockContextBarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-slate-300 hover:text-cyan-400 hover:bg-cyan-500/10"
+                className="gap-2 text-foreground/80 hover:text-cyan-400 hover:bg-cyan-500/10"
               >
                 <Briefcase className="w-4 h-4" />
                 <span className="hidden md:inline">Flow</span>
@@ -97,20 +97,20 @@ export function StockContextBar({ className }: StockContextBarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2 text-slate-300 hover:text-cyan-400 hover:bg-cyan-500/10"
+                className="gap-2 text-foreground/80 hover:text-cyan-400 hover:bg-cyan-500/10"
               >
                 <Sparkles className="w-4 h-4" />
                 <span className="hidden md:inline">AI Analysis</span>
               </Button>
             </Link>
 
-            <div className="w-px h-6 bg-slate-700 mx-1" />
+            <div className="w-px h-6 bg-muted mx-1" />
 
             <Button
               variant="ghost"
               size="sm"
               onClick={clearStock}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-white"
             >
               <X className="w-4 h-4" />
             </Button>

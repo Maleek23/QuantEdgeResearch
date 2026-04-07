@@ -114,19 +114,19 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 bg-slate-900 border-slate-800 overflow-hidden">
+      <DialogContent className="max-w-lg p-0 bg-card border-border overflow-hidden">
         {/* Header */}
         <div className={cn(
           "px-5 pt-5 pb-4",
-          isTV ? "bg-purple-500/5 border-b border-purple-500/20" : "border-b border-slate-800"
+          isTV ? "bg-purple-500/5 border-b border-purple-500/20" : "border-b border-border"
         )}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm",
                 isLong
-                  ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                  : "bg-red-500/20 text-red-400 border border-red-500/30"
+                  ? "bg-emerald-500/20 text-[var(--trade-bullish)] border border-emerald-500/30"
+                  : "bg-red-500/20 text-[var(--trade-bearish)] border border-red-500/30"
               )}>
                 {idea.symbol.slice(0, 2)}
               </div>
@@ -135,7 +135,7 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                   <span className="text-lg font-bold text-white">{idea.symbol}</span>
                   <Badge className={cn(
                     "text-[10px] border",
-                    isLong ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-red-500/15 text-red-400 border-red-500/30"
+                    isLong ? "bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30" : "bg-red-500/15 text-[var(--trade-bearish)] border-red-500/30"
                   )}>
                     {isLong ? 'LONG' : 'SHORT'}
                   </Badge>
@@ -146,19 +146,19 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                   )}
                 </div>
                 {isOption && (
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
                     <span className="text-white font-mono">{optType} ${strike}</span>
                     {expiryFormatted && <span>exp {expiryFormatted}</span>}
-                    {contractCost && <span className="text-slate-500">• ${contractCost.toFixed(0)}/ct</span>}
+                    {contractCost && <span className="text-muted-foreground">• ${contractCost.toFixed(0)}/ct</span>}
                   </div>
                 )}
               </div>
             </div>
             <Badge className={cn(
               "text-lg font-bold px-3 py-1",
-              grade.startsWith('A') ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" :
-              grade.startsWith('B') ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" :
-              "bg-slate-500/15 text-slate-400 border border-slate-500/30"
+              grade.startsWith('A') ? "bg-amber-500/20 text-[var(--trade-neutral)] border border-amber-500/40" :
+              grade.startsWith('B') ? "bg-emerald-500/15 text-[var(--trade-bullish)] border border-emerald-500/30" :
+              "bg-muted-foreground/15 text-muted-foreground border border-muted-foreground/30"
             )}>
               {grade}
             </Badge>
@@ -170,7 +170,7 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* SCORES — TV vs QE */}
           {(tvScore || qeScore) && (
             <div>
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Scores</h3>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Scores</h3>
               <div className="grid grid-cols-3 gap-2">
                 {tvScore && (
                   <div className="text-center py-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
@@ -185,24 +185,24 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                     qeVerdict === 'NEUTRAL' ? "bg-amber-500/10 border-amber-500/20" :
                     "bg-red-500/10 border-red-500/20"
                   )}>
-                    <div className="text-[9px] text-slate-400 uppercase">QE Score</div>
+                    <div className="text-[9px] text-muted-foreground uppercase">QE Score</div>
                     <div className={cn(
                       "text-xl font-bold font-mono",
-                      qeVerdict === 'CONFIRMED' ? "text-emerald-400" :
-                      qeVerdict === 'NEUTRAL' ? "text-amber-400" : "text-red-400"
+                      qeVerdict === 'CONFIRMED' ? "text-[var(--trade-bullish)]" :
+                      qeVerdict === 'NEUTRAL' ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                     )}>{qeScore}</div>
                     <div className={cn(
                       "text-[9px] font-medium",
-                      qeVerdict === 'CONFIRMED' ? "text-emerald-400/70" :
-                      qeVerdict === 'NEUTRAL' ? "text-amber-400/70" : "text-red-400/70"
+                      qeVerdict === 'CONFIRMED' ? "text-[var(--trade-bullish)]/70" :
+                      qeVerdict === 'NEUTRAL' ? "text-[var(--trade-neutral)]/70" : "text-[var(--trade-bearish)]/70"
                     )}>{qeVerdict}</div>
                   </div>
                 )}
-                <div className="text-center py-2 rounded-lg bg-white/5 border border-slate-700/50">
-                  <div className="text-[9px] text-slate-500 uppercase">Combined</div>
+                <div className="text-center py-2 rounded-lg bg-white/5 border border-border/50">
+                  <div className="text-[9px] text-muted-foreground uppercase">Combined</div>
                   <div className={cn(
                     "text-xl font-bold font-mono",
-                    confidence >= 80 ? "text-emerald-400" : confidence >= 65 ? "text-amber-400" : "text-red-400"
+                    confidence >= 80 ? "text-[var(--trade-bullish)]" : confidence >= 65 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
                   )}>{Math.round(confidence)}</div>
                 </div>
               </div>
@@ -212,15 +212,15 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* QE CHECKS */}
           {qeChecks.length > 0 && (
             <div>
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">QE Validation</h3>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">QE Validation</h3>
               <div className="space-y-1.5">
                 {qeChecks.map((check, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     {check.passed
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      : <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--trade-bullish)] shrink-0" />
+                      : <AlertTriangle className="w-3.5 h-3.5 text-[var(--trade-neutral)] shrink-0" />
                     }
-                    <span className={check.passed ? "text-slate-300" : "text-amber-400/80"}>
+                    <span className={check.passed ? "text-foreground/80" : "text-[var(--trade-neutral)]/80"}>
                       {check.label}
                     </span>
                   </div>
@@ -232,36 +232,36 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* No scores for non-TV ideas — show confidence only */}
           {!tvScore && !qeScore && (
             <div>
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Confidence</h3>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Confidence</h3>
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "text-2xl font-bold font-mono",
-                  confidence >= 80 ? "text-emerald-400" : confidence >= 65 ? "text-amber-400" : "text-slate-400"
+                  confidence >= 80 ? "text-[var(--trade-bullish)]" : confidence >= 65 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
                 )}>
                   {Math.round(confidence)}%
                 </div>
-                <span className="text-xs text-slate-500">from calibration engine (historical WR + R:R + signals)</span>
+                <span className="text-xs text-muted-foreground">from calibration engine (historical WR + R:R + signals)</span>
               </div>
             </div>
           )}
 
-          <Separator className="bg-slate-800" />
+          <Separator className="bg-muted" />
 
           {/* TRADE LEVELS */}
           <div>
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Trade Levels</h3>
+            <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Trade Levels</h3>
             <div className="grid grid-cols-4 gap-2">
-              <div className="text-center py-2 rounded bg-slate-800/50">
-                <div className="text-[9px] text-slate-500">Entry</div>
+              <div className="text-center py-2 rounded bg-muted/50">
+                <div className="text-[9px] text-muted-foreground">Entry</div>
                 <div className="text-sm font-bold font-mono text-white">${safeFixed(idea.entryPrice, 2)}</div>
               </div>
               <div className="text-center py-2 rounded bg-emerald-500/10">
-                <div className="text-[9px] text-emerald-400/70">Target</div>
-                <div className="text-sm font-bold font-mono text-emerald-400">${safeFixed(idea.targetPrice, 2)}</div>
+                <div className="text-[9px] text-[var(--trade-bullish)]/70">Target</div>
+                <div className="text-sm font-bold font-mono text-[var(--trade-bullish)]">${safeFixed(idea.targetPrice, 2)}</div>
               </div>
               <div className="text-center py-2 rounded bg-red-500/10">
-                <div className="text-[9px] text-red-400/70">Stop</div>
-                <div className="text-sm font-bold font-mono text-red-400">${safeFixed(idea.stopLoss, 2)}</div>
+                <div className="text-[9px] text-[var(--trade-bearish)]/70">Stop</div>
+                <div className="text-sm font-bold font-mono text-[var(--trade-bearish)]">${safeFixed(idea.stopLoss, 2)}</div>
               </div>
               <div className="text-center py-2 rounded bg-cyan-500/10">
                 <div className="text-[9px] text-cyan-400/70">R:R</div>
@@ -273,13 +273,13 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* SCALE-OUT PLAN (options only) */}
           {scaleOut.length > 0 && (
             <div>
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Scale-Out Plan</h3>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Scale-Out Plan</h3>
               <div className="space-y-1.5">
                 {scaleOut.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-slate-800/30">
+                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-mono font-medium w-12">{s.level}</span>
-                      <span className="text-slate-400">{s.action}</span>
+                      <span className="text-[var(--trade-bullish)] font-mono font-medium w-12">{s.level}</span>
+                      <span className="text-muted-foreground">{s.action}</span>
                     </div>
                     {s.price && <span className="text-white font-mono">${s.price}</span>}
                   </div>
@@ -291,9 +291,9 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* CATALYST */}
           {catalyst && (
             <div>
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Catalyst</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                <Zap className="w-3 h-3 text-amber-400 inline mr-1" />
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Catalyst</h3>
+              <p className="text-xs text-foreground/80 leading-relaxed">
+                <Zap className="w-3 h-3 text-[var(--trade-neutral)] inline mr-1" />
                 {catalyst.split('|')[0].trim()}
               </p>
             </div>
@@ -301,15 +301,15 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
 
           {/* STRATEGY CONTEXT */}
           <div>
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Strategy</h3>
-            <div className="flex items-center gap-3 text-xs text-slate-400">
+            <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Strategy</h3>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{strategyName}</span>
-              <span className="text-slate-700">|</span>
+              <span className="text-muted-foreground/50">|</span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {relativeTime(idea.timestamp || '')}
               </span>
-              <span className="text-slate-700">|</span>
+              <span className="text-muted-foreground/50">|</span>
               <span>{(idea as any).source || 'scanner'}</span>
             </div>
           </div>
@@ -317,13 +317,13 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
           {/* ACTIONS */}
           <div className="flex items-center gap-2 pt-2">
             <Link href={`/stock/${idea.symbol}`}>
-              <Button variant="outline" size="sm" className="text-xs border-slate-700 hover:border-slate-600">
+              <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <ExternalLink className="w-3 h-3 mr-1.5" />
                 Full Analysis
               </Button>
             </Link>
             <Link href={`/gex?symbol=${idea.symbol}`}>
-              <Button variant="outline" size="sm" className="text-xs border-slate-700 hover:border-slate-600">
+              <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <BarChart3 className="w-3 h-3 mr-1.5" />
                 GEX Profile
               </Button>

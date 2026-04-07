@@ -46,7 +46,7 @@ function CustomTooltip({ active, payload }: any) {
             <span className="text-muted-foreground">Rolling Win Rate:</span>
             <span className={cn(
               "font-mono font-semibold",
-              data.winRate >= 60 ? "text-green-500" : data.winRate >= 50 ? "text-amber-500" : "text-red-500"
+              data.winRate >= 60 ? "text-[var(--trade-bullish)]" : data.winRate >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {data.winRate}%
             </span>
@@ -61,7 +61,7 @@ function CustomTooltip({ active, payload }: any) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Avg P&L:</span>
-            <span className={cn("font-mono", data.avgPnL >= 0 ? "text-green-500" : "text-red-500")}>
+            <span className={cn("font-mono", data.avgPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {data.avgPnL >= 0 ? '+' : ''}{data.avgPnL}%
             </span>
           </div>
@@ -75,9 +75,9 @@ function CustomTooltip({ active, payload }: any) {
 function getTrendIcon(trend: string | undefined) {
   switch (trend) {
     case 'improving':
-      return <TrendingUp className="w-4 h-4 text-green-500" />;
+      return <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />;
     case 'declining':
-      return <TrendingDown className="w-4 h-4 text-red-500" />;
+      return <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />;
     default:
       return <Minus className="w-4 h-4 text-muted-foreground" />;
   }
@@ -86,9 +86,9 @@ function getTrendIcon(trend: string | undefined) {
 function getTrendBadge(trend: string | undefined) {
   switch (trend) {
     case 'improving':
-      return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">Improving</Badge>;
+      return <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30">Improving</Badge>;
     case 'declining':
-      return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">Declining</Badge>;
+      return <Badge variant="outline" className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30">Declining</Badge>;
     default:
       return <Badge variant="outline" className="bg-muted text-muted-foreground">Stable</Badge>;
   }
@@ -151,8 +151,8 @@ export default function RollingWinRateChart() {
         </CardHeader>
         <CardContent>
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="text-sm text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-600 dark:text-[var(--trade-neutral)]">
               <p className="font-medium">Insufficient Data</p>
               <p className="text-xs mt-1">{summary.message}</p>
             </div>
@@ -208,19 +208,19 @@ export default function RollingWinRateChart() {
             <p className="text-xs text-muted-foreground">Current</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              (summary.currentWinRate || 0) >= 60 ? "text-green-500" : 
-              (summary.currentWinRate || 0) >= 50 ? "text-amber-500" : "text-red-500"
+              (summary.currentWinRate || 0) >= 60 ? "text-[var(--trade-bullish)]" : 
+              (summary.currentWinRate || 0) >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.currentWinRate}%
             </p>
           </div>
-          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+          <div className="p-3 rounded-lg bg-[var(--trade-bullish)]/10 border border-green-500/20">
             <p className="text-xs text-muted-foreground">Peak</p>
-            <p className="font-semibold font-mono text-lg text-green-500">{summary.maxWinRate}%</p>
+            <p className="font-semibold font-mono text-lg text-[var(--trade-bullish)]">{summary.maxWinRate}%</p>
           </div>
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <p className="text-xs text-muted-foreground">Trough</p>
-            <p className="font-semibold font-mono text-lg text-red-500">{summary.minWinRate}%</p>
+            <p className="font-semibold font-mono text-lg text-[var(--trade-bearish)]">{summary.minWinRate}%</p>
           </div>
           <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
             <p className="text-xs text-muted-foreground">Volatility</p>
@@ -283,7 +283,7 @@ export default function RollingWinRateChart() {
 
         <div className="flex items-center gap-4 justify-center text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-green-500 rounded" />
+            <div className="w-3 h-0.5 bg-[var(--trade-bullish)] rounded" />
             <span className="text-muted-foreground">Rolling ({summary.windowSize}-trade)</span>
           </div>
           <div className="flex items-center gap-1.5">

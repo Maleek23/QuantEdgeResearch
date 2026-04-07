@@ -46,7 +46,7 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
   ];
 
   const recommendation = bullishPercent >= 60 ? "BUY" : bullishPercent >= 40 ? "HOLD" : "SELL";
-  const recommendationColor = recommendation === "BUY" ? "text-bullish" : recommendation === "HOLD" ? "text-amber-500" : "text-bearish";
+  const recommendationColor = recommendation === "BUY" ? "text-bullish" : recommendation === "HOLD" ? "text-[var(--trade-neutral)]" : "text-bearish";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -170,7 +170,7 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                   
                   <div className="bg-muted/30 rounded-md p-4 border border-muted">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
+                      <AlertCircle className="h-5 w-5 text-[var(--trade-neutral)] mt-0.5" />
                       <div className="space-y-1">
                         <p className="text-sm font-semibold">Research-Based Insight</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
@@ -203,9 +203,9 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                     </div>
                     <div className="text-center p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
                       <div className="h-6 w-6 mx-auto mb-2 flex items-center justify-center">
-                        <div className="h-4 w-4 border-2 border-amber-500 rounded-sm" />
+                        <div className="h-4 w-4 border-2 border-[var(--trade-neutral)] rounded-sm" />
                       </div>
-                      <p className="text-2xl font-bold text-amber-500">{holdPercent}%</p>
+                      <p className="text-2xl font-bold text-[var(--trade-neutral)]">{holdPercent}%</p>
                       <p className="text-xs text-muted-foreground mt-1">Neutral</p>
                     </div>
                     <div className="text-center p-4 bg-bearish/10 rounded-lg border border-bearish/20">
@@ -234,7 +234,7 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                         <span>"Strong technical breakout above key resistance. Looking for continuation." - Bullish traders</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-amber-500 mt-0.5">•</span>
+                        <span className="text-[var(--trade-neutral)] mt-0.5">•</span>
                         <span>"Waiting for confirmation at current levels before taking position." - Neutral traders</span>
                       </li>
                       <li className="flex items-start gap-2">

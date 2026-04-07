@@ -77,8 +77,8 @@ export function InteractivePriceChart({
   const availableIndicators = [
     { id: "RSI", name: "RSI (14)", color: "text-purple-400" },
     { id: "MACD", name: "MACD", color: "text-cyan-400" },
-    { id: "MA50", name: "MA 50", color: "text-amber-400" },
-    { id: "MA200", name: "MA 200", color: "text-emerald-400" },
+    { id: "MA50", name: "MA 50", color: "text-[var(--trade-neutral)]" },
+    { id: "MA200", name: "MA 200", color: "text-[var(--trade-bullish)]" },
     { id: "BB", name: "Bollinger Bands", color: "text-blue-400" },
   ];
 
@@ -89,23 +89,23 @@ export function InteractivePriceChart({
   };
 
   return (
-    <Card className={cn("p-6 bg-slate-900/90 border-slate-800", className)}>
+    <Card className={cn("p-6 bg-card/90 border-border", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-slate-800/50">
+          <div className="p-2 rounded-lg bg-muted/50">
             <BarChart3 className="h-5 w-5 text-cyan-400" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-100">Price Chart</h3>
+            <h3 className="text-xl font-bold text-foreground/95">Price Chart</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-2xl font-bold font-mono text-slate-100">
+              <span className="text-2xl font-bold font-mono text-foreground/95">
                 ${safeToFixed(latestData?.close, 2)}
               </span>
               <div
                 className={cn(
                   "flex items-center gap-1 text-sm font-semibold",
-                  isPositive ? "text-emerald-400" : "text-red-400"
+                  isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}
               >
                 {isPositive ? (
@@ -124,7 +124,7 @@ export function InteractivePriceChart({
         </div>
 
         {/* Timeframe Selector */}
-        <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
           {timeframes.map((tf) => (
             <button
               key={tf}
@@ -133,7 +133,7 @@ export function InteractivePriceChart({
                 "px-3 py-1 rounded text-xs font-semibold transition-colors",
                 timeframe === tf
                   ? "bg-cyan-500/20 text-cyan-400"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-muted-foreground hover:text-foreground/80"
               )}
             >
               {tf}
@@ -144,12 +144,12 @@ export function InteractivePriceChart({
 
       {/* Drawing Tools */}
       <div className="flex items-center gap-2 mb-3">
-        <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
           <button
             onClick={() => setIsDrawing(false)}
             className={cn(
               "px-3 py-1.5 rounded text-xs font-semibold transition-all",
-              !isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-slate-500 hover:text-slate-300"
+              !isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-muted-foreground hover:text-foreground/80"
             )}
           >
             Select
@@ -158,27 +158,27 @@ export function InteractivePriceChart({
             onClick={() => setIsDrawing(true)}
             className={cn(
               "px-3 py-1.5 rounded text-xs font-semibold transition-all",
-              isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-slate-500 hover:text-slate-300"
+              isDrawing ? "bg-cyan-500/20 text-cyan-400" : "text-muted-foreground hover:text-foreground/80"
             )}
           >
             Draw
           </button>
         </div>
         <div className="flex-1" />
-        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
+        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:bg-muted hover:text-foreground/90 transition-all">
           Measure
         </button>
-        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
+        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:bg-muted hover:text-foreground/90 transition-all">
           Zoom
         </button>
-        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 transition-all">
+        <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-muted text-muted-foreground hover:bg-muted hover:text-foreground/90 transition-all">
           Reset
         </button>
       </div>
 
       {/* Chart Placeholder (Would integrate with recharts/tradingview) */}
       <div
-        className="relative h-96 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border border-slate-700 mb-4 overflow-hidden cursor-crosshair group"
+        className="relative h-96 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg border border-border mb-4 overflow-hidden cursor-crosshair group"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - rect.left;
@@ -191,7 +191,7 @@ export function InteractivePriceChart({
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full grid grid-cols-8 grid-rows-5">
             {Array.from({ length: 40 }).map((_, i) => (
-              <div key={i} className="border border-slate-600" />
+              <div key={i} className="border border-border" />
             ))}
           </div>
         </div>
@@ -216,7 +216,7 @@ export function InteractivePriceChart({
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute bg-slate-900 border border-cyan-500/30 rounded-lg p-3 shadow-xl pointer-events-none z-20"
+              className="absolute bg-card border border-cyan-500/30 rounded-lg p-3 shadow-xl pointer-events-none z-20"
               style={{
                 left: Math.min(hoveredPoint.x + 10, window.innerWidth - 200),
                 top: Math.max(hoveredPoint.y - 80, 10),
@@ -224,18 +224,18 @@ export function InteractivePriceChart({
             >
               <div className="space-y-1 text-xs">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Price:</span>
+                  <span className="text-muted-foreground">Price:</span>
                   <span className="font-mono font-bold text-cyan-400">${safeToFixed(latestData?.close, 2)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Change:</span>
-                  <span className={cn("font-mono font-semibold", isPositive ? "text-emerald-400" : "text-red-400")}>
+                  <span className="text-muted-foreground">Change:</span>
+                  <span className={cn("font-mono font-semibold", isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                     {isPositive ? "+" : ""}{safeToFixed(priceChange, 2)} ({isPositive ? "+" : ""}{safeToFixed(priceChangePercent, 2)}%)
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Volume:</span>
-                  <span className="font-mono text-slate-300">{safeToFixed(safeNumber(latestData?.volume) / 1000000, 2)}M</span>
+                  <span className="text-muted-foreground">Volume:</span>
+                  <span className="font-mono text-foreground/80">{safeToFixed(safeNumber(latestData?.volume) / 1000000, 2)}M</span>
                 </div>
               </div>
             </motion.div>
@@ -245,11 +245,11 @@ export function InteractivePriceChart({
         {/* Chart visualization placeholder */}
         <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-30 transition-opacity">
           <div className="text-center space-y-2">
-            <Activity className="h-12 w-12 text-slate-700 mx-auto animate-pulse" />
-            <p className="text-sm text-slate-600 font-semibold">
+            <Activity className="h-12 w-12 text-muted-foreground/50 mx-auto animate-pulse" />
+            <p className="text-sm text-muted-foreground/70 font-semibold">
               Interactive Chart Ready
             </p>
-            <p className="text-xs text-slate-700">
+            <p className="text-xs text-muted-foreground/50">
               Hover to see crosshair • Click to analyze
             </p>
           </div>
@@ -273,19 +273,19 @@ export function InteractivePriceChart({
                 className={cn(
                   "w-3 h-3 rounded-full border-2",
                   event.impact === "positive"
-                    ? "bg-emerald-500 border-emerald-400"
+                    ? "bg-[var(--trade-bullish)] border-emerald-400"
                     : event.impact === "negative"
-                    ? "bg-red-500 border-red-400"
-                    : "bg-amber-500 border-amber-400"
+                    ? "bg-[var(--trade-bearish)] border-red-400"
+                    : "bg-[var(--trade-neutral)] border-amber-400"
                 )}
               />
               {/* Tooltip */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                <div className="bg-slate-900 border border-slate-700 rounded-lg p-2 whitespace-nowrap shadow-xl">
-                  <p className="text-xs font-semibold text-slate-100">
+                <div className="bg-card border border-border rounded-lg p-2 whitespace-nowrap shadow-xl">
+                  <p className="text-xs font-semibold text-foreground/95">
                     {event.label}
                   </p>
-                  <p className="text-xs text-slate-500">{event.date}</p>
+                  <p className="text-xs text-muted-foreground">{event.date}</p>
                 </div>
               </div>
             </div>
@@ -296,8 +296,8 @@ export function InteractivePriceChart({
       {/* Indicator Selector */}
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-2">
-          <Zap className="h-4 w-4 text-slate-500" />
-          <span className="text-sm font-semibold text-slate-400">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-muted-foreground">
             Technical Indicators
           </span>
         </div>
@@ -309,8 +309,8 @@ export function InteractivePriceChart({
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border",
                 selectedIndicators.includes(indicator.id)
-                  ? "bg-slate-800 border-cyan-500/30 text-cyan-400"
-                  : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-600"
+                  ? "bg-muted border-cyan-500/30 text-cyan-400"
+                  : "bg-card border-border text-muted-foreground hover:border-border"
               )}
             >
               {indicator.name}
@@ -321,8 +321,8 @@ export function InteractivePriceChart({
             className={cn(
               "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border",
               showVolume
-                ? "bg-slate-800 border-blue-500/30 text-blue-400"
-                : "bg-slate-900 border-slate-700 text-slate-500 hover:border-slate-600"
+                ? "bg-muted border-blue-500/30 text-blue-400"
+                : "bg-card border-border text-muted-foreground hover:border-border"
             )}
           >
             <Volume2 className="h-3 w-3 inline mr-1" />
@@ -340,28 +340,28 @@ export function InteractivePriceChart({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-lg p-3"
+              className="bg-gradient-to-br from-slate-900 to-slate-800 border border-border rounded-lg p-3"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-slate-500">{indicator.name}</span>
+                <span className="text-xs text-muted-foreground">{indicator.name}</span>
                 <Badge
                   variant="outline"
                   className={cn(
                     "text-xs",
                     indicator.signal === "bullish"
-                      ? "text-emerald-400 border-emerald-500/30"
+                      ? "text-[var(--trade-bullish)] border-emerald-500/30"
                       : indicator.signal === "bearish"
-                      ? "text-red-400 border-red-500/30"
-                      : "text-amber-400 border-amber-500/30"
+                      ? "text-[var(--trade-bearish)] border-red-500/30"
+                      : "text-[var(--trade-neutral)] border-amber-500/30"
                   )}
                 >
                   {indicator.signal === "bullish" ? "↑" : indicator.signal === "bearish" ? "↓" : "→"}
                 </Badge>
               </div>
-              <div className="text-lg font-bold font-mono text-slate-100">
+              <div className="text-lg font-bold font-mono text-foreground/95">
                 {safeToFixed(indicator.value, 2)}
               </div>
-              <p className="text-xs text-slate-600 mt-1 line-clamp-1">
+              <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-1">
                 {indicator.description}
               </p>
             </motion.div>
@@ -371,10 +371,10 @@ export function InteractivePriceChart({
 
       {/* Events Timeline */}
       {events.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-slate-800">
+        <div className="mt-6 pt-6 border-t border-border">
           <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-4 w-4 text-slate-500" />
-            <span className="text-sm font-semibold text-slate-400">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold text-muted-foreground">
               Recent Events
             </span>
           </div>
@@ -385,7 +385,7 @@ export function InteractivePriceChart({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="flex items-center gap-3 bg-slate-900/50 border border-slate-800 rounded-lg p-2"
+                className="flex items-center gap-3 bg-card/50 border border-border rounded-lg p-2"
               >
                 <div
                   className={cn(
@@ -399,14 +399,14 @@ export function InteractivePriceChart({
                 />
                 <Badge
                   variant="outline"
-                  className="text-xs text-slate-500 border-slate-700 shrink-0"
+                  className="text-xs text-muted-foreground border-border shrink-0"
                 >
                   {event.type}
                 </Badge>
-                <span className="text-sm text-slate-300 flex-1 truncate">
+                <span className="text-sm text-foreground/80 flex-1 truncate">
                   {event.label}
                 </span>
-                <span className="text-xs text-slate-600 shrink-0">
+                <span className="text-xs text-muted-foreground/70 shrink-0">
                   {event.date}
                 </span>
               </motion.div>

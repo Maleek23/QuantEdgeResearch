@@ -45,7 +45,7 @@ const MARKET_PHASES: Record<string, MarketPhase> = {
   opening: {
     name: 'OPENING RANGE',
     description: '9:30-10:00 ET - High volatility',
-    color: 'text-amber-400',
+    color: 'text-[var(--trade-neutral)]',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/30',
     icon: Zap,
@@ -63,9 +63,9 @@ const MARKET_PHASES: Record<string, MarketPhase> = {
   midday: {
     name: 'MIDDAY CHOP',
     description: '12:00-2:00 ET - Low volume zone',
-    color: 'text-slate-400',
-    bgColor: 'bg-slate-500/10',
-    borderColor: 'border-slate-500/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted-foreground/10',
+    borderColor: 'border-muted-foreground/30',
     icon: Timer,
     tradingAdvice: 'Reduced position size, watch for range-bound action',
   },
@@ -81,7 +81,7 @@ const MARKET_PHASES: Record<string, MarketPhase> = {
   powerHour: {
     name: 'POWER HOUR',
     description: '3:00-4:00 ET - Maximum gamma exposure',
-    color: 'text-red-400',
+    color: 'text-[var(--trade-bearish)]',
     bgColor: 'bg-red-500/10',
     borderColor: 'border-red-500/30',
     icon: Zap,
@@ -90,7 +90,7 @@ const MARKET_PHASES: Record<string, MarketPhase> = {
   closed: {
     name: 'MARKET CLOSED',
     description: 'After hours',
-    color: 'text-gray-500',
+    color: 'text-muted-foreground',
     bgColor: 'bg-gray-500/10',
     borderColor: 'border-gray-500/30',
     icon: Clock,
@@ -116,13 +116,13 @@ function getPositionSizing(vix: number): {
   color: string;
 } {
   if (vix < 15) {
-    return { sizeMultiplier: 1.0, maxContracts: 10, riskLevel: 'LOW', color: 'text-emerald-400' };
+    return { sizeMultiplier: 1.0, maxContracts: 10, riskLevel: 'LOW', color: 'text-[var(--trade-bullish)]' };
   } else if (vix < 20) {
-    return { sizeMultiplier: 0.75, maxContracts: 7, riskLevel: 'MEDIUM', color: 'text-amber-400' };
+    return { sizeMultiplier: 0.75, maxContracts: 7, riskLevel: 'MEDIUM', color: 'text-[var(--trade-neutral)]' };
   } else if (vix < 30) {
     return { sizeMultiplier: 0.5, maxContracts: 5, riskLevel: 'HIGH', color: 'text-orange-400' };
   } else {
-    return { sizeMultiplier: 0.25, maxContracts: 2, riskLevel: 'EXTREME', color: 'text-red-400' };
+    return { sizeMultiplier: 0.25, maxContracts: 2, riskLevel: 'EXTREME', color: 'text-[var(--trade-bearish)]' };
   }
 }
 
@@ -269,19 +269,19 @@ export function SPXSessionTimer({
             {phaseConfig.name}
           </span>
         </div>
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-muted-foreground">
           {formatTime(etTime)} ET
         </div>
       </div>
 
       {/* Phase Description */}
-      <p className="text-xs text-slate-400 mb-3">{phaseConfig.description}</p>
+      <p className="text-xs text-muted-foreground mb-3">{phaseConfig.description}</p>
 
       {/* Countdown to Next Phase */}
       {currentPhase !== 'closed' && (
-        <div className="flex items-center gap-2 mb-3 p-2 rounded bg-black/20">
-          <Timer className="w-4 h-4 text-slate-400" />
-          <span className="text-xs text-slate-400">Next phase in:</span>
+        <div className="flex items-center gap-2 mb-3 p-2 rounded bg-[var(--surface-base)]/20">
+          <Timer className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Next phase in:</span>
           <span className="text-sm font-mono font-bold text-white">
             {String(countdown.hours).padStart(2, '0')}:
             {String(countdown.minutes).padStart(2, '0')}:
@@ -292,8 +292,8 @@ export function SPXSessionTimer({
 
       {/* VIX-Based Position Sizing */}
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="p-2 rounded bg-black/20">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">VIX Level</div>
+        <div className="p-2 rounded bg-[var(--surface-base)]/20">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">VIX Level</div>
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">{safeToFixed(vix, 1)}</span>
             <Badge className={cn('text-[10px]', positionSizing.color, 'bg-transparent border-current')}>
@@ -301,8 +301,8 @@ export function SPXSessionTimer({
             </Badge>
           </div>
         </div>
-        <div className="p-2 rounded bg-black/20">
-          <div className="text-[10px] text-slate-500 uppercase mb-1">Size Multiplier</div>
+        <div className="p-2 rounded bg-[var(--surface-base)]/20">
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Size Multiplier</div>
           <div className="text-lg font-bold text-white">
             {safeToFixed(positionSizing.sizeMultiplier * 100, 0)}%
           </div>
@@ -311,26 +311,26 @@ export function SPXSessionTimer({
 
       {/* Gamma Level Position */}
       {gammaPosition && (
-        <div className="p-2 rounded bg-black/20 mb-3">
+        <div className="p-2 rounded bg-[var(--surface-base)]/20 mb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {gammaPosition.above ? (
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
               ) : (
-                <TrendingDown className="w-4 h-4 text-red-400" />
+                <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
               )}
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground">
                 {gammaPosition.above ? 'Above' : 'Below'} Gamma Flip
               </span>
             </div>
             <span className={cn(
               'text-sm font-bold',
-              gammaPosition.above ? 'text-emerald-400' : 'text-red-400'
+              gammaPosition.above ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
             )}>
               {safeToFixed(gammaPosition.distance, 0)} pts ({safeToFixed(gammaPosition.pctDistance, 2)}%)
             </span>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1">
             {gammaPosition.above
               ? 'Positive gamma zone - dealers hedge by buying dips, selling rips (mean reversion)'
               : 'Negative gamma zone - dealers amplify moves (momentum/trend continuation)'}
@@ -348,13 +348,13 @@ export function SPXSessionTimer({
       {spxPrice && (
         <div className="mt-3 pt-3 border-t border-white/5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500">SPX</span>
+            <span className="text-muted-foreground">SPX</span>
             <span className="font-mono font-bold text-white">${safeToFixed(spxPrice, 2)}</span>
           </div>
           {gammaFlip && (
             <div className="flex items-center justify-between text-xs mt-1">
-              <span className="text-slate-500">Gamma Flip</span>
-              <span className="font-mono text-amber-400">${safeToFixed(gammaFlip, 0)}</span>
+              <span className="text-muted-foreground">Gamma Flip</span>
+              <span className="font-mono text-[var(--trade-neutral)]">${safeToFixed(gammaFlip, 0)}</span>
             </div>
           )}
         </div>

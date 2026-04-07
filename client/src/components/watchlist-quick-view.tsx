@@ -26,7 +26,7 @@ export function WatchlistQuickView() {
   const getGradeColor = (grade?: string) => {
     switch (grade?.toUpperCase()) {
       case "S": return "text-purple-500 bg-purple-500/10";
-      case "A": return "text-green-500 bg-green-500/10";
+      case "A": return "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10";
       case "B": return "text-blue-500 bg-blue-500/10";
       case "C": return "text-yellow-500 bg-yellow-500/10";
       default: return "text-muted-foreground bg-muted";
@@ -87,7 +87,7 @@ export function WatchlistQuickView() {
                     {item.priceChangePercent !== undefined && (
                       <div className={cn(
                         "flex items-center gap-0.5 text-xs font-medium",
-                        item.priceChangePercent >= 0 ? "text-green-500" : "text-red-500"
+                        item.priceChangePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {item.priceChangePercent >= 0 ? (
                           <TrendingUp className="h-3 w-3" />

@@ -125,17 +125,17 @@ function MetricCard({
         {isLive && (
           <div className="flex items-center gap-1.5">
             <motion.div
-              className="w-2 h-2 rounded-full bg-green-500"
+              className="w-2 h-2 rounded-full bg-[var(--trade-bullish)]"
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
-            <span className="text-xs text-green-500 font-medium">LIVE</span>
+            <span className="text-xs text-[var(--trade-bullish)] font-medium">LIVE</span>
           </div>
         )}
       </div>
 
       {/* Title */}
-      <p className="text-sm text-gray-400 mb-1">{title}</p>
+      <p className="text-sm text-muted-foreground mb-1">{title}</p>
 
       {/* Value */}
       <motion.div
@@ -154,10 +154,10 @@ function MetricCard({
           <div
             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
               trend === 'up'
-                ? 'bg-green-500/20 text-green-400'
+                ? 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]'
                 : trend === 'down'
-                ? 'bg-red-500/20 text-red-400'
-                : 'bg-gray-500/20 text-gray-400'
+                ? 'bg-red-500/20 text-[var(--trade-bearish)]'
+                : 'bg-gray-500/20 text-muted-foreground'
             }`}
           >
             {trend === 'up' ? (
@@ -169,7 +169,7 @@ function MetricCard({
             {safeToFixed(change, 1)}%
           </div>
           {changeLabel && (
-            <span className="text-xs text-gray-500">{changeLabel}</span>
+            <span className="text-xs text-muted-foreground">{changeLabel}</span>
           )}
         </div>
       )}

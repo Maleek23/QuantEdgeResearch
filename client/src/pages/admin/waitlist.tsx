@@ -189,7 +189,7 @@ function AdminWaitlistContent() {
   const getStatusBadge = (status: string, inviteSent: boolean, converted: boolean) => {
     if (converted) {
       return (
-        <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+        <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Joined
         </Badge>
@@ -204,11 +204,11 @@ function AdminWaitlistContent() {
       );
     }
     const styles = {
-      pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      pending: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20",
       approved: "bg-purple-500/10 text-purple-400 border-purple-500/20",
       invited: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-      joined: "bg-green-500/10 text-green-400 border-green-500/20",
-      rejected: "bg-red-500/10 text-red-400 border-red-500/20",
+      joined: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20",
+      rejected: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
     };
     const icons = {
       pending: <Clock className="h-3 w-3 mr-1" />,
@@ -255,68 +255,68 @@ function AdminWaitlistContent() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">{pendingCount}</p>
-              <p className="text-sm text-slate-400">Pending</p>
+              <p className="text-2xl font-bold text-[var(--trade-neutral)]">{pendingCount}</p>
+              <p className="text-sm text-muted-foreground">Pending</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-400">{approvedCount}</p>
-              <p className="text-sm text-slate-400">Approved</p>
+              <p className="text-sm text-muted-foreground">Approved</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-cyan-400">{invitedCount}</p>
-              <p className="text-sm text-slate-400">Invited</p>
+              <p className="text-sm text-muted-foreground">Invited</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-400">{joinedCount}</p>
-              <p className="text-sm text-slate-400">Joined</p>
+              <p className="text-2xl font-bold text-[var(--trade-bullish)]">{joinedCount}</p>
+              <p className="text-sm text-muted-foreground">Joined</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="text-foreground flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-cyan-400" />
                 Waitlist Management
               </CardTitle>
-              <CardDescription className="text-slate-500">
+              <CardDescription className="text-muted-foreground">
                 {filteredWaitlist.length} entries {statusFilter !== 'all' && `(${statusFilter})`}
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search emails..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white w-full sm:w-64"
+                  className="pl-10 bg-muted border-border text-foreground w-full sm:w-64"
                   data-testid="input-search-waitlist"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-36 bg-slate-800 border-slate-700 text-white" data-testid="select-status-filter">
+                <SelectTrigger className="w-full sm:w-36 bg-muted border-border text-foreground" data-testid="select-status-filter">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-muted border-border">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
@@ -329,7 +329,7 @@ function AdminWaitlistContent() {
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                className="border-slate-700 text-slate-300"
+                className="border-border text-foreground/80"
                 data-testid="button-refresh-waitlist"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -339,8 +339,8 @@ function AdminWaitlistContent() {
         </CardHeader>
         <CardContent>
           {selectedIds.size > 0 && (
-            <div className="mb-4 p-3 bg-slate-800 rounded-lg flex flex-wrap items-center gap-3">
-              <span className="text-sm text-slate-400">
+            <div className="mb-4 p-3 bg-muted rounded-lg flex flex-wrap items-center gap-3">
+              <span className="text-sm text-muted-foreground">
                 {selectedIds.size} selected
               </span>
               {canApprove && (
@@ -372,7 +372,7 @@ function AdminWaitlistContent() {
                 variant="outline"
                 onClick={() => rejectWaitlistMutation.mutate(Array.from(selectedIds))}
                 disabled={rejectWaitlistMutation.isPending}
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                className="border-red-500/30 text-[var(--trade-bearish)] hover:bg-red-500/10"
                 data-testid="button-bulk-reject"
               >
                 <XCircle className="h-4 w-4 mr-1" />
@@ -384,19 +384,19 @@ function AdminWaitlistContent() {
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-16 bg-slate-800" />
+                <Skeleton key={i} className="h-16 bg-muted" />
               ))}
             </div>
           ) : filteredWaitlist.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No waitlist entries found</p>
+              <p>Waitlist is empty</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-slate-800 hover:bg-transparent">
+                  <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="w-10">
                       <Checkbox
                         checked={selectedIds.size === filteredWaitlist.length && filteredWaitlist.length > 0}
@@ -404,11 +404,11 @@ function AdminWaitlistContent() {
                         data-testid="checkbox-select-all"
                       />
                     </TableHead>
-                    <TableHead className="text-slate-400">Email</TableHead>
-                    <TableHead className="text-slate-400">Status</TableHead>
-                    <TableHead className="text-slate-400">Source</TableHead>
-                    <TableHead className="text-slate-400">Joined</TableHead>
-                    <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                    <TableHead className="text-muted-foreground">Email</TableHead>
+                    <TableHead className="text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-muted-foreground">Source</TableHead>
+                    <TableHead className="text-muted-foreground">Joined</TableHead>
+                    <TableHead className="text-muted-foreground text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -416,8 +416,8 @@ function AdminWaitlistContent() {
                     <TableRow 
                       key={entry.id} 
                       className={cn(
-                        "border-slate-800",
-                        selectedIds.has(entry.id) && "bg-slate-800/50"
+                        "border-border",
+                        selectedIds.has(entry.id) && "bg-muted/50"
                       )}
                       data-testid={`row-waitlist-${entry.id}`}
                     >
@@ -430,19 +430,19 @@ function AdminWaitlistContent() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-slate-500" />
-                          <span className="text-white">{entry.email}</span>
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-foreground">{entry.email}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(entry.status, entry.inviteSent, entry.convertedToUser)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-slate-400 border-slate-600">
+                        <Badge variant="outline" className="text-muted-foreground border-border">
                           {entry.source}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-slate-400 text-sm">
+                      <TableCell className="text-muted-foreground text-sm">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(entry.createdAt), 'MMM d, yyyy')}
@@ -454,7 +454,7 @@ function AdminWaitlistContent() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-amber-400 hover:text-amber-300"
+                              className="h-8 w-8 text-[var(--trade-neutral)] hover:text-amber-300"
                               onClick={() => resendInviteMutation.mutate(entry.id)}
                               disabled={resendInviteMutation.isPending}
                               data-testid={`button-resend-${entry.id}`}
@@ -489,24 +489,24 @@ function AdminWaitlistContent() {
       </Card>
 
       <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-white">Send Beta Invites</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogTitle className="text-foreground">Send Beta Invites</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               This will create invite codes and send emails to the selected waitlist entries.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <div className="flex items-center gap-2 p-3 bg-slate-800 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
               <Users className="h-5 w-5 text-cyan-400" />
-              <span className="text-white">{selectedIds.size} users will receive invites</span>
+              <span className="text-foreground">{selectedIds.size} users will receive invites</span>
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
               onClick={() => setShowInviteDialog(false)}
-              className="border-slate-700 text-slate-300"
+              className="border-border text-foreground/80"
             >
               Cancel
             </Button>

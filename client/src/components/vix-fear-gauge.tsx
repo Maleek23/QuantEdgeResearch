@@ -20,11 +20,11 @@ export function VixFearGauge() {
   const regime = regimeData?.regime || "unknown";
 
   const getGaugeColor = () => {
-    if (vix < 15) return { color: "text-green-500", bg: "bg-green-500", label: "Low Fear", rotation: 20 };
-    if (vix < 20) return { color: "text-emerald-500", bg: "bg-emerald-500", label: "Calm", rotation: 40 };
+    if (vix < 15) return { color: "text-[var(--trade-bullish)]", bg: "bg-[var(--trade-bullish)]", label: "Low Fear", rotation: 20 };
+    if (vix < 20) return { color: "text-[var(--trade-bullish)]", bg: "bg-emerald-500", label: "Calm", rotation: 40 };
     if (vix < 25) return { color: "text-yellow-500", bg: "bg-yellow-500", label: "Neutral", rotation: 90 };
     if (vix < 30) return { color: "text-orange-500", bg: "bg-orange-500", label: "Elevated", rotation: 130 };
-    return { color: "text-red-500", bg: "bg-red-500", label: "Extreme Fear", rotation: 160 };
+    return { color: "text-[var(--trade-bearish)]", bg: "bg-red-500", label: "Extreme Fear", rotation: 160 };
   };
 
   const gauge = getGaugeColor();

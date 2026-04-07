@@ -86,10 +86,10 @@ export function AdminAnalyticsPanel() {
         
         <div className="stat-glass rounded-lg p-4" data-testid="stat-active-users">
           <div className="flex items-center gap-2 mb-1">
-            <Activity className="h-4 w-4 text-green-400" />
+            <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active (24h)</p>
           </div>
-          <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
+          <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-bullish)]">
             {analytics.activeUsers24h}
           </p>
         </div>
@@ -106,17 +106,17 @@ export function AdminAnalyticsPanel() {
         
         <div className="stat-glass rounded-lg p-4" data-testid="stat-logins">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-amber-400" />
+            <TrendingUp className="h-4 w-4 text-[var(--trade-neutral)]" />
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Logins (24h)</p>
           </div>
-          <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">
+          <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-neutral)]">
             {analytics.recentLogins?.length || 0}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-slate-700/50">
+        <Card className="border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Globe className="h-4 w-4 text-cyan-400" />
@@ -128,7 +128,7 @@ export function AdminAnalyticsPanel() {
               {analytics.topPages?.slice(0, 8).map((page, idx) => (
                 <div 
                   key={page.path} 
-                  className="flex items-center justify-between py-1.5 border-b border-slate-700/30 last:border-0"
+                  className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0"
                   data-testid={`page-stat-${idx}`}
                 >
                   <span className="text-sm font-mono truncate max-w-[200px]" title={page.path}>
@@ -145,7 +145,7 @@ export function AdminAnalyticsPanel() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-700/50">
+        <Card className="border-border/50">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <MousePointer className="h-4 w-4 text-purple-400" />
@@ -157,7 +157,7 @@ export function AdminAnalyticsPanel() {
               {analytics.topActivities?.slice(0, 8).map((activity, idx) => (
                 <div 
                   key={activity.activityType} 
-                  className="flex items-center justify-between py-1.5 border-b border-slate-700/30 last:border-0"
+                  className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0"
                   data-testid={`activity-stat-${idx}`}
                 >
                   <span className="text-sm truncate max-w-[200px]">
@@ -175,15 +175,15 @@ export function AdminAnalyticsPanel() {
         </Card>
       </div>
 
-      <Card className="border-slate-700/50">
+      <Card className="border-border/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-400" />
+            <Clock className="h-4 w-4 text-[var(--trade-neutral)]" />
             Recent Logins
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+          <div className="rounded-lg border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
@@ -196,7 +196,7 @@ export function AdminAnalyticsPanel() {
               </thead>
               <tbody>
                 {analytics.recentLogins?.slice(0, 10).map((login, idx) => (
-                  <tr key={login.id} className="border-t border-slate-700/30" data-testid={`login-row-${idx}`}>
+                  <tr key={login.id} className="border-t border-border/30" data-testid={`login-row-${idx}`}>
                     <td className="p-3 font-mono text-xs truncate max-w-[150px]" title={login.userId}>
                       {login.userId.slice(0, 12)}...
                     </td>
@@ -208,7 +208,7 @@ export function AdminAnalyticsPanel() {
                         {login.device === 'mobile' ? (
                           <Smartphone className="h-3.5 w-3.5 text-cyan-400" />
                         ) : (
-                          <Monitor className="h-3.5 w-3.5 text-slate-400" />
+                          <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
                         <span className="text-xs capitalize">{login.device || 'unknown'}</span>
                       </div>

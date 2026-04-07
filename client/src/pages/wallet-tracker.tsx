@@ -90,7 +90,7 @@ function ChainBadge({ chain }: { chain: "ethereum" | "solana" }) {
         "text-xs",
         chain === "ethereum"
           ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
-          : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+          : "bg-amber-500/20 text-[var(--trade-neutral)] border-[var(--trade-neutral)]/30"
       )}
     >
       {chain === "ethereum" ? "ETH" : "SOL"}
@@ -158,7 +158,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="button-add-wallet">
+        <Button className="bg-cyan-500 hover:bg-cyan-400 text-foreground" data-testid="button-add-wallet">
           <Plus className="h-4 w-4 mr-2" />
           Add Wallet
         </Button>
@@ -209,7 +209,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
             Cancel
           </Button>
           <Button
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             onClick={handleSubmit}
             disabled={addWalletMutation.isPending}
             data-testid="button-submit-wallet"
@@ -261,7 +261,7 @@ function CreateAlertDialog({ wallets, onSuccess }: { wallets: TrackedWallet[]; o
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="border-slate-700" data-testid="button-create-alert">
+        <Button variant="outline" className="border-border" data-testid="button-create-alert">
           <Bell className="h-4 w-4 mr-2" />
           Create Alert
         </Button>
@@ -318,7 +318,7 @@ function CreateAlertDialog({ wallets, onSuccess }: { wallets: TrackedWallet[]; o
             Cancel
           </Button>
           <Button
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
             onClick={handleSubmit}
             disabled={createAlertMutation.isPending || !walletId}
             data-testid="button-submit-alert"
@@ -390,7 +390,7 @@ function HoldingsModal({
               ))}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">No holdings found</p>
+            <p className="text-center text-muted-foreground py-8">No holdings yet — add a wallet to track</p>
           )}
         </ScrollArea>
         <DialogFooter>
@@ -455,11 +455,11 @@ function WalletCard({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="border-slate-700" onClick={onViewHoldings} data-testid={`button-view-holdings-${wallet.id}`}>
+            <Button size="sm" variant="outline" className="border-border" onClick={onViewHoldings} data-testid={`button-view-holdings-${wallet.id}`}>
               <Eye className="h-4 w-4 mr-1" />
               Holdings
             </Button>
-            <Button size="sm" variant="outline" className="border-slate-700" onClick={onSync} disabled={isSyncing} data-testid={`button-sync-${wallet.id}`}>
+            <Button size="sm" variant="outline" className="border-border" onClick={onSync} disabled={isSyncing} data-testid={`button-sync-${wallet.id}`}>
               <RefreshCw className={cn("h-4 w-4 mr-1", isSyncing && "animate-spin")} />
               Sync
             </Button>
@@ -586,7 +586,7 @@ export default function WalletTracker() {
                 <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-teal-500/20 flex items-center justify-center mx-auto mb-4">
                   <Wallet className="h-6 w-6 text-cyan-400" />
                 </div>
-                <p className="text-foreground font-medium">No wallets tracked yet</p>
+                <p className="text-foreground font-medium">Add a wallet to start tracking</p>
                 <p className="text-sm text-muted-foreground">Add a wallet to start monitoring</p>
               </Card>
             )}
@@ -623,8 +623,8 @@ export default function WalletTracker() {
                             className={cn(
                               "p-2 rounded-full",
                               activity.direction === "in"
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-red-500/20 text-red-400"
+                                ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"
+                                : "bg-red-500/20 text-[var(--trade-bearish)]"
                             )}
                           >
                             {activity.direction === "in" ? (
@@ -713,7 +713,7 @@ export default function WalletTracker() {
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mx-auto mb-2">
-                        <Bell className="h-5 w-5 text-amber-400" />
+                        <Bell className="h-5 w-5 text-[var(--trade-neutral)]" />
                       </div>
                       <p>No active alerts</p>
                       {wallets && wallets.length > 0 && (

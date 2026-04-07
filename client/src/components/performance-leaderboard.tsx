@@ -44,14 +44,14 @@ interface DataIntelligence {
 }
 
 function getWinRateColor(winRate: number): string {
-  if (winRate >= 80) return "text-green-400";
+  if (winRate >= 80) return "text-[var(--trade-bullish)]";
   if (winRate >= 65) return "text-cyan-400";
-  if (winRate >= 50) return "text-amber-400";
-  return "text-red-400";
+  if (winRate >= 50) return "text-[var(--trade-neutral)]";
+  return "text-[var(--trade-bearish)]";
 }
 
 function getWinRateBgColor(winRate: number): string {
-  if (winRate >= 80) return "bg-green-500/20";
+  if (winRate >= 80) return "bg-[var(--trade-bullish)]/20";
   if (winRate >= 65) return "bg-cyan-500/20";
   if (winRate >= 50) return "bg-amber-500/20";
   return "bg-red-500/20";
@@ -61,7 +61,7 @@ function getEngineIcon(engine: string) {
   switch (engine) {
     case 'flow': return <Zap className="h-4 w-4 text-purple-400" />;
     case 'ai': return <Target className="h-4 w-4 text-cyan-400" />;
-    case 'quant': return <BarChart3 className="h-4 w-4 text-amber-400" />;
+    case 'quant': return <BarChart3 className="h-4 w-4 text-[var(--trade-neutral)]" />;
     default: return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
   }
 }
@@ -144,7 +144,7 @@ export function PerformanceLeaderboard() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-400" />
+            <Trophy className="h-4 w-4 text-[var(--trade-neutral)]" />
             Top Symbols
           </CardTitle>
         </CardHeader>
@@ -158,7 +158,7 @@ export function PerformanceLeaderboard() {
               <div className="flex items-center gap-2">
                 <span className={cn(
                   "text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center",
-                  idx === 0 ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"
+                  idx === 0 ? "bg-amber-500/20 text-[var(--trade-neutral)]" : "bg-muted text-muted-foreground"
                 )}>
                   {idx + 1}
                 </span>
@@ -166,9 +166,9 @@ export function PerformanceLeaderboard() {
               </div>
               <div className="flex items-center gap-2">
                 {symbol.winRate >= 50 ? (
-                  <TrendingUp className="h-3 w-3 text-green-400" />
+                  <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-red-400" />
+                  <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
                 )}
                 <Badge
                   variant="outline"
@@ -180,7 +180,7 @@ export function PerformanceLeaderboard() {
             </div>
           ))}
           <div className="pt-2 border-t border-border/50 text-xs text-muted-foreground flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3 text-amber-400" />
+            <AlertTriangle className="h-3 w-3 text-[var(--trade-neutral)]" />
             Avoid: {worstSymbols.map(s => s.symbol).join(', ')}
           </div>
         </CardContent>
@@ -207,9 +207,9 @@ export function PerformanceLeaderboard() {
                   variant="outline"
                   className={cn(
                     "font-bold text-xs h-6 w-8 justify-center",
-                    band.band.startsWith('A') ? "bg-green-500/20 text-green-400 border-green-500/50" :
+                    band.band.startsWith('A') ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/50" :
                     band.band.startsWith('B') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
-                    band.band.startsWith('C') ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
+                    band.band.startsWith('C') ? "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/50" :
                     "bg-muted/30 text-muted-foreground border-muted"
                   )}
                 >

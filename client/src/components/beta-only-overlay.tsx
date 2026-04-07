@@ -47,8 +47,8 @@ export function BetaOnlyOverlay({
           className
         )}
       >
-        <Lock className="h-3.5 w-3.5 text-amber-400" />
-        <span className="text-xs font-medium text-amber-400">Beta Only</span>
+        <Lock className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />
+        <span className="text-xs font-medium text-[var(--trade-neutral)]">Beta Only</span>
       </div>
     );
   }
@@ -57,16 +57,16 @@ export function BetaOnlyOverlay({
     return (
       <div
         className={cn(
-          "flex items-center justify-center gap-3 p-4 rounded-lg bg-slate-900/80 backdrop-blur-sm border border-slate-700/50",
+          "flex items-center justify-center gap-3 p-4 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50",
           className
         )}
       >
         <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-          <Lock className="h-5 w-5 text-amber-400" />
+          <Lock className="h-5 w-5 text-[var(--trade-neutral)]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{featureName}</p>
-          <p className="text-xs text-slate-400">Beta access required</p>
+          <p className="text-xs text-muted-foreground">Beta access required</p>
         </div>
         <Button
           variant="outline"
@@ -84,14 +84,14 @@ export function BetaOnlyOverlay({
   return (
     <div
       className={cn(
-        "absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm rounded-lg z-10",
+        "absolute inset-0 flex items-center justify-center bg-card/70 backdrop-blur-sm rounded-lg z-10",
         className
       )}
     >
       <div className="text-center p-6 max-w-sm">
         {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4 ring-2 ring-amber-500/20">
-          <Lock className="h-8 w-8 text-amber-400" />
+          <Lock className="h-8 w-8 text-[var(--trade-neutral)]" />
         </div>
 
         {/* Badge */}
@@ -101,7 +101,7 @@ export function BetaOnlyOverlay({
             "mb-3",
             freeTrialUsed
               ? "border-purple-500/30 bg-purple-500/10 text-purple-400"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+              : "border-amber-500/30 bg-amber-500/10 text-[var(--trade-neutral)]"
           )}
         >
           <BadgeIcon className="h-3 w-3 mr-1" />
@@ -112,7 +112,7 @@ export function BetaOnlyOverlay({
         <h3 className="text-lg font-semibold text-white mb-2">{featureName}</h3>
 
         {/* Description */}
-        <p className="text-sm text-slate-400 mb-5">{description}</p>
+        <p className="text-sm text-muted-foreground mb-5">{description}</p>
 
         {/* CTA */}
         <Button
@@ -124,7 +124,7 @@ export function BetaOnlyOverlay({
         </Button>
 
         {/* Note */}
-        <p className="text-xs text-slate-500 mt-3">
+        <p className="text-xs text-muted-foreground mt-3">
           {freeTrialUsed
             ? "You've used your free trial. Apply for beta to continue."
             : "Beta spots are limited. Apply now to get early access."}

@@ -92,8 +92,8 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
                 className={cn(
                   "text-xs font-semibold",
                   flow.type === 'CALL'
-                    ? "border-emerald-500/50 text-emerald-400"
-                    : "border-red-500/50 text-red-400"
+                    ? "border-emerald-500/50 text-[var(--trade-bullish)]"
+                    : "border-red-500/50 text-[var(--trade-bearish)]"
                 )}
               >
                 {flow.type}
@@ -101,9 +101,9 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
               <FlowIcon className={cn("w-4 h-4", config.color)} />
             </div>
 
-            <div className="flex items-center gap-3 text-sm text-gray-400">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <span>${flow.strike} strike</span>
-              <span className="text-gray-600">|</span>
+              <span className="text-muted-foreground/70">|</span>
               <span>{flow.expiry}</span>
             </div>
           </div>
@@ -120,13 +120,13 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
             </div>
             <div className="flex items-center justify-end gap-1 mt-1">
               {isBullish ? (
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                <ArrowUpRight className="w-4 h-4 text-[var(--trade-bullish)]" />
               ) : (
-                <ArrowDownRight className="w-4 h-4 text-red-400" />
+                <ArrowDownRight className="w-4 h-4 text-[var(--trade-bearish)]" />
               )}
               <span className={cn(
                 "text-sm font-medium",
-                isBullish ? "text-emerald-400" : "text-red-400"
+                isBullish ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {flow.sentiment}
               </span>
@@ -136,11 +136,11 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
 
         {/* Stats row */}
         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-800">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Activity className="w-3 h-3" />
             <span>Vol: {flow.volume.toLocaleString()}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Eye className="w-3 h-3" />
             <span>OI: {flow.openInterest.toLocaleString()}</span>
           </div>
@@ -148,13 +148,13 @@ function WhaleFlowCard({ flow, isNew }: { flow: WhaleFlow; isNew?: boolean }) {
             <span className={cn(
               flow.volOiRatio > 5 ? "text-orange-400" :
               flow.volOiRatio > 2 ? "text-yellow-400" :
-              "text-gray-400"
+              "text-muted-foreground"
             )}>
               {safeToFixed(flow.volOiRatio, 1)}x Vol/OI
             </span>
           </div>
           <div className="flex-1" />
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="w-3 h-3" />
             <span>{new Date(flow.timestamp).toLocaleTimeString()}</span>
           </div>
@@ -200,7 +200,7 @@ function FlowTicker({ flows }: { flows: WhaleFlow[] }) {
   return (
     <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 overflow-hidden">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
           <Activity className="w-3 h-3 animate-pulse text-cyan-400" />
           <span>LIVE</span>
         </div>
@@ -217,16 +217,16 @@ function FlowTicker({ flows }: { flows: WhaleFlow[] }) {
             <span className="font-bold text-white">{currentFlow?.symbol}</span>
             <Badge variant="outline" className={cn(
               "text-xs",
-              currentFlow?.type === 'CALL' ? "text-emerald-400 border-emerald-500/50" : "text-red-400 border-red-500/50"
+              currentFlow?.type === 'CALL' ? "text-[var(--trade-bullish)] border-emerald-500/50" : "text-[var(--trade-bearish)] border-red-500/50"
             )}>
               {currentFlow?.type}
             </Badge>
             <span className="text-cyan-400 font-semibold">{formatPremium(currentFlow?.premium || 0)}</span>
-            <span className="text-gray-400">${currentFlow?.strike} {currentFlow?.expiry}</span>
+            <span className="text-muted-foreground">${currentFlow?.strike} {currentFlow?.expiry}</span>
             {isBullish ? (
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" />
             ) : (
-              <TrendingDown className="w-4 h-4 text-red-400" />
+              <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />
             )}
           </motion.div>
         </AnimatePresence>
@@ -254,14 +254,14 @@ function FlowStats({ flows }: { flows: WhaleFlow[] }) {
       label: 'Bullish',
       value: bullishCount.toString(),
       icon: TrendingUp,
-      color: 'text-emerald-400',
+      color: 'text-[var(--trade-bullish)]',
       bg: 'bg-emerald-500/10'
     },
     {
       label: 'Bearish',
       value: bearishCount.toString(),
       icon: TrendingDown,
-      color: 'text-red-400',
+      color: 'text-[var(--trade-bearish)]',
       bg: 'bg-red-500/10'
     },
     {
@@ -288,7 +288,7 @@ function FlowStats({ flows }: { flows: WhaleFlow[] }) {
         >
           <div className="flex items-center gap-2 mb-1">
             <stat.icon className={cn("w-4 h-4", stat.color)} />
-            <span className="text-xs text-gray-400">{stat.label}</span>
+            <span className="text-xs text-muted-foreground">{stat.label}</span>
           </div>
           <div className={cn("text-xl font-bold", stat.color)}>
             {stat.value}
@@ -458,7 +458,7 @@ export default function WhaleFlowMonitor() {
             </div>
             <div>
               <CardTitle className="text-lg text-white">Whale Flow Monitor</CardTitle>
-              <p className="text-xs text-gray-500">Real-time institutional options flow</p>
+              <p className="text-xs text-muted-foreground">Real-time institutional options flow</p>
             </div>
           </div>
 
@@ -474,7 +474,7 @@ export default function WhaleFlowMonitor() {
                   "text-xs h-7 px-2",
                   filter === f
                     ? "bg-cyan-500/20 text-cyan-400"
-                    : "text-gray-400 hover:text-white"
+                    : "text-muted-foreground hover:text-white"
                 )}
               >
                 {f === 'WHALES' && <Target className="w-3 h-3 mr-1" />}
@@ -508,7 +508,7 @@ export default function WhaleFlowMonitor() {
         {/* Legend */}
         <div className="flex items-center justify-center gap-4 pt-3 border-t border-gray-800">
           {Object.entries(flowTypeConfig).map(([type, config]) => (
-            <div key={type} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div key={type} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <config.icon className={cn("w-3 h-3", config.color)} />
               <span>{type.replace('_', ' ')}</span>
             </div>

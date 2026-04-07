@@ -35,8 +35,8 @@ const assetCards: AssetCard[] = [
     description: "Flow detection & premium setups",
     icon: Target,
     href: "/trade-desk?asset=option",
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
+    color: "text-[var(--trade-bullish)]",
+    bgColor: "bg-[var(--trade-bullish)]/10",
   },
   {
     id: "futures",
@@ -44,7 +44,7 @@ const assetCards: AssetCard[] = [
     description: "ES, NQ, GC market analysis",
     icon: Activity,
     href: "/trade-desk?tab=futures",
-    color: "text-amber-500",
+    color: "text-[var(--trade-neutral)]",
     bgColor: "bg-amber-500/10",
   },
   {

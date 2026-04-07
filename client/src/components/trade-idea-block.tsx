@@ -162,18 +162,18 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       const minsRemaining = Math.floor((entryDeadline.getTime() - now.getTime()) / 60000);
       
       if (minsRemaining <= 0) {
-        return { text: 'Entry expired', color: 'text-red-400', urgent: false };
+        return { text: 'Entry expired', color: 'text-[var(--trade-bearish)]', urgent: false };
       } else if (minsRemaining <= 15) {
-        return { text: `${minsRemaining}m left`, color: 'text-amber-400', urgent: true };
+        return { text: `${minsRemaining}m left`, color: 'text-[var(--trade-neutral)]', urgent: true };
       } else if (minsRemaining <= 60) {
-        return { text: `${minsRemaining}m left`, color: 'text-amber-400', urgent: false };
+        return { text: `${minsRemaining}m left`, color: 'text-[var(--trade-neutral)]', urgent: false };
       } else {
         const hrs = Math.floor(minsRemaining / 60);
-        return { text: `${hrs}h ${minsRemaining % 60}m`, color: 'text-green-400', urgent: false };
+        return { text: `${hrs}h ${minsRemaining % 60}m`, color: 'text-[var(--trade-bullish)]', urgent: false };
       }
     }
     
-    return { text: 'Active', color: 'text-green-400', urgent: false };
+    return { text: 'Active', color: 'text-[var(--trade-bullish)]', urgent: false };
   };
 
   const quickTiming = getQuickTimingStatus();
@@ -193,7 +193,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       const hoursRemaining = (exitDeadline.getTime() - now.getTime()) / (1000 * 60 * 60);
       
       if (hoursRemaining <= 0) {
-        return { status: 'expired', label: 'Expired', tooltip: 'Exit deadline has passed', color: 'text-red-400' };
+        return { status: 'expired', label: 'Expired', tooltip: 'Exit deadline has passed', color: 'text-[var(--trade-bearish)]' };
       }
     }
     
@@ -212,7 +212,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           status: 'caution',
           label: 'Entry Missed',
           tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${safeToFixed(entryDeviation, 1)}%`,
-          color: 'text-amber-400'
+          color: 'text-[var(--trade-neutral)]'
         };
       }
 
@@ -224,13 +224,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
 
         if (progressToTarget >= 80) {
-          return { status: 'valid', label: 'Near Target', tooltip: `${safeToFixed(progressToTarget, 0)}% to target`, color: 'text-green-400' };
+          return { status: 'valid', label: 'Near Target', tooltip: `${safeToFixed(progressToTarget, 0)}% to target`, color: 'text-[var(--trade-bullish)]' };
         }
       }
     }
     
     // Default: trade is still valid
-    return { status: 'valid', label: 'Active', tooltip: 'Trade is still actionable', color: 'text-green-400' };
+    return { status: 'valid', label: 'Active', tooltip: 'Trade is still actionable', color: 'text-[var(--trade-bullish)]' };
   };
 
   const applicability = getRealTimeApplicability();
@@ -241,7 +241,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       return {
         label: 'LOTTO',
         icon: Zap,
-        className: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/50'
+        className: 'bg-amber-500/10 text-[var(--trade-neutral)] dark:text-[var(--trade-neutral)] border-amber-500/50'
       };
     }
     
@@ -268,7 +268,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         return {
           label: 'FLOW',
           icon: Activity,
-          className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50'
+          className: 'bg-emerald-500/10 text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] border-emerald-500/50'
         };
       case 'news':
         return {
@@ -280,7 +280,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         return {
           label: 'MANUAL',
           icon: UserPlus,
-          className: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/50'
+          className: 'bg-muted-foreground/10 text-muted-foreground/70 dark:text-muted-foreground border-muted-foreground/50'
         };
       default:
         return {
@@ -352,7 +352,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         border: isLong ? 'border-l-green-500/50' : 'border-l-red-500/50',
         borderWidth: 'border-l-4',
         glow: isLong ? 'hover:shadow-green-500/20' : 'hover:shadow-red-500/20',
-        iconColor: 'text-emerald-400',
+        iconColor: 'text-[var(--trade-bullish)]',
         bgAccent: 'bg-emerald-500/5'
       }
     };
@@ -410,8 +410,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 className={cn(
                   "font-bold text-xs h-6 px-3 flex-shrink-0 shadow-sm",
                   isLong
-                    ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/50 hover:from-green-500/30 hover:to-emerald-500/30"
-                    : "bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border-red-500/50 hover:from-red-500/30 hover:to-rose-500/30"
+                    ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-[var(--trade-bullish)] border-green-500/50 hover:from-green-500/30 hover:to-emerald-500/30"
+                    : "bg-gradient-to-r from-red-500/20 to-rose-500/20 text-[var(--trade-bearish)] border-red-500/50 hover:from-red-500/30 hover:to-rose-500/30"
                 )}
                 data-testid={`badge-direction-${idea.symbol}`}
               >
@@ -437,7 +437,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 "text-[10px] h-5 font-semibold uppercase flex-shrink-0 whitespace-nowrap",
                 idea.assetType === 'option' && "bg-purple-500/20 text-purple-400 border-purple-500/40",
                 idea.assetType === 'crypto' && "bg-orange-500/20 text-orange-400 border-orange-500/40",
-                idea.assetType === 'penny_stock' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
+                idea.assetType === 'penny_stock' && "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40",
                 idea.assetType === 'stock' && "bg-blue-500/20 text-blue-400 border-blue-500/40"
               )}>
                 {idea.assetType === 'penny_stock' ? 'PENNY' : idea.assetType.toUpperCase()}
@@ -468,8 +468,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       className={cn(
                         "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap flex-shrink-0",
                         lossData?.shouldAvoid 
-                          ? "bg-red-500/20 text-red-400 border-red-500/50" 
-                          : "bg-amber-500/20 text-amber-400 border-amber-500/50"
+                          ? "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/50" 
+                          : "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/50"
                       )}
                       data-testid={`badge-loss-warning-${idea.symbol}`}
                     >
@@ -479,7 +479,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
                     <div className="space-y-1">
-                      <p className="font-bold text-red-400">
+                      <p className="font-bold text-[var(--trade-bearish)]">
                         {lossData?.shouldAvoid ? 'Symbol on Loss Cooldown' : 'Loss History Detected'}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -489,7 +489,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         Confidence adj: {(lossData?.confidenceBoost || 0) > 0 ? '+' : ''}{lossData?.confidenceBoost || 0} pts
                       </p>
                       {lossData?.shouldAvoid && (
-                        <p className="text-xs text-red-400 font-semibold">
+                        <p className="text-xs text-[var(--trade-bearish)] font-semibold">
                           Bot will NOT trade this symbol
                         </p>
                       )}
@@ -506,9 +506,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       variant="outline" 
                       className={cn(
                         "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap flex-shrink-0",
-                        idea.newsBias === 'bullish' && "bg-green-500/20 text-green-400 border-green-500/50",
-                        idea.newsBias === 'bearish' && "bg-red-500/20 text-red-400 border-red-500/50",
-                        idea.newsBias === 'neutral' && "bg-slate-500/20 text-slate-400 border-slate-500/50"
+                        idea.newsBias === 'bullish' && "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/50",
+                        idea.newsBias === 'bearish' && "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/50",
+                        idea.newsBias === 'neutral' && "bg-muted-foreground/20 text-muted-foreground border-muted-foreground/50"
                       )}
                       data-testid={`badge-news-bias-${idea.symbol}`}
                     >
@@ -531,8 +531,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       variant="outline" 
                       className={cn(
                         "text-[10px] h-5 font-bold border cursor-help whitespace-nowrap flex-shrink-0",
-                        idea.earningsBeat === true && "bg-emerald-500/20 text-emerald-400 border-emerald-500/50",
-                        idea.earningsBeat === false && "bg-red-500/20 text-red-400 border-red-500/50"
+                        idea.earningsBeat === true && "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/50",
+                        idea.earningsBeat === false && "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/50"
                       )}
                       data-testid={`badge-earnings-${idea.symbol}`}
                     >
@@ -559,15 +559,15 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   <TooltipTrigger asChild>
                     <div className={cn(
                       "flex flex-col items-center justify-center px-3 py-1 rounded-lg border-2 cursor-help",
-                      priceChangePercent >= 5 ? "bg-green-500/20 border-green-500/50" :
-                      priceChangePercent >= 0 ? "bg-green-500/10 border-green-500/30" :
+                      priceChangePercent >= 5 ? "bg-[var(--trade-bullish)]/20 border-green-500/50" :
+                      priceChangePercent >= 0 ? "bg-[var(--trade-bullish)]/10 border-green-500/30" :
                       priceChangePercent <= -5 ? "bg-red-500/20 border-red-500/50" :
                       "bg-red-500/10 border-red-500/30"
                     )}>
                       <span className="text-[9px] text-muted-foreground uppercase tracking-wider">P/L</span>
                       <span className={cn(
                         "text-base font-bold font-mono",
-                        priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
+                        priceChangePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       )}>
                         {priceChangePercent >= 0 ? '+' : ''}{safeToFixed(priceChangePercent, 1)}%
                       </span>
@@ -589,9 +589,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <span className="text-muted-foreground mr-1">R:R</span>
                     <span className={cn(
                       "font-bold",
-                      idea.riskRewardRatio >= 2 ? "text-green-400" :
+                      idea.riskRewardRatio >= 2 ? "text-[var(--trade-bullish)]" :
                       idea.riskRewardRatio >= 1.5 ? "text-cyan-400" :
-                      "text-amber-400"
+                      "text-[var(--trade-neutral)]"
                     )}>
                       {safeToFixed(idea.riskRewardRatio, 1) || '—'}
                     </span>
@@ -611,12 +611,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       variant="outline" 
                       className={cn(
                         "text-xs h-5 font-bold px-2 cursor-help whitespace-nowrap",
-                        idea.probabilityBand === 'A+' && "bg-emerald-500/20 text-emerald-400 border-emerald-500/40",
-                        idea.probabilityBand === 'A' && "bg-green-500/20 text-green-400 border-green-500/40",
-                        idea.probabilityBand === 'A-' && "bg-green-500/15 text-green-300 border-green-500/30",
+                        idea.probabilityBand === 'A+' && "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40",
+                        idea.probabilityBand === 'A' && "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40",
+                        idea.probabilityBand === 'A-' && "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] border-green-500/30",
                         (idea.probabilityBand === 'B+' || idea.probabilityBand === 'B' || idea.probabilityBand === 'B-') && "bg-blue-500/20 text-blue-400 border-blue-500/40",
-                        (idea.probabilityBand === 'C+' || idea.probabilityBand === 'C' || idea.probabilityBand === 'C-') && "bg-amber-500/20 text-amber-400 border-amber-500/40",
-                        (idea.probabilityBand === 'D' || idea.probabilityBand === 'D-' || idea.probabilityBand === 'F') && "bg-red-500/20 text-red-400 border-red-500/40"
+                        (idea.probabilityBand === 'C+' || idea.probabilityBand === 'C' || idea.probabilityBand === 'C-') && "bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/40",
+                        (idea.probabilityBand === 'D' || idea.probabilityBand === 'D-' || idea.probabilityBand === 'F') && "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/40"
                       )}
                       data-testid={`badge-grade-${idea.symbol}`}
                     >
@@ -657,9 +657,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           variant="outline" 
                           className={cn(
                             "text-[10px] h-5 font-medium cursor-help whitespace-nowrap",
-                            macroData.riskAppetite === 'risk_on' && "bg-green-500/10 text-green-400 border-green-500/30",
-                            macroData.riskAppetite === 'risk_off' && "bg-red-500/10 text-red-400 border-red-500/30",
-                            macroData.riskAppetite === 'mixed' && "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            macroData.riskAppetite === 'risk_on' && "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30",
+                            macroData.riskAppetite === 'risk_off' && "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30",
+                            macroData.riskAppetite === 'mixed' && "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30"
                           )}
                           data-testid={`badge-risk-appetite-${idea.symbol}`}
                         >
@@ -682,9 +682,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           variant="outline" 
                           className={cn(
                             "text-[10px] h-5 font-medium cursor-help whitespace-nowrap",
-                            macroData.vixRegime.regime === 'extreme_fear' && "bg-red-500/10 text-red-400 border-red-500/30",
+                            macroData.vixRegime.regime === 'extreme_fear' && "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30",
                             macroData.vixRegime.regime === 'fear' && "bg-orange-500/10 text-orange-400 border-orange-500/30",
-                            macroData.vixRegime.regime === 'neutral' && "bg-slate-500/10 text-slate-400 border-slate-500/30",
+                            macroData.vixRegime.regime === 'neutral' && "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/30",
                             macroData.vixRegime.regime === 'complacency' && "bg-blue-500/10 text-blue-400 border-blue-500/30",
                             macroData.vixRegime.regime === 'extreme_complacency' && "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                           )}
@@ -710,9 +710,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       variant="outline" 
                       className={cn(
                         "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap",
-                        applicability.status === 'valid' && "bg-green-500/10 text-green-400 border-green-500/40",
-                        applicability.status === 'caution' && "bg-amber-500/10 text-amber-400 border-amber-500/40",
-                        applicability.status === 'expired' && "bg-red-500/10 text-red-400 border-red-500/40"
+                        applicability.status === 'valid' && "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/40",
+                        applicability.status === 'caution' && "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/40",
+                        applicability.status === 'expired' && "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/40"
                       )}
                       data-testid={`badge-applicability-${idea.symbol}`}
                     >
@@ -790,7 +790,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   idea.sectorFocus === 'healthcare' ? "bg-rose-500/10 text-rose-400 border-rose-500/30" :
                   idea.sectorFocus === 'ai_ml' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
                   idea.sectorFocus === 'space' ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" :
-                  idea.sectorFocus === 'clean_energy' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" :
+                  idea.sectorFocus === 'clean_energy' ? "bg-emerald-500/10 text-[var(--trade-bullish)] border-emerald-500/30" :
                   idea.sectorFocus === 'crypto' ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" :
                   idea.sectorFocus === 'fintech' ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
                   "bg-muted/30 text-muted-foreground border-muted"
@@ -813,9 +813,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 variant="outline" 
                 className={cn(
                   "text-[10px] h-5 font-semibold",
-                  idea.riskProfile === 'speculative' ? "bg-red-500/10 text-red-400 border-red-500/30" :
-                  idea.riskProfile === 'aggressive' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
-                  "bg-green-500/10 text-green-400 border-green-500/30"
+                  idea.riskProfile === 'speculative' ? "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30" :
+                  idea.riskProfile === 'aggressive' ? "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30" :
+                  "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30"
                 )}
               >
                 {idea.riskProfile?.toUpperCase()}
@@ -868,9 +868,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           <span className="text-muted-foreground">What would have happened:</span>
                           <span className={cn(
                             "font-semibold",
-                            idea.missedEntryTheoreticalOutcome === 'would_have_won' ? 'text-green-400' :
-                            idea.missedEntryTheoreticalOutcome === 'would_have_lost' ? 'text-red-400' :
-                            'text-slate-400'
+                            idea.missedEntryTheoreticalOutcome === 'would_have_won' ? 'text-[var(--trade-bullish)]' :
+                            idea.missedEntryTheoreticalOutcome === 'would_have_lost' ? 'text-[var(--trade-bearish)]' :
+                            'text-muted-foreground'
                           )}>
                             {idea.missedEntryTheoreticalOutcome === 'would_have_won' ? 'Would have WON' :
                              idea.missedEntryTheoreticalOutcome === 'would_have_lost' ? 'Would have LOST' :
@@ -879,7 +879,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           {idea.missedEntryTheoreticalGain !== null && idea.missedEntryTheoreticalGain !== undefined && (
                             <span className={cn(
                               "font-mono",
-                              idea.missedEntryTheoreticalGain > 0 ? 'text-green-400' : 'text-red-400'
+                              idea.missedEntryTheoreticalGain > 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                             )}>
                               ({idea.missedEntryTheoreticalGain > 0 ? '+' : ''}{safeToFixed(idea.missedEntryTheoreticalGain, 1)}%)
                             </span>
@@ -919,7 +919,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           <div className="flex flex-wrap items-center gap-1.5">
             {/* Lotto Play Badge */}
             {idea.isLottoPlay && (
-              <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 font-semibold bg-amber-500/10 text-amber-500 border-amber-500/30">
+              <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 font-semibold bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30">
                 <Zap className="h-2.5 w-2.5" />
                 LOTTO
               </Badge>
@@ -959,7 +959,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {idea.entryValidUntil && (
                   <div>
                     <div className="text-muted-foreground mb-0.5">Entry Window</div>
-                    <div className="font-semibold text-green-400">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</div>
+                    <div className="font-semibold text-[var(--trade-bullish)]">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</div>
                     <EnhancedCountdown 
                       exitBy={idea.entryValidUntil} 
                       className="mt-1"
@@ -969,7 +969,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {idea.exitBy && (
                   <div>
                     <div className="text-muted-foreground mb-0.5">Expires</div>
-                    <div className="font-semibold text-amber-400">{formatInUserTZ(idea.exitBy, 'h:mm a')}</div>
+                    <div className="font-semibold text-[var(--trade-neutral)]">{formatInUserTZ(idea.exitBy, 'h:mm a')}</div>
                     <EnhancedCountdown 
                       exitBy={idea.exitBy}
                       assetType={idea.assetType}
@@ -1043,8 +1043,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         variant="outline" 
                         className={cn(
                           "text-[10px] font-bold",
-                          patternData.signalScore.direction === 'bullish' ? "bg-green-500/20 text-green-400 border-green-500/30" :
-                          patternData.signalScore.direction === 'bearish' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                          patternData.signalScore.direction === 'bullish' ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30" :
+                          patternData.signalScore.direction === 'bearish' ? "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30" :
                           "bg-muted text-muted-foreground"
                         )}
                       >
@@ -1056,8 +1056,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         <div className="text-[9px] text-muted-foreground mb-0.5">RSI(14)</div>
                         <span className={cn(
                           "font-mono font-bold",
-                          patternData.indicators.rsi.value < 30 ? "text-green-400" :
-                          patternData.indicators.rsi.value > 70 ? "text-red-400" :
+                          patternData.indicators.rsi.value < 30 ? "text-[var(--trade-bullish)]" :
+                          patternData.indicators.rsi.value > 70 ? "text-[var(--trade-bearish)]" :
                           "text-foreground"
                         )}>
                           {safeToFixed(patternData.indicators.rsi.value, 1)}
@@ -1067,7 +1067,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     {patternData.indicators.adx?.value !== undefined && (
                       <div className="text-center p-2 rounded bg-muted/30">
                         <div className="text-[9px] text-muted-foreground mb-0.5">ADX</div>
-                        <span className="font-mono font-bold">
+                        <span className="font-mono font-bold tabular-nums">
                           {safeToFixed(patternData.indicators.adx.value, 1)}
                         </span>
                       </div>
@@ -1077,8 +1077,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         <div className="text-[9px] text-muted-foreground mb-0.5">TREND</div>
                         <span className={cn(
                           "text-[10px] font-semibold uppercase",
-                          patternData.indicators.adx.regime === 'trending' ? "text-green-400" :
-                          patternData.indicators.adx.regime === 'ranging' ? "text-amber-400" :
+                          patternData.indicators.adx.regime === 'trending' ? "text-[var(--trade-bullish)]" :
+                          patternData.indicators.adx.regime === 'ranging' ? "text-[var(--trade-neutral)]" :
                           "text-muted-foreground"
                         )}>
                           {patternData.indicators.adx.regime}
@@ -1094,8 +1094,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           variant="outline" 
                           className={cn(
                             "text-[9px]",
-                            p.type === 'bullish' ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                            p.type === 'bearish' ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                            p.type === 'bullish' ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" :
+                            p.type === 'bearish' ? "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30" :
                             "bg-muted/30"
                           )}
                         >
@@ -1116,8 +1116,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                                 variant="outline" 
                                 className={cn(
                                   "text-[9px] cursor-help",
-                                  h.type === 'bullish' ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                                  "bg-red-500/10 text-red-400 border-red-500/30"
+                                  h.type === 'bullish' ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30" :
+                                  "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30"
                                 )}
                               >
                                 {h.name} {safeToFixed(h.completionPercent, 0)}%
@@ -1145,7 +1145,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           className={cn(
                             "text-[9px]",
                             patternData.elliottWave.wavePhase === 'impulse' ? "bg-purple-500/10 text-purple-400 border-purple-500/30" :
-                            "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30"
                           )}
                         >
                           Wave {patternData.elliottWave.currentWave} ({patternData.elliottWave.wavePhase})
@@ -1185,14 +1185,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   <span className={cn(
                     "text-lg font-bold font-mono transition-all",
                     priceUpdated && "scale-105",
-                    priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
+                    priceChangePercent >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                   )} data-testid={`text-current-price-${idea.symbol}`}>
                     {formatCurrency(currentPrice)}
                   </span>
                 </div>
                 <span className={cn(
                   "text-xs font-bold px-2 py-0.5 rounded",
-                  priceChangePercent >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                  priceChangePercent >= 0 ? "bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                 )}>
                   {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                 </span>
@@ -1202,31 +1202,31 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             {/* Entry/Target/Stop Grid */}
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center p-2 rounded bg-muted/30">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Entry</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Entry</div>
                 <div className="text-sm font-bold font-mono" data-testid={`text-entry-${idea.symbol}`}>
                   {formatCurrency(idea.entryPrice)}
                 </div>
               </div>
-              <div className="text-center p-2 rounded bg-green-500/10">
-                <div className="text-[10px] text-green-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
+              <div className="text-center p-2 rounded bg-[var(--trade-bullish)]/10">
+                <div className="text-[10px] text-[var(--trade-bullish)] uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
                   <TargetIcon className="h-2 w-2" />
                   Target
                 </div>
-                <div className="text-sm font-bold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
+                <div className="text-sm font-bold font-mono text-[var(--trade-bullish)]">{formatCurrency(idea.targetPrice)}</div>
               </div>
               <div className="text-center p-2 rounded bg-red-500/10">
-                <div className="text-[10px] text-red-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
+                <div className="text-[10px] text-[var(--trade-bearish)] uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
                   <Shield className="h-2 w-2" />
                   Stop
                 </div>
-                <div className="text-sm font-bold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
+                <div className="text-sm font-bold font-mono text-[var(--trade-bearish)]">{formatCurrency(idea.stopLoss)}</div>
               </div>
             </div>
             
             {/* Lotto Play Potential */}
             {idea.isLottoPlay && (
               <div className="mt-3 pt-3 border-t border-amber-500/30 bg-amber-500/5 rounded-lg p-3">
-                <div className="text-sm text-amber-400 font-semibold flex items-center justify-between">
+                <div className="text-sm text-[var(--trade-neutral)] font-semibold flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Zap className="h-4 w-4" />
                     <span>Lotto Potential:</span>
@@ -1312,7 +1312,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         </p>
                         <div className="mt-3 p-3 bg-muted/50 rounded border-l-2 border-amber-500">
                           <p className="text-xs">
-                            <span className="text-amber-400 font-bold">NOTE:</span> Option premium ≠ Stock price.
+                            <span className="text-[var(--trade-neutral)] font-bold">NOTE:</span> Option premium ≠ Stock price.
                             The premium is what you pay to BUY the option contract.
                           </p>
                         </div>
@@ -1321,8 +1321,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         <h3 className="font-bold text-purple-400 mb-2">Understanding Key Levels</h3>
                         <div className="space-y-2 text-muted-foreground text-sm">
                           <p><span className="font-semibold text-foreground">Entry:</span> The premium price when this pattern was identified</p>
-                          <p><span className="font-semibold text-green-400">Target:</span> Potential profit level based on pattern analysis</p>
-                          <p><span className="font-semibold text-red-400">Stop:</span> Risk management level to limit potential losses</p>
+                          <p><span className="font-semibold text-[var(--trade-bullish)]">Target:</span> Potential profit level based on pattern analysis</p>
+                          <p><span className="font-semibold text-[var(--trade-bearish)]">Stop:</span> Risk management level to limit potential losses</p>
                         </div>
                       </div>
                     </div>
@@ -1335,14 +1335,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   <div className="text-[10px] text-cyan-400 mb-1 uppercase tracking-wider font-semibold">Type</div>
                   <div className={cn(
                     "text-lg font-bold font-mono uppercase",
-                    idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
+                    idea.optionType === 'call' ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
                   )}>
                     {idea.optionType || 'N/A'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-amber-400 mb-1 uppercase tracking-wider font-semibold">Strike</div>
-                  <div className="text-lg font-bold font-mono text-amber-400">
+                  <div className="text-[10px] text-[var(--trade-neutral)] mb-1 uppercase tracking-wider font-semibold">Strike</div>
+                  <div className="text-lg font-bold font-mono text-[var(--trade-neutral)]">
                     {idea.strikePrice != null ? formatCurrency(idea.strikePrice) : 'N/A'}
                   </div>
                 </div>

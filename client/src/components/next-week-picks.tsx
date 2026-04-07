@@ -101,7 +101,7 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
       <div
         className={cn(
           "relative p-4 rounded-lg border backdrop-blur-sm",
-          "bg-slate-900/60 hover:bg-slate-800/60 transition-all duration-300",
+          "bg-card/60 hover:bg-muted/60 transition-all duration-300",
           config.borderColor,
           "hover:shadow-lg",
           config.glowColor
@@ -127,8 +127,8 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
                   className={cn(
                     "text-xs font-bold",
                     isCall
-                      ? "text-green-400 border-green-500/50"
-                      : "text-red-400 border-red-500/50"
+                      ? "text-[var(--trade-bullish)] border-green-500/50"
+                      : "text-[var(--trade-bearish)] border-red-500/50"
                   )}
                 >
                   {isCall ? (
@@ -139,36 +139,36 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
                   {pick.optionType.toUpperCase()}
                 </Badge>
               </div>
-              <div className="text-sm text-slate-400 font-mono">
+              <div className="text-sm text-muted-foreground font-mono">
                 ${pick.strike} | {pick.expirationFormatted} ({pick.dte}DTE)
               </div>
             </div>
           </div>
 
           <div className="text-right">
-            <div className="text-xs text-slate-500 mb-1">TARGET</div>
-            <div className="text-lg font-bold text-green-400 font-mono">
+            <div className="text-xs text-muted-foreground mb-1">TARGET</div>
+            <div className="text-lg font-bold text-[var(--trade-bullish)] font-mono">
               {safeToFixed(pick.targetMultiplier, 1)}x
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
-          <div className="bg-slate-800/50 rounded-md p-2 text-center">
-            <div className="text-xs text-slate-500 mb-1">ENTRY</div>
+          <div className="bg-muted/50 rounded-md p-2 text-center">
+            <div className="text-xs text-muted-foreground mb-1">ENTRY</div>
             <div className="font-mono text-white">
               ${safeToFixed(pick.entryPrice, 2)}
             </div>
           </div>
-          <div className="bg-slate-800/50 rounded-md p-2 text-center">
-            <div className="text-xs text-slate-500 mb-1">TARGET</div>
-            <div className="font-mono text-green-400">
+          <div className="bg-muted/50 rounded-md p-2 text-center">
+            <div className="text-xs text-muted-foreground mb-1">TARGET</div>
+            <div className="font-mono text-[var(--trade-bullish)]">
               ${safeToFixed(pick.targetPrice, 2)}
             </div>
           </div>
-          <div className="bg-slate-800/50 rounded-md p-2 text-center">
-            <div className="text-xs text-slate-500 mb-1">STOP</div>
-            <div className="font-mono text-red-400">
+          <div className="bg-muted/50 rounded-md p-2 text-center">
+            <div className="text-xs text-muted-foreground mb-1">STOP</div>
+            <div className="font-mono text-[var(--trade-bearish)]">
               ${safeToFixed(pick.stopLoss, 2)}
             </div>
           </div>
@@ -196,8 +196,8 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
           </span>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-slate-700/50">
-          <p className="text-xs text-slate-400 italic">{pick.catalyst}</p>
+        <div className="mt-3 pt-3 border-t border-border/50">
+          <p className="text-xs text-muted-foreground italic">{pick.catalyst}</p>
         </div>
       </div>
     </motion.div>
@@ -207,7 +207,7 @@ function PickCard({ pick, index }: { pick: WeeklyPick; index: number }) {
 function PicksGrid({ picks }: { picks: WeeklyPick[] }) {
   if (picks.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-500">
+      <div className="text-center py-12 text-muted-foreground">
         <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
         <p>No picks available for this category</p>
       </div>
@@ -242,7 +242,7 @@ export function NextWeekPicks() {
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-900/50 border-slate-700/50">
+      <Card className="bg-card/50 border-border/50">
         <CardHeader>
           <Skeleton className="h-8 w-64" />
         </CardHeader>
@@ -261,7 +261,7 @@ export function NextWeekPicks() {
   const allPicks = data?.picks || [];
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+    <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
@@ -270,11 +270,11 @@ export function NextWeekPicks() {
           <div>
             <CardTitle className="text-xl flex items-center gap-2">
               <span className="font-mono">NEXT WEEK PICKS</span>
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+              <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/50">
                 {data?.total || 0} plays
               </Badge>
             </CardTitle>
-            <p className="text-sm text-slate-400 font-mono mt-1">
+            <p className="text-sm text-muted-foreground font-mono mt-1">
               <Calendar className="w-4 h-4 inline mr-1" />
               {data?.weekRange || "Loading..."}
             </p>
@@ -287,7 +287,7 @@ export function NextWeekPicks() {
             size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="border-slate-600"
+            className="border-border"
             data-testid="button-refresh-picks"
           >
             <RefreshCw
@@ -300,7 +300,7 @@ export function NextWeekPicks() {
 
       <CardContent>
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-[var(--trade-neutral)] flex-shrink-0 mt-0.5" />
           <div className="text-sm text-amber-200/80">
             <span className="font-semibold">Educational Research Only</span> -
             These picks are generated by our 6-engine analysis system for
@@ -309,10 +309,10 @@ export function NextWeekPicks() {
         </div>
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="w-full grid grid-cols-4 mb-6 bg-slate-800/50">
+          <TabsList className="w-full grid grid-cols-4 mb-6 bg-muted/50">
             <TabsTrigger
               value="all"
-              className="data-[state=active]:bg-slate-700"
+              className="data-[state=active]:bg-muted"
               data-testid="tab-all-picks"
             >
               <Rocket className="w-4 h-4 mr-2" />
@@ -358,30 +358,30 @@ export function NextWeekPicks() {
           </TabsContent>
         </Tabs>
 
-        <div className="mt-6 pt-4 border-t border-slate-700/50 grid grid-cols-3 gap-4 text-center">
-          <div className="p-3 bg-slate-800/30 rounded-lg">
+        <div className="mt-6 pt-4 border-t border-border/50 grid grid-cols-3 gap-4 text-center">
+          <div className="p-3 bg-muted/30 rounded-lg">
             <div className="text-2xl font-bold font-mono text-orange-400">
               {byType.lottos.length}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               <Flame className="w-3 h-3 inline mr-1" />
               Lotto Plays
             </div>
           </div>
-          <div className="p-3 bg-slate-800/30 rounded-lg">
+          <div className="p-3 bg-muted/30 rounded-lg">
             <div className="text-2xl font-bold font-mono text-cyan-400">
               {byType.dayTrades.length}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               <Zap className="w-3 h-3 inline mr-1" />
               Day Trades
             </div>
           </div>
-          <div className="p-3 bg-slate-800/30 rounded-lg">
+          <div className="p-3 bg-muted/30 rounded-lg">
             <div className="text-2xl font-bold font-mono text-purple-400">
               {byType.swings.length}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               <TrendingUp className="w-3 h-3 inline mr-1" />
               Swing Trades
             </div>

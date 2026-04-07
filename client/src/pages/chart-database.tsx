@@ -68,12 +68,12 @@ export default function ChartDatabase() {
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-wider text-amber-400 mb-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-[var(--trade-neutral)] mb-2">
             Chart Database
           </p>
           <div className="flex items-center gap-3 mb-2">
             <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <Database className="h-5 w-5 text-amber-400" />
+              <Database className="h-5 w-5 text-[var(--trade-neutral)]" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold">My Chart Analyses</h1>
           </div>
@@ -91,7 +91,7 @@ export default function ChartDatabase() {
                 <p className="text-2xl font-bold font-mono tabular-nums">{stats.total}</p>
               </div>
               <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="h-4 w-4 text-amber-400" />
+                <BarChart3 className="h-4 w-4 text-[var(--trade-neutral)]" />
               </div>
             </div>
           </div>
@@ -110,10 +110,10 @@ export default function ChartDatabase() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Wins</p>
-                <p className="text-2xl font-bold font-mono tabular-nums text-green-400">{stats.wins}</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-bullish)]">{stats.wins}</p>
               </div>
-              <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-4 w-4 text-green-400" />
+              <div className="h-8 w-8 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-4 w-4 text-[var(--trade-bullish)]" />
               </div>
             </div>
           </div>
@@ -121,10 +121,10 @@ export default function ChartDatabase() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Losses</p>
-                <p className="text-2xl font-bold font-mono tabular-nums text-red-400">{stats.losses}</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-[var(--trade-bearish)]">{stats.losses}</p>
               </div>
               <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                <TrendingDown className="h-4 w-4 text-red-400" />
+                <TrendingDown className="h-4 w-4 text-[var(--trade-bearish)]" />
               </div>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function ChartDatabase() {
         <div className="glass-card rounded-lg p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <Filter className="h-4 w-4 text-amber-400" />
+              <Filter className="h-4 w-4 text-[var(--trade-neutral)]" />
             </div>
             <h3 className="font-semibold">Filter Charts</h3>
           </div>
@@ -207,7 +207,7 @@ export default function ChartDatabase() {
           ) : filteredTrades.length === 0 ? (
             <div className="glass-card rounded-lg p-12 text-center">
               <div className="h-16 w-16 rounded-lg bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
-                <Database className="h-8 w-8 text-amber-400" />
+                <Database className="h-8 w-8 text-[var(--trade-neutral)]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">No Patterns Found</h3>
               <p className="text-muted-foreground">
@@ -248,9 +248,9 @@ export default function ChartDatabase() {
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Status</p>
                       {trade.outcomeStatus === 'hit_target' ? (
-                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30 text-xs">WIN</Badge>
+                        <Badge className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30 text-xs">WIN</Badge>
                       ) : trade.outcomeStatus === 'hit_stop' ? (
-                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">LOSS</Badge>
+                        <Badge className="bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30 text-xs">LOSS</Badge>
                       ) : trade.outcomeStatus === 'expired' ? (
                         <Badge variant="secondary" className="text-xs">EXPIRED</Badge>
                       ) : (

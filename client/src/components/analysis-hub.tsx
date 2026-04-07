@@ -74,8 +74,8 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Options probability and risk analysis',
       icon: Shield,
       href: `/options-analyzer?symbol=${symbol}`,
-      color: 'text-green-400',
-      bgColor: 'bg-green-500/10',
+      color: 'text-[var(--trade-bullish)]',
+      bgColor: 'bg-[var(--trade-bullish)]/10',
       borderColor: 'border-green-500/30',
       features: ['Greeks analysis', 'Probability calculator', 'IV analysis', 'Risk/reward'],
       available: assetClass === 'stock' || assetClass === 'options',
@@ -87,7 +87,7 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Learn from past trades and patterns',
       icon: History,
       href: `/historical-intelligence?symbol=${symbol}`,
-      color: 'text-amber-400',
+      color: 'text-[var(--trade-neutral)]',
       bgColor: 'bg-amber-500/10',
       borderColor: 'border-amber-500/30',
       features: ['Past performance', 'Win rate history', 'Pattern success', 'Behavioral analysis'],
@@ -113,7 +113,7 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
       description: 'Test trading strategies with historical data',
       icon: FileText,
       href: `/backtest?symbol=${symbol}`,
-      color: 'text-emerald-400',
+      color: 'text-[var(--trade-bullish)]',
       bgColor: 'bg-emerald-500/10',
       borderColor: 'border-emerald-500/30',
       features: ['RSI strategies', 'MACD strategies', 'Performance metrics', 'Win rate analysis'],
@@ -132,15 +132,15 @@ function AnalysisLinkCard({ link, compact }: { link: AnalysisLink; compact?: boo
         <div
           className={cn(
             "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200",
-            "bg-slate-800/40 border border-slate-700/30 hover:border-cyan-500/40",
-            "hover:bg-slate-800/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)]",
+            "bg-muted/40 border border-border/30 hover:border-cyan-500/40",
+            "hover:bg-muted/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.1)]",
             !link.available && "opacity-40 pointer-events-none"
           )}
           data-testid={`link-${link.id}`}
         >
           <Icon className={cn("h-4 w-4", link.color)} />
-          <span className="text-xs font-medium text-slate-300">{link.title}</span>
-          <ChevronRight className="h-3 w-3 ml-auto text-slate-500" />
+          <span className="text-xs font-medium text-foreground/80">{link.title}</span>
+          <ChevronRight className="h-3 w-3 ml-auto text-muted-foreground" />
         </div>
       </Link>
     );
@@ -151,8 +151,8 @@ function AnalysisLinkCard({ link, compact }: { link: AnalysisLink; compact?: boo
       <div 
         className={cn(
           "group p-4 rounded-lg transition-all duration-200 cursor-pointer",
-          "bg-slate-800/30 border border-slate-700/20",
-          "hover:bg-slate-800/50 hover:border-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.1)]",
+          "bg-muted/30 border border-border/20",
+          "hover:bg-muted/50 hover:border-cyan-500/30 hover:shadow-[0_0_20px_rgba(34,211,238,0.1)]",
           !link.available && "opacity-40 pointer-events-none"
         )} 
         data-testid={`card-${link.id}`}
@@ -167,10 +167,10 @@ function AnalysisLinkCard({ link, compact }: { link: AnalysisLink; compact?: boo
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="font-medium text-sm text-slate-200">{link.title}</h4>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <h4 className="font-medium text-sm text-foreground/90">{link.title}</h4>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{link.description}</p>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{link.description}</p>
           </div>
         </div>
       </div>
@@ -204,25 +204,25 @@ function SignalConvergenceBar({ signals }: { signals: { source: string; directio
   const direction = bullish > bearish ? 'bullish' : bearish > bullish ? 'bearish' : 'neutral';
   
   return (
-    <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/20 space-y-3">
+    <div className="p-4 rounded-lg bg-muted/30 border border-border/20 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Signal Convergence</span>
+        <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Signal Convergence</span>
         <div className={cn(
           "text-xs font-mono px-2 py-0.5 rounded",
-          convergence >= 80 && "bg-green-500/15 text-green-400",
-          convergence >= 60 && convergence < 80 && "bg-amber-500/15 text-amber-400",
-          convergence < 60 && "bg-slate-700/50 text-slate-400"
+          convergence >= 80 && "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)]",
+          convergence >= 60 && convergence < 80 && "bg-amber-500/15 text-[var(--trade-neutral)]",
+          convergence < 60 && "bg-muted/50 text-muted-foreground"
         )}>
           {safeToFixed(convergence, 0)}% {direction}
         </div>
       </div>
-      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
         <div 
-          className="bg-green-400 transition-all duration-500" 
+          className="bg-[var(--trade-bullish)] transition-all duration-500" 
           style={{ width: `${(bullish / total) * 100}%` }}
         />
         <div 
-          className="bg-slate-600 transition-all duration-500" 
+          className="bg-muted transition-all duration-500" 
           style={{ width: `${((total - bullish - bearish) / total) * 100}%` }}
         />
         <div 
@@ -230,10 +230,10 @@ function SignalConvergenceBar({ signals }: { signals: { source: string; directio
           style={{ width: `${(bearish / total) * 100}%` }}
         />
       </div>
-      <div className="flex justify-between text-[10px] font-mono text-slate-500">
-        <span className="text-green-400/80">{bullish} bullish</span>
+      <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+        <span className="text-[var(--trade-bullish)]/80">{bullish} bullish</span>
         <span>{total - bullish - bearish} neutral</span>
-        <span className="text-red-400/80">{bearish} bearish</span>
+        <span className="text-[var(--trade-bearish)]/80">{bearish} bearish</span>
       </div>
     </div>
   );
@@ -269,8 +269,8 @@ export function AnalysisHub({
   ];
   
   return (
-    <Card className="bg-slate-900/60 backdrop-blur-2xl border-slate-700/30 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden" data-testid="analysis-hub">
-      <CardHeader className="pb-4 border-b border-slate-800/50">
+    <Card className="bg-card/60 backdrop-blur-2xl border-border/30 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden" data-testid="analysis-hub">
+      <CardHeader className="pb-4 border-b border-border/50">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="p-2.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.1)]">
@@ -278,12 +278,12 @@ export function AnalysisHub({
             </div>
             <div>
               <CardTitle className="text-base font-bold tracking-tight flex items-center gap-3">
-                <span className="text-slate-100">Analysis Hub</span>
-                <Badge className="text-[10px] font-mono bg-slate-800/80 text-cyan-400 border-cyan-500/30">
+                <span className="text-foreground/95">Analysis Hub</span>
+                <Badge className="text-[10px] font-mono bg-muted/80 text-cyan-400 border-cyan-500/30">
                   {symbol}
                 </Badge>
               </CardTitle>
-              <p className="text-[11px] text-slate-500 tracking-wide mt-1">
+              <p className="text-[11px] text-muted-foreground tracking-wide mt-1">
                 {availableLinks.length} analysis tools available
               </p>
             </div>
