@@ -109,7 +109,7 @@ export default function LearningDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-3 sm:p-4">
+    <div className="min-h-screen bg-background page-atmosphere p-3 sm:p-4">
       {/* Header */}
       <div className="max-w-[1600px] mx-auto">
         <motion.div

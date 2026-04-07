@@ -3741,7 +3741,7 @@ export default function TradeDeskRedesigned() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--surface-base)]">
+    <div className="min-h-screen bg-background page-atmosphere">
       {/* Market Pulse Header */}
       <MarketPulseHeader />
 

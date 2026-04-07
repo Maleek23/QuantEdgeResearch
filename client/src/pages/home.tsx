@@ -997,12 +997,7 @@ function EngineHealthBar() {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Subtle dot grid background */}
-      <div className="fixed inset-0 dot-grid opacity-20 pointer-events-none" />
-      {/* Ambient glow — top center teal, bottom-left blue */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] pointer-events-none opacity-30" style={{ background: 'radial-gradient(ellipse at center, var(--glow-teal), transparent 70%)' }} />
-      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] pointer-events-none opacity-20" style={{ background: 'radial-gradient(ellipse at center, var(--glow-blue), transparent 70%)' }} />
+    <div className="min-h-screen bg-background page-atmosphere">
 
       {/* Market Ticker */}
       <MarketTicker />

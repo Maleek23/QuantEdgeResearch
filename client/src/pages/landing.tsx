@@ -441,15 +441,7 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--surface-base)] text-foreground overflow-x-hidden">
-      {/* Emerald gradient background — same as login page */}
-      <div className="fixed inset-0 bg-gradient-to-br from-emerald-950/30 via-[var(--surface-base)] to-[var(--surface-base)] pointer-events-none" />
-      {/* Grid pattern overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-15" style={{
-        backgroundImage: `linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px),
-                         linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px)`,
-        backgroundSize: '60px 60px'
-      }} />
+    <div className="min-h-screen bg-[var(--surface-base)] text-foreground overflow-x-hidden page-atmosphere">
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--surface-base)]/80 backdrop-blur-md border-b border-border">

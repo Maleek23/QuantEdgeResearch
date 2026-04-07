@@ -4231,7 +4231,7 @@ export default function ChartAnalysis() {
   })() : [];
 
   return (
-    <div className="min-h-screen bg-background relative overflow-x-hidden w-full">
+    <div className="min-h-screen bg-background page-atmosphere relative overflow-x-hidden w-full">
       {/* Background */}
       <div className="fixed inset-0 z-0 bg-gradient-to-b from-background to-muted/20"></div>
 

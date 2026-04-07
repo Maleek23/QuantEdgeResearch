@@ -760,7 +760,7 @@ export default function GEXDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <div className="min-h-screen bg-background page-atmosphere text-foreground">
       <div className="max-w-[1600px] mx-auto px-4 py-4 space-y-4">
 
         {/* ── Header ── */}

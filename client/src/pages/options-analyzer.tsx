@@ -466,7 +466,7 @@ export default function OptionsAnalyzer() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background page-atmosphere">
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>

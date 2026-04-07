@@ -94,6 +94,35 @@ input, textarea, select,
   box-shadow: 0 4px 20px rgba(20, 184, 166, 0.06);
 }
 
+/* Atmospheric page background — logo-inspired cyan-blue glow
+   Apply to any page: className="page-atmosphere" */
+.page-atmosphere {
+  position: relative;
+}
+
+.page-atmosphere::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(34, 211, 238, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 90%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-atmosphere::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* Buttons — consistent press feedback */
 button:not([disabled]):active,
 [role="button"]:not([disabled]):active {

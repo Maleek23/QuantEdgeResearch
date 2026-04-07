@@ -502,7 +502,7 @@ export default function FlowEdge() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background page-atmosphere text-foreground">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 space-y-3">
 
         {/* Header — Bloomberg compact */}
