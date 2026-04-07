@@ -46,6 +46,62 @@
 }
 
 /* ============================================================
+   GLOBAL POLISH LAYER — Consistency enforcer
+   One easing. One hover pattern. One shadow depth.
+   Applied GLOBALLY so every component inherits premium feel.
+   ============================================================ */
+
+/* Top viewport stripe — 3px brand gradient */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 9998;
+  background: linear-gradient(90deg, var(--brand-teal), var(--brand-cyan), var(--brand-teal));
+  pointer-events: none;
+}
+
+/* Global transition easing — one curve for everything */
+:root {
+  --ease-out-smooth: cubic-bezier(.4, 0, .2, 1);
+  --transition-fast: 0.15s var(--ease-out-smooth);
+  --transition-base: 0.2s var(--ease-out-smooth);
+  --transition-slow: 0.3s var(--ease-out-smooth);
+}
+
+/* Force consistent transitions on all interactive elements */
+a, button, [role="button"],
+input, textarea, select,
+.shadcn-card, [class*="rounded"] {
+  transition-timing-function: var(--ease-out-smooth);
+}
+
+/* Cards — consistent hover lift + glow */
+.shadcn-card {
+  transition: transform var(--transition-base),
+              box-shadow var(--transition-base),
+              border-color var(--transition-base);
+}
+
+.shadcn-card:hover {
+  transform: translateY(-1px);
+}
+
+.dark .shadcn-card:hover {
+  box-shadow: 0 4px 20px rgba(20, 184, 166, 0.06);
+}
+
+/* Buttons — consistent press feedback */
+button:not([disabled]):active,
+[role="button"]:not([disabled]):active {
+  transform: scale(0.98);
+  transition-duration: 0.05s;
+}
+
+/* ============================================================
    QUANT EDGE LABS — UNIFIED DESIGN TOKENS
    Single source of truth for both light and dark modes.
 
@@ -170,8 +226,16 @@
 
   /* --- Layout --- */
   --radius: 0.5rem;
+  --radius-card: 0.625rem; /* 10px — consistent card radius */
+  --radius-button: 0.5rem; /* 8px */
+  --radius-badge: 0.25rem; /* 4px */
   --spacing: 0.25rem;
   --tracking-normal: 0em;
+
+  /* --- Section spacing (consistent vertical rhythm) --- */
+  --section-gap: 2.5rem;    /* 40px between major sections */
+  --section-gap-sm: 1.5rem; /* 24px between sub-sections */
+  --card-gap: 0.625rem;     /* 10px between cards in grids */
 
   /* --- Shadows (light — minimal, flat) --- */
   --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -301,8 +365,16 @@
 
   /* --- Layout --- */
   --radius: 0.5rem;
+  --radius-card: 0.625rem;
+  --radius-button: 0.5rem;
+  --radius-badge: 0.25rem;
   --spacing: 0.25rem;
   --tracking-normal: -0.01em;
+
+  /* --- Section spacing --- */
+  --section-gap: 2.5rem;
+  --section-gap-sm: 1.5rem;
+  --card-gap: 0.625rem;
 
   /* --- Shadows (dark — deeper, bluer) --- */
   --shadow-2xs: 0 1px 2px hsl(222 47% 2% / 0.3);
@@ -1011,6 +1083,37 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Premium scrollbar — thin, branded */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.35);
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Selection color — branded */
+  ::selection {
+    background: rgba(20, 184, 166, 0.25);
+    color: inherit;
   }
 
   /* Fix autofill styling - force dark text on white autofill backgrounds */

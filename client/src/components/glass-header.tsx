@@ -128,7 +128,7 @@ export function GlassHeader() {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-150",
-        scrolled ? "pt-0.5" : "pt-1.5"
+        scrolled ? "pt-[5px]" : "pt-[7px]"
       )}
     >
       <div className="max-w-[1600px] mx-auto px-2">
