@@ -20,7 +20,7 @@ import { Star, Plus, X, TrendingUp, TrendingDown, Eye, AlertCircle, Loader2, Dol
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { cn, safeToFixed } from '@/lib/utils';
+import { cn, safeToFixed, formatVolumeCompact } from '@/lib/utils';
 
 interface WatchlistItem {
   id: string;
@@ -123,11 +123,7 @@ export function WatchlistTracker() {
     addSymbolMutation.mutate({ symbol, notes: '2026 growth play' });
   };
 
-  const formatPremium = (premium: number) => {
-    if (premium >= 1000000) return `$${safeToFixed(premium / 1000000, 1)}M`;
-    if (premium >= 1000) return `$${safeToFixed(premium / 1000, 0)}K`;
-    return `$${safeToFixed(premium, 0)}`;
-  };
+  const formatPremium = (premium: number) => `$${formatVolumeCompact(premium).replace('--', '0')}`;
 
   const getPriceChangeColor = (changePercent?: number) => {
     if (!changePercent) return 'text-muted-foreground';

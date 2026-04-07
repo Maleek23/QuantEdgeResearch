@@ -14,7 +14,7 @@ import { TrendingUp, TrendingDown, Zap, Target, DollarSign, Plus, RefreshCw, Eye
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { safeToFixed } from '@/lib/utils';
+import { safeToFixed, formatVolumeCompact } from '@/lib/utils';
 
 interface OptionsFlow {
   id: string;
@@ -185,11 +185,7 @@ export function SmartMoneyFlowTracker() {
     return type.replace('_', ' ').toUpperCase();
   };
 
-  const formatPremium = (premium: number) => {
-    if (premium >= 1000000) return `$${safeToFixed(premium / 1000000, 1)}M`;
-    if (premium >= 1000) return `$${safeToFixed(premium / 1000, 0, '0')}K`;
-    return `$${safeToFixed(premium, 0, '0')}`;
-  };
+  const formatPremium = (premium: number) => `$${formatVolumeCompact(premium).replace('--', '0')}`;
 
   const highConvictionFlows = todayFlows.filter(f => f.unusualScore >= 70).sort((a, b) => b.unusualScore - a.unusualScore);
 
