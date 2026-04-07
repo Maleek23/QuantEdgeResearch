@@ -3745,11 +3745,11 @@ export default function TradeDeskRedesigned() {
       {/* Market Pulse Header */}
       <MarketPulseHeader />
 
-      <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-        {/* Page Header */}
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-3 space-y-3">
+        {/* Page Header — Bloomberg compact */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">Trade Desk</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-semibold text-foreground tracking-tight">Trade Desk</h1>
           </div>
           <div className="flex items-center gap-2">
             {/* Generate Ideas Dropdown */}
@@ -3757,7 +3757,7 @@ export default function TradeDeskRedesigned() {
               onValueChange={(value) => generateIdeas.mutate(value as any)}
               disabled={generateIdeas.isPending}
             >
-              <SelectTrigger className="w-[140px] bg-transparent text-muted-foreground border-border hover:border-[var(--trade-bullish)]/40 hover:text-foreground text-xs font-medium h-8">
+              <SelectTrigger className="w-[120px] bg-transparent text-muted-foreground border-border hover:border-[var(--trade-bullish)]/40 hover:text-foreground text-[10px] font-mono font-medium h-7">
                 {generatingEngine ? (
                   <div className="flex items-center gap-1.5">
                     <RefreshCw className="w-3 h-3 animate-spin" />
@@ -3806,13 +3806,13 @@ export default function TradeDeskRedesigned() {
           </div>
         </div>
 
-        {/* Asset Type Filter */}
-        <div className="flex items-center gap-1.5">
+        {/* Asset Type Filter — compact */}
+        <div className="flex items-center gap-1">
           {[
             { value: 'all', label: 'All' },
-            { value: 'watchlist', label: 'My Watchlist' },
+            { value: 'watchlist', label: 'Watchlist' },
             { value: 'option', label: 'Options' },
-            { value: 'tv', label: 'TV Signals' },
+            { value: 'tv', label: 'TV' },
           ].map(({ value, label }) => {
             const count = value === 'option' ? optionIdeas.length :
                           value === 'watchlist' ? watchlistIdeas.length :
@@ -3822,20 +3822,20 @@ export default function TradeDeskRedesigned() {
                 key={value}
                 onClick={() => setAssetFilter(value as typeof assetFilter)}
                 className={cn(
-                  "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                  "px-2 py-0.5 rounded-md text-[10px] font-mono font-medium transition-all",
                   assetFilter === value
                     ? "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] ring-1 ring-[var(--trade-bullish)]/30"
-                    : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/50"
+                    : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
                 )}
               >
                 {label}
-                {value !== 'all' && (
-                  <span className="ml-1 opacity-50">{count}</span>
+                {value !== 'all' && count > 0 && (
+                  <span className="ml-0.5 opacity-40 tabular-nums">{count}</span>
                 )}
               </button>
             );
           })}
-          <span className="ml-auto text-[11px] text-muted-foreground/70 font-mono">{filteredIdeas.length} ideas</span>
+          <span className="ml-auto text-[9px] text-muted-foreground/50 font-mono tabular-nums">{filteredIdeas.length} ideas</span>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden lg:flex"
@@ -3846,29 +3846,29 @@ export default function TradeDeskRedesigned() {
         </div>
 
         {/* Main Content + Side Panel */}
-        <div className="flex gap-5">
+        <div className="flex gap-3">
           {/* Left: Tabs + Ideas */}
           <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs — Bloomberg density */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent border-b border-border/50 w-full justify-start gap-0 h-auto p-0 rounded-none">
-            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Layers className="w-3.5 h-3.5 mr-1.5 opacity-60" />
-              Today's Plays
+          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none">
+            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+              <Layers className="w-3 h-3 mr-1 opacity-60" />
+              Plays
             </TabsTrigger>
-            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Activity className="w-3.5 h-3.5 mr-1.5 opacity-60" />
-              Flow & Levels
+            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+              <Activity className="w-3 h-3 mr-1 opacity-60" />
+              Flow
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-5 pb-3 pt-1 text-sm font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Target className="w-3.5 h-3.5 mr-1.5 opacity-60" />
-              Strategy Lab
+            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+              <Target className="w-3 h-3 mr-1 opacity-60" />
+              Strategy
             </TabsTrigger>
           </TabsList>
 
           {/* TODAY'S PLAYS TAB */}
-          <TabsContent value="ideas" className="space-y-4 mt-4">
+          <TabsContent value="ideas" className="space-y-3 mt-3">
             {/* TRADE IDEAS — THE MAIN CONTENT, FIRST THING YOU SEE */}
             <TradeIdeasList
               ideas={filteredIdeas}

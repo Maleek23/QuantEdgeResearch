@@ -200,18 +200,18 @@ function FlowTradesTable({ trades, onSymbolClick }: { trades: FlowTrade[]; onSym
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs">
+      <table className="data-table-compact">
         <thead>
-          <tr className="border-b border-border/50 text-muted-foreground">
-            <th className="py-2 px-2 text-left font-medium">TICKER</th>
-            <th className="py-2 px-2 text-left font-medium">STRIKE</th>
-            <th className="py-2 px-2 text-left font-medium">C/P</th>
-            <th className="py-2 px-2 text-left font-medium">EXP</th>
-            <th className="py-2 px-2 text-right font-medium">PRICE</th>
-            <th className="py-2 px-2 text-right font-medium">SIZE</th>
-            <th className="py-2 px-2 text-right font-medium">VALUE</th>
-            <th className="py-2 px-2 text-left font-medium">TYPE</th>
-            <th className="py-2 px-2 text-left font-medium">TIME</th>
+          <tr>
+            <th>TICKER</th>
+            <th>STRIKE</th>
+            <th>C/P</th>
+            <th>EXP</th>
+            <th className="text-right">PRICE</th>
+            <th className="text-right">SIZE</th>
+            <th className="text-right">VALUE</th>
+            <th>TYPE</th>
+            <th>TIME</th>
           </tr>
         </thead>
         <tbody>
@@ -503,53 +503,53 @@ export default function FlowEdge() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-[1600px] mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 space-y-3">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-cyan-400" />
+        {/* Header — Bloomberg compact */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
+              <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5">
                 Flow Edge
-                <Badge variant="outline" className="text-[10px] text-[var(--trade-bullish)] border-emerald-500/30 bg-[var(--trade-bullish)]/10 animate-pulse">
+                <Badge variant="outline" className="text-[8px] text-[var(--trade-bullish)] border-emerald-500/30 bg-[var(--trade-bullish)]/10 animate-pulse font-mono px-1 py-0">
                   LIVE
                 </Badge>
               </h1>
-              <p className="text-xs text-muted-foreground">Institutional options flow • GEX convergence signals</p>
+              <p className="text-[10px] text-muted-foreground">Options flow + GEX convergence</p>
             </div>
           </div>
 
           {/* Search */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
               <Input
                 placeholder="Symbol..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-8 h-8 w-32 text-xs bg-muted/50 border-border focus:border-cyan-500/50"
+                className="pl-7 h-7 w-28 text-[10px] font-mono bg-muted/50 border-border focus:border-cyan-500/50"
               />
             </div>
-            <Button size="sm" variant="outline" onClick={handleSearch} className="h-8 text-xs border-border hover:border-cyan-500/50">
+            <Button size="sm" variant="outline" onClick={handleSearch} className="h-7 text-[10px] font-mono border-border hover:border-cyan-500/50 px-2">
               Go
             </Button>
             {symbol && (
-              <Button size="sm" variant="ghost" onClick={clearSymbol} className="h-8 text-xs text-muted-foreground">
+              <Button size="sm" variant="ghost" onClick={clearSymbol} className="h-7 text-[10px] text-muted-foreground px-1.5">
                 Clear
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-8 text-xs text-muted-foreground">
-              <RefreshCw className="w-3.5 h-3.5" />
+            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 w-7 text-muted-foreground p-0">
+              <RefreshCw className="w-3 h-3" />
             </Button>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        {/* Filter Tabs — tighter */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
           {FILTER_PRESETS.map((f) => (
             <Button
               key={f.key}
@@ -557,7 +557,7 @@ export default function FlowEdge() {
               variant={activeFilter === f.key ? 'default' : 'outline'}
               onClick={() => { setActiveFilter(f.key); setPage(0); }}
               className={cn(
-                "h-7 text-xs whitespace-nowrap",
+                "h-6 text-[10px] font-mono whitespace-nowrap px-2",
                 activeFilter === f.key
                   ? 'bg-cyan-600 hover:bg-cyan-700 text-foreground border-transparent'
                   : 'border-border text-muted-foreground hover:text-foreground hover:border-border'
@@ -567,14 +567,14 @@ export default function FlowEdge() {
             </Button>
           ))}
           {symbol && (
-            <Badge className="ml-2 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+            <Badge className="ml-1 text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono px-1.5">
               {symbol}
             </Badge>
           )}
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
           {/* Left: Trades Table */}
           <div className="lg:col-span-3">
             <Card className="bg-card/50 border-border">
