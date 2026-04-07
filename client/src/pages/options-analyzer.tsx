@@ -467,34 +467,34 @@ export default function OptionsAnalyzer() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 space-y-4">
+      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-              <Activity className="h-6 w-6 text-[var(--trade-bullish)]" />
+            <h1 className="text-base font-bold flex items-center gap-2" data-testid="text-page-title">
+              <Activity className="h-4 w-4 text-[var(--trade-bullish)]" />
               Options Analyzer
             </h1>
-            <p className="text-sm text-muted-foreground">Analyze options chains, greeks, and volatility metrics</p>
+            <p className="text-[10px] text-muted-foreground">Chains, greeks, vol surface, pricing</p>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="chain" className="flex items-center gap-1" data-testid="tab-chain">
-              <Layers className="h-4 w-4" />
-              Options Chain
+          <TabsList className="grid w-full max-w-lg grid-cols-4 mb-3">
+            <TabsTrigger value="chain" className="flex items-center gap-1 text-[10px] font-mono" data-testid="tab-chain">
+              <Layers className="h-3 w-3" />
+              Chain
             </TabsTrigger>
-            <TabsTrigger value="surface" className="flex items-center gap-1" data-testid="tab-surface">
-              <BarChart3 className="h-4 w-4" />
-              Vol Surface
+            <TabsTrigger value="surface" className="flex items-center gap-1 text-[10px] font-mono" data-testid="tab-surface">
+              <BarChart3 className="h-3 w-3" />
+              Vol Surf
             </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-1" data-testid="tab-pricing">
-              <Calculator className="h-4 w-4" />
-              Pricing Lab
+            <TabsTrigger value="pricing" className="flex items-center gap-1 text-[10px] font-mono" data-testid="tab-pricing">
+              <Calculator className="h-3 w-3" />
+              Pricing
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="flex items-center gap-1" data-testid="tab-strategy">
-              <Settings2 className="h-4 w-4" />
-              Strategy Lab
+            <TabsTrigger value="strategy" className="flex items-center gap-1 text-[10px] font-mono" data-testid="tab-strategy">
+              <Settings2 className="h-3 w-3" />
+              Strategy
             </TabsTrigger>
           </TabsList>
 
