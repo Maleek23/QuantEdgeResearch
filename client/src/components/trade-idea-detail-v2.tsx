@@ -15,7 +15,7 @@ import {
   CheckCircle2, AlertTriangle, MinusCircle, Zap, Clock, Target,
   TrendingUp, Shield, BarChart3,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, formatRelativeTime } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
 
 interface Props {
@@ -24,21 +24,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function safeFixed(n: number | null | undefined, d: number): string {
-  if (n === null || n === undefined || isNaN(Number(n))) return '--';
-  return Number(n).toFixed(d);
-}
-
-function relativeTime(iso: string): string {
-  if (!iso) return '--';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
+// Use shared utilities
+const safeFixed = (n: number | null | undefined, d: number) => safeToFixed(n, d, '--');
+const relativeTime = (iso: string) => formatRelativeTime(iso);
 
 // Parse QE checks from the catalyst/analysis text
 function parseQEChecks(text: string): { label: string; passed: boolean }[] {

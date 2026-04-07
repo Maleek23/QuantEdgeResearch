@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   Activity,
   TrendingUp,
@@ -110,7 +110,7 @@ function GEXLevelsPanel({ symbol }: { symbol: string }) {
         <div className="bg-card/60 rounded-lg p-3 border border-border/50">
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Net GEX</div>
           <div className={cn("text-lg font-mono font-bold", isPositiveGamma ? "text-[var(--trade-bullish)]" : "text-rose-400")}>
-            {isPositiveGamma ? '+' : ''}{(data.totalNetGEX / 1e9).toFixed(2)}B
+            {isPositiveGamma ? '+' : ''}{safeToFixed(data.totalNetGEX / 1e9, 2)}B
           </div>
         </div>
       </div>
@@ -189,7 +189,7 @@ function GEXLevelsPanel({ symbol }: { symbol: string }) {
                   "text-[10px] font-mono",
                   isCall ? "text-[var(--trade-bullish)]" : "text-rose-400"
                 )}>
-                  {isCall ? '+' : ''}{(s.netGEX / 1e6).toFixed(1)}M
+                  {isCall ? '+' : ''}{safeToFixed(s.netGEX / 1e6, 1)}M
                 </span>
               </div>
 
@@ -310,10 +310,10 @@ function WhaleFlowFeed() {
             const isBullish = flow.direction === 'bullish';
             const premium = typeof flow.premium === 'number' ? flow.premium : 0;
             const premiumStr = premium >= 1e6
-              ? `$${(premium / 1e6).toFixed(1)}M`
+              ? `$${safeToFixed(premium / 1e6, 1)}M`
               : premium >= 1e3
-                ? `$${(premium / 1e3).toFixed(0)}K`
-                : `$${premium.toFixed(0)}`;
+                ? `$${safeToFixed(premium / 1e3, 0)}K`
+                : `$${safeToFixed(premium, 0)}`;
 
             return (
               <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/40 transition-colors border border-transparent hover:border-border/50">
@@ -402,7 +402,7 @@ function SmartMoneyScore() {
           isBullish ? "text-[var(--trade-bullish)]" : isBearish ? "text-rose-400" : "text-muted-foreground"
         )}>
           {sentiment.toUpperCase()} — {data?.callPremium && data?.putPremium
-            ? `Calls: $${(data.callPremium / 1e6).toFixed(1)}M | Puts: $${(data.putPremium / 1e6).toFixed(1)}M`
+            ? `Calls: $${safeToFixed(data.callPremium / 1e6, 1)}M | Puts: $${safeToFixed(data.putPremium / 1e6, 1)}M`
             : 'Analyzing flow...'}
         </div>
       </div>

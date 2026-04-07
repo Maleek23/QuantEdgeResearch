@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed } from "@/lib/utils";
 import {
   AreaChart,
   Area,
@@ -230,7 +230,7 @@ function PayoffDiagram({ data, breakEvens, spotPrice }: {
           }}
           labelFormatter={(v) => `Price: $${Number(v).toLocaleString()}`}
           formatter={(value: number) => [
-            `$${value >= 0 ? '+' : ''}${value.toFixed(2)}`,
+            `$${value >= 0 ? '+' : ''}${safeToFixed(value, 2)}`,
             'P&L'
           ]}
         />
@@ -272,11 +272,11 @@ function GreeksDisplay({ greeks, compact }: { greeks: Greeks | null; compact?: b
   if (!greeks) return null;
 
   const items = [
-    { label: 'Delta (Δ)', value: greeks.delta, color: 'text-cyan-400', format: (v: number) => v.toFixed(4) },
-    { label: 'Gamma (Γ)', value: greeks.gamma, color: 'text-purple-400', format: (v: number) => v.toFixed(4) },
-    { label: 'Theta (Θ)', value: greeks.theta, color: 'text-rose-400', format: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(4)}` },
-    { label: 'Vega (ν)', value: greeks.vega, color: 'text-[var(--trade-neutral)]', format: (v: number) => v.toFixed(4) },
-    { label: 'Rho (ρ)', value: greeks.rho, color: 'text-[var(--trade-bullish)]', format: (v: number) => v.toFixed(4) },
+    { label: 'Delta (Δ)', value: greeks.delta, color: 'text-cyan-400', format: (v: number) => safeToFixed(v, 4) },
+    { label: 'Gamma (Γ)', value: greeks.gamma, color: 'text-purple-400', format: (v: number) => safeToFixed(v, 4) },
+    { label: 'Theta (Θ)', value: greeks.theta, color: 'text-rose-400', format: (v: number) => `${v >= 0 ? '+' : ''}${safeToFixed(v, 4)}` },
+    { label: 'Vega (ν)', value: greeks.vega, color: 'text-[var(--trade-neutral)]', format: (v: number) => safeToFixed(v, 4) },
+    { label: 'Rho (ρ)', value: greeks.rho, color: 'text-[var(--trade-bullish)]', format: (v: number) => safeToFixed(v, 4) },
   ];
 
   if (compact) {

@@ -37,7 +37,7 @@ import {
   Flame,
   Target,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, formatVolumeCompact } from "@/lib/utils";
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -125,9 +125,7 @@ const FILTER_PRESETS: { key: FilterPreset; label: string; params: Record<string,
 // ═══════════════════════════════════════════════════════════════
 
 function formatPremium(val: number): string {
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
-  return `$${val.toFixed(0)}`;
+  return formatVolumeCompact(val).replace(/^/, '$');
 }
 
 function formatTime(iso: string): string {
@@ -243,7 +241,7 @@ function FlowTradesTable({ trades, onSymbolClick }: { trades: FlowTrade[]; onSym
               </td>
               <td className="py-2 px-2 font-mono text-muted-foreground">{formatDate(t.expirationDate)}</td>
               <td className="py-2 px-2 font-mono text-right text-foreground/80">
-                ${t.premium?.toFixed(2) || '--'}
+                ${safeToFixed(t.premium, 2, '--')}
               </td>
               <td className="py-2 px-2 font-mono text-right text-foreground/80">
                 {t.volume.toLocaleString()}
@@ -293,9 +291,9 @@ function StatsPanel({ stats }: { stats: FlowStats }) {
       <div className="bg-muted/30 rounded-lg p-3 border border-border/30">
         <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">CALL / PUT RATIO</div>
         <div className="flex items-center gap-1 text-[10px] mb-1">
-          <span className="text-[var(--trade-bullish)]">{callPct.toFixed(1)}% Calls</span>
+          <span className="text-[var(--trade-bullish)]">{safeToFixed(callPct, 1)}% Calls</span>
           <span className="flex-1" />
-          <span className="text-[var(--trade-bearish)]">{putPct.toFixed(1)}% Puts</span>
+          <span className="text-[var(--trade-bearish)]">{safeToFixed(putPct, 1)}% Puts</span>
         </div>
         <div className="h-2 rounded-full overflow-hidden flex bg-muted">
           <div className="bg-[var(--trade-bullish)] transition-all" style={{ width: `${callPct}%` }} />

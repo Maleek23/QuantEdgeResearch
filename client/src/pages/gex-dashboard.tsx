@@ -97,8 +97,8 @@ function useGEXHeatmap(symbol: string) {
 
 function formatGexValue(val: number): string {
   const abs = Math.abs(val);
-  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1000) return `${(val / 1000).toFixed(1)}K`;
+  if (abs >= 1_000_000) return `${safeToFixed(val / 1_000_000, 1)}M`;
+  if (abs >= 1000) return `${safeToFixed(val / 1000, 1)}K`;
   if (abs === 0) return '';
   return String(Math.round(val));
 }
@@ -673,7 +673,7 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
                       </Badge>
                     </div>
                     <div className="text-[9px] text-muted-foreground font-mono">
-                      {sig.type.replace(/_/g, ' ')} · {sig.distancePct.toFixed(1)}% from spot
+                      {sig.type.replace(/_/g, ' ')} · {safeToFixed(sig.distancePct, 1)}% from spot
                     </div>
                   </div>
                 </div>
