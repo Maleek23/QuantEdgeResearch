@@ -110,3 +110,4 @@ vite.config.ts.*
 # 🔒 Performance validation logic
 # 🔒 API keys and secrets
 # 🔒 Database content
+.claude/worktrees/
