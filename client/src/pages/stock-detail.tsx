@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { cn, safeNumber, safeToFixed } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed, formatVolumeCompact, formatRelativeTime } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -506,31 +506,10 @@ export default function StockDetailPage() {
   const companyName = quoteData?.name || analysisData?.name || '';
   const tier = analysisData?.overall?.tier || analysisData?.overall?.grade || 'C';
 
-  const formatVolume = (vol: number | null | undefined) => {
-    const v = safeNumber(vol);
-    if (v >= 1e9) return `${safeToFixed(v / 1e9, 1)}B`;
-    if (v >= 1e6) return `${safeToFixed(v / 1e6, 1)}M`;
-    if (v >= 1e3) return `${safeToFixed(v / 1e3, 1)}K`;
-    return safeToFixed(v, 0);
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const formatTimeAgo = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return formatDate(dateStr);
-  };
+  // Use shared formatters — no local redefinitions
+  const formatVolume = (vol: number | null | undefined) => formatVolumeCompact(vol);
+  const formatTimeAgo = (dateStr: string) => formatRelativeTime(dateStr);
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const chartHeight = chartExpanded ? 550 : 380;
 
@@ -542,81 +521,79 @@ export default function StockDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[var(--surface-base)] transition-colors">
-      <div className="max-w-[1800px] mx-auto px-6 py-5">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-30 bg-[#fafafa]/95 dark:bg-[var(--surface-base)]/95 backdrop-blur-md -mx-6 px-6 py-3 mb-4 border-b border-transparent [&:not(:first-child)]:border-border/50">
+    <div className="min-h-screen bg-background transition-colors">
+      <div className="max-w-[1800px] mx-auto px-4 py-3">
+        {/* Sticky Header — Bloomberg compact */}
+        <div className="sticky top-[3px] z-30 bg-background/95 backdrop-blur-md -mx-4 px-4 py-2 mb-3 border-b border-transparent [&:not(:first-child)]:border-border/40">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Link href="/trade-desk">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-[var(--brand-teal)]">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-[var(--brand-teal)] h-7 px-2 text-xs">
+                  <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                   Back
                 </Button>
               </Link>
-              <div className="h-6 w-px bg-border" />
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-foreground font-mono">{symbol}</h1>
-                <div className={cn("text-xs font-bold px-2.5 py-1 rounded-md", getTierColor(tier))}>
+              <div className="h-5 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold text-foreground font-mono tracking-wider">{symbol}</h1>
+                <div className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded font-mono", getTierColor(tier))}>
                   {tier}
                 </div>
                 {price > 0 && (
-                  <span className="text-lg font-bold text-foreground font-mono ml-2">
+                  <span className="text-base font-bold text-foreground font-mono tabular-nums ml-1">
                     ${safeToFixed(price, 2)}
                   </span>
                 )}
                 {price > 0 && (
                   <span className={cn(
-                    "text-sm font-mono font-medium",
-                    isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                    "text-xs font-mono tabular-nums font-medium px-1.5 py-0 rounded",
+                    isPositive ? "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10" : "text-[var(--trade-bearish)] bg-[var(--trade-bearish)]/10"
                   )}>
                     {isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%
                   </span>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground hidden md:block">{companyName}</p>
+              <p className="text-xs text-muted-foreground hidden md:block truncate max-w-[200px]">{companyName}</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Link href={`/chart-analysis?symbol=${symbol}`}>
-                <Button variant="outline" size="sm" className="border-[var(--brand-teal)]/30 text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/10">
-                  <BarChart2 className="w-4 h-4 mr-1.5" />
+                <Button variant="outline" size="sm" className="border-[var(--brand-teal)]/30 text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/10 h-7 px-2 text-xs">
+                  <BarChart2 className="w-3.5 h-3.5 mr-1" />
                   Chart
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground">
-                <Star className="w-4 h-4 mr-1.5" />
+              <Button variant="outline" size="sm" className="border-border text-muted-foreground hover:text-foreground h-7 px-2 text-xs">
+                <Star className="w-3.5 h-3.5 mr-1" />
                 Watch
               </Button>
-              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0">
-                <Plus className="w-4 h-4 mr-1.5" />
+              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0 h-7 px-2.5 text-xs">
+                <Plus className="w-3.5 h-3.5 mr-1" />
                 Trade
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Key Stats Bar */}
-        <div className="flex items-center gap-6 mb-5 text-sm flex-wrap">
-          <div className="flex items-center gap-2">
-            {isPositive ? <TrendingUp className="w-4 h-4 text-[var(--trade-bullish)]" /> : <TrendingDown className="w-4 h-4 text-[var(--trade-bearish)]" />}
-            <span className={cn("font-mono font-medium", isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+        {/* Key Stats Bar — data-strip */}
+        <div className="data-strip mb-3">
+          <div className="data-strip-item">
+            {isPositive ? <TrendingUp className="w-3 h-3 text-[var(--trade-bullish)]" /> : <TrendingDown className="w-3 h-3 text-[var(--trade-bearish)]" />}
+            <span className={cn("font-semibold", isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {isPositive ? '+' : ''}{safeToFixed(change, 2)} ({isPositive ? '+' : ''}{safeToFixed(changePercent, 2)}%)
             </span>
-            <span className="text-muted-foreground text-xs">Today</span>
           </div>
-          <div className="h-4 w-px bg-border" />
-          <div>
-            <span className="text-muted-foreground text-xs">Vol</span>
-            <span className="ml-1.5 text-foreground/80 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
+          <div className="data-strip-item">
+            <span className="data-strip-label">Vol</span>
+            <span className="data-strip-value">{quoteData?.volume ? formatVolume(quoteData.volume) : '--'}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">High</span>
-            <span className="ml-1.5 text-[var(--trade-bullish)] font-mono font-medium">{quoteData?.high ? `$${safeToFixed(quoteData.high, 2)}` : '—'}</span>
+          <div className="data-strip-item">
+            <span className="data-strip-label">High</span>
+            <span className="data-strip-value text-[var(--trade-bullish)]">{quoteData?.high ? `$${safeToFixed(quoteData.high, 2)}` : '--'}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Low</span>
-            <span className="ml-1.5 text-[var(--trade-bearish)] font-mono font-medium">{quoteData?.low ? `$${safeToFixed(quoteData.low, 2)}` : '—'}</span>
+          <div className="data-strip-item">
+            <span className="data-strip-label">Low</span>
+            <span className="data-strip-value text-[var(--trade-bearish)]">{quoteData?.low ? `$${safeToFixed(quoteData.low, 2)}` : '--'}</span>
           </div>
           <div>
             <span className="text-muted-foreground text-xs">Prev</span>
