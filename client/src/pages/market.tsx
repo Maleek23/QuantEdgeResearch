@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
-import { getMarketSession, formatCTTime, formatCurrency, formatPercent, safeToFixed, safeNumber } from "@/lib/utils";
+import { getMarketSession, formatCTTime, formatCurrency, formatPercent, safeToFixed, safeNumber, formatMarketCap as sharedFormatMarketCap, formatVolumeCompact, formatPriceChange, formatRelativeTime } from "@/lib/utils";
 
 interface SmartWatchlistPick {
   symbol: string;
@@ -90,35 +90,19 @@ interface SectorData {
   [sector: string]: { avg: number; count: number };
 }
 
+// Use shared formatting utilities — no local redefinitions
 const formatPrice = (price: number) => {
-  const safePrice = safeNumber(price);
-  if (safePrice >= 1) return `$${safeToFixed(safePrice, 2)}`;
-  if (safePrice >= 0.01) return `$${safeToFixed(safePrice, 4)}`;
-  return `$${safeToFixed(safePrice, 8)}`;
+  const p = safeNumber(price);
+  if (p >= 1) return `$${safeToFixed(p, 2)}`;
+  if (p >= 0.01) return `$${safeToFixed(p, 4)}`;
+  return `$${safeToFixed(p, 8)}`;
 };
-
 const formatPercentage = (value: number | undefined) => {
-  if (value === undefined || value === null) return "-";
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${safeToFixed(value, 2)}%`;
+  if (value === undefined || value === null) return "--";
+  return formatPriceChange(value).text;
 };
-
-const formatVolume = (vol: number) => {
-  const safeVol = safeNumber(vol);
-  if (safeVol >= 1e9) return `${safeToFixed(safeVol / 1e9, 1)}B`;
-  if (safeVol >= 1e6) return `${safeToFixed(safeVol / 1e6, 1)}M`;
-  if (safeVol >= 1e3) return `${safeToFixed(safeVol / 1e3, 1)}K`;
-  return safeVol.toString();
-};
-
-const formatMarketCap = (cap: number | undefined) => {
-  if (!cap) return "-";
-  const safeCap = safeNumber(cap);
-  if (safeCap >= 1e12) return `$${safeToFixed(safeCap / 1e12, 1)}T`;
-  if (safeCap >= 1e9) return `$${safeToFixed(safeCap / 1e9, 1)}B`;
-  if (safeCap >= 1e6) return `$${safeToFixed(safeCap / 1e6, 0)}M`;
-  return `$${safeToFixed(safeCap, 0)}`;
-};
+const formatVolume = (vol: number) => formatVolumeCompact(vol);
+const formatMarketCap = (cap: number | undefined) => sharedFormatMarketCap(cap);
 
 function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: string }) {
   const getChangeForTimeframe = () => {
@@ -135,19 +119,19 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
   const isPositive = (change ?? 0) >= 0;
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 border-b border-border/50 hover-elevate cursor-pointer"
+    <div className="flex items-center justify-between py-2 px-3 border-b border-border/30 hover:bg-muted/30 cursor-pointer transition-colors"
          data-testid={`stock-row-${stock.symbol}`}>
-      <div className="flex items-center gap-4 min-w-0 flex-1">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-foreground" data-testid={`text-symbol-${stock.symbol}`}>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono font-semibold text-foreground text-sm tracking-wider" data-testid={`text-symbol-${stock.symbol}`}>
               {stock.symbol}
             </span>
             {stock.marketCap && stock.marketCap >= 10e9 && (
-              <Badge variant="secondary" className="text-xs">Large Cap</Badge>
+              <Badge variant="secondary" className="text-[9px] px-1 py-0 font-mono">LC</Badge>
             )}
             {stock.currentPrice < 5 && (
-              <Badge variant="outline" className="text-xs text-[var(--trade-neutral)] border-amber-400/30">Penny</Badge>
+              <Badge variant="outline" className="text-[9px] px-1 py-0 text-[var(--trade-neutral)] border-amber-400/30 font-mono">PENNY</Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate max-w-[200px]" data-testid={`text-name-${stock.symbol}`}>
@@ -163,18 +147,18 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
           </p>
         </div>
         
-        <div className={`min-w-[80px] flex items-center justify-end gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-          {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-          <span className="font-mono font-medium" data-testid={`text-change-${stock.symbol}`}>
+        <div className={`min-w-[70px] flex items-center justify-end gap-0.5 text-data-xs ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+          {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          <span className="font-mono font-medium tabular-nums" data-testid={`text-change-${stock.symbol}`}>
             {formatPercentage(change)}
           </span>
         </div>
-        
-        <div className="min-w-[60px] text-muted-foreground text-sm font-mono" data-testid={`text-volume-${stock.symbol}`}>
+
+        <div className="min-w-[50px] text-muted-foreground text-data-xs font-mono tabular-nums" data-testid={`text-volume-${stock.symbol}`}>
           {formatVolume(stock.volume)}
         </div>
-        
-        <div className="min-w-[70px] text-muted-foreground text-sm" data-testid={`text-marketcap-${stock.symbol}`}>
+
+        <div className="min-w-[60px] text-muted-foreground text-data-xs font-mono" data-testid={`text-marketcap-${stock.symbol}`}>
           {formatMarketCap(stock.marketCap)}
         </div>
       </div>
@@ -184,14 +168,14 @@ function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: st
 
 function SectorCard({ sector, data }: { sector: string; data: { avg: number; count: number } }) {
   const isPositive = data.avg >= 0;
-  
+
   return (
-    <div className="bg-card border border-border/50 rounded-lg p-4 hover-elevate">
+    <div className="bg-card border border-border/50 rounded-md p-3 hover:bg-muted/30 transition-colors">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">{sector}</span>
-        <div className={`flex items-center gap-1 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-          {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-          <span className="font-mono font-bold tabular-nums">{formatPercentage(data.avg)}</span>
+        <span className="text-xs font-medium text-foreground">{sector}</span>
+        <div className={`flex items-center gap-0.5 ${isPositive ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+          {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          <span className="font-mono font-bold tabular-nums text-data-xs">{formatPercentage(data.avg)}</span>
         </div>
       </div>
     </div>
