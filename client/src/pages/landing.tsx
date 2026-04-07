@@ -410,13 +410,34 @@ export default function Landing() {
     }
   };
 
+  // Bento grid features — varying sizes with inline mockup descriptions
   const features = [
-    { icon: Brain, title: "AI Trade Ideas", description: "Multi-engine convergence signals with entry, target, and stop levels." },
-    { icon: Activity, title: "Dark Pool Flow", description: "Track unusual institutional activity and smart money movements." },
-    { icon: LineChart, title: "Advanced Charts", description: "50+ technical indicators with pattern recognition AI." },
-    { icon: Target, title: "Stock Screener", description: "Filter thousands of stocks by technicals, fundamentals, and signals." },
-    { icon: Newspaper, title: "Sentiment Analysis", description: "Real-time news and social media sentiment scoring." },
-    { icon: Radar, title: "Market Scanner", description: "Find breakouts, momentum plays, and emerging trends." },
+    {
+      icon: Brain, title: "AI Trade Ideas",
+      description: "6 engines analyze every stock. Entry, target, stop, R:R — all computed. Only high-conviction convergence signals make the cut.",
+      span: "lg:col-span-2", // wide card
+      badge: "CORE ENGINE",
+    },
+    {
+      icon: Activity, title: "Options Flow",
+      description: "Track unusual institutional activity, dark pool prints, and smart money positioning in real-time.",
+      span: "", badge: "FLOW",
+    },
+    {
+      icon: LineChart, title: "Advanced Charts",
+      description: "50+ technical indicators with AI pattern recognition. Candlestick, area, and multi-timeframe analysis.",
+      span: "", badge: "CHARTS",
+    },
+    {
+      icon: Target, title: "Stock Screener",
+      description: "Filter by technicals, fundamentals, momentum, and AI signals. Overnight surge predictions and pre-breakout detection.",
+      span: "lg:col-span-2", badge: "SCANNER",
+    },
+    {
+      icon: Radar, title: "Gamma Exposure",
+      description: "GEX heatmaps, dealer positioning, and pin risk analysis across the options market.",
+      span: "", badge: "GEX",
+    },
   ];
 
   return (
@@ -580,12 +601,14 @@ export default function Landing() {
         <SectionDivider />
 
         {/* Engine Convergence Section */}
-        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">6 Engines. One Signal.</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Our proprietary system runs 6 independent analysis engines on every stock.
-              Only when they converge do we generate a high-conviction signal.
+        <SectionReveal className="px-6 py-16 max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--brand-cyan)]/30 bg-[var(--brand-cyan)]/5 mb-4">
+              <span className="text-[10px] font-mono font-semibold text-[var(--brand-cyan)] uppercase tracking-wider">Convergence</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">6 Engines. One Signal.</h2>
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+              6 independent analysis engines on every stock. Only when they converge do we signal.
             </p>
           </div>
           <EngineConvergence />
@@ -594,15 +617,40 @@ export default function Landing() {
         {/* Divider */}
         <SectionDivider />
 
-        {/* Features Grid */}
-        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Institutional-Grade Tools</h2>
-            <p className="text-muted-foreground">Everything you need to trade like the pros</p>
+        {/* Features Bento Grid */}
+        <SectionReveal className="px-6 py-16 max-w-7xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--brand-teal)]/30 bg-[var(--brand-teal)]/5 mb-4">
+              <span className="text-[10px] font-mono font-semibold text-[var(--brand-teal)] uppercase tracking-wider">Platform</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">Everything you need. Nothing you don't.</h2>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto">Your edge. Your data. Your rules. Just the tools that move your P&L.</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {features.map((feature, i) => (
-              <FeatureCard key={feature.title} icon={feature.icon} title={feature.title} description={feature.description} index={i} />
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className={cn(
+                  "group relative p-5 rounded-xl bg-card border border-border hover:border-[var(--brand-teal)]/25 transition-all overflow-hidden",
+                  feature.span
+                )}
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-teal)]/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[var(--brand-teal)]/10 border border-[var(--brand-teal)]/20">
+                      <feature.icon className="w-4.5 h-4.5 text-[var(--brand-teal)]" />
+                    </div>
+                    <span className="text-[9px] font-mono font-semibold text-[var(--brand-teal)]/60 uppercase tracking-wider">{feature.badge}</span>
+                  </div>
+                  <h3 className="text-base font-bold text-foreground mb-1.5">{feature.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+                </div>
+              </motion.div>
             ))}
           </div>
         </SectionReveal>
@@ -611,15 +659,15 @@ export default function Landing() {
         <SectionDivider />
 
         {/* Live Market Intelligence */}
-        <SectionReveal className="px-6 py-20 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--trade-bullish)]/30 bg-transparent mb-6">
-              <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)]" />
-              <span className="text-sm font-medium text-[var(--trade-bullish)]">Live Data</span>
+        <SectionReveal className="px-6 py-16 max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/5 mb-4">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+              <span className="text-[10px] font-mono font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">Live Data</span>
             </div>
-            <h2 className="text-3xl font-bold text-foreground mb-4">Real-Time Market Intelligence</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Live cross-asset data, economic calendar, breaking news, and AI-generated trade ideas — powering our engines right now.
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">Real-Time Market Intelligence</h2>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+              Cross-asset data, economic calendar, breaking news, and AI trade ideas — live.
             </p>
           </div>
 
@@ -642,12 +690,13 @@ export default function Landing() {
         <SectionDivider />
 
         {/* Pricing Teaser */}
-        <SectionReveal className="px-6 py-20 max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Simple Pricing</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Start free. Upgrade when you need more power.
-            </p>
+        <SectionReveal className="px-6 py-16 max-w-5xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/5 mb-4">
+              <span className="text-[10px] font-mono font-semibold text-[var(--brand-gold)] uppercase tracking-wider">Pricing</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">Simple pricing, serious edge.</h2>
+            <p className="text-sm text-muted-foreground">Start free. Upgrade when you're ready.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
