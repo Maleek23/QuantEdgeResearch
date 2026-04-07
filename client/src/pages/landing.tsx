@@ -509,86 +509,181 @@ export default function Landing() {
 
       {/* Main Content */}
       <main className="pt-28 relative">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 max-w-7xl mx-auto text-center relative">
-          {/* Emerald grid pattern */}
-          <div className="absolute inset-0 emerald-grid opacity-30 pointer-events-none" />
-          {/* Breathing radial gradient glow */}
-          <motion.div
-            animate={{ opacity: [0.03, 0.07, 0.03] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 60%)'
-            }}
-          />
+        {/* Hero Section — Two Column: Text Left, Product Right */}
+        <section className="px-6 py-12 md:py-20 max-w-7xl mx-auto relative">
+          {/* Subtle grid */}
+          <div className="absolute inset-0 emerald-grid opacity-20 pointer-events-none" />
 
-          {/* Simple badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="relative z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]/70 text-xs font-mono mb-6"
-          >
-            AI-Powered Trading Intelligence
-          </motion.div>
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Column — Text */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--brand-teal)]/30 bg-[var(--brand-teal)]/5 mb-5"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-teal)] animate-pulse" />
+                <span className="text-[10px] font-mono font-semibold text-[var(--brand-teal)] uppercase tracking-wider">AI-Powered Trading</span>
+              </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="relative z-10 text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
-          >
-            Trade Smarter with
-            <br />
-            <span className="text-[var(--trade-bullish)]">6-Engine Convergence</span>
-          </motion.h1>
+              <motion.h1
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-5 leading-[1.08] tracking-tight"
+              >
+                The platform that finds{' '}
+                <span className="text-[var(--brand-teal)]">your</span>{' '}
+                <span className="text-[var(--brand-teal)]">edge</span>
+              </motion.h1>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative z-10 text-xl text-muted-foreground max-w-2xl mx-auto mb-8"
-          >
-            When Machine Learning, AI, Quant, Flow, Sentiment, and Technical all agree —
-            <span className="text-foreground font-medium"> that's when we signal.</span>
-          </motion.p>
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-base text-muted-foreground max-w-lg mb-6 leading-relaxed"
+              >
+                6 independent engines analyze every stock. When ML, AI, Quant, Flow, Sentiment, and Technical all converge — <span className="text-foreground font-medium">that's when we signal.</span>
+              </motion.p>
 
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="relative z-10 max-w-xl mx-auto mb-12"
-          >
-            <div className="relative flex items-center bg-card border border-border rounded-lg overflow-hidden focus-within:border-[var(--trade-bullish)]/50 transition-colors">
-              <Search className="w-5 h-5 text-muted-foreground ml-4 flex-shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search any stock, ETF, or crypto..."
-                className="flex-1 px-4 py-4 bg-transparent text-foreground placeholder-slate-500 outline-none text-base"
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex items-center gap-3 mb-6"
+              >
+                <ShimmerButton
+                  onClick={() => setWaitlistOpen(true)}
+                  className="h-12 px-8 text-base font-semibold"
+                  shimmerColor="rgba(20, 184, 166, 0.3)"
+                  background="linear-gradient(135deg, #0d9488, #14b8a6)"
+                >
+                  Start Free →
+                </ShimmerButton>
+                <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="h-12 px-6 text-sm border-border text-muted-foreground hover:text-foreground hover:border-[var(--brand-teal)]/40">
+                    <SiDiscord className="w-4 h-4 mr-2" />
+                    Join Discord
+                  </Button>
+                </a>
+              </motion.div>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-[11px] text-muted-foreground/50"
+              >
+                Free forever · No credit card required
+              </motion.p>
+
+              {/* Search Bar — secondary */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="mt-8 max-w-md"
+              >
+                <div className="relative flex items-center bg-card/80 border border-border rounded-lg overflow-hidden focus-within:border-[var(--brand-teal)]/50 transition-colors">
+                  <Search className="w-4 h-4 text-muted-foreground ml-3 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    placeholder="Search any stock, ETF, or crypto..."
+                    className="flex-1 px-3 py-3 bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm"
               />
-              <Button onClick={handleSearch} className="m-1.5 bg-emerald-600 hover:bg-[var(--trade-bullish)] text-white px-6 py-2">
+              <Button onClick={handleSearch} className="m-1 bg-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/90 text-white px-4 py-1.5 text-xs">
                 Analyze
               </Button>
             </div>
-            <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
               <span>Try:</span>
-              {['NVDA', 'TSLA', 'AAPL', 'BTC'].map((symbol) => (
-                <Link key={symbol} href={`/stock/${symbol}`}>
-                  <button className="px-3 py-1 rounded-lg bg-card border border-border hover:border-[var(--trade-bullish)]/30 text-foreground/80 transition-colors">
-                    {symbol}
+              {['NVDA', 'TSLA', 'AAPL', 'BTC'].map((sym) => (
+                <Link key={sym} href={`/stock/${sym}`}>
+                  <button className="px-2 py-0.5 rounded-md bg-card border border-border hover:border-[var(--brand-teal)]/30 text-foreground/70 transition-colors text-xs font-mono">
+                    {sym}
                   </button>
                 </Link>
               ))}
             </div>
           </motion.div>
+            </div>
 
-          {/* Stats — LIVE from performance API */}
-          <LiveHeroStats />
+            {/* Right Column — Product Mockup (inline dashboard preview) */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.3 }}
+              className="hidden lg:block"
+            >
+              <div className="relative rounded-xl border border-border/60 overflow-hidden bg-card shadow-2xl shadow-black/20">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]/50" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]/50" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]/50" />
+                  </div>
+                  <span className="text-[9px] font-mono text-muted-foreground/50 ml-2">quantedge.app — trade desk</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
+                    <span className="text-[8px] font-mono text-[var(--trade-bullish)]">LIVE</span>
+                  </div>
+                </div>
+                {/* Mock dashboard content */}
+                <div className="p-4 space-y-3">
+                  {/* Mock header */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">Trade Desk</span>
+                    <span className="text-[9px] font-mono text-muted-foreground">6 engines active</span>
+                  </div>
+                  {/* Mock stat strip */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'Win Rate', value: '67%', color: 'text-[var(--trade-bullish)]' },
+                      { label: 'Signals', value: '12', color: 'text-foreground' },
+                      { label: 'Avg R:R', value: '2.4:1', color: 'text-[var(--brand-cyan)]' },
+                      { label: 'Streak', value: '4W', color: 'text-[var(--trade-bullish)]' },
+                    ].map((s) => (
+                      <div key={s.label} className="p-2 rounded-md bg-muted/30 border border-border/40">
+                        <div className="text-[8px] text-muted-foreground font-mono uppercase">{s.label}</div>
+                        <div className={cn("text-sm font-mono font-bold tabular-nums", s.color)}>{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mock signal cards */}
+                  <div className="space-y-1.5">
+                    {[
+                      { sym: 'LUNR', dir: 'LONG', conf: 86, grade: 'A' },
+                      { sym: 'HIMS', dir: 'LONG', conf: 85, grade: 'B+' },
+                      { sym: 'MARA', dir: 'LONG', conf: 88, grade: 'A' },
+                    ].map((s) => (
+                      <div key={s.sym} className="flex items-center justify-between p-2 rounded-md bg-muted/20 border border-border/30 border-l-2 border-l-[var(--trade-bullish)]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-foreground tracking-wider">{s.sym}</span>
+                          <span className="text-[8px] px-1 py-0 rounded bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] font-mono">{s.dir}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono tabular-nums text-[var(--trade-bullish)]">{s.conf}%</span>
+                          <span className="text-[9px] font-mono font-bold text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10 px-1 rounded">{s.grade}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mock equity curve */}
+                  <div className="h-16 rounded-md bg-muted/15 border border-border/20 flex items-end px-2 pb-1 gap-px overflow-hidden">
+                    {[3,4,3,5,6,5,7,6,8,7,9,8,10,9,11,10,12,11,13,12,14,13,15,14].map((h, i) => (
+                      <div key={i} className="flex-1 rounded-t-sm bg-[var(--trade-bullish)]/30" style={{ height: `${h * 3.5}px` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </section>
 
         {/* Divider */}
