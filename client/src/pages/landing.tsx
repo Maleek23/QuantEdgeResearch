@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
