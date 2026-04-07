@@ -530,9 +530,9 @@ export default function PerformancePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-5xl mx-auto p-3 sm:p-5 space-y-4">
+      {/* Header — compact */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <PageHeader
           label="Analytics"
           title="Performance"
@@ -541,10 +541,10 @@ export default function PerformancePage() {
           iconColor="text-[var(--trade-bullish)]"
           iconGradient="from-green-500/20 to-emerald-500/20"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-28 h-8" data-testid="select-date-range">
-              <Calendar className="w-3.5 h-3.5 mr-1.5" />
+            <SelectTrigger className="w-24 h-7 text-xs" data-testid="select-date-range">
+              <Calendar className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -555,8 +555,8 @@ export default function PerformancePage() {
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleExport} data-testid="button-export">
-            <Download className="w-3.5 h-3.5" />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport} data-testid="button-export">
+            <Download className="w-3 h-3" />
           </Button>
         </div>
       </div>
@@ -565,12 +565,12 @@ export default function PerformancePage() {
       <UserPerformanceSummary />
 
       {/* Advanced Analytics Toggle */}
-      <div className="flex items-center justify-between p-4 rounded-lg bg-muted/20 border border-dashed">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-5 w-5 text-muted-foreground" />
+      <div className="flex items-center justify-between p-3 rounded-md bg-muted/15 border border-dashed border-border/40">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium">Advanced Analytics</p>
-            <p className="text-xs text-muted-foreground">Detailed charts, calibration data, and audit tools</p>
+            <p className="text-xs font-medium">Advanced Analytics</p>
+            <p className="text-[10px] text-muted-foreground">Charts, calibration, audit tools</p>
           </div>
         </div>
         <Button
@@ -584,21 +584,21 @@ export default function PerformancePage() {
 
       {/* Advanced Analytics - Collapsible */}
       {showAdvanced && (
-        <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+        <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
           <TierGate feature="performance" blur>
-            <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList className="grid w-full max-w-lg grid-cols-4">
-                <TabsTrigger value="overview" className="text-xs gap-1.5" data-testid="tab-overview">
-                  <TrendingUp className="h-3.5 w-3.5" />Trends
+            <Tabs defaultValue="overview" className="space-y-3">
+              <TabsList className="grid w-full max-w-md grid-cols-4">
+                <TabsTrigger value="overview" className="text-[10px] gap-1 font-mono" data-testid="tab-overview">
+                  <TrendingUp className="h-3 w-3" />Trends
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs gap-1.5" data-testid="tab-analytics">
-                  <BarChart3 className="h-3.5 w-3.5" />Deep Dive
+                <TabsTrigger value="analytics" className="text-[10px] gap-1 font-mono" data-testid="tab-analytics">
+                  <BarChart3 className="h-3 w-3" />Deep
                 </TabsTrigger>
-                <TabsTrigger value="historical" className="text-xs gap-1.5" data-testid="tab-historical">
-                  <History className="h-3.5 w-3.5" />Historical
+                <TabsTrigger value="historical" className="text-[10px] gap-1 font-mono" data-testid="tab-historical">
+                  <History className="h-3 w-3" />History
                 </TabsTrigger>
-                <TabsTrigger value="audit" className="text-xs gap-1.5" data-testid="tab-audit">
-                  <Database className="h-3.5 w-3.5" />Audit
+                <TabsTrigger value="audit" className="text-[10px] gap-1 font-mono" data-testid="tab-audit">
+                  <Database className="h-3 w-3" />Audit
                 </TabsTrigger>
               </TabsList>
 
