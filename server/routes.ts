@@ -6087,6 +6087,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // SQUEEZE SCANNER — Bollinger Band coil detection across market
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/squeeze-scanner", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getSqueezeScanResults } = await import("./squeeze-scanner");
+      const data = await getSqueezeScanResults();
+      res.json(data);
+    } catch (error) {
+      logger.error("[API] Squeeze scanner error:", error);
+      res.status(500).json({ error: "Failed to run squeeze scan" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // MARKET PROJECTOR — Next session outlook with probability zones
   // ═══════════════════════════════════════════════════════════════
 

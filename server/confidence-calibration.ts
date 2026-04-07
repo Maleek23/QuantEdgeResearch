@@ -204,16 +204,18 @@ export async function getCalibratedConfidence(params: {
   // Factor 1: Historical win rate adjustment
   let historicalWinRate = 0.5; // Default 50% if no data
   if (calibrationData && calibrationData.sampleSize >= 10) {
-    historicalWinRate = calibrationData.winRate / 100;
+    const rawWR = calibrationData.winRate;
+    historicalWinRate = (Number.isFinite(rawWR) && rawWR >= 0 && rawWR <= 100) ? rawWR / 100 : 0.5;
   }
-  
+
   // Factor 2: Risk/Reward quality
+  const safeRR = Number.isFinite(params.riskRewardRatio) ? params.riskRewardRatio : 1.0;
   let riskRewardQuality = 0.5;
-  if (params.riskRewardRatio >= 3) {
+  if (safeRR >= 3) {
     riskRewardQuality = 0.9;
-  } else if (params.riskRewardRatio >= 2) {
+  } else if (safeRR >= 2) {
     riskRewardQuality = 0.75;
-  } else if (params.riskRewardRatio >= 1.5) {
+  } else if (safeRR >= 1.5) {
     riskRewardQuality = 0.6;
   } else {
     riskRewardQuality = 0.4;
@@ -250,9 +252,13 @@ export async function getCalibratedConfidence(params: {
     signalDensity * 0.20 +               // 20% weight on signal consensus
     sampleSizeConfidence * 0.20          // 20% weight on data confidence
   ) * 2; // Scale to ~1.0 average
-  
+
+  // NaN safety
+  const safeFactor = Number.isFinite(calibrationFactor) ? calibrationFactor : 1.0;
+
   // Apply calibration
-  const calibratedScore = Math.min(100, Math.max(10, rawScore * calibrationFactor));
+  const rawCalibrated = rawScore * safeFactor;
+  const calibratedScore = Number.isFinite(rawCalibrated) ? Math.min(100, Math.max(10, rawCalibrated)) : rawScore;
   
   // Determine recommendation
   let recommendation: CalibratedConfidence['recommendation'];
