@@ -4231,36 +4231,35 @@ export default function ChartAnalysis() {
   })() : [];
 
   return (
-    <div className="min-h-screen bg-card relative overflow-x-hidden w-full">
+    <div className="min-h-screen bg-background relative overflow-x-hidden w-full">
       {/* Background */}
-      <div className="fixed inset-0 z-0 bg-gradient-to-b from-slate-950 to-slate-900"></div>
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-background to-muted/20"></div>
 
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="relative z-10 container mx-auto p-4 lg:p-6 space-y-6"
+        className="relative z-10 max-w-[1600px] mx-auto p-3 lg:p-4 space-y-3"
       >
-      {/* Page Header */}
+      {/* Page Header — Bloomberg compact */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/90 to-slate-800/50 backdrop-blur-xl border border-[var(--trade-bullish)]/20 p-6"
+        className="relative overflow-hidden rounded-lg bg-card/80 backdrop-blur-xl border border-[var(--brand-teal)]/15 p-3"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="relative flex items-center gap-4">
-          <div className="p-2 rounded-lg bg-[var(--trade-bullish)]/10 border border-[var(--trade-bullish)]/20">
-            <LineChart className="h-6 w-6 text-[var(--trade-bullish)]" />
+        <div className="relative flex items-center gap-2.5">
+          <div className="p-1.5 rounded-md bg-[var(--brand-teal)]/10 border border-[var(--brand-teal)]/20">
+            <LineChart className="h-4 w-4 text-[var(--brand-teal)]" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Chart Analysis</h1>
-            <p className="text-sm text-muted-foreground">
-              Pattern detection • Technical indicators • 6-engine scan
+            <h1 className="text-base font-bold tracking-tight text-foreground">Chart Analysis</h1>
+            <p className="text-[10px] text-muted-foreground">
+              Pattern detection • Indicators • 6-engine scan
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-card/50 border border-border/50 rounded-lg text-xs text-foreground/80">
-              <Cpu className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
-              <span>6 Engines</span>
+          <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border/40 rounded-md text-[10px] font-mono text-foreground/70">
+              <Cpu className="w-3 h-3 text-[var(--brand-teal)]" />
+              <span>6 ENG</span>
             </div>
           </div>
         </div>

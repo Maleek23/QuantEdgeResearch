@@ -142,44 +142,43 @@ export default function SmartMoney() {
 
   return (
     <>
-      <div className="min-h-screen relative z-10 pb-20">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
+      <div className="min-h-screen relative z-10 pb-12">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3">
+          {/* Header — Bloomberg compact */}
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-10"
+            className="mb-4"
           >
-            <h1 className="text-3xl font-semibold text-foreground/95 mb-3">Smart Money</h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Track insider trades, institutional activity, and analyst ratings in real-time.
-              Follow where the smart money is flowing.
+            <h1 className="text-base font-bold text-foreground tracking-tight">Smart Money</h1>
+            <p className="text-[10px] text-muted-foreground">
+              Insider trades, institutional flow, analyst ratings
             </p>
           </motion.div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards — compact */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10"
+            transition={{ delay: 0.05 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4"
           >
-            <Card className="p-5 bg-card/60 border-border">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <Users className="w-5 h-5 text-[var(--trade-bullish)]" />
+            <Card className="p-3 bg-card/60 border-border">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/30">
+                  <Users className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Insider Trades</p>
-                  <p className="text-2xl font-bold text-foreground">{insiderTrades.length}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Insiders</p>
+                  <p className="text-lg font-bold text-foreground font-mono tabular-nums">{insiderTrades.length}</p>
                 </div>
               </div>
             </Card>
 
-            <Card className="p-5 bg-card/60 border-border">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                  <DollarSign className="w-5 h-5 text-[var(--trade-bullish)]" />
+            <Card className="p-3 bg-card/60 border-border">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-md bg-emerald-500/10 border border-emerald-500/30">
+                  <DollarSign className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Value</p>
