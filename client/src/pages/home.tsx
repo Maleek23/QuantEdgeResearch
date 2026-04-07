@@ -26,7 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { cn, safeNumber, safeToFixed } from "@/lib/utils";
+import { cn, safeNumber, safeToFixed, formatRelativeTime } from "@/lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -85,15 +85,15 @@ function SectionHeader({ label, action, actionHref }: {
   actionHref?: string;
 }) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-3">
-        <div className="w-1 h-4 rounded-full bg-gradient-to-b from-[var(--brand-teal)] to-[var(--brand-cyan)]" />
-        <h2 className="text-xs font-bold text-foreground/70 uppercase tracking-[0.15em]">{label}</h2>
+    <div className="flex items-center justify-between mb-2.5">
+      <div className="flex items-center gap-2">
+        <div className="w-0.5 h-3.5 rounded-full bg-gradient-to-b from-[var(--brand-teal)] to-[var(--brand-cyan)]" />
+        <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.12em] font-mono">{label}</h2>
       </div>
       {action && actionHref && (
         <Link href={actionHref}>
-          <span className="text-[11px] text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] flex items-center gap-1 cursor-pointer font-medium transition-colors">
-            {action} <ChevronRight className="h-3 w-3" />
+          <span className="text-[10px] text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] flex items-center gap-0.5 cursor-pointer font-medium transition-colors font-mono">
+            {action} <ChevronRight className="h-2.5 w-2.5" />
           </span>
         </Link>
       )}
@@ -124,16 +124,8 @@ function useMarketStatus() {
   return { status, isOpen: isMarketHours && !isWeekend };
 }
 
-function getRelativeTime(ts?: string) {
-  if (!ts) return '';
-  const diff = Date.now() - new Date(ts).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
+// Use shared formatRelativeTime from lib/utils
+const getRelativeTime = (ts?: string) => formatRelativeTime(ts || null);
 
 // ────────────────────────────────────────────────────────────
 // Market Ticker Strip
@@ -239,46 +231,46 @@ function WelcomeHeader() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mb-6"
+      className="mb-4"
     >
-      <div className="flex items-end justify-between mb-4">
+      <div className="flex items-end justify-between mb-2.5">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          <h1 className="text-lg font-bold text-foreground tracking-tight">
             {getGreeting()}, {firstName}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
+            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             <span className="text-border">·</span>
             <span className={cn(
-              "inline-flex items-center gap-1.5",
+              "inline-flex items-center gap-1",
               isOpen ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
             )}>
               <span className={cn(
-                "w-1.5 h-1.5 rounded-full",
+                "w-1 h-1 rounded-full",
                 isOpen ? "bg-[var(--trade-bullish)] animate-pulse" : "bg-muted-foreground/50"
               )} />
-              Market {status}
+              {status}
             </span>
           </p>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {quickLinks.map((link, i) => (
           <motion.div
             key={link.label}
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.05 }}
+            transition={{ delay: 0.05 + i * 0.03 }}
           >
             <Link href={link.href}>
               <button className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-all cursor-pointer",
                 link.accent
                   ? "bg-[var(--brand-teal)]/10 border-[var(--brand-teal)]/30 text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/20"
                   : "bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
               )}>
-                <link.icon className="w-3.5 h-3.5" />
+                <link.icon className="w-3 h-3" />
                 {link.label}
               </button>
             </Link>
@@ -336,53 +328,51 @@ function MorningBriefing() {
   const badge = outlookBadge(data.marketOutlook);
 
   return (
-    <Card className="bg-card border-border relative overflow-hidden group hover:border-[var(--brand-teal)]/30 transition-all duration-300">
+    <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] relative overflow-hidden group hover:border-[var(--brand-teal)]/30 transition-all">
       <BorderBeam colorFrom="#14b8a6" colorTo="#06b6d4" size={150} duration={12} borderWidth={1.5} />
-      {/* Top accent gradient */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--brand-teal)]/40 to-transparent" />
-      <CardContent className="p-5 relative">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--brand-teal)]/15 to-[var(--brand-cyan)]/15 border border-[var(--brand-teal)]/20 flex items-center justify-center">
-              <Sun className="w-4 h-4 text-[var(--brand-teal)]" />
+      <CardContent className="p-3 relative">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[var(--brand-teal)]/15 to-[var(--brand-cyan)]/15 border border-[var(--brand-teal)]/20 flex items-center justify-center">
+              <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground text-sm">Morning Briefing</h3>
+              <h3 className="font-semibold text-foreground text-xs">Morning Briefing</h3>
               {data.timestamp && (
-                <span className="text-[10px] text-muted-foreground">{getRelativeTime(data.timestamp)}</span>
+                <span className="text-[9px] text-muted-foreground font-mono">{getRelativeTime(data.timestamp)}</span>
               )}
             </div>
           </div>
-          <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1.5", badge.color)}>
-            <span className={cn("w-1.5 h-1.5 rounded-full inline-block", badge.dotColor)} />
+          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1", badge.color)}>
+            <span className={cn("w-1 h-1 rounded-full inline-block", badge.dotColor)} />
             {badge.label}
           </span>
         </div>
 
         {data.keyLevels && (data.keyLevels.spy || data.keyLevels.qqq || data.keyLevels.vix) && (
-          <div className="flex gap-4 mb-3">
+          <div className="data-strip mb-2">
             {data.keyLevels.spy ? (
-              <div className="text-xs">
-                <span className="text-muted-foreground">SPY</span>{' '}
-                <span className="font-mono font-semibold text-foreground">${safeToFixed(data.keyLevels.spy, 0)}</span>
+              <div className="data-strip-item">
+                <span className="data-strip-label">SPY</span>
+                <span className="data-strip-value">${safeToFixed(data.keyLevels.spy, 0)}</span>
               </div>
             ) : null}
             {data.keyLevels.qqq ? (
-              <div className="text-xs">
-                <span className="text-muted-foreground">QQQ</span>{' '}
-                <span className="font-mono font-semibold text-foreground">${safeToFixed(data.keyLevels.qqq, 0)}</span>
+              <div className="data-strip-item">
+                <span className="data-strip-label">QQQ</span>
+                <span className="data-strip-value">${safeToFixed(data.keyLevels.qqq, 0)}</span>
               </div>
             ) : null}
             {data.keyLevels.vix ? (
-              <div className="text-xs">
-                <span className="text-muted-foreground">VIX</span>{' '}
-                <span className="font-mono font-semibold text-foreground">{safeToFixed(data.keyLevels.vix, 1)}</span>
+              <div className="data-strip-item">
+                <span className="data-strip-label">VIX</span>
+                <span className="data-strip-value">{safeToFixed(data.keyLevels.vix, 1)}</span>
               </div>
             ) : null}
           </div>
         )}
 
-        <p className="text-sm text-foreground/80 leading-relaxed line-clamp-3 mb-3">
+        <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3 mb-2">
           {data.tradingPlan}
         </p>
 
@@ -1018,14 +1008,14 @@ export default function HomePage() {
       <MarketTicker />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 relative z-10">
+      <main className="max-w-7xl mx-auto px-3 sm:px-5 py-4 relative z-10">
         {/* Welcome Header */}
         <WelcomeHeader />
 
         {/* Row 1: Morning Briefing + Market Regime */}
-        <SectionReveal className="mb-5">
+        <SectionReveal className="mb-[var(--section-gap-sm)]">
           <SectionHeader label="Market Intelligence" />
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-[var(--card-gap)]">
             <div className="lg:col-span-3">
               <MorningBriefing />
             </div>
@@ -1036,23 +1026,23 @@ export default function HomePage() {
         </SectionReveal>
 
         {/* Row 2: Cross-Asset Overview */}
-        <SectionReveal className="mb-5" delay={0.05}>
+        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
           <CrossAssetOverview />
         </SectionReveal>
 
         {/* Row 3: Best Setups + Convergence */}
-        <SectionReveal className="mb-5" delay={0.05}>
+        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
           <SectionHeader label="Trade Signals" action="Trade Desk" actionHref="/trade-desk" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--card-gap)]">
             <BestSetups />
             <ConvergenceHotList />
           </div>
         </SectionReveal>
 
         {/* Row 4: News + Earnings + Movers */}
-        <SectionReveal className="mb-5" delay={0.05}>
+        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
           <SectionHeader label="Calendar & News" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--card-gap)]">
             <BreakingNews />
             <EarningsCalendar />
             <TopMovers />
@@ -1060,15 +1050,15 @@ export default function HomePage() {
         </SectionReveal>
 
         {/* Row 5: Engine Health + Performance */}
-        <SectionReveal className="mb-5" delay={0.05}>
+        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
           <SectionHeader label="Platform Health" action="Performance" actionHref="/performance" />
           <EngineHealthBar />
         </SectionReveal>
 
         {/* Footer */}
-        <footer className="text-center py-6 mt-2 border-t border-border">
-          <p className="text-xs text-muted-foreground">
-            Educational research platform for self-directed traders. Not financial advice.
+        <footer className="text-center py-4 mt-1 border-t border-border">
+          <p className="text-[10px] text-muted-foreground/60">
+            Educational research platform. Not financial advice.
           </p>
         </footer>
       </main>
