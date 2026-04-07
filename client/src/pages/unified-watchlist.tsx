@@ -226,8 +226,8 @@ export default function UnifiedWatchlist() {
   }, [tradeIdeas]);
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen p-3 sm:p-4">
+      <div className="max-w-[1600px] mx-auto space-y-3">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -235,8 +235,8 @@ export default function UnifiedWatchlist() {
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold text-foreground/90 flex items-center gap-3">
-              <Star className="h-7 w-7 text-[var(--trade-bullish)]" />
+            <h1 className="text-base font-semibold text-foreground/90 flex items-center gap-2">
+              <Star className="h-4 w-4 text-[var(--trade-bullish)]" />
               Watchlist
             </h1>
             <Badge className="bg-emerald-500/20 text-[var(--trade-bullish)] border-0 font-mono">

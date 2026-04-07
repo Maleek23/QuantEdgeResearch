@@ -97,7 +97,7 @@ export default function History() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between mb-6"
         >
-          <h1 className="text-2xl font-semibold text-foreground/95">History</h1>
+          <h1 className="text-base font-semibold text-foreground/95">History</h1>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input

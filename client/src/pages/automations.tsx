@@ -685,9 +685,9 @@ export default function AutomationsPage() {
   if (isPending || (!status && !botData && !cryptoData)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
-        <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
+        <div className="container max-w-[1600px] mx-auto py-4 px-3 sm:px-4 space-y-3">
           {/* Loading Header Skeleton */}
-          <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-6">
+          <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-2">
                 <Skeleton className="h-10 w-64" />
@@ -719,20 +719,20 @@ export default function AutomationsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
-      <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
+      <div className="container max-w-[1600px] mx-auto py-4 px-3 sm:px-4 space-y-3">
         {/* Refined Header - Cyan focused, minimal glass */}
-        <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-6">
+        <div className="rounded-xl bg-card/60 backdrop-blur-md border border-border/50 p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-emerald-500/10 border border-[var(--trade-bullish)]/20">
-                  <Zap className="w-5 h-5 text-[var(--trade-bullish)]" />
+                  <Zap className="w-4 h-4 text-[var(--trade-bullish)]" />
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground" data-testid="text-page-title">
+                <h1 className="text-base font-semibold text-foreground" data-testid="text-page-title">
                   Automations Hub
                 </h1>
               </div>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-[10px]">
                 AI-powered trading bots, market scanners, and automated intelligence reports
               </p>
             </div>

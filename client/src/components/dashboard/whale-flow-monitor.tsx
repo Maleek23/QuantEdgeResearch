@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, safeToFixed } from '@/lib/utils';
+import { cn, safeToFixed, formatVolumeCompact } from '@/lib/utils';
 
 interface WhaleFlow {
   id: string;
@@ -40,12 +40,8 @@ interface WhaleFlow {
   sector?: string;
 }
 
-// Format large numbers
-const formatPremium = (value: number): string => {
-  if (value >= 1000000) return `$${safeToFixed(value / 1000000, 1)}M`;
-  if (value >= 1000) return `$${safeToFixed(value / 1000, 0)}K`;
-  return `$${safeToFixed(value, 0)}`;
-};
+// Use shared formatter
+const formatPremium = (value: number): string => `$${formatVolumeCompact(value).replace('--', '0')}`;
 
 // Flow type colors and icons
 const flowTypeConfig: Record<string, { color: string; icon: any; glow: string }> = {

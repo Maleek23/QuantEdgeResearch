@@ -741,7 +741,7 @@ export default function TradeAudit() {
   
   if (isLoading) {
     return (
-      <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto">
         <Skeleton className="h-10 w-48" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-80" />
@@ -755,7 +755,7 @@ export default function TradeAudit() {
   
   if (error || !data) {
     return (
-      <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto">
         <Link href="/trade-desk">
           <Button variant="ghost" size="sm" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -782,7 +782,7 @@ export default function TradeAudit() {
   const isOpen = tradeIdea.outcomeStatus === 'open';
   
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto" data-testid="trade-audit-page">
+    <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto" data-testid="trade-audit-page">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
           <Link href="/trade-desk">
@@ -792,12 +792,12 @@ export default function TradeAudit() {
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-blue-400" />
+            <div className="h-7 w-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <FileText className="h-4 w-4 text-blue-400" />
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Audit Trail</p>
-              <h1 className="text-xl sm:text-2xl font-semibold">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Audit Trail</p>
+              <h1 className="text-base font-semibold">
                 {tradeIdea.symbol} <span className="text-muted-foreground font-mono text-base">• {formatCT(tradeIdea.timestamp)}</span>
               </h1>
             </div>

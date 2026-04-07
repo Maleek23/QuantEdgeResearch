@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatCTTime, safeToFixed } from "@/lib/utils";
+import { formatCurrency, formatCTTime, safeToFixed, formatMarketCap as sharedFormatMarketCap } from "@/lib/utils";
 import { CryptoQuantAnalysis } from "./crypto-quant-analysis";
 import type { WatchlistItem } from "@shared/schema";
 import { Star, Trash2, Eye, BarChart2, ChevronDown, Bell, RefreshCw, TrendingUp, Info, Building2, Newspaper, Zap, ExternalLink } from "lucide-react";
@@ -70,13 +70,7 @@ function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boole
     );
   }
 
-  const formatMarketCap = (value?: number) => {
-    if (!value) return 'N/A';
-    if (value >= 1e12) return `$${safeToFixed(value / 1e12, 2)}T`;
-    if (value >= 1e9) return `$${safeToFixed(value / 1e9, 2)}B`;
-    if (value >= 1e6) return `$${safeToFixed(value / 1e6, 2)}M`;
-    return `$${value.toLocaleString()}`;
-  };
+  const formatMarketCap = (value?: number) => sharedFormatMarketCap(value);
 
   const getSentimentColor = (score: number) => {
     if (score > 0.2) return 'text-[var(--trade-bullish)]';

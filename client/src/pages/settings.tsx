@@ -197,11 +197,11 @@ export default function SettingsPage() {
   const technicals = (formData.technicalThresholds as TechnicalThresholdConfig) || DEFAULT_TECHNICAL_THRESHOLDS;
 
   return (
-    <div className="container max-w-4xl py-6 space-y-6">
+    <div className="container max-w-5xl py-3 sm:py-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Settings</h1>
-          <p className="text-muted-foreground text-sm">Customize your trading preferences</p>
+          <h1 className="text-base font-semibold">Settings</h1>
+          <p className="text-muted-foreground text-[10px]">Customize your trading preferences</p>
         </div>
         {hasChanges && (
           <div className="flex gap-2">

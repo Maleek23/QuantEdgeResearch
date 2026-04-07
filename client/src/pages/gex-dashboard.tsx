@@ -766,9 +766,9 @@ export default function GEXDashboard() {
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-mono">GAMMA // EXPOSURE</div>
-            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              <Crosshair className="w-6 h-6 text-[var(--trade-bearish)]" />
+            <div className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground font-mono">GAMMA // EXPOSURE</div>
+            <h1 className="text-base font-bold text-foreground tracking-tight flex items-center gap-1.5">
+              <Crosshair className="w-4 h-4 text-[var(--trade-bearish)]" />
               GEX Dashboard
             </h1>
           </div>

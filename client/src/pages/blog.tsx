@@ -104,22 +104,22 @@ export default function Blog() {
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
-        <div className="container mx-auto max-w-7xl px-6 py-12 md:py-16 relative">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+        <div className="container mx-auto max-w-[1600px] px-3 sm:px-4 py-6 md:py-8 relative">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">
             Trading Education
           </p>
-          
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-white" />
+
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <BookOpen className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-semibold">Trading Insights</h1>
-              <p className="text-sm text-muted-foreground">Learn. Grow. Trade Smarter.</p>
+              <h1 className="text-base font-semibold">Trading Insights</h1>
+              <p className="text-[10px] text-muted-foreground">Learn. Grow. Trade Smarter.</p>
             </div>
           </div>
           
-          <p className="text-base text-muted-foreground max-w-2xl mb-6 leading-relaxed">
+          <p className="text-xs text-muted-foreground max-w-2xl mb-4 leading-relaxed">
             Free educational content to help you understand options trading, risk management, 
             and market analysis. Written by traders, for traders.
           </p>

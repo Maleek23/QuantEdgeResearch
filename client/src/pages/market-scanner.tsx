@@ -983,16 +983,16 @@ export default function MarketScanner() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-background">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen p-3 sm:p-4 bg-background">
+      <div className="max-w-[1600px] mx-auto space-y-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3" data-testid="page-title">
-              <BarChart3 className="w-8 h-8 text-[var(--trade-bullish)]" />
+            <h1 className="text-base font-bold text-foreground flex items-center gap-2" data-testid="page-title">
+              <BarChart3 className="w-4 h-4 text-[var(--trade-bullish)]" />
               Market Scanner
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Track 500+ stocks across multiple timeframes
+            <p className="text-[10px] text-muted-foreground">
+              500+ stocks across multiple timeframes
             </p>
           </div>
           

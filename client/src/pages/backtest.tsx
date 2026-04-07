@@ -317,16 +317,16 @@ export default function BacktestPage() {
   }, [patternData]);
   
   return (
-    <div className="container mx-auto p-4 lg:p-6 space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 space-y-3">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-purple-400" />
+          <h1 className="text-base font-semibold flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <BarChart3 className="h-4 w-4 text-purple-400" />
             </div>
             Pattern Backtest
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-[10px] text-muted-foreground mt-1">
             Analyze technical patterns and indicators for any symbol
           </p>
         </div>

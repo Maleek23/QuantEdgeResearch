@@ -157,12 +157,12 @@ export default function Pricing() {
   const currentTier = userTier?.tier || 'free';
 
   return (
-    <div className="min-h-screen bg-[var(--surface-base)] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[var(--surface-base)] py-6 px-3 sm:px-4 lg:px-6">
       <SEOHead pageKey="pricing" />
       <FloatingBubblesBackground />
       
       {/* Header with Logo */}
-      <div className="max-w-7xl mx-auto mb-8 relative z-10">
+      <div className="max-w-[1600px] mx-auto mb-4 relative z-10">
         <div className="flex items-center justify-center gap-3 mb-2">
           <Link href="/">
             <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-12 w-12 object-contain drop-shadow-[0_0_15px_rgba(0,212,255,0.4)]" />
@@ -173,7 +173,7 @@ export default function Pricing() {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="max-w-[1600px] mx-auto relative z-10">
         {/* Risk Acknowledgment */}
         <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
           <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
@@ -224,14 +224,14 @@ export default function Pricing() {
                 BETA
               </span>
             </div>
-            <h1 
-              className="text-3xl sm:text-4xl font-bold mb-4 text-foreground"
+            <h1
+              className="text-base sm:text-lg font-bold mb-2 text-foreground"
               data-testid="text-pricing-header"
             >
               Choose Your Plan
             </h1>
-            <p 
-              className="text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+            <p
+              className="text-xs text-muted-foreground max-w-2xl mx-auto leading-relaxed"
               data-testid="text-pricing-subtext"
             >
               Start with Free to explore the platform, then upgrade to Advanced for unlimited access and real-time data. Beta pricing - lock in these rates before launch.

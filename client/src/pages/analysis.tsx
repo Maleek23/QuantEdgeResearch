@@ -209,7 +209,7 @@ export default function AnalysisPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-[1400px] mx-auto p-6 space-y-6">
+      <div className="max-w-[1600px] mx-auto p-3 sm:p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href="/trading-engine">
@@ -218,11 +218,11 @@ export default function AnalysisPage() {
               </Button>
             </Link>
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
-                <Layers className="h-6 w-6 text-primary" />
+              <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
+                <Layers className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+                <h1 className="text-base font-bold tracking-tight flex items-center gap-2">
                   Analysis Engine
                   <Badge variant="outline" className="text-sm font-mono">
                     {symbol}

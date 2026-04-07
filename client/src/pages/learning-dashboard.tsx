@@ -109,9 +109,9 @@ export default function LearningDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-3 sm:p-4">
       {/* Header */}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto">
         <motion.div
           className="flex items-center justify-between mb-8"
           initial={{ opacity: 0, y: -20 }}
@@ -119,10 +119,10 @@ export default function LearningDashboard() {
         >
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-500/20 rounded-xl">
-                <Brain className="w-6 h-6 text-purple-400" />
+              <div className="p-1.5 bg-purple-500/20 rounded-xl">
+                <Brain className="w-4 h-4 text-purple-400" />
               </div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-base font-bold text-white">
                 AI Learning Dashboard
               </h1>
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
@@ -130,7 +130,7 @@ export default function LearningDashboard() {
                 Self-Improving
               </Badge>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground">
               Watch your 6 engines learn and improve from every trade
             </p>
           </div>
