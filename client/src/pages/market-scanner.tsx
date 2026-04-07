@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { safeToFixed } from "@/lib/utils";
+import { safeToFixed, safeNumber, formatMarketCap as sharedFormatMarketCap, formatVolumeCompact, formatPriceChange } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSearch, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -301,32 +301,16 @@ function getTrendIcon(trend: string) {
   return <Activity className="w-4 h-4 text-muted-foreground" />;
 }
 
+// Use shared formatters
 const formatPrice = (price: number) => {
-  if (price >= 1) return `$${safeToFixed(price, 2)}`;
-  if (price >= 0.01) return `$${safeToFixed(price, 4)}`;
-  return `$${safeToFixed(price, 8, '0.00000000')}`;
+  const p = safeNumber(price);
+  if (p >= 1) return `$${safeToFixed(p, 2)}`;
+  if (p >= 0.01) return `$${safeToFixed(p, 4)}`;
+  return `$${safeToFixed(p, 8)}`;
 };
-
-const formatPercentage = (value: number | undefined) => {
-  if (value === undefined || value === null) return "-";
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${safeToFixed(value, 2)}%`;
-};
-
-const formatVolume = (vol: number) => {
-  if (vol >= 1e9) return `${safeToFixed(vol / 1e9, 1, '0.0')}B`;
-  if (vol >= 1e6) return `${safeToFixed(vol / 1e6, 1, '0.0')}M`;
-  if (vol >= 1e3) return `${safeToFixed(vol / 1e3, 1, '0.0')}K`;
-  return vol.toString();
-};
-
-const formatMarketCap = (cap: number | undefined) => {
-  if (!cap) return "-";
-  if (cap >= 1e12) return `$${safeToFixed(cap / 1e12, 1, '0.0')}T`;
-  if (cap >= 1e9) return `$${safeToFixed(cap / 1e9, 1, '0.0')}B`;
-  if (cap >= 1e6) return `$${safeToFixed(cap / 1e6, 0, '0')}M`;
-  return `$${safeToFixed(cap, 0, '0')}`;
-};
+const formatPercentage = (value: number | undefined) => value == null ? '--' : formatPriceChange(value).text;
+const formatVolume = (vol: number) => formatVolumeCompact(vol);
+const formatMarketCap = (cap: number | undefined) => sharedFormatMarketCap(cap);
 
 function StockRow({ stock, timeframe }: { stock: StockPerformance; timeframe: string }) {
   const getChangeForTimeframe = () => {

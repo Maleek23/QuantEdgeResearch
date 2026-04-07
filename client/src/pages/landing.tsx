@@ -442,8 +442,14 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] text-foreground overflow-x-hidden">
-      {/* Dot grid background */}
-      <div className="fixed inset-0 dot-grid opacity-20 pointer-events-none" />
+      {/* Emerald gradient background — same as login page */}
+      <div className="fixed inset-0 bg-gradient-to-br from-emerald-950/30 via-[var(--surface-base)] to-[var(--surface-base)] pointer-events-none" />
+      {/* Grid pattern overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-15" style={{
+        backgroundImage: `linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px),
+                         linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px'
+      }} />
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--surface-base)]/80 backdrop-blur-md border-b border-border">
@@ -511,8 +517,6 @@ export default function Landing() {
       <main className="pt-28 relative">
         {/* Hero Section — Two Column: Text Left, Product Right */}
         <section className="px-6 py-12 md:py-20 max-w-7xl mx-auto relative">
-          {/* Subtle grid */}
-          <div className="absolute inset-0 emerald-grid opacity-20 pointer-events-none" />
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Column — Text */}

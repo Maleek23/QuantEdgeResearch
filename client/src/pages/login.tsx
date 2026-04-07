@@ -106,7 +106,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[var(--surface-base)] flex transition-colors">
+    <div className="min-h-screen bg-background flex transition-colors">
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Gradient background */}
