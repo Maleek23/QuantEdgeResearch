@@ -95,7 +95,7 @@ const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-d
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
 const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
-// MERGED — Command Center absorbed into Home
+const CommandCenter = lazyWithRetry(() => import("@/pages/command"), "command");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -339,8 +339,8 @@ function Router() {
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
       {/* Trade Desk v2 - redirects to main */}
       <Route path="/trade-desk-v2"><Redirect to="/trade-desk" /></Route>
-      {/* MERGED: Command Center → Home */}
-      <Route path="/command"><Redirect to="/home" /></Route>
+      {/* Command Center — GEX/VEX chart + prediction */}
+      <Route path="/command" component={withBetaProtection(CommandCenter)} />
       <Route path="/projector"><Redirect to="/home" /></Route>
 
       {/* Design System Test — admin only */}
