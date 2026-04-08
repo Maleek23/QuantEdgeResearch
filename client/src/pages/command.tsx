@@ -124,17 +124,16 @@ export default function Command() {
         {/* ── Main Layout: Chart (wide) + Intelligence (narrow) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
 
-          {/* Chart — 9 cols */}
+          {/* Chart — 9 cols, full bleed */}
           <div className="lg:col-span-9">
-            <Card className="bg-card/30 border-border overflow-hidden">
-              <CardContent className="p-0">
+            <div className="rounded-lg border border-border/50 overflow-hidden bg-[#0a0b0e]">
                 {chartData && chartData.length > 0 ? (
                   <GEXVEXChart
                     symbol={symbol}
                     data={chartData}
                     levels={levels}
                     spotPrice={spotPrice}
-                    height={560}
+                    height={580}
                     regime={intelData?.gex?.regime?.toUpperCase() as any}
                     expectedMove={currentEM ? {
                       daily: safeNumber(currentEM.expectedMovePct),
@@ -143,12 +142,11 @@ export default function Command() {
                     onPriceHover={setFocusPrice}
                   />
                 ) : (
-                  <div className="h-[560px] flex items-center justify-center text-muted-foreground/50 font-mono text-sm">
+                  <div className="h-[580px] flex items-center justify-center text-muted-foreground/50 font-mono text-sm bg-[#0a0b0e]">
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" />Loading {symbol}...
                   </div>
                 )}
-              </CardContent>
-            </Card>
+            </div>
           </div>
 
           {/* Intelligence Sidebar — 3 cols */}

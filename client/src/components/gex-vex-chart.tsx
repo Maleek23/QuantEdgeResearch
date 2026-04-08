@@ -189,7 +189,7 @@ export function GEXVEXChart({
       width: containerRef.current.clientWidth,
       height,
       layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
+        background: { type: ColorType.Solid, color: '#0a0b0e' },
         textColor: '#64748b',
         fontFamily: "'JetBrains Mono', 'Space Mono', monospace",
         fontSize: 10,
@@ -219,9 +219,11 @@ export function GEXVEXChart({
       },
       timeScale: {
         borderColor: 'rgba(100,116,139,0.1)',
-        timeVisible: false,
-        rightOffset: projectionTarget || horizonTargets ? 12 : 5,
-        barSpacing: 8,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: projectionTarget || horizonTargets ? 15 : 8,
+        barSpacing: 14,
+        minBarSpacing: 6,
       },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
       handleScale: { mouseWheel: true, pinch: true },
@@ -231,12 +233,12 @@ export function GEXVEXChart({
 
     // ── Candlestick series ──
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e',
+      upColor: 'rgba(34, 197, 94, 0.15)',
       downColor: '#ef4444',
       borderUpColor: '#22c55e',
       borderDownColor: '#ef4444',
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
+      wickUpColor: 'rgba(34, 197, 94, 0.6)',
+      wickDownColor: 'rgba(239, 68, 68, 0.6)',
     });
     candleSeries.setData(tvCandles);
     candleSeriesRef.current = candleSeries;
@@ -369,8 +371,16 @@ export function GEXVEXChart({
     });
     ro.observe(containerRef.current);
 
-    // Fit content
-    chart.timeScale().fitContent();
+    // Show last 40 bars at readable size (not zoomed all the way out)
+    if (tvCandles.length > 40) {
+      const from = tvCandles[tvCandles.length - 40].time;
+      const to = tvProjection.length > 0
+        ? tvProjection[tvProjection.length - 1].time
+        : tvCandles[tvCandles.length - 1].time;
+      chart.timeScale().setVisibleRange({ from, to });
+    } else {
+      chart.timeScale().fitContent();
+    }
 
     return () => {
       ro.disconnect();
@@ -407,7 +417,7 @@ export function GEXVEXChart({
       </div>
 
       {/* Chart container */}
-      <div ref={containerRef} style={{ height }} className="w-full rounded-md overflow-hidden" />
+      <div ref={containerRef} style={{ height }} className="w-full overflow-hidden bg-[#0a0b0e]" />
 
       {/* Level legend */}
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1.5 px-1">
