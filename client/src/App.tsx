@@ -16,7 +16,7 @@ import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Loader2 } from "lucide-react";
+import { LogOut, User, Loader2, Search } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { HighConvictionAlertProvider } from "@/components/high-conviction-alert";
@@ -357,8 +357,7 @@ function AuthHeader() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
-  
-  // Update market status every 30 seconds
+
   useEffect(() => {
     const updateStatus = () => {
       const status = getMarketStatus();
@@ -368,47 +367,54 @@ function AuthHeader() {
     const interval = setInterval(updateStatus, 30000);
     return () => clearInterval(interval);
   }, []);
-  
+
   const handleLogout = () => {
     logout();
     setLocation("/");
   };
-  
+
   const userData = user as { email?: string; firstName?: string } | null;
-  
+
   return (
-    <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border/50">
-      <div className="flex items-center gap-3">
-        <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
-        <span className="hidden lg:flex items-center gap-2 text-xs font-mono text-muted-foreground">
-          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-[var(--trade-bullish)] animate-pulse' : 'bg-red-500'}`} />
-          {marketStatus.isOpen ? 'MARKET OPEN' : 'MARKET CLOSED'}
+    <header className="flex items-center justify-between gap-2 px-3 h-10 border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0">
+      {/* Left — trigger + market status */}
+      <div className="flex items-center gap-2">
+        <SidebarTrigger data-testid="button-mobile-menu" className="h-7 w-7 text-muted-foreground" />
+        <div className="h-4 w-px bg-border hidden sm:block" />
+        <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+          <span className={`h-1 w-1 rounded-full ${marketStatus.isOpen ? 'bg-[var(--trade-bullish)] animate-pulse' : 'bg-muted-foreground'}`} />
+          {marketStatus.isOpen ? 'OPEN' : 'CLOSED'}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* Right — search, user, theme */}
+      <div className="flex items-center gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-[10px] font-mono text-muted-foreground hover:text-foreground gap-1.5 hidden sm:flex"
+          onClick={() => setLocation('/market')}
+        >
+          <Search className="h-3 w-3" />
+          Search
+          <kbd className="ml-1 px-1 py-0 text-[8px] bg-muted rounded border border-border text-muted-foreground/50">⌘K</kbd>
+        </Button>
         {isAuthenticated && userData && (
           <>
-            <span className="hidden sm:inline text-xs font-mono text-muted-foreground">
-              {userData.email || userData.firstName || 'User'}
+            <span className="hidden md:inline text-[10px] font-mono text-muted-foreground/60 truncate max-w-[120px]">
+              {userData.firstName || userData.email || 'User'}
             </span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleLogout}
-                  data-testid="button-logout"
-                  className="gap-1.5"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Exit</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Sign out of Quant Edge Labs</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              data-testid="button-logout"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-3 w-3" />
+            </Button>
           </>
         )}
-        <PersonalizationToolbar compact className="hidden sm:flex" />
         <ThemeToggle />
       </div>
     </header>
@@ -451,9 +457,7 @@ function App() {
     );
   }
 
-  // Show app pages with Aurora Grid layout (new minimalist design)
-  const enableAuroraLayout = true; // Feature flag for new design
-
+  // Sidebar layout — primary navigation
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
@@ -462,29 +466,12 @@ function App() {
             <StockContextProvider>
               <PreferencesProvider>
                 <ContentDensityProvider>
-                  {enableAuroraLayout ? (
-                    <AuroraLayoutProvider>
-                      <div className="flex flex-col h-screen w-full">
-                        <GlassHeader />
-                        <div className="flex-1 overflow-auto bg-background pt-16 emerald-grid">
-                          <main className="min-h-full px-4 pb-6 max-w-[1800px] mx-auto">
-                            <ErrorBoundary>
-                              <Suspense fallback={<PageLoader />}>
-                                <Router />
-                              </Suspense>
-                            </ErrorBoundary>
-                          </main>
-                        </div>
-                      </div>
-                    </AuroraLayoutProvider>
-                  ) : (
-                    <SidebarProvider style={style as React.CSSProperties}>
-                      <div className="flex h-screen w-full">
-                        <AppSidebar />
-                        <MainContentWrapper />
-                      </div>
-                    </SidebarProvider>
-                  )}
+                  <SidebarProvider style={style as React.CSSProperties}>
+                    <div className="flex h-screen w-full">
+                      <AppSidebar />
+                      <MainContentWrapper />
+                    </div>
+                  </SidebarProvider>
                   <AIChatbotPopup />
                   <HighConvictionAlertProvider />
                   <Toaster />
@@ -574,17 +561,16 @@ function AuroraContentWrapper() {
 
 // Responsive wrapper that adjusts to sidebar state (legacy)
 function MainContentWrapper() {
-  const { state, isMobile } = useSidebar();
-  const isCollapsed = state === "collapsed";
-  
   return (
-    <div 
-      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200 graph-grid"
-    >
+    <div className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200 page-atmosphere">
       <AuthHeader />
       <div className="flex-1 overflow-auto flex flex-col">
         <main className="flex-1 w-full">
-          <Router />
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Router />
+            </Suspense>
+          </ErrorBoundary>
         </main>
         <Footer />
       </div>
