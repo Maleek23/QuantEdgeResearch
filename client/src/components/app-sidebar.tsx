@@ -27,6 +27,8 @@ import {
   GraduationCap,
   BookOpen,
   Settings,
+  Target,
+  Search,
 } from "lucide-react";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,15 +44,12 @@ interface NavItem {
 const mainItems: NavItem[] = [
   { id: "home", title: "Home", icon: Home, href: "/home" },
   { id: "trade-desk", title: "Trade Desk", icon: Brain, href: "/trade-desk", badge: "AI" },
-  { id: "markets", title: "Markets", icon: TrendingUp, href: "/market" },
-  { id: "charts", title: "Charts", icon: LineChart, href: "/chart-analysis" },
-  { id: "options", title: "Options", icon: SlidersHorizontal, href: "/options-analyzer" },
+  { id: "command", title: "Command", icon: Target, href: "/command" },
+  { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner" },
   { id: "flow", title: "Flow", icon: Zap, href: "/flow" },
 ];
 
 const toolItems: NavItem[] = [
-  { id: "gex", title: "GEX", icon: Crosshair, href: "/gex" },
-  { id: "smart-money", title: "Smart Money", icon: Activity, href: "/smart-money" },
   { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist" },
   { id: "performance", title: "Performance", icon: Trophy, href: "/performance" },
 ];

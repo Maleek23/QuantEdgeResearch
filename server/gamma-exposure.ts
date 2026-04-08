@@ -3,6 +3,8 @@
 
 import { logger } from './logger';
 import { getTradierOptionsChain, getTradierQuote } from './tradier-api';
+import { getYahooOptionsChain, getYahooExpirations } from './yahoo-options-fallback';
+import { safeQuote } from './yahoo-finance-service';
 
 interface GammaByStrike {
   strike: number;
@@ -31,23 +33,38 @@ export async function calculateGammaExposure(
   expiration?: string
 ): Promise<GammaExposureResult | null> {
   try {
-    // Get current stock price
-    const quote = await getTradierQuote(symbol);
-    if (!quote) {
-      logger.error(`[GEX] Could not get quote for ${symbol}`);
-      return null;
+    // Get current stock price — chart candle (most accurate), then Tradier, then Yahoo quote
+    const { getChartLastPrice, getBestPrice } = await import('./yahoo-finance-service');
+    let quote = await getTradierQuote(symbol);
+    let spotPrice = quote?.last || quote?.close || 0;
+
+    // Cross-validate with chart candle price (regularMarketPrice can be stale)
+    const chartPrice = await getChartLastPrice(symbol);
+    if (chartPrice > 0 && spotPrice > 0 && Math.abs(chartPrice - spotPrice) / spotPrice > 0.01) {
+      logger.info(`[GEX] Using chart price $${chartPrice.toFixed(2)} (Tradier $${spotPrice.toFixed(2)} stale)`);
+      spotPrice = chartPrice;
+    } else if (chartPrice > 0 && spotPrice <= 0) {
+      spotPrice = chartPrice;
     }
-    const spotPrice = quote.last || quote.close || 0;
-    
+
     if (spotPrice <= 0) {
-      logger.error(`[GEX] Invalid spot price for ${symbol}: ${spotPrice}`);
+      const yQuote = await safeQuote(symbol);
+      spotPrice = getBestPrice(yQuote);
+    }
+
+    if (spotPrice <= 0) {
+      logger.error(`[GEX] Invalid spot price for ${symbol}`);
       return null;
     }
 
-    // Get options chain with greeks
-    const options = await getTradierOptionsChain(symbol, expiration);
+    // Get options chain — Tradier first, Yahoo fallback
+    let options = await getTradierOptionsChain(symbol, expiration);
     if (options.length === 0) {
-      logger.warn(`[GEX] No options data for ${symbol}`);
+      logger.info(`[GEX] Tradier returned no data for ${symbol}, trying Yahoo Finance...`);
+      options = await getYahooOptionsChain(symbol, expiration) as any;
+    }
+    if (options.length === 0) {
+      logger.warn(`[GEX] No options data for ${symbol} from any source`);
       return null;
     }
 
@@ -139,7 +156,11 @@ export async function calculateGammaExposure(
       }
     }
 
-    logger.info(`[GEX] ${symbol}: Calculated gamma exposure across ${strikes.length} strikes, total GEX: ${totalNetGEX.toFixed(2)}B`);
+    // Diagnostic: check data quality
+    const nonZeroGamma = strikes.filter(s => s.callGamma > 0 || s.putGamma > 0).length;
+    const nonZeroOI = strikes.filter(s => s.callOI > 0 || s.putOI > 0).length;
+    const top3 = [...strikes].sort((a, b) => Math.abs(b.netGEX) - Math.abs(a.netGEX)).slice(0, 3);
+    logger.info(`[GEX] ${symbol}: ${strikes.length} strikes (${nonZeroGamma} w/gamma, ${nonZeroOI} w/OI), spot=$${spotPrice.toFixed(2)}, total GEX: ${totalNetGEX.toFixed(2)}B, maxGamma@$${maxGammaStrike}, top3: ${top3.map(s => `$${s.strike}=${s.netGEX.toFixed(3)}`).join(', ')}`);
 
     return {
       symbol,
@@ -162,32 +183,46 @@ export async function calculateAggregateGammaExposure(
   symbol: string
 ): Promise<GammaExposureResult | null> {
   try {
-    const quote = await getTradierQuote(symbol);
-    if (!quote) return null;
-    
-    const spotPrice = quote.last || quote.close || 0;
+    // Get spot price — chart candle (most accurate), then Tradier, then Yahoo quote
+    const { getChartLastPrice, getBestPrice } = await import('./yahoo-finance-service');
+    let quote = await getTradierQuote(symbol);
+    let spotPrice = quote?.last || quote?.close || 0;
+    const chartPrice = await getChartLastPrice(symbol);
+    if (chartPrice > 0 && spotPrice > 0 && Math.abs(chartPrice - spotPrice) / spotPrice > 0.01) {
+      spotPrice = chartPrice;
+    } else if (chartPrice > 0 && spotPrice <= 0) {
+      spotPrice = chartPrice;
+    }
+    if (spotPrice <= 0) {
+      const yQuote = await safeQuote(symbol);
+      spotPrice = getBestPrice(yQuote);
+    }
     if (spotPrice <= 0) return null;
 
-    // Get all available expirations
+    // Get all available expirations — Tradier first, Yahoo fallback
+    let allExpirations: string[] = [];
     const apiKey = process.env.TRADIER_API_KEY;
-    if (!apiKey) return null;
 
-    const baseUrl = 'https://api.tradier.com/v1';
-    const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/json'
-      }
-    });
+    if (apiKey) {
+      try {
+        const baseUrl = 'https://api.tradier.com/v1';
+        const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
+        });
+        if (expResponse.ok) {
+          const expData = await expResponse.json();
+          allExpirations = expData.expirations?.date || [];
+        }
+      } catch { /* fall through to Yahoo */ }
+    }
 
-    if (!expResponse.ok) return null;
-
-    const expData = await expResponse.json();
-    const allExpirations: string[] = expData.expirations?.date || [];
+    if (allExpirations.length === 0) {
+      logger.info(`[GEX-AGG] Tradier expirations failed for ${symbol}, trying Yahoo...`);
+      allExpirations = await getYahooExpirations(symbol);
+    }
 
     // Get next 4 expirations for aggregate view
     const nearExpirations = allExpirations.slice(0, 4);
-    
     if (nearExpirations.length === 0) return null;
 
     // Aggregate gamma across expirations
@@ -196,7 +231,10 @@ export async function calculateAggregateGammaExposure(
     const contractMultiplier = 100;
 
     for (const exp of nearExpirations) {
-      const options = await getTradierOptionsChain(symbol, exp);
+      let options = await getTradierOptionsChain(symbol, exp);
+      if (options.length === 0) {
+        options = await getYahooOptionsChain(symbol, exp) as any;
+      }
       
       for (const opt of options) {
         const strike = opt.strike;
@@ -267,7 +305,13 @@ export async function calculateAggregateGammaExposure(
       }
     }
 
-    logger.info(`[GEX] ${symbol}: Aggregate gamma across ${nearExpirations.length} expirations, ${strikes.length} strikes`);
+    const nonZeroGamma = strikes.filter(s => s.callGamma > 0 || s.putGamma > 0).length;
+    const nonZeroOI = strikes.filter(s => s.callOI > 0 || s.putOI > 0).length;
+    const top5 = [...strikes].sort((a, b) => Math.abs(b.netGEX) - Math.abs(a.netGEX)).slice(0, 5);
+    logger.info(`[GEX] ${symbol}: Agg ${nearExpirations.length} exp, ${strikes.length} strikes (${nonZeroGamma} w/gamma, ${nonZeroOI} w/OI), spot=$${spotPrice.toFixed(2)}, GEX=${totalNetGEX.toFixed(3)}B, flip=$${flipPoint || 'none'}, maxGamma@$${maxGammaStrike}`);
+    if (top5.length > 0) {
+      logger.info(`[GEX] ${symbol} top5: ${top5.map(s => `$${s.strike}(c:${s.callOI}/g:${s.callGamma.toFixed(4)} p:${s.putOI}/g:${s.putGamma.toFixed(4)} net:${s.netGEX.toFixed(3)})`).join(', ')}`);
+    }
 
     return {
       symbol,

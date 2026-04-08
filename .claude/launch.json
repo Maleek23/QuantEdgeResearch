@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "quantedge-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5000
+      "runtimeExecutable": "/bin/zsh",
+      "runtimeArgs": ["-l", "-c", "npx tsx server/index.ts"],
+      "port": 3000
     }
   ]
 }

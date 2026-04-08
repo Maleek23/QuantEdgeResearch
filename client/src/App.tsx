@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2, Search } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
-import { HighConvictionAlertProvider } from "@/components/high-conviction-alert";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
@@ -95,7 +94,8 @@ const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-d
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
 const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
-// MERGED — Command Center absorbed into Home
+const CommandCenter = lazyWithRetry(() => import("@/pages/command"), "command");
+const GeopoliticalMatrix = lazyWithRetry(() => import("@/pages/geopolitical-matrix"), "geopolitical-matrix");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -214,7 +214,7 @@ function Router() {
         <Redirect to="/automations" />
       </Route>
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
-      <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
+      <Route path="/chart-analysis"><Redirect to="/command" /></Route>
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
       <Route path="/research">
@@ -234,7 +234,7 @@ function Router() {
       <Route path="/smart-signals">
         <Redirect to="/market-scanner" />
       </Route>
-      <Route path="/smart-money" component={withBetaProtection(SmartMoneyPage)} />
+      <Route path="/smart-money"><Redirect to="/flow?tab=smart-money" /></Route>
       <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
       <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
       <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
@@ -245,7 +245,7 @@ function Router() {
       <Route path="/data-audit">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/market" component={withBetaProtection(MarketPage)} />
+      <Route path="/market"><Redirect to="/home" /></Route>
       <Route path="/market-scanner" component={withBetaProtection(MarketScanner)} />
       <Route path="/pattern-scanner">
         <Redirect to="/chart-analysis" />
@@ -331,17 +331,17 @@ function Router() {
       <Route path="/learning" component={NotFound} />
       <Route path="/risk" component={NotFound} />
       
-      {/* MERGED: SPX Command Center → Options Analyzer */}
-      <Route path="/spx"><Redirect to="/options-analyzer" /></Route>
-      {/* GEX Dashboard - Gamma Exposure Analysis */}
-      <Route path="/gex" component={withBetaProtection(GEXDashboard)} />
-      {/* Flow Edge - Options Flow Scanner */}
+      {/* Command Center — projector + GEX targets + intelligence */}
+      <Route path="/command" component={withBetaProtection(CommandCenter)} />
+      <Route path="/projector"><Redirect to="/command" /></Route>
+      <Route path="/spx"><Redirect to="/command" /></Route>
+      {/* Flow — options flow + GEX + smart money (tabs) */}
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
-      {/* Trade Desk v2 - redirects to main */}
+      <Route path="/gex"><Redirect to="/flow?tab=gex" /></Route>
+      {/* Geopolitical Reaction Matrix */}
+      <Route path="/geopolitical"><Redirect to="/command" /></Route>
+      {/* Redirects */}
       <Route path="/trade-desk-v2"><Redirect to="/trade-desk" /></Route>
-      {/* MERGED: Command Center → Home */}
-      <Route path="/command"><Redirect to="/home" /></Route>
-      <Route path="/projector"><Redirect to="/home" /></Route>
 
       {/* Design System Test — admin only */}
       <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
@@ -473,7 +473,6 @@ function App() {
                     </div>
                   </SidebarProvider>
                   <AIChatbotPopup />
-                  <HighConvictionAlertProvider />
                   <Toaster />
                 </ContentDensityProvider>
               </PreferencesProvider>

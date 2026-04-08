@@ -268,6 +268,14 @@ function clearCachedPrice(symbol: string): void {
   logger.info(`[PRICE-CACHE] Cleared stale cache for ${symbol}`);
 }
 
+// Helper: convert Yahoo-style range to a start date
+function getChartStartDate(range: string): Date {
+  const now = new Date();
+  const map: Record<string, number> = { '1d': 1, '5d': 5, '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, '5y': 1825 };
+  const days = map[range] || 30;
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
 // Premium subscription middleware
 function requirePremium(req: Request, res: Response, next: Function) {
   // For now, allow all requests (no auth implemented yet)
@@ -4339,41 +4347,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/historical-prices/:symbol - Get historical price data for charts
+  // GET /api/historical-prices/:symbol - Get OHLC candle data for charts
   app.get("/api/historical-prices/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const range = (req.query.range as string) || '1M';
-      const assetType = (req.query.assetType as 'stock' | 'crypto') || 'stock';
+      const rawRange = (req.query.range as string) || '1mo';
+      const interval = (req.query.interval as string) || '1d';
 
-      // Convert range to days
-      const rangeToDays: Record<string, number> = {
-        '1D': 1,
-        '5D': 5,
-        '1M': 30,
-        '3M': 90,
-        '6M': 180,
-        '1Y': 365,
-        '5Y': 1825,
+      // Normalize range format (accept both '1M' and '1mo' styles)
+      const rangeMap: Record<string, string> = {
+        '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '5Y': '5y',
+        '1d': '1d', '5d': '5d', '1mo': '1mo', '3mo': '3mo', '6mo': '6mo', '1y': '1y', '5y': '5y',
       };
-      const days = rangeToDays[range] || 30;
+      const range = rangeMap[rawRange] || '1mo';
 
-      const { fetchHistoricalPrices } = await import('./market-api');
-      const prices = await fetchHistoricalPrices(symbol, assetType, days);
+      // Use Yahoo Finance chart API for OHLC candle data
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new YahooFinance();
+      const includeExtended = interval === '1h' || interval === '5m' || interval === '15m' || interval === '1d';
+      const result = await yahooFinance.chart(symbol, {
+        period1: getChartStartDate(range),
+        interval: interval as any,
+        includePrePost: includeExtended,
+      } as any);
 
-      if (!prices || prices.length === 0) {
+      if (!result?.quotes || result.quotes.length === 0) {
         return res.status(404).json({ error: "No historical data found" });
       }
 
-      // Convert to chart format with timestamps
-      const now = Date.now();
-      const oneDayMs = 24 * 60 * 60 * 1000;
-      const chartData = prices.map((price, i) => ({
-        time: Math.floor((now - (prices.length - i - 1) * oneDayMs) / 1000),
-        value: price,
-      }));
+      const data = result.quotes
+        .filter((q: any) => q.open != null && q.high != null && q.low != null && q.close != null)
+        .map((q: any) => ({
+          time: Math.floor(new Date(q.date).getTime() / 1000),
+          open: q.open,
+          high: q.high,
+          low: q.low,
+          close: q.close,
+          volume: q.volume || 0,
+        }));
 
-      res.json({ symbol, range, data: chartData });
+      res.json({ symbol, range, data });
     } catch (error) {
       logger.error(`Error fetching historical prices for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to fetch historical prices" });
@@ -26185,6 +26198,117 @@ Use this checklist before entering any trade:
   });
 
   // ============================================================================
+  // VEX (VANNA EXPOSURE) + GEX+VEX TARGET PROJECTOR
+  // ============================================================================
+
+  app.get("/api/vanna-exposure/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { calculateVannaExposure, calculateAggregateVEX } = await import('./vanna-exposure');
+      const symbol = req.params.symbol.toUpperCase();
+      const aggregate = req.query.aggregate === 'true';
+      const result = aggregate
+        ? await calculateAggregateVEX(symbol)
+        : await calculateVannaExposure(symbol, req.query.expiration as string | undefined);
+      if (!result) return res.status(404).json({ error: `No VEX data for ${symbol}` });
+      res.json(result);
+    } catch (error) {
+      logger.error("VEX calculation error", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "VEX calculation failed" });
+    }
+  });
+
+  app.get("/api/gex-vex-projection/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { getCachedProjection } = await import('./gex-vex-projector');
+      const symbol = req.params.symbol.toUpperCase();
+      const result = await getCachedProjection(symbol);
+      if (!result) return res.status(404).json({ error: `No projection data for ${symbol}` });
+      res.json(result);
+    } catch (error) {
+      logger.error("GEX+VEX projection error", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "GEX+VEX projection failed" });
+    }
+  });
+
+  app.post("/api/gex-vex-projection/batch", requireBetaAccess, async (req, res) => {
+    try {
+      const { getCachedProjection } = await import('./gex-vex-projector');
+      const symbols: string[] = (req.body.symbols || []).slice(0, 5);
+      const results = await Promise.all(symbols.map(s => getCachedProjection(s.toUpperCase())));
+      const mapped: Record<string, any> = {};
+      symbols.forEach((s, i) => { mapped[s.toUpperCase()] = results[i]; });
+      res.json(mapped);
+    } catch (error) {
+      logger.error("Batch GEX+VEX projection error", { error });
+      res.status(500).json({ error: "Batch projection failed" });
+    }
+  });
+
+  // ============================================================================
+  // GEOPOLITICAL MARKET REACTION MATRIX
+  // ============================================================================
+
+  app.get("/api/geopolitical-scenarios", requireBetaAccess, async (_req, res) => {
+    try {
+      const { getScenarioMatrix } = await import('./geopolitical-matrix');
+      const data = await getScenarioMatrix();
+      res.json(data);
+    } catch (error) {
+      logger.error("Geopolitical matrix error", { error });
+      res.status(500).json({ error: "Geopolitical matrix failed" });
+    }
+  });
+
+  // ============================================================================
+  // UNIFIED MARKET PREDICTION ENGINE
+  // Correlates GEX/VEX + geopolitical + psych levels + technicals
+  // ============================================================================
+
+  app.get("/api/unified-prediction/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getCachedUnifiedPrediction } = await import('./unified-prediction-engine');
+      const symbol = req.params.symbol.toUpperCase();
+
+      // Optionally fetch intel data to enrich the prediction
+      let intelData = null;
+      try {
+        const { getSPXIntelligence, refreshSPXIntelligence } = await import('./spx-intelligence-service');
+        intelData = getSPXIntelligence(symbol) || await refreshSPXIntelligence(symbol);
+      } catch { /* intel is optional */ }
+
+      let projectorData = null;
+      try {
+        const { getProjectorData } = await import('./market-projector');
+        projectorData = await getProjectorData('daily');
+      } catch { /* projector is optional */ }
+
+      const timeframe = (req.query.timeframe as string) || '1d';
+      const result = await getCachedUnifiedPrediction(symbol, intelData, projectorData, timeframe);
+      if (!result) return res.status(404).json({ error: `No prediction data for ${symbol}` });
+      res.json({ ...result, timeframe });
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : '';
+      logger.error("Unified prediction error", { error: errMsg, stack: errStack, symbol: req.params.symbol });
+      res.status(500).json({ error: "Unified prediction failed", detail: errMsg });
+    }
+  });
+
+  // GET /api/projection-accuracy — GEX/VEX projection accuracy report
+  app.get("/api/projection-accuracy", requireBetaAccess, async (req, res) => {
+    try {
+      const { getAccuracyReport, getProjectionHistory } = await import('./projection-validator');
+      const symbol = (req.query.symbol as string)?.toUpperCase();
+      const report = getAccuracyReport(symbol);
+      const history = getProjectionHistory(symbol || 'SPY', 30);
+      res.json({ report, recentProjections: history.slice(0, 20) });
+    } catch (error) {
+      logger.error("Projection accuracy error", { error });
+      res.status(500).json({ error: "Failed to get accuracy report" });
+    }
+  });
+
+  // ============================================================================
   // INSTITUTIONAL-GRADE RISK ENGINE API
   // PhD-level quantitative risk management
   // ============================================================================
@@ -27048,6 +27172,19 @@ Use this checklist before entering any trade:
         timestamp: Date.now()
       };
       logger.info(`[CACHE] Pre-warmed convergence cache (${opportunities.length} opportunities, ${signalCount} signals)`);
+
+      // Pre-warm unified prediction cache for key symbols
+      const { getCachedUnifiedPrediction } = await import('./unified-prediction-engine');
+      const predSymbols = ['SPY', 'QQQ', 'IWM'];
+      logger.info(`[CACHE] Pre-warming predictions for ${predSymbols.join(', ')}...`);
+      for (const sym of predSymbols) {
+        try {
+          await getCachedUnifiedPrediction(sym, undefined, undefined, '1d');
+          logger.info(`[CACHE] ✅ Pre-warmed prediction for ${sym}`);
+        } catch (e) {
+          logger.warn(`[CACHE] ⚠️ Pre-warm failed for ${sym}`);
+        }
+      }
 
     } catch (e) {
       logger.error('[CACHE] Pre-warm failed:', e);
