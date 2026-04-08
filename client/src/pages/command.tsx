@@ -1,84 +1,55 @@
 /**
- * Command Center
- * ==============
- * Unified market intelligence: chart + TA/FA sidebar + sector pulse + watchlist setups.
- * Merges SPX Command Center + Market Projector into one page.
+ * Command Center — Bloomberg Terminal Layout
+ * ============================================
+ * Full-width chart with GEX/VEX levels + compact intelligence sidebar.
+ * The chart is the star — everything else supports it.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StockChart } from "@/components/stock-chart";
+import { GEXVEXChart } from "@/components/gex-vex-chart";
+import type { CandleData, GEXLevel } from "@/components/gex-vex-chart";
 import {
-  TrendingUp, TrendingDown, Minus, Activity, BarChart3,
+  TrendingUp, TrendingDown, Activity, BarChart3,
   Target, RefreshCw, Zap, ArrowUpRight, ArrowDownRight,
-  Shield, Brain, Gauge, Calendar, Clock,
+  Shield, Brain, Gauge,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeToFixed, safeNumber } from "@/lib/utils";
 
-// ═══════════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════════
+const SYMBOLS = ['SPY', 'QQQ', 'IWM', 'DIA'];
+const TIMEFRAMES = [
+  { id: '1d', label: '1D', range: '1mo', interval: '1d' },
+  { id: '1h', label: '1H', range: '5d', interval: '1h' },
+  { id: '15m', label: '15m', range: '5d', interval: '15m' },
+  { id: '1w', label: '1W', range: '3mo', interval: '1wk' },
+];
 
-interface ExpectedMove {
-  symbol: string; currentPrice: number; expectedMovePct: number;
-  upperBound: number; lowerBound: number; timeframe: string;
+function trendColor(t: string) {
+  return t === 'BULLISH' ? 'text-[var(--trade-bullish)]' : t === 'BEARISH' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground';
 }
-interface BiasCheck { name: string; signal: string; detail: string; weight: number; }
-interface SectorPulse { sector: string; etf: string; price: number; changePct: number; trend: string; strength: number; category: string; }
-interface WatchlistSetup { symbol: string; price: number; changePct: number; setup: string; direction: string; probability: number; catalyst: string; section: string; }
-interface ProjectorData {
-  nextSession: string; expectedMoves: ExpectedMove[];
-  bias: { direction: string; probability: number; factors: BiasCheck[] };
-  sectors: SectorPulse[]; watchlistSetups: WatchlistSetup[]; keyEvents: string[];
-}
-interface IntelData {
-  vixRegime?: { vix: number; regime: { regime: string; percentile: number; tradingImplication: string }; termStructure: string };
-  momentum?: { regime: string; rsi: number; emaAlignment: string; confidence: number; tradingAdvice: string };
-  unifiedScore?: { score: number; direction: string; confidence: number; thesis: string };
-  gex?: { flipPoint: number; maxGammaStrike: number; regime: string } | null;
-  pcr?: { volumeRatio: number; interpretation: string } | null;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function trendColor(t: string) { return t === 'BULLISH' ? 'text-[var(--trade-bullish)]' : t === 'BEARISH' ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground'; }
-function trendIcon(t: string) {
-  if (t === 'BULLISH' || t === 'bullish') return <TrendingUp className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />;
-  if (t === 'BEARISH' || t === 'bearish') return <TrendingDown className="w-3.5 h-3.5 text-[var(--trade-bearish)]" />;
-  return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
-}
-
-const SYMBOLS = ['SPY', 'QQQ', 'IWM'] as const;
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN PAGE
-// ═══════════════════════════════════════════════════════════════
 
 export default function Command() {
-  const [symbol, setSymbol] = useState<string>('SPY');
-  const [timeframe, setTimeframe] = useState<'daily' | 'weekly'>('daily');
-  const chartRange = timeframe === 'daily' ? '1mo' : '3mo';
-  const chartInterval = timeframe === 'daily' ? '1d' : '1wk';
+  const [symbol, setSymbol] = useState('SPY');
+  const [tfIdx, setTfIdx] = useState(0);
+  const [focusPrice, setFocusPrice] = useState<number | null>(null);
+  const tf = TIMEFRAMES[tfIdx];
 
-  // Projector data (expected moves, bias, sectors, setups)
-  const { data: projData, isLoading: projLoading, refetch } = useQuery<ProjectorData>({
-    queryKey: ['/api/projector', timeframe],
+  // ── Data queries ──
+  const { data: projData, isLoading: projLoading, refetch } = useQuery<any>({
+    queryKey: ['/api/projector', tf.id],
     queryFn: async () => {
-      const res = await fetch(`/api/projector?timeframe=${timeframe}`, { credentials: 'include' });
+      const res = await fetch(`/api/projector?timeframe=${tf.id === '1w' ? 'weekly' : 'daily'}`, { credentials: 'include' });
       if (!res.ok) return null;
       return res.json();
     },
     staleTime: 60_000,
-    refetchInterval: 300_000,
+    refetchInterval: 120_000,
   });
 
-  // Intelligence data (VIX, GEX, PCR, momentum)
-  const { data: intelData } = useQuery<IntelData>({
+  const { data: intelData } = useQuery<any>({
     queryKey: ['/api/spx/intelligence', symbol],
     queryFn: async () => {
       const res = await fetch(`/api/spx/intelligence?symbol=${symbol}`, { credentials: 'include' });
@@ -86,354 +57,270 @@ export default function Command() {
       return res.json();
     },
     staleTime: 120_000,
-    refetchInterval: 300_000,
   });
 
-  // Chart data
-  const { data: chartData } = useQuery({
-    queryKey: ['/api/historical-prices', symbol, chartRange, chartInterval],
+  const { data: chartData } = useQuery<CandleData[]>({
+    queryKey: ['/api/historical-prices', symbol, tf.range, tf.interval],
     queryFn: async () => {
-      const res = await fetch(`/api/historical-prices/${symbol}?range=${chartRange}&interval=${chartInterval}`, { credentials: 'include' });
+      const res = await fetch(`/api/historical-prices/${symbol}?range=${tf.range}&interval=${tf.interval}`, { credentials: 'include' });
       if (!res.ok) return [];
       const d = await res.json();
       return (d.prices || d.data || d || []).map((p: any) => ({
-        time: p.date || p.time || '',
-        open: p.open, high: p.high, low: p.low, close: p.close, value: p.close,
+        time: typeof p.time === 'number' ? p.time : Math.floor(new Date(p.date || p.time).getTime() / 1000),
+        open: safeNumber(p.open), high: safeNumber(p.high),
+        low: safeNumber(p.low), close: safeNumber(p.close),
+        volume: p.volume,
       }));
     },
     staleTime: 60_000,
   });
 
-  const currentEM = projData?.expectedMoves?.find(em => em.symbol === symbol);
+  // ── Build chart levels from intel data ──
+  const levels = useMemo<GEXLevel[]>(() => {
+    const result: GEXLevel[] = [];
+    const gex = intelData?.gex;
+    if (!gex) return result;
+
+    if (gex.maxGammaStrike) result.push({ price: gex.maxGammaStrike, type: 'GEX_ANCHOR', label: 'GEX Anchor' });
+    if (gex.flipPoint) result.push({ price: gex.flipPoint, type: 'GEX_FLIP', label: 'Gamma Flip' });
+
+    return result;
+  }, [intelData]);
+
+  const currentEM = projData?.expectedMoves?.find((em: any) => em.symbol === symbol);
+  const spotPrice = safeNumber(currentEM?.currentPrice || chartData?.[chartData.length - 1]?.close);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
+    <div className="min-h-screen bg-background page-atmosphere text-foreground">
+      <div className="max-w-[1800px] mx-auto px-2 sm:px-3 py-2 space-y-2">
 
-        {/* Header */}
+        {/* ── Header Bar ── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-              <Target className="w-4 h-4 text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold">Command Center</h1>
-              <p className="text-xs text-muted-foreground">{projData?.nextSession || 'Market Intelligence'}</p>
-            </div>
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-cyan-400" />
+            <h1 className="text-sm font-bold tracking-tight">Command Center</h1>
+            <span className="text-[9px] text-muted-foreground font-mono">{projData?.nextSession || ''}</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             {SYMBOLS.map(s => (
-              <Button key={s} size="sm" variant={symbol === s ? 'default' : 'outline'}
-                onClick={() => setSymbol(s)} className="h-7 text-xs px-3">{s}</Button>
+              <Button key={s} size="sm" variant={symbol === s ? 'default' : 'ghost'}
+                onClick={() => setSymbol(s)}
+                className={cn("h-6 text-[10px] font-mono px-2", symbol === s && "bg-[var(--brand-teal)] text-black")}
+              >{s}</Button>
             ))}
-            <div className="w-px h-5 bg-muted mx-1" />
-            <Button size="sm" variant={timeframe === 'daily' ? 'default' : 'outline'}
-              onClick={() => setTimeframe('daily')} className="h-7 text-xs">Daily</Button>
-            <Button size="sm" variant={timeframe === 'weekly' ? 'default' : 'outline'}
-              onClick={() => setTimeframe('weekly')} className="h-7 text-xs">Weekly</Button>
-            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 text-xs text-muted-foreground">
-              <RefreshCw className="w-3.5 h-3.5" />
+            <div className="w-px h-4 bg-border mx-0.5" />
+            {TIMEFRAMES.map((t, i) => (
+              <Button key={t.id} size="sm" variant={tfIdx === i ? 'secondary' : 'ghost'}
+                onClick={() => setTfIdx(i)}
+                className="h-6 text-[10px] font-mono px-2"
+              >{t.label}</Button>
+            ))}
+            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-6 w-6 p-0 text-muted-foreground">
+              <RefreshCw className={cn("w-3 h-3", projLoading && "animate-spin")} />
             </Button>
           </div>
         </div>
 
-        {/* Main: Chart + Intelligence Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* ── Main Layout: Chart (wide) + Intelligence (narrow) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
 
-          {/* Chart — 3 cols */}
-          <div className="lg:col-span-3">
-            <Card className="bg-card/50 border-border">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-foreground">{symbol}</span>
-                  {currentEM && (
-                    <span className="text-[10px] text-muted-foreground">
-                      +/-{currentEM.expectedMovePct}% expected ({timeframe})
-                    </span>
-                  )}
-                </div>
+          {/* Chart — 9 cols */}
+          <div className="lg:col-span-9">
+            <Card className="bg-card/30 border-border overflow-hidden">
+              <CardContent className="p-0">
                 {chartData && chartData.length > 0 ? (
-                  <StockChart symbol={symbol} data={chartData} height={380} chartType="candlestick" />
+                  <GEXVEXChart
+                    symbol={symbol}
+                    data={chartData}
+                    levels={levels}
+                    spotPrice={spotPrice}
+                    height={560}
+                    regime={intelData?.gex?.regime?.toUpperCase() as any}
+                    expectedMove={currentEM ? {
+                      daily: safeNumber(currentEM.expectedMovePct),
+                      impliedDailyRange: { low: safeNumber(currentEM.lowerBound), high: safeNumber(currentEM.upperBound) },
+                    } : undefined}
+                    onPriceHover={setFocusPrice}
+                  />
                 ) : (
-                  <div className="h-[380px] flex items-center justify-center text-muted-foreground/70">
-                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />Loading chart...
+                  <div className="h-[560px] flex items-center justify-center text-muted-foreground/50 font-mono text-sm">
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />Loading {symbol}...
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Intelligence Sidebar — 2 cols */}
-          <div className="lg:col-span-2 space-y-3">
+          {/* Intelligence Sidebar — 3 cols */}
+          <div className="lg:col-span-3 space-y-2 overflow-y-auto max-h-[600px]">
 
             {/* Expected Move */}
             {currentEM && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-1">Expected Move ({timeframe})</div>
-                  <div className="text-xl font-bold font-mono text-foreground">${currentEM.currentPrice.toFixed(2)}</div>
-                  <div className="flex items-center gap-1.5 mt-2 mb-1">
-                    <span className="text-[10px] text-[var(--trade-bearish)] font-mono">${currentEM.lowerBound.toFixed(0)}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-muted relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-red-500/30 via-slate-600 to-emerald-500/30" />
-                      <div className="absolute top-0 bottom-0 w-0.5 bg-white left-1/2 -translate-x-1/2" />
-                    </div>
-                    <span className="text-[10px] text-[var(--trade-bullish)] font-mono">${currentEM.upperBound.toFixed(0)}</span>
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono mb-1">Expected Move</div>
+                <div className="text-lg font-bold font-mono tabular-nums text-foreground">${safeToFixed(currentEM.currentPrice, 2)}</div>
+                <div className="flex items-center gap-1 mt-1.5">
+                  <span className="text-[9px] text-[var(--trade-bearish)] font-mono tabular-nums">${safeToFixed(currentEM.lowerBound, 0)}</span>
+                  <div className="flex-1 h-1 rounded-full bg-muted relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-[var(--trade-bearish)]/30 via-muted-foreground/20 to-[var(--trade-bullish)]/30" />
                   </div>
-                </CardContent>
-              </Card>
+                  <span className="text-[9px] text-[var(--trade-bullish)] font-mono tabular-nums">${safeToFixed(currentEM.upperBound, 0)}</span>
+                </div>
+                <div className="text-[8px] text-muted-foreground/50 font-mono text-center mt-1">±{currentEM.expectedMovePct}%</div>
+              </div>
             )}
 
             {/* Directional Bias */}
             {projData?.bias && (
-              <Card className={cn("border",
-                projData.bias.direction === 'BULLISH' ? "bg-emerald-500/5 border-emerald-500/20" :
-                projData.bias.direction === 'BEARISH' ? "bg-red-500/5 border-red-500/20" :
+              <div className={cn("p-2.5 rounded-md border",
+                projData.bias.direction === 'BULLISH' ? "bg-emerald-500/5 border-emerald-500/15" :
+                projData.bias.direction === 'BEARISH' ? "bg-red-500/5 border-red-500/15" :
                 "bg-card/50 border-border"
               )}>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    {trendIcon(projData.bias.direction)}
-                    <span className={cn("text-sm font-bold", trendColor(projData.bias.direction))}>
-                      {projData.bias.direction}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">{projData.bias.probability}%</span>
-                  </div>
-                  <div className="space-y-1">
-                    {projData.bias.factors.slice(0, 5).map((f, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[10px]">
-                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0",
-                          f.signal === 'bullish' ? "bg-[var(--trade-bullish)]" : f.signal === 'bearish' ? "bg-red-400" : "bg-muted-foreground"
-                        )} />
-                        <span className="text-muted-foreground truncate">{f.detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  {projData.bias.direction === 'BULLISH' ? <TrendingUp className="w-3 h-3 text-[var(--trade-bullish)]" /> :
+                   projData.bias.direction === 'BEARISH' ? <TrendingDown className="w-3 h-3 text-[var(--trade-bearish)]" /> :
+                   <Activity className="w-3 h-3 text-muted-foreground" />}
+                  <span className={cn("text-xs font-bold", trendColor(projData.bias.direction))}>{projData.bias.direction}</span>
+                  <span className="text-[9px] text-muted-foreground ml-auto font-mono tabular-nums">{projData.bias.probability}%</span>
+                </div>
+                <div className="space-y-0.5">
+                  {projData.bias.factors?.slice(0, 4).map((f: any, i: number) => (
+                    <div key={i} className="flex items-center gap-1 text-[9px]">
+                      <span className={cn("w-1 h-1 rounded-full shrink-0",
+                        f.signal === 'bullish' ? "bg-[var(--trade-bullish)]" : f.signal === 'bearish' ? "bg-[var(--trade-bearish)]" : "bg-muted-foreground"
+                      )} />
+                      <span className="text-muted-foreground/70 truncate">{f.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
-            {/* Unified Score */}
+            {/* Intelligence Score */}
             {intelData?.unifiedScore && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Brain className="w-3.5 h-3.5 text-purple-400" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Intelligence Score</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={cn("text-2xl font-bold font-mono",
-                      intelData.unifiedScore.score >= 60 ? "text-[var(--trade-bullish)]" :
-                      intelData.unifiedScore.score >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
-                    )}>{intelData.unifiedScore.score}</span>
-                    <div>
-                      <div className={cn("text-xs font-semibold", trendColor(intelData.unifiedScore.direction?.toUpperCase()))}>
-                        {intelData.unifiedScore.direction?.toUpperCase()}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">{intelData.unifiedScore.thesis}</div>
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Brain className="w-3 h-3 text-purple-400" />
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">Score</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-xl font-bold font-mono tabular-nums",
+                    intelData.unifiedScore.score >= 60 ? "text-[var(--trade-bullish)]" :
+                    intelData.unifiedScore.score >= 40 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
+                  )}>{intelData.unifiedScore.score}</span>
+                  <div className="min-w-0">
+                    <div className={cn("text-[10px] font-semibold", trendColor(intelData.unifiedScore.direction?.toUpperCase()))}>
+                      {intelData.unifiedScore.direction?.toUpperCase()}
                     </div>
+                    <div className="text-[8px] text-muted-foreground/50 truncate">{intelData.unifiedScore.thesis}</div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
-            {/* VIX Regime */}
+            {/* VIX */}
             {intelData?.vixRegime && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Gauge className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">VIX Regime</span>
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Gauge className="w-3 h-3 text-[var(--trade-neutral)]" />
+                    <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">VIX</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={cn("text-xl font-bold font-mono",
-                      intelData.vixRegime.vix > 30 ? "text-[var(--trade-bearish)]" : intelData.vixRegime.vix > 20 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
-                    )}>{intelData.vixRegime.vix.toFixed(1)}</span>
-                    <div>
-                      <Badge variant="outline" className={cn("text-[9px]",
-                        intelData.vixRegime.regime.regime === 'fear' ? "text-[var(--trade-neutral)] border-amber-500/30" :
-                        intelData.vixRegime.regime.regime === 'panic' ? "text-[var(--trade-bearish)] border-red-500/30" :
-                        "text-[var(--trade-bullish)] border-emerald-500/30"
-                      )}>{intelData.vixRegime.regime.regime.toUpperCase()}</Badge>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{intelData.vixRegime.regime.percentile}th percentile | {intelData.vixRegime.termStructure}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Momentum */}
-            {intelData?.momentum && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Momentum</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <div>
-                      <span className="text-muted-foreground">RSI </span>
-                      <span className={cn("font-mono font-bold",
-                        intelData.momentum.rsi > 70 ? "text-[var(--trade-bearish)]" : intelData.momentum.rsi < 30 ? "text-[var(--trade-bullish)]" : "text-foreground"
-                      )}>{intelData.momentum.rsi.toFixed(0)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">EMA </span>
-                      <span className={cn("font-mono",
-                        intelData.momentum.emaAlignment === 'bullish' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                      )}>{intelData.momentum.emaAlignment}</span>
-                    </div>
-                    <Badge variant="outline" className="text-[9px] text-muted-foreground">{intelData.momentum.regime}</Badge>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">{intelData.momentum.tradingAdvice}</div>
-                </CardContent>
-              </Card>
+                  <Badge variant="outline" className={cn("text-[7px] px-1 py-0 font-mono",
+                    intelData.vixRegime.regime?.regime === 'fear' ? "text-[var(--trade-neutral)]" :
+                    intelData.vixRegime.regime?.regime === 'panic' ? "text-[var(--trade-bearish)]" :
+                    "text-[var(--trade-bullish)]"
+                  )}>{intelData.vixRegime.regime?.regime?.toUpperCase()}</Badge>
+                </div>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className={cn("text-lg font-bold font-mono tabular-nums",
+                    intelData.vixRegime.vix > 30 ? "text-[var(--trade-bearish)]" : intelData.vixRegime.vix > 20 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
+                  )}>{safeToFixed(intelData.vixRegime.vix, 1)}</span>
+                  <span className="text-[8px] text-muted-foreground/40 font-mono">{intelData.vixRegime.regime?.percentile}th pct</span>
+                </div>
+              </div>
             )}
 
             {/* GEX */}
             {intelData?.gex && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Shield className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Gamma Exposure</span>
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Shield className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">Gamma</span>
+                  <Badge variant="outline" className={cn("text-[7px] px-1 py-0 ml-auto font-mono",
+                    intelData.gex.regime === 'positive' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                  )}>{intelData.gex.regime}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[9px]">
+                  <div>
+                    <span className="text-muted-foreground/50">Anchor</span>
+                    <div className="font-mono font-bold text-foreground tabular-nums">${intelData.gex.maxGammaStrike}</div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <div><span className="text-muted-foreground">Anchor </span><span className="font-mono text-foreground">${intelData.gex.maxGammaStrike}</span></div>
-                    <div><span className="text-muted-foreground">Flip </span><span className="font-mono text-foreground">${intelData.gex.flipPoint}</span></div>
-                    <Badge variant="outline" className={cn("text-[9px]",
-                      intelData.gex.regime === 'positive' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                    )}>{intelData.gex.regime}</Badge>
+                  <div>
+                    <span className="text-muted-foreground/50">Flip</span>
+                    <div className="font-mono font-bold text-foreground tabular-nums">${intelData.gex.flipPoint}</div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            )}
+
+            {/* Momentum */}
+            {intelData?.momentum && (
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Activity className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">Momentum</span>
+                </div>
+                <div className="flex items-center gap-3 text-[9px]">
+                  <div>
+                    <span className="text-muted-foreground/50">RSI </span>
+                    <span className={cn("font-mono font-bold tabular-nums",
+                      intelData.momentum.rsi > 70 ? "text-[var(--trade-bearish)]" : intelData.momentum.rsi < 30 ? "text-[var(--trade-bullish)]" : "text-foreground"
+                    )}>{safeToFixed(intelData.momentum.rsi, 0)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/50">EMA </span>
+                    <span className={cn("font-mono",
+                      intelData.momentum.emaAlignment === 'bullish' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                    )}>{intelData.momentum.emaAlignment}</span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* PCR */}
             {intelData?.pcr && (
-              <Card className="bg-card/50 border-border">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Put/Call Ratio</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className={cn("text-lg font-bold font-mono",
-                      intelData.pcr.volumeRatio < 0.8 ? "text-[var(--trade-bullish)]" : intelData.pcr.volumeRatio > 1.2 ? "text-[var(--trade-bearish)]" : "text-foreground"
-                    )}>{intelData.pcr.volumeRatio.toFixed(2)}</span>
-                    <span className="text-muted-foreground">{intelData.pcr.interpretation}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="p-2.5 rounded-md bg-card/50 border border-border">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <BarChart3 className="w-3 h-3 text-blue-400" />
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">P/C Ratio</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-base font-bold font-mono tabular-nums",
+                    intelData.pcr.volumeRatio < 0.8 ? "text-[var(--trade-bullish)]" : intelData.pcr.volumeRatio > 1.2 ? "text-[var(--trade-bearish)]" : "text-foreground"
+                  )}>{safeToFixed(intelData.pcr.volumeRatio, 2)}</span>
+                  <span className="text-[8px] text-muted-foreground/50">{intelData.pcr.interpretation}</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Sector Pulse */}
-        {projData?.sectors && projData.sectors.length > 0 && (
-          <>
-            {[
-              { key: 'core', label: 'Core Sectors', icon: '⚡' },
-              { key: 'sector', label: 'S&P Sectors', icon: '📊' },
-              { key: 'macro', label: 'Macro Indicators', icon: '🌍' },
-            ].map((cat) => {
-              const catSectors = projData.sectors.filter(s => s.category === cat.key);
-              if (catSectors.length === 0) return null;
-              return (
-                <Card key={cat.key} className="bg-card/50 border-border">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm">{cat.icon}</span>
-                      <span className="text-xs font-semibold text-foreground">{cat.label}</span>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                      {catSectors.map(s => (
-                        <div key={s.etf} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted/30">
-                          <span className="text-muted-foreground">{s.etf}</span>
-                          <span className={cn("font-mono", s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground")}>
-                            {s.changePct > 0 ? '+' : ''}{s.changePct}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </>
-        )}
-
-        {/* Watchlist Setups */}
-        {projData?.watchlistSetups && projData.watchlistSetups.length > 0 && (
-          <>
-            {[
-              { key: 'S-TIER', label: 'S-Tier Weekly', icon: '⭐' },
-              { key: 'A-TIER', label: 'A-Tier Weekly', icon: '📊' },
-              { key: 'ACTIVE', label: 'Active', icon: '🔥' },
-              { key: 'INDEX', label: 'Index', icon: '🎯' },
-            ].map(section => {
-              const setups = projData.watchlistSetups.filter(s => s.section === section.key);
-              if (setups.length === 0) return null;
-              const actionable = setups.filter(s => s.direction !== 'NEUTRAL').length;
-              return (
-                <Card key={section.key} className="bg-card/50 border-border">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm">{section.icon}</span>
-                      <span className="text-xs font-semibold text-foreground">{section.label}</span>
-                      {actionable > 0 && <Badge variant="outline" className="text-[9px] text-[var(--trade-bullish)] border-emerald-500/30">{actionable} setups</Badge>}
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                      {setups.map(s => (
-                        <div key={s.symbol} className={cn("px-2 py-1.5 rounded text-xs",
-                          s.direction === 'LONG' ? "bg-emerald-500/5 border border-emerald-500/10" :
-                          s.direction === 'SHORT' ? "bg-red-500/5 border border-red-500/10" :
-                          "bg-muted/30"
-                        )}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono font-bold text-foreground">{s.symbol}</span>
-                            <span className={cn("font-mono text-[10px]",
-                              s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
-                            )}>{s.changePct > 0 ? '+' : ''}{s.changePct}%</span>
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <Badge variant="outline" className={cn("text-[8px] px-1 py-0",
-                              s.setup === 'REVERSAL' ? "text-[var(--trade-neutral)] border-amber-500/30" :
-                              s.setup === 'BREAKOUT' ? "text-[var(--trade-bullish)] border-emerald-500/30" :
-                              s.setup === 'BOUNCE' ? "text-cyan-400 border-cyan-500/30" :
-                              "text-muted-foreground border-border"
-                            )}>{s.setup}</Badge>
-                            {s.direction !== 'NEUTRAL' && (
-                              <span className={cn("text-[10px] flex items-center gap-0.5",
-                                s.direction === 'LONG' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                              )}>
-                                {s.direction === 'LONG' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                {s.probability}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </>
-        )}
-
-        {/* Key Events */}
-        {projData?.keyEvents && projData.keyEvents.length > 0 && (
-          <Card className="bg-card/50 border-border">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-semibold text-foreground">Key Events</span>
+        {/* ── Sector Pulse (bottom strip) ── */}
+        {projData?.sectors?.length > 0 && (
+          <Card className="bg-card/30 border-border">
+            <CardContent className="p-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-mono">Sectors</span>
               </div>
-              <div className="space-y-1">
-                {projData.keyEvents.map((e, i) => (
-                  <div key={i} className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />{e}
+              <div className="flex flex-wrap gap-1.5">
+                {projData.sectors.slice(0, 16).map((s: any) => (
+                  <div key={s.etf} className="flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-muted/20 text-[9px] font-mono">
+                    <span className="text-muted-foreground/60">{s.etf}</span>
+                    <span className={cn("font-semibold tabular-nums",
+                      s.changePct > 0 ? "text-[var(--trade-bullish)]" : s.changePct < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
+                    )}>{s.changePct > 0 ? '+' : ''}{s.changePct}%</span>
                   </div>
                 ))}
               </div>
