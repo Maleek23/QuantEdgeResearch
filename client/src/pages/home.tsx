@@ -313,7 +313,29 @@ function MorningBriefing() {
     );
   }
 
-  if (!data || !data.tradingPlan) return null;
+  if (!data || !data.tradingPlan) {
+    return (
+      <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)]/30 relative overflow-hidden">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-md bg-[var(--brand-teal)]/10 border border-[var(--brand-teal)]/20 flex items-center justify-center">
+              <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]/50" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground text-xs">Morning Briefing</h3>
+              <span className="text-[9px] text-muted-foreground font-mono">Generating...</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 w-full bg-muted/40 rounded animate-pulse" />
+            <div className="h-3 w-4/5 bg-muted/30 rounded animate-pulse" />
+            <div className="h-3 w-3/5 bg-muted/20 rounded animate-pulse" />
+          </div>
+          <p className="text-[9px] text-muted-foreground/40 mt-3 font-mono">Next briefing at 8:30 AM ET</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const outlookBadge = (outlook?: string) => {
     if (!outlook) return { dotColor: 'bg-muted-foreground', color: 'bg-muted text-muted-foreground', label: 'Neutral' };
@@ -431,9 +453,9 @@ function MarketRegimeCard() {
     refetchInterval: 120000,
   });
 
-  const regimeLabel = regime?.regime || "Unknown";
-  const regimeColor = regimeLabel.toLowerCase().includes("bull") ? "var(--trade-bullish)"
-    : regimeLabel.toLowerCase().includes("bear") ? "var(--trade-bearish)"
+  const regimeLabel = regime?.regime || null;
+  const regimeColor = regimeLabel?.toLowerCase().includes("bull") ? "var(--trade-bullish)"
+    : regimeLabel?.toLowerCase().includes("bear") ? "var(--trade-bearish)"
     : "var(--trade-neutral)";
 
   const topFutures = (futures?.symbols || []).slice(0, 4);
@@ -448,15 +470,21 @@ function MarketRegimeCard() {
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Market Regime</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-bold" style={{ color: regimeColor }}>
-              {regimeLabel}
-            </span>
+            {regimeLabel ? (
+              <span className="text-lg font-bold" style={{ color: regimeColor || undefined }}>
+                {regimeLabel}
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground/50 font-mono animate-pulse">Analyzing...</span>
+            )}
             {regime?.confidence && (
-              <span className="text-xs text-muted-foreground font-mono">{regime.confidence}% conf</span>
+              <span className="text-xs text-muted-foreground font-mono tabular-nums">{regime.confidence}%</span>
             )}
           </div>
-          {regime?.description && (
+          {regime?.description ? (
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{regime.description}</p>
+          ) : !regimeLabel && (
+            <p className="text-[10px] text-muted-foreground/40 mt-1 font-mono">Regime detection runs every 2 min</p>
           )}
         </div>
 
@@ -613,8 +641,20 @@ function BestSetups() {
               </motion.div>
             );
           }) : (
-            <div className="text-sm text-muted-foreground text-center py-8 bg-muted/30 rounded-lg">
-              Scanning for high-conviction setups...
+            <div className="space-y-1.5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-2.5 rounded-md bg-muted/20 border border-border/30">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-muted/40 animate-pulse" />
+                    <div className="space-y-1">
+                      <div className="h-3 w-12 bg-muted/40 rounded animate-pulse" />
+                      <div className="h-2 w-16 bg-muted/20 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="h-4 w-8 bg-muted/30 rounded animate-pulse" />
+                </div>
+              ))}
+              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Engines scanning 500+ stocks</p>
             </div>
           )}
         </div>
@@ -693,8 +733,17 @@ function ConvergenceHotList() {
             })}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg">
-            Monitoring for convergence...
+          <div className="space-y-1.5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/15 border border-border/20">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-10 bg-muted/30 rounded animate-pulse" />
+                  <div className="h-3 w-8 bg-muted/20 rounded animate-pulse" />
+                </div>
+                <div className="h-3 w-6 bg-muted/25 rounded animate-pulse" />
+              </div>
+            ))}
+            <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Convergence scan every 2 min</p>
           </div>
         )}
       </CardContent>
@@ -779,8 +828,14 @@ function BreakingNews() {
               </a>
             ))
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg">
-              Monitoring news feeds...
+            <div className="space-y-1.5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-2 rounded-md bg-muted/15">
+                  <div className="h-3 w-full bg-muted/30 rounded animate-pulse mb-1" />
+                  <div className="h-2 w-2/3 bg-muted/20 rounded animate-pulse" />
+                </div>
+              ))}
+              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Scanning 50+ news sources</p>
             </div>
           )}
         </div>
@@ -870,9 +925,17 @@ function EarningsCalendar() {
               );
             })
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg flex flex-col items-center gap-1">
-              <AlertCircle className="w-4 h-4" />
-              No earnings this week
+            <div className="space-y-1.5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/15">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-10 bg-muted/30 rounded animate-pulse" />
+                    <div className="h-3 w-8 bg-muted/20 rounded animate-pulse" />
+                  </div>
+                  <div className="h-3 w-14 bg-muted/25 rounded animate-pulse" />
+                </div>
+              ))}
+              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">No notable earnings this week</p>
             </div>
           )}
         </div>

@@ -228,7 +228,7 @@ function AIInsightCard({
               <div className="space-y-2">
                 {['Technical Analysis', 'Fundamental Analysis', 'Sentiment Analysis', 'Quant Models', 'ML Predictions', 'Options Flow'].map((engine, i) => (
                   <div key={engine} className="flex items-center gap-2">
-                    <div className="h-1.5 flex-1 bg-gray-100 dark:bg-muted rounded overflow-hidden">
+                    <div className="h-1.5 flex-1 bg-muted rounded overflow-hidden">
                       <motion.div
                         className="h-full bg-gradient-to-r from-teal-500 to-cyan-500"
                         initial={{ width: '0%' }}
@@ -603,7 +603,7 @@ export default function StockDetailPage() {
 
         {/* Compact Quick Stats Bar - Key metrics at a glance */}
         <div className="grid grid-cols-6 gap-3 mb-6">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-bold",
               tier === 'S' ? "bg-gradient-to-br from-amber-500/30 to-yellow-500/30 text-[var(--trade-neutral)]" :
               tier.startsWith('A') ? "bg-teal-500/20 text-teal-400" :
@@ -616,23 +616,23 @@ export default function StockDetailPage() {
               <div className="text-sm font-bold text-foreground dark:text-foreground">{analysisData?.overall?.confidence || 0}%</div>
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="p-3 rounded-xl bg-card border border-border">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Market Cap</div>
             <div className="text-sm font-bold text-foreground dark:text-foreground">{quoteData?.marketCap ? `$${safeToFixed(safeNumber(quoteData.marketCap) / 1e9, 1)}B` : '—'}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="p-3 rounded-xl bg-card border border-border">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">P/E Ratio</div>
             <div className="text-sm font-bold text-foreground dark:text-foreground">{safeToFixed(quoteData?.pe, 1, '—')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="p-3 rounded-xl bg-card border border-border">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">52W High</div>
             <div className="text-sm font-bold text-[var(--trade-bullish)]">${safeToFixed(quoteData?.fiftyTwoWeekHigh, 2) || safeToFixed(quoteData?.fiftyTwoWeekHigh, 2, '--')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="p-3 rounded-xl bg-card border border-border">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">52W Low</div>
             <div className="text-sm font-bold text-[var(--trade-bearish)]">${safeToFixed(quoteData?.fiftyTwoWeekLow, 2) || safeToFixed(quoteData?.fiftyTwoWeekLow, 2, '--')}</div>
           </div>
-          <div className="p-3 rounded-xl bg-white dark:bg-card border border-gray-200 dark:border-border">
+          <div className="p-3 rounded-xl bg-card border border-border">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Avg Volume</div>
             <div className="text-sm font-bold text-foreground dark:text-foreground">{quoteData?.avgVolume ? formatVolume(quoteData.avgVolume) : '—'}</div>
           </div>
@@ -641,7 +641,7 @@ export default function StockDetailPage() {
         {/* Main Content - Full Width */}
         <div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-xl p-1.5 mb-5">
+              <TabsList className="bg-card border border-border rounded-xl p-1.5 mb-5">
                 <TabsTrigger
                   value="ai-report"
                   className="px-5 py-2 text-sm font-medium text-muted-foreground data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-cyan-600 data-[state=active]:text-foreground rounded-lg transition-all hover:text-foreground/80 flex items-center gap-2"
@@ -693,25 +693,25 @@ export default function StockDetailPage() {
                       <div className="flex-1 grid grid-cols-4 gap-3">
                         {bestTradeIdea ? (
                           <>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-emerald-500/20">
+                            <div className="p-3 rounded-lg bg-muted border border-emerald-500/20">
                               <div className="text-xs text-muted-foreground">Entry</div>
                               <div className="text-sm font-mono font-bold text-foreground dark:text-foreground">${safeToFixed(bestTradeIdea.entryPrice, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-teal-500/30">
+                            <div className="p-3 rounded-lg bg-muted border border-teal-500/30">
                               <div className="text-xs text-muted-foreground">Target</div>
                               <div className="text-sm font-mono font-bold text-teal-400">${safeToFixed(bestTradeIdea.targetPrice, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted border border-red-500/20">
+                            <div className="p-3 rounded-lg bg-muted border border-red-500/20">
                               <div className="text-xs text-muted-foreground">Stop Loss</div>
                               <div className="text-sm font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(bestTradeIdea.stopLoss, 2)}</div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                            <div className="p-3 rounded-lg bg-muted">
                               <div className="text-xs text-muted-foreground">R:R</div>
                               <div className="text-sm font-bold text-teal-400">{safeToFixed(bestTradeIdea.riskRewardRatio, 1)}:1</div>
                             </div>
                           </>
                         ) : (
-                          <div className="col-span-4 p-3 rounded-lg bg-gray-100 dark:bg-muted text-center">
+                          <div className="col-span-4 p-3 rounded-lg bg-muted text-center">
                             <div className="text-xs text-muted-foreground">Waiting for trade signal from engines</div>
                           </div>
                         )}
@@ -719,7 +719,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Simplified Engine Summary - Links to Radar */}
-                    <div className="mt-5 pt-5 border-t border-gray-200 dark:border-border/40">
+                    <div className="mt-5 pt-5 border-t border-border/40">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xs text-muted-foreground uppercase tracking-wider">Engine Summary</span>
                         <span className="text-xs text-muted-foreground/70">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -758,7 +758,7 @@ export default function StockDetailPage() {
                 {/* Visual Analysis Section - Radar Chart + Bulls vs Bears */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Pentagon Radar Chart - 6 Engine Visualization */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border p-5">
+                  <Card className="relative overflow-hidden bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-5">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl" />
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1.5 rounded-lg bg-teal-500/20">
@@ -885,7 +885,7 @@ export default function StockDetailPage() {
                             className={cn(
                               positions[item.pos],
                               "text-center px-2 py-1 rounded-lg border transition-all cursor-pointer hover:scale-105",
-                              isSelected ? colorMap[item.color] : "border-transparent hover:border-border hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
+                              isSelected ? colorMap[item.color] : "border-transparent hover:border-border hover:bg-gray-100 dark:hover:bg-muted"
                             )}
                           >
                             <div className="text-[10px] text-muted-foreground">{item.name}</div>
@@ -897,7 +897,7 @@ export default function StockDetailPage() {
 
                     {/* Expanded Engine Detail Panel */}
                     {expandedEngine && (
-                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-border/40">
+                      <div className="mt-4 pt-4 border-t border-border/40">
                         {(() => {
                           const engineData: Record<string, { grade: string; calculations: Array<{ label: string; value: string; status: string }>; reasoning: string; color: string }> = {
                             technical: {
@@ -986,7 +986,7 @@ export default function StockDetailPage() {
                               </div>
                               <div className="grid grid-cols-2 gap-2 mb-3">
                                 {engine.calculations.map((calc, i) => (
-                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-gray-100 dark:bg-muted">
+                                  <div key={i} className="flex items-center justify-between text-xs p-2 rounded bg-muted">
                                     <span className="text-muted-foreground">{calc.label}</span>
                                     <span className={cn("font-mono font-medium",
                                       calc.status === 'bullish' ? "text-teal-400" :
@@ -1004,7 +1004,7 @@ export default function StockDetailPage() {
                   </Card>
 
                   {/* Bulls vs Bears Panel */}
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border p-5">
+                  <Card className="relative overflow-hidden bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-5">
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-3xl" />
 
@@ -1110,24 +1110,24 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid - Key Trading Levels */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                  <Card className="bg-card border-border p-3">
                     <div className="text-xs text-muted-foreground">Day Low</div>
                     <div className="text-lg font-mono font-bold text-[var(--trade-bearish)]">${safeToFixed(quoteData?.low, 2, '--')}</div>
                     <div className="text-[10px] text-muted-foreground/70">Today's low</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                  <Card className="bg-card border-border p-3">
                     <div className="text-xs text-muted-foreground">Day High</div>
                     <div className="text-lg font-mono font-bold text-teal-400">${safeToFixed(quoteData?.high, 2, '--')}</div>
                     <div className="text-[10px] text-muted-foreground/70">Today's high</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                  <Card className="bg-card border-border p-3">
                     <div className="text-xs text-muted-foreground">Volatility (30d)</div>
                     <div className={cn("text-lg font-bold",
                       safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? "text-[var(--trade-bearish)]" : "text-foreground"
                     )}>{analysisData?.components?.quantitative?.breakdown?.[0]?.value || '--'}%</div>
                     <div className="text-[10px] text-muted-foreground/70">{safeNumber(analysisData?.components?.quantitative?.breakdown?.[0]?.value) > 35 ? 'High Risk' : 'Moderate'}</div>
                   </Card>
-                  <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-3">
+                  <Card className="bg-card border-border p-3">
                     <div className="text-xs text-muted-foreground">Inst. Ownership</div>
                     <div className="text-lg font-bold text-purple-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                     <div className="text-[10px] text-muted-foreground/70">{institutionData?.breakdown?.institutionsCount?.toLocaleString() || '500'}+ funds</div>
@@ -1240,14 +1240,14 @@ export default function StockDetailPage() {
 
               <TabsContent value="overview" className="space-y-4">
                 {/* Professional Trading Chart Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 border-gray-200 dark:border-border">
+                <Card className="relative overflow-hidden bg-card border-border border-l-2 border-l-[var(--brand-teal)]">
                   {/* Decorative elements */}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/50 via-cyan-500/50 to-teal-500/50" />
                   <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl" />
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl" />
 
                   {/* Chart Header - Professional Trading Terminal Style */}
-                  <div className="relative p-4 border-b border-gray-200 dark:border-border">
+                  <div className="relative p-4 border-b border-border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         {/* Symbol & Price */}
@@ -1279,7 +1279,7 @@ export default function StockDetailPage() {
                         <div className="h-10 w-px bg-gray-200 dark:bg-muted/50" />
 
                         {/* Chart Type Toggle */}
-                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-muted rounded-lg p-1 border border-border/50">
+                        <div className="flex items-center gap-1 bg-muted rounded-lg p-1 border border-border/50">
                           <button
                             onClick={() => setChartType('area')}
                             className={cn(
@@ -1321,7 +1321,7 @@ export default function StockDetailPage() {
                       </div>
 
                       {/* Time Range Selector - Pill Style */}
-                      <div className="flex items-center gap-1 bg-gray-100 dark:bg-muted rounded-xl p-1 border border-gray-200 dark:border-border/40">
+                      <div className="flex items-center gap-1 bg-muted rounded-xl p-1 border border-border/40">
                         {['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'].map((range) => (
                           <button
                             key={range}
@@ -1340,7 +1340,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Live Indicator & Stats Bar */}
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-border">
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                       <div className="flex items-center gap-4">
                         {/* Live Indicator */}
                         <div className="flex items-center gap-2">
@@ -1350,19 +1350,19 @@ export default function StockDetailPage() {
 
                         {/* Quick Stats */}
                         <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
                             <span className="text-muted-foreground">H:</span>
                             <span className="text-[var(--trade-bullish)] font-mono font-medium">${safeToFixed(quoteData?.high, 2, '—')}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
                             <span className="text-muted-foreground">L:</span>
                             <span className="text-[var(--trade-bearish)] font-mono font-medium">${safeToFixed(quoteData?.low, 2, '—')}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
                             <span className="text-muted-foreground">O:</span>
                             <span className="text-foreground/80 font-mono font-medium">${safeToFixed(quoteData?.open, 2) || safeToFixed(price - change, 2)}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-muted">
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted">
                             <Volume2 className="w-3 h-3 text-muted-foreground" />
                             <span className="text-foreground/80 font-mono font-medium">{quoteData?.volume ? formatVolume(quoteData.volume) : '—'}</span>
                           </div>
@@ -1462,7 +1462,7 @@ export default function StockDetailPage() {
 
                 {/* Quick Stats Grid Below Chart */}
                 <div className="grid grid-cols-4 gap-3">
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
+                  <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-teal-500/20">
                         <Target className="w-3.5 h-3.5 text-teal-400" />
@@ -1493,7 +1493,7 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
+                  <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-purple-500/20">
                         <PieChart className="w-3.5 h-3.5 text-purple-400" />
@@ -1504,7 +1504,7 @@ export default function StockDetailPage() {
                     <p className="text-[10px] text-muted-foreground/70 mt-1">Enterprise Value</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
+                  <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-amber-500/20">
                         <Activity className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
@@ -1515,7 +1515,7 @@ export default function StockDetailPage() {
                     <p className="text-[10px] text-muted-foreground/70 mt-1">10-day average</p>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-slate-900 to-slate-900/80 border-gray-200 dark:border-border p-4">
+                  <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="p-1.5 rounded-md bg-cyan-500/20">
                         <Clock className="w-3.5 h-3.5 text-cyan-400" />
@@ -1530,8 +1530,8 @@ export default function StockDetailPage() {
 
               <TabsContent value="options" className="space-y-4">
                 {/* Whale Flow */}
-                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
-                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-border">
+                  <div className="p-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-[var(--trade-neutral)]" />
                       <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Whale Flow Activity</h3>
@@ -1545,7 +1545,7 @@ export default function StockDetailPage() {
                   </div>
                   <div className="p-4 space-y-2">
                     {flowData && flowData.length > 0 ? flowData.map((flow: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-gray-100 dark:bg-muted hover:bg-gray-200 dark:hover:bg-muted transition-colors">
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-muted hover:bg-gray-200 dark:hover:bg-muted transition-colors">
                         <div className="flex items-center gap-3">
                           <div className={cn("w-2 h-2 rounded-full", flow.direction === 'long' ? "bg-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]")} />
                           <span className={cn("text-sm font-medium", flow.direction === 'long' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
@@ -1574,14 +1574,14 @@ export default function StockDetailPage() {
                 </Card>
 
                 {/* Options Chain */}
-                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
-                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-border">
+                  <div className="p-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Options Chain</h3>
                       {optionsData?.stockPrice && <span className="text-xs text-muted-foreground">@ ${safeToFixed(optionsData.stockPrice, 2)}</span>}
                     </div>
                     <Link href={`/options-analyzer?symbol=${symbol}`}>
-                      <Button variant="outline" size="sm" className="border-gray-200 dark:border-border text-foreground/80 hover:bg-teal-600 hover:text-foreground hover:border-teal-600">
+                      <Button variant="outline" size="sm" className="border-border text-foreground/80 hover:bg-teal-600 hover:text-foreground hover:border-teal-600">
                         <BarChart2 className="w-4 h-4 mr-2" /> Analyzer
                       </Button>
                     </Link>
@@ -1613,7 +1613,7 @@ export default function StockDetailPage() {
                           {optionsData?.calls?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-[var(--trade-bullish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
+                              opt.inTheMoney ? "bg-emerald-500/15 border-l-2 border-[var(--trade-bullish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-muted"
                             )}>
                               <span className="text-muted-foreground w-16">{opt.expiration?.slice(5)}</span>
                               <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-[var(--trade-bullish)]" : "text-foreground/80 dark:text-foreground/90")}>${safeToFixed(opt.strike, 2, '—')}</span>
@@ -1644,7 +1644,7 @@ export default function StockDetailPage() {
                           {optionsData?.puts?.slice(0, 8).map((opt: any, i: number) => (
                             <div key={i} className={cn(
                               "flex items-center text-xs p-2 rounded transition-colors",
-                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-[var(--trade-bearish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-gray-100 dark:bg-muted"
+                              opt.inTheMoney ? "bg-red-500/15 border-l-2 border-[var(--trade-bearish)]" : "bg-gray-50 dark:bg-[var(--surface-raised)] hover:bg-gray-100 dark:hover:bg-muted"
                             )}>
                               <span className="text-muted-foreground w-16">{opt.expiration?.slice(5)}</span>
                               <span className={cn("font-mono w-16 text-right", opt.inTheMoney ? "text-red-300" : "text-foreground/80 dark:text-foreground/90")}>${safeToFixed(opt.strike, 2, '—')}</span>
@@ -1666,7 +1666,7 @@ export default function StockDetailPage() {
 
               <TabsContent value="news" className="space-y-4">
                 {/* News Header Card */}
-                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-gray-200 dark:border-border p-4">
+                <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/30 border-border p-4">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
                   <div className="relative flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -1693,7 +1693,7 @@ export default function StockDetailPage() {
                 {/* News Articles Grid */}
                 <div className="grid grid-cols-2 gap-4">
                   {newsLoading ? (
-                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border p-8">
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-border p-8">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <motion.div
                           className="mb-3"
@@ -1739,7 +1739,7 @@ export default function StockDetailPage() {
                       {newsData.slice(1).map((item: any, i: number) => (
                         <Card
                           key={i}
-                          className="relative overflow-hidden bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border hover:border-gray-200 dark:border-border transition-all group"
+                          className="relative overflow-hidden bg-card border-border hover:border-border transition-all group"
                         >
                           <a
                             href={item.url || item.link}
@@ -1763,7 +1763,7 @@ export default function StockDetailPage() {
                       ))}
                     </>
                   ) : (
-                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border p-8">
+                    <Card className="col-span-2 bg-white/80 dark:bg-white dark:bg-card/80 border-border p-8">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <Newspaper className="w-10 h-10 text-muted-foreground/70 mb-2" />
                         <span className="text-sm">Loading news feed... for {symbol}</span>
@@ -1776,7 +1776,7 @@ export default function StockDetailPage() {
               <TabsContent value="analysts" className="space-y-4">
                 {/* Analyst Consensus Header */}
                 <div className="grid grid-cols-3 gap-4">
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1794,7 +1794,7 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-border p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1814,7 +1814,7 @@ export default function StockDetailPage() {
                     </div>
                   </Card>
 
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-border p-4">
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-border p-4">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                     <div className="relative">
                       <div className="flex items-center gap-2 mb-2">
@@ -1834,7 +1834,7 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Rating Distribution */}
-                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-4">
+                <Card className="bg-card border-border p-4">
                   <h3 className="text-sm font-semibold text-foreground dark:text-foreground mb-4">Rating Distribution</h3>
                   <div className="flex items-center gap-3">
                     {[
@@ -1865,8 +1865,8 @@ export default function StockDetailPage() {
                 </Card>
 
                 {/* Recent Ratings Table */}
-                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                <Card className="bg-card border-border overflow-hidden">
+                  <div className="p-4 border-b border-border flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Recent Analyst Actions</h3>
                     <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                       {analystData?.ratings?.length || 0} Ratings
@@ -1882,7 +1882,7 @@ export default function StockDetailPage() {
                       {analystData.ratings.map((rating: any, i: number) => (
                         <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-50 dark:bg-[var(--surface-raised)] transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-muted/80 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-muted/80 flex items-center justify-center">
                               <Building2 className="w-5 h-5 text-muted-foreground" />
                             </div>
                             <div>
@@ -1940,7 +1940,7 @@ export default function StockDetailPage() {
 
                     return (
                       <>
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-border p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
@@ -1954,7 +1954,7 @@ export default function StockDetailPage() {
                           </div>
                         </Card>
 
-                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-gray-200 dark:border-border p-4">
+                        <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-red-950/30 border-border p-4">
                           <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl" />
                           <div className="relative">
                             <div className="flex items-center gap-2 mb-2">
@@ -1969,7 +1969,7 @@ export default function StockDetailPage() {
                         </Card>
 
                         <Card className={cn(
-                          "relative overflow-hidden border-gray-200 dark:border-border p-4",
+                          "relative overflow-hidden border-border p-4",
                           netActivity >= 0
                             ? "bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30"
                             : "bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/30"
@@ -2004,8 +2004,8 @@ export default function StockDetailPage() {
                 </div>
 
                 {/* Insider Transactions Table */}
-                <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                <Card className="bg-card border-border overflow-hidden">
+                  <div className="p-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-purple-500/20 border border-purple-500/30">
                         <Shield className="w-4 h-4 text-purple-400" />
@@ -2060,7 +2060,7 @@ export default function StockDetailPage() {
                                 </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-border">
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                               <div className="flex items-center gap-4 text-xs">
                                 <div>
                                   <span className="text-muted-foreground">Shares:</span>
@@ -2095,7 +2095,7 @@ export default function StockDetailPage() {
 
               <TabsContent value="institutions" className="space-y-4">
                 {institutionLoading ? (
-                  <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-gray-200 dark:border-border">
+                  <Card className="bg-white/80 dark:bg-white dark:bg-card/80 border-border">
                     <div className="p-8 flex flex-col items-center justify-center text-muted-foreground">
                       <motion.div
                         className="mb-3"
@@ -2111,7 +2111,7 @@ export default function StockDetailPage() {
                   <>
                     {/* Ownership Overview */}
                     <div className="grid grid-cols-4 gap-4">
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-gray-200 dark:border-border p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/30 border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2129,7 +2129,7 @@ export default function StockDetailPage() {
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-gray-200 dark:border-border p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/30 border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2147,7 +2147,7 @@ export default function StockDetailPage() {
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-gray-200 dark:border-border p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/30 border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2165,7 +2165,7 @@ export default function StockDetailPage() {
                         </div>
                       </Card>
 
-                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-gray-200 dark:border-border p-4">
+                      <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-border p-4">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
                         <div className="relative">
                           <div className="flex items-center gap-2 mb-2">
@@ -2183,7 +2183,7 @@ export default function StockDetailPage() {
                     </div>
 
                     {/* Ownership Pie Visualization */}
-                    <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border p-5">
+                    <Card className="bg-card border-border p-5">
                       <h3 className="text-sm font-semibold text-foreground dark:text-foreground mb-4">Ownership Distribution</h3>
                       <div className="flex items-center gap-8">
                         {/* Simple visual bar breakdown */}
@@ -2212,8 +2212,8 @@ export default function StockDetailPage() {
                     </Card>
 
                     {/* Top Institutional Holders */}
-                    <Card className="bg-white dark:bg-white dark:bg-card border-gray-200 dark:border-gray-200 dark:border-border overflow-hidden">
-                      <div className="p-4 border-b border-gray-200 dark:border-border flex items-center justify-between">
+                    <Card className="bg-card border-border overflow-hidden">
+                      <div className="p-4 border-b border-border flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30">
                             <Building2 className="w-5 h-5 text-teal-400" />
@@ -2280,15 +2280,15 @@ export default function StockDetailPage() {
                               <span className="text-sm font-semibold text-foreground dark:text-foreground">QuantEdge Flow Analysis</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                              <div className="p-3 rounded-lg bg-muted">
                                 <div className="text-xs text-muted-foreground">Options Flow Grade</div>
                                 <div className="text-lg font-bold text-rose-400">{analysisData?.components?.flow?.grade || 'B+'}</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                              <div className="p-3 rounded-lg bg-muted">
                                 <div className="text-xs text-muted-foreground">Flow Score</div>
                                 <div className="text-lg font-bold text-foreground dark:text-foreground">{analysisData?.components?.flow?.score || 0}%</div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                              <div className="p-3 rounded-lg bg-muted">
                                 <div className="text-xs text-muted-foreground">Smart Money Signal</div>
                                 <div className={cn("text-sm font-bold",
                                   (analysisData?.components?.flow?.score || 0) >= 70 ? "text-[var(--trade-bullish)]" :
@@ -2297,7 +2297,7 @@ export default function StockDetailPage() {
                                   {(analysisData?.components?.flow?.score || 0) >= 70 ? 'Bullish' : (analysisData?.components?.flow?.score || 0) >= 50 ? 'Neutral' : 'Bearish'}
                                 </div>
                               </div>
-                              <div className="p-3 rounded-lg bg-gray-100 dark:bg-muted">
+                              <div className="p-3 rounded-lg bg-muted">
                                 <div className="text-xs text-muted-foreground">Institutional Est.</div>
                                 <div className="text-lg font-bold text-teal-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                               </div>
