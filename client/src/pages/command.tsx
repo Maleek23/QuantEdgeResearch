@@ -108,6 +108,7 @@ interface UnifiedPrediction {
     today: HorizonProjection;
     thisWeek: HorizonProjection;
     thisMonth: HorizonProjection;
+    synthesized?: SynthesizedPrediction;
   };
   flowData?: {
     putCallRatio: number;
@@ -116,6 +117,24 @@ interface UnifiedPrediction {
     totalCallOI: number;
     totalPutOI: number;
   };
+}
+
+interface LevelProbability {
+  price: number;
+  label: string;
+  probability: number;
+  gammaPercent: number;
+  type: string;
+  direction: 'UPSIDE' | 'DOWNSIDE';
+}
+
+interface SynthesizedPrediction {
+  finalTarget: number;
+  finalProbability: number;
+  direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  probabilities: { bullish: number; bearish: number; neutral: number };
+  path: string;
+  inflectionLevels: { price: number; label: string; breakAbove: string; breakBelow: string }[];
 }
 
 interface HorizonProjection {
@@ -127,6 +146,11 @@ interface HorizonProjection {
   emRange: { low: number; high: number };
   keyDriver: string;
   signals: string[];
+  levelProbabilities?: LevelProbability[];
+  bullishProbability?: number;
+  bearishProbability?: number;
+  neutralProbability?: number;
+  mostLikelyPath?: string;
 }
 
 interface GeoScenario {
@@ -219,7 +243,7 @@ const REFRESH_INTERVAL = 60; // seconds
 
 export default function Command() {
   const [symbol, setSymbol] = useState<string>('SPY');
-  const [tfId, setTfId] = useState('1d');
+  const [tfId, setTfId] = useState('5m');
   const [showScenarios, setShowScenarios] = useState(false);
   const [enabledScenarios, setEnabledScenarios] = useState<Set<string>>(new Set());
   const [zoomLevel, setZoomLevel] = useState<{ yMin: number; yMax: number } | null>(null);
@@ -680,13 +704,13 @@ export default function Command() {
               </Card>
             )}
 
-            {/* Multi-Horizon Outlook */}
+            {/* Multi-Horizon Probability Outlook */}
             {prediction?.horizonOutlook && (
               <Card className="bg-card/50 border-border">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-xs font-semibold">Projection Outlook</span>
+                    <span className="text-xs font-semibold">Probability Outlook</span>
                     {prediction.flowData && (
                       <Badge variant="outline" className={cn("text-[8px] font-mono ml-auto",
                         prediction.flowData.flowBias === 'CALL_HEAVY' ? 'text-emerald-400 border-emerald-500/30' :
@@ -697,6 +721,53 @@ export default function Command() {
                       </Badge>
                     )}
                   </div>
+
+                  {/* Synthesized Final Prediction */}
+                  {prediction.horizonOutlook.synthesized && (() => {
+                    const synth = prediction.horizonOutlook.synthesized!;
+                    return (
+                      <div className={cn("px-2.5 py-2 rounded border mb-2",
+                        synth.direction === 'BULLISH' ? 'bg-emerald-500/8 border-emerald-500/25' :
+                        synth.direction === 'BEARISH' ? 'bg-red-500/8 border-red-500/25' :
+                        'bg-amber-500/8 border-amber-500/25'
+                      )}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Brain className="w-3 h-3 text-cyan-400" />
+                          <span className="text-[9px] font-semibold text-cyan-400">SYNTHESIZED</span>
+                          {dirIcon(synth.direction, 'w-3 h-3')}
+                          <span className={cn("text-[10px] font-bold", trendColor(synth.direction))}>{synth.direction}</span>
+                          <span className="text-[9px] font-mono font-bold text-foreground ml-auto">${synth.finalTarget.toFixed(0)}</span>
+                        </div>
+                        {/* Probability bar */}
+                        <div className="flex items-center gap-1 mb-1.5">
+                          <div className="flex-1 h-2 bg-muted/20 rounded-full overflow-hidden flex">
+                            <div className="h-full bg-emerald-500/70 transition-all" style={{ width: `${synth.probabilities.bullish}%` }} />
+                            <div className="h-full bg-amber-500/50 transition-all" style={{ width: `${synth.probabilities.neutral}%` }} />
+                            <div className="h-full bg-red-500/70 transition-all" style={{ width: `${synth.probabilities.bearish}%` }} />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[8px] font-mono">
+                          <span className="text-emerald-400">{synth.probabilities.bullish}% bull</span>
+                          <span className="text-amber-400">{synth.probabilities.neutral}% flat</span>
+                          <span className="text-red-400">{synth.probabilities.bearish}% bear</span>
+                        </div>
+                        {/* Inflection levels */}
+                        {synth.inflectionLevels.length > 0 && (
+                          <div className="mt-1.5 pt-1.5 border-t border-border/30 space-y-0.5">
+                            {synth.inflectionLevels.map((lvl, i) => (
+                              <div key={i} className="text-[8px] flex items-start gap-1">
+                                <Zap className="w-2 h-2 mt-0.5 shrink-0 text-amber-400" />
+                                <span className="text-muted-foreground">{lvl.label}:</span>
+                                <span className="text-emerald-400/70">↑{lvl.breakAbove.split('—')[0]}</span>
+                                <span className="text-red-400/70">↓{lvl.breakBelow.split('—')[0]}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="space-y-1.5">
                     {[prediction.horizonOutlook.today, prediction.horizonOutlook.thisWeek, prediction.horizonOutlook.thisMonth].map((h) => (
                       <div key={h.horizon} className={cn("px-2 py-1.5 rounded border transition-all",
@@ -708,13 +779,31 @@ export default function Command() {
                           <span className="text-[9px] text-muted-foreground w-14 shrink-0">{h.label}</span>
                           {dirIcon(h.direction, 'w-3 h-3')}
                           <span className={cn("text-[10px] font-bold", trendColor(h.direction))}>{h.direction}</span>
-                          <span className={cn("text-[8px] font-mono", trendColor(h.direction))}>{h.confidence}%</span>
                           <span className="text-[9px] font-mono font-bold text-foreground ml-auto">${h.target.toFixed(0)}</span>
                         </div>
+                        {/* Probability mini-bar */}
+                        {h.bullishProbability != null && h.bearishProbability != null && (
+                          <div className="flex items-center gap-1 mt-1 ml-[56px]">
+                            <div className="flex-1 h-1 bg-muted/20 rounded-full overflow-hidden flex">
+                              <div className="h-full bg-emerald-500/60" style={{ width: `${h.bullishProbability}%` }} />
+                              <div className="h-full bg-amber-500/40" style={{ width: `${h.neutralProbability || 0}%` }} />
+                              <div className="h-full bg-red-500/60" style={{ width: `${h.bearishProbability}%` }} />
+                            </div>
+                            <span className="text-[7px] font-mono text-muted-foreground/60">
+                              {h.bullishProbability}B/{h.bearishProbability}S
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 mt-0.5 ml-[56px]">
                           <span className="text-[8px] text-muted-foreground/60 font-mono">${h.emRange.low.toFixed(0)}-${h.emRange.high.toFixed(0)}</span>
                           <span className="text-[8px] text-muted-foreground truncate">{h.keyDriver}</span>
                         </div>
+                        {/* Most likely path */}
+                        {h.mostLikelyPath && (
+                          <div className="mt-0.5 ml-[56px] text-[7px] text-cyan-400/60 truncate font-mono">
+                            {h.mostLikelyPath}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
