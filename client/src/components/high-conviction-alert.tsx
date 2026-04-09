@@ -35,8 +35,12 @@ export function HighConvictionAlertProvider({
   minConfidence = 85,
   soundEnabled = true,
 }: HighConvictionAlertProps) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [alerts, setAlerts] = useState<TradeIdea[]>([]);
+
+  // Suppress alerts on Command Center to avoid blocking the sidebar
+  const suppressedRoutes = ['/command', '/command/'];
+  const isSuppressed = suppressedRoutes.some(r => location.startsWith(r));
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [isMuted, setIsMuted] = useState(false);
   const lastCheckRef = useRef<string | null>(null);
@@ -151,7 +155,7 @@ export function HighConvictionAlertProvider({
     setLocation('/trade-desk');
   };
 
-  if (!enabled || alerts.length === 0) return null;
+  if (!enabled || alerts.length === 0 || isSuppressed) return null;
 
   return (
     <>

@@ -146,8 +146,15 @@ async function pollFuturesPrices(): Promise<void> {
       
       if (response.ok) {
         const data = await response.json();
-        const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        
+        const result = data?.chart?.result?.[0];
+        // Use last candle close (more accurate than meta.regularMarketPrice which can be stale)
+        const closes: (number | null)[] = result?.indicators?.quote?.[0]?.close || [];
+        let price = 0;
+        for (let i = closes.length - 1; i >= 0; i--) {
+          if (closes[i] != null && closes[i]! > 0) { price = closes[i]!; break; }
+        }
+        if (!price) price = result?.meta?.regularMarketPrice || 0;
+
         if (price) {
           futuresPrices.set(rootSymbol, {
             price,

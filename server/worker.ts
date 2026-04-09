@@ -530,6 +530,16 @@ function isMarketCurrentlyOpen(): boolean {
   });
   log('📊 Flow Scanner scheduled (every 15 min during market hours)');
 
+  // Projection accuracy validation (hourly during market hours)
+  cron.default.schedule('30 * * * 1-5', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { runScheduledValidation } = await import('./projection-validator');
+      await runScheduledValidation();
+    } catch (error: any) { logger.error('📐 Projection validation failed:', error); }
+  });
+  log('📐 Projection Validator scheduled (hourly during market hours)');
+
   // Unified options bot (6-min scanning during market hours)
   cron.default.schedule('*/6 * * * *', async () => {
     try {

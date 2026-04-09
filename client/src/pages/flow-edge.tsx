@@ -1,13 +1,14 @@
 /**
  * Flow Edge
  * =========
- * Institutional options flow scanner — the Algo Edge equivalent.
- * Shows large trades, sweeps, blocks, unusual activity for any stock.
- * Integrates with GEX convergence for high-conviction signals.
+ * Unified flow intelligence hub with 3 tabs:
+ *   - Options Flow: institutional flow scanner
+ *   - GEX/VEX: gamma + vanna exposure dashboard
+ *   - Smart Money: insider/institutional tracking
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense, lazy } from "react";
 import { useSearch, Link } from "wouter";
 import {
   Card,
@@ -36,8 +37,23 @@ import {
   RefreshCw,
   Flame,
   Target,
+  Shield,
+  Users,
+  Loader2,
 } from "lucide-react";
 import { cn, safeToFixed, formatVolumeCompact } from "@/lib/utils";
+
+// Lazy sub-tabs
+const GEXDashboard = lazy(() => import("@/pages/gex-dashboard"));
+const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
+
+type FlowTab = 'flow' | 'gex' | 'smart-money';
+
+const FLOW_TABS: { key: FlowTab; label: string; icon: any }[] = [
+  { key: 'flow', label: 'Options Flow', icon: Activity },
+  { key: 'gex', label: 'GEX / VEX', icon: Shield },
+  { key: 'smart-money', label: 'Smart Money', icon: Users },
+];
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -451,12 +467,22 @@ export default function FlowEdge() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const initialSymbol = params.get('symbol') || '';
+  const initialTab = (params.get('tab') as FlowTab) || 'flow';
 
+  const [activeTab, setActiveTab] = useState<FlowTab>(
+    FLOW_TABS.some(t => t.key === initialTab) ? initialTab : 'flow'
+  );
   const [symbol, setSymbol] = useState(initialSymbol);
   const [searchInput, setSearchInput] = useState(initialSymbol);
   const [activeFilter, setActiveFilter] = useState<FilterPreset>('all');
   const [page, setPage] = useState(0);
   const pageSize = 50;
+
+  function switchTab(tab: FlowTab) {
+    setActiveTab(tab);
+    const url = tab === 'flow' ? '/flow' : `/flow?tab=${tab}`;
+    window.history.replaceState(null, '', symbol ? `${url}${url.includes('?') ? '&' : '?'}symbol=${symbol}` : url);
+  }
 
   // Build query params
   const filterParams = FILTER_PRESETS.find(f => f.key === activeFilter)?.params || {};
@@ -505,7 +531,7 @@ export default function FlowEdge() {
     <div className="min-h-screen bg-background page-atmosphere text-foreground">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 space-y-3">
 
-        {/* Header — Bloomberg compact */}
+        {/* Header + Tab Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
@@ -518,35 +544,79 @@ export default function FlowEdge() {
                   LIVE
                 </Badge>
               </h1>
-              <p className="text-[10px] text-muted-foreground">Options flow + GEX convergence</p>
+              <p className="text-[10px] text-muted-foreground">Options flow + GEX/VEX + Smart Money</p>
             </div>
           </div>
 
-          {/* Search */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative">
-              <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="Symbol..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-7 h-7 w-28 text-[10px] font-mono bg-muted/50 border-border focus:border-cyan-500/50"
-              />
-            </div>
-            <Button size="sm" variant="outline" onClick={handleSearch} className="h-7 text-[10px] font-mono border-border hover:border-cyan-500/50 px-2">
-              Go
-            </Button>
-            {symbol && (
-              <Button size="sm" variant="ghost" onClick={clearSymbol} className="h-7 text-[10px] text-muted-foreground px-1.5">
-                Clear
+          {/* Search (visible on flow tab) */}
+          {activeTab === 'flow' && (
+            <div className="flex items-center gap-1.5">
+              <div className="relative">
+                <Search className="absolute left-2 top-2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Symbol..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="pl-7 h-7 w-28 text-[10px] font-mono bg-muted/50 border-border focus:border-cyan-500/50"
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={handleSearch} className="h-7 text-[10px] font-mono border-border hover:border-cyan-500/50 px-2">
+                Go
               </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 w-7 text-muted-foreground p-0">
-              <RefreshCw className="w-3 h-3" />
-            </Button>
-          </div>
+              {symbol && (
+                <Button size="sm" variant="ghost" onClick={clearSymbol} className="h-7 text-[10px] text-muted-foreground px-1.5">
+                  Clear
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => refetch()} className="h-7 w-7 text-muted-foreground p-0">
+                <RefreshCw className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
         </div>
+
+        {/* Main Tab Bar */}
+        <div className="flex items-center gap-1 border-b border-border pb-2">
+          {FLOW_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <Button
+                key={tab.key}
+                size="sm"
+                variant="ghost"
+                onClick={() => switchTab(tab.key)}
+                className={cn(
+                  "h-7 text-xs px-3 gap-1.5 rounded-md",
+                  isActive
+                    ? "bg-cyan-500/15 text-cyan-400 font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* GEX/VEX Tab */}
+        {activeTab === 'gex' && (
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
+            <GEXDashboard />
+          </Suspense>
+        )}
+
+        {/* Smart Money Tab */}
+        {activeTab === 'smart-money' && (
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
+            <SmartMoneyPage />
+          </Suspense>
+        )}
+
+        {/* Options Flow Tab (original content) */}
+        {activeTab === 'flow' && <>
 
         {/* Filter Tabs — tighter */}
         <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
@@ -652,6 +722,8 @@ export default function FlowEdge() {
             )}
           </div>
         </div>
+
+        </>}
       </div>
     </div>
   );

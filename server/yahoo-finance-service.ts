@@ -55,6 +55,24 @@ export async function safeQuote(symbol: string): Promise<any | null> {
 }
 
 /**
+ * Get the best available price — uses post-market, pre-market, or regular market price
+ * depending on which is most current. Essential for after-hours and pre-market moves.
+ */
+export function getBestPrice(quote: any): number {
+  if (!quote) return 0;
+  const state = quote.marketState;
+  // During post-market session, use postMarketPrice if available
+  if ((state === 'POST' || state === 'POSTPOST') && quote.postMarketPrice > 0) {
+    return quote.postMarketPrice;
+  }
+  // During pre-market session, use preMarketPrice if available
+  if ((state === 'PRE' || state === 'PREPRE') && quote.preMarketPrice > 0) {
+    return quote.preMarketPrice;
+  }
+  return quote.regularMarketPrice || 0;
+}
+
+/**
  * Safe batch quote fetch - returns whatever succeeds
  */
 export async function safeBatchQuotes(symbols: string[]): Promise<Record<string, any>> {
@@ -87,6 +105,34 @@ export async function safeScreener(params: { scrIds: string; count?: number }): 
   } catch (error: any) {
     logger.debug(`[YAHOO] Screener failed:`, error.message);
     return null;
+  }
+}
+
+/**
+ * Get the most recent price from Yahoo chart API (1-minute candles).
+ * This is more reliable than quote().regularMarketPrice which can be stale.
+ */
+export async function getChartLastPrice(symbol: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&includePrePost=true`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' } }
+    );
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return 0;
+
+    // Get last valid close from candle data
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
+    for (let i = closes.length - 1; i >= 0; i--) {
+      if (closes[i] != null && closes[i]! > 0) return closes[i]!;
+    }
+
+    // Fallback to meta
+    return result.meta?.regularMarketPrice || 0;
+  } catch {
+    return 0;
   }
 }
 
