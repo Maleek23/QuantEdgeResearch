@@ -25879,56 +25879,101 @@ Use this checklist before entering any trade:
     }
   });
 
-  // GET /api/options-analyzer/chain/:symbol - Get options chain
+  // GET /api/options-analyzer/chain/:symbol - Get options chain (Tradier → Yahoo fallback)
   app.get("/api/options-analyzer/chain/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       const { expiration } = req.query;
       const upperSymbol = symbol.toUpperCase();
-      
-      const { getTradierQuote, getTradierOptionsChain } = await import("./tradier-api");
-      
-      // Get stock quote
-      const quote = await getTradierQuote(upperSymbol);
-      if (!quote) {
-        return res.status(404).json({ error: `Quote not found for ${upperSymbol}` });
+
+      let stockPrice = 0;
+      let stockChange = 0;
+      let stockChangePercent = 0;
+      let processedChain: any[] = [];
+
+      // Try Tradier first
+      try {
+        const { getTradierQuote, getTradierOptionsChain } = await import("./tradier-api");
+        const quote = await getTradierQuote(upperSymbol);
+        if (quote) {
+          stockPrice = quote.last || quote.close || 0;
+          stockChange = quote.change || 0;
+          stockChangePercent = quote.change_percentage || 0;
+          const chain = await getTradierOptionsChain(upperSymbol, expiration as string | undefined);
+          if (chain && chain.length > 0) {
+            processedChain = chain.map((opt: any) => ({
+              symbol: opt.symbol,
+              strike: opt.strike,
+              optionType: opt.option_type,
+              expiration: opt.expiration_date,
+              bid: opt.bid || 0,
+              ask: opt.ask || 0,
+              mid: ((opt.bid || 0) + (opt.ask || 0)) / 2,
+              last: opt.last || 0,
+              volume: opt.volume || 0,
+              openInterest: opt.open_interest || 0,
+              delta: opt.greeks?.delta || 0,
+              gamma: opt.greeks?.gamma || 0,
+              theta: opt.greeks?.theta || 0,
+              vega: opt.greeks?.vega || 0,
+              iv: (opt.greeks?.mid_iv || opt.greeks?.ask_iv || 0) * 100,
+              inTheMoney: opt.option_type === 'call'
+                ? opt.strike < stockPrice
+                : opt.strike > stockPrice
+            }));
+          }
+        }
+      } catch (tradierErr: any) {
+        logger.warn(`[OPTIONS] Tradier failed for ${upperSymbol}: ${tradierErr.message}`);
       }
-      
-      const stockPrice = quote.last || quote.close || 0;
-      
-      // Get options chain
-      const chain = await getTradierOptionsChain(upperSymbol, expiration as string | undefined);
-      if (!chain || chain.length === 0) {
+
+      // Yahoo Finance fallback if Tradier returned nothing
+      if (processedChain.length === 0) {
+        logger.info(`[OPTIONS] Falling back to Yahoo Finance for ${upperSymbol}`);
+        const { getYahooOptionsChain } = await import("./yahoo-options-fallback");
+        const { safeQuote, getBestPrice } = await import("./yahoo-finance-service");
+
+        const [yahooChain, quote] = await Promise.all([
+          getYahooOptionsChain(upperSymbol, expiration as string | undefined),
+          safeQuote(upperSymbol),
+        ]);
+
+        stockPrice = getBestPrice(quote) || quote?.regularMarketPrice || 0;
+        stockChange = quote?.regularMarketChange || 0;
+        stockChangePercent = quote?.regularMarketChangePercent || 0;
+
+        processedChain = yahooChain.map((opt: any) => ({
+          symbol: opt.symbol,
+          strike: opt.strike,
+          optionType: opt.type || (opt.option_type === 'call' ? 'call' : 'put'),
+          expiration: opt.expiration_date,
+          bid: opt.bid || 0,
+          ask: opt.ask || 0,
+          mid: ((opt.bid || 0) + (opt.ask || 0)) / 2,
+          last: opt.last || 0,
+          volume: opt.volume || 0,
+          openInterest: opt.open_interest || 0,
+          delta: opt.greeks?.delta || 0,
+          gamma: opt.greeks?.gamma || 0,
+          theta: opt.greeks?.theta || 0,
+          vega: opt.greeks?.vega || 0,
+          iv: (opt.greeks?.mid_iv || opt.greeks?.ask_iv || 0) * 100,
+          inTheMoney: (opt.type || opt.option_type) === 'call'
+            ? opt.strike < stockPrice
+            : opt.strike > stockPrice,
+          source: 'yahoo',
+        }));
+      }
+
+      if (processedChain.length === 0) {
         return res.status(404).json({ error: `No options chain found for ${upperSymbol}` });
       }
-      
-      // Process chain for display
-      const processedChain = chain.map((opt: any) => ({
-        symbol: opt.symbol,
-        strike: opt.strike,
-        optionType: opt.option_type,
-        expiration: opt.expiration_date,
-        bid: opt.bid || 0,
-        ask: opt.ask || 0,
-        mid: ((opt.bid || 0) + (opt.ask || 0)) / 2,
-        last: opt.last || 0,
-        volume: opt.volume || 0,
-        openInterest: opt.open_interest || 0,
-        delta: opt.greeks?.delta || 0,
-        gamma: opt.greeks?.gamma || 0,
-        theta: opt.greeks?.theta || 0,
-        vega: opt.greeks?.vega || 0,
-        iv: (opt.greeks?.mid_iv || opt.greeks?.ask_iv || 0) * 100,
-        inTheMoney: opt.option_type === 'call' 
-          ? opt.strike < stockPrice 
-          : opt.strike > stockPrice
-      }));
-      
+
       res.json({
         symbol: upperSymbol,
         stockPrice,
-        stockChange: quote.change || 0,
-        stockChangePercent: quote.change_percentage || 0,
+        stockChange,
+        stockChangePercent,
         chain: processedChain
       });
     } catch (error: any) {
