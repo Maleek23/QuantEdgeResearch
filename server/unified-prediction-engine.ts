@@ -130,6 +130,15 @@ export interface UnifiedPrediction {
   };
 }
 
+export interface LevelProbability {
+  price: number;
+  label: string;                // "Call Wall $680" or "GEX Anchor $675"
+  probability: number;          // 0-100 probability of price reaching this level
+  gammaPercent: number;         // gamma concentration % at this level
+  type: 'CALL_WALL' | 'PUT_WALL' | 'GEX_ANCHOR' | 'GAMMA_FLIP' | 'VEX_MAGNET' | 'EM_BOUND' | 'ROUND';
+  direction: 'UPSIDE' | 'DOWNSIDE';
+}
+
 export interface HorizonProjection {
   horizon: 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH';
   label: string;
@@ -137,14 +146,37 @@ export interface HorizonProjection {
   confidence: number;
   target: number;
   emRange: { low: number; high: number };
-  keyDriver: string;         // "Positive gamma dampens" or "Put-heavy flow" etc
-  signals: string[];         // compact list of what's driving this horizon
+  keyDriver: string;
+  signals: string[];
+  // New: probability-weighted level analysis
+  levelProbabilities?: LevelProbability[];
+  bullishProbability?: number;   // 0-100 overall probability of upside
+  bearishProbability?: number;   // 0-100 overall probability of downside
+  neutralProbability?: number;   // 0-100 probability of rangebound
+  mostLikelyPath?: string;       // "67% → $680 (call wall) then fade to $675 (anchor)"
+}
+
+export interface SynthesizedPrediction {
+  /** Final synthesized target across all horizons */
+  finalTarget: number;
+  /** Probability of reaching final target */
+  finalProbability: number;
+  /** Direction with highest probability */
+  direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  /** Breakdown: probability of each outcome */
+  probabilities: { bullish: number; bearish: number; neutral: number };
+  /** The most likely path price takes through levels */
+  path: string;
+  /** Key inflection levels — if price breaks these, thesis changes */
+  inflectionLevels: { price: number; label: string; breakAbove: string; breakBelow: string }[];
 }
 
 export interface HorizonOutlook {
   today: HorizonProjection;
   thisWeek: HorizonProjection;
   thisMonth: HorizonProjection;
+  /** Synthesized prediction combining all horizons */
+  synthesized?: SynthesizedPrediction;
 }
 
 // ─── Signal Weights ──────────────────────────────────────────
@@ -420,7 +452,7 @@ export async function computeUnifiedPrediction(
       activeScenarios,
       expectedMove: expectedMoveData,
       narrative,
-      horizonOutlook: computeHorizonOutlook(spot, dailyEM, vixLevel, vixRegime, gexVexResult, geoMatrix, signals, symbol),
+      horizonOutlook: computeHorizonOutlook(spot, dailyEM, vixLevel, vixChange, vixRegime, gexVexResult, geoMatrix, signals, symbol),
       flowData: gexVexResult?.flowData ? {
         putCallRatio: gexVexResult.flowData.putCallRatio,
         volumePCR: gexVexResult.flowData.volumePCR,
@@ -996,23 +1028,461 @@ function buildPredictionText(
   return `${symbol} in a range between $${lo.toFixed(0)} and $${hi.toFixed(0)}.` + vixTag;
 }
 
-// ─── Multi-Horizon Outlook Engine ────────────────────────────
-// Each horizon (today/week/month) weighs signals differently:
-//   TODAY:  GEX regime (60%) + VIX (20%) + flow (15%) + geo (5%)
-//   WEEK:   GEX regime (30%) + flow/PCR (25%) + VIX term (25%) + geo (20%)
-//   MONTH:  Flow/PCR (30%) + geo (30%) + VIX macro (25%) + GEX (15%)
+// ─── Multi-Horizon Probability Engine ────────────────────────
+// Replaces simple directional scoring with a probability surface:
+//   1. Build level map — every gamma level + round number + EM bound with gamma %
+//   2. For each level, compute P(price reaches level) using distance/EM + signal bias
+//   3. Signal weights shift the probability distribution (Bayesian-style)
+//   4. Target = highest-probability reachable level (not EM × constant)
+//   5. Synthesize all horizons into a final weighted prediction
+
+/** Compute probability of price reaching a level within N days using log-normal assumption */
+function levelReachProbability(spot: number, target: number, em: number, daysHorizon: number): number {
+  if (em <= 0 || daysHorizon <= 0) return 0;
+  const horizonEM = em * Math.sqrt(daysHorizon);
+  if (horizonEM <= 0) return 0;
+  const distance = Math.abs(target - spot);
+  // Use complementary CDF of normal distribution (1 - Φ(z))
+  // z = distance / horizonEM gives us how many standard deviations away
+  const z = distance / horizonEM;
+  // Approximate Φ(z) using Abramowitz & Stegun approximation
+  const t = 1 / (1 + 0.2316419 * z);
+  const d = 0.3989422804 * Math.exp(-z * z / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.8212560 + t * 1.3302744))));
+  // P(touch) for a random walk is ~2× the tail probability (reflection principle)
+  const touchProb = Math.min(95, Math.max(2, p * 2 * 100));
+  return Math.round(touchProb);
+}
+
+/** Build all candidate levels from GEX/VEX data + round numbers + EM bounds */
+function buildCandidateLevels(
+  spot: number,
+  em: number,
+  horizonDays: number,
+  gexVexResult: any,
+): LevelProbability[] {
+  const levels: LevelProbability[] = [];
+  const horizonEM = em * Math.sqrt(horizonDays);
+  const gammaConc: { strike: number; percent: number; netGEX: number }[] =
+    gexVexResult?.levels?.gammaConcentration || [];
+
+  // Helper: find gamma % for a given strike
+  function gammaAt(price: number): number {
+    const entry = gammaConc.find(g => Math.abs(g.strike - price) < price * 0.002);
+    return entry?.percent || 0;
+  }
+
+  if (gexVexResult) {
+    // Call walls (upside resistance)
+    for (const wall of (gexVexResult.levels?.callWalls || [])) {
+      if (wall > spot && wall <= spot + horizonEM * 3) {
+        levels.push({
+          price: wall,
+          label: `Call Wall $${wall}`,
+          probability: levelReachProbability(spot, wall, em, horizonDays),
+          gammaPercent: gammaAt(wall),
+          type: 'CALL_WALL',
+          direction: 'UPSIDE',
+        });
+      }
+    }
+
+    // Put walls (downside support)
+    for (const wall of (gexVexResult.levels?.putWalls || [])) {
+      if (wall < spot && wall >= spot - horizonEM * 3) {
+        levels.push({
+          price: wall,
+          label: `Put Wall $${wall}`,
+          probability: levelReachProbability(spot, wall, em, horizonDays),
+          gammaPercent: gammaAt(wall),
+          type: 'PUT_WALL',
+          direction: 'DOWNSIDE',
+        });
+      }
+    }
+
+    // GEX anchor (magnet — where price gets pulled to)
+    if (gexVexResult.levels?.gexAnchor) {
+      const anchor = gexVexResult.levels.gexAnchor;
+      levels.push({
+        price: anchor,
+        label: `GEX Anchor $${anchor}`,
+        probability: levelReachProbability(spot, anchor, em, horizonDays),
+        gammaPercent: gammaAt(anchor),
+        type: 'GEX_ANCHOR',
+        direction: anchor >= spot ? 'UPSIDE' : 'DOWNSIDE',
+      });
+    }
+
+    // Gamma flip (regime change level)
+    if (gexVexResult.levels?.gexFlip) {
+      const flip = gexVexResult.levels.gexFlip;
+      if (Math.abs(flip - spot) <= horizonEM * 3) {
+        levels.push({
+          price: flip,
+          label: `Gamma Flip $${flip}`,
+          probability: levelReachProbability(spot, flip, em, horizonDays),
+          gammaPercent: gammaAt(flip),
+          type: 'GAMMA_FLIP',
+          direction: flip >= spot ? 'UPSIDE' : 'DOWNSIDE',
+        });
+      }
+    }
+
+    // VEX magnets
+    for (const mag of (gexVexResult.levels?.vannaAttractors || [])) {
+      if (Math.abs(mag - spot) <= horizonEM * 3) {
+        levels.push({
+          price: mag,
+          label: `VEX Magnet $${mag}`,
+          probability: levelReachProbability(spot, mag, em, horizonDays),
+          gammaPercent: gammaAt(mag),
+          type: 'VEX_MAGNET',
+          direction: mag >= spot ? 'UPSIDE' : 'DOWNSIDE',
+        });
+      }
+    }
+  }
+
+  // EM bounds (1σ expected move range)
+  const emHigh = spot + horizonEM;
+  const emLow = spot - horizonEM;
+  levels.push({
+    price: Math.round(emHigh * 100) / 100,
+    label: `EM Upper $${emHigh.toFixed(0)}`,
+    probability: 32, // ~32% probability of exceeding 1σ
+    gammaPercent: gammaAt(emHigh),
+    type: 'EM_BOUND',
+    direction: 'UPSIDE',
+  });
+  levels.push({
+    price: Math.round(emLow * 100) / 100,
+    label: `EM Lower $${emLow.toFixed(0)}`,
+    probability: 32,
+    gammaPercent: gammaAt(emLow),
+    type: 'EM_BOUND',
+    direction: 'DOWNSIDE',
+  });
+
+  // Round numbers within range
+  const roundStep = spot > 200 ? 5 : spot > 50 ? 2.5 : 1;
+  const rangeLow = spot - horizonEM * 2;
+  const rangeHigh = spot + horizonEM * 2;
+  for (let p = Math.ceil(rangeLow / roundStep) * roundStep; p <= rangeHigh; p += roundStep) {
+    if (Math.abs(p - spot) < roundStep * 0.3) continue; // Skip if too close to spot
+    // Don't duplicate if already have a gamma level within 0.3%
+    const alreadyHave = levels.some(l => Math.abs(l.price - p) < spot * 0.003);
+    if (!alreadyHave) {
+      levels.push({
+        price: p,
+        label: `$${p} Round`,
+        probability: levelReachProbability(spot, p, em, horizonDays),
+        gammaPercent: gammaAt(p),
+        type: 'ROUND',
+        direction: p >= spot ? 'UPSIDE' : 'DOWNSIDE',
+      });
+    }
+  }
+
+  return levels.sort((a, b) => b.probability - a.probability);
+}
+
+/** Apply signal biases to shift probabilities (Bayesian update) */
+function applySignalBias(
+  levels: LevelProbability[],
+  signalBias: number, // -1 to +1 (bearish to bullish)
+  regime: string,     // POSITIVE, NEGATIVE, NEUTRAL
+  vixContext?: { level: number; change: number; regime: string },
+): LevelProbability[] {
+  return levels.map(l => {
+    let adjusted = l.probability;
+
+    // Signal bias shifts probabilities: bullish signals boost upside, reduce downside
+    if (l.direction === 'UPSIDE') {
+      adjusted *= (1 + signalBias * 0.4); // Up to ±40% shift
+    } else {
+      adjusted *= (1 - signalBias * 0.4);
+    }
+
+    // ── VIX Regime Effect ──
+    // EXTREME_FEAR/FEAR: downside more likely, upside harder (fear = selling pressure)
+    // COMPLACENT: upside more likely (low vol = grind higher)
+    // VIX change: rising VIX = boost far targets (vol expanding), falling = tighten
+    if (vixContext) {
+      const { level: vix, change: vixChg, regime: vixReg } = vixContext;
+
+      // VIX regime probability shift
+      if (vixReg === 'EXTREME_FEAR' || vixReg === 'FEAR') {
+        // Fear regimes: downside targets become 25-35% more likely, upside 15-25% less
+        const fearMultiplier = vixReg === 'EXTREME_FEAR' ? 1.35 : 1.25;
+        if (l.direction === 'DOWNSIDE') {
+          adjusted *= fearMultiplier;
+        } else {
+          adjusted *= (2 - fearMultiplier); // inverse: 0.65 or 0.75
+        }
+      } else if (vixReg === 'COMPLACENT') {
+        // Low vol grind: upside 20% more likely, downside 20% less
+        if (l.direction === 'UPSIDE') adjusted *= 1.2;
+        else adjusted *= 0.8;
+      }
+      // ELEVATED (18-25): slight downside bias
+      else if (vixReg === 'ELEVATED' && vix > 20) {
+        if (l.direction === 'DOWNSIDE') adjusted *= 1.1;
+        else adjusted *= 0.95;
+      }
+
+      // VIX velocity: rising VIX = vol expansion → far targets more reachable
+      // Falling VIX = vol compression → far targets less reachable
+      if (Math.abs(vixChg) > 0.5) {
+        // vixChg > 0 = VIX rising = more volatile
+        // Far levels (high base probability already means close, so invert — low prob = far)
+        const isFarLevel = l.probability < 50;
+        if (vixChg > 1 && isFarLevel) {
+          // Rising VIX: far levels become 10-20% more reachable
+          adjusted *= (1 + Math.min(0.2, vixChg * 0.05));
+        } else if (vixChg < -1 && isFarLevel) {
+          // Falling VIX: far levels become 10-15% less reachable
+          adjusted *= (1 + Math.max(-0.15, vixChg * 0.03));
+        }
+      }
+    }
+
+    // ── Gamma Regime Effect ──
+    // POSITIVE gamma = mean-revert → boost anchor probability, reduce far targets
+    // NEGATIVE gamma = momentum → boost far targets, reduce anchor
+    if (regime === 'POSITIVE') {
+      if (l.type === 'GEX_ANCHOR') {
+        adjusted *= 1.4; // Anchor is 40% more likely in positive gamma
+      } else if (l.type === 'CALL_WALL' || l.type === 'PUT_WALL') {
+        adjusted *= 0.8; // Walls are harder to reach (dealers dampen)
+      }
+      // Gamma concentration acts as resistance — high gamma % = harder to break through
+      if (l.gammaPercent > 15) {
+        adjusted *= (1 - l.gammaPercent * 0.005);
+      }
+    } else if (regime === 'NEGATIVE') {
+      if (l.type === 'GEX_ANCHOR') {
+        adjusted *= 0.7; // Anchor less sticky in negative gamma
+      } else if (l.type === 'CALL_WALL' || l.type === 'PUT_WALL') {
+        adjusted *= 1.3; // Walls get blown through (dealers amplify)
+      }
+      if (l.gammaPercent > 15) {
+        adjusted *= (1 + l.gammaPercent * 0.003);
+      }
+    }
+
+    return { ...l, probability: Math.round(Math.max(1, Math.min(95, adjusted))) };
+  }).sort((a, b) => b.probability - a.probability);
+}
+
+/** Compute a single horizon's outlook using probability surface */
+function computeSingleHorizon(
+  spot: number,
+  dailyEM: number,
+  horizonDays: number,
+  horizonName: 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH',
+  horizonLabel: string,
+  signalWeights: { gex: number; vix: number; flow: number; geo: number; mom: number },
+  gexVexResult: any,
+  signals: {
+    gexDir: number; vixDir: number; flowDir: number; geoDir: number; momDir: number;
+    pcr: number; flowBias: string; vixLevel: number; vixChange: number; vixRegime: string;
+  },
+  symbol: string,
+): HorizonProjection {
+  // ── VIX-adjusted EM: rising VIX expands range, falling VIX compresses ──
+  // VIX velocity adjustment: +5% EM per VIX point gained, -3% per point lost (asymmetric — fear expands faster)
+  const vixVelocityMult = signals.vixChange > 0.5
+    ? 1 + Math.min(0.25, signals.vixChange * 0.05)   // Rising: up to +25% EM expansion
+    : signals.vixChange < -0.5
+    ? 1 + Math.max(-0.15, signals.vixChange * 0.03)   // Falling: up to -15% EM compression
+    : 1;
+  const horizonEM = dailyEM * Math.sqrt(horizonDays) * vixVelocityMult;
+  const regime = gexVexResult?.regime?.type || 'NEUTRAL';
+
+  // Build candidate levels for this horizon
+  const rawLevels = buildCandidateLevels(spot, dailyEM, horizonDays, gexVexResult);
+
+  // Compute weighted signal bias (-1 to +1)
+  const totalWeight = signalWeights.gex + signalWeights.vix + signalWeights.flow + signalWeights.geo + signalWeights.mom;
+  const signalBias = totalWeight > 0 ? (
+    signals.gexDir * signalWeights.gex +
+    signals.vixDir * signalWeights.vix +
+    signals.flowDir * signalWeights.flow +
+    signals.geoDir * signalWeights.geo +
+    signals.momDir * signalWeights.mom
+  ) / totalWeight : 0;
+
+  // Apply Bayesian signal bias + VIX regime to level probabilities
+  const vixContext = { level: signals.vixLevel, change: signals.vixChange, regime: signals.vixRegime };
+  const levels = applySignalBias(rawLevels, signalBias, regime, vixContext);
+
+  // Separate upside/downside — EXCLUDE levels within 0.15% of spot (they're AT spot, not directional)
+  const minDirDist = spot * 0.0015;
+  const upsideLevels = levels.filter(l => l.direction === 'UPSIDE' && l.price - spot > minDirDist)
+    .sort((a, b) => b.probability - a.probability);
+  const downsideLevels = levels.filter(l => l.direction === 'DOWNSIDE' && spot - l.price > minDirDist)
+    .sort((a, b) => b.probability - a.probability);
+
+  // Compute directional probabilities from level reachability
+  // Sum of top 3 upside vs downside probabilities, normalized
+  const topUpProb = upsideLevels.slice(0, 3).reduce((s, l) => s + l.probability, 0);
+  const topDownProb = downsideLevels.slice(0, 3).reduce((s, l) => s + l.probability, 0);
+  const totalProb = topUpProb + topDownProb || 1;
+
+  let bullishProb = Math.round((topUpProb / totalProb) * 100);
+  let bearishProb = Math.round((topDownProb / totalProb) * 100);
+
+  // ── PCR Override: Time-horizon aware ──
+  // TODAY only: High PCR + positive gamma = contrarian bullish (intraday dealer unwind)
+  // WEEK/MONTH: High PCR = genuine institutional hedging = BEARISH regardless of gamma
+  // This is the key insight: PCR 1.95 on a daily basis is noise. Over a week/month, it's the real signal.
+  if (signals.pcr > 1.5) {
+    if (horizonName === 'TODAY' && regime === 'POSITIVE') {
+      // Intraday contrarian: dealers will push price up short-term
+      bullishProb = Math.min(80, bullishProb + 8);
+      bearishProb = Math.max(15, bearishProb - 8);
+    } else {
+      // Week/month: extreme put positioning = institutional fear = BEARISH
+      const pcrPenalty = signals.pcr > 1.8 ? 20 : signals.pcr > 1.5 ? 12 : 0;
+      bearishProb = Math.min(85, bearishProb + pcrPenalty);
+      bullishProb = Math.max(15, bullishProb - pcrPenalty);
+    }
+  } else if (signals.pcr < 0.7) {
+    bullishProb = Math.min(80, bullishProb + 10);
+    bearishProb = Math.max(15, bearishProb - 10);
+  }
+
+  // ── VIX Level Override: High VIX = bearish for longer horizons ──
+  // VIX > 25 = FEAR zone — Week and Month should skew bearish even more
+  if (signals.vixLevel >= 25 && horizonName !== 'TODAY') {
+    const vixPenalty = signals.vixLevel >= 35 ? 15 : signals.vixLevel >= 30 ? 10 : 5;
+    bearishProb = Math.min(85, bearishProb + vixPenalty);
+    bullishProb = Math.max(15, bullishProb - vixPenalty);
+  }
+
+  // Ensure they sum to 100
+  const neutralProb = Math.max(0, 100 - bullishProb - bearishProb);
+  const probTotal = bullishProb + bearishProb + neutralProb;
+  bullishProb = Math.round(bullishProb / probTotal * 100);
+  bearishProb = Math.round(bearishProb / probTotal * 100);
+  const neutralProbFinal = 100 - bullishProb - bearishProb;
+
+  // Direction from probabilities (lowered threshold from 15 → 8 for clearer signals)
+  const direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL' =
+    bullishProb > bearishProb + 8 ? 'BULLISH' :
+    bearishProb > bullishProb + 8 ? 'BEARISH' : 'NEUTRAL';
+
+  // Target = highest-probability REAL level in the winning direction
+  // Must be far enough from spot to be a meaningful target (scales with horizon)
+  // Hard cap: NO target can exceed 3× horizon EM from spot (VIX-implied max move)
+  const minTargetDist = horizonName === 'TODAY' ? Math.max(spot * 0.003, horizonEM * 0.3) :
+                        horizonName === 'THIS_WEEK' ? horizonEM * 0.4 :
+                        horizonEM * 0.5;
+  const maxTargetDist = horizonEM * 3; // Hard cap: 3σ move is 99.7% boundary
+  let target = spot;
+  let mostLikelyPath = '';
+
+  if (direction === 'BULLISH' && upsideLevels.length > 0) {
+    // Filter: far enough from spot AND within VIX-implied max move (3σ hard cap)
+    const reachable = upsideLevels.filter(l =>
+      l.price - spot >= minTargetDist && l.price - spot <= maxTargetDist
+    );
+    // Prefer gamma levels over round numbers
+    const gammaTargets = reachable.filter(l => l.type !== 'ROUND' && l.type !== 'EM_BOUND');
+    const bestTarget = gammaTargets[0] || reachable[0];
+    if (bestTarget) {
+      target = bestTarget.price;
+    } else {
+      // No gamma level in range — use EM-scaled target
+      const emScale = horizonName === 'TODAY' ? 0.5 : horizonName === 'THIS_WEEK' ? 0.6 : 0.5;
+      target = spot + horizonEM * emScale;
+      // Snap to nearest round number if within $2
+      const roundStep = spot > 200 ? 5 : spot > 50 ? 2.5 : 1;
+      const nearestRound = Math.round(target / roundStep) * roundStep;
+      if (Math.abs(target - nearestRound) <= 2) target = nearestRound;
+    }
+    // Hard cap enforcement: never exceed 3× EM from spot
+    target = Math.min(target, spot + maxTargetDist);
+    // Path: describe the journey through the nearest reachable levels
+    const pathLevels = upsideLevels.filter(l => l.price > spot && l.price <= spot + maxTargetDist)
+      .sort((a, b) => a.price - b.price).slice(0, 3);
+    const path = pathLevels.map(l =>
+      `$${l.price} (${l.label.split(' ')[0]} ${l.label.split(' ')[1]}, ${l.probability}%)`
+    );
+    mostLikelyPath = `${bullishProb}% → ${path.join(' → ')}`;
+  } else if (direction === 'BEARISH' && downsideLevels.length > 0) {
+    const reachable = downsideLevels.filter(l =>
+      spot - l.price >= minTargetDist && spot - l.price <= maxTargetDist
+    );
+    const gammaTargets = reachable.filter(l => l.type !== 'ROUND' && l.type !== 'EM_BOUND');
+    const bestTarget = gammaTargets[0] || reachable[0];
+    if (bestTarget) {
+      target = bestTarget.price;
+    } else {
+      const emScale = horizonName === 'TODAY' ? 0.5 : horizonName === 'THIS_WEEK' ? 0.6 : 0.5;
+      target = spot - horizonEM * emScale;
+      const roundStep = spot > 200 ? 5 : spot > 50 ? 2.5 : 1;
+      const nearestRound = Math.round(target / roundStep) * roundStep;
+      if (Math.abs(target - nearestRound) <= 2) target = nearestRound;
+    }
+    // Hard cap enforcement
+    target = Math.max(target, spot - maxTargetDist);
+    const pathLevels = downsideLevels.filter(l => l.price < spot && spot - l.price <= maxTargetDist)
+      .sort((a, b) => b.price - a.price).slice(0, 3);
+    const path = pathLevels.map(l =>
+      `$${l.price} (${l.label.split(' ')[0]} ${l.label.split(' ')[1]}, ${l.probability}%)`
+    );
+    mostLikelyPath = `${bearishProb}% → ${path.join(' → ')}`;
+  } else {
+    // Neutral: target = GEX anchor if meaningfully different from spot, else spot
+    const anchor = gexVexResult?.levels?.gexAnchor;
+    target = (anchor && Math.abs(anchor - spot) >= spot * 0.002) ? anchor : spot;
+    mostLikelyPath = `${neutralProbFinal}% rangebound near $${target.toFixed(0)}`;
+  }
+
+  // Confidence = how strong is the directional probability edge
+  const probEdge = Math.abs(bullishProb - bearishProb);
+  const confidence = Math.min(90, Math.max(15, probEdge + 10));
+
+  // Build driver strings
+  const drivers: string[] = [];
+  if (regime !== 'NEUTRAL') drivers.push(`${regime} gamma (${regime === 'POSITIVE' ? 'dampens' : 'amplifies'} moves)`);
+  if (signals.vixLevel > 0) drivers.push(`VIX ${signals.vixLevel.toFixed(0)} (${signals.vixRegime.toLowerCase()}) → ±$${horizonEM.toFixed(0)}/${horizonLabel.toLowerCase()}`);
+  if (signals.flowBias !== 'BALANCED') drivers.push(`${signals.flowBias === 'CALL_HEAVY' ? 'Call' : 'Put'}-heavy flow (PCR ${signals.pcr.toFixed(2)})`);
+  else if (signals.pcr !== 1) drivers.push(`PCR ${signals.pcr.toFixed(2)} (balanced)`);
+  if (signals.geoDir !== 0) drivers.push(`Geo risk: ${signals.geoDir > 0 ? 'bullish' : 'bearish'}`);
+  if (signals.momDir !== 0) drivers.push(`Momentum: ${signals.momDir > 0 ? 'bullish' : 'bearish'}`);
+
+  return {
+    horizon: horizonName,
+    label: horizonLabel,
+    direction,
+    confidence,
+    target: Math.round(target * 100) / 100,
+    emRange: { low: Math.round((spot - horizonEM) * 100) / 100, high: Math.round((spot + horizonEM) * 100) / 100 },
+    keyDriver: drivers[0] || 'No strong signal',
+    signals: drivers,
+    levelProbabilities: levels.slice(0, 10), // Top 10 levels by probability
+    bullishProbability: bullishProb,
+    bearishProbability: bearishProb,
+    neutralProbability: neutralProbFinal,
+    mostLikelyPath,
+  };
+}
 
 function computeHorizonOutlook(
   spot: number,
   dailyEM: number,
   vixLevel: number,
+  vixChange: number,
   vixRegime: string,
   gexVexResult: any,
   geoMatrix: any,
   signals: SignalCorrelation[],
   symbol: string,
 ): HorizonOutlook {
-  // Extract signal directions by name for horizon-specific weighting
+  // Extract signal directions as numeric values
   const gexSignal = signals.find(s => s.signal === 'GEX Regime');
   const vexSignal = signals.find(s => s.signal === 'Vanna Exposure');
   const momSignal = signals.find(s => s.signal === 'Momentum');
@@ -1020,114 +1490,150 @@ function computeHorizonOutlook(
   const flowSignal = signals.find(s => s.signal === 'Put/Call Ratio') || signals.find(s => s.signal === 'Intelligence Score');
   const geoSignal = signals.find(s => s.signal === 'Geopolitical');
 
-  // Flow data from projector
   const flowData = gexVexResult?.flowData;
   const pcr = flowData?.putCallRatio || 1;
   const flowBias = flowData?.flowBias || 'BALANCED';
 
-  // Helper: score a signal direction as -1/0/+1
-  function dirScore(dir?: string): number {
+  function dirNum(dir?: string): number {
     if (dir === 'BULLISH') return 1;
     if (dir === 'BEARISH') return -1;
     return 0;
   }
 
-  // ── TODAY: Gamma regime is king ──
-  const todayScore = (
-    dirScore(gexSignal?.direction) * 60 +
-    dirScore(vixSignal?.direction) * 20 +
-    (flowBias === 'CALL_HEAVY' ? 15 : flowBias === 'PUT_HEAVY' ? -15 : 0) +
-    dirScore(geoSignal?.direction) * 5
-  );
-  const todayDir: 'BULLISH' | 'BEARISH' | 'NEUTRAL' =
-    todayScore > 15 ? 'BULLISH' : todayScore < -15 ? 'BEARISH' : 'NEUTRAL';
-  const todayConf = Math.min(90, Math.max(20, Math.abs(todayScore)));
-  const todayEM = dailyEM;
-  const todayTarget = todayDir === 'BULLISH' ? spot + todayEM * 0.8 :
-                      todayDir === 'BEARISH' ? spot - todayEM * 0.8 : spot;
+  // ── GEX Direction: CRITICAL FIX ──
+  // Positive gamma ≠ BULLISH. It means dealers DAMPEN moves (mean-revert to anchor).
+  // For TODAY: positive gamma = slightly bullish (buy dips, sell rips → supports price)
+  // For WEEK/MONTH: positive gamma = NEUTRAL (just means low vol, no directional bias)
+  // Negative gamma = directionally BEARISH (dealers amplify selling, momentum accelerates)
+  const regime = gexVexResult?.regime?.type || 'NEUTRAL';
+  const gexDirToday = regime === 'POSITIVE' ? 0.5 : regime === 'NEGATIVE' ? -1 : 0;
+  const gexDirWeek = regime === 'POSITIVE' ? 0 : regime === 'NEGATIVE' ? -0.8 : 0;
+  const gexDirMonth = regime === 'POSITIVE' ? 0 : regime === 'NEGATIVE' ? -0.5 : 0;
 
-  const todayDrivers: string[] = [];
-  if (gexSignal) todayDrivers.push(`${gexVexResult?.regime?.type || 'Unknown'} gamma`);
-  if (vixLevel > 0) todayDrivers.push(`VIX ${vixLevel.toFixed(0)} (${vixRegime.toLowerCase()})`);
-  if (flowBias !== 'BALANCED') todayDrivers.push(`${flowBias === 'CALL_HEAVY' ? 'Call' : 'Put'}-heavy flow (PCR ${pcr.toFixed(2)})`);
+  // ── VIX Direction: Use actual level, not just regime label ──
+  // VIX < 14 = complacent = bullish (+0.5)
+  // VIX 14-17 = normal = neutral (0)
+  // VIX 18-22 = elevated = mildly bearish (-0.3)
+  // VIX 23-30 = fear = bearish (-0.7)
+  // VIX > 30 = extreme fear = very bearish (-1)
+  // VIX change: falling VIX = bullish (fear receding), rising = bearish
+  const vixDirFromLevel = vixLevel >= 30 ? -1 : vixLevel >= 23 ? -0.7 :
+    vixLevel >= 18 ? -0.3 : vixLevel >= 14 ? 0 : 0.5;
+  const vixDirFromChange = vixChange < -2 ? 0.3 : vixChange < -0.5 ? 0.15 :
+    vixChange > 2 ? -0.3 : vixChange > 0.5 ? -0.15 : 0;
+  const vixDir = Math.max(-1, Math.min(1, vixDirFromLevel + vixDirFromChange));
 
-  // ── THIS WEEK: Flow + GEX + VIX term structure ──
-  const weeklyEM = dailyEM * Math.sqrt(5);
-  // PCR bias: <0.7 = bullish, >1.3 = bearish, with gradient
-  const pcrWeekScore = pcr < 0.7 ? 25 : pcr > 1.3 ? -25 : pcr < 0.9 ? 10 : pcr > 1.1 ? -10 : 0;
-  const weekScore = (
-    dirScore(gexSignal?.direction) * 30 +
-    pcrWeekScore +
-    dirScore(vixSignal?.direction) * 25 +
-    dirScore(geoSignal?.direction) * 20
-  );
-  const weekDir: 'BULLISH' | 'BEARISH' | 'NEUTRAL' =
-    weekScore > 15 ? 'BULLISH' : weekScore < -15 ? 'BEARISH' : 'NEUTRAL';
-  const weekConf = Math.min(85, Math.max(15, Math.abs(weekScore)));
-  const weekTarget = weekDir === 'BULLISH' ? spot + weeklyEM * 0.6 :
-                     weekDir === 'BEARISH' ? spot - weeklyEM * 0.6 : spot;
+  // ── PCR Flow Direction: More granular + extreme PCR override ──
+  // PCR < 0.7 = strong call flow (+1)
+  // PCR 0.7-0.9 = mild bullish (+0.5)
+  // PCR 0.9-1.1 = neutral (0)
+  // PCR 1.1-1.3 = mild bearish (-0.3)
+  // PCR 1.3-1.7 = bearish (-0.6)
+  // PCR > 1.7 = EXTREME put heavy (-1) — this is institutional hedging, very bearish
+  const flowDir = pcr < 0.7 ? 1 : pcr < 0.9 ? 0.5 : pcr > 1.7 ? -1 :
+    pcr > 1.3 ? -0.6 : pcr > 1.1 ? -0.3 : 0;
 
-  const weekDrivers: string[] = [];
-  if (flowBias !== 'BALANCED') weekDrivers.push(`PCR ${pcr.toFixed(2)} (${flowBias === 'PUT_HEAVY' ? 'bearish' : 'bullish'} positioning)`);
-  else weekDrivers.push(`PCR ${pcr.toFixed(2)} (balanced)`);
-  if (gexSignal) weekDrivers.push(`${gexVexResult?.regime?.type} gamma regime`);
-  if (geoSignal && geoSignal.direction !== 'NEUTRAL') weekDrivers.push(`Geo risk: ${geoSignal.direction.toLowerCase()}`);
-  weekDrivers.push(`VIX ${vixLevel.toFixed(0)} → ±$${weeklyEM.toFixed(0)}/week`);
-
-  // ── THIS MONTH: Macro dominates — geo + VIX + flow ──
-  const monthlyEM = dailyEM * Math.sqrt(21);
-  // For monthly, PCR matters more — institutional positioning
-  const pcrMonthScore = pcr < 0.7 ? 30 : pcr > 1.3 ? -30 : pcr < 0.85 ? 15 : pcr > 1.15 ? -15 : 0;
-  const monthScore = (
-    pcrMonthScore +
-    dirScore(geoSignal?.direction) * 30 +
-    dirScore(vixSignal?.direction) * 25 +
-    dirScore(gexSignal?.direction) * 15
-  );
-  const monthDir: 'BULLISH' | 'BEARISH' | 'NEUTRAL' =
-    monthScore > 12 ? 'BULLISH' : monthScore < -12 ? 'BEARISH' : 'NEUTRAL';
-  const monthConf = Math.min(75, Math.max(10, Math.abs(monthScore)));
-  const monthTarget = monthDir === 'BULLISH' ? spot + monthlyEM * 0.5 :
-                      monthDir === 'BEARISH' ? spot - monthlyEM * 0.5 : spot;
-
-  const monthDrivers: string[] = [];
-  if (geoSignal && geoSignal.direction !== 'NEUTRAL') monthDrivers.push(`Geopolitical: ${geoSignal.detail?.split(',')[0] || geoSignal.direction}`);
-  monthDrivers.push(`Options flow PCR ${pcr.toFixed(2)}`);
-  monthDrivers.push(`VIX regime: ${vixRegime.toLowerCase()}`);
-  if (momSignal) monthDrivers.push(`Momentum: ${momSignal.direction.toLowerCase()}`);
-
-  return {
-    today: {
-      horizon: 'TODAY',
-      label: 'Today',
-      direction: todayDir,
-      confidence: todayConf,
-      target: Math.round(todayTarget * 100) / 100,
-      emRange: { low: Math.round((spot - todayEM) * 100) / 100, high: Math.round((spot + todayEM) * 100) / 100 },
-      keyDriver: todayDrivers[0] || 'No strong signal',
-      signals: todayDrivers,
-    },
-    thisWeek: {
-      horizon: 'THIS_WEEK',
-      label: 'This Week',
-      direction: weekDir,
-      confidence: weekConf,
-      target: Math.round(weekTarget * 100) / 100,
-      emRange: { low: Math.round((spot - weeklyEM) * 100) / 100, high: Math.round((spot + weeklyEM) * 100) / 100 },
-      keyDriver: weekDrivers[0] || 'No strong signal',
-      signals: weekDrivers,
-    },
-    thisMonth: {
-      horizon: 'THIS_MONTH',
-      label: 'This Month',
-      direction: monthDir,
-      confidence: monthConf,
-      target: Math.round(monthTarget * 100) / 100,
-      emRange: { low: Math.round((spot - monthlyEM) * 100) / 100, high: Math.round((spot + monthlyEM) * 100) / 100 },
-      keyDriver: monthDrivers[0] || 'No strong signal',
-      signals: monthDrivers,
-    },
+  // Build per-horizon signal objects (GEX direction differs by horizon)
+  const todaySignals = {
+    gexDir: gexDirToday, vixDir, flowDir,
+    geoDir: dirNum(geoSignal?.direction),
+    momDir: dirNum(momSignal?.direction),
+    pcr, flowBias, vixLevel, vixChange, vixRegime,
   };
+  const weekSignals = { ...todaySignals, gexDir: gexDirWeek };
+  const monthSignals = { ...todaySignals, gexDir: gexDirMonth };
+
+  // ── Each horizon has different signal weights ──
+  // TODAY: Gamma regime is king (intraday, dealer hedging dominates)
+  // But gamma direction is only mildly bullish in POSITIVE, not a full +1
+  const today = computeSingleHorizon(spot, dailyEM, 1, 'TODAY', 'Today',
+    { gex: 40, vix: 15, flow: 25, geo: 5, mom: 15 },
+    gexVexResult, todaySignals, symbol);
+
+  // THIS WEEK: Flow/PCR is KING — institutional positioning dominates
+  // GEX matters less because gamma can flip in a week
+  const thisWeek = computeSingleHorizon(spot, dailyEM, 5, 'THIS_WEEK', 'This Week',
+    { gex: 15, vix: 20, flow: 30, geo: 15, mom: 20 },
+    gexVexResult, weekSignals, symbol);
+
+  // THIS MONTH: Macro dominates — geo + VIX + institutional flow
+  // GEX is almost irrelevant at monthly horizon
+  const thisMonth = computeSingleHorizon(spot, dailyEM, 21, 'THIS_MONTH', 'This Month',
+    { gex: 5, vix: 25, flow: 30, geo: 25, mom: 15 },
+    gexVexResult, monthSignals, symbol);
+
+  // ── Synthesize all horizons into final prediction ──
+  // Weight: today 50%, week 30%, month 20% (nearer = more certain)
+  const synthBullish = Math.round(
+    (today.bullishProbability || 50) * 0.50 +
+    (thisWeek.bullishProbability || 50) * 0.30 +
+    (thisMonth.bullishProbability || 50) * 0.20
+  );
+  const synthBearish = Math.round(
+    (today.bearishProbability || 50) * 0.50 +
+    (thisWeek.bearishProbability || 50) * 0.30 +
+    (thisMonth.bearishProbability || 50) * 0.20
+  );
+  const synthNeutral = Math.max(0, 100 - synthBullish - synthBearish);
+
+  const synthDir: 'BULLISH' | 'BEARISH' | 'NEUTRAL' =
+    synthBullish > synthBearish + 10 ? 'BULLISH' :
+    synthBearish > synthBullish + 10 ? 'BEARISH' : 'NEUTRAL';
+
+  // Final target: use today's target weighted 60%, week 30%, month 10%
+  const finalTarget = Math.round(
+    (today.target * 0.60 + thisWeek.target * 0.30 + thisMonth.target * 0.10) * 100
+  ) / 100;
+  const finalProb = synthDir === 'BULLISH' ? synthBullish :
+                    synthDir === 'BEARISH' ? synthBearish : synthNeutral;
+
+  // Build path narrative
+  const todayPath = today.mostLikelyPath || '';
+  const weekPath = thisWeek.mostLikelyPath || '';
+  const pathNarrative = `Today: ${todayPath}. Week: ${weekPath}`;
+
+  // Inflection levels: gamma flip = thesis changer
+  const inflectionLevels: SynthesizedPrediction['inflectionLevels'] = [];
+  const gammaFlip = gexVexResult?.levels?.gexFlip;
+  if (gammaFlip && Math.abs(gammaFlip - spot) < dailyEM * 3) {
+    inflectionLevels.push({
+      price: gammaFlip,
+      label: `Gamma Flip $${gammaFlip}`,
+      breakAbove: 'Positive gamma — dealers dampen moves, mean-revert bias',
+      breakBelow: 'Negative gamma — dealers amplify moves, momentum bias',
+    });
+  }
+  // Call wall = resistance inflection
+  const topCallWall = (gexVexResult?.levels?.callWalls || [])[0];
+  if (topCallWall && topCallWall > spot) {
+    inflectionLevels.push({
+      price: topCallWall,
+      label: `Call Wall $${topCallWall}`,
+      breakAbove: 'Gamma squeeze — dealer buying accelerates move up',
+      breakBelow: 'Resistance holds — expect fade back to anchor',
+    });
+  }
+  // Put wall = support inflection
+  const topPutWall = (gexVexResult?.levels?.putWalls || [])[0];
+  if (topPutWall && topPutWall < spot) {
+    inflectionLevels.push({
+      price: topPutWall,
+      label: `Put Wall $${topPutWall}`,
+      breakAbove: 'Support holds — bounce expected toward anchor',
+      breakBelow: 'Support broken — accelerated selling toward next put wall',
+    });
+  }
+
+  const synthesized: SynthesizedPrediction = {
+    finalTarget,
+    finalProbability: finalProb,
+    direction: synthDir,
+    probabilities: { bullish: synthBullish, bearish: synthBearish, neutral: synthNeutral },
+    path: pathNarrative,
+    inflectionLevels,
+  };
+
+  return { today, thisWeek, thisMonth, synthesized };
 }
 
 // ─── Cache ───────────────────────────────────────────────────
