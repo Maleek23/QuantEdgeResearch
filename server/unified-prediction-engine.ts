@@ -1435,10 +1435,24 @@ function computeSingleHorizon(
     );
     mostLikelyPath = `${bearishProb}% → ${path.join(' → ')}`;
   } else {
-    // Neutral: target = GEX anchor if meaningfully different from spot, else spot
+    // Neutral: but check if it's "bearish-leaning neutral" or "bullish-leaning neutral"
+    // If bearish prob > bullish prob even though neither crossed the +8 threshold,
+    // lean target toward the downside (don't just pin to anchor/spot)
     const anchor = gexVexResult?.levels?.gexAnchor;
-    target = (anchor && Math.abs(anchor - spot) >= spot * 0.002) ? anchor : spot;
-    mostLikelyPath = `${neutralProbFinal}% rangebound near $${target.toFixed(0)}`;
+    if (bearishProb > bullishProb + 3 && downsideLevels.length > 0) {
+      // Bearish-leaning neutral: target = halfway between spot and nearest downside level
+      const nearDown = downsideLevels[0];
+      target = nearDown ? Math.round(((spot + nearDown.price) / 2) * 100) / 100 : spot;
+      mostLikelyPath = `${neutralProbFinal}% rangebound, leaning lower → $${target.toFixed(0)}`;
+    } else if (bullishProb > bearishProb + 3 && upsideLevels.length > 0) {
+      // Bullish-leaning neutral: target = halfway between spot and nearest upside level
+      const nearUp = upsideLevels[0];
+      target = nearUp ? Math.round(((spot + nearUp.price) / 2) * 100) / 100 : spot;
+      mostLikelyPath = `${neutralProbFinal}% rangebound, leaning higher → $${target.toFixed(0)}`;
+    } else {
+      target = (anchor && Math.abs(anchor - spot) >= spot * 0.002) ? anchor : spot;
+      mostLikelyPath = `${neutralProbFinal}% rangebound near $${target.toFixed(0)}`;
+    }
   }
 
   // Confidence = how strong is the directional probability edge
@@ -1534,14 +1548,39 @@ function computeHorizonOutlook(
     pcr > 1.3 ? -0.6 : pcr > 1.1 ? -0.3 : 0;
 
   // Build per-horizon signal objects (GEX direction differs by horizon)
+  // ── Momentum: Time-horizon aware ──
+  // A single-day relief rally (momentum BULLISH) should NOT carry into weekly/monthly outlook
+  // when institutional fear signals (high PCR + high VIX) contradict it.
+  // This is the "dead cat bounce" detector: if momentum is bullish but PCR > 1.3 and VIX > 20,
+  // the rally is likely a short squeeze / relief bounce, not sustainable.
+  const rawMomDir = dirNum(momSignal?.direction);
+  const momDirToday = rawMomDir; // Intraday: momentum is momentum, respect it
+
+  // Week: dampen bullish momentum when fear signals present (relief rally detection)
+  // If momentum is bullish but PCR + VIX say fear → cap momentum at 0 (don't let bounce override fear)
+  // If momentum is bearish → keep it (selloff momentum is real for weekly)
+  const momDirWeek = (rawMomDir > 0 && pcr > 1.3 && vixLevel > 20)
+    ? 0      // Relief rally: don't let single-day bounce override institutional positioning
+    : (rawMomDir > 0 && pcr > 1.5 && vixLevel > 25)
+    ? -0.3   // Extreme fear + bullish momentum = likely dead cat bounce → slight bearish bias
+    : rawMomDir;
+
+  // Month: even more conservative — single-day momentum is noise at monthly scale
+  // Only respect momentum if it ALIGNS with flow direction (confirming trend, not counter-trend)
+  const momDirMonth = (rawMomDir > 0 && flowDir < -0.3)
+    ? 0      // Bullish momentum vs bearish flow → ignore momentum (noise)
+    : (rawMomDir < 0 && flowDir < -0.3)
+    ? rawMomDir * 1.2  // Bearish momentum + bearish flow → amplify (confirming trend, cap at -1)
+    : rawMomDir * 0.5; // Otherwise halve it — monthly targets shouldn't swing on daily noise
+
   const todaySignals = {
     gexDir: gexDirToday, vixDir, flowDir,
     geoDir: dirNum(geoSignal?.direction),
-    momDir: dirNum(momSignal?.direction),
+    momDir: momDirToday,
     pcr, flowBias, vixLevel, vixChange, vixRegime,
   };
-  const weekSignals = { ...todaySignals, gexDir: gexDirWeek };
-  const monthSignals = { ...todaySignals, gexDir: gexDirMonth };
+  const weekSignals = { ...todaySignals, gexDir: gexDirWeek, momDir: momDirWeek };
+  const monthSignals = { ...todaySignals, gexDir: gexDirMonth, momDir: Math.max(-1, Math.min(1, momDirMonth)) };
 
   // ── Each horizon has different signal weights ──
   // TODAY: Gamma regime is king (intraday, dealer hedging dominates)
