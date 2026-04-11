@@ -9,6 +9,7 @@
  */
 
 import { fetchOHLCData, OHLCData } from './chart-analysis';
+import { calculateATRTargets } from './atr-targets';
 
 interface BreakoutSignal {
   symbol: string;
@@ -252,16 +253,20 @@ export async function scanSymbolForBreakout(
     const signalType = isBreakout ? 'breakout' : 'breakdown';
     const percentMove = isBreakout ? breakoutPercent : breakdownPercent;
     
-    // Calculate entries and exits
+    // 📐 ATR-BASED TARGET/STOP — replaces fixed % heuristic
+    // Uses 14-period ATR multiplied by holding-period factors for volatility-aware levels.
     const entryPrice = currentPrice;
-    const stopLoss = isBreakout 
-      ? entryPrice * (1 - cfg.stopLossPercent / 100)
-      : entryPrice * (1 + cfg.stopLossPercent / 100);
-    const target = isBreakout
-      ? entryPrice * (1 + cfg.targetPercent / 100)
-      : entryPrice * (1 - cfg.targetPercent / 100);
-    
-    const riskRewardRatio = cfg.targetPercent / cfg.stopLossPercent;
+    const atrResult = calculateATRTargets({
+      currentPrice: entryPrice,
+      highs: result.highs,
+      lows: result.lows,
+      closes: result.closes,
+      direction: isBreakout ? 'long' : 'short',
+      holdingPeriod: 'swing',
+    });
+    const stopLoss = atrResult.stop;
+    const target = atrResult.target;
+    const riskRewardRatio = atrResult.riskRewardRatio;
     
     // Calculate confidence (price-based strength when no volume data)
     const strength = getBreakoutStrength(percentMove, volumeRatio, hasVolumeData);

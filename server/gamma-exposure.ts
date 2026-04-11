@@ -1,10 +1,30 @@
-// Net Gamma Exposure (GEX) Calculator
-// Shows where market makers need to hedge - indicates support/resistance levels
+/**
+ * Net Gamma Exposure (GEX) Calculator — v2
+ * =========================================
+ * NO GAPS: real VEX, cross-validated spot, Schwab → Tradier → Yahoo cascade.
+ *
+ * Backwards-compatible contract:
+ *   calculateGammaExposure(symbol, expiration?)  →  GammaExposureResult
+ *   calculateAggregateGammaExposure(symbol)      →  GammaExposureResult
+ *
+ * New fields added to the result (all optional, old consumers ignore them):
+ *   totalVEX, totalDEX, totalCharm, callWall, putWall, vannaFlipPrice,
+ *   maxVannaStrike, regime, vexRegime, dataSource, dataQuality
+ */
 
 import { logger } from './logger';
-import { getTradierOptionsChain, getTradierQuote } from './tradier-api';
+import { getTradierOptionsChain } from './tradier-api';
 import { getYahooOptionsChain, getYahooExpirations } from './yahoo-options-fallback';
-import { safeQuote } from './yahoo-finance-service';
+import { getSchwabOptionsChain, getSchwabExpirations, isSchwabConfigured } from './schwab-options-adapter';
+import { getCrossValidatedQuote } from './data-quality';
+import {
+  computeExposures,
+  optionToInput,
+  type OptionInput,
+  type ExposureSnapshot,
+} from './options-exposures';
+
+// ─── Legacy-compat types ───────────────────────────────────
 
 interface GammaByStrike {
   strike: number;
@@ -12,319 +32,290 @@ interface GammaByStrike {
   putGamma: number;
   callOI: number;
   putOI: number;
-  netGEX: number;  // Net gamma exposure in dollar terms
+  netGEX: number;
   callGEX: number;
   putGEX: number;
+  // New fields (optional — legacy consumers ignore)
+  callVEX?: number;
+  putVEX?: number;
+  netVEX?: number;
 }
 
-interface GammaExposureResult {
+export interface GammaExposureResult {
   symbol: string;
   spotPrice: number;
   expiration: string;
   totalNetGEX: number;
-  flipPoint: number | null;  // Price where gamma flips from positive to negative
-  maxGammaStrike: number;    // Strike with highest absolute gamma
+  flipPoint: number | null;
+  maxGammaStrike: number;
   strikes: GammaByStrike[];
   timestamp: string;
+
+  // ─── New optional fields (no gaps)
+  totalVEX?: number;
+  totalDEX?: number;
+  totalCharm?: number;
+  callGEX?: number;
+  putGEX?: number;
+  putCallGEXRatio?: number;
+  callWall?: number | null;
+  putWall?: number | null;
+  vannaFlipPrice?: number | null;
+  maxVannaStrike?: number;
+  zeroGammaProjection?: number | null;
+  regime?: ExposureSnapshot['regime'];
+  vexRegime?: ExposureSnapshot['vexRegime'];
+  dataSource?: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+  dataQuality?: {
+    grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    score: number;
+    sourceCount: number;
+    spreadPct: number;
+    isStale: boolean;
+    hasDisagreement: boolean;
+  };
 }
+
+// ─── Options Fetch Cascade ─────────────────────────────────
+
+type OptionsSource = 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+type OptionsFetchResult = {
+  options: any[];
+  source: OptionsSource;
+};
+
+async function fetchOptionsChain(
+  symbol: string,
+  expiration?: string,
+): Promise<OptionsFetchResult> {
+  // 1. Schwab (real-time, free for brokerage account holders)
+  if (isSchwabConfigured()) {
+    try {
+      const schwab = await getSchwabOptionsChain(symbol, expiration);
+      if (schwab.length > 0) {
+        return { options: schwab, source: 'schwab' };
+      }
+    } catch (e: any) {
+      logger.warn(`[GEX] Schwab chain failed for ${symbol}: ${e.message}`);
+    }
+  }
+
+  // 2. Tradier (paid, reliable)
+  try {
+    const tradier = await getTradierOptionsChain(symbol, expiration);
+    if (tradier.length > 0) {
+      return { options: tradier, source: 'tradier' };
+    }
+  } catch (e: any) {
+    logger.warn(`[GEX] Tradier chain failed for ${symbol}: ${e.message}`);
+  }
+
+  // 3. Yahoo (free fallback, BS greeks)
+  try {
+    const yahoo = await getYahooOptionsChain(symbol, expiration);
+    if (yahoo.length > 0) {
+      return { options: yahoo, source: 'yahoo' };
+    }
+  } catch (e: any) {
+    logger.warn(`[GEX] Yahoo chain failed for ${symbol}: ${e.message}`);
+  }
+
+  return { options: [], source: 'none' };
+}
+
+async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
+  if (isSchwabConfigured()) {
+    try {
+      const schwab = await getSchwabExpirations(symbol);
+      if (schwab.length > 0) return schwab;
+    } catch { /* fall through */ }
+  }
+
+  // Tradier expirations
+  try {
+    const apiKey = process.env.TRADIER_API_KEY;
+    if (apiKey) {
+      const baseUrl = 'https://api.tradier.com/v1';
+      const res = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.expirations?.date || [];
+        if (list.length > 0) return list;
+      }
+    }
+  } catch { /* fall through */ }
+
+  // Yahoo
+  try {
+    return await getYahooExpirations(symbol);
+  } catch {
+    return [];
+  }
+}
+
+// ─── Snapshot → Legacy result adapter ──────────────────────
+
+function snapshotToLegacy(
+  snap: ExposureSnapshot,
+  expirationLabel: string,
+  source: OptionsSource,
+  cq: Awaited<ReturnType<typeof getCrossValidatedQuote>>,
+): GammaExposureResult {
+  const strikes: GammaByStrike[] = snap.strikes.map((s) => ({
+    strike: s.strike,
+    callGamma: s.callGamma,
+    putGamma: s.putGamma,
+    callOI: s.callOI,
+    putOI: s.putOI,
+    netGEX: s.netGEX,
+    callGEX: s.callGEX,
+    putGEX: s.putGEX,
+    callVEX: s.callVEX,
+    putVEX: s.putVEX,
+    netVEX: s.netVEX,
+  }));
+
+  return {
+    symbol: snap.symbol,
+    spotPrice: snap.spotPrice,
+    expiration: expirationLabel,
+    totalNetGEX: snap.totalGEX,
+    flipPoint: snap.gammaFlipPrice,
+    maxGammaStrike: snap.maxGammaStrike,
+    strikes,
+    timestamp: new Date(snap.calculatedAt).toISOString(),
+    // Extras
+    totalVEX: snap.totalVEX,
+    totalDEX: snap.totalDEX,
+    totalCharm: snap.totalCharm,
+    callGEX: snap.callGEX,
+    putGEX: snap.putGEX,
+    putCallGEXRatio: snap.putCallGEXRatio,
+    callWall: snap.callWall,
+    putWall: snap.putWall,
+    vannaFlipPrice: snap.vannaFlipPrice,
+    maxVannaStrike: snap.maxVannaStrike,
+    zeroGammaProjection: snap.zeroGammaProjection,
+    regime: snap.regime,
+    vexRegime: snap.vexRegime,
+    dataSource: source === 'none' ? undefined : source,
+    dataQuality: {
+      grade: cq.qualityGrade,
+      score: cq.qualityScore,
+      sourceCount: cq.sourceCount,
+      spreadPct: cq.maxSpreadPct,
+      isStale: cq.isStale,
+      hasDisagreement: cq.hasDisagreement,
+    },
+  };
+}
+
+// ─── Single Expiration ──────────────────────────────────────
 
 export async function calculateGammaExposure(
   symbol: string,
-  expiration?: string
+  expiration?: string,
 ): Promise<GammaExposureResult | null> {
   try {
-    // Get current stock price — chart candle (most accurate), then Tradier, then Yahoo quote
-    const { getChartLastPrice, getBestPrice } = await import('./yahoo-finance-service');
-    let quote = await getTradierQuote(symbol);
-    let spotPrice = quote?.last || quote?.close || 0;
-
-    // Cross-validate with chart candle price (regularMarketPrice can be stale)
-    const chartPrice = await getChartLastPrice(symbol);
-    if (chartPrice > 0 && spotPrice > 0 && Math.abs(chartPrice - spotPrice) / spotPrice > 0.01) {
-      logger.info(`[GEX] Using chart price $${chartPrice.toFixed(2)} (Tradier $${spotPrice.toFixed(2)} stale)`);
-      spotPrice = chartPrice;
-    } else if (chartPrice > 0 && spotPrice <= 0) {
-      spotPrice = chartPrice;
-    }
-
-    if (spotPrice <= 0) {
-      const yQuote = await safeQuote(symbol);
-      spotPrice = getBestPrice(yQuote);
-    }
-
-    if (spotPrice <= 0) {
-      logger.error(`[GEX] Invalid spot price for ${symbol}`);
+    // 1. Cross-validated spot price
+    const cq = await getCrossValidatedQuote(symbol);
+    if (cq.bestPrice <= 0) {
+      logger.error(`[GEX] No valid spot price for ${symbol}`);
       return null;
     }
 
-    // Get options chain — Tradier first, Yahoo fallback
-    let options = await getTradierOptionsChain(symbol, expiration);
-    if (options.length === 0) {
-      logger.info(`[GEX] Tradier returned no data for ${symbol}, trying Yahoo Finance...`);
-      options = await getYahooOptionsChain(symbol, expiration) as any;
-    }
+    // 2. Fetch options chain via cascade
+    const { options, source } = await fetchOptionsChain(symbol, expiration);
     if (options.length === 0) {
       logger.warn(`[GEX] No options data for ${symbol} from any source`);
       return null;
     }
 
-    // Get actual expiration from first option
     const actualExpiration = options[0]?.expiration_date || expiration || 'unknown';
 
-    // Group options by strike
-    const strikeMap = new Map<number, GammaByStrike>();
-
+    // 3. Map to OptionInput
+    const inputs: OptionInput[] = [];
     for (const opt of options) {
-      const strike = opt.strike;
-      const gamma = opt.greeks?.gamma || 0;
-      const oi = opt.open_interest || 0;
-      const isCall = opt.option_type === 'call';
-
-      if (!strikeMap.has(strike)) {
-        strikeMap.set(strike, {
-          strike,
-          callGamma: 0,
-          putGamma: 0,
-          callOI: 0,
-          putOI: 0,
-          netGEX: 0,
-          callGEX: 0,
-          putGEX: 0,
-        });
-      }
-
-      const entry = strikeMap.get(strike)!;
-      if (isCall) {
-        entry.callGamma = gamma;
-        entry.callOI = oi;
-      } else {
-        entry.putGamma = gamma;
-        entry.putOI = oi;
-      }
+      const input = optionToInput(opt, actualExpiration);
+      if (input) inputs.push(input);
     }
 
-    // Calculate GEX for each strike
-    // Formula: GEX = OI × Gamma × 100 × Spot²
-    // Calls: Market makers are typically SHORT calls → positive gamma (they buy as price rises)
-    // Puts: Market makers are typically LONG puts → negative gamma (they sell as price rises)
-    const spotSquared = spotPrice * spotPrice;
-    const contractMultiplier = 100; // Standard option contract = 100 shares
-
-    const strikes: GammaByStrike[] = [];
-    let totalNetGEX = 0;
-
-    for (const entry of Array.from(strikeMap.values())) {
-      // Call GEX: positive (MMs short calls, need to buy stock when price rises)
-      entry.callGEX = entry.callOI * entry.callGamma * contractMultiplier * spotSquared / 1e9;
-      
-      // Put GEX: negative (MMs long puts, need to sell stock when price rises)  
-      entry.putGEX = -entry.putOI * entry.putGamma * contractMultiplier * spotSquared / 1e9;
-      
-      // Net GEX at this strike (in billions, normalized)
-      entry.netGEX = entry.callGEX + entry.putGEX;
-      
-      totalNetGEX += entry.netGEX;
-      strikes.push(entry);
+    if (inputs.length === 0) {
+      logger.warn(`[GEX] No usable option contracts for ${symbol}`);
+      return null;
     }
 
-    // Sort by strike price
-    strikes.sort((a, b) => a.strike - b.strike);
+    // 4. Compute exposures
+    const snap = computeExposures(symbol, cq.bestPrice, inputs, [actualExpiration]);
 
-    // Find gamma flip point (where cumulative gamma changes sign)
-    let flipPoint: number | null = null;
-    let cumulativeGEX = 0;
-    let prevSign = 0;
-    
-    for (const s of strikes) {
-      cumulativeGEX += s.netGEX;
-      const currentSign = Math.sign(cumulativeGEX);
-      if (prevSign !== 0 && currentSign !== prevSign) {
-        flipPoint = s.strike;
-        break;
-      }
-      prevSign = currentSign;
-    }
-
-    // Find strike with max absolute gamma
-    let maxGammaStrike = strikes[0]?.strike || spotPrice;
-    let maxGamma = 0;
-    for (const s of strikes) {
-      const absGamma = Math.abs(s.netGEX);
-      if (absGamma > maxGamma) {
-        maxGamma = absGamma;
-        maxGammaStrike = s.strike;
-      }
-    }
-
-    // Diagnostic: check data quality
-    const nonZeroGamma = strikes.filter(s => s.callGamma > 0 || s.putGamma > 0).length;
-    const nonZeroOI = strikes.filter(s => s.callOI > 0 || s.putOI > 0).length;
-    const top3 = [...strikes].sort((a, b) => Math.abs(b.netGEX) - Math.abs(a.netGEX)).slice(0, 3);
-    logger.info(`[GEX] ${symbol}: ${strikes.length} strikes (${nonZeroGamma} w/gamma, ${nonZeroOI} w/OI), spot=$${spotPrice.toFixed(2)}, total GEX: ${totalNetGEX.toFixed(2)}B, maxGamma@$${maxGammaStrike}, top3: ${top3.map(s => `$${s.strike}=${s.netGEX.toFixed(3)}`).join(', ')}`);
-
-    return {
-      symbol,
-      spotPrice,
-      expiration: actualExpiration,
-      totalNetGEX,
-      flipPoint,
-      maxGammaStrike,
-      strikes,
-      timestamp: new Date().toISOString(),
-    };
-  } catch (error) {
-    logger.error(`[GEX] Error calculating gamma exposure for ${symbol}:`, error);
+    return snapshotToLegacy(snap, actualExpiration, source, cq);
+  } catch (error: any) {
+    logger.error(`[GEX] Error calculating gamma exposure for ${symbol}: ${error?.message || error}`);
     return null;
   }
 }
 
-// Calculate GEX across multiple expirations (aggregate view)
+// ─── Multi-Expiration Aggregate ────────────────────────────
+
 export async function calculateAggregateGammaExposure(
-  symbol: string
+  symbol: string,
 ): Promise<GammaExposureResult | null> {
   try {
-    // Get spot price — chart candle (most accurate), then Tradier, then Yahoo quote
-    const { getChartLastPrice, getBestPrice } = await import('./yahoo-finance-service');
-    let quote = await getTradierQuote(symbol);
-    let spotPrice = quote?.last || quote?.close || 0;
-    const chartPrice = await getChartLastPrice(symbol);
-    if (chartPrice > 0 && spotPrice > 0 && Math.abs(chartPrice - spotPrice) / spotPrice > 0.01) {
-      spotPrice = chartPrice;
-    } else if (chartPrice > 0 && spotPrice <= 0) {
-      spotPrice = chartPrice;
-    }
-    if (spotPrice <= 0) {
-      const yQuote = await safeQuote(symbol);
-      spotPrice = getBestPrice(yQuote);
-    }
-    if (spotPrice <= 0) return null;
-
-    // Get all available expirations — Tradier first, Yahoo fallback
-    let allExpirations: string[] = [];
-    const apiKey = process.env.TRADIER_API_KEY;
-
-    if (apiKey) {
-      try {
-        const baseUrl = 'https://api.tradier.com/v1';
-        const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
-        });
-        if (expResponse.ok) {
-          const expData = await expResponse.json();
-          allExpirations = expData.expirations?.date || [];
-        }
-      } catch { /* fall through to Yahoo */ }
+    // 1. Cross-validated spot
+    const cq = await getCrossValidatedQuote(symbol);
+    if (cq.bestPrice <= 0) {
+      logger.warn(`[GEX-AGG] No valid spot price for ${symbol}`);
+      return null;
     }
 
-    if (allExpirations.length === 0) {
-      logger.info(`[GEX-AGG] Tradier expirations failed for ${symbol}, trying Yahoo...`);
-      allExpirations = await getYahooExpirations(symbol);
+    // 2. Get expirations
+    const allExps = await fetchExpirationsCascade(symbol);
+    if (allExps.length === 0) {
+      logger.warn(`[GEX-AGG] No expirations found for ${symbol}`);
+      return null;
     }
 
-    // Get next 4 expirations for aggregate view
-    const nearExpirations = allExpirations.slice(0, 4);
-    if (nearExpirations.length === 0) return null;
+    const nearExps = allExps.slice(0, 4);
 
-    // Aggregate gamma across expirations
-    const strikeMap = new Map<number, GammaByStrike>();
-    const spotSquared = spotPrice * spotPrice;
-    const contractMultiplier = 100;
+    // 3. Fetch each expiration in parallel with cascade
+    const chainResults = await Promise.all(
+      nearExps.map((exp) => fetchOptionsChain(symbol, exp)),
+    );
 
-    for (const exp of nearExpirations) {
-      let options = await getTradierOptionsChain(symbol, exp);
-      if (options.length === 0) {
-        options = await getYahooOptionsChain(symbol, exp) as any;
-      }
-      
+    // 4. Collect all inputs
+    const allInputs: OptionInput[] = [];
+    const expsUsed: string[] = [];
+    const sourcesUsed = new Set<string>();
+    for (let i = 0; i < chainResults.length; i++) {
+      const { options, source } = chainResults[i];
+      if (options.length === 0) continue;
+      expsUsed.push(nearExps[i]);
+      sourcesUsed.add(source);
       for (const opt of options) {
-        const strike = opt.strike;
-        const gamma = opt.greeks?.gamma || 0;
-        const oi = opt.open_interest || 0;
-        const isCall = opt.option_type === 'call';
-
-        if (!strikeMap.has(strike)) {
-          strikeMap.set(strike, {
-            strike,
-            callGamma: 0,
-            putGamma: 0,
-            callOI: 0,
-            putOI: 0,
-            netGEX: 0,
-            callGEX: 0,
-            putGEX: 0,
-          });
-        }
-
-        const entry = strikeMap.get(strike)!;
-        if (isCall) {
-          entry.callOI += oi;
-          entry.callGamma = Math.max(entry.callGamma, gamma); // Use max gamma
-        } else {
-          entry.putOI += oi;
-          entry.putGamma = Math.max(entry.putGamma, gamma);
-        }
+        const input = optionToInput(opt, nearExps[i]);
+        if (input) allInputs.push(input);
       }
     }
 
-    // Calculate GEX
-    const strikes: GammaByStrike[] = [];
-    let totalNetGEX = 0;
-
-    for (const entry of Array.from(strikeMap.values())) {
-      entry.callGEX = entry.callOI * entry.callGamma * contractMultiplier * spotSquared / 1e9;
-      entry.putGEX = -entry.putOI * entry.putGamma * contractMultiplier * spotSquared / 1e9;
-      entry.netGEX = entry.callGEX + entry.putGEX;
-      totalNetGEX += entry.netGEX;
-      strikes.push(entry);
+    if (allInputs.length === 0) {
+      logger.warn(`[GEX-AGG] No option contracts for ${symbol} across ${nearExps.length} exps`);
+      return null;
     }
 
-    strikes.sort((a, b) => a.strike - b.strike);
+    // 5. Compute unified exposures
+    const snap = computeExposures(symbol, cq.bestPrice, allInputs, expsUsed);
 
-    // Find flip point
-    let flipPoint: number | null = null;
-    let cumulativeGEX = 0;
-    let prevSign = 0;
-    
-    for (const s of strikes) {
-      cumulativeGEX += s.netGEX;
-      const currentSign = Math.sign(cumulativeGEX);
-      if (prevSign !== 0 && currentSign !== prevSign) {
-        flipPoint = s.strike;
-        break;
-      }
-      prevSign = currentSign;
-    }
+    const mixedSource: OptionsSource =
+      sourcesUsed.size === 1
+        ? (Array.from(sourcesUsed)[0] as OptionsSource)
+        : sourcesUsed.size > 1 ? 'mixed' : 'none';
 
-    // Max gamma strike
-    let maxGammaStrike = strikes[0]?.strike || spotPrice;
-    let maxGamma = 0;
-    for (const s of strikes) {
-      if (Math.abs(s.netGEX) > maxGamma) {
-        maxGamma = Math.abs(s.netGEX);
-        maxGammaStrike = s.strike;
-      }
-    }
-
-    const nonZeroGamma = strikes.filter(s => s.callGamma > 0 || s.putGamma > 0).length;
-    const nonZeroOI = strikes.filter(s => s.callOI > 0 || s.putOI > 0).length;
-    const top5 = [...strikes].sort((a, b) => Math.abs(b.netGEX) - Math.abs(a.netGEX)).slice(0, 5);
-    logger.info(`[GEX] ${symbol}: Agg ${nearExpirations.length} exp, ${strikes.length} strikes (${nonZeroGamma} w/gamma, ${nonZeroOI} w/OI), spot=$${spotPrice.toFixed(2)}, GEX=${totalNetGEX.toFixed(3)}B, flip=$${flipPoint || 'none'}, maxGamma@$${maxGammaStrike}`);
-    if (top5.length > 0) {
-      logger.info(`[GEX] ${symbol} top5: ${top5.map(s => `$${s.strike}(c:${s.callOI}/g:${s.callGamma.toFixed(4)} p:${s.putOI}/g:${s.putGamma.toFixed(4)} net:${s.netGEX.toFixed(3)})`).join(', ')}`);
-    }
-
-    return {
-      symbol,
-      spotPrice,
-      expiration: `Aggregate (${nearExpirations.length} exp)`,
-      totalNetGEX,
-      flipPoint,
-      maxGammaStrike,
-      strikes,
-      timestamp: new Date().toISOString(),
-    };
-  } catch (error) {
-    logger.error(`[GEX] Aggregate calculation error for ${symbol}:`, error);
+    const legacyExp = `Aggregate (${expsUsed.length} exp)`;
+    return snapshotToLegacy(snap, legacyExp, mixedSource, cq);
+  } catch (error: any) {
+    logger.error(`[GEX] Aggregate calculation error for ${symbol}: ${error?.message || error}`);
     return null;
   }
 }

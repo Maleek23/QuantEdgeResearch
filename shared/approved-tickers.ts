@@ -28,15 +28,49 @@ export const INDEX_TICKERS = ['SPY', 'QQQ', 'IWM', 'XSP', 'DIA'] as const;
 export const CRYPTO_TICKERS = ['BTC', 'ETH', 'SOL', 'DOGE'] as const;
 
 // Secondary (allowed but not prioritized)
-export const SECONDARY = ['CLSK', 'RKLB', 'ASTS', 'PLTR', 'SMCI', 'SMH', 'XLK'] as const;
+export const SECONDARY = [
+  'CLSK', 'RKLB', 'ASTS', 'PLTR', 'SMCI', 'SMH', 'XLK',
+  // Added for 25-ticker watchlist backtest coverage
+  'EWY', 'SOXX', 'CRWV', 'MRVL', 'APP', 'ORCL', 'SNDK', 'FSLY',
+] as const;
+
+// SMALL ACCOUNT TIER — cheap, high-vol, catalyst-driven names where
+// 100%-200% premium runs actually happen on weekly options. Built for
+// $300-$1K accounts where mega-cap weeklies are too expensive.
+//
+// Selection criteria:
+//   - Stock price typically $3-$60 (so weekly premiums are $0.10-$1.50)
+//   - 30d realized vol > 60% (room for 100%+ premium pops)
+//   - Has weekly option chains (not monthlies-only)
+//   - Catalyst-driven: earnings, AI/quantum/crypto/EV/space news
+//
+// Already in S_TIER/A_TIER/SECONDARY (just listing them for reference):
+//   FSLY · OKLO · LUNR · CLSK · RKLB · ASTS · MARA · SOFI · AFRM · HIMS · COIN
+//
+// New names added below:
+export const SMALL_ACCOUNT_TIER = [
+  // AI / quantum (cheap, news-driven, regular 50-200% pops)
+  'SOUN', 'IONQ', 'RGTI', 'BBAI', 'QBTS',
+  // Crypto miners (BTC beta, weekly weeklies under $0.50)
+  'RIOT', 'WULF', 'BTBT', 'IREN',
+  // EV / mobility (catalyst-rich, cheap)
+  'NIO', 'RIVN', 'LCID', 'JOBY', 'ACHR',
+  // Nuclear / energy (small modular reactor theme)
+  'SMR', 'NNE', 'BWXT',
+  // Fintech / consumer (sub-$50, weekly liquidity)
+  'HOOD', 'OPEN', 'CHWY', 'PTON',
+  // Meme / high-vol catalyst names
+  'BB', 'GME', 'AMC',
+] as const;
 
 // All approved tickers combined
-export const APPROVED_TICKERS = new Set([
+export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
+  ...SMALL_ACCOUNT_TIER,
 ]);
 
 // Skip list: proven money losers
-export const SKIP_TICKERS = new Set([
+export const SKIP_TICKERS: Set<string> = new Set<string>([
   'AI', 'GLBE', 'TOST', 'CYBR', 'MNDY', 'GRAB', 'SE',
 ]);
 
@@ -65,3 +99,96 @@ export function getTier(symbol: string): 'S' | 'A' | 'INDEX' | 'SECONDARY' | nul
   if ((SECONDARY as readonly string[]).includes(s)) return 'SECONDARY';
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Sector map — used by GEX Hub for sector aggregation
+// Source: backtested watchlist groupings in user memory
+// ─────────────────────────────────────────────────────────────
+export type Sector =
+  | 'semi_equipment'
+  | 'optics'
+  | 'chips'
+  | 'fintech'
+  | 'software'
+  | 'space'
+  | 'energy'
+  | 'crypto'
+  | 'index'
+  | 'mega_tech'
+  | 'other';
+
+export const SECTOR_MAP: Record<string, Sector> = {
+  // Semi equipment
+  AEHR: 'semi_equipment', KLAC: 'semi_equipment', LRCX: 'semi_equipment',
+  MKSI: 'semi_equipment', ACLS: 'semi_equipment', ONTO: 'semi_equipment',
+  ENTG: 'semi_equipment', COHU: 'semi_equipment', AXTI: 'semi_equipment',
+
+  // Optics / photonics
+  AAOI: 'optics', COHR: 'optics', OLED: 'optics', AMBA: 'optics',
+  LITE: 'optics', FN: 'optics', CIEN: 'optics',
+
+  // Memory / chips / silicon
+  MU: 'chips', RMBS: 'chips', AMD: 'chips', TSEM: 'chips', ARM: 'chips',
+  SMTC: 'chips', WDC: 'chips', ALGM: 'chips',
+
+  // Mega-cap tech
+  TSLA: 'mega_tech', AVGO: 'mega_tech', NFLX: 'mega_tech',
+  NBIS: 'mega_tech', SMCI: 'mega_tech', DELL: 'mega_tech', PLTR: 'mega_tech',
+
+  // Fintech
+  BILL: 'fintech', AFRM: 'fintech', SOFI: 'fintech', UPST: 'fintech',
+  COIN: 'fintech', HIMS: 'fintech',
+
+  // Software / SaaS
+  SNOW: 'software', NET: 'software', MDB: 'software', DDOG: 'software',
+  PATH: 'software', ESTC: 'software', DUOL: 'software', FRSH: 'software',
+  ASAN: 'software', SHOP: 'software', INTA: 'software', DKNG: 'software',
+  CRCL: 'software', BROS: 'software',
+
+  // Space / nuclear
+  LUNR: 'space', OKLO: 'space', RKLB: 'space', ASTS: 'space',
+  CLSK: 'space',
+
+  // Energy / mining
+  MARA: 'energy',
+
+  // Index ETFs
+  SPY: 'index', QQQ: 'index', IWM: 'index', XSP: 'index', DIA: 'index',
+  SMH: 'index', XLK: 'index', SOXX: 'index', EWY: 'index',
+
+  // Newly added secondaries
+  CRWV: 'mega_tech', MRVL: 'chips', APP: 'software',
+  ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
+
+  // SMALL ACCOUNT TIER — cheap volatile names
+  SOUN: 'software', IONQ: 'software', RGTI: 'software',
+  BBAI: 'software', QBTS: 'software',
+  RIOT: 'crypto', WULF: 'crypto', BTBT: 'crypto', IREN: 'crypto',
+  NIO: 'other', RIVN: 'other', LCID: 'other',
+  JOBY: 'space', ACHR: 'space',
+  SMR: 'energy', NNE: 'energy', BWXT: 'energy',
+  HOOD: 'fintech', OPEN: 'fintech',
+  CHWY: 'other', PTON: 'other',
+  BB: 'other', GME: 'other', AMC: 'other',
+
+  // Crypto
+  BTC: 'crypto', ETH: 'crypto', SOL: 'crypto', DOGE: 'crypto',
+};
+
+export function getSector(symbol: string): Sector {
+  return SECTOR_MAP[symbol.toUpperCase()] || 'other';
+}
+
+export const SECTOR_LABELS: Record<Sector, string> = {
+  semi_equipment: 'Semi Equipment',
+  optics: 'Optics / Photonics',
+  chips: 'Memory / Chips',
+  fintech: 'Fintech',
+  software: 'Software',
+  space: 'Space / Nuclear',
+  energy: 'Energy',
+  crypto: 'Crypto',
+  index: 'Index ETFs',
+  mega_tech: 'Mega-Cap Tech',
+  other: 'Other',
+};

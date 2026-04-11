@@ -1055,6 +1055,126 @@ function EngineHealthBar() {
 }
 
 // ────────────────────────────────────────────────────────────
+// Top Convictions widget — surfaces the highest-confluence picks
+// from /api/convictions so the user sees them on first load.
+// ────────────────────────────────────────────────────────────
+
+interface MiniConvictionPick {
+  ideaId: string;
+  symbol: string;
+  direction: "long" | "short";
+  convictionScore: number;
+  convictionBand: "S" | "A" | "B" | "C";
+  layerCount: number;
+  riskRewardRatio: number;
+  thesis: string;
+  layers: Array<{ label: string; points: number }>;
+}
+
+function TopConvictions() {
+  const { data, isLoading } = useQuery<{ picks: MiniConvictionPick[]; totalCandidatesScanned: number }>({
+    queryKey: ["/api/convictions", { minScore: 15, limit: 6, lookbackHours: 72 }],
+    queryFn: async () => {
+      const res = await fetch("/api/convictions?minScore=15&limit=6&lookbackHours=72", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("convictions fetch failed");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const picks = data?.picks ?? [];
+  const bandColor = (band: "S" | "A" | "B" | "C") =>
+    band === "S"
+      ? "text-amber-300 border-amber-400/40 bg-amber-500/10"
+      : band === "A"
+      ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
+      : band === "B"
+      ? "text-cyan-300 border-cyan-400/20 bg-cyan-500/10"
+      : "text-muted-foreground border-foreground/10 bg-foreground/[0.03]";
+
+  return (
+    <Card className="bg-card border-border overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-bold text-foreground">Top Convictions</span>
+            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
+              layered confluence
+            </span>
+          </div>
+          <Link href="/trade-desk?preset=todays-best">
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1">
+              View all
+              <ChevronRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : picks.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            No high-conviction picks in the last 72h. Check back after the next scanner pass.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {picks.map((p) => (
+              <Link key={p.ideaId} href={`/t/${p.symbol}/chart`}>
+                <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] hover:border-foreground/20 hover:bg-foreground/[0.04] p-2.5 cursor-pointer transition-all">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-mono font-bold text-sm text-foreground">
+                        {p.symbol}
+                      </span>
+                      {p.direction === "long" ? (
+                        <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                      ) : (
+                        <ArrowDownRight className="w-3 h-3 text-red-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "px-1.5 py-0 rounded border text-[9px] font-mono font-bold",
+                          bandColor(p.convictionBand),
+                        )}
+                      >
+                        {p.convictionBand}
+                      </span>
+                      <span className={cn("text-sm font-mono font-bold", bandColor(p.convictionBand).split(" ")[0])}>
+                        {p.convictionScore}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] font-mono text-muted-foreground mb-1">
+                    <span>{p.layerCount} layers</span>
+                    <span>·</span>
+                    <span>R:R {p.riskRewardRatio.toFixed(1)}×</span>
+                  </div>
+                  {p.thesis && (
+                    <div className="text-[10px] text-muted-foreground/80 leading-tight line-clamp-2">
+                      {p.thesis}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Main Dashboard Page
 // ────────────────────────────────────────────────────────────
 
@@ -1069,6 +1189,12 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-3 sm:px-5 py-4 relative z-10">
         {/* Welcome Header */}
         <WelcomeHeader />
+
+        {/* Row 0: Top Convictions — highest-confluence picks first */}
+        <SectionReveal className="mb-[var(--section-gap-sm)]">
+          <SectionHeader label="Today's Convictions" action="View All" actionHref="/trade-desk?preset=todays-best" />
+          <TopConvictions />
+        </SectionReveal>
 
         {/* Row 1: Morning Briefing + Market Regime */}
         <SectionReveal className="mb-[var(--section-gap-sm)]">

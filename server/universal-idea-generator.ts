@@ -931,6 +931,13 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     if (VIX_FILTERING_ENABLED && currentVIX !== 20) {
       signalDescriptions.push(`VIX: ${currentVIX.toFixed(1)}`);
     }
+    // Earnings surprise magnitude — survives via the catalyst string in
+    // a parseable form so the convictions catalyst layer can score it
+    // without a schema migration. Format: "[surprise=+12.4%]".
+    if (typeof newsContext?.earningsSurprisePct === 'number') {
+      const sp = newsContext.earningsSurprisePct;
+      signalDescriptions.push(`Earnings surprise ${sp >= 0 ? '+' : ''}${sp.toFixed(1)}%`);
+    }
     
     // Generate analysis text
     const analysis = input.analysis || `${getEngineType(input.source)} signal detected: ${signalDescriptions.slice(0, 3).join(', ')}. ` +
@@ -959,8 +966,20 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       strikePrice: input.strikePrice || null,
       expiryDate: input.expiryDate || null,
       
-      // Analysis - use real news catalysts when available
-      catalyst: input.catalyst || newsCatalyst || `${getEngineType(input.source)} detected ${input.direction} signal`,
+      // Analysis - use real news catalysts when available. If we have an
+      // earnings surprise magnitude, append it in a machine-parseable tag
+      // so the convictions catalyst layer can score it.
+      catalyst: (() => {
+        const base =
+          input.catalyst ||
+          newsCatalyst ||
+          `${getEngineType(input.source)} detected ${input.direction} signal`;
+        if (typeof newsContext?.earningsSurprisePct === 'number') {
+          const sp = newsContext.earningsSurprisePct;
+          return `${base} [surprise=${sp >= 0 ? '+' : ''}${sp.toFixed(1)}%]`;
+        }
+        return base;
+      })(),
       analysis,
       qualitySignals: signalDescriptions,
       

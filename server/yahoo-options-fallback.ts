@@ -169,10 +169,18 @@ export async function getYahooOptionsChain(
     const puts: YahooOptionContract[] = optionsData.options?.[0]?.puts || optionsData.puts || [];
 
     // Get the actual expiration date string
+    // yahoo-finance2 v3 returns Date objects for expirationDates, not epoch numbers
     let expDateStr = expiration || '';
     if (!expDateStr && expirationDates.length > 0) {
-      const d = new Date(expirationDates[0] * 1000);
-      expDateStr = d.toISOString().split('T')[0];
+      const raw: any = expirationDates[0];
+      const d = raw instanceof Date ? raw : new Date(typeof raw === 'number' ? raw * 1000 : raw);
+      if (!isNaN(d.getTime())) expDateStr = d.toISOString().split('T')[0];
+    }
+    // Also check if the option's own expiration_date is a Date object
+    const optExp = optionsData.options?.[0]?.expirationDate;
+    if (optExp && !expDateStr) {
+      const d = optExp instanceof Date ? optExp : new Date(optExp);
+      if (!isNaN(d.getTime())) expDateStr = d.toISOString().split('T')[0];
     }
 
     // Calculate time to expiry

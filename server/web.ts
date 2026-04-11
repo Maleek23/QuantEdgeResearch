@@ -31,6 +31,7 @@ import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
+import { initializeWeeklyTracker } from "./weekly-tracker";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -135,6 +136,9 @@ app.use((req, res, next) => {
 
     initializeBotNotificationService(server);
     log('🤖 Bot notification service initialized');
+
+    initializeWeeklyTracker(server);
+    log('📅 Weekly watchlist tracker initialized');
 
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started');

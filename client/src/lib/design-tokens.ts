@@ -128,6 +128,40 @@ export const componentStyles = {
     F: 'bg-[var(--grade-f)]/15 border border-[var(--grade-f)]/35 text-[var(--grade-f)]',
   },
 
+  // GEX / Skylit terminal styling — yellow walls, purple puts, cyan projection
+  gex: {
+    /** Call wall pill — yellow/gold (positive gamma zone) */
+    wallCall: 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--gex-positive)]/15 border border-[var(--gex-positive)]/40 text-[var(--gex-positive)]',
+    /** Put wall pill — purple (negative gamma zone) */
+    wallPut: 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--gex-negative)]/15 border border-[var(--gex-negative)]/40 text-[var(--gex-negative)]',
+    /** Gamma flip line pill — orange (transition zone) */
+    flip: 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--gex-flip)]/15 border border-[var(--gex-flip)]/40 text-[var(--gex-flip)]',
+    /** Max gamma star — yellow glow */
+    star: 'text-[var(--gex-star)] drop-shadow-[0_0_6px_var(--gex-star)]',
+    /** Alert ring — red pulse */
+    alert: 'ring-1 ring-[var(--gex-alert)] shadow-[0_0_12px_rgba(239,68,68,0.4)]',
+    /** Heatmap cell — call side (positive) */
+    cellCall: 'bg-[var(--gex-positive-bg)] border border-[var(--gex-positive)]/25',
+    /** Heatmap cell — put side (negative) */
+    cellPut: 'bg-[var(--gex-negative-bg)] border border-[var(--gex-negative)]/25',
+    /** Heatmap cell — neutral baseline */
+    cellNeutral: 'bg-[var(--gex-neutral-bg)] border border-border/40',
+    /** Projection arc glow — cyan */
+    projection: 'stroke-[var(--projection-glow)] drop-shadow-[0_0_8px_var(--projection-glow)]',
+    /** Terminal shell — black panel w/ yellow accent edge */
+    terminal: 'rounded-lg bg-[var(--surface-base)] border border-[var(--gex-positive)]/20 shadow-[0_0_40px_rgba(250,204,21,0.04)]',
+    /** Terminal header bar */
+    terminalHeader: 'flex items-center justify-between px-3 py-2 border-b border-[var(--gex-positive)]/15 bg-[var(--surface-raised)]',
+    /** Mode toggle button (Orbs/Heatmap/Projection) */
+    modeButton: 'h-7 px-2.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-md border border-border bg-transparent hover:bg-[var(--gex-positive)]/10 hover:border-[var(--gex-positive)]/40 hover:text-[var(--gex-positive)] transition-colors',
+    /** Mode toggle button — active state */
+    modeButtonActive: 'h-7 px-2.5 text-[10px] font-mono font-semibold uppercase tracking-wider rounded-md border border-[var(--gex-positive)]/50 bg-[var(--gex-positive)]/15 text-[var(--gex-positive)] shadow-[0_0_12px_rgba(250,204,21,0.15)]',
+    /** Confluence score badge — dynamic tier */
+    scoreElite: 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--gex-positive)]/20 border border-[var(--gex-positive)]/50 text-[var(--gex-positive)]',
+    scoreStrong: 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--brand-cyan)]/20 border border-[var(--brand-cyan)]/50 text-[var(--brand-cyan)]',
+    scoreWeak: 'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-muted border border-border text-muted-foreground',
+  },
+
   // Data density helpers — use on parent container to tighten child spacing
   density: {
     /** Bloomberg compact — minimal spacing everywhere */

@@ -32,6 +32,7 @@ const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
 const RollingWinRateChart = lazy(() => import("@/components/rolling-win-rate-chart"));
 const DrawdownAnalysisChart = lazy(() => import("@/components/drawdown-analysis-chart"));
 const HistoricalIntelligenceTab = lazy(() => import("@/components/historical-intelligence-tab"));
+const ConvictionBacktestCard = lazy(() => import("@/components/conviction-backtest-card"));
 
 function ChartSkeleton() {
   return (
@@ -619,6 +620,12 @@ export default function PerformancePage() {
               </TabsContent>
 
               <TabsContent value="analytics" className="space-y-4">
+                {/* Conviction backtest sits at the top of analytics —
+                    it's the headline answer to "is the engine working?" */}
+                <Suspense fallback={<ChartSkeleton />}>
+                  <ConvictionBacktestCard lookbackDays={90} />
+                </Suspense>
+
                 <Accordion type="multiple" className="space-y-2">
                   <AccordionItem value="engine-perf" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">

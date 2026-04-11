@@ -185,9 +185,17 @@ export const tradeIdeas = pgTable("trade_ideas", {
   status: text("status").$type<TradeIdeaStatus>().notNull().default('published'), // 'draft' | 'published' | 'archived'
   chartImageUrl: text("chart_image_url"), // URL/path to uploaded chart image (for chart_analysis source)
   chartAnalysisJson: jsonb("chart_analysis_json"), // Full AI analysis result (for chart_analysis source)
-  confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
+  // ⚠️ H9: confidenceScore is the LEGACY raw scanner confidence (0-100) emitted
+  // by the source scanner that produced this idea. The canonical "how good is
+  // this trade?" number that the UI displays is `convictionScore` — produced
+  // by the 13-layer convictions engine and enriched onto API responses (not
+  // stored on this row). Always render with `displayedScore()` from
+  // client/src/lib/conviction-display.ts so consumers fall back consistently.
+  confidenceScore: real("confidence_score").notNull().default(0), // legacy 0-100 raw scanner confidence
   qualitySignals: text("quality_signals").array(), // Array of signal names that fired
-  probabilityBand: text("probability_band").notNull().default('C'), // 'A+' (95+), 'A' (90+), 'B+' (85+), 'B' (80+), 'C+' (75+), 'C' (70+), 'D' (<70)
+  // Legacy band scale (A+/A/A-/B+/B/B-/C+/C/D). Superseded by `convictionBand`
+  // (S/A/B/C) from the convictions engine — see displayedBand() helper.
+  probabilityBand: text("probability_band").notNull().default('C'),
   
   // Performance Tracking Fields
   outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'), // Tracks if trade worked
@@ -480,7 +488,7 @@ export type InsertFuturesResearchBrief = z.infer<typeof insertFuturesResearchBri
 export type FuturesResearchBrief = typeof futuresResearchBriefs.$inferSelect;
 
 // Watchlist Category Types
-export type WatchlistCategory = 'active' | 'annual_breakout' | 'options_watch' | 'swing_candidates' | 'archive';
+export type WatchlistCategory = 'active' | 'annual_breakout' | 'options_watch' | 'swing_candidates' | 'archive' | 'weekly';
 
 // Conviction Level for Annual Watchlist
 export type ConvictionLevel = 'high' | 'medium' | 'speculative';
@@ -555,6 +563,13 @@ export const watchlist = pgTable("watchlist", {
   notesCount: integer("notes_count").default(0), // Count of research notes for this symbol
   nextCatalyst: text("next_catalyst"), // Upcoming catalyst (e.g., "Earnings Jan 30")
   nextCatalystDate: text("next_catalyst_date"), // YYYY-MM-DD of next catalyst
+
+  // Weekly Watchlist Fields (category='weekly')
+  weekStartDate: text("week_start_date"), // ISO date (Monday) — groups weekly items
+  autoSeeded: boolean("auto_seeded").default(false), // True if injected by Monday cron
+  weeklyConvictionScore: real("weekly_conviction_score"), // Score snapshot at seed time
+  weeklyConvictionBand: text("weekly_conviction_band"), // S/A/B/C snapshot at seed time
+  weeklyThesis: text("weekly_thesis"), // Reason for weekly inclusion (auto or manual)
 });
 
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });

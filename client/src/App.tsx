@@ -73,6 +73,8 @@ const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "mar
 // MERGED — Bullish Trends absorbed into Market Scanner
 // MERGED — Trading Engine absorbed into Performance
 const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
+const WeeklyWatchlistPage = lazyWithRetry(() => import("@/pages/weekly-watchlist"), "weekly-watchlist");
+const ConvictionBacktestPage = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
 // REMOVED — AION consolidated out, redirect added below
 const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
@@ -91,11 +93,22 @@ const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
 // MERGED — SPX Command Center absorbed into Options Analyzer
 const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
+const GEXScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
+const GEXCommand = lazyWithRetry(() => import("@/pages/gex-command"), "gex-command");
+// Canonical per-ticker page — every analytic about a single symbol lives
+// here as a tab. Reachable at /t/:symbol[/tab]. Replaces the scattered
+// /command, /stock, and /gex per-symbol destinations as the user-facing
+// landing surface for "look up a ticker".
+const TickerPage = lazyWithRetry(() => import("@/pages/ticker"), "ticker");
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
 const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
-const CommandCenter = lazyWithRetry(() => import("@/pages/command"), "command");
+// Legacy CommandCenter (projector + intelligence) — stashed while we migrate
+// its unique features into the unified Command workspace. Reachable at
+// /command-legacy for reference.
+const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
 const GeopoliticalMatrix = lazyWithRetry(() => import("@/pages/geopolitical-matrix"), "geopolitical-matrix");
+const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -220,14 +233,24 @@ function Router() {
       <Route path="/research">
         <Redirect to="/home" />
       </Route>
-      {/* Stock detail is PUBLIC - visitors can browse and analyze any stock */}
-      <Route path="/stock/:symbol" component={StockDetailPage} />
+      {/*
+       * Stock detail (legacy) — kept reachable at /stock-legacy/:symbol so
+       * we can compare against the new ticker page during migration. The
+       * canonical /stock/:symbol now redirects to the new ticker page so
+       * external links and shared URLs land on the unified destination.
+       */}
+      <Route path="/stock/:symbol">
+        {(params) => <Redirect to={`/t/${params.symbol}/overview`} />}
+      </Route>
+      <Route path="/stock-legacy/:symbol" component={StockDetailPage} />
       {/* MERGED: Discover → Trade Desk */}
       <Route path="/discover"><Redirect to="/trade-desk" /></Route>
       <Route path="/market-movers">
         <Redirect to="/market" />
       </Route>
       <Route path="/watchlist" component={withBetaProtection(UnifiedWatchlist)} />
+      <Route path="/watchlist/weekly" component={withBetaProtection(WeeklyWatchlistPage)} />
+      <Route path="/convictions/backtest" component={withBetaProtection(ConvictionBacktestPage)} />
       <Route path="/ai-stock-picker">
         <Redirect to="/trade-desk" />
       </Route>
@@ -331,13 +354,73 @@ function Router() {
       <Route path="/learning" component={NotFound} />
       <Route path="/risk" component={NotFound} />
       
-      {/* Command Center — projector + GEX targets + intelligence */}
-      <Route path="/command" component={withBetaProtection(CommandCenter)} />
-      <Route path="/projector"><Redirect to="/command" /></Route>
-      <Route path="/spx"><Redirect to="/command" /></Route>
+      {/*
+       * ═══════════════════════════════════════════════════════════════════
+       * COMMAND WORKSPACE — unified per-symbol chart destination.
+       *
+       * One URL pattern (/command/:symbol?) owns the chart workspace. All
+       * legacy chart entry points (gex per-ticker, projector, chart-analysis,
+       * spx, stock detail) redirect here. Every layer/panel on the screen is
+       * driven by URL query params so deep-links remain shareable:
+       *
+       *   /command/SPY                  — default orbs layout
+       *   /command/SPY?layer=gex        — GEX layer active
+       *   /command/SPY?layer=gex+vex    — both
+       *   /command/SPY?panel=projection — projection arc visible
+       *   /command/SPY?interval=5m      — timeframe
+       *
+       * /command (no symbol) resolves to /command/SPY.
+       * /command-legacy is the old projector+intelligence page, kept as a
+       * reference while we migrate its features into this workspace.
+       * ═══════════════════════════════════════════════════════════════════
+       */}
+      {/*
+       * ═══════════════════════════════════════════════════════════════
+       * TICKER PAGE — canonical per-symbol destination.
+       *
+       * Every analytic about ONE ticker lives here as a tab:
+       *   /t/PLTR              → defaults to /t/PLTR/chart
+       *   /t/PLTR/overview     → 5-second trader read
+       *   /t/PLTR/chart        → Skylit chart workspace
+       *   /t/PLTR/gex          → full GEX heatmap + per-strike
+       *   /t/PLTR/options      → strikes / flow / P/C  (stub)
+       *   /t/PLTR/vol          → IV surface, term structure (stub)
+       *   /t/PLTR/projection   → magnet target + scenarios  (stub)
+       *   /t/PLTR/catalysts    → earnings, news, macro  (stub)
+       *
+       * The OLD per-page chart entry points (/command, /stock, /gex/:s)
+       * redirect into this single home so links don't rot.
+       * ═══════════════════════════════════════════════════════════════
+       */}
+      <Route path="/t/:symbol/:tab" component={withBetaProtection(TickerPage)} />
+      <Route path="/t/:symbol" component={withBetaProtection(TickerPage)} />
+      <Route path="/t"><Redirect to="/t/SPY/chart" /></Route>
+
+      {/* Legacy chart workspace — /command/:symbol still served by the
+          existing GEX command page. The new ticker page mounts the SAME
+          underlying chart workspace, so we keep /command alive as an
+          alias for now and gradually move all internal links to /t/. */}
+      <Route path="/command/:symbol">
+        {(params) => <Redirect to={`/t/${params.symbol}/chart`} />}
+      </Route>
+      <Route path="/command"><Redirect to="/t/SPY/chart" /></Route>
+      <Route path="/command-legacy" component={withBetaProtection(CommandCenterLegacy)} />
+      {/* Legacy chart routes → redirect into the new ticker page */}
+      <Route path="/projector"><Redirect to="/t/SPY/projection" /></Route>
+      <Route path="/spx"><Redirect to="/t/SPX/chart" /></Route>
+      <Route path="/gex/:symbol">
+        {(params) => <Redirect to={`/t/${params.symbol}/gex`} />}
+      </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
-      <Route path="/gex"><Redirect to="/flow?tab=gex" /></Route>
+      {/* GEX confluence scanner (list view, not chart). Chart lives at /command/:symbol. */}
+      <Route path="/gex" component={withBetaProtection(GEXScanner)} />
+      {/* OlAlgo Bot — challenge backtest dashboard */}
+      <Route path="/olalgo" component={withBetaProtection(OlAlgoPage)} />
+      {/* Convictions merged into Trade Desk — redirect for back-compat */}
+      <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
+      <Route path="/scanner/gex" component={withBetaProtection(GEXScanner)} />
+      <Route path="/gex-legacy" component={withBetaProtection(GEXDashboard)} />
       {/* Geopolitical Reaction Matrix */}
       <Route path="/geopolitical"><Redirect to="/command" /></Route>
       {/* Redirects */}

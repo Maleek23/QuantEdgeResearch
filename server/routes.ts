@@ -1906,6 +1906,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: backfill synthetic option ideas for tickers missing from the
+  // historical pool. Used by the OlAlgo backtest dashboard so that
+  // mega-caps with no live scanner coverage can still be validated.
+  app.post("/api/admin/backfill-options", requireAdminJWT, async (req, res) => {
+    try {
+      const tickers: string[] = Array.isArray(req.body?.tickers) ? req.body.tickers : [];
+      const days: number = typeof req.body?.days === 'number' ? req.body.days : 90;
+
+      if (tickers.length === 0) {
+        return res.status(400).json({ error: "tickers array is required" });
+      }
+
+      const { backfillOptionIdeas } = await import('./option-backfill');
+      const results = await backfillOptionIdeas(tickers, days);
+
+      const totalInserted = results.reduce((sum, r) => sum + r.inserted, 0);
+      logger.info(
+        `[option-backfill] Completed: ${totalInserted} ideas inserted across ${results.length} tickers`,
+      );
+
+      res.json({ success: true, totalInserted, results });
+    } catch (error) {
+      logger.error('Failed to backfill options:', error);
+      res.status(500).json({ error: "Failed to backfill options" });
+    }
+  });
+
   // Admin ML Trigger Learning Cycle
   app.post("/api/admin/ml/trigger-learning", requireAdminJWT, async (_req, res) => {
     try {
@@ -5687,6 +5714,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[TRADE-IDEAS] Quality filter applied: ${beforeCount} -> ${ideas.length} ideas`);
       }
 
+      // 🔥 CONVICTION GATE: ?conviction=high intersects with the convictions
+      // engine picks (score ≥ 15, layered confluence). This is the same bar
+      // the /convictions page uses, so Trade Desk and Convictions stay in
+      // sync. Default min score can be tuned via ?minConviction=N.
+      const convictionFilter = req.query.conviction as string | undefined;
+      if (convictionFilter === 'high') {
+        try {
+          const minConv = req.query.minConviction ? Number(req.query.minConviction) : 15;
+          const { buildConvictions } = await import('./convictions-engine');
+          const conv = await buildConvictions({
+            // Use engine default (96h with per-idea age cap)
+            limit: 200,
+            minScore: minConv,
+            watchlistOnly: true,
+          });
+          const allowedIds = new Set(conv.picks.map(p => p.ideaId));
+          const allowedSymbols = new Set(conv.picks.map(p => p.symbol));
+          const beforeCount = ideas.length;
+          // Keep ideas that are either in the picks list directly, or share
+          // a symbol with a picked idea (same name, different timestamp).
+          ideas = ideas.filter(i => allowedIds.has(i.id) || allowedSymbols.has(i.symbol));
+          // Attach the score so the UI can sort/badge.
+          const scoreMap = new Map(conv.picks.map(p => [p.symbol, p.convictionScore]));
+          const bandMap = new Map(conv.picks.map(p => [p.symbol, p.convictionBand]));
+          ideas = ideas.map(i => ({
+            ...i,
+            convictionScore: scoreMap.get(i.symbol) ?? null,
+            convictionBand: bandMap.get(i.symbol) ?? null,
+          }) as any);
+          logger.info(`[TRADE-IDEAS] Conviction gate applied (min ${minConv}): ${beforeCount} -> ${ideas.length} ideas`);
+        } catch (err) {
+          logger.error('[TRADE-IDEAS] Conviction gate failed:', err);
+        }
+      }
+
       // 🛡️ SANITIZE: Cap confidence at 94% for all returned ideas (fixes legacy data)
       ideas = ideas.map(idea => ({
         ...idea,
@@ -6115,6 +6177,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // CONVICTIONS — Layered confluence scoring across the watchlist
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/convictions", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getCachedConvictions } = await import("./convictions-engine");
+      const lookbackHours = req.query.lookbackHours ? Number(req.query.lookbackHours) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const minScore = req.query.minScore ? Number(req.query.minScore) : undefined;
+      const watchlistOnly = req.query.watchlistOnly === "false" ? false : true;
+      const weeklyOnly = req.query.weeklyOnly === "true";
+      const userId = req.session?.userId as string | undefined;
+      // Optional ?symbol=AAPL filter — used by the idea-detail drawer so it
+      // doesn't have to fetch the full picks payload to find one ticker.
+      const symbolFilter = (req.query.symbol as string | undefined)?.toUpperCase();
+      const directionFilter = (req.query.direction as string | undefined)?.toLowerCase();
+
+      // When symbol-filtering, widen the build (don't watchlist-gate, raise
+      // the minScore floor). Caller wants the score for ONE specific ticker;
+      // if it's not in the approved list it should still come back.
+      const buildOpts = symbolFilter
+        ? {
+            lookbackHours: lookbackHours ?? 96,
+            limit: 500,
+            minScore: 0,
+            watchlistOnly: false,
+            weeklyUserId: userId,
+            weeklyOnly: false,
+          }
+        : {
+            lookbackHours,
+            limit,
+            minScore,
+            watchlistOnly,
+            weeklyUserId: userId,
+            weeklyOnly,
+          };
+
+      // Use the cached/shared snapshot so this endpoint and best-setups
+      // always return matching scores for the same idea (single source of truth).
+      const data = await getCachedConvictions(buildOpts);
+
+      if (symbolFilter) {
+        const filtered = data.picks.filter((p) => {
+          if (p.symbol.toUpperCase() !== symbolFilter) return false;
+          if (directionFilter && p.direction.toLowerCase() !== directionFilter) return false;
+          return true;
+        });
+        res.json({ ...data, picks: filtered });
+        return;
+      }
+
+      res.json(data);
+    } catch (error) {
+      logger.error("[API] Convictions error:", error);
+      res.status(500).json({ error: "Failed to build convictions" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // CONVICTION BACKTEST — replay scoring vs actual outcomes
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/convictions/backtest", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { backtestConvictions } = await import("./conviction-backtest");
+      const lookbackDays = req.query.lookbackDays ? Number(req.query.lookbackDays) : 90;
+      const report = await backtestConvictions({ lookbackDays });
+      res.json(report);
+    } catch (error) {
+      logger.error("[API] Convictions backtest error:", error);
+      res.status(500).json({ error: "Failed to run conviction backtest" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // PRE-MARKET GAPPERS — overnight movers from weekly + approved tickers
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/premarket/gappers", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getPreMarketBatch, currentMarketPhase } = await import("./pre-market-service");
+      const minGapPct = req.query.minGapPct ? Number(req.query.minGapPct) : 1;
+      const userId = req.session?.userId as string | undefined;
+
+      // Symbol universe: weekly watchlist (priority) + approved tickers fallback
+      const symbols = new Set<string>();
+      let weeklySymbols: Set<string> = new Set();
+      if (userId) {
+        try {
+          const { getWeeklyWatchlist } = await import("./weekly-watchlist-seeder");
+          const items = await getWeeklyWatchlist(userId);
+          items.forEach((i: any) => {
+            const s = i.symbol.toUpperCase();
+            symbols.add(s);
+            weeklySymbols.add(s);
+          });
+        } catch (err) {
+          logger.debug("[API] gappers: weekly fetch failed", err);
+        }
+      }
+      try {
+        const { APPROVED_TICKERS } = await import("@shared/approved-tickers");
+        APPROVED_TICKERS.forEach((sym) => symbols.add(sym.toUpperCase()));
+      } catch (err) {
+        logger.debug("[API] gappers: approved tickers import failed", err);
+      }
+      // Hard cap so the Yahoo batch doesn't explode
+      const symbolArr = Array.from(symbols).slice(0, 80);
+      if (symbolArr.length === 0) {
+        return res.json({ phase: currentMarketPhase(), gappers: [], scanned: 0 });
+      }
+
+      const snaps = await getPreMarketBatch(symbolArr);
+      const gappers = Array.from(snaps.values())
+        .filter((s) => Number.isFinite(s.gapPct) && Math.abs(s.gapPct) >= minGapPct)
+        .map((s) => ({
+          symbol: s.symbol,
+          price: s.price,
+          previousClose: s.previousClose,
+          gapPct: Number(s.gapPct.toFixed(2)),
+          direction: s.gapDirection,
+          phase: s.phase,
+          isWeekly: weeklySymbols.has(s.symbol),
+        }))
+        .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct));
+
+      res.json({
+        phase: currentMarketPhase(),
+        scanned: snaps.size,
+        gappers,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("[API] Pre-market gappers error:", error);
+      res.status(500).json({ error: "Failed to fetch pre-market gappers" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // MARKET PROJECTOR — Next session outlook with probability zones
   // ═══════════════════════════════════════════════════════════════
 
@@ -6417,15 +6619,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[BEST-SETUPS] Skipping period filter - date filter '${dateFilter}' already applied`);
       }
       
-      // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-grade ideas
-      // Expanded to include C- and D+ to show more trade ideas
-      const highGradeIdeas = openIdeas.filter(i => {
-        const grade = i.probabilityBand || '';
-        return ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+'].includes(grade);
+      // PERFORMANCE OPTIMIZATION: Pre-filter to tradeable-quality ideas.
+      // An idea qualifies if EITHER:
+      //   (a) it has a tradeable letter grade (probabilityBand A+..D+), OR
+      //   (b) it has no grade but a confidence score ≥ 50 (the convictions
+      //       engine, surge scanners, and several other ingestion paths
+      //       create ideas WITHOUT setting probabilityBand — those used to
+      //       be silently dropped here, which was the root cause of the
+      //       Trade Desk showing only 1 idea even though dozens were live).
+      const TRADEABLE_GRADES = new Set([
+        'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+',
+      ]);
+      const highGradeIdeas = openIdeas.filter((i) => {
+        const grade = (i.probabilityBand || '').trim();
+        if (grade && TRADEABLE_GRADES.has(grade)) return true;
+        // Ungraded path — accept if confidence is plausible
+        if (!grade && (i.confidenceScore ?? 0) >= 50) return true;
+        return false;
       });
-      logger.info(`[BEST-SETUPS] High-grade filter: ${highGradeIdeas.length} ideas (grades A+ to D+)`);
+      logger.info(
+        `[BEST-SETUPS] Quality filter: ${highGradeIdeas.length} ideas (graded + ungraded ≥50 confidence)`,
+      );
 
-      // Fallback: if fewer than limit high-grade ideas, include all open ideas
+      // Fallback: if fewer than limit qualifying ideas, include all open ideas
       const candidateIdeas = highGradeIdeas.length >= limit
         ? highGradeIdeas
         : openIdeas.slice(0, 100);
@@ -6453,7 +6669,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Fast scoring without ML/breakout calls (skip expensive async operations)
-      // Conviction = Base + Signals + R:R + Grade + WinRate + SOURCE PRIORITY
+      // ⚠️ H9: this is the in-route RANKING score, used only to pick which
+      // ideas get enriched + returned. It is NOT the canonical convictionScore
+      // that the UI displays — that one comes from the convictions engine and
+      // is enriched on top of these survivors below. Naming it `rankingScore`
+      // here so it doesn't shadow the canonical field.
       const scoredIdeas = candidateIdeas.map(idea => {
         const confidence = idea.confidenceScore || 50;
         const signalCount = idea.qualitySignals?.length || 0;
@@ -6461,8 +6681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? (idea.targetPrice - idea.entryPrice) / Math.max(0.01, idea.entryPrice - idea.stopLoss)
           : 1;
 
-        // Base conviction score
-        let convictionScore = confidence;
+        // Base ranking score
+        let rankingScore = confidence;
 
         // 🔥 SOURCE PRIORITY BONUS - Prioritize momentum/surge over generic options flow
         // This ensures we show IREN/ONDS/RDW surges instead of random options flow on slow stocks
@@ -6486,27 +6706,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sourcePriority[dataSource] || 0,
           10  // minimum default
         );
-        convictionScore += sourceBonus;
+        rankingScore += sourceBonus;
 
-        // Signal confluence bonus (more signals = higher conviction)
-        convictionScore += signalCount * 5;
+        // Signal confluence bonus (more signals = higher rank)
+        rankingScore += signalCount * 5;
 
         // 🎯 ASSET TYPE - Give OPTIONS a SLIGHT boost for visibility
         // Options require timely action due to expiration, show them prominently
         const assetType = idea.assetType || '';
         if (assetType === 'stock') {
-          convictionScore += 5; // Small boost for stocks
+          rankingScore += 5; // Small boost for stocks
         } else if (assetType === 'option') {
-          convictionScore += 10; // Options get priority - they expire!
+          rankingScore += 10; // Options get priority - they expire!
         }
 
         // Risk/Reward bonus (capped at 3:1 for max bonus)
-        convictionScore += Math.min(riskReward, 3) * 10;
+        rankingScore += Math.min(riskReward, 3) * 10;
 
         // Grade bonus
         const grade = idea.probabilityBand || '';
-        if (grade === 'A+' || grade === 'A') convictionScore += 10;
-        else if (grade === 'A-' || grade === 'B+') convictionScore += 5;
+        if (grade === 'A+' || grade === 'A') rankingScore += 10;
+        else if (grade === 'A-' || grade === 'B+') rankingScore += 5;
 
         // Historical win rate bonus (fast, no API calls)
         const { winRate, sampleSize } = calculateSymbolWinRate(idea.symbol);
@@ -6517,7 +6737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           else if (winRate >= 50) winRateBonus = 5;
           else if (winRate < 40) winRateBonus = -10;
         }
-        convictionScore += winRateBonus;
+        rankingScore += winRateBonus;
 
         // Freshness scoring — newer ideas rank higher
         const ideaTimestamp = idea.timestamp ? new Date(idea.timestamp).getTime() : Date.now();
@@ -6527,11 +6747,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         else if (ideaAgeHours < 3) freshnessBonus = 5;
         else if (ideaAgeHours > 6) freshnessBonus = -15;
         else if (ideaAgeHours > 12) freshnessBonus = -25;
-        convictionScore += freshnessBonus;
+        rankingScore += freshnessBonus;
 
         return {
           ...idea,
-          convictionScore: Math.round(Math.max(convictionScore, 0)),
+          rankingScore: Math.round(Math.max(rankingScore, 0)),
           signalCount,
           riskReward: Math.round(riskReward * 100) / 100,
           mlDirection: 'neutral',  // Skip slow ML calls for performance
@@ -6549,8 +6769,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Sort by conviction score descending
-      scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
+      // Sort by ranking score descending (this is in-route ranking, not the
+      // canonical conviction score — that gets enriched on top further down).
+      scoredIdeas.sort((a, b) => b.rankingScore - a.rankingScore);
       
       // 🎯 CRITICAL: Deduplicate by symbol+assetType+optionType - keep BEST setup per unique combo
       // This allows showing DIS CALL and DIS PUT as separate entries
@@ -6583,10 +6804,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Convert map back to array and re-sort (map doesn't preserve order)
       const uniqueBySymbol = Array.from(symbolBestMap.values());
-      uniqueBySymbol.sort((a, b) => b.convictionScore - a.convictionScore);
-      
-      // Take top N unique symbols
-      let topSetups = uniqueBySymbol.slice(0, limit);
+      uniqueBySymbol.sort((a, b) => b.rankingScore - a.rankingScore);
+
+      // Oversample 3× so the convictions enrichment + re-rank below has
+      // headroom — final slice to `limit` happens after re-ranking by the
+      // canonical convictions score.
+      const oversampleLimit = Math.max(limit * 3, 30);
+      let topSetups = uniqueBySymbol.slice(0, oversampleLimit);
 
       // 🛡️ FINAL SAFETY CHECK: If date filter is 'today', do one last verification
       // This catches any ideas that might have slipped through earlier filters
@@ -6606,7 +6830,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, ML+Breakout+WinRate enhanced)`);
+      // 🛡️ PHASE 1 REVALIDATION — applies the same age cap, catalyst-vs-direction
+      // contradiction reject, and live-price-vs-stop/target checks the convictions
+      // engine uses. Fixes the "stale ideas + chase entries" bug at the API layer
+      // so all 12+ downstream consumers (Top Convictions widget, high-conviction-alert,
+      // home, landing, stock-detail, etc.) get clean data automatically.
+      let revalidationDiagnostics: { rejected: number; ageRejected: number; liveRejected: number } = {
+        rejected: 0,
+        ageRejected: 0,
+        liveRejected: 0,
+      };
+      try {
+        const { revalidateBestSetups } = await import('./convictions-engine');
+        const { kept, diagnostics } = await revalidateBestSetups(topSetups);
+        revalidationDiagnostics = {
+          rejected: diagnostics.ageRejected + diagnostics.liveRejected,
+          ageRejected: diagnostics.ageRejected,
+          liveRejected: diagnostics.liveRejected,
+        };
+        topSetups = kept;
+      } catch (revErr) {
+        logger.warn(`[BEST-SETUPS] revalidation failed (returning unfiltered): ${(revErr as Error).message}`);
+      }
+
+      // 🎯 H1 + H7: Enrich every survivor with the canonical convictions-engine
+      // score / band / layers, then re-rank and final-slice. This collapses the
+      // two parallel scoring pipelines (in-route formula vs. layered engine)
+      // into one — so the desk page sidebar, drawer, Top Conviction widget,
+      // and high-conviction alerts all show the same number for the same idea.
+      // Cached for 60s (CONVICTIONS_CACHE_TTL_MS) so polling consumers don't
+      // pay full cost on every request.
+      let enrichedCount = 0;
+      try {
+        const { getCachedConvictions } = await import('./convictions-engine');
+        const sessionUserId = (req.session as any)?.userId as string | undefined;
+        const convData = await getCachedConvictions({
+          lookbackHours: 96,
+          limit: 500,
+          watchlistOnly: false,
+          minScore: 0,
+          weeklyUserId: sessionUserId,
+        });
+        const pickByKey = new Map<string, any>();
+        for (const p of convData.picks) {
+          // Index by symbol+direction (the natural key) AND symbol-only as
+          // a fallback for ideas where direction may be inferred differently.
+          const dir = (p.direction || 'long').toLowerCase();
+          pickByKey.set(`${p.symbol}::${dir}`, p);
+          if (!pickByKey.has(p.symbol)) pickByKey.set(p.symbol, p);
+        }
+        topSetups = topSetups.map((s: any) => {
+          const dir = (s.direction || 'long').toLowerCase();
+          const pick = pickByKey.get(`${s.symbol}::${dir}`) || pickByKey.get(s.symbol);
+          if (pick) {
+            enrichedCount++;
+            return {
+              ...s,
+              convictionScore: pick.convictionScore,
+              convictionBand: pick.convictionBand,
+              layers: pick.layers,
+              layerCount: pick.layerCount,
+              // Prefer the engine's thesis but fall back to scanner thesis
+              thesis: pick.thesis || s.thesis || s.analysis,
+            };
+          }
+          return s;
+        });
+        // Re-rank by the canonical conviction score
+        topSetups.sort((a: any, b: any) => (b.convictionScore || 0) - (a.convictionScore || 0));
+      } catch (enrichErr) {
+        logger.warn(`[BEST-SETUPS] convictions enrichment failed (using in-route scores): ${(enrichErr as Error).message}`);
+      }
+
+      // Final slice to the originally-requested limit (after enrichment + re-rank)
+      topSetups = topSetups.slice(0, limit);
+
+      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, freshness-rejected ${revalidationDiagnostics.rejected}, convictions-enriched ${enrichedCount})`);
 
       // 🔍 DEBUG: Log the dates of returned setups to verify filtering
       if (topSetups.length > 0) {
@@ -6625,7 +6924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         count: topSetups.length,
         totalOpen: openIdeas.length,
         setups: topSetups,
-        generatedAt: now.toISOString()
+        generatedAt: now.toISOString(),
+        revalidation: revalidationDiagnostics,
       });
     } catch (error) {
       logger.error('[BEST-SETUPS] Error:', error);
@@ -12371,6 +12671,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('[WATCHLIST] Error fetching watchlist:', error);
       res.status(500).json({ error: "Failed to fetch watchlist" });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // WEEKLY WATCHLIST — curated focus list (auto-seeded Monday + manual)
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/watchlist/weekly", async (req: any, res) => {
+    try {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+      const { getWeeklyWatchlist, listWeeklyWeeks, mondayOfWeek } = await import('./weekly-watchlist-seeder');
+      const weekStart = (req.query.weekStart as string) || mondayOfWeek();
+      const items = await getWeeklyWatchlist(userId, weekStart);
+
+      // Enrich with live prices for the UI
+      const symbols = items.map(i => i.symbol);
+      let priceMap = new Map<string, { price: number; changePercent: number }>();
+      if (symbols.length > 0) {
+        try {
+          const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
+          const reqs = items.map(i => ({
+            symbol: i.symbol,
+            assetType: ((i.assetType as string) || 'stock') as 'stock' | 'crypto' | 'option' | 'futures',
+          }));
+          const quotes = await getRealtimeBatchQuotes(reqs);
+          quotes.forEach((q, sym) => priceMap.set(sym, { price: q.price, changePercent: q.changePercent }));
+        } catch (err) {
+          logger.warn('[WEEKLY] live price enrichment failed:', err);
+        }
+      }
+
+      const enriched = items.map(i => ({
+        ...i,
+        livePrice: priceMap.get(i.symbol)?.price ?? null,
+        liveChangePercent: priceMap.get(i.symbol)?.changePercent ?? null,
+      }));
+
+      const availableWeeks = await listWeeklyWeeks(userId);
+      res.json({
+        weekStartDate: weekStart,
+        availableWeeks,
+        items: enriched,
+      });
+    } catch (error) {
+      logger.error('[WEEKLY] GET error:', error);
+      res.status(500).json({ error: "Failed to fetch weekly watchlist" });
+    }
+  });
+
+  app.post("/api/watchlist/weekly", async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+      const { symbol, thesis, assetType } = req.body || {};
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: "symbol is required" });
+      }
+
+      const { mondayOfWeek } = await import('./weekly-watchlist-seeder');
+      const weekStart = (req.body?.weekStartDate as string) || mondayOfWeek();
+      const sym = symbol.toUpperCase().trim();
+
+      // Idempotency: skip if already on this week
+      const { db } = await import('./db');
+      const { watchlist: watchlistTable } = await import('@shared/schema');
+      const { and, eq } = await import('drizzle-orm');
+
+      const existing = await db.select({ id: watchlistTable.id }).from(watchlistTable)
+        .where(and(
+          eq(watchlistTable.userId, userId),
+          eq(watchlistTable.symbol, sym),
+          eq(watchlistTable.category, 'weekly' as any),
+          eq(watchlistTable.weekStartDate, weekStart),
+        ))
+        .limit(1);
+      if (existing.length > 0) {
+        return res.status(200).json({ added: false, message: "Already in this week's watchlist" });
+      }
+
+      const [created] = await db.insert(watchlistTable).values({
+        userId,
+        symbol: sym,
+        assetType: (assetType as any) || 'stock',
+        category: 'weekly' as any,
+        addedAt: new Date().toISOString(),
+        weekStartDate: weekStart,
+        autoSeeded: false,
+        weeklyThesis: thesis || null,
+        thesis: thesis || null,
+      } as any).returning();
+
+      res.status(201).json({ added: true, item: created });
+    } catch (error) {
+      logger.error('[WEEKLY] POST error:', error);
+      res.status(500).json({ error: "Failed to add weekly watchlist item" });
+    }
+  });
+
+  app.delete("/api/watchlist/weekly/:id", async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+      const { db } = await import('./db');
+      const { watchlist: watchlistTable } = await import('@shared/schema');
+      const { and, eq } = await import('drizzle-orm');
+
+      const result = await db.delete(watchlistTable)
+        .where(and(
+          eq(watchlistTable.id, req.params.id),
+          eq(watchlistTable.userId, userId),
+          eq(watchlistTable.category, 'weekly' as any),
+        ))
+        .returning({ id: watchlistTable.id });
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      res.json({ deleted: true, id: result[0].id });
+    } catch (error) {
+      logger.error('[WEEKLY] DELETE error:', error);
+      res.status(500).json({ error: "Failed to delete weekly watchlist item" });
+    }
+  });
+
+  app.post("/api/watchlist/weekly/seed", async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+
+      const { seedWeeklyWatchlist, mondayOfWeek } = await import('./weekly-watchlist-seeder');
+      const weekStart = (req.body?.weekStartDate as string) || mondayOfWeek();
+      const limit = req.body?.limit ? Number(req.body.limit) : 15;
+      const result = await seedWeeklyWatchlist(userId, weekStart, { limit });
+      res.json(result);
+    } catch (error) {
+      logger.error('[WEEKLY] seed error:', error);
+      res.status(500).json({ error: "Failed to seed weekly watchlist" });
     }
   });
 
@@ -26126,29 +26568,62 @@ Use this checklist before entering any trade:
       }
 
       const { getTradierOptionsChain, getTradierQuote } = await import("./tradier-api");
+      const { getYahooOptionsChain, getYahooExpirations } = await import("./yahoo-options-fallback");
+      const { getChartLastPrice, safeQuote, getBestPrice } = await import("./yahoo-finance-service");
       const apiKey = process.env.TRADIER_API_KEY;
-      if (!apiKey) return res.status(500).json({ error: "Options data unavailable" });
 
-      // 1. Get spot price
-      const quote = await getTradierQuote(symbol);
-      if (!quote) return res.status(404).json({ error: `No quote for ${symbol}` });
-      const spotPrice = quote.last || quote.close || 0;
-      if (spotPrice <= 0) return res.status(404).json({ error: "Invalid spot price" });
+      // ── 1. Get spot price: Tradier → chart candle → Yahoo quote (matches calculateGammaExposure pattern)
+      let spotPrice = 0;
+      if (apiKey) {
+        const tradierQuote = await getTradierQuote(symbol);
+        spotPrice = tradierQuote?.last || tradierQuote?.close || 0;
+      }
+      const chartPrice = await getChartLastPrice(symbol);
+      if (chartPrice > 0 && (spotPrice <= 0 || Math.abs(chartPrice - spotPrice) / spotPrice > 0.01)) {
+        spotPrice = chartPrice;
+      }
+      if (spotPrice <= 0) {
+        const yQuote = await safeQuote(symbol);
+        spotPrice = getBestPrice(yQuote);
+      }
+      if (spotPrice <= 0) {
+        return res.status(404).json({ error: `No quote for ${symbol}` });
+      }
 
-      // 2. Get expirations
-      const baseUrl = 'https://api.tradier.com/v1';
-      const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
-      });
-      if (!expResponse.ok) return res.status(502).json({ error: "Could not fetch expirations" });
-      const expData = await expResponse.json();
-      const allExpirations: string[] = expData.expirations?.date || [];
-      const expirations = allExpirations.slice(0, 5); // Next 5 expirations
-      if (expirations.length === 0) return res.status(404).json({ error: "No expirations" });
+      // ── 2. Get expirations: Tradier → Yahoo fallback
+      let expirations: string[] = [];
+      if (apiKey) {
+        try {
+          const baseUrl = 'https://api.tradier.com/v1';
+          const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
+          });
+          if (expResponse.ok) {
+            const expData = await expResponse.json();
+            expirations = (expData.expirations?.date || []).slice(0, 6);
+          }
+        } catch (e) {
+          logger.warn(`[GEX heatmap] Tradier expirations failed for ${symbol}, falling back to Yahoo`, { error: e });
+        }
+      }
+      if (expirations.length === 0) {
+        const yExps = await getYahooExpirations(symbol);
+        expirations = yExps.slice(0, 6);
+      }
+      if (expirations.length === 0) {
+        return res.status(404).json({ error: "No expirations available" });
+      }
 
-      // 3. Fetch chains for all expirations in parallel
-      const chains = await Promise.all(
-        expirations.map(exp => getTradierOptionsChain(symbol, exp))
+      // ── 3. Fetch chains for all expirations: Tradier → Yahoo fallback per-expiration
+      const chains: any[][] = await Promise.all(
+        expirations.map(async (exp) => {
+          if (apiKey) {
+            const tChain = await getTradierOptionsChain(symbol, exp);
+            if (tChain && tChain.length > 0) return tChain;
+          }
+          const yChain = await getYahooOptionsChain(symbol, exp);
+          return (yChain || []) as any[];
+        })
       );
 
       // 4. Build strike → expiration → netGEX matrix
@@ -26286,6 +26761,413 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Batch GEX+VEX projection error", { error });
       res.status(500).json({ error: "Batch projection failed" });
+    }
+  });
+
+  // ============================================================================
+  // GEX/VEX CONFLUENCE SCANNER + TERMINAL (Skylit-style Command Center)
+  // ============================================================================
+
+  /** Scan the approved watchlist for high-confluence GEX/VEX setups */
+  app.post("/api/gex-vex/scan-watchlist", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { scanWatchlistConfluence } = await import('./gex-vex-scanner');
+      const { tickers, minScore, useCache } = req.body || {};
+      const result = await scanWatchlistConfluence({
+        tickers: Array.isArray(tickers) ? tickers : undefined,
+        minScore: typeof minScore === 'number' ? minScore : undefined,
+        useCache: useCache !== false,
+      });
+      res.json(result);
+    } catch (error: any) {
+      logger.error("GEX/VEX watchlist scan error", { error: error?.message });
+      res.status(500).json({ error: "Watchlist scan failed", message: error?.message });
+    }
+  });
+
+  /** GET variant — easier to hit from client useQuery */
+  app.get("/api/gex-vex/scan-watchlist", requireBetaAccess, async (_req, res) => {
+    try {
+      const { scanWatchlistConfluence } = await import('./gex-vex-scanner');
+      const result = await scanWatchlistConfluence({ useCache: true });
+      res.json(result);
+    } catch (error: any) {
+      logger.error("GEX/VEX watchlist scan error", { error: error?.message });
+      res.status(500).json({ error: "Watchlist scan failed", message: error?.message });
+    }
+  });
+
+  /** GEX HUB — market-wide aggregation: top GEX/VEX, sector splits, regimes */
+  app.get("/api/gex-vex/hub", requireBetaAccess, async (_req, res) => {
+    try {
+      const { scanWatchlistConfluence, buildGEXHub } = await import('./gex-vex-scanner');
+      const scan = await scanWatchlistConfluence({ useCache: true });
+      const hub = buildGEXHub(scan);
+      res.json({ hub, scan });
+    } catch (error: any) {
+      logger.error("GEX hub error", { error: error?.message });
+      res.status(500).json({ error: "Hub build failed", message: error?.message });
+    }
+  });
+
+  /**
+   * GEX IDEA SCANNER — manual trigger
+   * =================================
+   * Runs a single pass of the gamma-exposure setup scanner. Returns the
+   * candidates it found and how many were persisted to trade_ideas. The
+   * scheduled run lives in `worker.ts` (every 15 min during market hours).
+   */
+  app.post("/api/gex-scanner/run", async (_req, res) => {
+    try {
+      const { runGexIdeaScanner } = await import('./gex-idea-scanner');
+      const result = await runGexIdeaScanner();
+      res.json({
+        success: true,
+        scanned: result.scanned,
+        candidates: result.candidates,
+        persisted: result.persisted,
+        setups: result.setups,
+      });
+    } catch (error: any) {
+      logger.error("[GEX-SCANNER] manual run failed", { error: error?.message });
+      res.status(500).json({ error: "GEX scanner failed", message: error?.message });
+    }
+  });
+
+  /**
+   * OLALGO BOT — Challenge backtest (Monte Carlo)
+   *
+   * Runs N seeded simulations of the bot taking real historical trade
+   * ideas through configurable risk gates. Returns the full distribution
+   * (p10/p25/p50/p75/p90), per-run summaries, and the best/worst run
+   * preserved trade-by-trade for replay.
+   *
+   * Body shape:
+   *   {
+   *     mode?: 'lotto' | 'swing',           // default 'lotto'
+   *     pool?: 'last_90d' | 'full_history', // default 'last_90d'
+   *     runs?: number,                      // default 20, capped 50
+   *     overrides?: Partial<ChallengeConfig>
+   *   }
+   */
+  app.post("/api/olalgo/challenge", requireBetaAccess, async (req: any, res) => {
+    try {
+      const {
+        runChallengeMC,
+        DEFAULT_LOTTO_CONFIG,
+        DEFAULT_SWING_CONFIG,
+      } = await import('./olalgo-backtest');
+
+      const body = req.body || {};
+      const rawMode = body.mode;
+      const mode: 'lotto' | 'swing' | 'mixed' =
+        rawMode === 'swing' ? 'swing' : rawMode === 'mixed' ? 'mixed' : 'lotto';
+      const pool: 'last_90d' | 'full_history' =
+        body.pool === 'full_history' ? 'full_history' : 'last_90d';
+      const runs = Math.min(50, Math.max(1, parseInt(body.runs ?? 20, 10) || 20));
+
+      // For 'mixed' we start from the swing defaults (broader pool, more
+      // realistic risk gates) and let the override layer relax filters.
+      const base = mode === 'swing' || mode === 'mixed' ? DEFAULT_SWING_CONFIG : DEFAULT_LOTTO_CONFIG;
+      const merged = {
+        ...base,
+        ...(body.overrides || {}),
+        mode,
+        pool,
+      };
+
+      // Soft timeout safeguard — full-history sims can be heavy
+      const timeoutMs = 30_000;
+      const result = await Promise.race([
+        runChallengeMC(merged, runs),
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new Error('Backtest timed out after 30s')), timeoutMs),
+        ),
+      ]);
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error("OlAlgo challenge error", { error: error?.message });
+      res.status(500).json({
+        error: "Challenge backtest failed",
+        message: error?.message || 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * OlAlgoMax — LEAPs/swings simulator that acts like Nela Algo Warriors.
+   * Generates entries on the fly from historical OHLC and walks each
+   * position with a trim ladder + DTE-flexed stops. Independent of
+   * tradeIdeas — does NOT require any backfill.
+   */
+  app.post("/api/olalgo/max", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { runOlAlgoMaxMC, DEFAULT_OLALGO_MAX_CONFIG } = await import('./olalgo-max');
+
+      const body = req.body || {};
+      const watchlist: string[] = Array.isArray(body.watchlist)
+        ? body.watchlist.filter((s: any) => typeof s === 'string' && s.length > 0)
+        : [];
+      if (watchlist.length === 0) {
+        return res.status(400).json({ error: "watchlist required" });
+      }
+
+      const runs = Math.min(20, Math.max(1, parseInt(body.runs ?? 5, 10) || 5));
+
+      const config = {
+        ...DEFAULT_OLALGO_MAX_CONFIG,
+        ...(body.overrides || {}),
+        watchlist,
+      };
+
+      // Soft timeout — OHLC fetch + per-day walk across many tickers can be heavy
+      const timeoutMs = 90_000;
+      const result = await Promise.race([
+        runOlAlgoMaxMC(config, runs),
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new Error('OlAlgoMax timed out after 90s')), timeoutMs),
+        ),
+      ]);
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error("OlAlgoMax error", { error: error?.message });
+      res.status(500).json({
+        error: "OlAlgoMax backtest failed",
+        message: error?.message || 'Unknown error',
+      });
+    }
+  });
+
+  app.post("/api/olalgo/weekly", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { weeklyOptionsAnalysis } = await import('./olalgo-backtest');
+      const body = req.body || {};
+      const alphaOnly: string[] = Array.isArray(body.alphaTickers) ? body.alphaTickers : [];
+      const result = await weeklyOptionsAnalysis('s_and_a', alphaOnly);
+      res.json(result);
+    } catch (e: any) {
+      logger.error("OlAlgo weekly error", { error: e?.message });
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  app.get("/api/olalgo/sample-lottos", requireBetaAccess, async (_req: any, res) => {
+    try {
+      const { sampleLottoRows } = await import('./olalgo-backtest');
+      res.json(await sampleLottoRows());
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message });
+    }
+  });
+
+  /** OlAlgo pool profiler — bucketed win rates so we can find what actually works */
+  app.post("/api/olalgo/profile", requireBetaAccess, async (req: any, res) => {
+    try {
+      const { profilePool } = await import('./olalgo-backtest');
+      const body = req.body || {};
+      const mode: 'lotto' | 'swing' = body.mode === 'swing' ? 'swing' : 'lotto';
+      const pool: 'last_90d' | 'full_history' =
+        body.pool === 'full_history' ? 'full_history' : 'last_90d';
+      const watchlist = body.watchlist || 's_and_a';
+      const profile = await profilePool(pool, mode, watchlist);
+      res.json(profile);
+    } catch (error: any) {
+      logger.error("OlAlgo profile error", { error: error?.message });
+      res.status(500).json({ error: "Profile failed", message: error?.message || 'Unknown error' });
+    }
+  });
+
+  /** Per-ticker terminal payload: snapshot + candles + orbs + heatmap + projection + peers */
+  app.get("/api/gex-vex/terminal/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const interval = (req.query.interval || '15m') as '1m' | '5m' | '15m' | '1h' | '1d';
+      const lookback = parseInt(req.query.lookback as string, 10) || 5;
+
+      const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
+      const { scanWatchlistConfluence, toSnapshot } = await import('./gex-vex-scanner');
+      const { getCrossValidatedQuote } = await import('./data-quality');
+
+      // 1. Get GEX snapshot (spot already cross-validated in gamma-exposure)
+      const gex = await calculateAggregateGammaExposure(symbol);
+      if (!gex) return res.status(404).json({ error: `No GEX data for ${symbol}` });
+
+      // 2. Build unified snapshot with real VEX + dataQuality
+      const baseSnapshot = toSnapshot(gex);
+
+      // 3. Overlay fresh cross-validated spot for rendering
+      const cq = await getCrossValidatedQuote(symbol);
+      const spotPrice = cq.bestPrice > 0 ? cq.bestPrice : baseSnapshot.spotPrice;
+      baseSnapshot.spotPrice = spotPrice;
+
+      // 4. Get candles via Yahoo chart API
+      const yf = await (await import('./yahoo-finance-service')).getYahooFinance();
+      const intervalMap: Record<string, string> = {
+        '1m': '1m', '5m': '5m', '15m': '15m', '1h': '60m', '1d': '1d'
+      };
+      const period1 = new Date(Date.now() - lookback * 86400000);
+      let candles: any[] = [];
+      try {
+        const chartData: any = await (yf as any).chart(symbol, {
+          period1,
+          interval: intervalMap[interval] || '15m',
+        });
+        candles = (chartData?.quotes || []).map((q: any) => ({
+          time: Math.floor(new Date(q.date).getTime() / 1000),
+          open: q.open || 0,
+          high: q.high || 0,
+          low: q.low || 0,
+          close: q.close || 0,
+          volume: q.volume || 0,
+        })).filter((c: any) => c.close > 0);
+      } catch (e: any) {
+        logger.warn(`[GEX-TERMINAL] chart fetch failed for ${symbol}: ${e.message}`);
+      }
+
+      // 5. Use unified snapshot (real VEX, DEX, data quality)
+      const snapshot = baseSnapshot;
+      const levels = snapshot.levels;
+      const zeroGammaProjection = snapshot.zeroGammaProjection;
+
+      // 6. Build orbs — top-N levels
+      const maxAbs = Math.max(...levels.map(l => Math.abs(l.gex)), 1);
+      const orbs = levels.slice(0, 12).map((l) => ({
+        strike: l.strike,
+        gex: Math.abs(l.gex),
+        gammaPct: l.gammaPct,
+        kind: l.role === 'max_gamma' ? 'max'
+            : l.role === 'flip' ? 'flip'
+            : l.gex > 0 ? 'call' : 'put',
+        size: Math.abs(l.gex) / maxAbs,
+        label: `$${l.strike} ${(l.gammaPct * 100).toFixed(1)}%`,
+      }));
+
+      // 6. Build projection arc (if data available)
+      let projection = null;
+      if (zeroGammaProjection && candles.length > 0) {
+        const lastCandle = candles[candles.length - 1];
+        const futureTime = lastCandle.time + 3600; // project 1 hour forward
+        const points: Array<{ time: number; price: number }> = [];
+        const steps = 20;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          // Smooth easeInOut curve
+          const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          points.push({
+            time: lastCandle.time + (futureTime - lastCandle.time) * t,
+            price: spotPrice + (zeroGammaProjection - spotPrice) * eased,
+          });
+        }
+        projection = {
+          startPrice: spotPrice,
+          startTime: lastCandle.time,
+          endPrice: zeroGammaProjection,
+          endTime: futureTime,
+          confidence: Math.min(1, Math.abs(snapshot.totalGEX) / 3),
+          points,
+        };
+      }
+
+      // 7. Get peers from cached scan
+      let peers: any[] = [];
+      try {
+        const scan = await scanWatchlistConfluence({ useCache: true });
+        peers = scan.rows
+          .filter((r) => r.symbol !== symbol)
+          .slice(0, 8)
+          .map((r) => ({
+            symbol: r.symbol,
+            spotPrice: r.spotPrice,
+            changePct: r.changePct,
+            score: r.score,
+            bias: r.bias,
+          }));
+      } catch { /* non-fatal */ }
+
+      // 8. Heatmap — simplified: use current strikes as single time column
+      const heatmap = levels.slice(0, 15).map((l) => ({
+        strike: l.strike,
+        timestamp: Date.now(),
+        intensity: Math.abs(l.gex) / maxAbs,
+        gex: l.gex,
+        side: l.gex > 0 ? 'call' : l.gex < 0 ? 'put' : 'neutral',
+      }));
+
+      res.json({
+        symbol,
+        snapshot,
+        candles,
+        orbs,
+        heatmap,
+        projection,
+        peers,
+        dataQuality: {
+          grade: cq.qualityGrade,
+          score: cq.qualityScore,
+          sourceCount: cq.sourceCount,
+          bestSource: cq.bestSource,
+          spreadPct: cq.maxSpreadPct,
+          isStale: cq.isStale,
+          hasDisagreement: cq.hasDisagreement,
+          marketStatus: cq.marketStatus,
+        },
+      });
+    } catch (error: any) {
+      logger.error("GEX/VEX terminal error", { error: error?.message, symbol: req.params.symbol });
+      res.status(500).json({ error: "GEX/VEX terminal failed", message: error?.message });
+    }
+  });
+
+  /** AI-generated GEX/VEX narrative (Groq-first, cached) */
+  app.get("/api/gex-vex/narrative/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
+      const { toSnapshot } = await import('./gex-vex-scanner');
+      const { generateGEXNarrative, fallbackNarrative } = await import('./gex-narrative-service');
+
+      const gex = await calculateAggregateGammaExposure(symbol);
+      if (!gex) return res.status(404).json({ error: `No GEX data for ${symbol}` });
+
+      const snap = toSnapshot(gex);
+
+      // Always return the rule-based fallback instantly so UI can render,
+      // and kick off the LLM generation for the next request.
+      const immediate = fallbackNarrative(snap);
+      const ai = await Promise.race([
+        generateGEXNarrative(snap),
+        new Promise<string>((resolve) => setTimeout(() => resolve(immediate), 3000)),
+      ]);
+
+      res.json({
+        symbol,
+        narrative: ai,
+        fallback: immediate,
+        source: ai === immediate ? 'rule_based' : 'ai',
+        regime: snap.regime,
+        totalGEX: snap.totalGEX,
+        totalVEX: snap.totalVEX,
+      });
+    } catch (error: any) {
+      logger.error("GEX narrative error", { error: error?.message, symbol: req.params.symbol });
+      res.status(500).json({ error: "GEX narrative failed", message: error?.message });
+    }
+  });
+
+  /** Data source health — exposed so UI can show which feeds are live */
+  app.get("/api/gex-vex/source-health", requireBetaAccess, async (_req, res) => {
+    try {
+      const { getSourceHealth, getMarketStatus } = await import('./data-quality');
+      res.json({
+        sources: getSourceHealth(),
+        marketStatus: getMarketStatus(),
+        fetchedAt: Date.now(),
+      });
+    } catch (error: any) {
+      logger.error("Source health error", { error: error?.message });
+      res.status(500).json({ error: "Source health failed", message: error?.message });
     }
   });
 

@@ -16,6 +16,7 @@ import { validateTradierAPI } from "./tradier-api";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
+import { initializeWeeklyTracker } from "./weekly-tracker";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -155,6 +156,10 @@ app.use((req, res, next) => {
     // Bot notification WebSocket
     initializeBotNotificationService(server);
     log('🤖 Bot notification service initialized');
+
+    // Weekly watchlist live tracker (5s polling + WS push)
+    initializeWeeklyTracker(server);
+    log('📅 Weekly watchlist tracker initialized');
 
     // Watchlist monitor (lightweight, just checks price alerts)
     startWatchlistMonitor(5);

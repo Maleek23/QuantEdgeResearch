@@ -143,6 +143,17 @@ function isMarketCurrentlyOpen(): boolean {
       startPopularTickersScanner();
       log('🌟 Popular Tickers Scanner started');
 
+      // 🎯 SQUEEZE SCANNER — initial warm-up scan + 30-min cadence
+      try {
+        const { runSqueezeScan } = await import('./squeeze-scanner');
+        // Fire-and-forget warm-up so cache is populated for the first /api/squeeze-scanner request
+        runSqueezeScan().then((res) => {
+          log(`🎯 Squeeze Scanner warm-up complete — ${res.length} coils found`);
+        }).catch((err) => logger.error('[SQUEEZE-SCAN] Warm-up failed:', err));
+      } catch (err) {
+        logger.error('[SQUEEZE-SCAN] Failed to schedule warm-up:', err);
+      }
+
       log('✅ All heavy services started (staggered over ~30s)');
     } catch (err) {
       logger.error('❌ Error starting heavy services:', err);
@@ -165,6 +176,36 @@ function isMarketCurrentlyOpen(): boolean {
     startHeavyServices();
   }, { timezone: 'America/New_York' });
 
+  // ── Cron: Monday morning weekly watchlist seeder (9 AM ET) ─────────────
+  // Auto-populates each authenticated user's "This Week" focus list with
+  // the top conviction picks from the past 7 days. Idempotent.
+  cron.default.schedule('0 9 * * 1', async () => {
+    try {
+      log('📋 [WEEKLY-SEED] Monday cron triggered — seeding weekly watchlists...');
+      const { seedWeeklyWatchlist, mondayOfWeek } = await import('./weekly-watchlist-seeder');
+      const { storage } = await import('./storage');
+      const week = mondayOfWeek();
+      // Seed for every user that has beta access (admin/pro/grandfathered).
+      const users = await storage.getAllUsers?.() || [];
+      let totalInserted = 0;
+      for (const u of users) {
+        const hasBeta = (u as any).hasBetaAccess
+          || (u as any).subscriptionTier === 'admin'
+          || (u as any).subscriptionTier === 'pro';
+        if (!hasBeta) continue;
+        try {
+          const r = await seedWeeklyWatchlist((u as any).id, week);
+          totalInserted += r.inserted;
+        } catch (err) {
+          logger.warn(`[WEEKLY-SEED] failed for user ${(u as any).id}:`, err);
+        }
+      }
+      log(`📋 [WEEKLY-SEED] done — inserted ${totalInserted} rows across ${users.length} users for week ${week}`);
+    } catch (err) {
+      logger.error('[WEEKLY-SEED] Monday cron failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
+
   // ── Cron: Restart process at market close to free memory ───────────────
   cron.default.schedule('10 16 * * 1-5', () => {
     log('🌙 Market closed — restarting process to free memory...');
@@ -179,6 +220,17 @@ function isMarketCurrentlyOpen(): boolean {
   // These use dynamic imports and have their own market-hours guards.
   // They only consume memory when their specific cron window fires.
   // ====================================================================
+
+  // ── Squeeze Scanner — every 30 min during market hours ─────────────
+  cron.default.schedule('*/30 9-16 * * 1-5', async () => {
+    try {
+      const { runSqueezeScan } = await import('./squeeze-scanner');
+      const results = await runSqueezeScan();
+      log(`🎯 [SQUEEZE-CRON] Scan complete — ${results.length} coils, top: ${results.slice(0, 3).map(r => r.symbol).join(', ')}`);
+    } catch (err) {
+      logger.error('[SQUEEZE-CRON] Scan failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
 
   // Hybrid idea generation (9:45 AM CT weekdays)
   let lastHybridRunDate: string | null = null;
@@ -529,6 +581,23 @@ function isMarketCurrentlyOpen(): boolean {
     } catch (error: any) { logger.error('📊 [FLOW-CRON] Failed:', error); }
   });
   log('📊 Flow Scanner scheduled (every 15 min during market hours)');
+
+  // GEX idea scanner (every 15 min during market hours) — turns gamma
+  // exposure setups (flip cross / wall pin / squeeze break) into trade
+  // ideas that flow through the standard pipeline.
+  cron.default.schedule('*/15 * * * *', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { runGexIdeaScanner } = await import('./gex-idea-scanner');
+      const result = await runGexIdeaScanner();
+      logger.info(
+        `🎯 [GEX-CRON] scanned ${result.scanned}, ${result.candidates} candidates, ${result.persisted} persisted`,
+      );
+    } catch (error: any) {
+      logger.error('🎯 [GEX-CRON] Failed:', error);
+    }
+  });
+  log('🎯 GEX Idea Scanner scheduled (every 15 min during market hours)');
 
   // Projection accuracy validation (hourly during market hours)
   cron.default.schedule('30 * * * 1-5', async () => {

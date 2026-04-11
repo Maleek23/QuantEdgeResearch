@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, safeToFixed } from "@/lib/utils";
+import { isHighConviction } from "@/lib/conviction-display";
 import {
   AlertTriangle,
   TrendingUp,
@@ -64,12 +65,14 @@ export function HighConvictionAlertProvider({
   useEffect(() => {
     if (!ideas || !enabled) return;
 
-    // Filter for very high conviction (85%+) ideas
+    // H9: shared canonical filter — engine band first, legacy A+ fallback,
+    // confidence floor as a last resort. Same predicate the Top Conviction
+    // sidebar uses, so the alert popups never disagree with what's onscreen.
     const highConviction = ideas.filter(idea => {
-      const confidence = idea.confidenceScore || 0;
-      const grade = idea.probabilityBand || '';
-      const isHighGrade = ['A+', 'A', 'A-'].includes(grade);
-      return confidence >= minConfidence || isHighGrade;
+      if (isHighConviction(idea as any)) return true;
+      // Final fallback: confidence floor for ideas with no band info at all
+      if ((idea as any).convictionBand || idea.probabilityBand) return false;
+      return (idea.confidenceScore || 0) >= minConfidence;
     });
 
     // Find truly new alerts (not seen before)
