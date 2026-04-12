@@ -9,7 +9,7 @@
  * Drives off /api/gex-vex/hub which returns { hub, scan } in one shot.
  */
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useMarketPoll, POLL } from '@/hooks/use-market-poll';
 import { Link, useLocation } from 'wouter';
@@ -19,6 +19,9 @@ import { GEXHubPanels } from '@/components/gex/gex-hub-panels';
 import { TickerSelector } from '@/components/shared/ticker-selector';
 import { componentStyles } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
+import { ChevronDown, Loader2 } from 'lucide-react';
+
+const GEXDashboard = lazy(() => import('@/pages/gex-dashboard'));
 import type {
   ConfluenceScanResult,
   ConfluenceRow as ConfluenceRowData,
@@ -64,6 +67,7 @@ export default function GEXScannerPage() {
   const { data: hubResponse, isLoading, error, refetch, isFetching } = useGEXHub();
   const [filterTier, setFilterTier] = useState<FilterTier>('all');
   const [filterBias, setFilterBias] = useState<FilterBias>('all');
+  const [dashboardOpen, setDashboardOpen] = useState(false);
 
   const jumpToTerminal = (sym: string) => {
     if (sym) setLocation(`/t/${sym.toUpperCase()}/gex`);
@@ -214,6 +218,39 @@ export default function GEXScannerPage() {
         {filtered.map((row, i) => (
           <ConfluenceRow key={row.symbol} row={row} rank={i + 1} />
         ))}
+      </div>
+
+      {/* GEX ANALYSIS — collapsible per-symbol deep dive */}
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setDashboardOpen(!dashboardOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-[var(--surface-raised)] border border-border hover:border-[var(--gex-positive)]/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              03 // GEX ANALYSIS
+            </div>
+            <span className="text-sm font-mono font-bold text-foreground">
+              Heatmap · Key Levels · Signals
+            </span>
+          </div>
+          <ChevronDown className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform duration-200",
+            dashboardOpen && "rotate-180"
+          )} />
+        </button>
+        {dashboardOpen && (
+          <div className="mt-3 rounded-lg border border-border overflow-hidden">
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="w-5 h-5 animate-spin text-[var(--gex-positive)]" />
+              </div>
+            }>
+              <GEXDashboard />
+            </Suspense>
+          </div>
+        )}
       </div>
 
       {/* ERRORS */}
