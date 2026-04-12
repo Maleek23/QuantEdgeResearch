@@ -58,9 +58,9 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
               <Brain className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-2xl">ML Learning Network</CardTitle>
+              <CardTitle className="text-2xl">Scoring Engine Network</CardTitle>
               <CardDescription className="mt-1">
-                Neural network visualization of signal performance and learning patterns
+                Visualization of scoring engine signal performance and patterns
               </CardDescription>
             </div>
           </div>
@@ -128,7 +128,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
         <CardContent className="p-12">
           <div className="flex flex-col items-center gap-2 text-primary">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="text-sm">Initializing neural network...</p>
+            <p className="text-sm">Initializing visualization...</p>
           </div>
         </CardContent>
       </Card>
@@ -144,9 +144,9 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
             <Brain className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-2xl">ML Learning Network</CardTitle>
+            <CardTitle className="text-2xl">Scoring Engine Network</CardTitle>
             <CardDescription className="mt-1">
-              Neural network visualization of signal performance and learning patterns
+              Visualization of scoring engine signal performance and patterns
             </CardDescription>
           </div>
         </div>
@@ -186,7 +186,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
               <div className="h-full flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-primary">
                   <Loader2 className="h-8 w-8 animate-spin" />
-                  <p className="text-sm">Loading 3D neural network...</p>
+                  <p className="text-sm">Loading 3D visualization...</p>
                 </div>
               </div>
             }>

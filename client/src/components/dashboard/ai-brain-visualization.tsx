@@ -1,8 +1,11 @@
 /**
- * AI BRAIN VISUALIZATION
+ * ENGINE VISUALIZATION
  *
- * Stunning visualization showing the 6 engines learning in real-time.
- * Inspired by intellectia.ai's neural network visuals.
+ * Decorative visualization showing scoring engine nodes.
+ * NOTE: This is purely visual theater. The platform uses a 14-layer
+ * deterministic point-summing confluence engine — there is no neural
+ * network, no self-learning AI, and no ML processing. The animated
+ * connections and "learning" indicators are cosmetic only.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -139,7 +142,7 @@ export function AIBrainVisualization() {
           <Brain className="w-12 h-12 text-white" />
         </div>
         <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-sm font-semibold text-purple-400 whitespace-nowrap">
-          Self-Learning AI
+          Confluence Engine
         </div>
       </motion.div>
 

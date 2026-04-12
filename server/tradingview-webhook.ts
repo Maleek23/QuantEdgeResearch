@@ -9,8 +9,6 @@
  */
 
 import { logger } from './logger';
-import { db } from './db';
-import { tradeIdeas } from '@shared/schema';
 import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { sendTradeIdeaToDiscord } from './discord-service';
@@ -57,7 +55,7 @@ function isRateLimited(ticker: string): boolean {
   }
 
   // Global rate limit
-  const recentCount = [...recentSignals.values()].filter(t => now - t < 60_000).length;
+  const recentCount = Array.from(recentSignals.values()).filter(t => now - t < 60_000).length;
   if (recentCount >= MAX_SIGNALS_PER_MIN) {
     return true;
   }
@@ -235,60 +233,63 @@ export async function processSignal(payload: TVWebhookPayload): Promise<{ succes
     logger.info(`[TV-WEBHOOK] ${symbol} scores — TV: ${tvScore}, QE: ${qeScore} (${qeVerdict}), Combined: ${combinedScore}`);
     logger.info(`[TV-WEBHOOK] QE checks: ${qeChecks.join(' | ')}`);
 
-    // 4. Build trade idea
-    const now = new Date();
+    // 4. Route through unified ingestion pipeline (dedup, loss cooldown, confidence gates)
+    const isOption = !!option;
     const qeNote = qeChecks.length > 0 ? ` | QE: ${qeVerdict} — ${qeChecks.join(', ')}` : '';
     const catalyst = (payload.message || `TradingView ${strategy} ${signalType} signal on ${symbol}`) + qeNote;
-    const isOption = !!option;
 
-    const idea: any = {
+    const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+
+    const signals = [
+      { type: `tv_${strategy}`, weight: 20, description: `TradingView ${signalType} signal` },
+      { type: 'tv_confidence', weight: tvScore >= 85 ? 15 : 10, description: `TV confidence: ${confidence}` },
+      { type: 'qe_validation', weight: qeScore >= 80 ? 15 : qeScore >= 60 ? 10 : 5, description: `QE: ${qeVerdict} (${qeScore})` },
+    ];
+
+    const analysis = isOption
+      ? `${strategy.toUpperCase()} ${signalType} signal. ${option!.optionType.toUpperCase()} $${option!.strikePrice} (delta: ${option!.delta}, IV: ${(option!.iv * 100).toFixed(0)}%) exp ${option!.expiryDate}. Entry: $${option!.entryPremium}, Target: $${option!.targetPremium}${option!.isLotto ? ' — LOTTO PLAY' : ''}. TV:${tvScore} QE:${qeScore}(${qeVerdict})`
+      : `${strategy.toUpperCase()} ${signalType} signal at $${stockPrice.toFixed(2)}. TV:${tvScore} QE:${qeScore}(${qeVerdict}). ${payload.message || ''}`;
+
+    const result = await ingestTradeIdea({
+      source: 'tradingview',
       symbol,
       assetType: isOption ? 'option' : 'stock',
-      direction,
-      entryPrice: isOption ? option!.entryPremium : stockPrice,
-      targetPrice: isOption ? option!.targetPremium : (direction === 'long' ? stockPrice * 1.03 : stockPrice * 0.97),
-      stopLoss: isOption ? option!.stopPremium : (direction === 'long' ? stockPrice * 0.985 : stockPrice * 1.015),
-      riskRewardRatio: isOption ? option!.riskRewardRatio : 2.0,
+      direction: direction as 'bullish' | 'bearish',
+      signals,
+      currentPrice: stockPrice,
       catalyst,
-      analysis: isOption
-        ? `${strategy.toUpperCase()} ${signalType} signal. ${option!.optionType.toUpperCase()} $${option!.strikePrice} (delta: ${option!.delta}, IV: ${(option!.iv * 100).toFixed(0)}%) exp ${option!.expiryDate}. Entry: $${option!.entryPremium}, Target: $${option!.targetPremium}${option!.isLotto ? ' — LOTTO PLAY' : ''}. TV:${tvScore} QE:${qeScore}(${qeVerdict})`
-        : `${strategy.toUpperCase()} ${signalType} signal at $${stockPrice.toFixed(2)}. TV:${tvScore} QE:${qeScore}(${qeVerdict}). ${payload.message || ''}`,
-      sessionContext: `TradingView ${strategy} ${payload.timeframe || '15'}min`,
-      timestamp: now.toISOString(),
-      source: 'tradingview',
-      status: 'published',
-      confidenceScore: combinedScore,
-      probabilityBand: combinedScore >= 90 ? 'A+' : combinedScore >= 85 ? 'A' : combinedScore >= 80 ? 'B+' : combinedScore >= 70 ? 'B' : 'B-',
-      visibility: 'private',
-      isLottoPlay: isOption ? option!.isLotto : false,
-      tradeType: isOption && option!.isLotto ? 'lotto' : 'swing',
-    };
+      holdingPeriod: isOption && option!.isLotto ? 'day' : 'swing',
+      analysis,
+      optionType: isOption ? option!.optionType : undefined,
+      strikePrice: isOption ? option!.strikePrice : undefined,
+      expiryDate: isOption ? option!.expiryDate : undefined,
+    });
 
-    // Add option fields if we have them
-    if (isOption) {
-      idea.optionType = option!.optionType;
-      idea.strikePrice = option!.strikePrice;
-      idea.expiryDate = option!.expiryDate;
-      idea.optionDelta = option!.delta;
-      idea.optionIV = option!.iv;
-    }
-
-    // 5. Insert into DB
-    const [saved] = await db.insert(tradeIdeas).values(idea).returning();
-    logger.info(`[TV-WEBHOOK] Saved trade idea: ${saved.id} — ${symbol} ${direction} ${isOption ? option!.optionType + ' $' + option!.strikePrice : 'stock'}`);
-
-    // 6. Mark cooldown
+    // Mark cooldown
     recentSignals.set(symbol, Date.now());
 
-    // 7. Send Discord alert (bypass grade filters — user's own backtested signals)
-    try {
-      await sendTradeIdeaToDiscord(saved as any, { forceBypassFilters: true });
-      logger.info(`[TV-WEBHOOK] Discord alert sent for ${symbol}`);
-    } catch (e) {
-      logger.error(`[TV-WEBHOOK] Discord alert failed: ${e}`);
-    }
+    if (result.success) {
+      logger.info(`[TV-WEBHOOK] Ingested via pipeline — ${symbol} ${direction}`);
 
-    return { success: true, ideaId: saved.id };
+      // Send Discord alert (bypass grade filters — user's own backtested signals)
+      try {
+        // Fetch the most recent idea for this symbol/source to get the saved ID
+        const { storage } = await import('./storage');
+        const recentIdeas = await storage.getRecentTradeIdeas(1, 5);
+        const saved = recentIdeas.find((i: any) => i.symbol === symbol && i.source === 'tradingview');
+        if (saved) {
+          await sendTradeIdeaToDiscord(saved as any, { forceBypassFilters: true });
+          logger.info(`[TV-WEBHOOK] Discord alert sent for ${symbol}`);
+        }
+      } catch (e) {
+        logger.error(`[TV-WEBHOOK] Discord alert failed: ${e}`);
+      }
+
+      return { success: true };
+    } else {
+      logger.info(`[TV-WEBHOOK] Ingestion gate blocked: ${result.reason} — ${symbol}`);
+      return { success: false, error: result.reason };
+    }
   } catch (error) {
     logger.error(`[TV-WEBHOOK] Error processing ${symbol}:`, error);
     return { success: false, error: `Processing failed: ${error}` };

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot } from "lucide-react";
+import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays, subMonths, startOfDay } from 'date-fns';
@@ -33,6 +34,7 @@ const RollingWinRateChart = lazy(() => import("@/components/rolling-win-rate-cha
 const DrawdownAnalysisChart = lazy(() => import("@/components/drawdown-analysis-chart"));
 const HistoricalIntelligenceTab = lazy(() => import("@/components/historical-intelligence-tab"));
 const ConvictionBacktestCard = lazy(() => import("@/components/conviction-backtest-card"));
+const BacktestPage = lazy(() => import("@/pages/backtest"));
 
 function ChartSkeleton() {
   return (
@@ -124,15 +126,24 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
   
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="hero-stats">
-      {/* Win Rate - Primary Focus */}
+      {/* Hit Rate - Primary Focus */}
       <Card className="col-span-2 md:col-span-1">
         <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Overall Win Rate</p>
+          <div className="flex items-center gap-1 mb-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Hit Rate</p>
+            <span className="text-[10px] text-muted-foreground/60 font-mono">n={overall.decided}</span>
+            <span className="group relative inline-block">
+              <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+              <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-48 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
+                Count-based: wins / decided trades. Excludes &#177;3% breakeven trades.
+              </span>
+            </span>
+          </div>
           <p className={cn("text-3xl font-bold font-mono", getWinRateColor(overall.winRate))} data-testid="stat-win-rate">
             {safeToFixed(overall.winRate, 1)}%
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {overall.wins}W / {overall.losses}L ({overall.decided} trades)
+            {overall.wins}W / {overall.losses}L ({overall.decided} decided)
           </p>
         </CardContent>
       </Card>
@@ -202,35 +213,57 @@ function EngineGrid({ engineHealthData, isLoading }: { engineHealthData?: Engine
     );
   }
 
+  // Detect engines with no resolved trades (likely excluded due to broken option-premium pricing)
+  const excludedEngines = engines.filter((key) => {
+    const metrics = engineHealthData?.weekMetrics?.[key];
+    return !metrics || (metrics.tradesWon === 0 && metrics.tradesLost === 0 && metrics.tradesExpired === 0);
+  });
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engine-grid">
-      {engines.map((key) => {
-        const config = ENGINE_CONFIG[key];
-        const Icon = config.icon;
-        const metrics = engineHealthData?.weekMetrics?.[key];
-        const winRate = metrics?.winRate ?? null;
-        
-        return (
-          <Card key={key} className="hover-elevate cursor-default">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={cn("p-1.5 rounded", config.bg)}>
-                  <Icon className={cn("h-3.5 w-3.5", config.color)} />
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engine-grid">
+        {engines.map((key) => {
+          const config = ENGINE_CONFIG[key];
+          const Icon = config.icon;
+          const metrics = engineHealthData?.weekMetrics?.[key];
+          const winRate = metrics?.winRate ?? null;
+          const isExcluded = excludedEngines.includes(key);
+
+          return (
+            <Card key={key} className={cn("hover-elevate cursor-default", isExcluded && "opacity-60")}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={cn("p-1.5 rounded", config.bg)}>
+                    <Icon className={cn("h-3.5 w-3.5", config.color)} />
+                  </div>
+                  <span className="text-sm font-medium">{config.label}</span>
+                  {isExcluded && (
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-[var(--trade-neutral)] border-amber-500/40">
+                      Paused
+                    </Badge>
+                  )}
                 </div>
-                <span className="text-sm font-medium">{config.label}</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className={cn("text-2xl font-bold font-mono", getWinRateColor(winRate))}>
-                  {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {metrics?.tradesWon ?? 0}W/{metrics?.tradesLost ?? 0}L
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                <div className="flex items-baseline gap-2">
+                  <span className={cn("text-2xl font-bold font-mono", getWinRateColor(winRate))}>
+                    {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {metrics?.tradesWon ?? 0}W/{metrics?.tradesLost ?? 0}L
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      {/* Disclosure: excluded engines */}
+      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
+        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
+        <span>
+          <strong>Options validation under maintenance</strong> — Flow (1,127) and Lotto (341) ideas excluded from stats.
+          Option-premium pricing is being rebuilt; these engines will return once validation is reliable.
+        </span>
+      </div>
     </div>
   );
 }
@@ -396,7 +429,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
               <p className="font-mono font-bold text-[var(--trade-bearish)]">{stats.segmentedWinRates.overall.losses}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Win Rate</p>
+              <p className="text-muted-foreground">Hit Rate <span className="font-mono">(n={stats.segmentedWinRates.overall.decided})</span></p>
               <p className="font-mono font-bold tabular-nums">{safeToFixed(stats.segmentedWinRates.overall.winRate, 1)}%</p>
             </div>
           </div>
@@ -431,7 +464,7 @@ function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoa
             <p className="font-mono font-bold tabular-nums">{data.overall.totalTrades}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Win Rate</p>
+            <p className="text-xs text-muted-foreground">Hit Rate</p>
             <p className={cn("font-mono font-bold", getWinRateColor(data.overall.winRate))}>
               {safeToFixed(data.overall.winRate, 0)}%
             </p>
@@ -483,9 +516,11 @@ export default function PerformancePage() {
     return params.toString() ? `?${params.toString()}` : '';
   }, [dateRange]);
 
+  const perfInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', apiFilters],
     staleTime: 0, gcTime: 0, refetchOnMount: 'always',
+    refetchInterval: perfInterval,
   });
 
   const handleExport = () => { window.location.href = '/api/performance/export'; };
@@ -588,12 +623,15 @@ export default function PerformancePage() {
         <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
           <TierGate feature="performance" blur>
             <Tabs defaultValue="overview" className="space-y-3">
-              <TabsList className="grid w-full max-w-md grid-cols-4">
+              <TabsList className="grid w-full max-w-lg grid-cols-5">
                 <TabsTrigger value="overview" className="text-[10px] gap-1 font-mono" data-testid="tab-overview">
                   <TrendingUp className="h-3 w-3" />Trends
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="text-[10px] gap-1 font-mono" data-testid="tab-analytics">
                   <BarChart3 className="h-3 w-3" />Deep
+                </TabsTrigger>
+                <TabsTrigger value="backtest" className="text-[10px] gap-1 font-mono" data-testid="tab-backtest">
+                  <Target className="h-3 w-3" />Backtest
                 </TabsTrigger>
                 <TabsTrigger value="historical" className="text-[10px] gap-1 font-mono" data-testid="tab-historical">
                   <History className="h-3 w-3" />History
@@ -637,7 +675,7 @@ export default function PerformancePage() {
                   </AccordionItem>
                   <AccordionItem value="rolling-winrate" className="border rounded-lg">
                     <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
-                      Rolling Win Rate Trends
+                      Rolling Hit Rate Trends
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <Suspense fallback={<ChartSkeleton />}><RollingWinRateChart /></Suspense>
@@ -708,6 +746,12 @@ export default function PerformancePage() {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+              </TabsContent>
+
+              <TabsContent value="backtest" className="space-y-4">
+                <Suspense fallback={<ChartSkeleton />}>
+                  <BacktestPage />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="historical" className="space-y-4">

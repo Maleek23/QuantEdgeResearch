@@ -1,8 +1,10 @@
 /**
  * ENGINE PERFORMANCE RADAR
  *
- * Radar chart showing all 6 engines' performance metrics
- * Animated, interactive, with real-time data updates
+ * Radar chart showing scoring engine performance metrics.
+ * NOTE: This platform uses a 14-layer deterministic point-summing
+ * confluence engine — not machine learning. The "Learning" badge
+ * is visual-only and does not represent actual ML processing.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -113,7 +115,7 @@ export function EnginePerformanceRadar() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Engine Performance</h3>
-          <p className="text-sm text-muted-foreground">Compare all 6 engines across key metrics</p>
+          <p className="text-sm text-muted-foreground">Compare scoring layers across key metrics</p>
         </div>
         <motion.div
           className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 rounded-full"
@@ -121,7 +123,7 @@ export function EnginePerformanceRadar() {
           transition={{ duration: 2, repeat: Infinity }}
         >
           <div className="w-2 h-2 rounded-full bg-purple-500" />
-          <span className="text-xs text-purple-400 font-medium">Learning</span>
+          <span className="text-xs text-purple-400 font-medium">Tracking</span>
         </motion.div>
       </div>
 

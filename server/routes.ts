@@ -2017,10 +2017,327 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classifyMarketRegime } = await import('./quantitative-analysis-engine');
       const regime = await classifyMarketRegime();
-      res.json(regime);
+      res.json({
+        ...regime,
+        _meta: {
+          dataSource: "quantitative_analysis_engine",
+          cachedAt: new Date().toISOString(),
+        },
+      });
     } catch (error) {
       logger.error('Regime classification failed:', error);
       res.status(500).json({ error: "Regime classification failed" });
+    }
+  });
+
+  // ============================================
+  // NEXT DAY / WEEKEND OUTLOOK — PUBLIC (no auth)
+  // Answers "what's it looking like for tomorrow?"
+  // ============================================
+
+  // ── Weekend outlook cache — persists Friday's rich data through the weekend ──
+  let weekendOutlookCache: { data: any; timestamp: number } | null = null;
+  const WEEKEND_CACHE_TTL = 15 * 60 * 1000; // 15 min on weekends (data doesn't change much)
+
+  app.get("/api/market-outlook", async (_req, res) => {
+    try {
+      const { currentMarketPhase, getPreMarketBatch } = await import("./pre-market-service");
+      const { getMarketContext } = await import("./market-context-service");
+      const { getFuturesPrices } = await import("./futures-data-service");
+      const { getUpcomingEvents, getTodayEvents, hasHighImpactEventSoon } = await import("./economic-calendar");
+      const { getUpcomingEarnings } = await import("./earnings-service");
+      const { getRealtimeBatchQuotes } = await import("./realtime-pricing-service");
+      const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
+      const { getCachedConvictions } = await import("./convictions-engine");
+      const { getCurrentWeekSymbols } = await import("./weekly-watchlist-seeder");
+      const { getTopMovers, getSectorPerformance } = await import("./market-scanner");
+
+      const phase = currentMarketPhase();
+      // Fix: use ET-adjusted day for weekend check (not UTC)
+      const etNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const etDay = etNow.getDay();
+      const isWeekend = phase === "closed" && (etDay === 0 || etDay === 6);
+
+      // Serve weekend cache if fresh
+      if (isWeekend && weekendOutlookCache && (Date.now() - weekendOutlookCache.timestamp) < WEEKEND_CACHE_TTL) {
+        return res.json(weekendOutlookCache.data);
+      }
+
+      // On weekends, extend conviction lookback to capture Friday's data
+      const convictionOpts = isWeekend
+        ? { limit: 10, lookbackHours: 96, minScore: 12 }
+        : { limit: 6 };
+
+      // Parallel fetch everything
+      const [
+        marketCtx,
+        futuresMap,
+        upcomingEvents,
+        todayEvents,
+        highImpact,
+        earnings,
+        indexQuotes,
+        cryptoQuotes,
+        swingRaw,
+        convictionsRaw,
+        weeklySymbols,
+        moversData,
+        sectorData,
+        fridayIdeas,
+      ] = await Promise.all([
+        getMarketContext().catch(() => null),
+        getFuturesPrices(["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]).catch(() => new Map()),
+        Promise.resolve(getUpcomingEvents(3)),
+        Promise.resolve(getTodayEvents()),
+        Promise.resolve(hasHighImpactEventSoon(48)),
+        getUpcomingEarnings(3).catch(() => []),
+        getRealtimeBatchQuotes([
+          { symbol: "SPY", assetType: "stock" },
+          { symbol: "QQQ", assetType: "stock" },
+          { symbol: "IWM", assetType: "stock" },
+          { symbol: "VIX", assetType: "stock" },
+          { symbol: "DIA", assetType: "stock" },
+        ]).catch(() => new Map()),
+        getRealtimeBatchQuotes([
+          { symbol: "BTC", assetType: "crypto" },
+          { symbol: "ETH", assetType: "crypto" },
+          { symbol: "SOL", assetType: "crypto" },
+        ]).catch(() => new Map()),
+        getTopSwingOpportunities(isWeekend ? 12 : 8).catch(() => []),
+        getCachedConvictions(convictionOpts).catch(() => null),
+        getCurrentWeekSymbols().catch(() => []),
+        // Weekend-specific: last session movers + sectors
+        isWeekend ? getTopMovers("day", "all", 20).catch(() => ({ gainers: [], losers: [] })) : Promise.resolve({ gainers: [], losers: [] }),
+        isWeekend ? getSectorPerformance().catch(() => ({})) : Promise.resolve({}),
+        // Friday's trade ideas for weekend recap
+        isWeekend ? storage.getRecentTradeIdeas(72, 200).catch(() => []) : Promise.resolve([]),
+      ]);
+
+      // Pre-market gaps for key indices
+      let preMarketGaps: Record<string, any> = {};
+      if (phase === "pre_market" || phase === "regular") {
+        try {
+          const pmBatch = await getPreMarketBatch(["SPY", "QQQ", "IWM", "DIA", "AAPL", "TSLA", "NVDA", "META", "AMZN", "GOOGL"]);
+          pmBatch.forEach((snap, sym) => {
+            preMarketGaps[sym] = {
+              price: snap.price,
+              previousClose: snap.previousClose,
+              gapPct: snap.gapPct,
+              gapDirection: snap.gapDirection,
+              preMarketGapPct: snap.preMarketGapPct,
+            };
+          });
+        } catch {}
+      }
+
+      // Format futures
+      const futures: Record<string, number | null> = {};
+      for (const code of ["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]) {
+        futures[code] = futuresMap.get(code) ?? null;
+      }
+
+      // Format index quotes
+      const indices: Record<string, { price: number; changePct: number } | null> = {};
+      for (const sym of ["SPY", "QQQ", "IWM", "VIX", "DIA"]) {
+        const q = indexQuotes.get(sym);
+        indices[sym] = q ? { price: q.price, changePct: q.changePercent } : null;
+      }
+
+      // Format crypto (live 24/7 — shows weekend moves)
+      const crypto: Array<{ symbol: string; price: number; changePct: number }> = [];
+      for (const sym of ["BTC", "ETH", "SOL"]) {
+        const q = cryptoQuotes.get(sym);
+        if (q) crypto.push({ symbol: sym, price: q.price, changePct: q.changePercent });
+      }
+
+      // Determine bias from futures
+      const esPrice = futures.ES;
+      let futuresBias: "bullish" | "bearish" | "neutral" = "neutral";
+      const spyQuote = indexQuotes.get("SPY");
+      if (esPrice && spyQuote) {
+        const impliedGap = ((esPrice - spyQuote.price) / spyQuote.price) * 100;
+        if (impliedGap > 0.3) futuresBias = "bullish";
+        else if (impliedGap < -0.3) futuresBias = "bearish";
+      }
+
+      // VIX context
+      const vixQuote = indexQuotes.get("VIX");
+      let vixContext: string | null = null;
+      if (vixQuote) {
+        const v = vixQuote.price;
+        if (v > 30) vixContext = "Extreme fear — VIX above 30, expect wide ranges and risk-off Monday";
+        else if (v > 20) vixContext = "Elevated volatility — VIX above 20, hedges are expensive, watch for gap plays";
+        else if (v > 15) vixContext = "Normal volatility — VIX in typical range, standard setups valid";
+        else vixContext = "Low vol — VIX below 15, breakout setups favored, watch for complacency reversal";
+      }
+
+      // Format swing setups
+      const swingSetups = (swingRaw as any[]).slice(0, isWeekend ? 12 : 8).map((opp: any) => ({
+        symbol: opp.symbol,
+        score: opp.score,
+        pattern: opp.pattern,
+        direction: opp.trendBias || "bullish",
+        currentPrice: opp.currentPrice,
+        targetPrice: opp.targetPrice,
+        stopLoss: opp.stopLoss,
+        riskReward: opp.riskReward,
+        reason: opp.reason,
+      }));
+
+      // Format conviction picks
+      const topConvictions = convictionsRaw?.picks?.slice(0, isWeekend ? 10 : 6).map((p: any) => ({
+        symbol: p.symbol,
+        direction: p.direction,
+        convictionScore: p.convictionScore,
+        convictionBand: p.convictionBand,
+        thesis: p.thesis,
+        entryPrice: p.entryPrice,
+        targetPrice: p.targetPrice,
+        stopLoss: p.stopLoss,
+        layerCount: p.layerCount,
+      })) || [];
+
+      // ── Weekend-specific: Friday session recap ──
+      let fridayRecap: any = null;
+      if (isWeekend) {
+        // Top movers from last session
+        const gainers = (moversData as any).gainers?.slice(0, 8).map((g: any) => ({
+          symbol: g.symbol, name: g.name || g.symbol, price: g.price,
+          changePct: g.changePercent, volume: g.volume,
+        })) || [];
+        const losers = (moversData as any).losers?.slice(0, 8).map((l: any) => ({
+          symbol: l.symbol, name: l.name || l.symbol, price: l.price,
+          changePct: l.changePercent, volume: l.volume,
+        })) || [];
+
+        // Sector heatmap from SPDR ETFs
+        const sectors = Object.entries(sectorData as Record<string, any>).map(([sector, data]) => ({
+          sector, changePct: (data as any).avg || 0,
+        })).sort((a, b) => b.changePct - a.changePct);
+
+        // Friday's idea outcomes
+        const ideas = (fridayIdeas as any[]) || [];
+        const closedFriday = ideas.filter((i: any) => i.outcomeStatus && i.outcomeStatus !== "open");
+        const openIdeas = ideas.filter((i: any) => !i.outcomeStatus || i.outcomeStatus === "open");
+        const wins = closedFriday.filter((i: any) => i.outcomeStatus === "hit_target").length;
+        const losses = closedFriday.filter((i: any) => i.outcomeStatus === "hit_stop").length;
+
+        // Open ideas still valid for Monday (carry-over)
+        const carryOver = openIdeas.slice(0, 10).map((i: any) => ({
+          symbol: i.symbol, direction: i.direction, entryPrice: i.entryPrice,
+          targetPrice: i.targetPrice, stopLoss: i.stopLoss, source: i.source,
+          confidenceScore: i.confidenceScore, catalyst: i.catalyst,
+        }));
+
+        fridayRecap = {
+          gainers,
+          losers,
+          sectors,
+          sessionStats: {
+            totalIdeas: ideas.length,
+            closed: closedFriday.length,
+            wins, losses,
+            winRate: closedFriday.length > 0 ? Math.round((wins / closedFriday.length) * 100) : null,
+          },
+          carryOverIdeas: carryOver,
+        };
+      }
+
+      // Build summary — much richer on weekends
+      const summaryParts: string[] = [];
+      if (isWeekend) {
+        // Weekend headline: market context + what happened Friday
+        const spyData = indices.SPY;
+        if (spyData) {
+          const dir = spyData.changePct >= 0 ? "up" : "down";
+          summaryParts.push(`SPY closed ${dir} ${Math.abs(spyData.changePct).toFixed(2)}% on Friday at $${spyData.price.toFixed(2)}.`);
+        }
+        if (vixQuote) {
+          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        }
+        if (crypto.length > 0) {
+          const btc = crypto.find(c => c.symbol === "BTC");
+          if (btc) {
+            const btcDir = btc.changePct >= 0 ? "+" : "";
+            summaryParts.push(`BTC ${btcDir}${btc.changePct.toFixed(1)}% this weekend ($${Math.round(btc.price).toLocaleString()}).`);
+          }
+        }
+        if (fridayRecap?.gainers?.length > 0) {
+          const topGainer = fridayRecap.gainers[0];
+          summaryParts.push(`Top mover: ${topGainer.symbol} ${topGainer.changePct >= 0 ? "+" : ""}${topGainer.changePct.toFixed(1)}%.`);
+        }
+      } else {
+        if (futuresBias !== "neutral") {
+          summaryParts.push(`Futures suggest a ${futuresBias} open.`);
+        }
+        if (vixQuote) {
+          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        }
+      }
+      if (swingSetups.length > 0) {
+        summaryParts.push(`${swingSetups.length} swing setups queued (${swingSetups.slice(0, 3).map((s: any) => s.symbol).join(", ")}).`);
+      }
+      if (topConvictions.length > 0) {
+        const sBand = topConvictions.filter((c: any) => c.convictionBand === "S").length;
+        const aBand = topConvictions.filter((c: any) => c.convictionBand === "A").length;
+        if (sBand > 0 || aBand > 0) summaryParts.push(`${sBand + aBand} high-conviction picks (${sBand}S, ${aBand}A).`);
+      }
+      if (highImpact) {
+        summaryParts.push(`Watch: ${highImpact.name} (${highImpact.importance}).`);
+      }
+      if (earnings.length > 0) {
+        const earningsSymbols = earnings.slice(0, 5).map((e: any) => e.symbol).join(", ");
+        summaryParts.push(`Earnings next week: ${earningsSymbols}.`);
+      }
+      if (isWeekend && fridayRecap?.carryOverIdeas?.length > 0) {
+        summaryParts.push(`${fridayRecap.carryOverIdeas.length} open ideas carry into Monday.`);
+      }
+
+      const responseData = {
+        timeframe: isWeekend ? "weekend" : "next_day",
+        phase,
+        isWeekend,
+        summary: summaryParts.join(" "),
+        marketContext: marketCtx ? {
+          regime: marketCtx.regime,
+          riskSentiment: marketCtx.riskSentiment,
+          preferredDirection: marketCtx.preferredDirection,
+          score: marketCtx.score,
+          vixLevel: marketCtx.vixLevel,
+          reasons: marketCtx.reasons,
+        } : null,
+        futuresBias,
+        futures,
+        indices,
+        preMarketGaps,
+        crypto,
+        vixContext,
+        swingSetups,
+        topConvictions,
+        weeklyFocus: weeklySymbols,
+        // Weekend-only: Friday session recap
+        fridayRecap: fridayRecap || null,
+        upcomingEvents: upcomingEvents.slice(0, 10),
+        todayEvents,
+        highImpactAlert: highImpact,
+        earnings: earnings.slice(0, 10),
+        generatedAt: new Date().toISOString(),
+        _meta: {
+          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist" + (isWeekend ? " + movers + sectors + friday_ideas" : ""),
+          cachedAt: new Date().toISOString(),
+          public: true,
+        },
+      };
+
+      // Cache on weekends
+      if (isWeekend) {
+        weekendOutlookCache = { data: responseData, timestamp: Date.now() };
+      }
+
+      res.json(responseData);
+    } catch (error) {
+      logError(error as Error, { context: "GET /api/market-outlook" });
+      res.status(500).json({ error: "Failed to generate market outlook" });
     }
   });
 
@@ -5434,7 +5751,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assetAllocation,
         winLossRatio,
         recentBriefs: [],
-        systemStatus: []
+        systemStatus: [],
+        _meta: {
+          dataSource: "trade_ideas_db",
+          cachedAt: new Date().toISOString(),
+          decidedCount: decidedIdeas.length,
+          openCount: openIdeas.length,
+        },
       });
     } catch (error) {
       console.error("Dashboard stats error:", error);
@@ -5496,11 +5819,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Morning Briefing - AI-generated market preview with watchlist and catalysts
   let morningBriefingCache: { data: any; timestamp: number } | null = null;
   const BRIEFING_CACHE_TTL = 30 * 60 * 1000; // 30 min cache
+  const WEEKEND_BRIEFING_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hour cache on weekends
 
   app.get("/api/morning-briefing", async (_req, res) => {
     try {
+      // Use longer cache on weekends (data barely changes)
+      const etNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const etDay = etNow.getDay();
+      const cacheTTL = (etDay === 0 || etDay === 6) ? WEEKEND_BRIEFING_CACHE_TTL : BRIEFING_CACHE_TTL;
+
       // Return cached if fresh
-      if (morningBriefingCache && (Date.now() - morningBriefingCache.timestamp) < BRIEFING_CACHE_TTL) {
+      if (morningBriefingCache && (Date.now() - morningBriefingCache.timestamp) < cacheTTL) {
         return res.json(morningBriefingCache.data);
       }
 
@@ -6226,17 +6555,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // always return matching scores for the same idea (single source of truth).
       const data = await getCachedConvictions(buildOpts);
 
+      const meta = {
+        _meta: {
+          dataSource: "convictions_engine",
+          cachedAt: new Date().toISOString(),
+          picksCount: data.picks?.length ?? 0,
+        },
+      };
+
       if (symbolFilter) {
         const filtered = data.picks.filter((p) => {
           if (p.symbol.toUpperCase() !== symbolFilter) return false;
           if (directionFilter && p.direction.toLowerCase() !== directionFilter) return false;
           return true;
         });
-        res.json({ ...data, picks: filtered });
+        res.json({ ...data, picks: filtered, ...meta });
         return;
       }
 
-      res.json(data);
+      res.json({ ...data, ...meta });
     } catch (error) {
       logger.error("[API] Convictions error:", error);
       res.status(500).json({ error: "Failed to build convictions" });
@@ -6912,7 +7249,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Final slice to the originally-requested limit (after enrichment + re-rank)
       topSetups = topSetups.slice(0, limit);
 
-      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, freshness-rejected ${revalidationDiagnostics.rejected}, convictions-enriched ${enrichedCount})`);
+      // Conflict detection: flag tickers that appear with opposing directions
+      // (e.g. AAPL LONG from breakout scanner + AAPL SHORT from bearish scanner)
+      const directionsBySymbol = new Map<string, Set<string>>();
+      for (const s of topSetups) {
+        const dir = (s.direction || 'long').toLowerCase();
+        if (!directionsBySymbol.has(s.symbol)) directionsBySymbol.set(s.symbol, new Set());
+        directionsBySymbol.get(s.symbol)!.add(dir);
+      }
+      const conflictSymbols: string[] = [];
+      directionsBySymbol.forEach((dirs, sym) => {
+        if (dirs.size > 1) conflictSymbols.push(sym);
+      });
+      if (conflictSymbols.length > 0) {
+        // Tag each conflicting setup so the UI can display a warning
+        topSetups = topSetups.map((s: any) => {
+          if (conflictSymbols.includes(s.symbol)) {
+            return { ...s, hasDirectionConflict: true };
+          }
+          return s;
+        });
+        logger.warn(`[BEST-SETUPS] ⚠️ Direction conflicts detected: ${conflictSymbols.join(', ')}`);
+      }
+
+      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, freshness-rejected ${revalidationDiagnostics.rejected}, convictions-enriched ${enrichedCount}, conflicts: ${conflictSymbols.length})`);
 
       // 🔍 DEBUG: Log the dates of returned setups to verify filtering
       if (topSetups.length > 0) {
@@ -6933,6 +7293,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setups: topSetups,
         generatedAt: now.toISOString(),
         revalidation: revalidationDiagnostics,
+        conflicts: conflictSymbols,
+        _meta: {
+          dataSource: "trade_ideas_db + convictions_engine",
+          cachedAt: now.toISOString(),
+        },
       });
     } catch (error) {
       logger.error('[BEST-SETUPS] Error:', error);
@@ -12842,6 +13207,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("POST /api/watchlist - Validated:", JSON.stringify(itemWithTimestamp));
       const item = await storage.addToWatchlist(itemWithTimestamp as any);
+      // Invalidate scanner universe cache so next scan picks up the new symbol
+      try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
       res.status(201).json(item);
     } catch (error: any) {
       console.error("POST /api/watchlist - Validation error:", error);
@@ -13009,6 +13376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!deleted) {
         return res.status(404).json({ error: "Watchlist item not found" });
       }
+      try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete watchlist item" });
@@ -15246,6 +15614,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'POST /api/swing-scanner/send-discord' });
       res.status(500).json({ error: "Failed to send swing trade to Discord" });
+    }
+  });
+
+  // ============ Weekly Swing Lookouts ============
+  // Combines convictions engine (7-day lookback) + swing scanner to produce
+  // "next week" candidate watchlist — things building setups worth monitoring.
+  let _weeklyLookoutsCache: { data: any; expiresAt: number } | null = null;
+  app.get("/api/discovery/weekly-swing-lookouts", async (req: any, res) => {
+    try {
+      const now = Date.now();
+      if (_weeklyLookoutsCache && _weeklyLookoutsCache.expiresAt > now) {
+        return res.json(_weeklyLookoutsCache.data);
+      }
+
+      // 1. Pull convictions with 7-day lookback (captures "building" setups)
+      const { getCachedConvictions } = await import("./convictions-engine");
+      const convictions = await getCachedConvictions({
+        lookbackHours: 168,
+        limit: 30,
+        minScore: 12,
+        skipLiveRevalidation: true, // historical scan, not live trading
+      });
+
+      // 2. Pull current swing scanner results
+      const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
+      const swingOpps = await getTopSwingOpportunities(20);
+
+      // 3. Merge: conviction picks that are swing-timeframe, plus swing scanner hits
+      const lookouts: any[] = [];
+      const seen = new Set<string>();
+
+      // Conviction picks (holding period = swing or position)
+      for (const pick of convictions.picks || []) {
+        if (seen.has(pick.symbol)) continue;
+        seen.add(pick.symbol);
+        const idea = pick as any;
+        const holdingPeriod = idea.holdingPeriod || idea.idea?.holdingPeriod || 'swing';
+        if (holdingPeriod === 'day') continue; // skip intraday-only
+        lookouts.push({
+          symbol: pick.symbol,
+          direction: pick.direction,
+          convictionScore: pick.convictionScore,
+          convictionBand: pick.convictionBand,
+          entryPrice: pick.entryPrice,
+          targetPrice: pick.targetPrice,
+          stopLoss: pick.stopLoss,
+          thesis: pick.catalyst || pick.thesis || '',
+          holdingPeriod,
+          source: 'conviction',
+          layers: pick.layers?.map((l: any) => `${l.kind}: ${l.why}`).slice(0, 4) || [],
+          ageHours: pick.ageHours,
+        });
+      }
+
+      // Swing scanner hits not already in convictions
+      for (const opp of swingOpps) {
+        if (seen.has(opp.symbol)) continue;
+        seen.add(opp.symbol);
+        lookouts.push({
+          symbol: opp.symbol,
+          direction: opp.trendBias === 'bearish' ? 'short' : 'long',
+          convictionScore: opp.score,
+          convictionBand: opp.grade,
+          entryPrice: opp.currentPrice,
+          targetPrice: opp.targetPrice,
+          stopLoss: opp.stopLoss,
+          thesis: opp.reason,
+          holdingPeriod: 'swing',
+          source: 'swing_scanner',
+          layers: [`${opp.pattern}`, `RSI ${opp.rsi14?.toFixed(0)}`, `Vol ${opp.volumeRatio?.toFixed(1)}x`],
+          ageHours: 0,
+        });
+      }
+
+      // Sort by conviction score descending
+      lookouts.sort((a, b) => (b.convictionScore || 0) - (a.convictionScore || 0));
+
+      // Auto-ingest high-conviction swing lookouts as trade ideas
+      // Only A-band+ (score >= 75) lookouts get promoted to the Trade Desk
+      const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+      let ingested = 0;
+      for (const lookout of lookouts) {
+        if (lookout.convictionScore < 75) break; // sorted desc, stop early
+        try {
+          const direction = lookout.direction === 'short' ? 'bearish' as const : 'bullish' as const;
+          const result = await ingestTradeIdea({
+            source: lookout.source === 'conviction' ? 'bullish_trend' : 'market_scanner',
+            symbol: lookout.symbol,
+            assetType: 'stock',
+            direction,
+            signals: (lookout.layers || []).map((l: string, i: number) => ({
+              type: `swing_${i}`,
+              weight: Math.min(15, Math.round(lookout.convictionScore / 5)),
+              description: l,
+            })),
+            holdingPeriod: 'swing',
+            currentPrice: lookout.entryPrice,
+            targetPrice: lookout.targetPrice,
+            stopLoss: lookout.stopLoss,
+            catalyst: lookout.thesis || `Swing setup: ${lookout.convictionBand}-band (${lookout.convictionScore})`,
+            analysis: `Weekly swing lookout — ${lookout.source}. ${lookout.thesis || ''}. Layers: ${(lookout.layers || []).join(', ')}`,
+          });
+          if (result.success) ingested++;
+        } catch (err) {
+          // Ingestion gate blocked (dedup, cooldown, etc.) — expected, not an error
+        }
+      }
+      if (ingested > 0) {
+        logger.info(`[WEEKLY-LOOKOUTS] Auto-ingested ${ingested} swing lookouts to Trade Desk`);
+      }
+
+      const result = {
+        lookouts: lookouts.slice(0, 15),
+        totalCandidates: lookouts.length,
+        ingested,
+        generatedAt: new Date().toISOString(),
+        _meta: {
+          dataSource: "convictions_engine + swing_scanner",
+          cachedAt: new Date().toISOString(),
+        },
+      };
+
+      // Cache for 30 minutes
+      _weeklyLookoutsCache = { data: result, expiresAt: now + 30 * 60 * 1000 };
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/discovery/weekly-swing-lookouts' });
+      res.status(500).json({ error: "Failed to generate weekly lookouts" });
     }
   });
 

@@ -5,6 +5,7 @@ import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { calculateSimpleTargets } from './atr-targets';
+import { getScannerUniverse } from './scanner-universe';
 
 // Track recently created trade ideas to avoid duplicates
 const recentTradeIdeas = new Map<string, Date>();
@@ -269,8 +270,13 @@ function determineTrendPhase(data: {
 
 export async function scanBullishTrends(): Promise<BullishTrend[]> {
   logger.info('[BULLISH] Starting bullish trend scan...');
-  
-  const symbols = USER_BULLISH_WATCHLIST;
+
+  // Merge user watchlist (priority) + hardcoded domain-specific symbols
+  const { symbols: universeSymbols, watchlistSymbols } = await getScannerUniverse();
+  // Combine: user watchlist first, then domain-specific symbols not already in universe
+  const domainOnly = USER_BULLISH_WATCHLIST.filter(s => !watchlistSymbols.has(s) && !universeSymbols.includes(s));
+  const symbols = [...universeSymbols, ...domainOnly];
+  logger.info(`[BULLISH] Scanning ${symbols.length} symbols (${watchlistSymbols.size} from watchlist, ${domainOnly.length} domain-specific)`);
   const quotes = await fetchQuotes(symbols);
   
   if (quotes.length === 0) {

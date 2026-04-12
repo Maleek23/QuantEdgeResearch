@@ -189,7 +189,7 @@ function CompositeScore({ engines }: { engines: EngineScore[] }) {
         </div>
         <div>
           <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            6-Engine Consensus
+            Confluence Consensus
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className={cn("text-2xl font-bold font-mono", signalColors[dominantSignal])}>
@@ -311,7 +311,7 @@ export function SixEnginePanel({
         <CardContent className="py-12 flex items-center justify-center">
           <div className="flex items-center gap-3 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Initializing 6-Engine Analysis...</span>
+            <span className="text-sm">Computing confluence scores...</span>
           </div>
         </CardContent>
       </Card>
@@ -331,7 +331,7 @@ export function SixEnginePanel({
             </div>
             <div>
               <CardTitle className="text-base font-bold tracking-tight">
-                6-Engine Intelligence
+                Confluence Intelligence
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Multi-factor analysis for {symbol}

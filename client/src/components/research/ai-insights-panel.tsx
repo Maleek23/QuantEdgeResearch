@@ -1,5 +1,5 @@
 /**
- * AI Insights Panel
+ * Engine Verdict Panel
  * Clear verdict, recommendations, and risk factors
  */
 
@@ -78,11 +78,11 @@ export function AIInsightsPanel({
   return (
     <Card className={cn("p-6 bg-gradient-to-br from-slate-900 to-slate-800 border-border", className)}>
       <div className="space-y-6">
-        {/* AI Verdict Header */}
+        {/* Verdict Header */}
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-cyan-400" />
-            <h3 className="text-lg font-bold text-foreground/95">AI Analysis & Recommendation</h3>
+            <h3 className="text-lg font-bold text-foreground/95">Engine Verdict</h3>
           </div>
 
           <div className={cn("p-4 rounded-lg border", config.bg, config.border)}>
@@ -95,7 +95,7 @@ export function AIInsightsPanel({
                   <Badge variant="outline" className={cn("font-bold", config.textColor, `border-${config.color}-500/30`)}>
                     {config.label}
                   </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">AI Confidence: {confidence}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Confidence: {confidence}%</p>
                 </div>
               </div>
 

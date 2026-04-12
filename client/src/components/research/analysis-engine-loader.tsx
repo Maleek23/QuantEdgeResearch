@@ -1,6 +1,8 @@
 /**
  * Analysis Engine Loader
- * Shows real-time progress of all analysis engines running
+ * Shows progress of quantitative scoring layers running.
+ * NOTE: No ML models (LSTM, XGBoost, etc.) are actually executed.
+ * The engine is a deterministic 14-layer point-summing confluence scorer.
  */
 
 import { motion } from "framer-motion";
@@ -185,8 +187,8 @@ export const DEFAULT_ENGINES: Omit<EngineStatus, 'status'>[] = [
     icon: TrendingUp,
   },
   {
-    name: 'Technical Analysis',
-    description: 'Calculating 6 indicators (RSI, MACD, MA, Volume, BB, Stoch)',
+    name: 'Technical Confluence',
+    description: 'Calculating indicators (RSI, MACD, MA, Volume, BB, Stoch)',
     icon: BarChart3,
   },
   {
@@ -195,13 +197,13 @@ export const DEFAULT_ENGINES: Omit<EngineStatus, 'status'>[] = [
     icon: DollarSign,
   },
   {
-    name: 'ML Price Predictions',
-    description: 'Running 3 machine learning models (LSTM, Random Forest, XGBoost)',
+    name: 'Regime Detection',
+    description: 'Classifying current market regime and volatility state',
     icon: Brain,
   },
   {
-    name: 'Sentiment Analysis',
-    description: 'Scanning news, social media, and analyst ratings',
+    name: 'Catalyst Analysis',
+    description: 'Scanning news, earnings, and event-driven catalysts',
     icon: Newspaper,
   },
   {
@@ -215,8 +217,8 @@ export const DEFAULT_ENGINES: Omit<EngineStatus, 'status'>[] = [
     icon: Zap,
   },
   {
-    name: 'AI Insights Generation',
-    description: 'Synthesizing data into actionable recommendations',
+    name: 'Scoring Engine',
+    description: 'Computing 14-layer confluence score and final verdict',
     icon: Brain,
   },
 ];

@@ -19,6 +19,7 @@ import { getTradierQuote, getTradierHistory, getTradierHistoryOHLC, getTradierOp
 import { safeQuote } from './yahoo-finance-service';
 import { isApprovedTicker, isSkipTicker } from '../shared/approved-tickers';
 import { calculateATRTargets, calculateSimpleTargets } from './atr-targets';
+import { getScannerUniverse } from './scanner-universe';
 // Lotto detection handled inline
 
 // The most-traded stocks that users EXPECT to see trade ideas for
@@ -507,25 +508,23 @@ async function findOptionPlays(analysis: TickerAnalysis): Promise<OptionSetup[]>
  * Generates BOTH stock AND option ideas
  */
 export async function scanPopularTickers(): Promise<number> {
-  logger.info('[POPULAR-SCANNER] Starting scan of popular tickers...');
-  logger.info(`[POPULAR-SCANNER] Scanning ${POPULAR_TICKERS.length} tickers: ${POPULAR_TICKERS.slice(0, 10).join(', ')}...`);
+  // Merge user watchlist (priority) + static popular tickers
+  const { symbols: universeSymbols, watchlistSymbols } = await getScannerUniverse();
+  // Combine: universe first (includes watchlist at the front), then any popular tickers not already covered
+  const extraPopular = POPULAR_TICKERS.filter(s => !universeSymbols.includes(s));
+  const allSymbols = [...universeSymbols, ...extraPopular];
+  logger.info(`[POPULAR-SCANNER] Starting scan of ${allSymbols.length} tickers (${watchlistSymbols.size} from watchlist)...`);
 
   let ideasGenerated = 0;
   const processedSymbols = new Set<string>();
 
-  for (const symbol of POPULAR_TICKERS) {
+  for (const symbol of allSymbols) {
     if (processedSymbols.has(symbol)) continue;
     processedSymbols.add(symbol);
 
-    // 🔒 WATCHLIST GATE: skip non-approved tickers (per user feedback — Trade Desk should
-    // focus on the user's backtested watchlist, not 80+ random popular tickers).
-    // Index ETFs (SPY/QQQ/IWM/etc.) are approved so they still flow through.
-    if (isSkipTicker(symbol)) {
+    // Skip list: proven money losers — but NEVER skip user watchlist symbols
+    if (isSkipTicker(symbol) && !watchlistSymbols.has(symbol)) {
       logger.debug(`[POPULAR-SCANNER] ${symbol}: on skip list`);
-      continue;
-    }
-    if (!isApprovedTicker(symbol)) {
-      logger.debug(`[POPULAR-SCANNER] ${symbol}: not on approved watchlist — skipping`);
       continue;
     }
 

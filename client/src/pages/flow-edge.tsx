@@ -46,12 +46,14 @@ import { cn, safeToFixed, formatVolumeCompact } from "@/lib/utils";
 // Lazy sub-tabs
 const GEXDashboard = lazy(() => import("@/pages/gex-dashboard"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
+const GEXScanner = lazy(() => import("@/pages/gex-scanner"));
 
-type FlowTab = 'flow' | 'gex' | 'smart-money';
+type FlowTab = 'flow' | 'gex' | 'hub' | 'smart-money';
 
 const FLOW_TABS: { key: FlowTab; label: string; icon: any }[] = [
   { key: 'flow', label: 'Options Flow', icon: Activity },
   { key: 'gex', label: 'GEX / VEX', icon: Shield },
+  { key: 'hub', label: 'GEX Hub', icon: Crosshair },
   { key: 'smart-money', label: 'Smart Money', icon: Users },
 ];
 
@@ -605,6 +607,13 @@ export default function FlowEdge() {
         {activeTab === 'gex' && (
           <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
             <GEXDashboard />
+          </Suspense>
+        )}
+
+        {/* GEX Hub Tab — confluence scanner + sector pulse */}
+        {activeTab === 'hub' && (
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
+            <GEXScanner />
           </Suspense>
         )}
 

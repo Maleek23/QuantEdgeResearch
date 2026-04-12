@@ -45,14 +45,14 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
     },
     {
       id: 'trading-engine',
-      title: '6-Engine Command Center',
-      description: 'Unified multi-engine analysis with ML, AI, Quant, Flow, Sentiment & Technical',
+      title: 'Confluence Command Center',
+      description: 'Unified multi-layer analysis with Technical, Fundamental, Catalyst, Quant, Flow & Sentiment',
       icon: Brain,
       href: `/trading-engine`,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/30',
-      features: ['6-engine consensus', 'ML predictions', 'AI insights', 'Quant signals', 'Flow analysis'],
+      features: ['Confluence scoring', 'Regime detection', 'Catalyst analysis', 'Quant signals', 'Flow analysis'],
       available: true,
       category: 'ml'
     },
@@ -330,7 +330,7 @@ export default function AnalysisPage() {
           <div>
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
               <Brain className="h-4 w-4 text-purple-400" />
-              Machine Learning & AI
+              Quantitative Models
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {mlLinks.map((link) => (

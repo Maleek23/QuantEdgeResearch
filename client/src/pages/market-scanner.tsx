@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { safeToFixed, safeNumber, formatMarketCap as sharedFormatMarketCap, formatVolumeCompact, formatPriceChange, cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { useSearch, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -784,6 +785,11 @@ export default function MarketScanner() {
   const [activeTab, setActiveTab] = useState<string>("movers");
   const { toast } = useToast();
 
+  // Market-hours-aware polling — aggressive during market, throttled after
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+  const scannerInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
+  const heavyInterval = useMarketPoll(POLL.HEAVY.open, POLL.HEAVY.closed);
+
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const tabParam = params.get('tab');
@@ -801,14 +807,14 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error("Failed to fetch movers");
       return res.json();
     },
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: scannerInterval,
+    staleTime: 15_000,
   });
 
   const sectorsQuery = useQuery<SectorData>({
     queryKey: ["/api/market-scanner/sectors"],
-    refetchInterval: 120000,
-    staleTime: 60000,
+    refetchInterval: heavyInterval,
+    staleTime: 30_000,
   });
 
   const watchlistQuery = useQuery<SmartWatchlistResponse>({
@@ -818,8 +824,8 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error("Failed to fetch smart watchlist");
       return res.json();
     },
-    refetchInterval: 300000,
-    staleTime: 120000,
+    refetchInterval: heavyInterval,
+    staleTime: 60_000,
   });
 
   const swingQuery = useQuery<SwingOpportunity[]>({
@@ -829,7 +835,7 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error('Failed to fetch swing opportunities');
       return res.json();
     },
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: heavyInterval,
     enabled: activeTab === 'swing',
   });
 
@@ -840,7 +846,7 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error('Failed to fetch day trade opportunities');
       return res.json();
     },
-    refetchInterval: 60 * 1000,
+    refetchInterval: scannerInterval,
     enabled: activeTab === 'daytrade',
   });
 
@@ -852,8 +858,8 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error('Failed to fetch surge signals');
       return res.json();
     },
-    refetchInterval: 60 * 1000, // Refresh every minute for real-time detection
-    staleTime: 30000,
+    refetchInterval: scannerInterval,
+    staleTime: 15_000,
   });
 
   // WSB Trending - Live social sentiment from Reddit/WSB
@@ -864,8 +870,8 @@ export default function MarketScanner() {
       if (!res.ok) throw new Error('Failed to fetch WSB trending');
       return res.json();
     },
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
-    staleTime: 2 * 60 * 1000,
+    refetchInterval: heavyInterval,
+    staleTime: 60_000,
     enabled: activeTab === 'social',
   });
 
@@ -878,8 +884,8 @@ export default function MarketScanner() {
       const data = await res.json();
       return data.earnings || data || [];
     },
-    refetchInterval: 15 * 60 * 1000,
-    staleTime: 5 * 60 * 1000,
+    refetchInterval: 15 * 60_000,
+    staleTime: 5 * 60_000,
     enabled: activeTab === 'earnings',
   });
 
@@ -892,8 +898,8 @@ export default function MarketScanner() {
       const data = await res.json();
       return data.breakouts || data || [];
     },
-    refetchInterval: 5 * 60 * 1000,
-    staleTime: 2 * 60 * 1000,
+    refetchInterval: heavyInterval,
+    staleTime: 60_000,
     enabled: activeTab === 'breakouts',
   });
 
@@ -933,8 +939,8 @@ export default function MarketScanner() {
       }
       return res.json();
     },
-    refetchInterval: 5 * 60 * 1000,
-    staleTime: 2 * 60 * 1000,
+    refetchInterval: heavyInterval,
+    staleTime: 60_000,
     enabled: activeTab === 'squeeze',
   });
 

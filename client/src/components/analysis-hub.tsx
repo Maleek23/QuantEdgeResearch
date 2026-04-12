@@ -57,14 +57,14 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
     },
     {
       id: 'trading-engine',
-      title: '6-Engine Command Center',
-      description: 'Unified multi-engine analysis with ML, AI, Quant, Flow, Sentiment & Technical',
+      title: 'Confluence Command Center',
+      description: 'Unified multi-layer analysis with Technical, Fundamental, Catalyst, Quant, Flow & Sentiment',
       icon: Brain,
       href: `/trading-engine`,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
       borderColor: 'border-purple-500/30',
-      features: ['6-engine consensus', 'ML predictions', 'AI insights', 'Quant signals', 'Flow analysis'],
+      features: ['Confluence scoring', 'Regime detection', 'Catalyst analysis', 'Quant signals', 'Flow analysis'],
       available: true,
       category: 'ml'
     },

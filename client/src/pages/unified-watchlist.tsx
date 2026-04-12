@@ -3,12 +3,13 @@
  * Tabs: Default (Personal) | Kavout | Bot-Generated
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { cn, formatCurrency, safeToFixed, safeNumber } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,8 +52,312 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  Calendar,
+  Zap,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import type { WatchlistItem, TradeIdea } from "@shared/schema";
+
+// ─── Weekly Watchlist WS Hook ─────────────────────────────────────
+
+interface WeeklyTick {
+  symbol: string;
+  price: number;
+  chgPct: number;
+  ts: number;
+}
+
+function useWeeklyTickerStream() {
+  const [ticks, setTicks] = useState<Map<string, WeeklyTick>>(new Map());
+  const [connected, setConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/weekly-watchlist`);
+    wsRef.current = ws;
+
+    ws.onopen = () => setConnected(true);
+    ws.onclose = () => {
+      setConnected(false);
+      // Reconnect after 5s
+      reconnectTimer.current = setTimeout(connect, 5000);
+    };
+    ws.onerror = () => ws.close();
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === "snapshot" || msg.type === "tick") {
+          setTicks((prev) => {
+            const next = new Map(prev);
+            for (const t of msg.symbols as WeeklyTick[]) {
+              next.set(t.symbol, t);
+            }
+            return next;
+          });
+        }
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
+    };
+  }, [connect]);
+
+  return { ticks, connected };
+}
+
+// ─── Weekly Watchlist Item Type ───────────────────────────────────
+
+interface WeeklyItem {
+  id: number;
+  symbol: string;
+  category: string;
+  weekStartDate: string;
+  autoSeeded: boolean;
+  weeklyConvictionScore: number | null;
+  weeklyConvictionBand: string | null;
+  weeklyThesis: string | null;
+  addedAt: string;
+}
+
+// ─── "This Week" Tab Component ────────────────────────────────────
+
+function ThisWeekTab() {
+  const { toast } = useToast();
+  const { ticks, connected } = useWeeklyTickerStream();
+  const [newSymbol, setNewSymbol] = useState("");
+
+  // Get current Monday's date
+  const currentMonday = useMemo(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d.setDate(diff));
+    return monday.toISOString().split("T")[0];
+  }, []);
+
+  const { data: weeklyItems = [], isLoading, refetch } = useQuery<WeeklyItem[]>({
+    queryKey: ["/api/watchlist/weekly", currentMonday],
+    queryFn: async () => {
+      const res = await fetch(`/api/watchlist/weekly?weekStart=${currentMonday}`);
+      if (!res.ok) throw new Error("Failed to load weekly watchlist");
+      const data = await res.json();
+      return data.items || [];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/watchlist/weekly", {
+        symbol: newSymbol.toUpperCase(),
+        thesis: "",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist/weekly"] });
+      setNewSymbol("");
+      toast({ title: "Added", description: `${newSymbol.toUpperCase()} added to this week` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest("DELETE", `/api/watchlist/weekly/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist/weekly"] });
+      toast({ title: "Removed from weekly list" });
+    },
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/watchlist/weekly/seed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist/weekly"] });
+      toast({ title: "Seeded", description: "Weekly list refreshed from top convictions" });
+    },
+  });
+
+  return (
+    <div className="space-y-3">
+      {/* Controls */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <span className="text-xs font-mono text-muted-foreground">
+            Week of {currentMonday}
+          </span>
+          <div className="flex items-center gap-1 ml-2">
+            {connected ? (
+              <Wifi className="w-3 h-3 text-[var(--trade-bullish)]" />
+            ) : (
+              <WifiOff className="w-3 h-3 text-muted-foreground" />
+            )}
+            <span className={cn("text-[10px] font-mono", connected ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>
+              {connected ? "LIVE" : "OFFLINE"}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Input
+              placeholder="Add ticker..."
+              value={newSymbol}
+              onChange={(e) => setNewSymbol(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newSymbol.trim()) addMutation.mutate();
+              }}
+              className="w-32 h-8 text-xs bg-muted/50 border-border"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs border-border"
+            onClick={() => seedMutation.mutate()}
+            disabled={seedMutation.isPending}
+          >
+            <Zap className={cn("w-3 h-3 mr-1", seedMutation.isPending && "animate-spin")} />
+            Auto-seed
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card className="bg-card/60 border-border overflow-hidden">
+        {isLoading ? (
+          <div className="p-8 text-center">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto text-[var(--brand-teal)] mb-2" />
+            <p className="text-sm text-muted-foreground">Loading weekly list...</p>
+          </div>
+        ) : weeklyItems.length === 0 ? (
+          <div className="p-8 text-center">
+            <Calendar className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+            <h3 className="text-sm font-semibold text-foreground/70 mb-1">No tickers this week</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Click "Auto-seed" to populate from top convictions, or add tickers manually.
+            </p>
+            <Button
+              size="sm"
+              className="bg-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/80 text-white"
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+            >
+              <Zap className="w-3 h-3 mr-1" />
+              Seed from Convictions
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableHead className="w-[100px]">Symbol</TableHead>
+                  <TableHead className="text-right w-[90px]">Price</TableHead>
+                  <TableHead className="text-right w-[80px]">% Chg</TableHead>
+                  <TableHead className="text-center w-[60px]">Band</TableHead>
+                  <TableHead className="text-right w-[60px]">Score</TableHead>
+                  <TableHead>Thesis</TableHead>
+                  <TableHead className="text-center w-[60px]">Source</TableHead>
+                  <TableHead className="text-center w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {weeklyItems.map((item) => {
+                  const tick = ticks.get(item.symbol);
+                  const price = tick?.price;
+                  const chgPct = tick?.chgPct ?? 0;
+                  const isPos = chgPct >= 0;
+                  const band = item.weeklyConvictionBand || "–";
+                  const bandConfig = TIER_CONFIG[band] || { bg: "bg-muted/30", text: "text-muted-foreground", label: band };
+
+                  return (
+                    <TableRow key={item.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <Link href={`/stock/${item.symbol}`}>
+                          <span className="font-semibold text-[var(--brand-teal)] hover:underline cursor-pointer">
+                            {item.symbol}
+                          </span>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-mono text-foreground/80 text-sm">
+                          {price != null ? `$${price.toFixed(2)}` : "–"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-0.5">
+                          {isPos ? (
+                            <ArrowUpRight className="w-3 h-3 text-[var(--trade-bullish)]" />
+                          ) : (
+                            <ArrowDownRight className="w-3 h-3 text-[var(--trade-bearish)]" />
+                          )}
+                          <span className={cn("font-mono text-xs", isPos ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+                            {isPos ? "+" : ""}{chgPct.toFixed(2)}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold", bandConfig.bg, bandConfig.text)}>
+                          {band}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {item.weeklyConvictionScore != null ? Math.round(item.weeklyConvictionScore) : "–"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px] block">
+                          {item.weeklyThesis || "–"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {item.autoSeeded ? (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 font-mono bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] border-[var(--brand-teal)]/30">
+                            AUTO
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 font-mono">
+                            MANUAL
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-[var(--trade-bearish)] hover:text-red-300"
+                          onClick={() => removeMutation.mutate(item.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
 
 // Tier configuration for grading display
 const TIER_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -72,21 +377,26 @@ interface QuoteData {
 
 export default function UnifiedWatchlist() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"default" | "kavout" | "bot">("default");
+  const [activeTab, setActiveTab] = useState<"weekly" | "default" | "kavout" | "bot">("weekly");
   const [selectedWatchlist, setSelectedWatchlist] = useState("Main");
   const [searchSymbol, setSearchSymbol] = useState("");
   const [newSymbol, setNewSymbol] = useState("");
   const [sortColumn, setSortColumn] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+  const scannerInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
+
   // Fetch personal watchlist items
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
+    refetchInterval: scannerInterval,
   });
 
   // Fetch trade ideas for bot-generated tab
   const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
+    refetchInterval: scannerInterval,
   });
 
   // Batch fetch quotes
@@ -107,8 +417,8 @@ export default function UnifiedWatchlist() {
       const data = await res.json();
       return data.quotes || {};
     },
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 10_000,
+    refetchInterval: priceInterval,
     enabled: watchlistItems.length > 0,
   });
 
@@ -326,6 +636,10 @@ export default function UnifiedWatchlist() {
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="bg-muted/50">
+              <TabsTrigger value="weekly" className="data-[state=active]:bg-[var(--brand-teal)]/15 data-[state=active]:text-[var(--brand-teal)]">
+                <Calendar className="w-4 h-4 mr-2" />
+                This Week
+              </TabsTrigger>
               <TabsTrigger value="default" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-[var(--trade-bullish)]">
                 <Star className="w-4 h-4 mr-2" />
                 Overview
@@ -360,8 +674,19 @@ export default function UnifiedWatchlist() {
           </div>
         </motion.div>
 
-        {/* Main Content - Table */}
-        <motion.div
+        {/* Weekly Tab Content */}
+        {activeTab === "weekly" && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <ThisWeekTab />
+          </motion.div>
+        )}
+
+        {/* Main Content - Table (Overview / Technical / Moving Averages) */}
+        {activeTab !== "weekly" && <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -525,7 +850,7 @@ export default function UnifiedWatchlist() {
               </div>
             )}
           </Card>
-        </motion.div>
+        </motion.div>}
 
         {/* Notifications Section */}
         <motion.div

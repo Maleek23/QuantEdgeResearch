@@ -194,19 +194,19 @@ export default function Features() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* ML Engine */}
-            <div className="bg-card backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-ml-engine">
+            {/* Confluence Engine */}
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-confluence-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-pink-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">ML Engine</h3>
-                  <p className="text-xs text-muted-foreground">Predictive Analytics</p>
+                  <h3 className="font-semibold text-lg text-foreground">Confluence Engine</h3>
+                  <p className="text-xs text-muted-foreground">Quantitative Scoring</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Machine learning predictions using regime detection, confidence calibration, and historical pattern analysis.
+                14-layer deterministic scoring using regime detection, confidence calibration, and historical pattern analysis.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export default function Features() {
                   <Check className="h-4 w-4 text-cyan-400" /> Confidence calibration
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Signal weight optimization
+                  <Check className="h-4 w-4 text-cyan-400" /> Rule-based weight optimization
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Win rate tracking
@@ -224,15 +224,15 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* AI Engine */}
-            <div className="bg-card backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-ai-engine">
+            {/* Catalyst Engine */}
+            <div className="bg-card backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-catalyst-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground">Multi-LLM Analysis</p>
+                  <h3 className="font-semibold text-lg text-foreground">Catalyst Engine</h3>
+                  <p className="text-xs text-muted-foreground">Event-Driven Analysis</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
@@ -654,9 +654,9 @@ export default function Features() {
               <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center mb-4">
                 <Network className="h-5 w-5 text-pink-400" />
               </div>
-              <h3 className="font-semibold mb-2 text-foreground">Neural Visualization</h3>
+              <h3 className="font-semibold mb-2 text-foreground">Engine Visualization</h3>
               <p className="text-sm text-muted-foreground">
-                See the 6 engines as interconnected nodes, learning from each trade outcome.
+                See all scoring layers as interconnected nodes, tracking each trade outcome.
               </p>
             </div>
 

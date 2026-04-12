@@ -235,7 +235,8 @@ export default function ConvictionBacktestPage() {
                     <TableHead className="text-xs uppercase text-right">Wins</TableHead>
                     <TableHead className="text-xs uppercase text-right">Losses</TableHead>
                     <TableHead className="text-xs uppercase text-right">Win Rate</TableHead>
-                    <TableHead className="text-xs uppercase text-right">Avg %</TableHead>
+                    <TableHead className="text-xs uppercase text-right" title="Average % gain from closed (realized) trades only">Realized %</TableHead>
+                    <TableHead className="text-xs uppercase text-right" title="Average % gain from open positions using live price proxy">Unreal. %</TableHead>
                     <TableHead className="text-xs uppercase text-right">Expectancy R</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -275,11 +276,34 @@ export default function ConvictionBacktestPage() {
                       <TableCell
                         className={cn(
                           "text-right tabular-nums",
-                          b.avgPercentGain >= 0 ? "text-emerald-400" : "text-rose-400",
+                          b.avgRealizedGain >= 0 ? "text-emerald-400" : "text-rose-400",
                         )}
+                        title={`${b.closed} closed trades`}
                       >
-                        {b.avgPercentGain >= 0 ? "+" : ""}
-                        {safeToFixed(b.avgPercentGain, 1)}%
+                        {b.closed > 0 ? (
+                          <>
+                            {b.avgRealizedGain >= 0 ? "+" : ""}
+                            {safeToFixed(b.avgRealizedGain, 1)}%
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          b.avgUnrealizedGain >= 0 ? "text-emerald-400/60" : "text-rose-400/60",
+                        )}
+                        title={`${b.open} open positions (live price proxy)`}
+                      >
+                        {b.open > 0 ? (
+                          <>
+                            {b.avgUnrealizedGain >= 0 ? "+" : ""}
+                            {safeToFixed(b.avgUnrealizedGain, 1)}%
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell
                         className={cn(
@@ -294,6 +318,12 @@ export default function ConvictionBacktestPage() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="px-4 py-2 border-t border-border bg-muted/20 text-[10px] text-muted-foreground">
+                <AlertTriangle className="w-3 h-3 inline mr-1 -mt-px" />
+                <strong>Realized %</strong> = closed trades with confirmed P&L.{" "}
+                <strong>Unreal. %</strong> = open positions priced at current market (proxy, not locked in).
+                {" "}Expectancy R uses both. n={data.closedCount} closed, {data.openCount} open.
+              </div>
             </Card>
 
             {/* Per-source */}

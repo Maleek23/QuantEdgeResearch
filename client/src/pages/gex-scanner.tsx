@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useMarketPoll, POLL } from '@/hooks/use-market-poll';
 import { Link, useLocation } from 'wouter';
 import { QEPageShell } from '@/components/ui/qe-page-shell';
 import { ConfluenceRow } from '@/components/gex/confluence-row';
@@ -30,6 +31,7 @@ interface HubResponse {
 }
 
 function useGEXHub() {
+  const gexInterval = useMarketPoll(POLL.HEAVY.open, POLL.HEAVY.closed);
   return useQuery<HubResponse>({
     queryKey: ['/api/gex-vex/hub'],
     queryFn: async () => {
@@ -48,8 +50,8 @@ function useGEXHub() {
       }
       return res.json();
     },
-    staleTime: 4 * 60_000, // 4 min
-    refetchInterval: 5 * 60_000, // 5 min
+    staleTime: 60_000,
+    refetchInterval: gexInterval,
     retry: 1,
   });
 }
