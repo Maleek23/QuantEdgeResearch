@@ -41,7 +41,11 @@ import {
 } from '@/components/ticker/ticker-tabs';
 import { TickerChartTab } from '@/components/ticker/tabs/ticker-chart-tab';
 import { TickerGexTab } from '@/components/ticker/tabs/ticker-gex-tab';
-import { TickerStubTab } from '@/components/ticker/tabs/ticker-stub-tab';
+import { TickerOverviewTab } from '@/components/ticker/tabs/ticker-overview-tab';
+import { TickerOptionsTab } from '@/components/ticker/tabs/ticker-options-tab';
+import { TickerVolTab } from '@/components/ticker/tabs/ticker-vol-tab';
+import { TickerProjectionTab } from '@/components/ticker/tabs/ticker-projection-tab';
+import { TickerCatalystsTab } from '@/components/ticker/tabs/ticker-catalysts-tab';
 import { CommandRightRail } from '@/components/command/command-right-rail';
 import type { CommandInterval } from '@/components/command/command-top-nav';
 import type { GEXTerminalData } from '../../../shared/gex-types';
@@ -196,12 +200,16 @@ function TabContent({
     case 'gex':
       return <TickerGexTab data={data} />;
     case 'overview':
+      return <TickerOverviewTab data={data} symbol={symbol} />;
     case 'options':
+      return <TickerOptionsTab symbol={symbol} />;
     case 'vol':
+      return <TickerVolTab symbol={symbol} />;
     case 'projection':
+      return <TickerProjectionTab data={data} symbol={symbol} />;
     case 'catalysts':
-      return <TickerStubTab slug={tab} symbol={symbol} />;
+      return <TickerCatalystsTab symbol={symbol} />;
     default:
-      return <TickerStubTab slug={tab} symbol={symbol} />;
+      return <TickerOverviewTab data={data} symbol={symbol} />;
   }
 }
