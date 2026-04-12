@@ -2031,6 +2031,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // NEXT DAY / WEEKEND OUTLOOK — PUBLIC (no auth)
+  // Answers "what's it looking like for tomorrow?"
+  // ============================================
+
+  app.get("/api/market-outlook", async (_req, res) => {
+    try {
+      const { currentMarketPhase, getPreMarketBatch } = await import("./pre-market-service");
+      const { getMarketContext } = await import("./market-context-service");
+      const { getFuturesPrices } = await import("./futures-data-service");
+      const { getUpcomingEvents, getTodayEvents, hasHighImpactEventSoon } = await import("./economic-calendar");
+      const { getUpcomingEarnings } = await import("./earnings-service");
+      const { getRealtimeBatchQuotes } = await import("./realtime-pricing-service");
+
+      const phase = currentMarketPhase();
+      const isWeekend = phase === "closed" && [0, 6].includes(new Date().getDay());
+
+      // Parallel fetch everything
+      const [
+        marketCtx,
+        futuresMap,
+        upcomingEvents,
+        todayEvents,
+        highImpact,
+        earnings,
+        indexQuotes,
+        cryptoQuotes,
+      ] = await Promise.all([
+        getMarketContext().catch(() => null),
+        getFuturesPrices(["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]).catch(() => new Map()),
+        Promise.resolve(getUpcomingEvents(3)),
+        Promise.resolve(getTodayEvents()),
+        Promise.resolve(hasHighImpactEventSoon(48)),
+        getUpcomingEarnings(3).catch(() => []),
+        getRealtimeBatchQuotes([
+          { symbol: "SPY", assetType: "stock" },
+          { symbol: "QQQ", assetType: "stock" },
+          { symbol: "IWM", assetType: "stock" },
+          { symbol: "VIX", assetType: "stock" },
+          { symbol: "DIA", assetType: "stock" },
+        ]).catch(() => new Map()),
+        getRealtimeBatchQuotes([
+          { symbol: "BTC", assetType: "crypto" },
+          { symbol: "ETH", assetType: "crypto" },
+          { symbol: "SOL", assetType: "crypto" },
+        ]).catch(() => new Map()),
+      ]);
+
+      // Pre-market gaps for key indices
+      let preMarketGaps: Record<string, any> = {};
+      if (phase === "pre_market" || phase === "regular") {
+        try {
+          const pmBatch = await getPreMarketBatch(["SPY", "QQQ", "IWM", "DIA", "AAPL", "TSLA", "NVDA", "META", "AMZN", "GOOGL"]);
+          pmBatch.forEach((snap, sym) => {
+            preMarketGaps[sym] = {
+              price: snap.price,
+              previousClose: snap.previousClose,
+              gapPct: snap.gapPct,
+              gapDirection: snap.gapDirection,
+              preMarketGapPct: snap.preMarketGapPct,
+            };
+          });
+        } catch {}
+      }
+
+      // Format futures
+      const futures: Record<string, number | null> = {};
+      for (const code of ["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]) {
+        futures[code] = futuresMap.get(code) ?? null;
+      }
+
+      // Format index quotes
+      const indices: Record<string, { price: number; changePct: number } | null> = {};
+      for (const sym of ["SPY", "QQQ", "IWM", "VIX", "DIA"]) {
+        const q = indexQuotes.get(sym);
+        indices[sym] = q ? { price: q.price, changePct: q.changePercent } : null;
+      }
+
+      // Format crypto
+      const crypto: Array<{ symbol: string; price: number; changePct: number }> = [];
+      for (const sym of ["BTC", "ETH", "SOL"]) {
+        const q = cryptoQuotes.get(sym);
+        if (q) crypto.push({ symbol: sym, price: q.price, changePct: q.changePercent });
+      }
+
+      // Determine bias from futures
+      const esPrice = futures.ES;
+      const nqPrice = futures.NQ;
+      let futuresBias: "bullish" | "bearish" | "neutral" = "neutral";
+      const spyQuote = indexQuotes.get("SPY");
+      if (esPrice && spyQuote) {
+        const impliedGap = ((esPrice - spyQuote.price) / spyQuote.price) * 100;
+        if (impliedGap > 0.3) futuresBias = "bullish";
+        else if (impliedGap < -0.3) futuresBias = "bearish";
+      }
+
+      // VIX context
+      const vixQuote = indexQuotes.get("VIX");
+      let vixContext: string | null = null;
+      if (vixQuote) {
+        const v = vixQuote.price;
+        if (v > 30) vixContext = "Extreme fear — VIX above 30, expect wide ranges";
+        else if (v > 20) vixContext = "Elevated volatility — VIX above 20, hedges are expensive";
+        else if (v > 15) vixContext = "Normal volatility — VIX in typical range";
+        else vixContext = "Low vol — VIX below 15, complacency risk";
+      }
+
+      // Build summary
+      const summaryParts: string[] = [];
+      if (isWeekend) {
+        summaryParts.push("Markets closed for the weekend.");
+        if (crypto.length > 0) {
+          const btc = crypto.find(c => c.symbol === "BTC");
+          if (btc) summaryParts.push(`BTC ${btc.changePct >= 0 ? "+" : ""}${btc.changePct.toFixed(1)}% over the weekend.`);
+        }
+      } else {
+        if (futuresBias !== "neutral") {
+          summaryParts.push(`Futures suggest a ${futuresBias} open.`);
+        }
+        if (vixQuote) {
+          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        }
+      }
+      if (highImpact) {
+        summaryParts.push(`Watch: ${highImpact.name} (${highImpact.importance}).`);
+      }
+      if (earnings.length > 0) {
+        const earningsSymbols = earnings.slice(0, 5).map((e: any) => e.symbol).join(", ");
+        summaryParts.push(`Earnings: ${earningsSymbols}.`);
+      }
+
+      res.json({
+        timeframe: isWeekend ? "weekend" : "next_day",
+        phase,
+        isWeekend,
+        summary: summaryParts.join(" "),
+        marketContext: marketCtx ? {
+          regime: marketCtx.regime,
+          riskSentiment: marketCtx.riskSentiment,
+          preferredDirection: marketCtx.preferredDirection,
+          score: marketCtx.score,
+          vixLevel: marketCtx.vixLevel,
+          reasons: marketCtx.reasons,
+        } : null,
+        futuresBias,
+        futures,
+        indices,
+        preMarketGaps,
+        crypto,
+        vixContext,
+        upcomingEvents: upcomingEvents.slice(0, 10),
+        todayEvents,
+        highImpactAlert: highImpact,
+        earnings: earnings.slice(0, 10),
+        generatedAt: new Date().toISOString(),
+        _meta: {
+          dataSource: "futures_data + pre_market + economic_calendar + earnings + realtime_quotes",
+          cachedAt: new Date().toISOString(),
+          public: true,
+        },
+      });
+    } catch (error) {
+      logError(error as Error, { context: "GET /api/market-outlook" });
+      res.status(500).json({ error: "Failed to generate market outlook" });
+    }
+  });
+
+  // ============================================
   // QUANTEDGE ANALYST SYSTEM
   // Research-grade analysis across multiple domains
   // ============================================

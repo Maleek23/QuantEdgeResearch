@@ -92,6 +92,7 @@ const SmartMoneyPage = lazyWithRetry(() => import("@/pages/smart-money"), "smart
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
 // MERGED — SPX Command Center absorbed into Options Analyzer
+const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
 const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
 const GEXScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
 const GEXCommand = lazyWithRetry(() => import("@/pages/gex-command"), "gex-command");
@@ -290,6 +291,9 @@ function Router() {
       </Route>
       <Route path="/signal-weights" component={PerformancePage} />
       
+      {/* Market Outlook — public (no auth), answers "what's tomorrow look like?" */}
+      <Route path="/outlook" component={MarketOutlook} />
+
       {/* Research & Community Pages */}
       <Route path="/technical-guide" component={TechnicalGuide} />
       <Route path="/trading-rules" component={TradingRules} />
