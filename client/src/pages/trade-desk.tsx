@@ -4098,6 +4098,13 @@ export default function TradeDeskRedesigned() {
           <TabsContent value="strategy" className="space-y-4 mt-4">
             <WeeklySwingLookouts />
             <StrategyLab />
+            <div className="flex justify-end">
+              <Link href="/strategy-playbooks">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1">
+                  Browse Strategy Playbooks <ChevronRight className="w-3 h-3" />
+                </Button>
+              </Link>
+            </div>
           </TabsContent>
         </Tabs>
           </div>{/* End left column */}
