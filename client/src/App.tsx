@@ -87,25 +87,11 @@ const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "f
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
 const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard"), "learning-dashboard");
 // MERGED — Discover absorbed into Trade Desk
-const SmartMoneyPage = lazyWithRetry(() => import("@/pages/smart-money"), "smart-money");
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
-// MERGED — SPX Command Center absorbed into Options Analyzer
 const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
-const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
-// REMOVED — GEX Scanner merged into Flow Edge as a tab
-const GEXCommand = lazyWithRetry(() => import("@/pages/gex-command"), "gex-command");
-// Canonical per-ticker page — every analytic about a single symbol lives
-// here as a tab. Reachable at /t/:symbol[/tab]. Replaces the scattered
-// /command, /stock, and /gex per-symbol destinations as the user-facing
-// landing surface for "look up a ticker".
 const TickerPage = lazyWithRetry(() => import("@/pages/ticker"), "ticker");
 const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
-const TradeDeskV2 = lazyWithRetry(() => import("@/pages/trade-desk-v2"), "trade-desk-v2");
-const Projector = lazyWithRetry(() => import("@/pages/projector"), "projector");
-// Legacy CommandCenter (projector + intelligence) — stashed while we migrate
-// its unique features into the unified Command workspace. Reachable at
-// /command-legacy for reference.
 const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
 const GeopoliticalMatrix = lazyWithRetry(() => import("@/pages/geopolitical-matrix"), "geopolitical-matrix");
 const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
@@ -422,7 +408,7 @@ function Router() {
       {/* Convictions merged into Trade Desk — redirect for back-compat */}
       <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
       <Route path="/scanner/gex"><Redirect to="/flow?tab=hub" /></Route>
-      <Route path="/gex-legacy" component={withBetaProtection(GEXDashboard)} />
+      <Route path="/gex-legacy"><Redirect to="/flow?tab=gex" /></Route>
       {/* Geopolitical Reaction Matrix */}
       <Route path="/geopolitical"><Redirect to="/command" /></Route>
       {/* Redirects */}
