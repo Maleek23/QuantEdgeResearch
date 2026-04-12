@@ -823,6 +823,49 @@ function isMarketCurrentlyOpen(): boolean {
     } catch (error: any) { logger.error('📈 [BULLISH-TRENDS] Failed:', error); }
   });
 
+  // Swing lookout scanner — runs twice: pre-market (8:30 AM) and mid-day (12:30 PM) ET
+  // Scans for swing setups and auto-ingests A-band+ (score >= 75) to Trade Desk
+  cron.default.schedule('30 8,12 * * 1-5', async () => {
+    try {
+      const { getTopSwingOpportunities } = await import('./swing-trade-scanner');
+      const { getCachedConvictions } = await import('./convictions-engine');
+      const { ingestTradeIdea } = await import('./trade-idea-ingestion');
+
+      const swingOpps = await getTopSwingOpportunities(20);
+      let ingested = 0;
+
+      for (const opp of swingOpps) {
+        if (opp.score < 75) continue; // A-band+ only
+        try {
+          const direction = opp.trendBias === 'bearish' ? 'bearish' as const : 'bullish' as const;
+          const result = await ingestTradeIdea({
+            source: 'market_scanner',
+            symbol: opp.symbol,
+            assetType: 'stock',
+            direction,
+            signals: [
+              { type: 'swing_pattern', weight: 15, description: `${opp.pattern} setup` },
+              { type: 'rsi_signal', weight: opp.rsi14 < 30 ? 15 : 10, description: `RSI ${opp.rsi14?.toFixed(0)}` },
+              { type: 'volume_confirm', weight: opp.volumeRatio > 1.5 ? 12 : 8, description: `Vol ${opp.volumeRatio?.toFixed(1)}x avg` },
+            ],
+            holdingPeriod: 'swing',
+            currentPrice: opp.currentPrice,
+            targetPrice: opp.targetPrice,
+            stopLoss: opp.stopLoss,
+            catalyst: opp.reason || `Swing setup: ${opp.pattern}`,
+            analysis: `Swing scanner — ${opp.pattern}. RSI(14): ${opp.rsi14?.toFixed(1)}, Volume: ${opp.volumeRatio?.toFixed(1)}x avg. Score: ${opp.score}`,
+          });
+          if (result.success) ingested++;
+        } catch (err) {
+          // Dedup or gate blocked — expected
+        }
+      }
+      if (ingested > 0) {
+        logger.info(`🔄 [SWING-SCAN] Ingested ${ingested} swing setups to Trade Desk`);
+      }
+    } catch (error: any) { logger.error('🔄 [SWING-SCAN] Failed:', error); }
+  }, { timezone: 'America/New_York' });
+
   // Auto-cleanup (hourly)
   cron.default.schedule('0 * * * *', async () => {
     try {

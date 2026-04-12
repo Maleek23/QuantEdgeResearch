@@ -15374,9 +15374,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by conviction score descending
       lookouts.sort((a, b) => (b.convictionScore || 0) - (a.convictionScore || 0));
 
+      // Auto-ingest high-conviction swing lookouts as trade ideas
+      // Only A-band+ (score >= 75) lookouts get promoted to the Trade Desk
+      const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+      let ingested = 0;
+      for (const lookout of lookouts) {
+        if (lookout.convictionScore < 75) break; // sorted desc, stop early
+        try {
+          const direction = lookout.direction === 'short' ? 'bearish' as const : 'bullish' as const;
+          const result = await ingestTradeIdea({
+            source: lookout.source === 'conviction' ? 'bullish_trend' : 'market_scanner',
+            symbol: lookout.symbol,
+            assetType: 'stock',
+            direction,
+            signals: (lookout.layers || []).map((l: string, i: number) => ({
+              type: `swing_${i}`,
+              weight: Math.min(15, Math.round(lookout.convictionScore / 5)),
+              description: l,
+            })),
+            holdingPeriod: 'swing',
+            currentPrice: lookout.entryPrice,
+            targetPrice: lookout.targetPrice,
+            stopLoss: lookout.stopLoss,
+            catalyst: lookout.thesis || `Swing setup: ${lookout.convictionBand}-band (${lookout.convictionScore})`,
+            analysis: `Weekly swing lookout — ${lookout.source}. ${lookout.thesis || ''}. Layers: ${(lookout.layers || []).join(', ')}`,
+          });
+          if (result.success) ingested++;
+        } catch (err) {
+          // Ingestion gate blocked (dedup, cooldown, etc.) — expected, not an error
+        }
+      }
+      if (ingested > 0) {
+        logger.info(`[WEEKLY-LOOKOUTS] Auto-ingested ${ingested} swing lookouts to Trade Desk`);
+      }
+
       const result = {
         lookouts: lookouts.slice(0, 15),
         totalCandidates: lookouts.length,
+        ingested,
         generatedAt: new Date().toISOString(),
         _meta: {
           dataSource: "convictions_engine + swing_scanner",
