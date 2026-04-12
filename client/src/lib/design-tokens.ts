@@ -119,13 +119,14 @@ export const componentStyles = {
   },
 
   // Grade letter badges
+  // Grade letter badges — desaturated: neutral bg, only text has color
   grade: {
-    S: 'bg-[var(--grade-s)]/15 border border-[var(--grade-s)]/30 text-[var(--grade-s)]',
-    A: 'bg-[var(--grade-a)]/15 border border-[var(--grade-a)]/30 text-[var(--grade-a)]',
-    B: 'bg-foreground/[0.04] border border-foreground/[0.08] text-muted-foreground',
-    C: 'bg-[var(--grade-c)]/10 border border-[var(--grade-c)]/25 text-[var(--grade-c)]',
-    D: 'bg-[var(--grade-d)]/10 border border-[var(--grade-d)]/25 text-[var(--grade-d)]',
-    F: 'bg-[var(--grade-f)]/15 border border-[var(--grade-f)]/35 text-[var(--grade-f)]',
+    S: 'bg-foreground/[0.05] border border-foreground/[0.12] text-[var(--grade-s)]',
+    A: 'bg-foreground/[0.04] border border-foreground/[0.10] text-[var(--grade-a)]',
+    B: 'bg-foreground/[0.03] border border-foreground/[0.08] text-muted-foreground',
+    C: 'bg-foreground/[0.02] border border-foreground/[0.06] text-[var(--grade-c)]',
+    D: 'bg-foreground/[0.02] border border-foreground/[0.06] text-[var(--grade-d)]',
+    F: 'bg-foreground/[0.02] border border-foreground/[0.06] text-[var(--grade-f)]',
   },
 
   // GEX / Skylit terminal styling — yellow walls, purple puts, cyan projection

@@ -71,17 +71,18 @@ function dirColor(dir: string): string {
 }
 
 function gradeColor(grade?: string): { bg: string; text: string; border: string } {
-  if (!grade) return { bg: "bg-muted", text: "text-muted-foreground", border: "border-border" };
+  // Professional: neutral backgrounds, only text carries the accent color
+  if (!grade) return { bg: "bg-foreground/[0.02]", text: "text-muted-foreground", border: "border-foreground/[0.06]" };
   const g = grade.toUpperCase();
   if (g === "S" || g === "A+" || g === "A")
-    return { bg: "bg-amber-500/15", text: "text-amber-400", border: "border-amber-500/40" };
+    return { bg: "bg-foreground/[0.05]", text: "text-amber-400", border: "border-foreground/[0.12]" };
   if (g === "A-" || g === "B+")
-    return { bg: "bg-emerald-500/12", text: "text-[var(--trade-bullish)]", border: "border-emerald-500/30" };
+    return { bg: "bg-foreground/[0.04]", text: "text-[var(--trade-bullish)]", border: "border-foreground/[0.10]" };
   if (g === "B" || g === "B-")
-    return { bg: "bg-cyan-500/10", text: "text-cyan-400", border: "border-cyan-500/25" };
+    return { bg: "bg-foreground/[0.03]", text: "text-cyan-400", border: "border-foreground/[0.08]" };
   if (g.startsWith("C"))
-    return { bg: "bg-muted/50", text: "text-muted-foreground", border: "border-border" };
-  return { bg: "bg-red-500/10", text: "text-[var(--trade-bearish)]", border: "border-red-500/25" };
+    return { bg: "bg-foreground/[0.02]", text: "text-muted-foreground", border: "border-foreground/[0.06]" };
+  return { bg: "bg-foreground/[0.02]", text: "text-[var(--trade-bearish)]", border: "border-foreground/[0.06]" };
 }
 
 function confColor(conf?: number): string {
@@ -93,12 +94,13 @@ function confColor(conf?: number): string {
 
 function sourceLabel(src?: string): { label: string; color: string } {
   const s = (src || "").toLowerCase();
-  if (s === "tradingview" || s === "tv") return { label: "TV", color: "text-purple-400 bg-purple-500/10 border-purple-500/25" };
-  if (s === "ai") return { label: "AI", color: "text-violet-400 bg-violet-500/10 border-violet-500/25" };
-  if (s === "quant") return { label: "QNT", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25" };
-  if (s === "flow") return { label: "FLW", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" };
-  if (s === "hybrid") return { label: "HYB", color: "text-blue-400 bg-blue-500/10 border-blue-500/25" };
-  return { label: (src || "SCAN").toUpperCase().slice(0, 4), color: "text-muted-foreground bg-muted border-border" };
+  // Desaturated: neutral bg, only text carries color
+  if (s === "tradingview" || s === "tv") return { label: "TV", color: "text-purple-400 bg-foreground/[0.03] border-foreground/[0.08]" };
+  if (s === "ai") return { label: "AI", color: "text-violet-400 bg-foreground/[0.03] border-foreground/[0.08]" };
+  if (s === "quant") return { label: "QNT", color: "text-cyan-400 bg-foreground/[0.03] border-foreground/[0.08]" };
+  if (s === "flow") return { label: "FLW", color: "text-[var(--trade-bullish)] bg-foreground/[0.03] border-foreground/[0.08]" };
+  if (s === "hybrid") return { label: "HYB", color: "text-blue-400 bg-foreground/[0.03] border-foreground/[0.08]" };
+  return { label: (src || "SCAN").toUpperCase().slice(0, 4), color: "text-muted-foreground bg-foreground/[0.02] border-foreground/[0.06]" };
 }
 
 function computeRR(entry?: number, target?: number, stop?: number): string {
@@ -183,7 +185,7 @@ function FullCard({ data, onClick, className }: Omit<TradeCardProps, "variant">)
             {/* Direction icon */}
             <div className={cn(
               "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
-              long ? "bg-emerald-500/15 text-[var(--trade-bullish)]" : "bg-red-500/15 text-[var(--trade-bearish)]"
+              long ? "bg-foreground/[0.04] text-[var(--trade-bullish)]" : "bg-foreground/[0.04] text-[var(--trade-bearish)]"
             )}>
               {long ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
             </div>
@@ -197,7 +199,7 @@ function FullCard({ data, onClick, className }: Omit<TradeCardProps, "variant">)
               <div className="flex items-center gap-1 mt-0.5">
                 <span className={cn(
                   "text-[8px] px-1 py-0 rounded font-mono font-semibold",
-                  long ? "bg-emerald-500/10 text-[var(--trade-bullish)]" : "bg-red-500/10 text-[var(--trade-bearish)]"
+                  long ? "bg-foreground/[0.03] text-[var(--trade-bullish)]" : "bg-foreground/[0.03] text-[var(--trade-bearish)]"
                 )}>
                   {long ? "LONG" : "SHORT"}
                 </span>
@@ -307,7 +309,7 @@ function CompactCard({ data, onClick, className }: Omit<TradeCardProps, "variant
             <span className="font-mono font-bold text-sm text-foreground tracking-wider">{symbol}</span>
             <span className={cn(
               "text-[8px] px-1 py-0 rounded font-mono font-semibold",
-              long ? "bg-emerald-500/10 text-[var(--trade-bullish)]" : "bg-red-500/10 text-[var(--trade-bearish)]"
+              long ? "bg-foreground/[0.03] text-[var(--trade-bullish)]" : "bg-foreground/[0.03] text-[var(--trade-bearish)]"
             )}>
               {long ? "LONG" : "SHORT"}
             </span>
@@ -358,7 +360,7 @@ function RowCard({ data, onClick, className }: Omit<TradeCardProps, "variant">) 
         <div className="flex items-center gap-2 min-w-[90px]">
           <div className={cn(
             "w-5 h-5 rounded flex items-center justify-center shrink-0",
-            long ? "bg-emerald-500/15 text-[var(--trade-bullish)]" : "bg-red-500/15 text-[var(--trade-bearish)]"
+            long ? "bg-foreground/[0.04] text-[var(--trade-bullish)]" : "bg-foreground/[0.04] text-[var(--trade-bearish)]"
           )}>
             {long ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
           </div>

@@ -216,11 +216,14 @@ button:not([disabled]):active,
 
   /* --- Trading semantic colors (same both modes) --- */
   --trade-bullish: #10b981;
-  --trade-bullish-bg: rgba(16, 185, 129, 0.1);
+  --trade-bullish-bg: rgba(16, 185, 129, 0.06);
+  --trade-bullish-bg-subtle: rgba(16, 185, 129, 0.03);
   --trade-bearish: #ef4444;
-  --trade-bearish-bg: rgba(239, 68, 68, 0.1);
+  --trade-bearish-bg: rgba(239, 68, 68, 0.06);
+  --trade-bearish-bg-subtle: rgba(239, 68, 68, 0.03);
   --trade-neutral: #f59e0b;
-  --trade-neutral-bg: rgba(245, 158, 11, 0.1);
+  --trade-neutral-bg: rgba(245, 158, 11, 0.06);
+  --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.03);
 
   /* --- AI / Confidence --- */
   --ai-primary: #10b981;
@@ -384,13 +387,16 @@ button:not([disabled]):active,
   --terminal-text-secondary: #94a3b8;
   --terminal-text-muted: #525252;
 
-  /* --- Trading semantic (same values, different bg opacity) --- */
+  /* --- Trading semantic (same values, desaturated bg for dark mode) --- */
   --trade-bullish: #10b981;
-  --trade-bullish-bg: rgba(16, 185, 129, 0.15);
+  --trade-bullish-bg: rgba(16, 185, 129, 0.08);
+  --trade-bullish-bg-subtle: rgba(16, 185, 129, 0.04);
   --trade-bearish: #ef4444;
-  --trade-bearish-bg: rgba(239, 68, 68, 0.15);
+  --trade-bearish-bg: rgba(239, 68, 68, 0.08);
+  --trade-bearish-bg-subtle: rgba(239, 68, 68, 0.04);
   --trade-neutral: #f59e0b;
-  --trade-neutral-bg: rgba(245, 158, 11, 0.15);
+  --trade-neutral-bg: rgba(245, 158, 11, 0.08);
+  --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.04);
 
   /* --- AI / Confidence --- */
   --ai-primary: #10b981;
