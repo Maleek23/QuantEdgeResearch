@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -483,9 +484,11 @@ export default function PerformancePage() {
     return params.toString() ? `?${params.toString()}` : '';
   }, [dateRange]);
 
+  const perfInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', apiFilters],
     staleTime: 0, gcTime: 0, refetchOnMount: 'always',
+    refetchInterval: perfInterval,
   });
 
   const handleExport = () => { window.location.href = '/api/performance/export'; };

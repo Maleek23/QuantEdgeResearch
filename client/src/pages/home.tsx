@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { cn, safeNumber, safeToFixed, formatRelativeTime } from "@/lib/utils";
 import {
   TrendingUp,
@@ -138,9 +139,10 @@ interface MarketQuote {
 }
 
 function MarketTicker() {
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
   const { data: marketData } = useQuery<{ quotes: Record<string, MarketQuote> }>({
     queryKey: ["/api/market-data/batch/SPY,QQQ,DIA,IWM,VIX,BTC-USD,ETH-USD"],
-    refetchInterval: 30000,
+    refetchInterval: priceInterval,
   });
 
   const { status, isOpen } = useMarketStatus();
@@ -420,6 +422,9 @@ function MorningBriefing() {
 // ────────────────────────────────────────────────────────────
 
 function MarketRegimeCard() {
+  const metricsInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+
   const { data: regime } = useQuery<{
     regime?: string;
     confidence?: number;
@@ -427,7 +432,7 @@ function MarketRegimeCard() {
     indicators?: Record<string, any>;
   }>({
     queryKey: ["/api/market-regime"],
-    refetchInterval: 120000,
+    refetchInterval: metricsInterval,
   });
 
   const { data: futures } = useQuery<{
@@ -440,7 +445,7 @@ function MarketRegimeCard() {
     }>;
   }>({
     queryKey: ["/api/futures"],
-    refetchInterval: 60000,
+    refetchInterval: priceInterval,
   });
 
   const { data: context } = useQuery<{
@@ -450,7 +455,7 @@ function MarketRegimeCard() {
     marketBreadth?: string;
   }>({
     queryKey: ["/api/market-context"],
-    refetchInterval: 120000,
+    refetchInterval: metricsInterval,
   });
 
   const regimeLabel = regime?.regime || null;
@@ -1072,6 +1077,7 @@ interface MiniConvictionPick {
 }
 
 function TopConvictions() {
+  const convictionInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
   const { data, isLoading } = useQuery<{ picks: MiniConvictionPick[]; totalCandidatesScanned: number }>({
     queryKey: ["/api/convictions", { minScore: 15, limit: 6, lookbackHours: 72 }],
     queryFn: async () => {
@@ -1081,8 +1087,8 @@ function TopConvictions() {
       if (!res.ok) throw new Error("convictions fetch failed");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 20_000,
+    refetchInterval: convictionInterval,
   });
 
   const picks = data?.picks ?? [];

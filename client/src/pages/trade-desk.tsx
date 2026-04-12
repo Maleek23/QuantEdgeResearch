@@ -6,6 +6,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import html2canvas from "html2canvas";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,7 @@ function isStale(timestamp: string | Date, hoursThreshold = 4): boolean {
 // MARKET PULSE HEADER
 // ============================================
 function MarketPulseHeader() {
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
   const { data: realtimeData } = useQuery({
     queryKey: ['/api/realtime-status'],
     queryFn: async () => {
@@ -105,8 +107,8 @@ function MarketPulseHeader() {
       if (!res.ok) return null;
       return res.json();
     },
-    refetchInterval: 30000, // Reduced from 10s to prevent price flickering
-    staleTime: 25000, // Keep data fresh for 25s
+    refetchInterval: priceInterval,
+    staleTime: 8_000,
   });
 
   const tickers = [

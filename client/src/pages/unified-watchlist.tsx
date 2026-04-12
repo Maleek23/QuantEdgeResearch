@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { cn, formatCurrency, safeToFixed, safeNumber } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,14 +80,19 @@ export default function UnifiedWatchlist() {
   const [sortColumn, setSortColumn] = useState<string>("symbol");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+  const scannerInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
+
   // Fetch personal watchlist items
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
+    refetchInterval: scannerInterval,
   });
 
   // Fetch trade ideas for bot-generated tab
   const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
+    refetchInterval: scannerInterval,
   });
 
   // Batch fetch quotes
@@ -107,8 +113,8 @@ export default function UnifiedWatchlist() {
       const data = await res.json();
       return data.quotes || {};
     },
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 10_000,
+    refetchInterval: priceInterval,
     enabled: watchlistItems.length > 0,
   });
 
