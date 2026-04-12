@@ -4,6 +4,7 @@
  * Inspired by TradeXYZ weekend markets layout.
  */
 
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -95,8 +96,16 @@ interface OutlookData {
   }>;
   weeklyFocus: string[];
   fridayRecap: {
-    gainers: Array<{ symbol: string; name: string; price: number; changePct: number; volume: number }>;
-    losers: Array<{ symbol: string; name: string; price: number; changePct: number; volume: number }>;
+    gainers: Array<{
+      symbol: string; name: string; price: number; previousClose: number;
+      changePct: number; dayChange: number; volume: number; avgVolume: number;
+      marketCap: number; week52High: number; week52Low: number; sector: string | null;
+    }>;
+    losers: Array<{
+      symbol: string; name: string; price: number; previousClose: number;
+      changePct: number; dayChange: number; volume: number; avgVolume: number;
+      marketCap: number; week52High: number; week52Low: number; sector: string | null;
+    }>;
     sectors: Array<{ sector: string; changePct: number }>;
     sessionStats: { totalIdeas: number; closed: number; wins: number; losses: number; winRate: number | null };
     carryOverIdeas: Array<{
@@ -105,6 +114,23 @@ interface OutlookData {
       confidenceScore: number; catalyst: string;
     }>;
   } | null;
+  geopolitical: {
+    activeScenarios: Array<{
+      id: string; name: string; icon: string; category: string;
+      likelihood: string; description: string; confidence: number;
+      topReactions: Array<{ asset: string; label: string; move24h: number; direction: string }>;
+      sectorImpact: Array<{ sector: string; direction: string; magnitude: number }>;
+      tradingPlan: string;
+      watchpoints: string[];
+    }>;
+    riskLevel: string;
+    vix: number | null;
+  } | null;
+  breakingNews: Array<{
+    title: string; summary: string; source: string;
+    publishedAt: string; sentiment: string; sentimentScore: number;
+    tickers: string[]; url: string;
+  }>;
   generatedAt: string;
 }
 
@@ -349,58 +375,268 @@ function WeeklyFocusStrip({ symbols }: { symbols: string[] }) {
   );
 }
 
-// ─── Friday Session Recap (Weekend Only) ─────────────────────────
+// ─── Friday Session Recap (Weekend Only) — TradeXYZ-inspired ─────
 
-function FridayMovers({ gainers, losers }: { gainers: any[]; losers: any[] }) {
+type MoverSortKey = "symbol" | "changePct" | "price" | "volume" | "marketCap";
+
+function FridayMoversTable({ gainers, losers }: { gainers: any[]; losers: any[] }) {
+  const [view, setView] = React.useState<"gainers" | "losers">("gainers");
+  const [sortKey, setSortKey] = React.useState<MoverSortKey>("changePct");
+  const [sortAsc, setSortAsc] = React.useState(false);
+
   if (gainers.length === 0 && losers.length === 0) return null;
+
+  const items = view === "gainers" ? gainers : losers;
+  const sorted = [...items].sort((a, b) => {
+    const av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0;
+    if (typeof av === "string") return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortAsc ? av - bv : bv - av;
+  });
+
+  const handleSort = (key: MoverSortKey) => {
+    if (sortKey === key) setSortAsc(!sortAsc);
+    else { setSortKey(key); setSortAsc(false); }
+  };
+
+  const SortHeader = ({ k, label, align }: { k: MoverSortKey; label: string; align?: string }) => (
+    <th
+      onClick={() => handleSort(k)}
+      className={cn(
+        "px-2 py-1.5 text-[9px] font-mono uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none",
+        sortKey === k ? "text-[var(--brand-teal)]" : "text-muted-foreground/60",
+        align === "right" && "text-right"
+      )}
+    >
+      {label} {sortKey === k ? (sortAsc ? "↑" : "↓") : ""}
+    </th>
+  );
+
+  const fmtVol = (v: number) => {
+    if (v >= 1e9) return (v / 1e9).toFixed(1) + "B";
+    if (v >= 1e6) return (v / 1e6).toFixed(1) + "M";
+    if (v >= 1e3) return (v / 1e3).toFixed(0) + "K";
+    return v.toString();
+  };
+
+  const fmtMcap = (v: number) => {
+    if (!v) return "–";
+    if (v >= 1e12) return "$" + (v / 1e12).toFixed(1) + "T";
+    if (v >= 1e9) return "$" + (v / 1e9).toFixed(1) + "B";
+    if (v >= 1e6) return "$" + (v / 1e6).toFixed(0) + "M";
+    return "$" + v.toLocaleString();
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {/* Gainers */}
-      <div>
-        <div className="text-[9px] font-mono text-[var(--trade-bullish)] uppercase tracking-wider mb-1.5">Top Gainers</div>
-        <div className="space-y-1">
-          {gainers.slice(0, 6).map((g, i) => (
-            <div key={i} className="flex items-center justify-between px-2 py-1 rounded border border-emerald-500/10 bg-emerald-500/5">
-              <span className="text-xs font-mono font-semibold text-foreground/80">{g.symbol}</span>
-              <span className="text-[10px] font-mono text-[var(--trade-bullish)]">+{Math.abs(g.changePct).toFixed(2)}%</span>
-            </div>
-          ))}
-        </div>
+    <div>
+      {/* Toggle */}
+      <div className="flex gap-1 mb-3">
+        {(["gainers", "losers"] as const).map(v => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={cn(
+              "px-3 py-1 rounded text-[10px] font-mono font-semibold uppercase tracking-wider transition-all",
+              view === v
+                ? v === "gainers"
+                  ? "bg-emerald-500/15 text-[var(--trade-bullish)] border border-emerald-500/30"
+                  : "bg-red-500/15 text-[var(--trade-bearish)] border border-red-500/30"
+                : "text-muted-foreground/50 hover:text-muted-foreground border border-transparent"
+            )}
+          >
+            {v === "gainers" ? `▲ Gainers (${gainers.length})` : `▼ Losers (${losers.length})`}
+          </button>
+        ))}
       </div>
-      {/* Losers */}
-      <div>
-        <div className="text-[9px] font-mono text-[var(--trade-bearish)] uppercase tracking-wider mb-1.5">Top Losers</div>
-        <div className="space-y-1">
-          {losers.slice(0, 6).map((l, i) => (
-            <div key={i} className="flex items-center justify-between px-2 py-1 rounded border border-red-500/10 bg-red-500/5">
-              <span className="text-xs font-mono font-semibold text-foreground/80">{l.symbol}</span>
-              <span className="text-[10px] font-mono text-[var(--trade-bearish)]">{l.changePct.toFixed(2)}%</span>
-            </div>
-          ))}
-        </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-border/30">
+              <SortHeader k="symbol" label="Symbol" />
+              <SortHeader k="price" label="Close" align="right" />
+              <th className="px-2 py-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 text-right">Prev</th>
+              <SortHeader k="changePct" label="Move" align="right" />
+              <SortHeader k="volume" label="Vol" align="right" />
+              <SortHeader k="marketCap" label="Mkt Cap" align="right" />
+              <th className="px-2 py-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 text-right">52W Range</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((m, i) => {
+              const isPos = m.changePct >= 0;
+              const pctOf52 = m.week52High > m.week52Low
+                ? ((m.price - m.week52Low) / (m.week52High - m.week52Low)) * 100
+                : 50;
+              const volRatio = m.avgVolume > 0 ? m.volume / m.avgVolume : 1;
+              return (
+                <tr key={i} className="border-b border-border/10 hover:bg-card/50 transition-colors">
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono font-semibold text-foreground">{m.symbol}</span>
+                      {m.sector && <span className="text-[8px] text-muted-foreground/40 hidden sm:inline">{m.sector}</span>}
+                    </div>
+                    <div className="text-[9px] text-muted-foreground/50 truncate max-w-[120px]">{m.name}</div>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <span className="text-xs font-mono text-foreground/80">${formatPrice(m.price)}</span>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <span className="text-[10px] font-mono text-muted-foreground/50">${formatPrice(m.previousClose)}</span>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <div className={cn("text-xs font-mono font-semibold", isPos ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+                      {isPos ? "+" : ""}{(m.changePct ?? 0).toFixed(2)}%
+                    </div>
+                    <div className={cn("text-[9px] font-mono", isPos ? "text-emerald-500/60" : "text-red-500/60")}>
+                      {isPos ? "+" : ""}${(m.dayChange ?? 0).toFixed(2)}
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <span className="text-[10px] font-mono text-muted-foreground">{fmtVol(m.volume)}</span>
+                    {volRatio > 1.5 && (
+                      <div className="text-[8px] font-mono text-amber-400">{volRatio.toFixed(1)}x avg</div>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <span className="text-[10px] font-mono text-muted-foreground">{fmtMcap(m.marketCap)}</span>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1 justify-end">
+                      <div className="w-16 h-1.5 rounded-full bg-muted/30 relative overflow-hidden">
+                        <div
+                          className={cn("absolute top-0 left-0 h-full rounded-full", isPos ? "bg-emerald-500/40" : "bg-red-500/40")}
+                          style={{ width: `${Math.min(100, Math.max(0, pctOf52))}%` }}
+                        />
+                        <div
+                          className="absolute top-0 w-0.5 h-full bg-foreground/60 rounded"
+                          style={{ left: `${Math.min(100, Math.max(0, pctOf52))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-function SectorHeatmap({ sectors }: { sectors: Array<{ sector: string; changePct: number }> }) {
+// ─── Sector Treemap (area-proportional) ─────────────────────────
+
+function SectorTreemap({ sectors }: { sectors: Array<{ sector: string; changePct: number }> }) {
   if (sectors.length === 0) return null;
+
+  // Calculate area proportional to absolute change
+  const total = sectors.reduce((s, x) => s + Math.max(Math.abs(x.changePct), 0.1), 0);
+  const maxAbs = Math.max(...sectors.map(s => Math.abs(s.changePct)), 0.01);
+
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-      {sectors.map((s, i) => {
-        const isPos = s.changePct >= 0;
-        return (
-          <div
-            key={i}
-            className={cn(
-              "rounded px-2 py-1.5 text-center border transition-colors",
-              isPos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
-            )}
-          >
-            <div className="text-[9px] font-mono text-muted-foreground truncate">{s.sector}</div>
-            <div className={cn("text-xs font-mono font-semibold", isPos ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
-              {isPos ? "+" : ""}{s.changePct.toFixed(2)}%
+    <div className="space-y-2">
+      {/* Treemap grid — areas proportional to move magnitude */}
+      <div className="grid gap-1" style={{
+        gridTemplateColumns: `repeat(auto-fill, minmax(80px, 1fr))`,
+      }}>
+        {sectors.map((s, i) => {
+          const isPos = s.changePct >= 0;
+          const intensity = Math.min(1, Math.abs(s.changePct) / maxAbs);
+          const weight = Math.max(Math.abs(s.changePct), 0.1) / total;
+          // Taller cells for bigger movers
+          const minH = 48;
+          const maxH = 96;
+          const h = Math.round(minH + (maxH - minH) * intensity);
+
+          return (
+            <div
+              key={i}
+              className={cn(
+                "rounded-md flex flex-col items-center justify-center p-2 transition-all cursor-default",
+                "border relative overflow-hidden",
+              )}
+              style={{
+                height: `${h}px`,
+                backgroundColor: isPos
+                  ? `rgba(34, 197, 94, ${0.05 + intensity * 0.15})`
+                  : `rgba(239, 68, 68, ${0.05 + intensity * 0.15})`,
+                borderColor: isPos
+                  ? `rgba(34, 197, 94, ${0.1 + intensity * 0.3})`
+                  : `rgba(239, 68, 68, ${0.1 + intensity * 0.3})`,
+                gridColumn: weight > 0.2 ? "span 2" : "span 1",
+              }}
+            >
+              <div className="text-[9px] font-mono text-muted-foreground/80 truncate max-w-full">{s.sector}</div>
+              <div className={cn(
+                "text-sm font-mono font-bold",
+                isPos ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+              )}>
+                {isPos ? "+" : ""}{s.changePct.toFixed(2)}%
+              </div>
             </div>
+          );
+        })}
+      </div>
+
+      {/* Summary bar */}
+      <div className="flex items-center gap-2 justify-center">
+        {(() => {
+          const up = sectors.filter(s => s.changePct > 0).length;
+          const down = sectors.filter(s => s.changePct < 0).length;
+          const flat = sectors.length - up - down;
+          return (
+            <span className="text-[9px] font-mono text-muted-foreground/50">
+              {up > 0 && <span className="text-[var(--trade-bullish)]">{up} up</span>}
+              {up > 0 && (down > 0 || flat > 0) && " · "}
+              {down > 0 && <span className="text-[var(--trade-bearish)]">{down} down</span>}
+              {down > 0 && flat > 0 && " · "}
+              {flat > 0 && <span>{flat} flat</span>}
+            </span>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+// ─── Carry-Over Ideas with R:R ──────────────────────────────────
+
+function CarryOverIdeas({ ideas }: { ideas: any[] }) {
+  if (ideas.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {ideas.map((idea, i) => {
+        const isLong = idea.direction !== "short";
+        const rr = idea.stopLoss && idea.entryPrice && idea.targetPrice
+          ? Math.abs(idea.targetPrice - idea.entryPrice) / Math.abs(idea.entryPrice - idea.stopLoss)
+          : null;
+        return (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded border border-border/50 bg-card/30 hover:bg-card/50 transition-colors">
+            <span className="text-xs font-semibold text-[var(--brand-teal)] font-mono w-14">{idea.symbol}</span>
+            <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono shrink-0",
+              !isLong ? "text-[var(--trade-bearish)] border-red-500/30" : "text-[var(--trade-bullish)] border-emerald-500/30"
+            )}>
+              {isLong ? "LONG" : "SHORT"}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground truncate flex-1">{idea.catalyst || idea.source}</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[9px] font-mono text-red-400/60">${formatPrice(idea.stopLoss)}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">→</span>
+              <span className="text-[10px] font-mono text-foreground/70">${formatPrice(idea.entryPrice)}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">→</span>
+              <span className="text-[10px] font-mono text-[var(--trade-bullish)]">${formatPrice(idea.targetPrice)}</span>
+            </div>
+            {rr != null && rr > 0 && (
+              <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono shrink-0",
+                rr >= 2 ? "text-[var(--trade-bullish)] border-emerald-500/30" : "text-muted-foreground border-border"
+              )}>
+                {rr.toFixed(1)}R
+              </Badge>
+            )}
+            {idea.confidenceScore > 0 && (
+              <span className="text-[8px] font-mono text-muted-foreground/50">{idea.confidenceScore}pt</span>
+            )}
           </div>
         );
       })}
@@ -408,23 +644,153 @@ function SectorHeatmap({ sectors }: { sectors: Array<{ sector: string; changePct
   );
 }
 
-function CarryOverIdeas({ ideas }: { ideas: any[] }) {
-  if (ideas.length === 0) return null;
+// ─── Weekend Methodology Footer ─────────────────────────────────
+
+function WeekendMethodology() {
   return (
-    <div className="space-y-1.5">
-      {ideas.map((idea, i) => (
-        <div key={i} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 hover:bg-card/50 transition-colors">
-          <span className="text-xs font-semibold text-[var(--brand-teal)] font-mono w-14">{idea.symbol}</span>
-          <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono",
-            idea.direction === "short" ? "text-[var(--trade-bearish)] border-red-500/30" : "text-[var(--trade-bullish)] border-emerald-500/30"
-          )}>
-            {idea.direction === "short" ? "SHORT" : "LONG"}
-          </Badge>
-          <span className="text-[10px] text-muted-foreground truncate flex-1">{idea.catalyst || idea.source}</span>
-          <span className="text-[10px] font-mono text-muted-foreground">${formatPrice(idea.entryPrice)}</span>
-          <span className="text-[10px] font-mono text-[var(--trade-bullish)]">→ ${formatPrice(idea.targetPrice)}</span>
+    <Card className="bg-card/20 border-border/30 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Shield className="w-3.5 h-3.5 text-muted-foreground/40" />
+        <h4 className="text-[10px] font-mono font-semibold text-muted-foreground/60 uppercase tracking-wider">Weekend Data Methodology</h4>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[10px] text-muted-foreground/50">
+        <div>
+          <div className="font-semibold text-muted-foreground/70 mb-0.5">Stock Data</div>
+          <p>Friday's closing prices via Yahoo Finance. Volume and market cap reflect last regular session.</p>
+        </div>
+        <div>
+          <div className="font-semibold text-muted-foreground/70 mb-0.5">Crypto</div>
+          <p>Live 24/7 prices. Change % measured from Friday 4 PM ET close.</p>
+        </div>
+        <div>
+          <div className="font-semibold text-muted-foreground/70 mb-0.5">Analysis</div>
+          <p>Convictions use extended 96h lookback. Swing setups carry from Friday with live entry/target levels.</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ─── Geopolitical Scenarios ──────────────────────────────────────
+
+function GeopoliticalPanel({ geo }: { geo: NonNullable<OutlookData["geopolitical"]> }) {
+  const scenarios = geo.activeScenarios;
+  if (scenarios.length === 0) return null;
+
+  const riskColor = geo.riskLevel === "ELEVATED" ? "text-red-400" : geo.riskLevel === "LOW" ? "text-[var(--trade-bullish)]" : "text-amber-400";
+
+  return (
+    <div className="space-y-3">
+      {/* Risk Level Header */}
+      <div className="flex items-center gap-2">
+        <div className={cn("w-2 h-2 rounded-full animate-pulse", geo.riskLevel === "ELEVATED" ? "bg-red-400" : "bg-amber-400")} />
+        <span className={cn("text-[10px] font-mono font-semibold uppercase", riskColor)}>
+          {geo.riskLevel} RISK
+        </span>
+        {geo.vix != null && (
+          <span className="text-[9px] font-mono text-muted-foreground/50 ml-auto">VIX: {geo.vix.toFixed(1)}</span>
+        )}
+      </div>
+
+      {/* Scenario Cards */}
+      {scenarios.map((s) => (
+        <div key={s.id} className="rounded-lg border border-border/50 bg-card/20 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">{s.icon}</span>
+            <span className="text-xs font-semibold text-foreground/90">{s.name}</span>
+            <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono ml-auto",
+              s.likelihood === "HIGH" ? "text-red-400 border-red-500/30" :
+              s.likelihood === "MEDIUM" ? "text-amber-400 border-amber-500/30" :
+              "text-muted-foreground border-border"
+            )}>
+              {s.likelihood}
+            </Badge>
+            <span className="text-[8px] font-mono text-muted-foreground/40">{s.confidence}%</span>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">{s.description}</p>
+
+          {/* Asset reactions */}
+          {s.topReactions?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {s.topReactions.map((r, i) => {
+                const isPos = r.move24h >= 0;
+                return (
+                  <div key={i} className={cn(
+                    "px-1.5 py-0.5 rounded text-[9px] font-mono border",
+                    isPos ? "border-emerald-500/20 bg-emerald-500/5 text-[var(--trade-bullish)]" : "border-red-500/20 bg-red-500/5 text-[var(--trade-bearish)]"
+                  )}>
+                    {r.asset} {isPos ? "+" : ""}{r.move24h.toFixed(1)}%
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Sector Impact */}
+          {s.sectorImpact?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {s.sectorImpact.map((si, i) => (
+                <span key={i} className={cn("text-[8px] font-mono",
+                  si.direction === "up" ? "text-emerald-500/60" : si.direction === "down" ? "text-red-500/60" : "text-muted-foreground/40"
+                )}>
+                  {si.direction === "up" ? "▲" : si.direction === "down" ? "▼" : "—"} {si.sector}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Trading Plan */}
+          {s.tradingPlan && (
+            <p className="text-[9px] text-muted-foreground/50 italic border-t border-border/20 pt-1.5">
+              {s.tradingPlan}
+            </p>
+          )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Breaking News ──────────────────────────────────────────────
+
+function BreakingNewsFeed({ news }: { news: OutlookData["breakingNews"] }) {
+  if (!news || news.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {news.map((n, i) => {
+        const sentLabel = n.sentiment?.toLowerCase() || "";
+        const isBullish = sentLabel.includes("bullish") || sentLabel.includes("positive");
+        const isBearish = sentLabel.includes("bearish") || sentLabel.includes("negative");
+        return (
+          <div key={i} className="flex items-start gap-2 px-3 py-2 rounded border border-border/30 bg-card/20 hover:bg-card/40 transition-colors">
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+              isBullish ? "bg-emerald-400" : isBearish ? "bg-red-400" : "bg-amber-400"
+            )} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-medium text-foreground/80 leading-snug line-clamp-2">{n.title}</div>
+              {n.summary && (
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5 line-clamp-1">{n.summary}</p>
+              )}
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[8px] text-muted-foreground/40">{n.source}</span>
+                {n.tickers?.length > 0 && (
+                  <span className="text-[8px] font-mono text-[var(--brand-teal)]/60">{n.tickers.join(", ")}</span>
+                )}
+                {n.sentimentScore != null && Math.abs(n.sentimentScore) > 0.2 && (
+                  <Badge variant="outline" className={cn("text-[7px] px-1 py-0 h-3 font-mono",
+                    n.sentimentScore > 0 ? "text-[var(--trade-bullish)] border-emerald-500/20" : "text-[var(--trade-bearish)] border-red-500/20"
+                  )}>
+                    {n.sentimentScore > 0 ? "+" : ""}{(n.sentimentScore * 100).toFixed(0)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -672,7 +1038,7 @@ export default function MarketOutlook() {
                         </Badge>
                       )}
                     </div>
-                    <FridayMovers gainers={data.fridayRecap.gainers} losers={data.fridayRecap.losers} />
+                    <FridayMoversTable gainers={data.fridayRecap.gainers} losers={data.fridayRecap.losers} />
                   </Card>
                 )}
 
@@ -683,7 +1049,7 @@ export default function MarketOutlook() {
                       <Activity className="w-4 h-4 text-indigo-400" />
                       <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Sector Performance</h3>
                     </div>
-                    <SectorHeatmap sectors={data.fridayRecap.sectors} />
+                    <SectorTreemap sectors={data.fridayRecap.sectors} />
                   </Card>
                 )}
 
@@ -823,8 +1189,41 @@ export default function MarketOutlook() {
                 </div>
               </Card>
             )}
+
+            {/* Geopolitical Scenarios */}
+            {data.geopolitical && data.geopolitical.activeScenarios?.length > 0 && (
+              <Card className="bg-card/40 border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Globe className="w-4 h-4 text-red-400" />
+                  <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Geopolitical Risk</h3>
+                  <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3 font-mono ml-auto",
+                    data.geopolitical.riskLevel === "ELEVATED" ? "text-red-400 border-red-500/30" : "text-amber-400 border-amber-500/30"
+                  )}>
+                    {data.geopolitical.riskLevel}
+                  </Badge>
+                </div>
+                <GeopoliticalPanel geo={data.geopolitical} />
+              </Card>
+            )}
+
+            {/* Breaking News */}
+            {data.breakingNews?.length > 0 && (
+              <Card className="bg-card/40 border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Breaking News</h3>
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 font-mono text-amber-400 border-amber-500/30 ml-auto">
+                    {data.breakingNews.length}
+                  </Badge>
+                </div>
+                <BreakingNewsFeed news={data.breakingNews} />
+              </Card>
+            )}
           </motion.div>
         </div>
+
+        {/* Weekend Methodology */}
+        {data.isWeekend && <WeekendMethodology />}
 
         {/* Footer */}
         <div className="text-center py-2">

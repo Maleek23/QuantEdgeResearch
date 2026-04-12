@@ -51,11 +51,8 @@ import {
   ArrowDownRight,
   Eye,
   Cpu,
-  Radio,
 } from "lucide-react";
-import { SkeletonCard } from "@/components/ui/skeleton";
 import { CrossAssetOverview, EconomicCalendarWidget, getAssetClass } from "@/components/market-intelligence";
-import { BorderBeam } from "@/components/magicui/border-beam";
 import { useAuth } from "@/hooks/useAuth";
 
 // ────────────────────────────────────────────────────────────
@@ -88,7 +85,7 @@ function SectionHeader({ label, action, actionHref }: {
   return (
     <div className="flex items-center justify-between mb-2.5">
       <div className="flex items-center gap-2">
-        <div className="w-0.5 h-3.5 rounded-full bg-gradient-to-b from-[var(--brand-teal)] to-[var(--brand-cyan)]" />
+        <div className="w-0.5 h-3 rounded-full bg-muted-foreground/20" />
         <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.12em] font-mono">{label}</h2>
       </div>
       {action && actionHref && (
@@ -303,12 +300,11 @@ function MorningBriefing() {
 
   if (isLoading) {
     return (
-      <Card className="bg-card border-border relative overflow-hidden">
-        <CardContent className="p-4">
-          <div className="animate-pulse space-y-3">
-            <div className="h-5 w-48 bg-muted rounded" />
-            <div className="h-4 w-full bg-muted rounded" />
-            <div className="h-4 w-3/4 bg-muted rounded" />
+      <Card className="bg-card/50 border-border/50 relative overflow-hidden">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <Sun className="w-3.5 h-3.5 text-muted-foreground/30" />
+            <span className="text-xs text-muted-foreground/40">Loading briefing...</span>
           </div>
         </CardContent>
       </Card>
@@ -317,23 +313,14 @@ function MorningBriefing() {
 
   if (!data || !data.tradingPlan) {
     return (
-      <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)]/30 relative overflow-hidden">
+      <Card className="bg-card/50 border-border/50 relative overflow-hidden">
         <CardContent className="p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-md bg-[var(--brand-teal)]/10 border border-[var(--brand-teal)]/20 flex items-center justify-center">
-              <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]/50" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground text-xs">Morning Briefing</h3>
-              <span className="text-[9px] text-muted-foreground font-mono">Generating...</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <Sun className="w-3.5 h-3.5 text-muted-foreground/30" />
+            <h3 className="font-medium text-muted-foreground/60 text-xs">Morning Briefing</h3>
+            <span className="text-[9px] text-muted-foreground/30 font-mono ml-auto">next at 8:30 AM ET</span>
           </div>
-          <div className="space-y-2">
-            <div className="h-3 w-full bg-muted/40 rounded animate-pulse" />
-            <div className="h-3 w-4/5 bg-muted/30 rounded animate-pulse" />
-            <div className="h-3 w-3/5 bg-muted/20 rounded animate-pulse" />
-          </div>
-          <p className="text-[9px] text-muted-foreground/40 mt-3 font-mono">Next briefing at 8:30 AM ET</p>
+          <p className="text-[10px] text-muted-foreground/40 mt-1.5">Morning briefing unavailable. Check back soon.</p>
         </CardContent>
       </Card>
     );
@@ -352,14 +339,11 @@ function MorningBriefing() {
   const badge = outlookBadge(data.marketOutlook);
 
   return (
-    <Card className="bg-card border-border border-l-2 border-l-[var(--brand-teal)] relative overflow-hidden group hover:border-[var(--brand-teal)]/30 transition-all">
-      <BorderBeam colorFrom="#14b8a6" colorTo="#06b6d4" size={150} duration={12} borderWidth={1.5} />
+    <Card className="bg-card border-border relative overflow-hidden group transition-all">
       <CardContent className="p-3 relative">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[var(--brand-teal)]/15 to-[var(--brand-cyan)]/15 border border-[var(--brand-teal)]/20 flex items-center justify-center">
-              <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
-            </div>
+            <Sun className="w-3.5 h-3.5 text-muted-foreground" />
             <div>
               <h3 className="font-semibold text-foreground text-xs">Morning Briefing</h3>
               {data.timestamp && (
@@ -467,7 +451,7 @@ function MarketRegimeCard() {
 
   return (
     <Card className="bg-card border-border h-full">
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-3 space-y-3">
         {/* Market Regime */}
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -480,7 +464,7 @@ function MarketRegimeCard() {
                 {regimeLabel}
               </span>
             ) : (
-              <span className="text-sm text-muted-foreground/50 font-mono animate-pulse">Analyzing...</span>
+              <span className="text-sm text-muted-foreground/40 font-mono">—</span>
             )}
             {regime?.confidence && (
               <span className="text-xs text-muted-foreground font-mono tabular-nums">{regime.confidence}%</span>
@@ -570,17 +554,12 @@ function BestSetups() {
   const ideas = data?.setups?.slice(0, 6) || [];
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--brand-teal)]/10 border border-[var(--brand-teal)]/20 flex items-center justify-center">
-              <Brain className="w-4 h-4 text-[var(--brand-teal)]" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground text-sm">Best Setups</h3>
-              <span className="text-[10px] text-muted-foreground">AI-scored trade ideas</span>
-            </div>
+    <Card className={cn("bg-card border-border", ideas.length === 0 && "bg-card/50 border-border/50")}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Brain className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="font-semibold text-foreground text-xs">Best Setups</h3>
           </div>
           <Link href="/trade-desk">
             <Button variant="ghost" size="sm" className="text-xs text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] h-7 px-2">
@@ -646,21 +625,7 @@ function BestSetups() {
               </motion.div>
             );
           }) : (
-            <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 rounded-md bg-muted/20 border border-border/30">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-muted/40 animate-pulse" />
-                    <div className="space-y-1">
-                      <div className="h-3 w-12 bg-muted/40 rounded animate-pulse" />
-                      <div className="h-2 w-16 bg-muted/20 rounded animate-pulse" />
-                    </div>
-                  </div>
-                  <div className="h-4 w-8 bg-muted/30 rounded animate-pulse" />
-                </div>
-              ))}
-              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Engines scanning 500+ stocks</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No scored setups right now. Scanners run throughout the trading day.</p>
           )}
         </div>
       </CardContent>
@@ -689,16 +654,12 @@ function ConvergenceHotList() {
   const hotSymbols = (data?.symbols || []).slice(0, 5);
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-[var(--brand-cyan)]/10 border border-[var(--brand-cyan)]/20 flex items-center justify-center">
-            <Target className="w-4 h-4 text-[var(--brand-cyan)]" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground text-sm">Convergence</h3>
-            <span className="text-[10px] text-muted-foreground">Multi-engine agreement</span>
-          </div>
+    <Card className={cn("bg-card border-border", hotSymbols.length === 0 && "bg-card/50 border-border/50")}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Target className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="font-semibold text-foreground text-xs">Convergence</h3>
+          <span className="text-[9px] text-muted-foreground/50 ml-auto">Multi-engine</span>
         </div>
 
         {hotSymbols.length > 0 ? (
@@ -738,18 +699,7 @@ function ConvergenceHotList() {
             })}
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/15 border border-border/20">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-10 bg-muted/30 rounded animate-pulse" />
-                  <div className="h-3 w-8 bg-muted/20 rounded animate-pulse" />
-                </div>
-                <div className="h-3 w-6 bg-muted/25 rounded animate-pulse" />
-              </div>
-            ))}
-            <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Convergence scan every 2 min</p>
-          </div>
+          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No multi-engine convergence signals right now</p>
         )}
       </CardContent>
     </Card>
@@ -779,25 +729,18 @@ function BreakingNews() {
   const news = data?.news?.slice(0, 5) || [];
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-              <Newspaper className="w-4 h-4 text-orange-500" />
-            </div>
-            <h3 className="font-semibold text-foreground text-sm">News Feed</h3>
+    <Card className={cn("bg-card border-border", news.length === 0 && !isLoading && "bg-card/50 border-border/50")}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Newspaper className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="font-semibold text-foreground text-xs">News Feed</h3>
           </div>
-          <Badge variant="outline" className="text-[10px] border-[var(--trade-bearish)]/30 text-[var(--trade-bearish)]">
-            <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" />
-            Live
-          </Badge>
+          <span className="text-[9px] text-muted-foreground/50 font-mono">Live</span>
         </div>
         <div className="space-y-1.5">
           {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
-            </div>
+            <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading news...</p>
           ) : news.length > 0 ? (
             news.map((article, i) => (
               <a
@@ -833,15 +776,7 @@ function BreakingNews() {
               </a>
             ))
           ) : (
-            <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="p-2 rounded-md bg-muted/15">
-                  <div className="h-3 w-full bg-muted/30 rounded animate-pulse mb-1" />
-                  <div className="h-2 w-2/3 bg-muted/20 rounded animate-pulse" />
-                </div>
-              ))}
-              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">Scanning 50+ news sources</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No breaking news right now</p>
           )}
         </div>
       </CardContent>
@@ -887,14 +822,12 @@ function EarningsCalendar() {
   };
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <Calendar className="w-4 h-4 text-blue-500" />
-            </div>
-            <h3 className="font-semibold text-foreground text-sm">Earnings</h3>
+    <Card className={cn("bg-card border-border", earnings.length === 0 && !isLoading && "bg-card/50 border-border/50")}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="font-semibold text-foreground text-xs">Earnings</h3>
           </div>
           <Link href="/market">
             <Button variant="ghost" size="sm" className="text-xs text-[var(--brand-teal)] h-7 px-2">
@@ -904,7 +837,7 @@ function EarningsCalendar() {
         </div>
         <div className="space-y-1.5">
           {isLoading ? (
-            [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+            <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading earnings...</p>
           ) : earnings.length > 0 ? (
             earnings.map((earning, i) => {
               const timeInfo = getTimeLabel(earning.time);
@@ -930,18 +863,7 @@ function EarningsCalendar() {
               );
             })
           ) : (
-            <div className="space-y-1.5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/15">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-10 bg-muted/30 rounded animate-pulse" />
-                    <div className="h-3 w-8 bg-muted/20 rounded animate-pulse" />
-                  </div>
-                  <div className="h-3 w-14 bg-muted/25 rounded animate-pulse" />
-                </div>
-              ))}
-              <p className="text-[9px] text-muted-foreground/30 text-center font-mono mt-2">No notable earnings this week</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No notable earnings this week</p>
           )}
         </div>
       </CardContent>
@@ -964,50 +886,53 @@ function TopMovers() {
 
   const gainers = data?.topGainers?.slice(0, 4) || [];
   const losers = data?.topLosers?.slice(0, 4) || [];
+  const isEmpty = gainers.length === 0 && losers.length === 0;
 
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-            <Activity className="w-4 h-4 text-purple-500" />
-          </div>
-          <h3 className="font-semibold text-foreground text-sm">Market Movers</h3>
+    <Card className={cn("bg-card border-border", isEmpty && "bg-card/50 border-border/50")}>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="font-semibold text-foreground text-xs">Market Movers</h3>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
-              <span className="text-[10px] font-semibold text-[var(--trade-bullish)] uppercase">Gainers</span>
+        {isEmpty ? (
+          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Market closed — movers update at open</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
+                <span className="text-[10px] font-semibold text-[var(--trade-bullish)] uppercase">Gainers</span>
+              </div>
+              <div className="space-y-0.5">
+                {gainers.map((s) => (
+                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                    <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bullish)]/5 transition-colors cursor-pointer">
+                      <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
+                      <span className="text-xs font-mono font-bold text-[var(--trade-bullish)]">+{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1">
-              {gainers.map((s) => (
-                <Link key={s.symbol} href={`/stock/${s.symbol}`}>
-                  <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bullish)]/5 transition-colors cursor-pointer">
-                    <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
-                    <span className="text-xs font-mono font-bold text-[var(--trade-bullish)]">+{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
-                  </div>
-                </Link>
-              ))}
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
+                <span className="text-[10px] font-semibold text-[var(--trade-bearish)] uppercase">Losers</span>
+              </div>
+              <div className="space-y-0.5">
+                {losers.map((s) => (
+                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                    <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bearish)]/5 transition-colors cursor-pointer">
+                      <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
+                      <span className="text-xs font-mono font-bold text-[var(--trade-bearish)]">{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
-              <span className="text-[10px] font-semibold text-[var(--trade-bearish)] uppercase">Losers</span>
-            </div>
-            <div className="space-y-1">
-              {losers.map((s) => (
-                <Link key={s.symbol} href={`/stock/${s.symbol}`}>
-                  <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bearish)]/5 transition-colors cursor-pointer">
-                    <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
-                    <span className="text-xs font-mono font-bold text-[var(--trade-bearish)]">{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1046,13 +971,22 @@ function EngineHealthBar() {
     { label: "Engine Health", value: health?.score ? `${health.score}%` : health?.overall || "—", color: "text-[var(--brand-cyan)]" },
   ];
 
+  const allEmpty = stats.every(s => s.value === "—");
+
+  if (allEmpty) {
+    return (
+      <div className="p-2 rounded-lg bg-card/50 border border-border/50 text-center">
+        <p className="text-[10px] text-muted-foreground/40">Performance stats available during market hours</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
       {stats.map((stat) => (
-        <div key={stat.label} className="p-3 rounded-lg bg-card border border-border text-center relative overflow-hidden group hover:border-border/80 transition-colors">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
-          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{stat.label}</div>
-          <div className={cn("text-lg font-mono font-bold tabular-nums", stat.color || "text-foreground")}>{stat.value}</div>
+        <div key={stat.label} className="p-2 rounded-lg bg-card border border-border text-center">
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">{stat.label}</div>
+          <div className={cn("text-base font-mono font-bold tabular-nums", stat.color || "text-foreground")}>{stat.value}</div>
         </div>
       ))}
     </div>
@@ -1103,10 +1037,10 @@ function TopConvictions() {
 
   return (
     <Card className="bg-card border-border overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Flame className="w-4 h-4 text-amber-400" />
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
             <span className="text-sm font-bold text-foreground">Top Convictions</span>
             <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
               layered confluence
@@ -1121,11 +1055,7 @@ function TopConvictions() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
+          <p className="text-[10px] text-muted-foreground/40 text-center py-4">Loading convictions...</p>
         ) : picks.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
             No high-conviction picks in the last 72h. Check back after the next scanner pass.
@@ -1214,7 +1144,13 @@ function NextDayOutlookPanel() {
     refetchInterval: 60_000,
   });
 
-  if (isLoading) return <SkeletonCard />;
+  if (isLoading) return (
+    <Card className="bg-card/50 border-border/50">
+      <CardContent className="p-3">
+        <span className="text-[10px] text-muted-foreground/40">Loading outlook...</span>
+      </CardContent>
+    </Card>
+  );
   if (!data) return null;
 
   const biasColor = data.futuresBias === "bullish" ? "text-[var(--trade-bullish)]" : data.futuresBias === "bearish" ? "text-[var(--trade-bearish)]" : "text-muted-foreground";
@@ -1224,10 +1160,10 @@ function NextDayOutlookPanel() {
 
   return (
     <Card className="bg-card border-border overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Sun className="w-4 h-4 text-[var(--brand-teal)]" />
+            <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
             <span className="text-sm font-bold text-foreground">
               {data.isWeekend ? "Weekend Outlook" : "Next Day Outlook"}
             </span>

@@ -133,15 +133,13 @@ function computeUnrealizedPct(
  * Estimate R-multiple expectancy for a band:
  *   R = avgGain / avgRiskDistance
  * where avgRiskDistance is the |entry - stop| / entry as a percent.
- * If we don't have stop info we fall back to assuming 5% risk.
+ * Trades without stop-loss data are excluded from R calculation (not filled
+ * with a fake 5% — that inflated R-multiples for incomplete data).
  */
 function estimateExpectancy(gains: number[], riskPcts: number[]): number {
-  if (gains.length === 0) return 0;
+  if (gains.length === 0 || riskPcts.length === 0) return 0;
   const avgGain = gains.reduce((s, x) => s + x, 0) / gains.length;
-  const avgRisk =
-    riskPcts.length > 0
-      ? riskPcts.reduce((s, x) => s + x, 0) / riskPcts.length
-      : 5;
+  const avgRisk = riskPcts.reduce((s, x) => s + x, 0) / riskPcts.length;
   return avgRisk > 0 ? avgGain / avgRisk : 0;
 }
 
@@ -328,7 +326,15 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
   for (const key of ["S", "A", "B", "C"] as const) {
     const b = bands[key];
     if (b.count > 0) {
+      // Blended win rate (all ideas) — clearly labeled
       b.winRate = b.wins / b.count;
+      // Closed-only (realized) win rate — the honest number
+      const closedWins = bandRealized[key].filter(g => g > 0).length;
+      const closedLosses = bandRealized[key].filter(g => g <= 0).length;
+      (b as any).realizedWinRate = (closedWins + closedLosses) > 0
+        ? closedWins / (closedWins + closedLosses) : null;
+      (b as any).realizedSampleSize = closedWins + closedLosses;
+      (b as any).unrealizedCount = bandUnrealized[key].length;
       b.avgPercentGain =
         bandGains[key].reduce((s, x) => s + x, 0) / bandGains[key].length;
       b.avgRealizedGain =
@@ -339,7 +345,10 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
         bandUnrealized[key].length > 0
           ? bandUnrealized[key].reduce((s, x) => s + x, 0) / bandUnrealized[key].length
           : 0;
-      b.expectancyR = estimateExpectancy(bandGains[key], bandRisks[key]);
+      // Expectancy based on closed trades only (don't let unrealized inflate)
+      b.expectancyR = bandRealized[key].length >= 3
+        ? estimateExpectancy(bandRealized[key], bandRisks[key])
+        : estimateExpectancy(bandGains[key], bandRisks[key]);
     }
   }
 
