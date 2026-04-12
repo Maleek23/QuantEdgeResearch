@@ -12,7 +12,8 @@
  * differentiate them beyond labels.
  */
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ExternalLink } from 'lucide-react';
+import { Link } from 'wouter';
 import { TICKER_TABS, type TickerTabSlug } from '../ticker-tabs';
 
 interface TickerStubTabProps {
@@ -51,6 +52,13 @@ export function TickerStubTab({ slug, symbol, preview }: TickerStubTabProps) {
             <li key={line}>{line}</li>
           ))}
         </ul>
+      )}
+      {slug === 'options' && (
+        <Link href={`/options-analyzer?symbol=${symbol}`}>
+          <span className="inline-flex items-center gap-1 mt-4 text-[10px] font-mono text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] cursor-pointer transition-colors">
+            Open Full Options Analyzer <ExternalLink className="w-3 h-3" />
+          </span>
+        </Link>
       )}
     </div>
   );
