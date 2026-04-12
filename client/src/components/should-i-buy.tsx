@@ -232,7 +232,7 @@ export function ShouldIBuy({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">AI Confidence</p>
+              <p className="text-xs text-muted-foreground">Conviction Score</p>
               <p className="text-lg font-bold text-white">
                 {safeToFixed(data.overallConfidence, 0)}%
               </p>
@@ -269,7 +269,7 @@ export function ShouldIBuy({
         {/* Confidence Score */}
         <div className="bg-muted/50 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">AI Confidence</span>
+            <span className="text-sm text-muted-foreground">Conviction Score</span>
             <span className="text-lg font-bold text-white">
               {safeToFixed(data.overallConfidence, 0)}%
             </span>

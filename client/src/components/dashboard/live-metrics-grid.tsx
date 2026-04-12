@@ -266,10 +266,10 @@ export function LiveMetricsGrid() {
       sparklineData: sparklines.trades,
     },
     {
-      title: 'AI Confidence',
+      title: 'Engine Confidence',
       value: `${safeToFixed(metrics.aiConfidence, 0)}%`,
       change: 5,
-      changeLabel: 'learning rate',
+      changeLabel: 'trend',
       icon: <Brain className="w-5 h-5" />,
       color: '#6366F1',
       trend: 'up',

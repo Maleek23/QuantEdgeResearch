@@ -2084,6 +2084,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         moversData,
         sectorData,
         fridayIdeas,
+        geoMatrix,
+        breakingNews,
       ] = await Promise.all([
         getMarketContext().catch(() => null),
         getFuturesPrices(["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]).catch(() => new Map()),
@@ -2111,6 +2113,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isWeekend ? getSectorPerformance().catch(() => ({})) : Promise.resolve({}),
         // Friday's trade ideas for weekend recap
         isWeekend ? storage.getRecentTradeIdeas(72, 200).catch(() => []) : Promise.resolve([]),
+        // Geopolitical scenarios + breaking news (especially valuable on weekends)
+        (async () => {
+          try {
+            const { getScenarioMatrix } = await import('./geopolitical-matrix');
+            return await getScenarioMatrix();
+          } catch { return null; }
+        })(),
+        (async () => {
+          try {
+            const { fetchBreakingNews } = await import('./news-service');
+            return await fetchBreakingNews(undefined, undefined, 10);
+          } catch { return []; }
+        })(),
       ]);
 
       // Pre-market gaps for key indices
@@ -2201,14 +2216,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fridayRecap: any = null;
       if (isWeekend) {
         // Top movers from last session
-        const gainers = (moversData as any).gainers?.slice(0, 8).map((g: any) => ({
-          symbol: g.symbol, name: g.name || g.symbol, price: g.price,
-          changePct: g.changePercent, volume: g.volume,
-        })) || [];
-        const losers = (moversData as any).losers?.slice(0, 8).map((l: any) => ({
-          symbol: l.symbol, name: l.name || l.symbol, price: l.price,
-          changePct: l.changePercent, volume: l.volume,
-        })) || [];
+        const mapMover = (m: any) => ({
+          symbol: m.symbol,
+          name: m.name || m.symbol,
+          price: m.currentPrice ?? m.price ?? 0,
+          previousClose: m.previousClose ?? 0,
+          changePct: m.dayChangePercent ?? m.changePercent ?? m.changePct ?? 0,
+          dayChange: m.dayChange ?? 0,
+          volume: m.volume ?? 0,
+          avgVolume: m.avgVolume ?? 0,
+          marketCap: m.marketCap ?? 0,
+          week52High: m.week52High ?? 0,
+          week52Low: m.week52Low ?? 0,
+          sector: m.sector || null,
+        });
+        const gainers = (moversData as any).gainers?.slice(0, 10).map(mapMover) || [];
+        const losers = (moversData as any).losers?.slice(0, 10).map(mapMover) || [];
 
         // Sector heatmap from SPDR ETFs
         const sectors = Object.entries(sectorData as Record<string, any>).map(([sector, data]) => ({
@@ -2252,26 +2275,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const dir = spyData.changePct >= 0 ? "up" : "down";
           summaryParts.push(`SPY closed ${dir} ${Math.abs(spyData.changePct).toFixed(2)}% on Friday at $${spyData.price.toFixed(2)}.`);
         }
-        if (vixQuote) {
-          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        if (vixQuote?.price != null) {
+          summaryParts.push(`VIX at ${Number(vixQuote.price).toFixed(1)}.`);
         }
         if (crypto.length > 0) {
           const btc = crypto.find(c => c.symbol === "BTC");
-          if (btc) {
-            const btcDir = btc.changePct >= 0 ? "+" : "";
-            summaryParts.push(`BTC ${btcDir}${btc.changePct.toFixed(1)}% this weekend ($${Math.round(btc.price).toLocaleString()}).`);
+          if (btc?.price != null) {
+            const pct = btc.changePct ?? 0;
+            const btcDir = pct >= 0 ? "+" : "";
+            summaryParts.push(`BTC ${btcDir}${Number(pct).toFixed(1)}% this weekend ($${Math.round(btc.price).toLocaleString()}).`);
           }
         }
         if (fridayRecap?.gainers?.length > 0) {
           const topGainer = fridayRecap.gainers[0];
-          summaryParts.push(`Top mover: ${topGainer.symbol} ${topGainer.changePct >= 0 ? "+" : ""}${topGainer.changePct.toFixed(1)}%.`);
+          const pct = topGainer.changePct ?? 0;
+          summaryParts.push(`Top mover: ${topGainer.symbol} ${pct >= 0 ? "+" : ""}${Number(pct).toFixed(1)}%.`);
         }
       } else {
         if (futuresBias !== "neutral") {
           summaryParts.push(`Futures suggest a ${futuresBias} open.`);
         }
-        if (vixQuote) {
-          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        if (vixQuote?.price != null) {
+          summaryParts.push(`VIX at ${Number(vixQuote.price).toFixed(1)}.`);
         }
       }
       if (swingSetups.length > 0) {
@@ -2291,6 +2316,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (isWeekend && fridayRecap?.carryOverIdeas?.length > 0) {
         summaryParts.push(`${fridayRecap.carryOverIdeas.length} open ideas carry into Monday.`);
+      }
+      // Geo risk summary
+      const geoRisk = (geoMatrix as any)?.currentConditions?.geopoliticalRisk;
+      const activeGeoCount = (geoMatrix as any)?.currentConditions?.activeScenarios?.length || 0;
+      if (geoRisk === "ELEVATED" || activeGeoCount > 2) {
+        summaryParts.push(`Geopolitical risk: ${geoRisk || "ELEVATED"} (${activeGeoCount} active scenarios).`);
+      }
+      // Breaking news summary
+      if (((breakingNews as any[]) || []).length > 0) {
+        summaryParts.push(`${(breakingNews as any[]).length} breaking news items.`);
       }
 
       const responseData = {
@@ -2317,13 +2352,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weeklyFocus: weeklySymbols,
         // Weekend-only: Friday session recap
         fridayRecap: fridayRecap || null,
+        // Geopolitical & macro layer
+        geopolitical: geoMatrix ? {
+          activeScenarios: (geoMatrix as any).scenarios
+            ?.filter((s: any) => (geoMatrix as any).currentConditions?.activeScenarios?.includes(s.id))
+            .map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              icon: s.icon,
+              category: s.category,
+              likelihood: s.likelihood,
+              description: s.description,
+              confidence: s.confidence,
+              topReactions: s.reactions?.slice(0, 4).map((r: any) => ({
+                asset: r.asset, label: r.label,
+                move24h: r.move24h, direction: r.direction,
+              })),
+              sectorImpact: s.sectorImpact?.slice(0, 5),
+              tradingPlan: s.tradingPlan,
+              watchpoints: s.watchpoints?.slice(0, 3),
+            })) || [],
+          riskLevel: (geoMatrix as any).currentConditions?.geopoliticalRisk || "NORMAL",
+          vix: (geoMatrix as any).currentConditions?.vix || null,
+        } : null,
+        breakingNews: ((breakingNews as any[]) || []).slice(0, 8).map((n: any) => ({
+          title: n.title,
+          summary: n.summary?.slice(0, 200),
+          source: n.source,
+          publishedAt: n.publishedAt || n.time_published,
+          sentiment: n.sentiment || n.overall_sentiment_label,
+          sentimentScore: n.sentimentScore || n.overall_sentiment_score,
+          tickers: n.tickers?.slice(0, 5) || [],
+          url: n.url,
+        })),
         upcomingEvents: upcomingEvents.slice(0, 10),
         todayEvents,
         highImpactAlert: highImpact,
         earnings: earnings.slice(0, 10),
         generatedAt: new Date().toISOString(),
         _meta: {
-          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist" + (isWeekend ? " + movers + sectors + friday_ideas" : ""),
+          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist + geopolitical + news" + (isWeekend ? " + movers + sectors + friday_ideas" : ""),
           cachedAt: new Date().toISOString(),
           public: true,
         },
@@ -5740,16 +5808,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'Losses', value: Math.round(100 - winRate), color: '#ef4444' },
       ];
       
+      // Strict hit rate: wins / (wins + losses), excluding expired/breakeven
+      const losses = decidedIdeas.filter(i => i.status === 'stopped_out').length;
+      const expired = decidedIdeas.filter(i => i.status === 'expired').length;
+      const strictWinRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
+
       res.json({
         portfolioValue: totalPortfolioValue,
         dailyPnL,
         dailyPnLPercent: totalPortfolioValue > 0 ? (dailyPnL / totalPortfolioValue) * 100 : 0,
         totalTrades: decidedIdeas.length,
-        winRate,
+        winRate: strictWinRate,
+        hitRate: strictWinRate,
         activePositions: openIdeas.length,
         weeklyPerformance,
         assetAllocation,
-        winLossRatio,
+        winLossRatio: [
+          { name: 'Wins', value: Math.round(strictWinRate), color: '#22c55e' },
+          { name: 'Losses', value: Math.round(100 - strictWinRate), color: '#ef4444' },
+        ],
         recentBriefs: [],
         systemStatus: [],
         _meta: {
@@ -5757,6 +5834,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cachedAt: new Date().toISOString(),
           decidedCount: decidedIdeas.length,
           openCount: openIdeas.length,
+          wins,
+          losses,
+          expired,
+          breakevenExcluded: expired,
+          sampleSize: wins + losses,
+          note: "Hit rate = wins / (wins + losses). Expired/breakeven trades excluded from rate calculation.",
         },
       });
     } catch (error) {
@@ -9061,30 +9144,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getPerformanceStats({ ...filters, source: 'flow' }),
       ]);
       
+      const mapEngine = (stats: any, name: string) => {
+        const s = stats.overall;
+        const sampleSize = s.closedIdeas || 0;
+        return {
+          totalIdeas: s.totalIdeas,
+          closedIdeas: s.closedIdeas,
+          winRate: s.winRate,
+          avgPercentGain: s.avgPercentGain,
+          sampleSize,
+          // Grade sample size: A (50+), B (20-49), C (10-19), D (5-9), F (<5)
+          sampleGrade: sampleSize >= 50 ? "A" : sampleSize >= 20 ? "B" : sampleSize >= 10 ? "C" : sampleSize >= 5 ? "D" : "F",
+          reliable: sampleSize >= 10,
+          ...(name === 'flow' ? {
+            _note: "Options validation under maintenance — Flow/Lotto ideas excluded from public display due to option premium pricing issues. Not a real 0%.",
+            excludedFromDisplay: true,
+          } : {}),
+        };
+      };
+
       const data = {
-        ai: {
-          totalIdeas: aiStats.overall.totalIdeas,
-          closedIdeas: aiStats.overall.closedIdeas,
-          winRate: aiStats.overall.winRate,
-          avgPercentGain: aiStats.overall.avgPercentGain,
-        },
-        quant: {
-          totalIdeas: quantStats.overall.totalIdeas,
-          closedIdeas: quantStats.overall.closedIdeas,
-          winRate: quantStats.overall.winRate,
-          avgPercentGain: quantStats.overall.avgPercentGain,
-        },
-        hybrid: {
-          totalIdeas: hybridStats.overall.totalIdeas,
-          closedIdeas: hybridStats.overall.closedIdeas,
-          winRate: hybridStats.overall.winRate,
-          avgPercentGain: hybridStats.overall.avgPercentGain,
-        },
-        flow: {
-          totalIdeas: flowStats.overall.totalIdeas,
-          closedIdeas: flowStats.overall.closedIdeas,
-          winRate: flowStats.overall.winRate,
-          avgPercentGain: flowStats.overall.avgPercentGain,
+        ai: mapEngine(aiStats, 'ai'),
+        quant: mapEngine(quantStats, 'quant'),
+        hybrid: mapEngine(hybridStats, 'hybrid'),
+        flow: mapEngine(flowStats, 'flow'),
+        _meta: {
+          note: "Hit rates are count-based (wins / decided trades). Options engines (Flow, Lotto) excluded due to validation issues — see flow._note.",
+          optionsExcluded: true,
+          optionsExcludedReason: "Option premium pricing validator compared stock prices to option premiums, generating false wins. Under maintenance.",
         },
       };
       
