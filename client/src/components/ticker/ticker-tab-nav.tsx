@@ -25,7 +25,6 @@ export function TickerTabNav({ activeTab, onTabChange }: TickerTabNavProps) {
     >
       {TICKER_TABS.map((tab) => {
         const isActive = tab.slug === activeTab;
-        const isStub = tab.status === 'stub';
         return (
           <button
             key={tab.slug}
@@ -44,11 +43,6 @@ export function TickerTabNav({ activeTab, onTabChange }: TickerTabNavProps) {
             data-testid={`ticker-tab-${tab.slug}`}
           >
             {tab.label}
-            {isStub && (
-              <span className="ml-1.5 inline-block px-1 py-0 text-[8px] font-semibold uppercase tracking-widest text-muted-foreground/60 border border-border rounded">
-                soon
-              </span>
-            )}
           </button>
         );
       })}
