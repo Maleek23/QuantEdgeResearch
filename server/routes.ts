@@ -2035,6 +2035,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Answers "what's it looking like for tomorrow?"
   // ============================================
 
+  // ── Weekend outlook cache — persists Friday's rich data through the weekend ──
+  let weekendOutlookCache: { data: any; timestamp: number } | null = null;
+  const WEEKEND_CACHE_TTL = 15 * 60 * 1000; // 15 min on weekends (data doesn't change much)
+
   app.get("/api/market-outlook", async (_req, res) => {
     try {
       const { currentMarketPhase, getPreMarketBatch } = await import("./pre-market-service");
@@ -2046,11 +2050,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
       const { getCachedConvictions } = await import("./convictions-engine");
       const { getCurrentWeekSymbols } = await import("./weekly-watchlist-seeder");
+      const { getTopMovers, getSectorPerformance } = await import("./market-scanner");
 
       const phase = currentMarketPhase();
-      const isWeekend = phase === "closed" && [0, 6].includes(new Date().getDay());
+      // Fix: use ET-adjusted day for weekend check (not UTC)
+      const etNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const etDay = etNow.getDay();
+      const isWeekend = phase === "closed" && (etDay === 0 || etDay === 6);
 
-      // Parallel fetch everything — including swing setups, convictions, weekly focus
+      // Serve weekend cache if fresh
+      if (isWeekend && weekendOutlookCache && (Date.now() - weekendOutlookCache.timestamp) < WEEKEND_CACHE_TTL) {
+        return res.json(weekendOutlookCache.data);
+      }
+
+      // On weekends, extend conviction lookback to capture Friday's data
+      const convictionOpts = isWeekend
+        ? { limit: 10, lookbackHours: 96, minScore: 12 }
+        : { limit: 6 };
+
+      // Parallel fetch everything
       const [
         marketCtx,
         futuresMap,
@@ -2063,6 +2081,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         swingRaw,
         convictionsRaw,
         weeklySymbols,
+        moversData,
+        sectorData,
+        fridayIdeas,
       ] = await Promise.all([
         getMarketContext().catch(() => null),
         getFuturesPrices(["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]).catch(() => new Map()),
@@ -2082,9 +2103,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { symbol: "ETH", assetType: "crypto" },
           { symbol: "SOL", assetType: "crypto" },
         ]).catch(() => new Map()),
-        getTopSwingOpportunities(8).catch(() => []),
-        getCachedConvictions({ limit: 6 }).catch(() => null),
+        getTopSwingOpportunities(isWeekend ? 12 : 8).catch(() => []),
+        getCachedConvictions(convictionOpts).catch(() => null),
         getCurrentWeekSymbols().catch(() => []),
+        // Weekend-specific: last session movers + sectors
+        isWeekend ? getTopMovers("day", "all", 20).catch(() => ({ gainers: [], losers: [] })) : Promise.resolve({ gainers: [], losers: [] }),
+        isWeekend ? getSectorPerformance().catch(() => ({})) : Promise.resolve({}),
+        // Friday's trade ideas for weekend recap
+        isWeekend ? storage.getRecentTradeIdeas(72, 200).catch(() => []) : Promise.resolve([]),
       ]);
 
       // Pre-market gaps for key indices
@@ -2117,7 +2143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         indices[sym] = q ? { price: q.price, changePct: q.changePercent } : null;
       }
 
-      // Format crypto
+      // Format crypto (live 24/7 — shows weekend moves)
       const crypto: Array<{ symbol: string; price: number; changePct: number }> = [];
       for (const sym of ["BTC", "ETH", "SOL"]) {
         const q = cryptoQuotes.get(sym);
@@ -2126,7 +2152,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Determine bias from futures
       const esPrice = futures.ES;
-      const nqPrice = futures.NQ;
       let futuresBias: "bullish" | "bearish" | "neutral" = "neutral";
       const spyQuote = indexQuotes.get("SPY");
       if (esPrice && spyQuote) {
@@ -2140,14 +2165,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let vixContext: string | null = null;
       if (vixQuote) {
         const v = vixQuote.price;
-        if (v > 30) vixContext = "Extreme fear — VIX above 30, expect wide ranges";
-        else if (v > 20) vixContext = "Elevated volatility — VIX above 20, hedges are expensive";
-        else if (v > 15) vixContext = "Normal volatility — VIX in typical range";
-        else vixContext = "Low vol — VIX below 15, complacency risk";
+        if (v > 30) vixContext = "Extreme fear — VIX above 30, expect wide ranges and risk-off Monday";
+        else if (v > 20) vixContext = "Elevated volatility — VIX above 20, hedges are expensive, watch for gap plays";
+        else if (v > 15) vixContext = "Normal volatility — VIX in typical range, standard setups valid";
+        else vixContext = "Low vol — VIX below 15, breakout setups favored, watch for complacency reversal";
       }
 
       // Format swing setups
-      const swingSetups = (swingRaw as any[]).slice(0, 8).map((opp: any) => ({
+      const swingSetups = (swingRaw as any[]).slice(0, isWeekend ? 12 : 8).map((opp: any) => ({
         symbol: opp.symbol,
         score: opp.score,
         pattern: opp.pattern,
@@ -2160,7 +2185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Format conviction picks
-      const topConvictions = convictionsRaw?.picks?.slice(0, 6).map((p: any) => ({
+      const topConvictions = convictionsRaw?.picks?.slice(0, isWeekend ? 10 : 6).map((p: any) => ({
         symbol: p.symbol,
         direction: p.direction,
         convictionScore: p.convictionScore,
@@ -2172,13 +2197,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         layerCount: p.layerCount,
       })) || [];
 
-      // Build summary
+      // ── Weekend-specific: Friday session recap ──
+      let fridayRecap: any = null;
+      if (isWeekend) {
+        // Top movers from last session
+        const gainers = (moversData as any).gainers?.slice(0, 8).map((g: any) => ({
+          symbol: g.symbol, name: g.name || g.symbol, price: g.price,
+          changePct: g.changePercent, volume: g.volume,
+        })) || [];
+        const losers = (moversData as any).losers?.slice(0, 8).map((l: any) => ({
+          symbol: l.symbol, name: l.name || l.symbol, price: l.price,
+          changePct: l.changePercent, volume: l.volume,
+        })) || [];
+
+        // Sector heatmap from SPDR ETFs
+        const sectors = Object.entries(sectorData as Record<string, any>).map(([sector, data]) => ({
+          sector, changePct: (data as any).avg || 0,
+        })).sort((a, b) => b.changePct - a.changePct);
+
+        // Friday's idea outcomes
+        const ideas = (fridayIdeas as any[]) || [];
+        const closedFriday = ideas.filter((i: any) => i.outcomeStatus && i.outcomeStatus !== "open");
+        const openIdeas = ideas.filter((i: any) => !i.outcomeStatus || i.outcomeStatus === "open");
+        const wins = closedFriday.filter((i: any) => i.outcomeStatus === "hit_target").length;
+        const losses = closedFriday.filter((i: any) => i.outcomeStatus === "hit_stop").length;
+
+        // Open ideas still valid for Monday (carry-over)
+        const carryOver = openIdeas.slice(0, 10).map((i: any) => ({
+          symbol: i.symbol, direction: i.direction, entryPrice: i.entryPrice,
+          targetPrice: i.targetPrice, stopLoss: i.stopLoss, source: i.source,
+          confidenceScore: i.confidenceScore, catalyst: i.catalyst,
+        }));
+
+        fridayRecap = {
+          gainers,
+          losers,
+          sectors,
+          sessionStats: {
+            totalIdeas: ideas.length,
+            closed: closedFriday.length,
+            wins, losses,
+            winRate: closedFriday.length > 0 ? Math.round((wins / closedFriday.length) * 100) : null,
+          },
+          carryOverIdeas: carryOver,
+        };
+      }
+
+      // Build summary — much richer on weekends
       const summaryParts: string[] = [];
       if (isWeekend) {
-        summaryParts.push("Markets closed for the weekend.");
+        // Weekend headline: market context + what happened Friday
+        const spyData = indices.SPY;
+        if (spyData) {
+          const dir = spyData.changePct >= 0 ? "up" : "down";
+          summaryParts.push(`SPY closed ${dir} ${Math.abs(spyData.changePct).toFixed(2)}% on Friday at $${spyData.price.toFixed(2)}.`);
+        }
+        if (vixQuote) {
+          summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
+        }
         if (crypto.length > 0) {
           const btc = crypto.find(c => c.symbol === "BTC");
-          if (btc) summaryParts.push(`BTC ${btc.changePct >= 0 ? "+" : ""}${btc.changePct.toFixed(1)}% over the weekend.`);
+          if (btc) {
+            const btcDir = btc.changePct >= 0 ? "+" : "";
+            summaryParts.push(`BTC ${btcDir}${btc.changePct.toFixed(1)}% this weekend ($${Math.round(btc.price).toLocaleString()}).`);
+          }
+        }
+        if (fridayRecap?.gainers?.length > 0) {
+          const topGainer = fridayRecap.gainers[0];
+          summaryParts.push(`Top mover: ${topGainer.symbol} ${topGainer.changePct >= 0 ? "+" : ""}${topGainer.changePct.toFixed(1)}%.`);
         }
       } else {
         if (futuresBias !== "neutral") {
@@ -2201,10 +2287,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (earnings.length > 0) {
         const earningsSymbols = earnings.slice(0, 5).map((e: any) => e.symbol).join(", ");
-        summaryParts.push(`Earnings: ${earningsSymbols}.`);
+        summaryParts.push(`Earnings next week: ${earningsSymbols}.`);
+      }
+      if (isWeekend && fridayRecap?.carryOverIdeas?.length > 0) {
+        summaryParts.push(`${fridayRecap.carryOverIdeas.length} open ideas carry into Monday.`);
       }
 
-      res.json({
+      const responseData = {
         timeframe: isWeekend ? "weekend" : "next_day",
         phase,
         isWeekend,
@@ -2226,17 +2315,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         swingSetups,
         topConvictions,
         weeklyFocus: weeklySymbols,
+        // Weekend-only: Friday session recap
+        fridayRecap: fridayRecap || null,
         upcomingEvents: upcomingEvents.slice(0, 10),
         todayEvents,
         highImpactAlert: highImpact,
         earnings: earnings.slice(0, 10),
         generatedAt: new Date().toISOString(),
         _meta: {
-          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist",
+          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist" + (isWeekend ? " + movers + sectors + friday_ideas" : ""),
           cachedAt: new Date().toISOString(),
           public: true,
         },
-      });
+      };
+
+      // Cache on weekends
+      if (isWeekend) {
+        weekendOutlookCache = { data: responseData, timestamp: Date.now() };
+      }
+
+      res.json(responseData);
     } catch (error) {
       logError(error as Error, { context: "GET /api/market-outlook" });
       res.status(500).json({ error: "Failed to generate market outlook" });
@@ -5721,11 +5819,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Morning Briefing - AI-generated market preview with watchlist and catalysts
   let morningBriefingCache: { data: any; timestamp: number } | null = null;
   const BRIEFING_CACHE_TTL = 30 * 60 * 1000; // 30 min cache
+  const WEEKEND_BRIEFING_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hour cache on weekends
 
   app.get("/api/morning-briefing", async (_req, res) => {
     try {
+      // Use longer cache on weekends (data barely changes)
+      const etNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const etDay = etNow.getDay();
+      const cacheTTL = (etDay === 0 || etDay === 6) ? WEEKEND_BRIEFING_CACHE_TTL : BRIEFING_CACHE_TTL;
+
       // Return cached if fresh
-      if (morningBriefingCache && (Date.now() - morningBriefingCache.timestamp) < BRIEFING_CACHE_TTL) {
+      if (morningBriefingCache && (Date.now() - morningBriefingCache.timestamp) < cacheTTL) {
         return res.json(morningBriefingCache.data);
       }
 

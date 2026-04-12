@@ -94,6 +94,17 @@ interface OutlookData {
     layerCount: number;
   }>;
   weeklyFocus: string[];
+  fridayRecap: {
+    gainers: Array<{ symbol: string; name: string; price: number; changePct: number; volume: number }>;
+    losers: Array<{ symbol: string; name: string; price: number; changePct: number; volume: number }>;
+    sectors: Array<{ sector: string; changePct: number }>;
+    sessionStats: { totalIdeas: number; closed: number; wins: number; losses: number; winRate: number | null };
+    carryOverIdeas: Array<{
+      symbol: string; direction: string; entryPrice: number;
+      targetPrice: number; stopLoss: number; source: string;
+      confidenceScore: number; catalyst: string;
+    }>;
+  } | null;
   generatedAt: string;
 }
 
@@ -338,6 +349,86 @@ function WeeklyFocusStrip({ symbols }: { symbols: string[] }) {
   );
 }
 
+// ─── Friday Session Recap (Weekend Only) ─────────────────────────
+
+function FridayMovers({ gainers, losers }: { gainers: any[]; losers: any[] }) {
+  if (gainers.length === 0 && losers.length === 0) return null;
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {/* Gainers */}
+      <div>
+        <div className="text-[9px] font-mono text-[var(--trade-bullish)] uppercase tracking-wider mb-1.5">Top Gainers</div>
+        <div className="space-y-1">
+          {gainers.slice(0, 6).map((g, i) => (
+            <div key={i} className="flex items-center justify-between px-2 py-1 rounded border border-emerald-500/10 bg-emerald-500/5">
+              <span className="text-xs font-mono font-semibold text-foreground/80">{g.symbol}</span>
+              <span className="text-[10px] font-mono text-[var(--trade-bullish)]">+{Math.abs(g.changePct).toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Losers */}
+      <div>
+        <div className="text-[9px] font-mono text-[var(--trade-bearish)] uppercase tracking-wider mb-1.5">Top Losers</div>
+        <div className="space-y-1">
+          {losers.slice(0, 6).map((l, i) => (
+            <div key={i} className="flex items-center justify-between px-2 py-1 rounded border border-red-500/10 bg-red-500/5">
+              <span className="text-xs font-mono font-semibold text-foreground/80">{l.symbol}</span>
+              <span className="text-[10px] font-mono text-[var(--trade-bearish)]">{l.changePct.toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectorHeatmap({ sectors }: { sectors: Array<{ sector: string; changePct: number }> }) {
+  if (sectors.length === 0) return null;
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+      {sectors.map((s, i) => {
+        const isPos = s.changePct >= 0;
+        return (
+          <div
+            key={i}
+            className={cn(
+              "rounded px-2 py-1.5 text-center border transition-colors",
+              isPos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
+            )}
+          >
+            <div className="text-[9px] font-mono text-muted-foreground truncate">{s.sector}</div>
+            <div className={cn("text-xs font-mono font-semibold", isPos ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+              {isPos ? "+" : ""}{s.changePct.toFixed(2)}%
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CarryOverIdeas({ ideas }: { ideas: any[] }) {
+  if (ideas.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {ideas.map((idea, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 hover:bg-card/50 transition-colors">
+          <span className="text-xs font-semibold text-[var(--brand-teal)] font-mono w-14">{idea.symbol}</span>
+          <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono",
+            idea.direction === "short" ? "text-[var(--trade-bearish)] border-red-500/30" : "text-[var(--trade-bullish)] border-emerald-500/30"
+          )}>
+            {idea.direction === "short" ? "SHORT" : "LONG"}
+          </Badge>
+          <span className="text-[10px] text-muted-foreground truncate flex-1">{idea.catalyst || idea.source}</span>
+          <span className="text-[10px] font-mono text-muted-foreground">${formatPrice(idea.entryPrice)}</span>
+          <span className="text-[10px] font-mono text-[var(--trade-bullish)]">→ ${formatPrice(idea.targetPrice)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Events Calendar ──────────────────────────────────────────────
 
 function EventsList({ events, title }: { events: OutlookData["upcomingEvents"]; title: string }) {
@@ -564,6 +655,52 @@ export default function MarketOutlook() {
                 </div>
                 <TopConvictions picks={data.topConvictions} />
               </Card>
+            )}
+
+            {/* ── Weekend Only: Friday Session Recap ── */}
+            {data.isWeekend && data.fridayRecap && (
+              <>
+                {/* Friday Movers */}
+                {(data.fridayRecap.gainers.length > 0 || data.fridayRecap.losers.length > 0) && (
+                  <Card className="bg-card/40 border-border p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BarChart3 className="w-4 h-4 text-[var(--brand-teal)]" />
+                      <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Friday's Movers</h3>
+                      {data.fridayRecap.sessionStats.winRate != null && (
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 font-mono text-muted-foreground border-border ml-auto">
+                          Ideas: {data.fridayRecap.sessionStats.wins}W / {data.fridayRecap.sessionStats.losses}L
+                        </Badge>
+                      )}
+                    </div>
+                    <FridayMovers gainers={data.fridayRecap.gainers} losers={data.fridayRecap.losers} />
+                  </Card>
+                )}
+
+                {/* Sector Performance */}
+                {data.fridayRecap.sectors.length > 0 && (
+                  <Card className="bg-card/40 border-border p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className="w-4 h-4 text-indigo-400" />
+                      <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Sector Performance</h3>
+                    </div>
+                    <SectorHeatmap sectors={data.fridayRecap.sectors} />
+                  </Card>
+                )}
+
+                {/* Carry-Over Ideas for Monday */}
+                {data.fridayRecap.carryOverIdeas.length > 0 && (
+                  <Card className="bg-card/40 border-border p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Open Ideas → Monday</h3>
+                      <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 font-mono text-amber-400 border-amber-500/30 ml-auto">
+                        {data.fridayRecap.carryOverIdeas.length}
+                      </Badge>
+                    </div>
+                    <CarryOverIdeas ideas={data.fridayRecap.carryOverIdeas} />
+                  </Card>
+                )}
+              </>
             )}
           </motion.div>
 

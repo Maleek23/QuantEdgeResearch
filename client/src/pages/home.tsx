@@ -1190,6 +1190,7 @@ interface OutlookPanelData {
   summary: string;
   marketContext: { vixLevel: number | null; regime: string; riskSentiment: string } | null;
   highImpactAlert: { name: string; date: string; time: string } | null;
+  crypto: Array<{ symbol: string; price: number; changePct: number }>;
   swingSetups: Array<{
     symbol: string; direction: string; score: number; pattern: string;
     currentPrice: number; targetPrice: number; riskReward: number;
@@ -1199,6 +1200,11 @@ interface OutlookPanelData {
     convictionBand: string; thesis: string;
   }>;
   weeklyFocus: string[];
+  fridayRecap: {
+    gainers: Array<{ symbol: string; changePct: number }>;
+    losers: Array<{ symbol: string; changePct: number }>;
+    carryOverIdeas: Array<{ symbol: string; direction: string }>;
+  } | null;
 }
 
 function NextDayOutlookPanel() {
@@ -1298,8 +1304,47 @@ function NextDayOutlookPanel() {
             </div>
           )}
 
-          {/* VIX + Weekly Focus */}
+          {/* VIX + Crypto + Weekly Focus */}
           <div className="space-y-3">
+            {/* Live crypto — 24/7, shows weekend moves */}
+            {data.isWeekend && data.crypto?.length > 0 && (
+              <div>
+                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Crypto (Live)</div>
+                <div className="space-y-1">
+                  {data.crypto.map((c) => (
+                    <div key={c.symbol} className="flex items-center justify-between px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02]">
+                      <span className="text-xs font-mono font-semibold text-foreground/80">{c.symbol}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">${c.price > 1000 ? Math.round(c.price).toLocaleString() : c.price.toFixed(2)}</span>
+                      <span className={cn("text-[10px] font-mono font-semibold",
+                        c.changePct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                      )}>{c.changePct >= 0 ? "+" : ""}{c.changePct.toFixed(2)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Friday movers snapshot on weekends */}
+            {data.isWeekend && data.fridayRecap && (
+              <div>
+                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Friday's Top Movers</div>
+                <div className="space-y-0.5">
+                  {data.fridayRecap.gainers?.slice(0, 3).map((g) => (
+                    <div key={g.symbol} className="flex items-center justify-between px-2 py-1 rounded">
+                      <span className="text-[10px] font-mono text-foreground/70">{g.symbol}</span>
+                      <span className="text-[10px] font-mono text-[var(--trade-bullish)]">+{Math.abs(g.changePct).toFixed(1)}%</span>
+                    </div>
+                  ))}
+                  {data.fridayRecap.losers?.slice(0, 3).map((l) => (
+                    <div key={l.symbol} className="flex items-center justify-between px-2 py-1 rounded">
+                      <span className="text-[10px] font-mono text-foreground/70">{l.symbol}</span>
+                      <span className="text-[10px] font-mono text-[var(--trade-bearish)]">{l.changePct.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {data.marketContext?.vixLevel != null && (
               <div>
                 <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">VIX Context</div>
