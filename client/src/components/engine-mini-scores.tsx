@@ -76,12 +76,12 @@ export function EngineMiniScores({
   compact = false
 }: EngineMiniScoresProps) {
   const engines: EngineData[] = [
-    { name: 'ML Engine', abbrev: 'ML', score: mlScore, icon: <Brain className="h-3 w-3" />, color: 'purple' },
-    { name: 'AI Engine', abbrev: 'AI', score: aiScore, icon: <Cpu className="h-3 w-3" />, color: 'cyan' },
-    { name: 'Quant Engine', abbrev: 'QT', score: quantScore, icon: <BarChart3 className="h-3 w-3" />, color: 'blue' },
-    { name: 'Flow Engine', abbrev: 'FL', score: flowScore, icon: <Activity className="h-3 w-3" />, color: 'green' },
-    { name: 'Sentiment', abbrev: 'SN', score: sentimentScore, icon: <MessageSquare className="h-3 w-3" />, color: 'amber' },
     { name: 'Technical', abbrev: 'TC', score: technicalScore, icon: <LineChart className="h-3 w-3" />, color: 'rose' },
+    { name: 'Fundamental', abbrev: 'FN', score: mlScore, icon: <Brain className="h-3 w-3" />, color: 'purple' },
+    { name: 'Catalyst', abbrev: 'CT', score: aiScore, icon: <Cpu className="h-3 w-3" />, color: 'cyan' },
+    { name: 'Quantitative', abbrev: 'QT', score: quantScore, icon: <BarChart3 className="h-3 w-3" />, color: 'blue' },
+    { name: 'Flow', abbrev: 'FL', score: flowScore, icon: <Activity className="h-3 w-3" />, color: 'green' },
+    { name: 'Sentiment', abbrev: 'SN', score: sentimentScore, icon: <MessageSquare className="h-3 w-3" />, color: 'amber' },
   ];
   
   const avgScore = Math.round(engines.reduce((sum, e) => sum + e.score, 0) / engines.length);
@@ -105,9 +105,9 @@ export function EngineMiniScores({
         </TooltipTrigger>
         <TooltipContent side="top" className="bg-card border-border">
           <div className="text-xs">
-            <div className="font-bold">6-Engine Consensus</div>
+            <div className="font-bold">Confluence Consensus</div>
             <div className="text-muted-foreground mt-1">
-              {bullishCount}/6 engines bullish
+              {bullishCount}/{engines.length} layers bullish
             </div>
           </div>
         </TooltipContent>
@@ -143,9 +143,9 @@ export function EngineConsensusBadge({
       </TooltipTrigger>
       <TooltipContent side="top" className="bg-card border-border">
         <div className="text-xs">
-          <div className="font-bold">6-Engine Intelligence Score</div>
+          <div className="font-bold">Confluence Score</div>
           <div className="text-muted-foreground mt-1">
-            ML + AI + Quant + Flow + Sentiment + Technical
+            Technical + Fundamental + Catalyst + Quant + Flow + Sentiment
           </div>
           <div className="mt-2">
             <span className={cn(

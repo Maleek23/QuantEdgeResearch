@@ -1039,7 +1039,7 @@ function EngineHealthBar() {
   });
 
   const stats = [
-    { label: "Win Rate", value: perf?.winRate ? `${safeToFixed(perf.winRate, 1)}%` : "—", color: perf?.winRate && perf.winRate >= 50 ? "text-[var(--trade-bullish)]" : "text-foreground" },
+    { label: "Hit Rate", value: perf?.winRate ? `${safeToFixed(perf.winRate, 1)}%` : "—", color: perf?.winRate && perf.winRate >= 50 ? "text-[var(--trade-bullish)]" : "text-foreground" },
     { label: "Trades", value: perf?.totalTrades?.toLocaleString() || "—" },
     { label: "Profit Factor", value: perf?.profitFactor ? safeToFixed(perf.profitFactor, 2) : "—", color: perf?.profitFactor && perf.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : "text-foreground" },
     { label: "Avg Return", value: perf?.avgReturn ? `${safeToFixed(perf.avgReturn, 1)}%` : "—", color: perf?.avgReturn && perf.avgReturn > 0 ? "text-[var(--trade-bullish)]" : perf?.avgReturn && perf.avgReturn < 0 ? "text-[var(--trade-bearish)]" : "text-foreground" },

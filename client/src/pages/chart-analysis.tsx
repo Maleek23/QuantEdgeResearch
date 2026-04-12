@@ -3171,7 +3171,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
           console.error('AI vision analysis failed:', error);
         }
       } else {
-        // No chart - use AI-powered symbol analysis (6-engine + AI text)
+        // No chart - use symbol analysis (confluence engine + text)
         try {
           const response = await fetch(`/api/ai-symbol-analysis/${targetSymbol}`, {
             credentials: 'include',
@@ -3511,7 +3511,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-mono flex items-center gap-2">
                   <Brain className="h-4 w-4 text-[var(--trade-neutral)]" />
-                  AI Vision Engine
+                  Chart Vision Engine
                 </CardTitle>
                 <Badge className={cn(
                   "text-xs",
@@ -4253,7 +4253,7 @@ export default function ChartAnalysis() {
           <div>
             <h1 className="text-base font-bold tracking-tight text-foreground">Chart Analysis</h1>
             <p className="text-[10px] text-muted-foreground">
-              Pattern detection • Indicators • 6-engine scan
+              Pattern detection • Indicators • Confluence scan
             </p>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
@@ -4374,7 +4374,7 @@ export default function ChartAnalysis() {
                     </Badge>
                   </CardTitle>
                   <CardDescription className="flex items-center gap-2">
-                    6-Engine Consensus: {sixEngineAnalysis.overallDirection.toUpperCase()} ({sixEngineAnalysis.overallConfidence}%)
+                    Confluence Score: {sixEngineAnalysis.overallDirection.toUpperCase()} ({sixEngineAnalysis.overallConfidence}%)
                     <span className="text-xs text-muted-foreground">
                       • {new Date(sixEngineAnalysis.analysisTimestamp).toLocaleTimeString()}
                     </span>
@@ -4466,7 +4466,7 @@ export default function ChartAnalysis() {
         <Card className="border border-[var(--trade-bullish)]/30">
           <CardContent className="p-6 flex items-center justify-center gap-3">
             <Loader2 className="h-6 w-6 animate-spin text-[var(--trade-bullish)]" />
-            <span className="text-muted-foreground">Analyzing {symbol} with 6 engines...</span>
+            <span className="text-muted-foreground">Analyzing {symbol} — scoring layers running...</span>
           </CardContent>
         </Card>
       )}
@@ -4889,7 +4889,7 @@ export default function ChartAnalysis() {
                         <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="ai" className="gap-1.5 text-xs" data-testid="tab-ai-analysis">
                             <Brain className="h-3.5 w-3.5" />
-                            AI Analysis
+                            Analysis
                           </TabsTrigger>
                           <TabsTrigger value="quant" className="gap-1.5 text-xs" data-testid="tab-quant-signals">
                             <Calculator className="h-3.5 w-3.5" />

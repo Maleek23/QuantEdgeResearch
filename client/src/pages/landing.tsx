@@ -58,12 +58,12 @@ function SectionDivider() {
 
 // Trading Engines — all emerald accent
 const tradingEngines = [
-  { id: 'ML', name: 'Machine Learning', desc: 'Neural pattern detection', icon: Cpu },
-  { id: 'AI', name: 'AI Analysis', desc: 'Multi-LLM consensus', icon: Brain },
-  { id: 'QNT', name: 'Quantitative', desc: 'Statistical arbitrage', icon: BarChart3 },
+  { id: 'TCH', name: 'Technical', desc: 'Chart pattern detection', icon: LineChart },
+  { id: 'FND', name: 'Fundamental', desc: 'Valuation & earnings', icon: BarChart3 },
+  { id: 'SNT', name: 'Sentiment', desc: 'Social & news scoring', icon: Eye },
   { id: 'FLW', name: 'Order Flow', desc: 'Dark pool signals', icon: Activity },
-  { id: 'SNT', name: 'Sentiment', desc: 'Social & news alpha', icon: Eye },
-  { id: 'TCH', name: 'Technical', desc: 'Chart pattern AI', icon: LineChart },
+  { id: 'CAT', name: 'Catalyst', desc: 'Event-driven scoring', icon: Brain },
+  { id: 'QNT', name: 'Quantitative', desc: 'Statistical confluence', icon: Cpu },
 ];
 
 // Check if US market is open
@@ -387,7 +387,7 @@ function TerminalMockup() {
             transition={{ duration: 0.5, delay: 0.6 }}
             className="text-muted-foreground/50 mt-3 flex items-center gap-1"
           >
-            // {new Date().toISOString().split('T')[0]} | 6-engine convergence
+            // {new Date().toISOString().split('T')[0]} | 14-layer confluence
             <span className="inline-block w-2 h-4 bg-[var(--brand-teal)]/50 cursor-blink ml-1" />
           </motion.div>
         </div>
@@ -414,7 +414,7 @@ export default function Landing() {
   const features = [
     {
       icon: Brain, title: "AI Trade Ideas",
-      description: "6 engines analyze every stock. Entry, target, stop, R:R — all computed. Only high-conviction convergence signals make the cut.",
+      description: "14-layer quantitative confluence engine scores every stock. Entry, target, stop, R:R — all computed. Only high-conviction convergence signals make the cut.",
       span: "lg:col-span-2", // wide card
       badge: "CORE ENGINE",
     },
@@ -635,7 +635,7 @@ export default function Landing() {
                   {/* Mock header */}
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground">Trade Desk</span>
-                    <span className="text-[9px] font-mono text-muted-foreground">6 engines active</span>
+                    <span className="text-[9px] font-mono text-muted-foreground">14-layer scoring</span>
                   </div>
                   {/* Mock stat strip */}
                   <div className="grid grid-cols-4 gap-2">
@@ -697,9 +697,9 @@ export default function Landing() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--brand-cyan)]/30 bg-[var(--brand-cyan)]/5 mb-4">
               <span className="text-[10px] font-mono font-semibold text-[var(--brand-cyan)] uppercase tracking-wider">Convergence</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">6 Engines. One Signal.</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">14 Layers. One Signal.</h2>
             <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-              6 independent analysis engines on every stock. Only when they converge do we signal.
+              14-layer quantitative scoring engine on every stock. Only when layers converge do we signal.
             </p>
           </div>
           <EngineConvergence />
@@ -802,7 +802,7 @@ export default function Landing() {
               </div>
               <ul className="space-y-2.5 text-sm">
                 {[
-                  "6-Engine AI Analysis",
+                  "14-Layer Confluence Scoring",
                   "Real-time market data",
                   "5 AI trade ideas per day",
                   "Basic charting tools",

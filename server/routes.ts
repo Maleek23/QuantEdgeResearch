@@ -15252,6 +15252,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ Weekly Swing Lookouts ============
+  // Combines convictions engine (7-day lookback) + swing scanner to produce
+  // "next week" candidate watchlist — things building setups worth monitoring.
+  let _weeklyLookoutsCache: { data: any; expiresAt: number } | null = null;
+  app.get("/api/discovery/weekly-swing-lookouts", async (req: any, res) => {
+    try {
+      const now = Date.now();
+      if (_weeklyLookoutsCache && _weeklyLookoutsCache.expiresAt > now) {
+        return res.json(_weeklyLookoutsCache.data);
+      }
+
+      // 1. Pull convictions with 7-day lookback (captures "building" setups)
+      const { getCachedConvictions } = await import("./convictions-engine");
+      const convictions = await getCachedConvictions({
+        lookbackHours: 168,
+        limit: 30,
+        minScore: 12,
+        skipLiveRevalidation: true, // historical scan, not live trading
+      });
+
+      // 2. Pull current swing scanner results
+      const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
+      const swingOpps = await getTopSwingOpportunities(20);
+
+      // 3. Merge: conviction picks that are swing-timeframe, plus swing scanner hits
+      const lookouts: any[] = [];
+      const seen = new Set<string>();
+
+      // Conviction picks (holding period = swing or position)
+      for (const pick of convictions.picks || []) {
+        if (seen.has(pick.symbol)) continue;
+        seen.add(pick.symbol);
+        const idea = pick as any;
+        const holdingPeriod = idea.holdingPeriod || idea.idea?.holdingPeriod || 'swing';
+        if (holdingPeriod === 'day') continue; // skip intraday-only
+        lookouts.push({
+          symbol: pick.symbol,
+          direction: pick.direction,
+          convictionScore: pick.convictionScore,
+          convictionBand: pick.convictionBand,
+          entryPrice: pick.entryPrice,
+          targetPrice: pick.targetPrice,
+          stopLoss: pick.stopLoss,
+          thesis: pick.catalyst || pick.thesis || '',
+          holdingPeriod,
+          source: 'conviction',
+          layers: pick.layers?.map((l: any) => `${l.kind}: ${l.why}`).slice(0, 4) || [],
+          ageHours: pick.ageHours,
+        });
+      }
+
+      // Swing scanner hits not already in convictions
+      for (const opp of swingOpps) {
+        if (seen.has(opp.symbol)) continue;
+        seen.add(opp.symbol);
+        lookouts.push({
+          symbol: opp.symbol,
+          direction: opp.trendBias === 'bearish' ? 'short' : 'long',
+          convictionScore: opp.score,
+          convictionBand: opp.grade,
+          entryPrice: opp.currentPrice,
+          targetPrice: opp.targetPrice,
+          stopLoss: opp.stopLoss,
+          thesis: opp.reason,
+          holdingPeriod: 'swing',
+          source: 'swing_scanner',
+          layers: [`${opp.pattern}`, `RSI ${opp.rsi14?.toFixed(0)}`, `Vol ${opp.volumeRatio?.toFixed(1)}x`],
+          ageHours: 0,
+        });
+      }
+
+      // Sort by conviction score descending
+      lookouts.sort((a, b) => (b.convictionScore || 0) - (a.convictionScore || 0));
+
+      const result = {
+        lookouts: lookouts.slice(0, 15),
+        totalCandidates: lookouts.length,
+        generatedAt: new Date().toISOString(),
+      };
+
+      // Cache for 30 minutes
+      _weeklyLookoutsCache = { data: result, expiresAt: now + 30 * 60 * 1000 };
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/discovery/weekly-swing-lookouts' });
+      res.status(500).json({ error: "Failed to generate weekly lookouts" });
+    }
+  });
+
   // Day Trade Scanner - Intraday setups using VWAP, RSI(2), volume spikes
   app.get("/api/daytrade-scanner", requireBetaAccess, async (req, res) => {
     try {

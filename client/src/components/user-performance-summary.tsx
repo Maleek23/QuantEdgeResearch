@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle } from "lucide-react";
+import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
 
 interface EngineMetrics {
@@ -42,7 +42,7 @@ interface AutoLottoBotPerformance {
   };
 }
 
-// Convert win rate to letter grade
+// Convert hit rate to letter grade
 function getGrade(winRate: number | null): { grade: string; color: string; bgColor: string } {
   if (winRate === null) return { grade: "?", color: "text-muted-foreground", bgColor: "bg-muted/20" };
   if (winRate >= 80) return { grade: "A+", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
@@ -122,12 +122,21 @@ export function UserPerformanceSummary() {
                 {overallGrade.grade}
               </div>
               <div>
-                <p className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Platform Reliability</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Hit Rate</p>
+                  <span className="text-xs text-muted-foreground/60 font-mono">n={totalDecided}</span>
+                  <span className="group relative inline-block">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                    <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
+                      Count-based: wins / decided trades. Excludes &#177;3% breakeven trades, expired, and open positions.
+                    </span>
+                  </span>
+                </div>
                 <p className={cn("text-4xl font-bold font-mono", getWinRateColor(overallWinRate))}>
                   {safeToFixed(overallWinRate, 0)}%
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {wins} wins, {losses} losses ({totalDecided} resolved)
+                  {wins} wins, {losses} losses ({totalDecided} decided)
                 </p>
               </div>
             </div>
@@ -193,7 +202,11 @@ export function UserPerformanceSummary() {
                     <span className={cn("text-xl font-bold font-mono", getWinRateColor(winRate))}>
                       {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
                     </span>
-                    <span className="text-xs text-muted-foreground">win rate</span>
+                    <span className="text-xs text-muted-foreground">
+                      hit rate{(metrics?.tradesWon ?? 0) + (metrics?.tradesLost ?? 0) > 0 && (
+                        <span className="font-mono ml-1">n={(metrics?.tradesWon ?? 0) + (metrics?.tradesLost ?? 0)}</span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -233,7 +246,7 @@ export function UserPerformanceSummary() {
                 <p className="text-xl font-bold font-mono tabular-nums">{botData.overall.totalTrades}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase">Win Rate</p>
+                <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
                 <p className={cn("text-xl font-bold font-mono", getWinRateColor(botData.overall.winRate))}>
                   {safeToFixed(botData.overall.winRate, 0)}%
                 </p>
@@ -260,6 +273,15 @@ export function UserPerformanceSummary() {
         </Card>
       )}
 
+      {/* Flow/Lotto Disclosure */}
+      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
+        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
+        <span>
+          <strong>Options validation under maintenance</strong> — Flow (1,127) and Lotto (341) ideas excluded from stats.
+          Option-premium pricing is being rebuilt; these engines will return once validation is reliable.
+        </span>
+      </div>
+
       {/* What This Means Section */}
       <Card className="bg-muted/20 border-dashed">
         <CardContent className="p-4">
@@ -268,8 +290,9 @@ export function UserPerformanceSummary() {
             <div className="text-sm">
               <p className="font-medium mb-1">What do these numbers mean?</p>
               <p className="text-muted-foreground">
-                Our trading engines analyze market data to generate trade ideas. The win rate shows
-                how often ideas that hit their target vs stop loss. A <span className="text-[var(--trade-bullish)] font-medium">70%+ win rate</span> indicates
+                Our trading engines analyze market data to generate trade ideas. The hit rate shows
+                how often ideas hit their target vs stop loss (count-based, not P&L-weighted).
+                Trades within &#177;3% of entry are excluded as breakeven. A <span className="text-[var(--trade-bullish)] font-medium">70%+ hit rate</span> indicates
                 strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies.
               </p>
             </div>

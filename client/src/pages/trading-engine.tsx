@@ -813,7 +813,7 @@ function AnalysisResults({ symbol, assetClass }: { symbol: string; assetClass: A
           </div>
           <h3 className="text-xl font-bold mb-2 text-foreground/80">Enter a Symbol to Begin</h3>
           <p className="text-muted-foreground font-mono text-sm max-w-md mx-auto">
-            The 6-engine analysis will provide ML, AI, Quant, Flow, Sentiment & Technical insights for any ticker.
+            The confluence engine will provide Technical, Fundamental, Catalyst, Quant, Flow & Sentiment scoring for any ticker.
           </p>
         </CardContent>
       </Card>

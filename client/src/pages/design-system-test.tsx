@@ -179,7 +179,7 @@ export default function DesignSystemTest() {
           icon={<Crosshair className="w-4 h-4" />}
         />
         <QEStatCard
-          label="AI Confidence"
+          label="Engine Confidence"
           value="86%"
           change="High Conviction"
           changeType="positive"
@@ -194,7 +194,7 @@ export default function DesignSystemTest() {
 
       <QEGridLayout cols={2} gap="md">
         <QEPanel>
-          <QEPanelHeader title="Engine Grades" marker="6-ENGINE SCORING" />
+          <QEPanelHeader title="Engine Grades" marker="CONFLUENCE SCORING" />
           <QEPanelContent>
             <div className="flex flex-wrap gap-4">
               <QEGradeDisplay grade="S" label="TCH" size="md" />
@@ -286,8 +286,8 @@ export default function DesignSystemTest() {
 
         <QEPanel glow="ai">
           <QEPanelHeader
-            title="AI Intelligence Brief"
-            badge="AI"
+            title="Intelligence Brief"
+            badge="ENGINE"
             badgeColor="ai"
             icon={<Brain className="w-4 h-4 text-violet-400" />}
           />
@@ -299,7 +299,7 @@ export default function DesignSystemTest() {
                 <span className="text-xs text-[var(--trade-bullish)]">Strong Buy</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                6-engine convergence at 92%. Technical breakout above $198 resistance
+                Confluence score at 92%. Technical breakout above $198 resistance
                 confirmed with above-average volume. Sentiment shift positive.
               </p>
             </QEPanelNested>
@@ -411,7 +411,7 @@ export default function DesignSystemTest() {
               </div>
               <div>
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Body — Inter</div>
-                <div className="text-sm text-foreground/80">The quick brown fox jumps over the lazy dog. AI-powered convergence scoring across 6 engines.</div>
+                <div className="text-sm text-foreground/80">The quick brown fox jumps over the lazy dog. Quantitative confluence scoring across 14 layers.</div>
               </div>
               <div>
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Mono — JetBrains Mono</div>

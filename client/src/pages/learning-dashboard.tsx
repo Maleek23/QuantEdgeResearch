@@ -1,12 +1,15 @@
 /**
  * LEARNING DASHBOARD
  *
- * Visual dashboard showing AI self-learning in action
+ * Visual dashboard showing scoring engine performance over time.
+ * NOTE: This platform uses a 14-layer deterministic point-summing
+ * confluence engine — not machine learning. The visualizations below
+ * are decorative and do not represent actual ML/neural-network processing.
  * Features:
- * - Neural network visualization of 6 engines
+ * - Engine visualization
  * - Real-time metrics with animations
  * - Engine performance comparisons
- * - Learning insights and recommendations
+ * - Performance insights and recommendations
  */
 
 import { useState, useEffect } from 'react';
@@ -92,8 +95,8 @@ export default function LearningDashboard() {
       if (!res.ok) throw new Error('Analysis failed');
 
       toast({
-        title: 'Learning Cycle Complete',
-        description: 'AI has analyzed all trade data and updated parameters',
+        title: 'Analysis Cycle Complete',
+        description: 'Scoring engine has recomputed all trade data',
       });
 
       refetchLearning();
@@ -123,15 +126,15 @@ export default function LearningDashboard() {
                 <Brain className="w-4 h-4 text-purple-400" />
               </div>
               <h1 className="text-base font-bold text-white">
-                AI Learning Dashboard
+                Performance Dashboard
               </h1>
               <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
                 <Sparkles className="w-3 h-3 mr-1" />
-                Self-Improving
+                Tracking
               </Badge>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Watch your 6 engines learn and improve from every trade
+              Track scoring engine performance and trade outcomes
             </p>
           </div>
 
@@ -167,7 +170,7 @@ export default function LearningDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
                   <Activity className="w-5 h-5 text-purple-400" />
-                  Neural Network
+                  Engine Map
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -191,7 +194,7 @@ export default function LearningDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
                   <Lightbulb className="w-5 h-5 text-yellow-400" />
-                  Learning Insights
+                  Performance Insights
                   <Badge variant="secondary" className="ml-2">
                     {insights.length} Active
                   </Badge>

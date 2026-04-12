@@ -342,7 +342,7 @@ export function MultiDimensionalAnalysis({
       factors: [
         `Target probability: ${safeToFixed(targetHitProbability, 0, '0')}%`,
         `Direction confidence: ${mlScore}%`,
-        'XGBoost ensemble model'
+        'Quantitative ensemble model'
       ],
       color: 'bg-emerald-500/20'
     },

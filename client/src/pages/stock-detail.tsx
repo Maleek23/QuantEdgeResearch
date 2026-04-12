@@ -105,7 +105,7 @@ function AIInsightCard({
     })();
 
     // Paragraph 1: Overview & Current State
-    const para1 = `${symbol} is currently trading at $${safeToFixed(safePriceVal, 2)}, ${priceAction} ${safeToFixed(Math.abs(changePercent || 0), 1)}% in today's session. Our multi-engine analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, machine learning predictions, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
+    const para1 = `${symbol} is currently trading at $${safeToFixed(safePriceVal, 2)}, ${priceAction} ${safeToFixed(Math.abs(changePercent || 0), 1)}% in today's session. Our multi-layer analysis has processed real-time market data across technical indicators, fundamental metrics, sentiment analysis, quantitative models, catalyst scoring, and options flow patterns. The composite analysis yields a ${tier} grade with ${momentum} momentum characteristics.`;
 
     // Paragraph 2: Technical Analysis
     const techDesc = techGrade.startsWith('A')
@@ -120,7 +120,7 @@ function AIInsightCard({
       : `Fundamental analysis reveals areas requiring attention including valuation concerns relative to growth trajectory. Sentiment indicators show ${sentGrade.startsWith('C') || sentGrade.startsWith('D') ? 'skepticism' : 'uncertainty'} among market participants. Options flow data suggests ${flowGrade.startsWith('A') || flowGrade.startsWith('B') ? 'smart money positioning for potential moves' : 'hedging activity outweighing bullish bets'}.`;
 
     // Paragraph 4: Quantitative & ML Predictions
-    const quantDesc = `Our quantitative models, incorporating mean-reversion analysis and momentum factors, assign a ${quantGrade} rating to the current setup. Machine learning algorithms trained on historical patterns identify this configuration with ${mlGrade.startsWith('A') || mlGrade.startsWith('B') ? 'high' : mlGrade.startsWith('C') ? 'moderate' : 'low'} probability of ${(changePercent || 0) >= 0 ? 'continuation' : 'reversal'}. Statistical edge metrics suggest ${tier.startsWith('A') || tier === 'S' ? 'favorable' : tier.startsWith('B') ? 'acceptable' : 'unfavorable'} risk-adjusted return potential over the next 5-10 trading sessions.`;
+    const quantDesc = `Our quantitative models, incorporating mean-reversion analysis and momentum factors, assign a ${quantGrade} rating to the current setup. Rule-based pattern matching on historical data identifies this configuration with ${mlGrade.startsWith('A') || mlGrade.startsWith('B') ? 'high' : mlGrade.startsWith('C') ? 'moderate' : 'low'} probability of ${(changePercent || 0) >= 0 ? 'continuation' : 'reversal'}. Statistical edge metrics suggest ${tier.startsWith('A') || tier === 'S' ? 'favorable' : tier.startsWith('B') ? 'acceptable' : 'unfavorable'} risk-adjusted return potential over the next 5-10 trading sessions.`;
 
     // Paragraph 5: Trade Setup & Recommendation
     const recommendation = tier === 'S' || tier.startsWith('A')
