@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, safeToFixed } from "@/lib/utils";
-import { isHighConviction } from "@/lib/conviction-display";
+import { isHighConviction, displayedGrade, displayedScore } from "@/lib/conviction-display";
 import {
   AlertTriangle,
   TrendingUp,
@@ -194,8 +194,11 @@ export function HighConvictionAlertProvider({
                       </Badge>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    {idea.confidenceScore}% confidence
+                  <p
+                    className="text-[10px] text-muted-foreground"
+                    title={`Conviction score ${displayedScore(idea as any)} (${displayedGrade(idea as any)})`}
+                  >
+                    Grade {displayedGrade(idea as any)}
                   </p>
                 </div>
               </div>

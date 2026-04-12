@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { displayedScore } from "@/lib/conviction-display";
+import { displayedScore, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
 import { getTier } from "../../../../shared/approved-tickers";
 
 // ─────────────────────────────────────────────────────────────
@@ -245,6 +245,8 @@ function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
 
 function tierBadgeColor(tier: ReturnType<typeof getTier>): string {
   switch (tier) {
+    case "MEGA":
+      return "bg-violet-500/15 text-violet-300 border-violet-500/30";
     case "S":
       return "bg-amber-500/15 text-amber-300 border-amber-500/30";
     case "A":
@@ -418,8 +420,10 @@ function FullVariant({
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
   const tier = getTier(idea.symbol);
-  // H9: single source of truth for the displayed score
+  // H9: single source of truth for the displayed score.
+  // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
+  const grade = displayedGrade(idea);
 
   return (
     <div
@@ -474,12 +478,20 @@ function FullVariant({
           >
             {band.label}
           </div>
-          <div className="text-right">
-            <div className={cn("text-2xl font-bold font-mono leading-none", band.color)}>
-              {score}
+          <div
+            className="text-right"
+            title={`Conviction score ${score} (${grade})`}
+          >
+            <div
+              className={cn(
+                "px-2 py-0.5 text-2xl font-bold font-mono leading-none rounded border tabular-nums",
+                gradeColorClass(grade),
+              )}
+            >
+              {grade}
             </div>
-            <div className="text-[8px] font-mono uppercase text-muted-foreground">
-              score
+            <div className="text-[8px] font-mono uppercase text-muted-foreground mt-0.5">
+              grade · {score}
             </div>
           </div>
         </div>
@@ -596,8 +608,10 @@ function CompactVariant({
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
-  // H9: single source of truth for the displayed score
+  // H9: single source of truth for the displayed score.
+  // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
+  const grade = displayedGrade(idea);
 
   return (
     <div
@@ -632,8 +646,14 @@ function CompactVariant({
           >
             {band.label}
           </span>
-          <span className={cn("text-base font-bold font-mono leading-none", band.color)}>
-            {score}
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded border text-xs font-bold font-mono leading-none",
+              gradeColorClass(grade),
+            )}
+            title={`Conviction score ${score} (${grade})`}
+          >
+            {grade}
           </span>
         </div>
       </div>
@@ -696,8 +716,10 @@ function RowVariant({
   const band = BAND_STYLES[bandFromIdea(idea)];
   const isLong = idea.direction === "long";
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
-  // H9: single source of truth for the displayed score
+  // H9: single source of truth for the displayed score.
+  // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
+  const grade = displayedGrade(idea);
 
   return (
     <div
@@ -719,7 +741,12 @@ function RowVariant({
       <div className={cn("uppercase text-[10px] font-bold", dirColor)}>
         {isLong ? "LONG" : "SHORT"}
       </div>
-      <div className={cn("font-bold text-right", band.color)}>{score}</div>
+      <div
+        className={cn("font-bold text-right text-[11px]", band.color)}
+        title={`Conviction score ${score} (${grade})`}
+      >
+        {grade}
+      </div>
       <div className="text-foreground tabular-nums text-right">
         {fmtPrice(idea.entryPrice)}
       </div>
@@ -782,7 +809,7 @@ export function TradeIdeaRowHeader() {
     <div className="grid grid-cols-[80px_50px_60px_80px_80px_80px_60px_1fr_60px] items-center gap-2 px-3 py-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground border-b border-foreground/[0.06]">
       <div>Symbol</div>
       <div>Side</div>
-      <div className="text-right">Score</div>
+      <div className="text-right">Grade</div>
       <div className="text-right">Entry</div>
       <div className="text-right">Target</div>
       <div className="text-right">Stop</div>

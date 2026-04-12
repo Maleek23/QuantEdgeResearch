@@ -287,6 +287,12 @@ function scoreTierLayer(symbol: string, riskRewardRatio: number): ConvictionLaye
   let points = 0;
   let label = "";
   switch (tier) {
+    case "MEGA":
+      // Mega-cap names get a small boost: they're always relevant, but
+      // not user-validated edge plays — so they sit between A-tier and INDEX.
+      points = 4;
+      label = "Mega-cap (FAANG)";
+      break;
     case "S":
       points = 8;
       label = "S-tier watchlist";

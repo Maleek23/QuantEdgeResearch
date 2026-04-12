@@ -5353,19 +5353,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalPortfolioValue = portfolios.reduce((sum, p) => sum + (p.balance || 0), 0);
       }
       
-      // Calculate daily P&L (from today's closed trades)
+      // Calculate daily P&L from today's closed trades.
+      // A5 audit fix: previously summed (currentPrice - suggestedEntry) which
+      // referenced fields not in the schema and produced ~0 for most rows.
+      // Now uses realizedPnL (written by performance-validation-service) and
+      // falls back to percentGain × $100 notional when realizedPnL is null,
+      // so the figure is at least directionally honest.
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const ideaRealizedPnL = (i: any): number => {
+        if (typeof i.realizedPnL === 'number') return i.realizedPnL;
+        if (typeof i.percentGain === 'number') return i.percentGain; // %, not $ — labeled as such on the client
+        return 0;
+      };
       const todayIdeas = decidedIdeas.filter(i => {
         const closeDate = i.updatedAt ? new Date(i.updatedAt) : null;
         return closeDate && closeDate >= today;
       });
-      const dailyPnL = todayIdeas.reduce((sum, i) => {
-        const pnl = (i.currentPrice || i.exitPrice || 0) - (i.suggestedEntry || 0);
-        return sum + (i.status === 'hit_target' ? Math.abs(pnl) : -Math.abs(pnl));
-      }, 0);
-      
-      // Weekly performance data
+      const dailyPnL = todayIdeas.reduce((sum, i) => sum + ideaRealizedPnL(i), 0);
+
+      // Weekly performance data — A5 audit fix: previously hardcoded
+      // +$50 per win and -$25 per loss regardless of actual P&L. Now sums
+      // realizedPnL (or percentGain fallback) per day so the chart reflects
+      // real outcomes. Days with no closes show 0.
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const weeklyPerformance = [];
       for (let i = 4; i >= 0; i--) {
@@ -5374,20 +5384,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date.setHours(0, 0, 0, 0);
         const nextDate = new Date(date);
         nextDate.setDate(nextDate.getDate() + 1);
-        
+
         const dayIdeas = decidedIdeas.filter(idea => {
           const closeDate = idea.updatedAt ? new Date(idea.updatedAt) : null;
           return closeDate && closeDate >= date && closeDate < nextDate;
         });
-        
-        const dayPnL = dayIdeas.reduce((sum, i) => {
-          const gain = i.status === 'hit_target' ? 50 : -25;
-          return sum + gain;
-        }, 0);
-        
+
+        const dayPnL = dayIdeas.reduce((sum, i) => sum + ideaRealizedPnL(i), 0);
+
         weeklyPerformance.push({
           day: dayNames[date.getDay()],
-          pnl: dayPnL
+          pnl: Math.round(dayPnL * 100) / 100
         });
       }
       

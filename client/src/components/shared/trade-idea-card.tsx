@@ -76,6 +76,8 @@ function gradeColor(band?: string): string {
 
 function tierBadgeColor(tier: ReturnType<typeof getTier>): string {
   switch (tier) {
+    case 'MEGA':
+      return 'bg-violet-500/15 text-violet-300 border-violet-500/40';
     case 'S':
       return 'bg-[var(--gex-positive)]/20 text-[var(--gex-positive)] border-[var(--gex-positive)]/40';
     case 'A':

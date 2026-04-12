@@ -86,3 +86,93 @@ export function displayedScoreBarPct(idea: ScoredIdea | null | undefined): numbe
   }
   return 0;
 }
+
+// ─────────────────────────────────────────────────────────────
+// U2 — Letter grade display
+// ─────────────────────────────────────────────────────────────
+//
+// Renders a single letter grade (A+ … F with +/- modifiers) for a trade
+// idea. Resolution order:
+//
+//   1. If `probabilityBand` is already set on the row (assigned at trade
+//      creation by shared/grading.ts), trust it — it's the legacy canonical.
+//   2. Else if `convictionScore` is set (canonical 13-layer engine, ~0-60
+//      raw), map it through CONVICTION_GRADE_CUTOFFS.
+//   3. Else if `confidenceScore` is set (0-100 legacy scanner), delegate
+//      to the shared `getLetterGrade()` so we share the same threshold
+//      table the rest of the platform uses.
+//   4. Else "F".
+//
+// IMPORTANT — A4 audit fix:
+// The convictions engine clamps to 0–100 but realistically scores in
+// the ~0–60 range (sum of 14 layer points). Server bands (server/
+// convictions-engine.ts:1694) cut at S≥30, A≥22, B≥15, C<15. The
+// CONVICTION_GRADE_CUTOFFS table below is calibrated to that real range
+// so a server "S" pick renders as A+/A/A- (not B+ as the original 0-100
+// table did). Bands and grades stay aligned visually:
+//   S band  → A+ / A / A-     (≥30 server)
+//   A band  → B+ / B / B-     (22–29 server)
+//   B band  → C+ / C / C-     (15–21 server)
+//   C band  → D+ / D / D- / F (<15 server)
+
+import { getLetterGrade as confidenceToGrade, type GradeLetter } from "@shared/grading";
+
+export type LetterGrade = GradeLetter;
+
+const CONVICTION_GRADE_CUTOFFS: Array<[number, LetterGrade]> = [
+  [42, "A+"], // elite confluence — top of S band
+  [36, "A"],  // strong S
+  [30, "A-"], // S-band entry (matches server S≥30)
+  [26, "B+"], // strong A
+  [22, "B"],  // A-band entry (matches server A≥22)
+  [18, "B-"], // weak A
+  [15, "C+"], // B-band entry (matches server B≥15)
+  [12, "C"],
+  [9,  "C-"],
+  [6,  "D+"],
+  [3,  "D"],
+  [1,  "D-"],
+];
+
+function convictionScoreToGrade(score: number): LetterGrade {
+  for (const [cutoff, grade] of CONVICTION_GRADE_CUTOFFS) {
+    if (score >= cutoff) return grade;
+  }
+  return "F";
+}
+
+function isValidGradeString(g: unknown): g is LetterGrade {
+  return typeof g === "string" && /^([ABCD][+-]?|F)$/.test(g);
+}
+
+/**
+ * Returns the letter grade (A+ … F) for a trade idea. See resolution order
+ * above. Use this everywhere a "how good is this trade?" badge is rendered.
+ * Keep the underlying numeric score in the tooltip so power users can still
+ * see the raw value.
+ */
+export function displayedGrade(idea: ScoredIdea | null | undefined): LetterGrade {
+  if (!idea) return "F";
+  if (isValidGradeString(idea.probabilityBand)) return idea.probabilityBand;
+  if (typeof idea.convictionScore === "number") {
+    return convictionScoreToGrade(idea.convictionScore);
+  }
+  if (typeof idea.confidenceScore === "number") {
+    return confidenceToGrade(idea.confidenceScore);
+  }
+  return "F";
+}
+
+/**
+ * Tailwind class shorthand for grade-coloured badges.
+ * A-grades = bullish green, B-grades = blue, C-grades = amber, D/F = red.
+ * (Same palette family as shared/grading.ts getGradeStyle so the look stays
+ *  consistent across pages that still use the legacy helper.)
+ */
+export function gradeColorClass(grade: LetterGrade): string {
+  if (grade === "A+") return "text-emerald-300 border-emerald-500/50 bg-emerald-500/15";
+  if (grade.startsWith("A")) return "text-emerald-400 border-emerald-500/40 bg-emerald-500/10";
+  if (grade.startsWith("B")) return "text-blue-300 border-blue-500/40 bg-blue-500/10";
+  if (grade.startsWith("C")) return "text-amber-300 border-amber-500/40 bg-amber-500/10";
+  return "text-red-400 border-red-500/40 bg-red-500/10";
+}

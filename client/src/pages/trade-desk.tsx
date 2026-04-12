@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
-import { displayedScore, displayedScoreBarPct, isHighConviction } from "@/lib/conviction-display";
+import { displayedScore, displayedScoreBarPct, isHighConviction, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
 import { apiRequest } from "@/lib/queryClient";
 import {
   TrendingUp,
@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
-import { getLetterGrade, getGradeStyle } from "@shared/grading";
+import { getGradeStyle } from "@shared/grading";
 import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
@@ -176,11 +176,12 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {topConvictionPlays.map((idea) => {
-          const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+          // U2: canonical letter grade — engine band first, conviction score next, then legacy.
+          const grade = displayedGrade(idea as any);
+          const numericScore = displayedScore(idea as any);
           const style = getGradeStyle(grade);
           const isLong = idea.direction === 'LONG' || idea.direction === 'long';
           const isOption = idea.assetType === 'option' || idea.optionType;
-          const confidence = idea.confidenceScore || 50;
 
           // Calculate potential profit with null safety
           const safeEntry = safeNumber(idea.entryPrice, 1);
@@ -239,15 +240,18 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                     </Badge>
                   </div>
 
-                  {/* Confidence + Target */}
+                  {/* Grade + Target — U2: grade is the headline, numeric score in tooltip */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="text-center p-2 rounded-lg bg-muted">
-                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Confidence</div>
+                    <div
+                      className="text-center p-2 rounded-lg bg-muted"
+                      title={`Conviction score ${numericScore} (${grade})`}
+                    >
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Grade</div>
                       <div className={cn(
                         "text-xl font-bold",
-                        confidence >= 80 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
+                        grade.startsWith('A') ? "text-[var(--trade-bullish)]" : "text-[var(--trade-neutral)]"
                       )}>
-                        {confidence}%
+                        {grade}
                       </div>
                     </div>
                     <div className="text-center p-2 rounded-lg bg-muted">
@@ -430,11 +434,12 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
     });
 
     const qualityIdeas = openIdeas.filter(i => {
-      const grade = i.probabilityBand || '';
+      const grade = displayedGrade(i as any);
       return ['A+', 'A', 'A-', 'B+', 'B'].includes(grade);
     });
+    // U2: average the canonical displayed score, not the raw legacy confidence.
     const avgConf = openIdeas.length > 0
-      ? Math.round(openIdeas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / openIdeas.length)
+      ? Math.round(openIdeas.reduce((sum, i) => sum + displayedScore(i as any), 0) / openIdeas.length)
       : 0;
 
     return {
@@ -464,9 +469,9 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
         <span className="text-base font-bold font-mono text-[var(--trade-bullish)]">{stats.quality}</span>
       </div>
       <div className="w-px h-4 bg-[#222]" />
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Confidence</span>
-        <span className="text-base font-bold font-mono text-foreground">{stats.avgConf}%</span>
+      <div className="flex items-center gap-2" title="Average canonical conviction score across open ideas">
+        <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Avg Score</span>
+        <span className="text-base font-bold font-mono text-foreground tabular-nums">{stats.avgConf}</span>
       </div>
     </div>
   );
@@ -518,16 +523,22 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
           <div className="text-center py-4 text-muted-foreground text-sm">Scanning engines for setups...</div>
         ) : (
           setups.slice(0, 5).map((setup: any) => {
-            const grade = setup.probabilityBand || getLetterGrade(setup.confidenceScore || 50);
+            // U2: render the canonical letter grade. Keep numeric score in tooltip.
+            const grade = displayedGrade(setup);
+            const numeric = displayedScore(setup);
             const style = getGradeStyle(grade);
             return (
               <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-foreground">{setup.symbol}</span>
-                    <Badge className={cn("text-xs", style.bgClass, style.textClass)}>{grade}</Badge>
+                    <Badge
+                      className={cn("text-xs", style.bgClass, style.textClass)}
+                      title={`Conviction score ${numeric} (${grade})`}
+                    >
+                      {grade}
+                    </Badge>
                   </div>
-                  <span className="text-sm font-mono text-muted-foreground">{setup.confidenceScore}%</span>
                 </div>
               </Link>
             );
@@ -987,16 +998,18 @@ function BestSetupsSubPage() {
 
   const setups = data?.setups || [];
 
-  // Group by grade
-  const eliteSetups = setups.filter((s: any) => ['A+', 'A', 'A-'].includes(s.probabilityBand || getLetterGrade(s.confidenceScore || 50)));
-  const strongSetups = setups.filter((s: any) => ['B+', 'B', 'B-'].includes(s.probabilityBand || getLetterGrade(s.confidenceScore || 50)));
+  // Group by grade — U2: route through canonical displayedGrade so the
+  // engine score takes priority over legacy probabilityBand fallbacks.
+  const eliteSetups = setups.filter((s: any) => ['A+', 'A', 'A-'].includes(displayedGrade(s)));
+  const strongSetups = setups.filter((s: any) => ['B+', 'B', 'B-'].includes(displayedGrade(s)));
   const otherSetups = setups.filter((s: any) => {
-    const grade = s.probabilityBand || getLetterGrade(s.confidenceScore || 50);
+    const grade = displayedGrade(s);
     return !['A+', 'A', 'A-', 'B+', 'B', 'B-'].includes(grade);
   });
 
   const renderSetupCard = (setup: any) => {
-    const grade = setup.probabilityBand || getLetterGrade(setup.confidenceScore || 50);
+    const grade = displayedGrade(setup);
+    const numeric = displayedScore(setup);
     const style = getGradeStyle(grade);
     const isLong = setup.direction === 'LONG' || setup.direction === 'long';
     const isOption = setup.assetType === 'option' || setup.optionType;
@@ -1034,11 +1047,16 @@ function BestSetupsSubPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <Badge className={cn("text-base font-bold px-3 py-1 border", style.bgClass, style.textClass)}>
+              <div
+                className="text-right"
+                title={`Conviction score ${numeric} (${grade})`}
+              >
+                <Badge className={cn("text-2xl font-bold px-3 py-1 border", style.bgClass, style.textClass)}>
                   {grade}
                 </Badge>
-                <div className="text-lg font-bold text-foreground mt-1">{setup.confidenceScore || 50}%</div>
+                <div className="text-[9px] uppercase font-mono text-muted-foreground mt-1">
+                  grade · {numeric}
+                </div>
               </div>
             </div>
 
@@ -2675,12 +2693,13 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const cardRef = useRef<HTMLDivElement>(null);
-  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+  // U2: canonical letter grade — engine band first, conviction score next, then legacy.
+  const grade = displayedGrade(idea as any);
+  const numericScore = displayedScore(idea as any);
   const style = getGradeStyle(grade);
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
   const isOption = idea.assetType === 'option' || idea.optionType;
   const isCall = idea.optionType === 'call';
-  const confidence = idea.confidenceScore || 50;
 
   // Format expiry date
   const expiryFormatted = useMemo(() => {
@@ -2803,14 +2822,17 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
               <span className="text-[10px] text-muted-foreground">{idea.holdingPeriod || 'Swing'} • Grade {grade}</span>
             </div>
           </div>
-          <div className="text-right">
+          <div
+            className="text-right"
+            title={`Conviction score ${numericScore} (${grade})`}
+          >
             <div className={cn(
-              "text-xl font-bold",
-              confidence >= 75 ? "text-[var(--trade-bullish)]" : confidence >= 60 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
+              "text-2xl font-bold tabular-nums",
+              grade.startsWith('A') ? "text-[var(--trade-bullish)]" : grade.startsWith('B') ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
             )}>
-              {confidence}%
+              {grade}
             </div>
-            <span className="text-[9px] text-muted-foreground">Confidence</span>
+            <span className="text-[9px] text-muted-foreground">grade · {numericScore}</span>
           </div>
         </div>
 
@@ -3003,7 +3025,9 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
 // ============================================
 function ResearchReportSection({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
-  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+  // U2: canonical grade
+  const grade = displayedGrade(idea as any);
+  const numericScore = displayedScore(idea as any);
 
   // Generate research insights based on idea data
   const insights = useMemo(() => {
@@ -3027,7 +3051,7 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
     reports.push({
       title: 'Momentum Assessment',
       type: 'ai',
-      content: `${idea.symbol} exhibits ${grade.startsWith('A') ? 'strong' : grade.startsWith('B') ? 'moderate' : 'weak'} ${isLong ? 'bullish' : 'bearish'} characteristics with ${idea.confidenceScore || 50}% conviction. ${idea.holdingPeriod === 'day' ? 'Suitable for day trading timeframe.' : 'Consider swing trade positioning.'}`
+      content: `${idea.symbol} exhibits ${grade.startsWith('A') ? 'strong' : grade.startsWith('B') ? 'moderate' : 'weak'} ${isLong ? 'bullish' : 'bearish'} characteristics — conviction grade ${grade} (score ${numericScore}). ${idea.holdingPeriod === 'day' ? 'Suitable for day trading timeframe.' : 'Consider swing trade positioning.'}`
     });
 
     // Risk Assessment
@@ -3082,7 +3106,9 @@ function ResearchReportSection({ idea }: { idea: TradeIdea }) {
 
 // Legacy row component for compact views
 function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
-  const grade = idea.probabilityBand || getLetterGrade(idea.confidenceScore || 50);
+  // U2: canonical grade
+  const grade = displayedGrade(idea as any);
+  const numericScore = displayedScore(idea as any);
   const style = getGradeStyle(grade);
   const isLong = idea.direction === 'LONG' || idea.direction === 'long';
   const isOption = idea.assetType === 'option' || idea.optionType;
@@ -3109,13 +3135,12 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <Badge className={cn("text-xs font-bold px-2 py-0.5", style.bgClass, style.textClass)}>
+          <Badge
+            className={cn("text-xs font-bold px-2 py-0.5", style.bgClass, style.textClass)}
+            title={`Conviction score ${numericScore} (${grade})`}
+          >
             {grade}
           </Badge>
-          <div className="text-right">
-            <div className="text-sm font-mono text-foreground">{idea.confidenceScore || 50}%</div>
-            <div className="text-[10px] text-muted-foreground">Confidence</div>
-          </div>
         </div>
         <div className="flex items-center gap-6 text-xs">
           <div className="text-right">
@@ -3991,6 +4016,7 @@ export default function TradeDeskRedesigned() {
                       const isLong = idea.direction === 'LONG' || idea.direction === 'long';
                       const cBand = (idea as any).convictionBand;
                       const score = displayedScore(idea as any);
+                      const grade = displayedGrade(idea as any);
                       const barPct = displayedScoreBarPct(idea as any);
                       const isStrong = (cBand === 'S' || cBand === 'A') || score >= 75;
                       const isMid = (cBand === 'B') || score >= 60;
@@ -4022,10 +4048,14 @@ export default function TradeDeskRedesigned() {
                             <div className="w-8 h-1 rounded-full bg-muted overflow-hidden">
                               <div className={cn("h-full rounded-full", isStrong ? "bg-[var(--trade-bullish)]" : isMid ? "bg-[var(--brand-cyan)]" : "bg-[var(--trade-neutral)]")} style={{ width: `${barPct}%` }} />
                             </div>
-                            <span className={cn("text-[10px] font-mono font-bold tabular-nums",
-                              isStrong ? "text-[var(--trade-bullish)]" : isMid ? "text-[var(--brand-cyan)]" : "text-[var(--trade-neutral)]"
-                            )}>
-                              {score}
+                            <span
+                              className={cn(
+                                "text-[10px] font-mono font-bold leading-none px-1 py-0.5 rounded border tabular-nums",
+                                gradeColorClass(grade),
+                              )}
+                              title={`Conviction score ${score} (${grade})`}
+                            >
+                              {grade}
                             </span>
                           </div>
                         </div>

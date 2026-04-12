@@ -5,6 +5,14 @@
  * Import this everywhere instead of inline copies.
  */
 
+// MEGA-CAP TIER — FAANG + mega-cap tech the platform must always cover.
+// These are the names the broader market reacts to; even if user doesn't
+// trade them daily, scanners need them for breadth, regime, and GEX context.
+// NOTE: NVDA is intentionally excluded (proven 0% WR per user backtest).
+export const MEGA_CAP_TIER = [
+  'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN',
+] as const;
+
 // S-Tier: highest conviction, best backtested results
 export const S_TIER = [
   'AAOI', 'CRCL', 'OKLO', 'LUNR', 'KLAC', 'SMTC',
@@ -32,6 +40,10 @@ export const SECONDARY = [
   'CLSK', 'RKLB', 'ASTS', 'PLTR', 'SMCI', 'SMH', 'XLK',
   // Added for 25-ticker watchlist backtest coverage
   'EWY', 'SOXX', 'CRWV', 'MRVL', 'APP', 'ORCL', 'SNDK', 'FSLY',
+  // User's "Big Watch This Week" additions
+  'SATL',
+  // Defensive / health (LLY is on user's tier-work list)
+  'LLY',
 ] as const;
 
 // SMALL ACCOUNT TIER — cheap, high-vol, catalyst-driven names where
@@ -65,6 +77,7 @@ export const SMALL_ACCOUNT_TIER = [
 
 // All approved tickers combined
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
+  ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
   ...SMALL_ACCOUNT_TIER,
 ]);
@@ -91,8 +104,9 @@ export function isSkipTicker(symbol: string): boolean {
 /**
  * Get tier for a ticker
  */
-export function getTier(symbol: string): 'S' | 'A' | 'INDEX' | 'SECONDARY' | null {
+export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDARY' | null {
   const s = symbol.toUpperCase();
+  if ((MEGA_CAP_TIER as readonly string[]).includes(s)) return 'MEGA';
   if ((S_TIER as readonly string[]).includes(s)) return 'S';
   if ((A_TIER as readonly string[]).includes(s)) return 'A';
   if ((INDEX_TICKERS as readonly string[]).includes(s)) return 'INDEX';
@@ -131,7 +145,9 @@ export const SECTOR_MAP: Record<string, Sector> = {
   MU: 'chips', RMBS: 'chips', AMD: 'chips', TSEM: 'chips', ARM: 'chips',
   SMTC: 'chips', WDC: 'chips', ALGM: 'chips',
 
-  // Mega-cap tech
+  // Mega-cap tech (MEGA_CAP_TIER + the rest of the cohort)
+  AAPL: 'mega_tech', MSFT: 'mega_tech', GOOGL: 'mega_tech',
+  META: 'mega_tech', AMZN: 'mega_tech',
   TSLA: 'mega_tech', AVGO: 'mega_tech', NFLX: 'mega_tech',
   NBIS: 'mega_tech', SMCI: 'mega_tech', DELL: 'mega_tech', PLTR: 'mega_tech',
 
@@ -159,6 +175,7 @@ export const SECTOR_MAP: Record<string, Sector> = {
   // Newly added secondaries
   CRWV: 'mega_tech', MRVL: 'chips', APP: 'software',
   ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
+  SATL: 'space', LLY: 'other',
 
   // SMALL ACCOUNT TIER — cheap volatile names
   SOUN: 'software', IONQ: 'software', RGTI: 'software',

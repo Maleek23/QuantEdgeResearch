@@ -50,6 +50,7 @@ const FULL_UNIVERSE: TickerEntry[] = [
 ];
 
 const TIER_STYLES: Record<string, { label: string; bg: string; text: string }> = {
+  MEGA: { label: 'MEGA', bg: 'bg-violet-500/20', text: 'text-violet-300' },
   S: { label: 'S', bg: 'bg-[var(--gex-positive)]/20', text: 'text-[var(--gex-positive)]' },
   A: { label: 'A', bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
   INDEX: { label: 'IDX', bg: 'bg-purple-500/20', text: 'text-purple-300' },
