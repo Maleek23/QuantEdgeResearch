@@ -37,7 +37,7 @@ const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
 const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
 const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
-const MarketPage = lazyWithRetry(() => import("@/pages/market"), "market");
+// REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
 const AdminOverview = lazyWithRetry(() => import("@/pages/admin/overview"), "admin-overview");
@@ -67,18 +67,17 @@ const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
 const Features = lazyWithRetry(() => import("@/pages/features"), "features");
-const BacktestPage = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
+// REMOVED — Backtest merged into Performance tab
 const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
 const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "market-scanner");
 // MERGED — Bullish Trends absorbed into Market Scanner
 // MERGED — Trading Engine absorbed into Performance
 const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
-const WeeklyWatchlistPage = lazyWithRetry(() => import("@/pages/weekly-watchlist"), "weekly-watchlist");
-const ConvictionBacktestPage = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
+// REMOVED — Weekly Watchlist tab lives in unified-watchlist, Conviction Backtest in Performance
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
 // REMOVED — AION consolidated out, redirect added below
 const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
-const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
+// REMOVED — Historical Intelligence merged into Performance tab
 const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis");
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"), "not-found");
 const JoinBeta = lazyWithRetry(() => import("@/pages/join-beta"), "join-beta");
@@ -94,7 +93,7 @@ const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"
 // MERGED — SPX Command Center absorbed into Options Analyzer
 const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
 const GEXDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
-const GEXScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
+// REMOVED — GEX Scanner merged into Flow Edge as a tab
 const GEXCommand = lazyWithRetry(() => import("@/pages/gex-command"), "gex-command");
 // Canonical per-ticker page — every analytic about a single symbol lives
 // here as a tab. Reachable at /t/:symbol[/tab]. Replaces the scattered
@@ -120,13 +119,13 @@ function preloadCriticalRoutes() {
     // Preload the most-visited authenticated pages
     import("@/pages/home").catch(() => {});
     import("@/pages/trade-desk").catch(() => {});
-    import("@/pages/market").catch(() => {});
+    import("@/pages/market-scanner").catch(() => {});
   });
   // Defer heavier pages a bit more
   setTimeout(() => {
     import("@/pages/smart-money").catch(() => {});
     import("@/pages/stock-detail").catch(() => {});
-    import("@/pages/discover").catch(() => {});
+    import("@/pages/trade-desk").catch(() => {});
   }, 4000);
 }
 
@@ -209,7 +208,7 @@ function Router() {
       <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
       <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />
       {/* ML Intelligence consolidated into Trading Engine */}
-      <Route path="/historical-intelligence" component={withBetaProtection(HistoricalIntelligence)} />
+      <Route path="/historical-intelligence"><Redirect to="/performance" /></Route>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
@@ -250,8 +249,8 @@ function Router() {
         <Redirect to="/market" />
       </Route>
       <Route path="/watchlist" component={withBetaProtection(UnifiedWatchlist)} />
-      <Route path="/watchlist/weekly" component={withBetaProtection(WeeklyWatchlistPage)} />
-      <Route path="/convictions/backtest" component={withBetaProtection(ConvictionBacktestPage)} />
+      <Route path="/watchlist/weekly"><Redirect to="/watchlist" /></Route>
+      <Route path="/convictions/backtest"><Redirect to="/performance" /></Route>
       <Route path="/ai-stock-picker">
         <Redirect to="/trade-desk" />
       </Route>
@@ -263,7 +262,7 @@ function Router() {
       <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
       <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
       <Route path="/history" component={withBetaProtection(HistoryPage)} />
-      <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
+      <Route path="/backtest"><Redirect to="/performance" /></Route>
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
       <Route path="/data-audit">
@@ -355,7 +354,6 @@ function Router() {
         <Redirect to="/" />
       </Route>
       <Route path="/holographic" component={NotFound} />
-      <Route path="/learning" component={NotFound} />
       <Route path="/risk" component={NotFound} />
       
       {/*
@@ -417,13 +415,13 @@ function Router() {
       </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
-      {/* GEX confluence scanner (list view, not chart). Chart lives at /command/:symbol. */}
-      <Route path="/gex" component={withBetaProtection(GEXScanner)} />
+      {/* GEX Hub merged into Flow as a tab */}
+      <Route path="/gex"><Redirect to="/flow?tab=hub" /></Route>
       {/* OlAlgo Bot — challenge backtest dashboard */}
       <Route path="/olalgo" component={withBetaProtection(OlAlgoPage)} />
       {/* Convictions merged into Trade Desk — redirect for back-compat */}
       <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
-      <Route path="/scanner/gex" component={withBetaProtection(GEXScanner)} />
+      <Route path="/scanner/gex"><Redirect to="/flow?tab=hub" /></Route>
       <Route path="/gex-legacy" component={withBetaProtection(GEXDashboard)} />
       {/* Geopolitical Reaction Matrix */}
       <Route path="/geopolitical"><Redirect to="/command" /></Route>

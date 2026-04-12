@@ -25,7 +25,6 @@ import {
   Activity,
   Bot,
   Flame,
-  Sun,
 } from "lucide-react";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -55,10 +54,9 @@ interface NavItem {
 
 const mainItems: NavItem[] = [
   { id: "home", title: "Home", icon: Home, href: "/home", shortcut: "G H" },
-  { id: "outlook", title: "Outlook", icon: Sun, href: "/outlook", shortcut: "G O" },
   { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI", shortcut: "G T" },
   { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner", shortcut: "G S" },
-  { id: "gex-hub", title: "GEX Hub", icon: Activity, href: "/gex", shortcut: "G X" },
+  { id: "flow", title: "Flow & GEX", icon: Activity, href: "/flow", shortcut: "G F" },
   { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist", shortcut: "G W" },
   { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
   { id: "performance", title: "Performance", icon: Trophy, href: "/performance", shortcut: "G P" },

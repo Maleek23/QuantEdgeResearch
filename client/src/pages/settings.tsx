@@ -36,6 +36,7 @@ import {
   Mail,
   Camera
 } from "lucide-react";
+import { Link } from "wouter";
 import { NavigationCustomizer } from "@/components/navigation-customizer";
 import { safeToFixed } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -769,6 +770,37 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <NavigationCustomizer />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Quick Links</CardTitle>
+              <CardDescription>Pages not in the sidebar that you might find useful</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <Link href="/automations">
+                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
+                    <Bot className="h-3.5 w-3.5" /> Automations
+                  </Button>
+                </Link>
+                <Link href="/history">
+                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
+                    <Clock className="h-3.5 w-3.5" /> History
+                  </Button>
+                </Link>
+                <Link href="/strategy-playbooks">
+                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
+                    <FileText className="h-3.5 w-3.5" /> Strategy Playbooks
+                  </Button>
+                </Link>
+                <Link href="/options-analyzer">
+                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
+                    <Target className="h-3.5 w-3.5" /> Options Analyzer
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -27,6 +27,7 @@ import {
   Shield,
   Globe,
   Zap,
+  Star,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -70,6 +71,29 @@ interface OutlookData {
   }>;
   highImpactAlert: { name: string; importance: string; date: string; time: string } | null;
   earnings: Array<{ symbol: string; reportDate: string }>;
+  swingSetups: Array<{
+    symbol: string;
+    score: number;
+    pattern: string;
+    direction: string;
+    currentPrice: number;
+    targetPrice: number;
+    stopLoss: number;
+    riskReward: number;
+    reason: string;
+  }>;
+  topConvictions: Array<{
+    symbol: string;
+    direction: string;
+    convictionScore: number;
+    convictionBand: string;
+    thesis: string;
+    entryPrice: number;
+    targetPrice: number;
+    stopLoss: number;
+    layerCount: number;
+  }>;
+  weeklyFocus: string[];
   generatedAt: string;
 }
 
@@ -109,7 +133,16 @@ const FUTURES_META: Record<string, { label: string; category: string }> = {
 
 function FuturesGrid({ futures }: { futures: Record<string, number | null> }) {
   const entries = Object.entries(futures).filter(([, v]) => v != null);
-  if (entries.length === 0) return null;
+  if (entries.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-6 text-center">
+        <div>
+          <Moon className="w-5 h-5 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground/60">Market closed — futures resume Sunday 6 PM ET</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -229,6 +262,78 @@ function PreMarketGaps({ gaps }: { gaps: OutlookData["preMarketGaps"] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Swing Setups ─────────────────────────────────────────────────
+
+const BAND_COLORS: Record<string, string> = {
+  S: "text-purple-400 bg-purple-500/15",
+  A: "text-[var(--trade-bullish)] bg-emerald-500/15",
+  B: "text-[var(--trade-bullish)] bg-emerald-500/10",
+  C: "text-amber-400 bg-amber-500/10",
+};
+
+function SwingSetups({ setups }: { setups: OutlookData["swingSetups"] }) {
+  if (setups.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {setups.map((s, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 hover:bg-card/50 transition-colors">
+          <span className="text-xs font-semibold text-[var(--brand-teal)] font-mono w-14">{s.symbol}</span>
+          <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono",
+            s.direction === "bearish" ? "text-[var(--trade-bearish)] border-red-500/30" : "text-[var(--trade-bullish)] border-emerald-500/30"
+          )}>
+            {s.direction === "bearish" ? "SHORT" : "LONG"}
+          </Badge>
+          <span className="text-[10px] text-muted-foreground truncate flex-1">{s.pattern || s.reason}</span>
+          <span className="text-[10px] font-mono text-muted-foreground">${formatPrice(s.currentPrice)}</span>
+          <span className="text-[10px] font-mono text-[var(--trade-bullish)]">→ ${formatPrice(s.targetPrice)}</span>
+          <span className="text-[10px] font-mono font-semibold text-foreground/70">{s.score}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Top Convictions ──────────────────────────────────────────────
+
+function TopConvictions({ picks }: { picks: OutlookData["topConvictions"] }) {
+  if (picks.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      {picks.map((p, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/30 hover:bg-card/50 transition-colors">
+          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded font-mono", BAND_COLORS[p.convictionBand] || "text-muted-foreground bg-muted/30")}>
+            {p.convictionBand}
+          </span>
+          <span className="text-xs font-semibold text-[var(--brand-teal)] font-mono w-14">{p.symbol}</span>
+          <Badge variant="outline" className={cn("text-[8px] px-1 py-0 h-3.5 font-mono",
+            p.direction === "short" ? "text-[var(--trade-bearish)] border-red-500/30" : "text-[var(--trade-bullish)] border-emerald-500/30"
+          )}>
+            {p.direction === "short" ? "SHORT" : "LONG"}
+          </Badge>
+          <span className="text-[10px] text-muted-foreground truncate flex-1">{p.thesis}</span>
+          <span className="text-[10px] font-mono text-foreground/60">{p.convictionScore}pt</span>
+          <span className="text-[10px] font-mono text-muted-foreground/50">{p.layerCount}L</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Weekly Focus Strip ───────────────────────────────────────────
+
+function WeeklyFocusStrip({ symbols }: { symbols: string[] }) {
+  if (symbols.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {symbols.map((sym) => (
+        <Badge key={sym} variant="outline" className="text-[10px] font-mono text-[var(--brand-teal)] border-[var(--brand-teal)]/30 bg-[var(--brand-teal)]/5">
+          {sym}
+        </Badge>
+      ))}
     </div>
   );
 }
@@ -432,6 +537,34 @@ export default function MarketOutlook() {
                 <CryptoStrip crypto={data.crypto} />
               </Card>
             )}
+
+            {/* Swing Setups — Tomorrow's Top Setups */}
+            {data.swingSetups?.length > 0 && (
+              <Card className="bg-card/40 border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-[var(--brand-teal)]" />
+                  <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Top Swing Setups</h3>
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 font-mono text-[var(--brand-teal)] border-[var(--brand-teal)]/30 ml-auto">
+                    {data.swingSetups.length}
+                  </Badge>
+                </div>
+                <SwingSetups setups={data.swingSetups} />
+              </Card>
+            )}
+
+            {/* Top Convictions */}
+            {data.topConvictions?.length > 0 && (
+              <Card className="bg-card/40 border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Flame className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Top Convictions</h3>
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 font-mono text-amber-400 border-amber-500/30 ml-auto">
+                    {data.topConvictions.length}
+                  </Badge>
+                </div>
+                <TopConvictions picks={data.topConvictions} />
+              </Card>
+            )}
           </motion.div>
 
           {/* Right Column — Context + Calendar */}
@@ -441,6 +574,17 @@ export default function MarketOutlook() {
             transition={{ delay: 0.15 }}
             className="space-y-4"
           >
+            {/* Weekly Focus */}
+            {data.weeklyFocus?.length > 0 && (
+              <Card className="bg-card/40 border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="w-4 h-4 text-[var(--brand-teal)]" />
+                  <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Weekly Focus</h3>
+                </div>
+                <WeeklyFocusStrip symbols={data.weeklyFocus} />
+              </Card>
+            )}
+
             {/* Market Context */}
             {data.marketContext && (
               <Card className="bg-card/40 border-border p-4">

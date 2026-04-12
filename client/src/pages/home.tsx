@@ -1181,6 +1181,159 @@ function TopConvictions() {
 }
 
 // ────────────────────────────────────────────────────────────
+// Next Day Outlook Panel — condensed outlook for the home page
+// ────────────────────────────────────────────────────────────
+
+interface OutlookPanelData {
+  futuresBias: "bullish" | "bearish" | "neutral";
+  isWeekend: boolean;
+  summary: string;
+  marketContext: { vixLevel: number | null; regime: string; riskSentiment: string } | null;
+  highImpactAlert: { name: string; date: string; time: string } | null;
+  swingSetups: Array<{
+    symbol: string; direction: string; score: number; pattern: string;
+    currentPrice: number; targetPrice: number; riskReward: number;
+  }>;
+  topConvictions: Array<{
+    symbol: string; direction: string; convictionScore: number;
+    convictionBand: string; thesis: string;
+  }>;
+  weeklyFocus: string[];
+}
+
+function NextDayOutlookPanel() {
+  const { data, isLoading } = useQuery<OutlookPanelData>({
+    queryKey: ["/api/market-outlook"],
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+
+  if (isLoading) return <SkeletonCard />;
+  if (!data) return null;
+
+  const biasColor = data.futuresBias === "bullish" ? "text-[var(--trade-bullish)]" : data.futuresBias === "bearish" ? "text-[var(--trade-bearish)]" : "text-muted-foreground";
+  const setups = data.swingSetups?.slice(0, 3) ?? [];
+  const convictions = data.topConvictions?.slice(0, 3) ?? [];
+  const focus = data.weeklyFocus ?? [];
+
+  return (
+    <Card className="bg-card border-border overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sun className="w-4 h-4 text-[var(--brand-teal)]" />
+            <span className="text-sm font-bold text-foreground">
+              {data.isWeekend ? "Weekend Outlook" : "Next Day Outlook"}
+            </span>
+            {data.futuresBias !== "neutral" && (
+              <Badge variant="outline" className={cn("text-[9px] font-mono px-1.5 py-0", biasColor,
+                data.futuresBias === "bullish" ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"
+              )}>
+                {data.futuresBias === "bullish" ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
+                {data.futuresBias.toUpperCase()}
+              </Badge>
+            )}
+          </div>
+          <Link href="/outlook">
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1">
+              Full Outlook <ChevronRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Summary */}
+        {data.summary && (
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{data.summary}</p>
+        )}
+
+        {/* High Impact Alert */}
+        {data.highImpactAlert && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-500/30 bg-amber-500/5 mb-3">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[10px] font-semibold text-amber-400">{data.highImpactAlert.name}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto font-mono">{data.highImpactAlert.date} {data.highImpactAlert.time}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {/* Swing Setups */}
+          {setups.length > 0 && (
+            <div>
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Top Swing Setups</div>
+              <div className="space-y-1">
+                {setups.map((s, i) => (
+                  <Link key={i} href={`/t/${s.symbol}/chart`}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02] hover:bg-foreground/[0.04] cursor-pointer transition-colors">
+                      <span className="text-xs font-mono font-semibold text-[var(--brand-teal)] w-12">{s.symbol}</span>
+                      {s.direction === "bearish" ? <ArrowDownRight className="w-3 h-3 text-red-400" /> : <ArrowUpRight className="w-3 h-3 text-emerald-400" />}
+                      <span className="text-[10px] text-muted-foreground truncate flex-1">{s.pattern}</span>
+                      <span className="text-[10px] font-mono text-foreground/60">{s.score}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conviction Picks */}
+          {convictions.length > 0 && (
+            <div>
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Top Convictions</div>
+              <div className="space-y-1">
+                {convictions.map((c, i) => (
+                  <Link key={i} href={`/t/${c.symbol}/chart`}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02] hover:bg-foreground/[0.04] cursor-pointer transition-colors">
+                      <span className={cn("text-[9px] font-bold px-1 py-0 rounded font-mono",
+                        c.convictionBand === "S" ? "text-amber-300 bg-amber-500/15" :
+                        c.convictionBand === "A" ? "text-emerald-300 bg-emerald-500/15" :
+                        "text-muted-foreground bg-muted/30"
+                      )}>{c.convictionBand}</span>
+                      <span className="text-xs font-mono font-semibold text-[var(--brand-teal)] w-12">{c.symbol}</span>
+                      {c.direction === "short" ? <ArrowDownRight className="w-3 h-3 text-red-400" /> : <ArrowUpRight className="w-3 h-3 text-emerald-400" />}
+                      <span className="text-[10px] text-muted-foreground truncate flex-1">{c.thesis}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VIX + Weekly Focus */}
+          <div className="space-y-3">
+            {data.marketContext?.vixLevel != null && (
+              <div>
+                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">VIX Context</div>
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02]">
+                  <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className={cn("text-sm font-mono font-bold",
+                    data.marketContext.vixLevel > 25 ? "text-red-400" : data.marketContext.vixLevel > 18 ? "text-amber-400" : "text-[var(--trade-bullish)]"
+                  )}>{data.marketContext.vixLevel.toFixed(1)}</span>
+                  <span className="text-[10px] text-muted-foreground">{data.marketContext.regime}</span>
+                </div>
+              </div>
+            )}
+            {focus.length > 0 && (
+              <div>
+                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Weekly Focus</div>
+                <div className="flex flex-wrap gap-1">
+                  {focus.slice(0, 8).map((sym) => (
+                    <Link key={sym} href={`/t/${sym}/chart`}>
+                      <Badge variant="outline" className="text-[9px] font-mono text-[var(--brand-teal)] border-[var(--brand-teal)]/30 bg-[var(--brand-teal)]/5 cursor-pointer hover:bg-[var(--brand-teal)]/10">
+                        {sym}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Main Dashboard Page
 // ────────────────────────────────────────────────────────────
 
@@ -1213,6 +1366,12 @@ export default function HomePage() {
               <MarketRegimeCard />
             </div>
           </div>
+        </SectionReveal>
+
+        {/* Row 1.5: Next Day Outlook — swing setups, convictions, VIX */}
+        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.02}>
+          <SectionHeader label="Next Day Outlook" action="Full Outlook" actionHref="/outlook" />
+          <NextDayOutlookPanel />
         </SectionReveal>
 
         {/* Row 2: Cross-Asset Overview */}

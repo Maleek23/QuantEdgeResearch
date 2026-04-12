@@ -34,6 +34,7 @@ const RollingWinRateChart = lazy(() => import("@/components/rolling-win-rate-cha
 const DrawdownAnalysisChart = lazy(() => import("@/components/drawdown-analysis-chart"));
 const HistoricalIntelligenceTab = lazy(() => import("@/components/historical-intelligence-tab"));
 const ConvictionBacktestCard = lazy(() => import("@/components/conviction-backtest-card"));
+const BacktestPage = lazy(() => import("@/pages/backtest"));
 
 function ChartSkeleton() {
   return (
@@ -622,12 +623,15 @@ export default function PerformancePage() {
         <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
           <TierGate feature="performance" blur>
             <Tabs defaultValue="overview" className="space-y-3">
-              <TabsList className="grid w-full max-w-md grid-cols-4">
+              <TabsList className="grid w-full max-w-lg grid-cols-5">
                 <TabsTrigger value="overview" className="text-[10px] gap-1 font-mono" data-testid="tab-overview">
                   <TrendingUp className="h-3 w-3" />Trends
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="text-[10px] gap-1 font-mono" data-testid="tab-analytics">
                   <BarChart3 className="h-3 w-3" />Deep
+                </TabsTrigger>
+                <TabsTrigger value="backtest" className="text-[10px] gap-1 font-mono" data-testid="tab-backtest">
+                  <Target className="h-3 w-3" />Backtest
                 </TabsTrigger>
                 <TabsTrigger value="historical" className="text-[10px] gap-1 font-mono" data-testid="tab-historical">
                   <History className="h-3 w-3" />History
@@ -742,6 +746,12 @@ export default function PerformancePage() {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+              </TabsContent>
+
+              <TabsContent value="backtest" className="space-y-4">
+                <Suspense fallback={<ChartSkeleton />}>
+                  <BacktestPage />
+                </Suspense>
               </TabsContent>
 
               <TabsContent value="historical" className="space-y-4">

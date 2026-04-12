@@ -2043,11 +2043,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getUpcomingEvents, getTodayEvents, hasHighImpactEventSoon } = await import("./economic-calendar");
       const { getUpcomingEarnings } = await import("./earnings-service");
       const { getRealtimeBatchQuotes } = await import("./realtime-pricing-service");
+      const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
+      const { getCachedConvictions } = await import("./convictions-engine");
+      const { getCurrentWeekSymbols } = await import("./weekly-watchlist-seeder");
 
       const phase = currentMarketPhase();
       const isWeekend = phase === "closed" && [0, 6].includes(new Date().getDay());
 
-      // Parallel fetch everything
+      // Parallel fetch everything — including swing setups, convictions, weekly focus
       const [
         marketCtx,
         futuresMap,
@@ -2057,6 +2060,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         earnings,
         indexQuotes,
         cryptoQuotes,
+        swingRaw,
+        convictionsRaw,
+        weeklySymbols,
       ] = await Promise.all([
         getMarketContext().catch(() => null),
         getFuturesPrices(["ES", "NQ", "YM", "RTY", "CL", "GC", "SI", "ZN"]).catch(() => new Map()),
@@ -2076,6 +2082,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { symbol: "ETH", assetType: "crypto" },
           { symbol: "SOL", assetType: "crypto" },
         ]).catch(() => new Map()),
+        getTopSwingOpportunities(8).catch(() => []),
+        getCachedConvictions({ limit: 6 }).catch(() => null),
+        getCurrentWeekSymbols().catch(() => []),
       ]);
 
       // Pre-market gaps for key indices
@@ -2137,6 +2146,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         else vixContext = "Low vol — VIX below 15, complacency risk";
       }
 
+      // Format swing setups
+      const swingSetups = (swingRaw as any[]).slice(0, 8).map((opp: any) => ({
+        symbol: opp.symbol,
+        score: opp.score,
+        pattern: opp.pattern,
+        direction: opp.trendBias || "bullish",
+        currentPrice: opp.currentPrice,
+        targetPrice: opp.targetPrice,
+        stopLoss: opp.stopLoss,
+        riskReward: opp.riskReward,
+        reason: opp.reason,
+      }));
+
+      // Format conviction picks
+      const topConvictions = convictionsRaw?.picks?.slice(0, 6).map((p: any) => ({
+        symbol: p.symbol,
+        direction: p.direction,
+        convictionScore: p.convictionScore,
+        convictionBand: p.convictionBand,
+        thesis: p.thesis,
+        entryPrice: p.entryPrice,
+        targetPrice: p.targetPrice,
+        stopLoss: p.stopLoss,
+        layerCount: p.layerCount,
+      })) || [];
+
       // Build summary
       const summaryParts: string[] = [];
       if (isWeekend) {
@@ -2152,6 +2187,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (vixQuote) {
           summaryParts.push(`VIX at ${vixQuote.price.toFixed(1)}.`);
         }
+      }
+      if (swingSetups.length > 0) {
+        summaryParts.push(`${swingSetups.length} swing setups queued (${swingSetups.slice(0, 3).map((s: any) => s.symbol).join(", ")}).`);
+      }
+      if (topConvictions.length > 0) {
+        const sBand = topConvictions.filter((c: any) => c.convictionBand === "S").length;
+        const aBand = topConvictions.filter((c: any) => c.convictionBand === "A").length;
+        if (sBand > 0 || aBand > 0) summaryParts.push(`${sBand + aBand} high-conviction picks (${sBand}S, ${aBand}A).`);
       }
       if (highImpact) {
         summaryParts.push(`Watch: ${highImpact.name} (${highImpact.importance}).`);
@@ -2180,13 +2223,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preMarketGaps,
         crypto,
         vixContext,
+        swingSetups,
+        topConvictions,
+        weeklyFocus: weeklySymbols,
         upcomingEvents: upcomingEvents.slice(0, 10),
         todayEvents,
         highImpactAlert: highImpact,
         earnings: earnings.slice(0, 10),
         generatedAt: new Date().toISOString(),
         _meta: {
-          dataSource: "futures_data + pre_market + economic_calendar + earnings + realtime_quotes",
+          dataSource: "futures + pre_market + economic_calendar + earnings + quotes + swing_scanner + convictions + weekly_watchlist",
           cachedAt: new Date().toISOString(),
           public: true,
         },
