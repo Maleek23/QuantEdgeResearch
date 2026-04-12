@@ -230,6 +230,11 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                               {idea.optionType?.toUpperCase()}
                             </span>
                           )}
+                          {(idea as any).hasDirectionConflict && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" title="Conflicting signals: both LONG and SHORT ideas exist for this ticker">
+                              ⚡ CONFLICT
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1044,6 +1049,11 @@ function BestSetupsSubPage() {
                     {isOption && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
                         {setup.optionType?.toUpperCase()}
+                      </span>
+                    )}
+                    {setup.hasDirectionConflict && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400" title="Conflicting signals: both LONG and SHORT ideas exist for this ticker">
+                        ⚡ CONFLICT
                       </span>
                     )}
                   </div>

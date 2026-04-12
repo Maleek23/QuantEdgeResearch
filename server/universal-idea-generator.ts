@@ -224,7 +224,8 @@ export type IdeaSource =
   | 'earnings_play'       // From earnings calendar
   | 'sector_rotation'     // From sector analysis
   | 'bot_screener'        // From Auto-Lotto Bot screener (high-conviction ideas)
-  | 'surge_detection';    // From Surge Detection Engine (price/volume breakouts)
+  | 'surge_detection'     // From Surge Detection Engine (price/volume breakouts)
+  | 'tradingview';        // From TradingView webhook (user's backtested strategies)
 
 // Signal types that contribute to confidence
 export interface IdeaSignal {

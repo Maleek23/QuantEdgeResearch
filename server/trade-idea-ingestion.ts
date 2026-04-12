@@ -38,6 +38,7 @@ const SOURCE_THRESHOLDS: Record<IdeaSource, number> = {
   manual: 50,              // Manual entries allowed lower
   bot_screener: 80,        // Bot screener needs 80%+ (A- grade) for Trade Desk
   surge_detection: 60,     // Surge detection - real-time momentum breakouts
+  tradingview: 50,         // TradingView — user's backtested signals, low gate (never blocked, only scored)
 };
 
 export interface IngestionInput {

@@ -25,11 +25,22 @@ class PerformanceValidationService {
     }
 
     console.log(`🎯 Starting Performance Validation Service (interval: ${this.validationIntervalMs / 1000 / 60} minutes)`);
-    
-    // Run immediately on startup
-    this.validateAllOpenTrades().catch(err => 
-      console.error('❌ Initial performance validation failed:', err)
-    );
+
+    // Monday morning catchup: validate all open ideas even if market isn't
+    // fully open yet. This closes out Friday ideas that hit target/stop
+    // over the weekend (which were skipped because isMarketOpen() returns false
+    // on Saturday/Sunday).
+    if (this.needsWeekendCatchup()) {
+      console.log('📅 Monday morning catchup — validating open ideas from weekend gap');
+      this.validateAllOpenTrades(true).catch(err =>
+        console.error('❌ Weekend catchup validation failed:', err)
+      );
+    } else {
+      // Run immediately on startup
+      this.validateAllOpenTrades().catch(err =>
+        console.error('❌ Initial performance validation failed:', err)
+      );
+    }
 
     // Then run periodically
     this.intervalId = setInterval(() => {
@@ -53,38 +64,50 @@ class PerformanceValidationService {
   }
 
   /**
-   * Check if stock market is open (weekday during market hours CT)
+   * Check if stock market is open (weekday during market hours ET)
    * Returns false on weekends to prevent false validations with stale prices
    */
   private isMarketOpen(): boolean {
     const now = new Date();
-    const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-    const dayOfWeek = ctTime.getDay(); // 0 = Sunday, 6 = Saturday
-    const hour = ctTime.getHours();
-    const minute = ctTime.getMinutes();
-    
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const dayOfWeek = etTime.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = etTime.getHours();
+    const minute = etTime.getMinutes();
+
     // Weekend check - markets closed
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       return false;
     }
-    
-    // Market hours: 8:30 AM - 3:00 PM CT (regular session)
-    // Extended validation window: 7:00 AM - 4:00 PM CT (includes pre/post market)
+
+    // Extended validation window: 8:00 AM - 5:00 PM ET (includes pre/post market)
     const timeInMinutes = hour * 60 + minute;
-    const marketOpen = 7 * 60; // 7:00 AM CT
-    const marketClose = 16 * 60; // 4:00 PM CT
-    
+    const marketOpen = 8 * 60; // 8:00 AM ET
+    const marketClose = 17 * 60; // 5:00 PM ET
+
     return timeInMinutes >= marketOpen && timeInMinutes <= marketClose;
+  }
+
+  /**
+   * Check if this is Monday before market open (catchup window for weekend gaps).
+   * Runs once per boot to close out Friday ideas that hit target/stop over the weekend.
+   */
+  private needsWeekendCatchup(): boolean {
+    const now = new Date();
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const dayOfWeek = etTime.getDay();
+    const hour = etTime.getHours();
+    // Monday before 10 AM ET — catchup window
+    return dayOfWeek === 1 && hour < 10;
   }
 
   /**
    * Validate all open trade ideas
    * Fetches current prices and checks if any hit target/stop/expired
    */
-  async validateAllOpenTrades(): Promise<{ 
-    validated: number; 
-    winners: number; 
-    losers: number; 
+  async validateAllOpenTrades(forceRun = false): Promise<{
+    validated: number;
+    winners: number;
+    losers: number;
     expired: number;
   }> {
     // Prevent concurrent validations
@@ -92,14 +115,14 @@ class PerformanceValidationService {
       console.log('⏭️  Skipping validation - already in progress');
       return { validated: 0, winners: 0, losers: 0, expired: 0 };
     }
-    
+
     // Skip validation on weekends and outside market hours
-    // This prevents false wins/losses from stale weekend prices
-    if (!this.isMarketOpen()) {
+    // (unless forceRun is true — used by Monday morning catchup)
+    if (!forceRun && !this.isMarketOpen()) {
       const now = new Date();
-      const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][ctTime.getDay()];
-      console.log(`📊 Skipping validation - market closed (${dayName} ${ctTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} CT)`);
+      const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][etTime.getDay()];
+      console.log(`📊 Skipping validation - market closed (${dayName} ${etTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ET)`);
       return { validated: 0, winners: 0, losers: 0, expired: 0 };
     }
 

@@ -2017,7 +2017,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classifyMarketRegime } = await import('./quantitative-analysis-engine');
       const regime = await classifyMarketRegime();
-      res.json(regime);
+      res.json({
+        ...regime,
+        _meta: {
+          dataSource: "quantitative_analysis_engine",
+          cachedAt: new Date().toISOString(),
+        },
+      });
     } catch (error) {
       logger.error('Regime classification failed:', error);
       res.status(500).json({ error: "Regime classification failed" });
@@ -5434,7 +5440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assetAllocation,
         winLossRatio,
         recentBriefs: [],
-        systemStatus: []
+        systemStatus: [],
+        _meta: {
+          dataSource: "trade_ideas_db",
+          cachedAt: new Date().toISOString(),
+          decidedCount: decidedIdeas.length,
+          openCount: openIdeas.length,
+        },
       });
     } catch (error) {
       console.error("Dashboard stats error:", error);
@@ -6226,17 +6238,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // always return matching scores for the same idea (single source of truth).
       const data = await getCachedConvictions(buildOpts);
 
+      const meta = {
+        _meta: {
+          dataSource: "convictions_engine",
+          cachedAt: new Date().toISOString(),
+          picksCount: data.picks?.length ?? 0,
+        },
+      };
+
       if (symbolFilter) {
         const filtered = data.picks.filter((p) => {
           if (p.symbol.toUpperCase() !== symbolFilter) return false;
           if (directionFilter && p.direction.toLowerCase() !== directionFilter) return false;
           return true;
         });
-        res.json({ ...data, picks: filtered });
+        res.json({ ...data, picks: filtered, ...meta });
         return;
       }
 
-      res.json(data);
+      res.json({ ...data, ...meta });
     } catch (error) {
       logger.error("[API] Convictions error:", error);
       res.status(500).json({ error: "Failed to build convictions" });
@@ -6912,7 +6932,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Final slice to the originally-requested limit (after enrichment + re-rank)
       topSetups = topSetups.slice(0, limit);
 
-      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, freshness-rejected ${revalidationDiagnostics.rejected}, convictions-enriched ${enrichedCount})`);
+      // Conflict detection: flag tickers that appear with opposing directions
+      // (e.g. AAPL LONG from breakout scanner + AAPL SHORT from bearish scanner)
+      const directionsBySymbol = new Map<string, Set<string>>();
+      for (const s of topSetups) {
+        const dir = (s.direction || 'long').toLowerCase();
+        if (!directionsBySymbol.has(s.symbol)) directionsBySymbol.set(s.symbol, new Set());
+        directionsBySymbol.get(s.symbol)!.add(dir);
+      }
+      const conflictSymbols: string[] = [];
+      directionsBySymbol.forEach((dirs, sym) => {
+        if (dirs.size > 1) conflictSymbols.push(sym);
+      });
+      if (conflictSymbols.length > 0) {
+        // Tag each conflicting setup so the UI can display a warning
+        topSetups = topSetups.map((s: any) => {
+          if (conflictSymbols.includes(s.symbol)) {
+            return { ...s, hasDirectionConflict: true };
+          }
+          return s;
+        });
+        logger.warn(`[BEST-SETUPS] ⚠️ Direction conflicts detected: ${conflictSymbols.join(', ')}`);
+      }
+
+      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, freshness-rejected ${revalidationDiagnostics.rejected}, convictions-enriched ${enrichedCount}, conflicts: ${conflictSymbols.length})`);
 
       // 🔍 DEBUG: Log the dates of returned setups to verify filtering
       if (topSetups.length > 0) {
@@ -6933,6 +6976,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setups: topSetups,
         generatedAt: now.toISOString(),
         revalidation: revalidationDiagnostics,
+        conflicts: conflictSymbols,
+        _meta: {
+          dataSource: "trade_ideas_db + convictions_engine",
+          cachedAt: now.toISOString(),
+        },
       });
     } catch (error) {
       logger.error('[BEST-SETUPS] Error:', error);
@@ -15330,6 +15378,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lookouts: lookouts.slice(0, 15),
         totalCandidates: lookouts.length,
         generatedAt: new Date().toISOString(),
+        _meta: {
+          dataSource: "convictions_engine + swing_scanner",
+          cachedAt: new Date().toISOString(),
+        },
       };
 
       // Cache for 30 minutes
