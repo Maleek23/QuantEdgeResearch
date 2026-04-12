@@ -110,6 +110,28 @@ export const componentStyles = {
     chromeLabel: 'text-[9px] font-mono font-semibold uppercase tracking-[0.12em] text-muted-foreground',
   },
 
+  // Tab trigger variants
+  tab: {
+    /** Underline tab — minimal, used in Trade Desk sub-tabs */
+    underline: 'relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--brand-teal)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80',
+    /** Pill tab — rounded pill with background change */
+    pill: 'rounded-full px-3 py-1 text-xs font-medium text-muted-foreground transition-all data-[state=active]:bg-[var(--brand-teal)]/15 data-[state=active]:text-[var(--brand-teal)] hover:text-foreground/80',
+  },
+
+  // Section header — gradient accent bar + title + optional action
+  sectionHeader: {
+    /** Container */
+    wrapper: 'flex items-center justify-between mb-3',
+    /** Left side: accent bar + icon + title */
+    left: 'flex items-center gap-2',
+    /** Gradient accent bar */
+    accent: 'w-0.5 h-3.5 rounded-full bg-gradient-to-b from-[var(--brand-teal)] to-[var(--brand-cyan)]',
+    /** Title text */
+    title: 'text-sm font-semibold text-foreground',
+    /** Optional count badge */
+    count: 'text-[10px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-full',
+  },
+
   // Status indicator dots
   status: {
     online: 'w-2 h-2 rounded-full bg-[var(--trade-bullish)] shadow-[0_0_6px_var(--trade-bullish)]',

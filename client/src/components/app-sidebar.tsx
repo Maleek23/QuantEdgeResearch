@@ -35,6 +35,7 @@ interface NavItem {
   icon: any;
   href: string;
   badge?: string;
+  shortcut?: string;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -52,13 +53,13 @@ interface NavItem {
 // ────────────────────────────────────────────────────────────────────
 
 const mainItems: NavItem[] = [
-  { id: "home", title: "Home", icon: Home, href: "/home" },
-  { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI" },
-  { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner" },
-  { id: "gex-hub", title: "GEX Hub", icon: Activity, href: "/gex" },
-  { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist" },
+  { id: "home", title: "Home", icon: Home, href: "/home", shortcut: "G H" },
+  { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI", shortcut: "G T" },
+  { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner", shortcut: "G S" },
+  { id: "gex-hub", title: "GEX Hub", icon: Activity, href: "/gex", shortcut: "G X" },
+  { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist", shortcut: "G W" },
   { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
-  { id: "performance", title: "Performance", icon: Trophy, href: "/performance" },
+  { id: "performance", title: "Performance", icon: Trophy, href: "/performance", shortcut: "G P" },
 ];
 
 const learnItems: NavItem[] = [
@@ -89,15 +90,15 @@ function NavGroup({ items, label }: { items: NavItem[]; label?: string }) {
                   tooltip={item.title}
                   isActive={isActive}
                   className={cn(
-                    "gap-2.5 px-2.5 py-2 rounded-md transition-all text-sm",
+                    "gap-2.5 px-2.5 py-2 rounded-md transition-all text-sm relative",
                     isActive
-                      ? "bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] font-medium"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      ? "bg-[var(--brand-teal)]/8 text-[var(--brand-teal)] font-medium border-l-2 border-l-[var(--brand-teal)] rounded-l-none"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 border-l-2 border-l-transparent"
                   )}
                   data-testid={`nav-${item.id}`}
                 >
                   <Link href={item.href}>
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "drop-shadow-[0_0_4px_var(--brand-teal)]")} />
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
                       <Badge
@@ -106,6 +107,11 @@ function NavGroup({ items, label }: { items: NavItem[]; label?: string }) {
                       >
                         {item.badge}
                       </Badge>
+                    )}
+                    {!item.badge && item.shortcut && (
+                      <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/20 group-data-[collapsible=icon]:hidden">
+                        {item.shortcut}
+                      </span>
                     )}
                   </Link>
                 </SidebarMenuButton>

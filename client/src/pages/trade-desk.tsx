@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { SiDiscord } from "react-icons/si";
 import { Badge } from "@/components/ui/badge";
+import { componentStyles } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -120,7 +121,7 @@ function MarketPulseHeader() {
   ];
 
   return (
-    <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50 overflow-x-auto">
+    <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50 overflow-x-auto no-scrollbar">
       <div className="flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
         <span className="text-[10px] font-medium text-[var(--trade-bullish)]">LIVE</span>
@@ -195,7 +196,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
             <Link key={idea.id || `${idea.symbol}-${idea.timestamp}`} href={`/stock/${idea.symbol}`}>
               <Card className={cn(
                 "relative overflow-hidden cursor-pointer transition-all duration-300",
-                "bg-gradient-to-br from-amber-500/5 via-slate-900/80 to-slate-900/90",
+                "bg-gradient-to-br from-amber-500/5 via-card/80 to-card/90",
                 "border-[var(--trade-neutral)]/30 hover:border-amber-400/60",
                 "hover:shadow-lg hover:shadow-amber-500/10",
                 "hover:-translate-y-1",
@@ -366,7 +367,7 @@ function FlowSignalsSection() {
             <Link key={s.symbol} href={`/flow?symbol=${s.symbol}`}>
               <Card className={cn(
                 "cursor-pointer transition-all duration-300 hover:-translate-y-1",
-                "bg-gradient-to-br from-slate-900/80 to-slate-900/90",
+                "bg-gradient-to-br from-card/80 to-card/90",
                 s.conviction === 'HIGH'
                   ? "border-[var(--trade-neutral)]/40 hover:border-amber-400/60 hover:shadow-amber-500/10"
                   : "border-cyan-500/30 hover:border-cyan-400/50 hover:shadow-cyan-500/10",
@@ -465,17 +466,17 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
         <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">{totalLabel}</span>
         <span className="text-base font-bold font-mono text-foreground">{stats.total}</span>
       </div>
-      <div className="w-px h-4 bg-[#222]" />
+      <div className="w-px h-4 bg-border" />
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Today</span>
         <span className="text-base font-bold font-mono text-[var(--trade-bullish)]">{stats.today}</span>
       </div>
-      <div className="w-px h-4 bg-[#222]" />
+      <div className="w-px h-4 bg-border" />
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Quality</span>
         <span className="text-base font-bold font-mono text-[var(--trade-bullish)]">{stats.quality}</span>
       </div>
-      <div className="w-px h-4 bg-[#222]" />
+      <div className="w-px h-4 bg-border" />
       <div className="flex items-center gap-2" title="Average canonical conviction score across open ideas">
         <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wider">Avg Score</span>
         <span className="text-base font-bold font-mono text-foreground tabular-nums">{stats.avgConf}</span>
@@ -536,7 +537,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
             const style = getGradeStyle(grade);
             return (
               <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-foreground">{setup.symbol}</span>
                     <Badge
@@ -611,7 +612,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
         ) : (
           gainers.map((stock: any) => (
             <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer">
                 <span className="font-mono font-bold text-foreground">{stock.symbol}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-mono text-[var(--trade-bullish)]">+{safeToFixed(stock.changePercent, 1)}%</span>
@@ -2102,7 +2103,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
 
       return tomorrowPlays.slice(0, 5).map((pred: any, idx: number) => (
         <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
-          <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer border-l-2 border-violet-500/50">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer border-l-2 border-violet-500/50">
             <div className="flex items-center gap-2">
               <span className={cn(
                 "w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold",
@@ -2148,7 +2149,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     return displayData.slice(0, 5).map((stock: any, idx: number) => (
       <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
         <div className={cn(
-          "flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-[#222] transition-colors cursor-pointer",
+          "flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer",
           stock.hasCatalyst && "ring-1 ring-purple-500/30 bg-purple-500/5"
         )}>
           <div className="flex items-center gap-2">
@@ -2385,7 +2386,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
                 opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/10 hover:bg-[var(--trade-bearish)]/20 border border-[var(--trade-bearish)]/30" :
                 opp.urgency === 'high' ? "bg-[var(--trade-neutral)]/10 hover:bg-[var(--trade-neutral)]/20 border border-[var(--trade-neutral)]/30" :
-                "bg-muted hover:bg-[#222]"
+                "bg-muted hover:bg-border"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
@@ -2535,7 +2536,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
             <Link key={item.symbol} href={`/stock/${item.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-muted hover:bg-[#222]"
+                item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-muted hover:bg-border"
               )}>
                 <div className="flex items-center gap-2">
                   <span className={cn(
@@ -4001,8 +4002,8 @@ export default function TradeDeskRedesigned() {
           </div>
         </div>
 
-        {/* Asset Type Filter — compact */}
-        <div className="flex items-center gap-1">
+        {/* Asset Type Filter — compact with mobile touch targets */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {[
             { value: 'all', label: 'All' },
             { value: 'watchlist', label: 'Watchlist' },
@@ -4017,9 +4018,9 @@ export default function TradeDeskRedesigned() {
                 key={value}
                 onClick={() => setAssetFilter(value as typeof assetFilter)}
                 className={cn(
-                  "px-2 py-0.5 rounded-md text-[10px] font-mono font-medium transition-all",
+                  "px-3 py-1.5 sm:px-2 sm:py-0.5 rounded-md text-[11px] sm:text-[10px] font-mono font-medium transition-all whitespace-nowrap",
                   assetFilter === value
-                    ? "bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)] ring-1 ring-[var(--trade-bullish)]/30"
+                    ? "bg-[var(--brand-teal)]/15 text-[var(--brand-teal)] ring-1 ring-[var(--brand-teal)]/30"
                     : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/40"
                 )}
               >
@@ -4048,15 +4049,15 @@ export default function TradeDeskRedesigned() {
         {/* Navigation Tabs — Bloomberg density */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none">
-            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+            <TabsTrigger value="ideas" className={componentStyles.tab.underline}>
               <Layers className="w-3 h-3 mr-1 opacity-60" />
               Plays
             </TabsTrigger>
-            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+            <TabsTrigger value="flow" className={componentStyles.tab.underline}>
               <Activity className="w-3 h-3 mr-1 opacity-60" />
               Flow
             </TabsTrigger>
-            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
+            <TabsTrigger value="strategy" className={componentStyles.tab.underline}>
               <Target className="w-3 h-3 mr-1 opacity-60" />
               Strategy
             </TabsTrigger>
