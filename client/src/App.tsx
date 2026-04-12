@@ -408,7 +408,7 @@ function Router() {
       {/* Convictions merged into Trade Desk — redirect for back-compat */}
       <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
       <Route path="/scanner/gex"><Redirect to="/flow?tab=hub" /></Route>
-      <Route path="/gex-legacy"><Redirect to="/flow?tab=gex" /></Route>
+      <Route path="/gex-legacy"><Redirect to="/flow" /></Route>
       {/* Geopolitical Reaction Matrix */}
       <Route path="/geopolitical"><Redirect to="/command" /></Route>
       {/* Redirects */}

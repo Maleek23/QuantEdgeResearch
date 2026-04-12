@@ -1,9 +1,9 @@
 /**
- * Flow Edge
- * =========
- * Unified flow intelligence hub with 3 tabs:
+ * GEX & Flow
+ * ==========
+ * Unified gamma + flow intelligence hub with 3 tabs:
+ *   - GEX Hub: market-wide gamma command + collapsible heatmap analysis
  *   - Options Flow: institutional flow scanner
- *   - GEX/VEX: gamma + vanna exposure dashboard
  *   - Smart Money: insider/institutional tracking
  */
 
@@ -37,23 +37,20 @@ import {
   RefreshCw,
   Flame,
   Target,
-  Shield,
   Users,
   Loader2,
 } from "lucide-react";
 import { cn, safeToFixed, formatVolumeCompact } from "@/lib/utils";
 
 // Lazy sub-tabs
-const GEXDashboard = lazy(() => import("@/pages/gex-dashboard"));
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const GEXScanner = lazy(() => import("@/pages/gex-scanner"));
 
-type FlowTab = 'flow' | 'gex' | 'hub' | 'smart-money';
+type FlowTab = 'flow' | 'hub' | 'smart-money';
 
 const FLOW_TABS: { key: FlowTab; label: string; icon: any }[] = [
-  { key: 'flow', label: 'Options Flow', icon: Activity },
-  { key: 'gex', label: 'GEX / VEX', icon: Shield },
   { key: 'hub', label: 'GEX Hub', icon: Crosshair },
+  { key: 'flow', label: 'Options Flow', icon: Activity },
   { key: 'smart-money', label: 'Smart Money', icon: Users },
 ];
 
@@ -469,10 +466,11 @@ export default function FlowEdge() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const initialSymbol = params.get('symbol') || '';
-  const initialTab = (params.get('tab') as FlowTab) || 'flow';
-
+  const rawTab = params.get('tab') || 'hub';
+  // Map legacy 'gex' tab param to 'hub' (GEX Dashboard merged into Hub)
+  const resolvedTab = rawTab === 'gex' ? 'hub' : rawTab;
   const [activeTab, setActiveTab] = useState<FlowTab>(
-    FLOW_TABS.some(t => t.key === initialTab) ? initialTab : 'flow'
+    FLOW_TABS.some(t => t.key === resolvedTab) ? resolvedTab as FlowTab : 'hub'
   );
   const [symbol, setSymbol] = useState(initialSymbol);
   const [searchInput, setSearchInput] = useState(initialSymbol);
@@ -482,7 +480,7 @@ export default function FlowEdge() {
 
   function switchTab(tab: FlowTab) {
     setActiveTab(tab);
-    const url = tab === 'flow' ? '/flow' : `/flow?tab=${tab}`;
+    const url = tab === 'hub' ? '/flow' : `/flow?tab=${tab}`;
     window.history.replaceState(null, '', symbol ? `${url}${url.includes('?') ? '&' : '?'}symbol=${symbol}` : url);
   }
 
@@ -541,12 +539,9 @@ export default function FlowEdge() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5">
-                Flow Edge
-                <Badge variant="outline" className="text-[8px] text-[var(--trade-bullish)] border-emerald-500/30 bg-[var(--trade-bullish)]/10 animate-pulse font-mono px-1 py-0">
-                  LIVE
-                </Badge>
+                GEX & Flow
               </h1>
-              <p className="text-[10px] text-muted-foreground">Options flow + GEX/VEX + Smart Money</p>
+              <p className="text-[10px] text-muted-foreground">Gamma exposure · options flow · smart money</p>
             </div>
           </div>
 
@@ -603,14 +598,7 @@ export default function FlowEdge() {
           })}
         </div>
 
-        {/* GEX/VEX Tab */}
-        {activeTab === 'gex' && (
-          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
-            <GEXDashboard />
-          </Suspense>
-        )}
-
-        {/* GEX Hub Tab — confluence scanner + sector pulse */}
+        {/* GEX Hub Tab — confluence scanner + sector pulse + collapsible heatmap */}
         {activeTab === 'hub' && (
           <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
             <GEXScanner />

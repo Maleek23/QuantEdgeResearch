@@ -4596,42 +4596,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Batch market data endpoint - must come before single symbol route
+  // Always tries Yahoo Finance first for fresh quotes (works weekends too),
+  // falls back to database for any symbols Yahoo can't return.
   app.get("/api/market-data/batch/:symbols", async (req, res) => {
     try {
       const symbols = req.params.symbols.split(',').map(s => s.trim().toUpperCase());
-      const allMarketData = await storage.getAllMarketData();
-      const filtered = allMarketData.filter(m => symbols.includes(m.symbol));
-
-      // Transform to expected format: { quotes: { SYMBOL: { regularMarketPrice, ... } } }
       const quotes: Record<string, any> = {};
-      for (const data of filtered) {
-        quotes[data.symbol] = {
-          regularMarketPrice: data.currentPrice,
-          regularMarketChange: data.currentPrice * (data.changePercent / 100), // Calculate absolute change
-          regularMarketChangePercent: data.changePercent,
-        };
+
+      // 1. Try Yahoo Finance first — always fresh, even on weekends
+      try {
+        const { safeBatchQuotes } = await import('./yahoo-finance-service');
+        const yahooQuotes = await safeBatchQuotes(symbols);
+
+        for (const [symbol, quote] of Object.entries(yahooQuotes)) {
+          if (quote && quote.regularMarketPrice) {
+            quotes[symbol] = {
+              regularMarketPrice: quote.regularMarketPrice,
+              regularMarketChange: quote.regularMarketChange || 0,
+              regularMarketChangePercent: quote.regularMarketChangePercent || 0,
+            };
+          }
+        }
+      } catch (error: any) {
+        logger.warn(`Yahoo Finance batch fetch failed, using database fallback:`, error.message || error);
       }
 
-      // Fetch missing symbols from Yahoo Finance
+      // 2. Fill any missing symbols from database storage
       const foundSymbols = new Set(Object.keys(quotes));
       const missingSymbols = symbols.filter(s => !foundSymbols.has(s));
 
       if (missingSymbols.length > 0) {
-        try {
-          const { safeBatchQuotes } = await import('./yahoo-finance-service');
-          const yahooQuotes = await safeBatchQuotes(missingSymbols);
-
-          for (const [symbol, quote] of Object.entries(yahooQuotes)) {
-            if (quote) {
-              quotes[symbol] = {
-                regularMarketPrice: quote.regularMarketPrice || 0,
-                regularMarketChange: quote.regularMarketChange || 0,
-                regularMarketChangePercent: quote.regularMarketChangePercent || 0,
-              };
-            }
+        const allMarketData = await storage.getAllMarketData();
+        for (const data of allMarketData) {
+          if (missingSymbols.includes(data.symbol)) {
+            quotes[data.symbol] = {
+              regularMarketPrice: data.currentPrice,
+              regularMarketChange: data.currentPrice * (data.changePercent / 100),
+              regularMarketChangePercent: data.changePercent,
+            };
           }
-        } catch (error: any) {
-          logger.warn(`Failed to fetch from Yahoo Finance:`, error.message || error);
         }
       }
 

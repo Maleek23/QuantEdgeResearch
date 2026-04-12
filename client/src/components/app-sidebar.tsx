@@ -56,7 +56,7 @@ const mainItems: NavItem[] = [
   { id: "home", title: "Home", icon: Home, href: "/home", shortcut: "G H" },
   { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI", shortcut: "G T" },
   { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner", shortcut: "G S" },
-  { id: "flow", title: "Flow & GEX", icon: Activity, href: "/flow", shortcut: "G F" },
+  { id: "flow", title: "GEX & Flow", icon: Activity, href: "/flow", shortcut: "G F" },
   { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist", shortcut: "G W" },
   { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
   { id: "performance", title: "Performance", icon: Trophy, href: "/performance", shortcut: "G P" },
