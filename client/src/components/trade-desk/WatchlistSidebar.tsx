@@ -5,7 +5,7 @@
  * Click a symbol to filter signals. Click header to clear filter.
  */
 
-import { Star, BarChart3, Target, Sparkles } from "lucide-react";
+import { Star, BarChart3, Target, Sparkles, Crown } from "lucide-react";
 import { cn, safePercent } from "@/lib/utils";
 import { getTier, type Timeframe } from "./constants";
 import type { WatchlistItem } from "./useTradeDeskData";
@@ -74,6 +74,7 @@ function TierSection({
 
 export default function WatchlistSidebar({ watchlist, selectedSymbol, onSelect }: Props) {
   // Group by tier
+  const megaTier = watchlist.filter(w => getTier(w.symbol) === 'MEGA');
   const sTier = watchlist.filter(w => getTier(w.symbol) === 'S');
   const aTier = watchlist.filter(w => getTier(w.symbol) === 'A');
   const indexTier = watchlist.filter(w => getTier(w.symbol) === 'INDEX');
@@ -97,6 +98,9 @@ export default function WatchlistSidebar({ watchlist, selectedSymbol, onSelect }
           </button>
         )}
 
+        {megaTier.length > 0 && (
+          <TierSection label="Mega-Cap" icon={Crown} items={megaTier} selectedSymbol={selectedSymbol} onSelect={onSelect} />
+        )}
         <TierSection label="S-Tier" icon={Star} items={sTier} selectedSymbol={selectedSymbol} onSelect={onSelect} />
         <TierSection label="A-Tier" icon={BarChart3} items={aTier} selectedSymbol={selectedSymbol} onSelect={onSelect} />
         <TierSection label="Index" icon={Target} items={indexTier} selectedSymbol={selectedSymbol} onSelect={onSelect} />

@@ -5,8 +5,15 @@
  * Source of truth: STRATEGY_INSIGHTS.md watchlist (Apr 4, 2026)
  */
 
-// Watchlist tiers — from backtested TradingView v15 strategy
-export const WATCHLIST_TIERS: Record<string, 'S' | 'A' | 'INDEX' | 'NEW'> = {
+// Watchlist tiers — from backtested TradingView v15 strategy.
+// NOTE: this is a UI-side mirror of `shared/approved-tickers.ts`. The shared
+// file is the canonical source of truth for the *backend* (scanners,
+// convictions engine). This file drives the trade-desk Watchlist sidebar
+// rendering only. Keep them in sync — see A6 audit for the planned merge.
+export const WATCHLIST_TIERS: Record<string, 'MEGA' | 'S' | 'A' | 'INDEX' | 'NEW'> = {
+  // MEGA — FAANG / mega-cap tech (always cover for breadth + GEX context)
+  AAPL: 'MEGA', MSFT: 'MEGA', GOOGL: 'MEGA', META: 'MEGA', AMZN: 'MEGA',
+
   // S-Tier (highest conviction, best backtested results)
   AAOI: 'S', INTA: 'S', LUNR: 'S', CRCL: 'S', KLAC: 'S', OKLO: 'S',
   AEHR: 'S', SMTC: 'S', HIMS: 'S', AFRM: 'S', OLED: 'S', RMBS: 'S',
@@ -24,16 +31,20 @@ export const WATCHLIST_TIERS: Record<string, 'S' | 'A' | 'INDEX' | 'NEW'> = {
 
   // Optics/photonics peers (moves with AAOI)
   ALGM: 'NEW', COHR: 'NEW', LITE: 'A', FN: 'A', CIEN: 'A', AXTI: 'NEW',
+
+  // User's "Big Watch This Week" + tier-work additions
+  SATL: 'NEW', LLY: 'NEW',
 };
 
 export const ALL_WATCHLIST_SYMBOLS = Object.keys(WATCHLIST_TIERS);
 
-export function getTier(symbol: string): 'S' | 'A' | 'INDEX' | 'NEW' | null {
+export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'NEW' | null {
   return WATCHLIST_TIERS[symbol.toUpperCase()] || null;
 }
 
-export function getTierLabel(tier: 'S' | 'A' | 'INDEX' | 'NEW'): string {
+export function getTierLabel(tier: 'MEGA' | 'S' | 'A' | 'INDEX' | 'NEW'): string {
   switch (tier) {
+    case 'MEGA': return 'Mega-Cap';
     case 'S': return 'S-Tier';
     case 'A': return 'A-Tier';
     case 'INDEX': return 'Index';

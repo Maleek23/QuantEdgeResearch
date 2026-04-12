@@ -15,8 +15,10 @@
 
 import { logger } from './logger';
 import { ingestTradeIdea, IngestionInput } from './trade-idea-ingestion';
-import { getTradierQuote, getTradierHistory, getTradierOptionsChainsByDTE } from './tradier-api';
+import { getTradierQuote, getTradierHistory, getTradierHistoryOHLC, getTradierOptionsChainsByDTE } from './tradier-api';
 import { safeQuote } from './yahoo-finance-service';
+import { isApprovedTicker, isSkipTicker } from '../shared/approved-tickers';
+import { calculateATRTargets, calculateSimpleTargets } from './atr-targets';
 // Lotto detection handled inline
 
 // The most-traded stocks that users EXPECT to see trade ideas for
@@ -270,20 +272,48 @@ async function analyzePopularTicker(symbol: string): Promise<TickerAnalysis | nu
       return null;
     }
 
-    // Calculate suggested target and stop
-    const avgDailyMove = dayRange / price * 100;
-    const targetMove = Math.max(2, avgDailyMove * 1.2);
-    const stopMove = Math.max(1, avgDailyMove * 0.6);
-
+    // 📐 ATR-BASED TARGET/STOP — replaces fixed % heuristic
+    // Pulls 20-day OHLC from Tradier and computes ATR-multiplied targets.
+    // Falls back to volatility-aware close-only estimator if OHLC unavailable.
     let suggestedTarget: number;
     let suggestedStop: number;
-
-    if (direction === 'bullish') {
-      suggestedTarget = price * (1 + targetMove / 100);
-      suggestedStop = price * (1 - stopMove / 100);
-    } else {
-      suggestedTarget = price * (1 - targetMove / 100);
-      suggestedStop = price * (1 + stopMove / 100);
+    try {
+      const ohlc = await getTradierHistoryOHLC(symbol, 20).catch(() => null);
+      if (ohlc && ohlc.closes.length >= 14) {
+        const targets = calculateATRTargets({
+          currentPrice: price,
+          highs: ohlc.highs,
+          lows: ohlc.lows,
+          closes: ohlc.closes,
+          direction,
+          holdingPeriod: 'swing',
+        });
+        suggestedTarget = targets.target;
+        suggestedStop = targets.stop;
+        logger.debug(`[POPULAR-SCANNER] ${symbol} ATR targets: T=$${suggestedTarget} S=$${suggestedStop} (ATR=${targets.atr}, R:R=${targets.riskRewardRatio})`);
+      } else {
+        // Fallback: volatility-aware estimator from intraday range
+        const fallback = calculateSimpleTargets({
+          currentPrice: price,
+          closes: [prevClose, low, high, price].filter(Boolean),
+          direction,
+          holdingPeriod: 'swing',
+        });
+        suggestedTarget = fallback.target;
+        suggestedStop = fallback.stop;
+      }
+    } catch (e) {
+      // Hard fallback — use intraday range
+      const avgDailyMove = dayRange / price * 100;
+      const targetMove = Math.max(2, avgDailyMove * 1.2);
+      const stopMove = Math.max(1, avgDailyMove * 0.6);
+      if (direction === 'bullish') {
+        suggestedTarget = price * (1 + targetMove / 100);
+        suggestedStop = price * (1 - stopMove / 100);
+      } else {
+        suggestedTarget = price * (1 - targetMove / 100);
+        suggestedStop = price * (1 + stopMove / 100);
+      }
     }
 
     const signalSummary = signals.map(s => s.description).join('. ');
@@ -486,6 +516,18 @@ export async function scanPopularTickers(): Promise<number> {
   for (const symbol of POPULAR_TICKERS) {
     if (processedSymbols.has(symbol)) continue;
     processedSymbols.add(symbol);
+
+    // 🔒 WATCHLIST GATE: skip non-approved tickers (per user feedback — Trade Desk should
+    // focus on the user's backtested watchlist, not 80+ random popular tickers).
+    // Index ETFs (SPY/QQQ/IWM/etc.) are approved so they still flow through.
+    if (isSkipTicker(symbol)) {
+      logger.debug(`[POPULAR-SCANNER] ${symbol}: on skip list`);
+      continue;
+    }
+    if (!isApprovedTicker(symbol)) {
+      logger.debug(`[POPULAR-SCANNER] ${symbol}: not on approved watchlist — skipping`);
+      continue;
+    }
 
     try {
       const analysis = await analyzePopularTicker(symbol);

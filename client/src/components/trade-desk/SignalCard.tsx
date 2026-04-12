@@ -83,6 +83,9 @@ export default function SignalCard({ idea }: { idea: TradeIdea }) {
                   {tier === 'S' && (
                     <span className="text-[8px] px-1 py-0 rounded bg-amber-500/20 text-[var(--trade-neutral)] border border-amber-500/30 font-mono">S</span>
                   )}
+                  {tier === 'MEGA' && (
+                    <span className="text-[8px] px-1 py-0 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-mono">MEGA</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <span className={cn(

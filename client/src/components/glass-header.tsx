@@ -66,14 +66,15 @@ interface NavTab {
 const mainTabs: NavTab[] = [
   { label: "Home", href: "/home", icon: BarChart3 },
   { label: "Trade Desk", href: "/trade-desk", icon: Brain },
+  // Unified chart workspace — replaces the old /chart-analysis entry.
+  { label: "Command", href: "/command", icon: LineChart },
   { label: "Markets", href: "/market", icon: Search },
-  { label: "Charts", href: "/chart-analysis", icon: LineChart },
   { label: "Options", href: "/options-analyzer", icon: SlidersHorizontal },
   { label: "Flow", href: "/flow", icon: Zap },
 ];
 
 const moreToolItems: NavTab[] = [
-  { label: "GEX", href: "/gex", icon: Crosshair },
+  { label: "GEX Scanner", href: "/gex", icon: Crosshair },
   { label: "Smart Money", href: "/smart-money", icon: Activity },
   { label: "Watchlist", href: "/watchlist", icon: Star },
   { label: "Performance", href: "/performance", icon: Trophy },

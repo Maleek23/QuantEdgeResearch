@@ -34,7 +34,57 @@ export interface NewsContext {
   convictionAdjustment: number; // -20 to +20 (raw, before direction reconciliation)
   earningsDetected: boolean;
   earningsBeat: boolean | null; // true=beat, false=miss, null=unclear
+  /** Signed % surprise vs estimate when extractable from headlines (positive = beat). */
+  earningsSurprisePct: number | null;
   warnings: string[];
+}
+
+/**
+ * Extract a signed earnings surprise % from a blob of headlines.
+ * Returns positive for beats, negative for misses, null if not detectable.
+ *
+ * Patterns we look for (case-insensitive):
+ *   "beats by 12%", "tops estimates by 8%"
+ *   "EPS surprise of 15%", "+15% surprise"
+ *   "EPS $1.20 vs $1.10 estimate"  → (1.20-1.10)/1.10 = 9.1%
+ *   "misses by 5%", "below estimates by 7%"
+ */
+function extractEarningsSurprisePct(text: string): number | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+
+  // Pattern 1: "beats/misses by N%" or "tops by N%"
+  const byPctRegex = /(beat[s]?|tops?|surpass(?:es)?|miss(?:es)?|fall[s]? short|below)\s+(?:estimates?\s+)?(?:by\s+)?(\d+(?:\.\d+)?)\s*%/;
+  const byMatch = t.match(byPctRegex);
+  if (byMatch) {
+    const verb = byMatch[1];
+    const pct = parseFloat(byMatch[2]);
+    if (Number.isFinite(pct)) {
+      const isMiss = /miss|fall|below/.test(verb);
+      return isMiss ? -pct : pct;
+    }
+  }
+
+  // Pattern 2: "+12% surprise" or "-7% surprise"
+  const surpriseRegex = /([+-]?\d+(?:\.\d+)?)\s*%\s*(?:earnings\s+)?surprise/;
+  const surpriseMatch = t.match(surpriseRegex);
+  if (surpriseMatch) {
+    const pct = parseFloat(surpriseMatch[1]);
+    if (Number.isFinite(pct)) return pct;
+  }
+
+  // Pattern 3: "EPS of $1.20 vs $1.10 (expected|estimate|consensus)"
+  const epsRegex = /eps\s+(?:of\s+)?\$?(\d+(?:\.\d+)?)\s+(?:vs\.?|versus|compared to)\s+\$?(\d+(?:\.\d+)?)\s*(?:expected|estimate|consensus)?/;
+  const epsMatch = t.match(epsRegex);
+  if (epsMatch) {
+    const actual = parseFloat(epsMatch[1]);
+    const est = parseFloat(epsMatch[2]);
+    if (Number.isFinite(actual) && Number.isFinite(est) && est !== 0) {
+      return ((actual - est) / Math.abs(est)) * 100;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -53,6 +103,7 @@ export async function getNewsContext(symbol: string): Promise<NewsContext> {
     convictionAdjustment: 0,
     earningsDetected: false,
     earningsBeat: null,
+    earningsSurprisePct: null,
     warnings: [],
   };
 
@@ -151,6 +202,17 @@ export async function getNewsContext(symbol: string): Promise<NewsContext> {
       } else {
         result.earningsBeat = null;
         result.catalysts.push('Earnings activity detected - outcome unclear');
+      }
+
+      // Try to pull a magnitude — turns "Earnings beat" from binary to graded.
+      const surprisePct = extractEarningsSurprisePct(allHeadlines);
+      if (surprisePct !== null) {
+        result.earningsSurprisePct = surprisePct;
+        // Reconcile with binary flag if we got a clean magnitude
+        if (result.earningsBeat === null) {
+          result.earningsBeat = surprisePct > 0;
+        }
+        result.catalysts.push(`Surprise ${surprisePct >= 0 ? '+' : ''}${surprisePct.toFixed(1)}%`);
       }
     }
     

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { safeToFixed, safeNumber, formatMarketCap as sharedFormatMarketCap, formatVolumeCompact, formatPriceChange } from "@/lib/utils";
+import { safeToFixed, safeNumber, formatMarketCap as sharedFormatMarketCap, formatVolumeCompact, formatPriceChange, cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSearch, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,7 +38,8 @@ import {
   Rocket,
   DollarSign,
   TrendingUpIcon,
-  Users
+  Users,
+  Compass,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -896,6 +897,47 @@ export default function MarketScanner() {
     enabled: activeTab === 'breakouts',
   });
 
+  // Squeeze Scanner — Bollinger Band coil detection across the universe
+  interface SqueezeScanResponse {
+    squeezes: Array<{
+      symbol: string;
+      price: number;
+      volume: number;
+      avgVolume: number;
+      changePct: number;
+      onWatchlist: boolean;
+      squeeze: {
+        isSqueezing: boolean;
+        strength: number;
+        bandwidth: number;
+        avgBandwidth: number;
+        coilRatio: number;
+        phase: 'building' | 'firing' | 'none';
+      };
+    }>;
+    watchlistSqueezes: SqueezeScanResponse['squeezes'];
+    totalScanned: number;
+    lastScanTime: string;
+  }
+  const squeezeQuery = useQuery<SqueezeScanResponse>({
+    queryKey: ['/api/squeeze-scanner'],
+    queryFn: async () => {
+      const res = await fetch('/api/squeeze-scanner', { credentials: 'include' });
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        throw new Error(res.status === 401 ? 'Sign in to view squeeze results' : `Squeeze scanner unavailable (HTTP ${res.status})`);
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Squeeze scan failed (${res.status})`);
+      }
+      return res.json();
+    },
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === 'squeeze',
+  });
+
   // Feed surges to Trade Desk
   const feedSurgesToTradeDeskMutation = useMutation({
     mutationFn: async () => {
@@ -1126,7 +1168,7 @@ export default function MarketScanner() {
 
         {/* Main Tab Navigation: Movers vs Day Trade vs Swing vs Social vs Earnings vs Breakouts */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex mb-4 gap-1">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="movers" data-testid="tab-movers">
               <TrendingUp className="w-4 h-4 mr-2" />
               Movers
@@ -1142,6 +1184,10 @@ export default function MarketScanner() {
             <TabsTrigger value="breakouts" data-testid="tab-breakouts">
               <Rocket className="w-4 h-4 mr-2" />
               Breakouts
+            </TabsTrigger>
+            <TabsTrigger value="squeeze" data-testid="tab-squeeze">
+              <Compass className="w-4 h-4 mr-2" />
+              Squeeze
             </TabsTrigger>
             <TabsTrigger value="daytrade" data-testid="tab-daytrade">
               <Zap className="w-4 h-4 mr-2" />
@@ -1809,6 +1855,154 @@ export default function MarketScanner() {
                       <div className="text-muted-foreground">Break above/below channel bounds</div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Squeeze Tab Content — Bollinger Band coil detection */}
+          <TabsContent value="squeeze" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-purple-950/20 border-purple-600/30">
+                <CardContent className="py-3">
+                  <p className="text-purple-200 text-sm flex items-center gap-2">
+                    <Compass className="w-4 h-4" />
+                    <span>
+                      <strong>Bollinger Squeeze:</strong> Tight bands = coiling = explosive move incoming. The tighter the
+                      coil ratio, the bigger the snap. Direction unknown — wait for the firing bar. Approved-watchlist
+                      tickers are highlighted.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-purple-400" />
+                    Tightest Coils
+                    {squeezeQuery.data && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {squeezeQuery.data.squeezes.length} found · {squeezeQuery.data.totalScanned} scanned
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <Button
+                    onClick={() => squeezeQuery.refetch()}
+                    disabled={squeezeQuery.isFetching}
+                    variant="outline"
+                    size="sm"
+                    data-testid="refresh-squeeze"
+                  >
+                    {squeezeQuery.isFetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    <span className="ml-2">Refresh</span>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {squeezeQuery.isLoading && (
+                    <div className="py-12 text-center text-sm text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-3" />
+                      Scanning for coils across the universe…
+                    </div>
+                  )}
+                  {squeezeQuery.error && (
+                    <div className="py-6 text-center text-sm text-destructive">
+                      {(squeezeQuery.error as Error).message}
+                    </div>
+                  )}
+                  {squeezeQuery.data && squeezeQuery.data.squeezes.length === 0 && (
+                    <div className="py-12 text-center text-sm text-muted-foreground">
+                      No squeezes detected at this time. Bands across the universe are normal-width.
+                    </div>
+                  )}
+                  {squeezeQuery.data && squeezeQuery.data.squeezes.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-[10px] uppercase tracking-widest text-muted-foreground">
+                            <th className="text-left py-2 px-2">#</th>
+                            <th className="text-left py-2 px-2">Symbol</th>
+                            <th className="text-right py-2 px-2">Price</th>
+                            <th className="text-right py-2 px-2">Change</th>
+                            <th className="text-right py-2 px-2">Bandwidth</th>
+                            <th className="text-right py-2 px-2">Coil Ratio</th>
+                            <th className="text-right py-2 px-2">Strength</th>
+                            <th className="text-center py-2 px-2">Phase</th>
+                            <th className="text-right py-2 px-2">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {squeezeQuery.data.squeezes.map((row, i) => (
+                            <tr
+                              key={row.symbol}
+                              className={cn(
+                                'border-b border-border/50 hover:bg-muted/20 transition-colors',
+                                row.onWatchlist && 'bg-purple-500/5',
+                              )}
+                              data-testid={`squeeze-row-${row.symbol}`}
+                            >
+                              <td className="py-2 px-2 text-muted-foreground tabular-nums">#{(i + 1).toString().padStart(2, '0')}</td>
+                              <td className="py-2 px-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold tracking-wider text-foreground">{row.symbol}</span>
+                                  {row.onWatchlist && (
+                                    <Badge variant="outline" className="text-[8px] px-1 py-0 border-purple-500/50 text-purple-300">
+                                      WATCH
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-right tabular-nums">${row.price.toFixed(2)}</td>
+                              <td className={cn('py-2 px-2 text-right tabular-nums', row.changePct >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                {row.changePct >= 0 ? '+' : ''}{row.changePct.toFixed(2)}%
+                              </td>
+                              <td className="py-2 px-2 text-right tabular-nums text-purple-300">{row.squeeze.bandwidth.toFixed(2)}%</td>
+                              <td className="py-2 px-2 text-right tabular-nums">{row.squeeze.coilRatio.toFixed(2)}x</td>
+                              <td className="py-2 px-2 text-right">
+                                <div className="inline-flex items-center gap-1">
+                                  <div className="h-1.5 w-12 rounded bg-muted/30 overflow-hidden">
+                                    <div
+                                      className="h-full bg-purple-400"
+                                      style={{ width: `${row.squeeze.strength}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] tabular-nums text-muted-foreground">{row.squeeze.strength}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-center">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[9px] uppercase tracking-wider',
+                                    row.squeeze.phase === 'firing'
+                                      ? 'border-emerald-500/60 text-emerald-300 bg-emerald-500/10'
+                                      : row.squeeze.phase === 'building'
+                                      ? 'border-yellow-500/60 text-yellow-300 bg-yellow-500/10'
+                                      : 'border-border text-muted-foreground',
+                                  )}
+                                >
+                                  {row.squeeze.phase}
+                                </Badge>
+                              </td>
+                              <td className="py-2 px-2 text-right">
+                                <a
+                                  href={`/stock/${row.symbol}`}
+                                  className="text-[10px] font-mono text-purple-300 hover:text-purple-200 underline-offset-2 hover:underline"
+                                >
+                                  view →
+                                </a>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {squeezeQuery.data && (
+                    <div className="mt-3 text-[10px] font-mono text-muted-foreground text-right">
+                      Last scan: {new Date(squeezeQuery.data.lastScanTime).toLocaleTimeString()}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

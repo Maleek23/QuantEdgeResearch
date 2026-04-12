@@ -681,28 +681,6 @@ export function TradeIdeaDetailModal({
                 </p>
               </div>
 
-              <div className="p-4 rounded-lg bg-muted/30">
-                <h3 className="text-sm font-semibold mb-3">Market Sentiment</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-[var(--trade-bullish)]/10">
-                    <div className="text-2xl font-bold text-[var(--trade-bullish)]">
-                      {isLong ? '68%' : '32%'}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">Bullish</div>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-yellow-500/10">
-                    <div className="text-2xl font-bold text-yellow-500">21%</div>
-                    <div className="text-xs text-muted-foreground mt-1">Neutral</div>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-red-500/10">
-                    <div className="text-2xl font-bold text-[var(--trade-bearish)]">
-                      {isLong ? '11%' : '47%'}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">Bearish</div>
-                  </div>
-                </div>
-              </div>
-
               <div>
                 <h3 className="text-sm font-semibold mb-2">Market Session (When Generated)</h3>
                 <p className="text-sm text-muted-foreground">

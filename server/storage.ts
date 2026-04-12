@@ -174,6 +174,75 @@ export {
 
 // Import for use in this file
 import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
+import { logger } from "./logger";
+
+// ========================================
+// 🛡️ SHARED SCANNER VALIDATION GATE
+// ========================================
+/**
+ * Validates a trade idea before it's written to the DB. This is the single
+ * choke point all 18+ scanners pass through, so any contradiction caught
+ * here is one we won't have to fix downstream in the convictions engine
+ * or the UI.
+ *
+ * Rules:
+ *   1. Must have non-empty symbol + direction
+ *   2. Direction must be "long" or "short"
+ *   3. Entry / target / stop must all be positive finite numbers
+ *   4. Target must be on the correct side of entry for the direction
+ *      (long: target > entry; short: target < entry)
+ *   5. Stop must be on the opposite side of target from entry
+ *   6. R:R must be ≥ 0.5 (otherwise it's a fee-eating trap)
+ *   7. Catalyst text must not contradict the direction (no "long" with
+ *      explicit bearish language and vice versa)
+ */
+const BEARISH_KEYWORDS = /\b(bearish|breakdown|sell[- ]off|crash|plunge|tumble|collaps|rejected|reversal down|put wall|gamma flip down)\b/i;
+const BULLISH_KEYWORDS = /\b(bullish|breakout|squeeze|surge|rally|ramp|pop|moonshot|call wall break|gamma squeeze)\b/i;
+
+export function validateTradeIdeaForCreate(
+  idea: InsertTradeIdea,
+): { ok: true } | { ok: false; reason: string } {
+  const sym = (idea as any).symbol;
+  if (!sym || typeof sym !== "string") return { ok: false, reason: "missing symbol" };
+
+  const dir = ((idea as any).direction ?? "").toString().toLowerCase();
+  if (dir !== "long" && dir !== "short") return { ok: false, reason: `invalid direction "${dir}"` };
+
+  const entry = Number((idea as any).entryPrice);
+  const target = Number((idea as any).targetPrice);
+  const stop = Number((idea as any).stopLoss);
+
+  if (!Number.isFinite(entry) || entry <= 0) return { ok: false, reason: `invalid entry ${entry}` };
+  if (!Number.isFinite(target) || target <= 0) return { ok: false, reason: `invalid target ${target}` };
+  if (!Number.isFinite(stop) || stop <= 0) return { ok: false, reason: `invalid stop ${stop}` };
+
+  if (dir === "long") {
+    if (target <= entry) return { ok: false, reason: `long target ${target} ≤ entry ${entry}` };
+    if (stop >= entry) return { ok: false, reason: `long stop ${stop} ≥ entry ${entry}` };
+  } else {
+    if (target >= entry) return { ok: false, reason: `short target ${target} ≥ entry ${entry}` };
+    if (stop <= entry) return { ok: false, reason: `short stop ${stop} ≤ entry ${entry}` };
+  }
+
+  const reward = Math.abs(target - entry);
+  const risk = Math.abs(entry - stop);
+  if (risk <= 0) return { ok: false, reason: "zero risk distance" };
+  const rr = reward / risk;
+  if (rr < 0.5) return { ok: false, reason: `R:R ${rr.toFixed(2)} < 0.5 (trap)` };
+
+  // Catalyst sentiment vs direction
+  const catalyst = ((idea as any).catalyst ?? "").toString();
+  if (catalyst) {
+    if (dir === "long" && BEARISH_KEYWORDS.test(catalyst) && !BULLISH_KEYWORDS.test(catalyst)) {
+      return { ok: false, reason: `long but catalyst is bearish: "${catalyst.slice(0, 60)}"` };
+    }
+    if (dir === "short" && BULLISH_KEYWORDS.test(catalyst) && !BEARISH_KEYWORDS.test(catalyst)) {
+      return { ok: false, reason: `short but catalyst is bullish: "${catalyst.slice(0, 60)}"` };
+    }
+  }
+
+  return { ok: true };
+}
 
 /**
  * Get canonical "decided" trades - wins + real losses only
@@ -2404,6 +2473,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
+    // 🛡️ Shared validation gate — blocks malformed scanner output BEFORE
+    // it reaches the DB. Catches the entire class of bugs we kept fixing
+    // downstream (catalyst contradicts direction, target on wrong side of
+    // entry, R:R inverted, etc.) at the single write point. See
+    // validateTradeIdeaForCreate() below for the rules.
+    const validation = validateTradeIdeaForCreate(idea);
+    if (!validation.ok) {
+      logger.warn(
+        `[SCANNER-GATE] rejected ${(idea as any).source ?? "unknown"} idea ${(idea as any).symbol} ${(idea as any).direction}: ${validation.reason}`,
+      );
+      throw new Error(`Invalid trade idea: ${validation.reason}`);
+    }
+
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedIdea = {
       ...idea,

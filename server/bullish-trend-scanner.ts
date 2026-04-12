@@ -4,6 +4,7 @@ import { eq, desc, and, gte } from 'drizzle-orm';
 import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
+import { calculateSimpleTargets } from './atr-targets';
 
 // Track recently created trade ideas to avoid duplicates
 const recentTradeIdeas = new Map<string, Date>();
@@ -484,15 +485,37 @@ async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<v
       }
       
       const currentPrice = trend.currentPrice!;
-      
-      // Calculate targets based on momentum and technical levels
-      // For high momentum stocks, use 3-5% target, 2% stop
-      const targetPercent = trend.momentumScore! >= 85 ? 0.05 : 0.03;
-      const stopPercent = 0.02;
-      
-      const targetPrice = currentPrice * (1 + targetPercent);
-      const stopLoss = currentPrice * (1 - stopPercent);
-      const riskRewardRatio = targetPercent / stopPercent;
+
+      // 📐 ATR-BASED TARGET/STOP — replaces fixed % heuristic
+      // Pulls 60-day Yahoo history and uses close-to-close volatility for ATR estimate.
+      // Falls back gracefully if history unavailable.
+      let targetPrice: number;
+      let stopLoss: number;
+      let riskRewardRatio: number;
+      try {
+        const histForTargets = await fetchHistoricalData(symbol, '3mo');
+        const closes = histForTargets?.prices || [];
+        if (closes.length >= 14) {
+          const targets = calculateSimpleTargets({
+            currentPrice,
+            closes,
+            direction: 'long',
+            holdingPeriod: 'swing',
+          });
+          targetPrice = targets.target;
+          stopLoss = targets.stop;
+          riskRewardRatio = targets.riskRewardRatio;
+        } else {
+          throw new Error('insufficient history');
+        }
+      } catch {
+        // Hard fallback — momentum-tier % targets
+        const targetPercent = trend.momentumScore! >= 85 ? 0.05 : 0.03;
+        const stopPercent = 0.02;
+        targetPrice = currentPrice * (1 + targetPercent);
+        stopLoss = currentPrice * (1 - stopPercent);
+        riskRewardRatio = targetPercent / stopPercent;
+      }
       
       // Build signals array
       const signals: string[] = [];

@@ -16,19 +16,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   Home,
   Brain,
-  TrendingUp,
-  LineChart,
-  SlidersHorizontal,
-  Zap,
-  Crosshair,
-  Activity,
   Star,
   Trophy,
   GraduationCap,
   BookOpen,
   Settings,
-  Target,
   Search,
+  Activity,
+  Bot,
+  Flame,
 } from "lucide-react";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,16 +37,27 @@ interface NavItem {
   badge?: string;
 }
 
+// ────────────────────────────────────────────────────────────────────
+// IA: three-tier sidebar
+//
+//   DISCOVERY  → how you find tickers worth attention
+//   DESTINATION → /t/:symbol owns the per-ticker analytics (no sidebar
+//                  entry — you get there from search or scanners)
+//   ACTION     → where you stage / execute / journal trades
+//
+// Removed (folded into other surfaces):
+//   • Command / GEX Scanner / Flow → merged into Scanner with filter
+//     chips. The deep chart now lives at /t/:symbol/chart.
+//   • Academy / Blog → moved to footer (learning isn't a daily action).
+// ────────────────────────────────────────────────────────────────────
+
 const mainItems: NavItem[] = [
   { id: "home", title: "Home", icon: Home, href: "/home" },
-  { id: "trade-desk", title: "Trade Desk", icon: Brain, href: "/trade-desk", badge: "AI" },
-  { id: "command", title: "Command", icon: Target, href: "/command" },
+  { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI" },
   { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner" },
-  { id: "flow", title: "Flow", icon: Zap, href: "/flow" },
-];
-
-const toolItems: NavItem[] = [
+  { id: "gex-hub", title: "GEX Hub", icon: Activity, href: "/gex" },
   { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist" },
+  { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
   { id: "performance", title: "Performance", icon: Trophy, href: "/performance" },
 ];
 
@@ -136,7 +143,6 @@ export function AppSidebar() {
 
       <SidebarContent className="px-1.5 py-2 space-y-1">
         <NavGroup items={mainItems} />
-        <NavGroup items={toolItems} label="Tools" />
         <NavGroup items={learnItems} label="Learn" />
       </SidebarContent>
 
