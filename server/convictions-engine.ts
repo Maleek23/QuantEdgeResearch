@@ -1372,8 +1372,17 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       .limit(skipLiveRevalidation ? 20000 : 500),
   ]);
 
+  // Include ideas for approved tickers OR user watchlist symbols
+  let userWatchlistSymbols: Set<string> | null = null;
+  try {
+    const { getScannerUniverse } = await import("./scanner-universe");
+    const { watchlistSymbols: ws } = await getScannerUniverse();
+    userWatchlistSymbols = ws;
+  } catch {}
   let watchlistFiltered = watchlistOnly
-    ? rawIdeas.filter((idea: any) => isApprovedTicker(idea.symbol))
+    ? rawIdeas.filter((idea: any) =>
+        isApprovedTicker(idea.symbol) || userWatchlistSymbols?.has(idea.symbol.toUpperCase()),
+      )
     : rawIdeas;
 
   // Hard restrict to weekly watchlist tickers if requested

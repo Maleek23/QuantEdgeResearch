@@ -88,6 +88,13 @@ export const SKIP_TICKERS: Set<string> = new Set<string>([
 ]);
 
 /**
+ * Return all approved symbols as an array (for scanner universe merging).
+ */
+export function getAllApprovedSymbols(): string[] {
+  return Array.from(APPROVED_TICKERS);
+}
+
+/**
  * Check if a ticker is on the approved watchlist
  */
 export function isApprovedTicker(symbol: string): boolean {

@@ -12842,6 +12842,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("POST /api/watchlist - Validated:", JSON.stringify(itemWithTimestamp));
       const item = await storage.addToWatchlist(itemWithTimestamp as any);
+      // Invalidate scanner universe cache so next scan picks up the new symbol
+      try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
       res.status(201).json(item);
     } catch (error: any) {
       console.error("POST /api/watchlist - Validation error:", error);
@@ -13009,6 +13011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!deleted) {
         return res.status(404).json({ error: "Watchlist item not found" });
       }
+      try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete watchlist item" });
