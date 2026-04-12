@@ -3,7 +3,14 @@
  * Clean architecture with dedicated sections for different trading views
  */
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense, lazy } from "react";
+
+// Lazy-loaded extracted views
+const OvernightView = lazy(() => import("@/components/trade-desk/overnight-view"));
+const SurgesView = lazy(() => import("@/components/trade-desk/surges-view"));
+const ConvergenceView = lazy(() => import("@/components/trade-desk/convergence-view"));
+const MoversView = lazy(() => import("@/components/trade-desk/movers-view"));
+const HotSymbolsView = lazy(() => import("@/components/trade-desk/hot-symbols-view"));
 import html2canvas from "html2canvas";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -3937,21 +3944,27 @@ export default function TradeDeskRedesigned() {
           {/* Left: Tabs + Ideas */}
           <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
-        {/* Navigation Tabs — Bloomberg density */}
+        {/* Sub-Navigation — horizontal strip surfacing all sections */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none">
-            <TabsTrigger value="ideas" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Layers className="w-3 h-3 mr-1 opacity-60" />
-              Plays
-            </TabsTrigger>
-            <TabsTrigger value="flow" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Activity className="w-3 h-3 mr-1 opacity-60" />
-              Flow
-            </TabsTrigger>
-            <TabsTrigger value="strategy" className="relative rounded-none border-b-2 border-transparent px-3 pb-2 pt-0.5 text-xs font-mono font-medium text-muted-foreground transition-all data-[state=active]:border-[var(--trade-bullish)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80">
-              <Target className="w-3 h-3 mr-1 opacity-60" />
-              Strategy
-            </TabsTrigger>
+          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none overflow-x-auto no-scrollbar">
+            {[
+              { value: 'ideas', label: 'AI Picks', icon: Layers },
+              { value: 'overnight', label: 'Overnight', icon: TrendingUp },
+              { value: 'surges', label: 'Surges', icon: Zap },
+              { value: 'convergence', label: 'Convergence', icon: Target },
+              { value: 'movers', label: 'Movers', icon: BarChart3 },
+              { value: 'flow', label: 'Flow', icon: Activity },
+              { value: 'strategy', label: 'Strategy', icon: Target },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="relative rounded-none border-b-2 border-transparent px-2.5 pb-1.5 pt-0.5 text-[10px] font-mono font-medium text-muted-foreground transition-all whitespace-nowrap data-[state=active]:border-[var(--brand-teal)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80"
+              >
+                <tab.icon className="w-2.5 h-2.5 mr-0.5 opacity-50 inline" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* TODAY'S PLAYS TAB */}
@@ -3980,13 +3993,41 @@ export default function TradeDeskRedesigned() {
             )}
           </TabsContent>
 
-          {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
-          <TabsContent value="flow" className="space-y-4 mt-4">
+          {/* OVERNIGHT — pre-market surge predictions */}
+          <TabsContent value="overnight" className="mt-3">
+            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading overnight predictions...</div>}>
+              <OvernightView />
+            </Suspense>
+          </TabsContent>
+
+          {/* SURGES — breakout detection */}
+          <TabsContent value="surges" className="mt-3">
+            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading surge detection...</div>}>
+              <SurgesView />
+            </Suspense>
+          </TabsContent>
+
+          {/* CONVERGENCE — multi-signal agreement */}
+          <TabsContent value="convergence" className="mt-3">
+            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading convergence signals...</div>}>
+              <ConvergenceView />
+            </Suspense>
+          </TabsContent>
+
+          {/* MOVERS — market gainers/losers */}
+          <TabsContent value="movers" className="mt-3">
+            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading market movers...</div>}>
+              <MoversView />
+            </Suspense>
+          </TabsContent>
+
+          {/* FLOW & LEVELS - GEX, Dark Pool, Whale Flow */}
+          <TabsContent value="flow" className="mt-3">
             <FlowLevelsPanel />
           </TabsContent>
 
-          {/* STRATEGY LAB TAB - Options Builder (OptionStrat clone) */}
-          <TabsContent value="strategy" className="space-y-4 mt-4">
+          {/* STRATEGY LAB - Options Builder */}
+          <TabsContent value="strategy" className="mt-3">
             <StrategyLab />
           </TabsContent>
         </Tabs>
