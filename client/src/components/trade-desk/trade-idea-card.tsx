@@ -23,7 +23,6 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { displayedScore, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
-import { getTier } from "../../../../shared/approved-tickers";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -244,23 +243,6 @@ function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
   if (pb.startsWith("B")) return "B";
   if (pb.startsWith("C")) return "C";
   return "C";
-}
-
-function tierBadgeColor(tier: ReturnType<typeof getTier>): string {
-  switch (tier) {
-    case "MEGA":
-      return "bg-violet-500/15 text-violet-300 border-violet-500/30";
-    case "S":
-      return "bg-amber-500/15 text-amber-300 border-amber-500/30";
-    case "A":
-      return "bg-cyan-500/15 text-cyan-300 border-cyan-500/30";
-    case "INDEX":
-      return "bg-purple-500/15 text-purple-300 border-purple-500/30";
-    case "SECONDARY":
-      return "bg-zinc-500/15 text-zinc-300 border-zinc-500/30";
-    default:
-      return "bg-zinc-700/30 text-zinc-400 border-zinc-700/50";
-  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -568,7 +550,6 @@ function FullVariant({
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
-  const tier = getTier(idea.symbol);
   // H9: single source of truth for the displayed score.
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
@@ -594,16 +575,6 @@ function FullVariant({
           <span className="text-xl font-bold font-mono text-foreground">
             {idea.symbol}
           </span>
-          {tier && (
-            <span
-              className={cn(
-                "px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase rounded border",
-                tierBadgeColor(tier),
-              )}
-            >
-              {tier}
-            </span>
-          )}
           <div className={cn("flex items-center gap-0.5", dirColor)}>
             <DirIcon className="w-4 h-4" />
             <span className="text-[10px] font-mono uppercase font-bold">
