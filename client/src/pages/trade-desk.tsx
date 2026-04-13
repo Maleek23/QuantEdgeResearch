@@ -58,7 +58,6 @@ function getIdeaSessionBadge(timestamp: string | undefined): { label: string; cl
   return null;
 }
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -115,8 +114,6 @@ import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
-import { FlowLevelsPanel } from "@/components/flow-levels-panel";
-import { StrategyLab } from "@/components/strategy-lab";
 import { TradeIdeasPanel } from "@/components/trade-desk/trade-ideas-panel";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 
@@ -3587,123 +3584,12 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
 }
 
 // ============================================
-// WEEKLY SWING LOOKOUTS
-// ============================================
-interface SwingLookout {
-  symbol: string;
-  direction: string;
-  convictionScore: number;
-  convictionBand: string;
-  entryPrice: number;
-  targetPrice: number;
-  stopLoss: number;
-  thesis: string;
-  holdingPeriod: string;
-  source: string;
-  layers: string[];
-  ageHours: number;
-}
-
-function WeeklySwingLookouts() {
-  const scannerInterval = useMarketPoll(POLL.HEAVY.open, POLL.HEAVY.closed);
-  const { data, isLoading } = useQuery<{ lookouts: SwingLookout[]; totalCandidates: number; generatedAt: string }>({
-    queryKey: ['/api/discovery/weekly-swing-lookouts'],
-    refetchInterval: scannerInterval,
-    staleTime: 5 * 60_000,
-  });
-
-  const lookouts = data?.lookouts || [];
-
-  return (
-    <Card className="border-border/30 bg-card/50">
-      <div className="p-4 border-b border-border/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[var(--brand-teal)]" />
-            <h3 className="text-sm font-semibold">Next Week Swing Lookouts</h3>
-            <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 font-mono bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] border-[var(--brand-teal)]/30">
-              {lookouts.length} setups
-            </Badge>
-          </div>
-          {data?.generatedAt && (
-            <div className="flex items-center gap-1.5">
-              {(() => {
-                const sb = getIdeaSessionBadge(data.generatedAt);
-                return sb ? <span className={sb.cls}>{sb.label}</span> : null;
-              })()}
-              <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60")}>
-                {getRelativeTime(data.generatedAt)}
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1">
-          Swing candidates building conviction — 7-day lookback, sorted by confluence score
-        </p>
-      </div>
-      <div className="divide-y divide-border/10">
-        {isLoading && (
-          <div className="p-6 text-center text-xs text-muted-foreground">Scanning for swing setups...</div>
-        )}
-        {!isLoading && lookouts.length === 0 && (
-          <div className="p-6 text-center text-xs text-muted-foreground">No swing lookouts found — check back during market hours</div>
-        )}
-        {lookouts.map((l) => {
-          const isLong = l.direction?.toLowerCase() === 'long';
-          const rr = l.stopLoss && l.entryPrice && l.targetPrice
-            ? Math.abs(l.targetPrice - l.entryPrice) / Math.abs(l.entryPrice - l.stopLoss)
-            : 0;
-          return (
-            <Link key={l.symbol} href={`/terminal/${l.symbol}`}>
-              <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/30 cursor-pointer transition-colors">
-                <div className="w-14">
-                  <span className="text-xs font-bold">{l.symbol}</span>
-                  <div className={`text-[9px] font-mono ${isLong ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-                    {isLong ? '▲ LONG' : '▼ SHORT'}
-                  </div>
-                </div>
-                <Badge variant="outline" className={`text-[8px] px-1 py-0 h-4 font-mono ${
-                  l.convictionBand === 'S' || l.convictionBand?.startsWith('A') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                  l.convictionBand?.startsWith('B') ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' :
-                  'bg-muted/20 text-muted-foreground border-border/30'
-                }`}>
-                  {l.convictionBand || '—'}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-muted-foreground truncate">{l.thesis || l.layers?.join(' · ') || '—'}</p>
-                </div>
-                <div className="text-right shrink-0 space-y-0.5">
-                  <div className="text-[10px] font-mono">${l.entryPrice?.toFixed(2)}</div>
-                  <div className="text-[9px] font-mono text-muted-foreground">
-                    T: ${l.targetPrice?.toFixed(2)} · S: ${l.stopLoss?.toFixed(2)}
-                    {rr > 0 && ` · ${rr.toFixed(1)}R`}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-// ============================================
 // MAIN TRADE DESK COMPONENT
 // ============================================
 export default function TradeDeskRedesigned() {
   const { toast } = useToast();
   const [location] = useLocation();
 
-  // Detect sub-page from path
-  const getInitialTab = () => {
-    if (location.includes("/flow") || location.includes("/levels") || location.includes("/gex")) return "flow";
-    if (location.includes("/strategy") || location.includes("/options")) return "strategy";
-    if (location.includes("/best-setups") || location.includes("/movers") || location.includes("/breakouts")) return "ideas";
-    return "ideas"; // Default to Today's Plays tab
-  };
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
   const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist' | 'tv'>('all');
   // Trade idea detail modal state
@@ -4127,29 +4013,12 @@ export default function TradeDeskRedesigned() {
           {/* Left: Tabs + Ideas */}
           <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
-        {/* Navigation Tabs — Bloomberg density */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none">
-            <TabsTrigger value="ideas" className={componentStyles.tab.underline}>
-              <Layers className="w-3 h-3 mr-1 opacity-60" />
-              Plays
-            </TabsTrigger>
-            <TabsTrigger value="flow" className={componentStyles.tab.underline}>
-              <Activity className="w-3 h-3 mr-1 opacity-60" />
-              Flow
-            </TabsTrigger>
-            <TabsTrigger value="strategy" className={componentStyles.tab.underline}>
-              <Target className="w-3 h-3 mr-1 opacity-60" />
-              Strategy
-            </TabsTrigger>
-          </TabsList>
-
-          {/* TODAY'S PLAYS TAB */}
-          <TabsContent value="ideas" className="space-y-3 mt-3">
+        {/* Plays content — no tabs needed, Flow & Strategy live in Quant Seeker */}
+        <div className="space-y-3 mt-3">
             {/* PRE-MARKET GAPPERS — overnight movers from weekly + approved universe */}
             <PreMarketGappersCard />
 
-            {/* TRADE IDEAS — new Convictions-style panel with filters, presets, view modes, drawer */}
+            {/* TRADE IDEAS — Convictions-style panel with filters, presets, view modes, drawer */}
             <TradeIdeasPanel />
 
             {/* Empty state with generate button */}
@@ -4168,26 +4037,7 @@ export default function TradeDeskRedesigned() {
                 </div>
               </div>
             )}
-          </TabsContent>
-
-          {/* FLOW & LEVELS TAB - GEX, Dark Pool, Whale Flow */}
-          <TabsContent value="flow" className="space-y-4 mt-4">
-            <FlowLevelsPanel />
-          </TabsContent>
-
-          {/* STRATEGY TAB - Weekly Lookouts + Options Builder */}
-          <TabsContent value="strategy" className="space-y-4 mt-4">
-            <WeeklySwingLookouts />
-            <StrategyLab />
-            <div className="flex justify-end">
-              <Link href="/strategy-playbooks">
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1">
-                  Browse Strategy Playbooks <ChevronRight className="w-3 h-3" />
-                </Button>
-              </Link>
-            </div>
-          </TabsContent>
-        </Tabs>
+        </div>
           </div>{/* End left column */}
 
           {/* Right: Insights Side Panel (collapsible) */}
