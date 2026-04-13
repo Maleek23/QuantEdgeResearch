@@ -34,6 +34,7 @@ import {
   TradeIdeaCardData,
   ConvictionLayer,
   LAYER_STYLES,
+  GEXContractSuggestion,
 } from "./trade-idea-card";
 import { getTier } from "../../../../shared/approved-tickers";
 
@@ -202,7 +203,7 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
         {/* Footer actions */}
         <div className="sticky bottom-0 left-0 right-0 px-5 py-3 border-t border-foreground/10 bg-background flex items-center gap-2">
           <Link
-            href={`/t/${idea.symbol}/chart`}
+            href={`/terminal/${idea.symbol}`}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors text-[11px] font-mono uppercase tracking-wider"
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -310,6 +311,9 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
           </div>
         </div>
       )}
+
+      {/* GEX-suggested contract (when no explicit option play exists) */}
+      <GEXContractSuggestion idea={idea} />
 
       {/* Catalyst / thesis */}
       {(idea.catalyst || idea.thesis) && (

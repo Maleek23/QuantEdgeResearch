@@ -409,7 +409,7 @@ function LayerChip({ layer }: { layer: ConvictionLayer }) {
 // GEX-Suggested Contract — auto-picks strike + expiry from GEX levels
 // ─────────────────────────────────────────────────────────────
 
-function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
+export function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
   // Only suggest for stock ideas that don't already have an options play
   if (idea.optionType && idea.strikePrice) return null;
 
