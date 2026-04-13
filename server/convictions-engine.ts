@@ -1712,10 +1712,16 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       if (sectorLayer) {
         p.layers.push(sectorLayer);
       }
-      const liveQ = liveQuotes.get(p.symbol);
-      const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice, liveQ?.price);
-      if (analystLayer) {
-        p.layers.push(analystLayer);
+      // Analyst 12-month targets only matter for position / leap holds.
+      // For day / swing trades they're noise — skip entirely.
+      const hp = (p.holdingPeriod || p.tradeType || "").toLowerCase();
+      const isLongHold = hp.includes("position") || hp.includes("long") || hp.includes("leap");
+      if (isLongHold) {
+        const liveQ = liveQuotes.get(p.symbol);
+        const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice, liveQ?.price);
+        if (analystLayer) {
+          p.layers.push(analystLayer);
+        }
       }
       p.layerCount = p.layers.length;
     }),
