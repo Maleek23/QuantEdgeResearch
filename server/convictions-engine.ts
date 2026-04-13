@@ -540,15 +540,19 @@ function scoreAnalystLayer(
   snap: AnalystSnapshot | null,
   direction: "long" | "short",
   entryPrice: number,
+  livePrice?: number,
 ): ConvictionLayer | null {
   if (!snap) return null;
   if ((snap.numberOfAnalysts ?? 0) < 3) return null;
   if (snap.recommendationMean === null && snap.targetMeanPrice === null) return null;
 
   const meanRec = snap.recommendationMean ?? 3;
+  // Use live price for upside calc — entry price can be far from current
+  // spot after a big move, inflating/deflating the upside unrealistically.
+  const refPrice = (livePrice && livePrice > 0) ? livePrice : entryPrice;
   const upsidePct =
-    snap.targetMeanPrice && entryPrice > 0
-      ? ((snap.targetMeanPrice - entryPrice) / entryPrice) * 100
+    snap.targetMeanPrice && refPrice > 0
+      ? ((snap.targetMeanPrice - refPrice) / refPrice) * 100
       : null;
 
   const reasons: string[] = [];
@@ -790,6 +794,10 @@ function scorePreMarketLayer(
   snap: PreMarketSnapshot | undefined,
 ): ConvictionLayer | null {
   if (!snap) return null;
+  // When the market is closed (weekends / holidays) the "gap" is just
+  // last session's return, not an actual pre-market signal.  Skip it —
+  // the freshness layer already penalizes staleness.
+  if (snap.phase === "closed") return null;
   const gap = snap.gapPct;
   if (!Number.isFinite(gap) || Math.abs(gap) < 1) return null;
 
@@ -1704,7 +1712,8 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       if (sectorLayer) {
         p.layers.push(sectorLayer);
       }
-      const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice);
+      const liveQ = liveQuotes.get(p.symbol);
+      const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice, liveQ?.price);
       if (analystLayer) {
         p.layers.push(analystLayer);
       }
