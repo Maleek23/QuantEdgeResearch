@@ -265,7 +265,7 @@ export function TradeIdeaCard({
 
         {showGexLink && (
           <Link
-            href={`/command/${idea.symbol}`}
+            href={`/terminal/${idea.symbol}`}
             onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 hover:border-cyan-500/50 transition-colors"
             data-testid={`link-gex-${idea.symbol}`}

@@ -716,11 +716,32 @@ async function scoreSectorLayer(symbol: string, sector: Sector, direction: "long
  */
 function maxAgeHoursForIdea(idea: any): number {
   const hp: string = (idea.holdingPeriod || idea.tradeType || "").toLowerCase();
-  if (hp.includes("day") || hp.includes("intraday") || hp.includes("scalp")) return 6;
-  if (hp.includes("swing")) return 36;
-  if (hp.includes("position") || hp.includes("long")) return 96;
-  // Unknown — use the swing default rather than the loose old 72h
-  return 24;
+
+  // Base caps (market-hours only logic)
+  let cap: number;
+  if (hp.includes("day") || hp.includes("intraday") || hp.includes("scalp")) cap = 6;
+  else if (hp.includes("swing")) cap = 36;
+  else if (hp.includes("position") || hp.includes("long")) cap = 96;
+  else cap = 24; // unknown → swing default
+
+  // Weekend extension: market is closed Sat+Sun (~48h). If we're currently in
+  // a weekend window, extend the cap so Friday's ideas survive until Monday
+  // pre-market. Without this, day ideas (6h cap) die Saturday morning and
+  // swing ideas (36h cap) die Sunday afternoon — leaving Trade Desk empty.
+  const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = nowET.getDay(); // 0=Sun, 6=Sat
+  const hour = nowET.getHours();
+  const isWeekend = day === 0 || day === 6;
+  // Also cover Friday after-hours (after 8pm ET) and Monday pre-market (before 4am ET)
+  const isFridayEvening = day === 5 && hour >= 20;
+  const isMondayEarlyAM = day === 1 && hour < 4;
+
+  if (isWeekend || isFridayEvening || isMondayEarlyAM) {
+    // Add ~52h buffer (Fri 8pm → Mon 4am ≈ 56h, with margin)
+    cap += 52;
+  }
+
+  return cap;
 }
 
 /**

@@ -13,7 +13,7 @@
  *
  * Formulas:
  *   GEX(strike) = OI × Gamma × 100 × S² × sign_convention / 1e9
- *   VEX(strike) = OI × Vanna × 100 × S  / 1e9      (per 1% vol move)
+ *   VEX(strike) = OI × Vanna × 100 × S  / 1e6      (per 1% vol move, in $M)
  *   DEX(strike) = OI × Delta × 100 × S              / 1e9
  *   Charm(strike) = OI × dDelta/dt  × 100 × S       / 1e9
  *
@@ -96,11 +96,22 @@ export interface ExposureSnapshot {
   // Strike detail (top-N by |GEX|)
   strikes: StrikeExposure[];
 
+  // Strike × Expiration matrix (for Skylit-style heatmap)
+  strikeExpiryMatrix: StrikeExpiryCell[];
+
   // Diagnostics
   expirationsUsed: string[];
   strikesScanned: number;
   strikesWithOI: number;
   vannaComputed: number;    // How many vanna values were computed vs provided
+}
+
+export interface StrikeExpiryCell {
+  strike: number;
+  expiryLabel: string;  // e.g. "APR 14"
+  dte: number;
+  netGEX: number;       // in billions
+  netVEX: number;       // in millions
 }
 
 // ─── Black-Scholes helpers ──────────────────────────────────
@@ -184,6 +195,7 @@ export function computeExposures(
   }
 
   const strikeMap = new Map<number, StrikeExposure>();
+  const expiryMap = new Map<string, StrikeExpiryCell>(); // key: "strike|dte"
   let vannaComputedCount = 0;
   const S2 = spotPrice * spotPrice;
   const MULT = 100;
@@ -232,18 +244,22 @@ export function computeExposures(
     const weight = dteWeight(opt.daysToExpiry);
 
     // GEX: call = +, put = − (dealer convention)
+    // Formula: OI × Gamma × 100 × 0.01 × S² / 1e9  (per 1% move, in $B)
+    // The 100 (contract multiplier) × 0.01 (1% factor) cancel to 1.
     const callGexContribution = isCall
-      ? effectiveOI * gamma! * MULT * S2 * weight / 1e9
+      ? effectiveOI * gamma! * S2 * weight / 1e9
       : 0;
     const putGexContribution = !isCall
-      ? -effectiveOI * gamma! * MULT * S2 * weight / 1e9
+      ? -effectiveOI * gamma! * S2 * weight / 1e9
       : 0;
 
-    // VEX: vanna · OI · contract × spot (normalized to billions)
+    // VEX: vanna · OI · contract × spot (normalized to millions)
     // Sign convention: positive vanna → price up when IV up
     // For calls: dealer short → dealer's vanna negative contribution
     // For puts: dealer long → dealer's vanna positive contribution
-    const vexContribution = (isCall ? -1 : 1) * effectiveOI * vanna! * MULT * spotPrice * weight / 1e9;
+    // Note: VEX uses /1e6 (not /1e9 like GEX) because vanna×S produces values
+    // ~250x smaller than gamma×S² — using /1e9 makes most VEX values sub-threshold.
+    const vexContribution = (isCall ? -1 : 1) * effectiveOI * vanna! * MULT * spotPrice * weight / 1e6;
 
     // DEX (delta exposure)
     const dexContribution = (isCall ? -1 : 1) * effectiveOI * delta! * MULT * spotPrice * weight / 1e9;
@@ -285,6 +301,19 @@ export function computeExposures(
     if (!entry.dtes.includes(opt.daysToExpiry)) {
       entry.dtes.push(opt.daysToExpiry);
     }
+
+    // Per-expiry matrix accumulation
+    const dteBucket = Math.round(opt.daysToExpiry);
+    const expiryKey = `${opt.strike}|${dteBucket}`;
+    const gexContrib = callGexContribution + putGexContribution;
+    if (!expiryMap.has(expiryKey)) {
+      const expiryDate = new Date(Date.now() + dteBucket * 86400000);
+      const expiryLabel = expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+      expiryMap.set(expiryKey, { strike: opt.strike, expiryLabel, dte: dteBucket, netGEX: 0, netVEX: 0 });
+    }
+    const expiryCell = expiryMap.get(expiryKey)!;
+    expiryCell.netGEX += gexContrib;
+    expiryCell.netVEX += vexContribution;
   }
 
   // Compute net exposures
@@ -305,6 +334,7 @@ export function computeExposures(
       maxGammaStrike: spotPrice, maxVannaStrike: spotPrice,
       callWall: null, putWall: null, zeroGammaProjection: null,
       strikes: [],
+      strikeExpiryMatrix: [],
       expirationsUsed, strikesScanned: 0, strikesWithOI: 0, vannaComputed: 0,
     };
   }
@@ -383,16 +413,17 @@ export function computeExposures(
     : 'transitioning';
 
   // VEX regime: positive VEX = vol tailwind (higher vol = higher price via vanna)
+  // VEX is in $M (not $B like GEX), so thresholds are 1000× the old values
   const vexRegime: ExposureSnapshot['vexRegime'] =
-    totalVEX > 0.15 ? 'vol_tailwind'
-    : totalVEX < -0.15 ? 'vol_headwind'
+    totalVEX > 150 ? 'vol_tailwind'
+    : totalVEX < -150 ? 'vol_headwind'
     : 'vol_neutral';
 
   const strikesWithOI = strikes.filter((s) => s.callOI + s.putOI > 0).length;
 
   logger.info(
     `[EXPOSURES] ${symbol}: ${strikes.length} strikes, ` +
-    `GEX=${totalGEX.toFixed(2)}B VEX=${totalVEX.toFixed(2)}B DEX=${totalDEX.toFixed(2)}B ` +
+    `GEX=${totalGEX.toFixed(2)}B VEX=${totalVEX.toFixed(1)}M DEX=${totalDEX.toFixed(2)}B ` +
     `flip=$${gammaFlipPrice || '—'} vflip=$${vannaFlipPrice || '—'} ` +
     `maxγ=$${maxGammaStrike} maxV=$${maxVannaStrike} ` +
     `regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
@@ -408,6 +439,9 @@ export function computeExposures(
     maxGammaStrike, maxVannaStrike,
     callWall, putWall, zeroGammaProjection,
     strikes,
+    strikeExpiryMatrix: Array.from(expiryMap.values())
+      .filter(c => Math.abs(c.netGEX) > 0.0001)
+      .sort((a, b) => b.strike - a.strike || a.dte - b.dte),
     expirationsUsed,
     strikesScanned: strikes.length,
     strikesWithOI,

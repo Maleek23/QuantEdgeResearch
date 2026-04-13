@@ -101,7 +101,7 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: true, // refresh when user returns to tab
       refetchOnReconnect: true, // refresh when network comes back
       refetchOnMount: true, // refresh when navigating to a page
-      staleTime: 30 * 1000, // 30 seconds — data goes stale quickly
+      staleTime: 2 * 60 * 1000, // 2 minutes — prevents redundant refetches on navigation
       gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
       retry: 1, // One retry for transient failures
       retryDelay: 1000,

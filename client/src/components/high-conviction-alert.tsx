@@ -51,7 +51,7 @@ export function HighConvictionAlertProvider({
   const { data: ideas } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas/best-setups', 'alerts'],
     queryFn: async () => {
-      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=20');
+      const res = await fetch('/api/trade-ideas/best-setups?period=daily&limit=20&watchlistOnly=true');
       if (!res.ok) return [];
       const data = await res.json();
       return data.setups || [];

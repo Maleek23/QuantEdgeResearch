@@ -397,7 +397,7 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
     source: string;
     timestamp?: string;
   }> }>({
-    queryKey: ["/api/trade-ideas/best-setups?limit=8"],
+    queryKey: ["/api/trade-ideas/best-setups?limit=8&watchlistOnly=true"],
     refetchInterval: 60000,
   });
 

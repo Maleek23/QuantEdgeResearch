@@ -17,8 +17,10 @@ import {
   Target,
   Activity,
   ExternalLink,
+  Crosshair,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { displayedScore, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
 import { getTier } from "../../../../shared/approved-tickers";
@@ -87,6 +89,7 @@ export interface TradeIdeaCardData {
 
   // Meta
   generatedAt?: string;
+  timestamp?: string;
   sector?: string;
 }
 
@@ -321,7 +324,23 @@ function FreshnessPill({ idea }: { idea: TradeIdeaCardData }) {
   const age = idea.ageHours;
   const drift = idea.driftPct;
   const flags = idea.freshnessFlags ?? [];
-  if (age == null && drift == null && flags.length === 0) return null;
+  const ts = idea.generatedAt || idea.timestamp;
+
+  // Detect if idea is from a previous session (e.g., Friday's scan on weekend)
+  const sessionLabel = (() => {
+    if (!ts) return null;
+    const ideaET = new Date(new Date(ts).toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    if (ideaET.toDateString() === nowET.toDateString()) return null;
+    const ideaDay = ideaET.getDay();
+    const nowDay = nowET.getDay();
+    if (ideaDay === 5 && (nowDay === 0 || nowDay === 6 || nowDay === 1)) return 'FRI';
+    const daysDiff = Math.floor((nowET.getTime() - ideaET.getTime()) / (24 * 60 * 60 * 1000));
+    if (daysDiff >= 1) return `${daysDiff}D`;
+    return null;
+  })();
+
+  if (age == null && drift == null && flags.length === 0 && !sessionLabel) return null;
 
   const isLong = idea.direction === "long";
   // "Against" the trade direction
@@ -359,6 +378,8 @@ function FreshnessPill({ idea }: { idea: TradeIdeaCardData }) {
           : "Server-side freshness check"
       }
     >
+      {sessionLabel && <span className="text-amber-300">{sessionLabel}</span>}
+      {sessionLabel && (ageLabel || driftLabel) && <span className="opacity-50">·</span>}
       {ageLabel && <span>{ageLabel}</span>}
       {ageLabel && driftLabel && <span className="opacity-50">·</span>}
       {driftLabel && <span>{driftLabel}</span>}
@@ -381,6 +402,134 @@ function LayerChip({ layer }: { layer: ConvictionLayer }) {
       {style.icon} {sign}
       {layer.points}
     </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// GEX-Suggested Contract — auto-picks strike + expiry from GEX levels
+// ─────────────────────────────────────────────────────────────
+
+function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
+  // Only suggest for stock ideas that don't already have an options play
+  if (idea.optionType && idea.strikePrice) return null;
+
+  const { data } = useQuery<{
+    callWall?: number;
+    putWall?: number;
+    maxGammaStrike?: number;
+    gammaFlipPrice?: number;
+    spotPrice?: number;
+    regime?: string;
+    levels?: Array<{ strike: number; role: string; netGEX: number }>;
+    strikeExpiryMatrix?: Array<{ strike: number; expiryLabel: string; dte: number; netGEX: number }>;
+  }>({
+    queryKey: [`/api/gex-vex/terminal/${idea.symbol}`, 'contract-hint'],
+    queryFn: async () => {
+      const res = await fetch(`/api/gex-vex/terminal/${idea.symbol}`, { credentials: 'include' });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 5 * 60_000, // 5 min cache — GEX doesn't change fast
+    retry: 0,
+  });
+
+  if (!data?.spotPrice || !data?.callWall) return null;
+
+  const isLong = idea.direction === 'long';
+  const optionType = isLong ? 'CALL' : 'PUT';
+
+  // Strike selection logic based on GEX levels:
+  // Long: pick slightly ITM or ATM strike near positive gamma support
+  // Short: pick slightly ITM or ATM strike near negative gamma / put wall
+  let suggestedStrike: number;
+  const spot = data.spotPrice;
+
+  if (isLong) {
+    // For calls: go ATM or 1-2 strikes ITM for swing (delta ~0.55-0.65)
+    // Use max gamma strike if it's near/below spot (support level)
+    const anchor = data.maxGammaStrike && data.maxGammaStrike <= spot * 1.02
+      ? data.maxGammaStrike
+      : spot;
+    // Round down to nearest $5 increment for cleaner strikes
+    const increment = spot > 200 ? 10 : spot > 50 ? 5 : spot > 10 ? 2.5 : 1;
+    suggestedStrike = Math.floor(anchor / increment) * increment;
+  } else {
+    // For puts: go ATM or 1-2 strikes ITM
+    const anchor = data.maxGammaStrike && data.maxGammaStrike >= spot * 0.98
+      ? data.maxGammaStrike
+      : spot;
+    const increment = spot > 200 ? 10 : spot > 50 ? 5 : spot > 10 ? 2.5 : 1;
+    suggestedStrike = Math.ceil(anchor / increment) * increment;
+  }
+
+  // Expiry selection: 3-6 weeks out for swing trades, ~2 months for position
+  const holdType = (idea.holdingPeriod || '').toLowerCase();
+  let targetDTE: number;
+  if (holdType.includes('day') || holdType.includes('scalp')) targetDTE = 14;
+  else if (holdType.includes('swing')) targetDTE = 30;
+  else if (holdType.includes('position') || holdType.includes('long') || holdType.includes('leap')) targetDTE = 120;
+  else targetDTE = 30;
+
+  // Extract unique expiries from the matrix, sorted by DTE
+  const matrixCells = data.strikeExpiryMatrix || [];
+  const expiryMap = new Map<string, number>();
+  for (const cell of matrixCells) {
+    if (cell.expiryLabel && !expiryMap.has(cell.expiryLabel)) {
+      expiryMap.set(cell.expiryLabel, cell.dte);
+    }
+  }
+  const sortedExpiries = [...expiryMap.entries()].sort((a, b) => a[1] - b[1]);
+
+  let suggestedExpiry = '';
+  if (sortedExpiries.length > 0) {
+    // Pick the expiry closest to our targetDTE
+    let bestMatch = sortedExpiries[0];
+    let bestDiff = Math.abs(sortedExpiries[0][1] - targetDTE);
+    for (const [label, dte] of sortedExpiries) {
+      const diff = Math.abs(dte - targetDTE);
+      if (diff < bestDiff) { bestDiff = diff; bestMatch = [label, dte]; }
+    }
+    suggestedExpiry = `${bestMatch[0]} (${bestMatch[1]}d)`;
+  } else {
+    // Fallback: compute a date ~targetDTE days out, round to nearest Friday
+    const target = new Date();
+    target.setDate(target.getDate() + targetDTE);
+    // Round to Friday
+    const dayOfWeek = target.getDay();
+    const daysToFriday = (5 - dayOfWeek + 7) % 7;
+    target.setDate(target.getDate() + daysToFriday);
+    suggestedExpiry = target.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  }
+
+  // GEX context label
+  const gexContext = isLong
+    ? data.callWall ? `Call wall $${data.callWall}` : ''
+    : data.putWall ? `Put wall $${data.putWall}` : '';
+
+  return (
+    <div className="mb-3 px-2.5 py-2 rounded-md bg-cyan-500/8 border border-cyan-500/20">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Crosshair className="w-3 h-3 text-cyan-400" />
+        <span className="text-[9px] font-mono uppercase tracking-wider text-cyan-300/70">
+          GEX-Suggested Contract
+        </span>
+      </div>
+      <div className="flex items-center gap-3 text-[11px] font-mono">
+        <span className="font-bold text-cyan-300">{idea.symbol}</span>
+        <span className="font-bold text-foreground">${suggestedStrike}</span>
+        <span className={cn("font-bold uppercase", isLong ? "text-emerald-400" : "text-red-400")}>
+          {optionType}
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-foreground">{suggestedExpiry}</span>
+        {gexContext && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-[9px] text-muted-foreground/70">{gexContext}</span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -538,6 +687,9 @@ function FullVariant({
         </div>
       )}
 
+      {/* GEX-suggested contract */}
+      <GEXContractSuggestion idea={idea} />
+
       {/* Thesis / catalyst */}
       {(idea.thesis || idea.catalyst) && (
         <div className="mb-3 text-[11px] text-muted-foreground/90 italic leading-snug line-clamp-2">
@@ -578,7 +730,7 @@ function FullVariant({
           )}
         </div>
         <Link
-          href={`/t/${idea.symbol}/chart`}
+          href={`/terminal/${idea.symbol}`}
           onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors"
         >

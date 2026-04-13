@@ -168,7 +168,7 @@ export function useBestTradeIdeas(params?: { limit?: number }, options?: Partial
   return useQuery<any[]>({
     queryKey: ["/api/trade-ideas/best-setups", { limit }],
     queryFn: async () => {
-      const res = await fetch(`/api/trade-ideas/best-setups?limit=${limit}`);
+      const res = await fetch(`/api/trade-ideas/best-setups?limit=${limit}&watchlistOnly=true`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.ideas || data || [];

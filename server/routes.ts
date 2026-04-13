@@ -6825,9 +6825,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const statusFilter = req.query.status as string || 'open'; // 'all', 'open', 'hit_target', 'hit_stop', 'expired'
       const dateFilter = req.query.date as string; // 'today', 'week', or 'YYYY-MM-DD'
       const symbolFilter = req.query.symbol as string; // Optional: filter by specific symbol
+      const watchlistOnly = req.query.watchlistOnly === 'true'; // Only show ideas for user's watchlist symbols
 
       // 🔍 DEBUG: Log incoming request params
-      logger.info(`[BEST-SETUPS] 📥 REQUEST - date: '${dateFilter}', status: '${statusFilter}', limit: ${limit}`);
+      logger.info(`[BEST-SETUPS] 📥 REQUEST - date: '${dateFilter}', status: '${statusFilter}', limit: ${limit}, watchlistOnly: ${watchlistOnly}`);
 
       // OPTIMIZATION: Use getRecentTradeIdeas with appropriate time window
       // Expand time window if viewing closed trades or specific date
@@ -6851,6 +6852,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (statusFilter === 'closed') return i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop' || i.outcomeStatus === 'expired';
         return i.outcomeStatus === statusFilter;
       });
+
+      // 🎯 WATCHLIST FILTER: Only show ideas for symbols the user actually watches.
+      // Without this, Trade Desk shows 772+ ideas from the entire scanner universe.
+      // The user's watchlist is their curated focus list — Trade Desk should respect it.
+      if (watchlistOnly) {
+        const sessionUserId = req.session?.userId;
+        let watchlistSyms = new Set<string>();
+
+        // Mirror the same logic as GET /api/watchlist: admin sees all, users see their own
+        const adminEmail = process.env.ADMIN_EMAIL || "";
+        let isAdmin = false;
+        if (sessionUserId) {
+          const user = await storage.getUser(sessionUserId);
+          isAdmin = adminEmail !== "" && user?.email === adminEmail;
+        }
+
+        if (isAdmin || !sessionUserId) {
+          // Admin or unauthenticated — use full watchlist
+          const allWl = await storage.getAllWatchlist();
+          for (const item of allWl) {
+            watchlistSyms.add((item.symbol || '').toUpperCase());
+          }
+        } else {
+          // Regular user — their personal watchlist only
+          const userWl = await storage.getWatchlistByUser(sessionUserId);
+          for (const item of userWl) {
+            watchlistSyms.add((item.symbol || '').toUpperCase());
+          }
+        }
+        // Also include the weekly focus list (curated each Monday)
+        try {
+          const { getCurrentWeekSymbols } = await import('./weekly-watchlist-seeder');
+          const weeklySyms = await getCurrentWeekSymbols();
+          for (const sym of weeklySyms) watchlistSyms.add(sym.toUpperCase());
+        } catch { /* weekly seeder not available */ }
+        const beforeWl = filteredIdeas.length;
+        filteredIdeas = filteredIdeas.filter(i => watchlistSyms.has((i.symbol || '').toUpperCase()));
+        logger.info(`[BEST-SETUPS] Watchlist filter: ${beforeWl} -> ${filteredIdeas.length} ideas (${watchlistSyms.size} watchlist symbols)`);
+      }
 
       // Apply date filter if specified (supports 'today', 'week', or 'YYYY-MM-DD')
       if (dateFilter) {
@@ -27585,7 +27625,11 @@ Use this checklist before entering any trade:
 
       // 1. Get GEX snapshot (spot already cross-validated in gamma-exposure)
       const gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) return res.status(404).json({ error: `No GEX data for ${symbol}` });
+      if (!gex) return res.status(503).json({
+        error: `Options data unavailable for ${symbol}`,
+        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+        symbol,
+      });
 
       // 2. Build unified snapshot with real VEX + dataQuality
       const baseSnapshot = toSnapshot(gex);
@@ -27620,6 +27664,18 @@ Use this checklist before entering any trade:
       }
 
       // 5. Use unified snapshot (real VEX, DEX, data quality)
+      // Extra fallback: if cross-validated price looks stale, use latest candle close
+      if (candles.length > 0) {
+        const latestClose = candles[candles.length - 1].close;
+        if (latestClose > 0) {
+          const drift = Math.abs(baseSnapshot.spotPrice - latestClose) / latestClose;
+          // If snapshot price drifts >5% from latest candle, trust the candle
+          if (drift > 0.05) {
+            logger.warn(`[GEX-TERMINAL] spotPrice drift ${(drift * 100).toFixed(1)}% for ${symbol}: snapshot=$${baseSnapshot.spotPrice} candle=$${latestClose} — using candle`);
+            baseSnapshot.spotPrice = latestClose;
+          }
+        }
+      }
       const snapshot = baseSnapshot;
       const levels = snapshot.levels;
       const zeroGammaProjection = snapshot.zeroGammaProjection;
@@ -27688,12 +27744,50 @@ Use this checklist before entering any trade:
         side: l.gex > 0 ? 'call' : l.gex < 0 ? 'put' : 'neutral',
       }));
 
+      // 9. Futures proxy — when equity market is closed, fetch corresponding futures
+      const FUTURES_MAP: Record<string, { futures: string; label: string }> = {
+        SPY: { futures: 'ES=F', label: 'E-mini S&P 500' },
+        SPX: { futures: 'ES=F', label: 'E-mini S&P 500' },
+        QQQ: { futures: 'NQ=F', label: 'E-mini Nasdaq 100' },
+        IWM: { futures: 'RTY=F', label: 'E-mini Russell 2000' },
+        DIA: { futures: 'YM=F', label: 'E-mini Dow' },
+      };
+      let futuresProxy: any = undefined;
+      const futuresMapping = FUTURES_MAP[symbol.toUpperCase()];
+      if (futuresMapping && (cq.marketStatus === 'closed' || cq.marketStatus === 'premarket')) {
+        try {
+          const futuresPrice = await (await import('./yahoo-finance-service')).getChartLastPrice(futuresMapping.futures);
+          if (futuresPrice > 0) {
+            const equityClose = snapshot.spotPrice;
+            // ES trades ~10x SPY, NQ ~40x QQQ etc — normalize by typical ratio
+            const RATIO_MAP: Record<string, number> = { SPY: 10, SPX: 1, QQQ: 40, IWM: 10, DIA: 100 };
+            const ratio = RATIO_MAP[symbol.toUpperCase()] || 10;
+            const impliedEquityPrice = futuresPrice / ratio;
+            const impliedGap = impliedEquityPrice - equityClose;
+            const impliedGapPct = equityClose > 0 ? (impliedGap / equityClose) * 100 : 0;
+            futuresProxy = {
+              futuresSymbol: futuresMapping.futures,
+              futuresPrice,
+              equityClose,
+              impliedGap,
+              impliedGapPct,
+              label: futuresMapping.label,
+              fetchedAt: Date.now(),
+            };
+            logger.info(`[GEX-TERMINAL] Futures proxy ${futuresMapping.futures}=$${futuresPrice} → implied ${symbol}=$${impliedEquityPrice.toFixed(2)} (gap ${impliedGapPct >= 0 ? '+' : ''}${impliedGapPct.toFixed(2)}%)`);
+          }
+        } catch (e: any) {
+          logger.warn(`[GEX-TERMINAL] Futures proxy fetch failed for ${futuresMapping.futures}: ${e.message}`);
+        }
+      }
+
       res.json({
         symbol,
         snapshot,
         candles,
         orbs,
         heatmap,
+        strikeExpiryMatrix: gex.strikeExpiryMatrix || [],
         projection,
         peers,
         dataQuality: {
@@ -27706,6 +27800,7 @@ Use this checklist before entering any trade:
           hasDisagreement: cq.hasDisagreement,
           marketStatus: cq.marketStatus,
         },
+        ...(futuresProxy ? { futuresProxy } : {}),
       });
     } catch (error: any) {
       logger.error("GEX/VEX terminal error", { error: error?.message, symbol: req.params.symbol });
@@ -27722,7 +27817,11 @@ Use this checklist before entering any trade:
       const { generateGEXNarrative, fallbackNarrative } = await import('./gex-narrative-service');
 
       const gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) return res.status(404).json({ error: `No GEX data for ${symbol}` });
+      if (!gex) return res.status(503).json({
+        error: `Options data unavailable for ${symbol}`,
+        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+        symbol,
+      });
 
       const snap = toSnapshot(gex);
 
@@ -28776,6 +28875,32 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error(`[LLM-VALIDATOR] Status error:`, error);
       res.status(500).json({ error: "Failed to get validator status" });
+    }
+  });
+
+  // ─── Weekly Path Projection ──────────────────────────────────
+  app.get("/api/weekly-path/:symbol", requireBetaAccess, async (req: any, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+
+      const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
+      const { toSnapshot } = await import('./gex-vex-scanner');
+      const { computeWeeklyPath } = await import('./weekly-path-model');
+
+      const gex = await calculateAggregateGammaExposure(symbol);
+      if (!gex) return res.status(503).json({
+        error: `Options data unavailable for ${symbol}`,
+        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+        symbol,
+      });
+
+      const snapshot = toSnapshot(gex);
+      const projection = computeWeeklyPath(snapshot);
+
+      res.json(projection);
+    } catch (error: any) {
+      logger.error(`[WEEKLY-PATH] Error for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to compute weekly path projection" });
     }
   });
 

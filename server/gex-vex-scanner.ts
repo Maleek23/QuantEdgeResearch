@@ -223,7 +223,7 @@ function scoreConfluence(snap: GEXSnapshot): ConfluenceBreakdown {
   let vexAlignment = 0;
   const gexSign = Math.sign(totalGEX);
   const vexSign = Math.sign(totalVEX);
-  const vexMag = Math.min(1, Math.abs(totalVEX) / 0.5); // 0.5B+ = full magnitude
+  const vexMag = Math.min(1, Math.abs(totalVEX) / 500); // $500M+ = full magnitude (VEX is in $M)
 
   if (gexSign !== 0 && vexSign !== 0 && gexSign === vexSign) {
     // Aligned — best case

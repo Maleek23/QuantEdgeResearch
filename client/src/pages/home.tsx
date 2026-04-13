@@ -1,25 +1,25 @@
 /**
  * QuantEdge Dashboard — Command Center
  * =====================================
- * The nerve center. Pulls real-time data from 15+ backend endpoints.
- * Designed for traders who need signal, not noise.
+ * Trimmed, consistent, no-redundancy dashboard.
  *
- * Layout:
+ * Layout (6 sections, down from 10):
  *   ┌─ Market Ticker Strip ──────────────────────────────────┐
  *   │ SPY +0.42%  QQQ +0.67%  VIX 14.2  BTC $67,421        │
  *   ├────────────────────────────────────────────────────────┤
- *   │ Welcome + Quick Nav                                    │
+ *   │ Welcome + Global "Data as of X" timestamp              │
  *   ├──────────────────────┬─────────────────────────────────┤
- *   │ Morning Briefing     │ Market Regime + Futures Bias    │
- *   ├──────────────────────┼─────────────────────────────────┤
- *   │ Best Setups (AI)     │ Convergence Hot Symbols         │
- *   ├──────────────────────┼──────────────┬──────────────────┤
- *   │ Breaking News        │ Earnings Cal │ Top Movers       │
+ *   │ Briefing + Outlook   │ Market Regime + Futures + VIX   │
+ *   ├──────────────────────┴─────────────────────────────────┤
+ *   │ Top Signals: Convictions + Best Setups (merged)        │
+ *   ├──────────────────────┬──────────────┬──────────────────┤
+ *   │ News (w/ sentiment)  │ Earnings Cal │ Top Movers       │
  *   ├──────────────────────┴──────────────┴──────────────────┤
- *   │ Engine Health + Performance Stats                      │
- *   └───────────────────────────────────────────────────────-┘
+ *   │ Platform Health bar                                    │
+ *   └────────────────────────────────────────────────────────┘
  */
 
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { cn, safeNumber, safeToFixed, formatRelativeTime } from "@/lib/utils";
+import { componentStyles } from "@/lib/design-tokens";
 import {
   TrendingUp,
   TrendingDown,
@@ -39,65 +40,21 @@ import {
   Clock,
   AlertCircle,
   Sun,
-  Zap,
-  BarChart3,
-  LineChart,
   Search,
   Shield,
   Gauge,
-  Target,
   Flame,
   ArrowUpRight,
   ArrowDownRight,
-  Eye,
-  Cpu,
+  RefreshCw,
 } from "lucide-react";
-import { CrossAssetOverview, EconomicCalendarWidget, getAssetClass } from "@/components/market-intelligence";
 import { useAuth } from "@/hooks/useAuth";
 
 // ────────────────────────────────────────────────────────────
-// Utilities
+// Shared Utilities
 // ────────────────────────────────────────────────────────────
 
-function SectionReveal({ children, className, delay = 0 }: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-}) {
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.4, delay, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.section>
-  );
-}
-
-function SectionHeader({ label, action, actionHref }: {
-  label: string;
-  action?: string;
-  actionHref?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between mb-2.5">
-      <div className="flex items-center gap-2">
-        <div className="w-0.5 h-3 rounded-full bg-muted-foreground/20" />
-        <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.12em] font-mono">{label}</h2>
-      </div>
-      {action && actionHref && (
-        <Link href={actionHref}>
-          <span className="text-[10px] text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] flex items-center gap-0.5 cursor-pointer font-medium transition-colors font-mono">
-            {action} <ChevronRight className="h-2.5 w-2.5" />
-          </span>
-        </Link>
-      )}
-    </div>
-  );
-}
+const getRelativeTime = (ts?: string | null) => formatRelativeTime(ts || null);
 
 function useMarketStatus() {
   const now = new Date();
@@ -119,14 +76,81 @@ function useMarketStatus() {
     else if (isAfterHours) status = "After Hours";
   }
 
-  return { status, isOpen: isMarketHours && !isWeekend };
+  return { status, isOpen: isMarketHours && !isWeekend, isWeekend };
 }
 
-// Use shared formatRelativeTime from lib/utils
-const getRelativeTime = (ts?: string) => formatRelativeTime(ts || null);
+function useETTimestamp() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return now.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }) + " ET";
+}
+
+/** Consistent section header using design tokens */
+function SectionHeader({ label, action, actionHref }: {
+  label: string;
+  action?: string;
+  actionHref?: string;
+}) {
+  return (
+    <div className={componentStyles.sectionHeader.wrapper}>
+      <div className={componentStyles.sectionHeader.left}>
+        <div className={componentStyles.sectionHeader.accent} />
+        <h2 className={componentStyles.text.chromeLabel}>{label}</h2>
+      </div>
+      {action && actionHref && (
+        <Link href={actionHref}>
+          <span className="text-[10px] text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] flex items-center gap-0.5 cursor-pointer font-medium transition-colors font-mono">
+            {action} <ChevronRight className="h-2.5 w-2.5" />
+          </span>
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function SectionReveal({ children, className, delay = 0 }: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-40px" }}
+      transition={{ duration: 0.4, delay, ease: "easeOut" }}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  );
+}
+
+/** Reusable error state for any card */
+function CardError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--trade-bearish)]/20 bg-[var(--trade-bearish)]/5">
+      <span className="text-[10px] font-mono text-[var(--trade-bearish)]">{message}</span>
+      {onRetry && (
+        <button onClick={onRetry} className="text-[10px] font-mono text-[var(--brand-teal)] hover:underline flex items-center gap-1">
+          <RefreshCw className="w-3 h-3" /> RETRY
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ────────────────────────────────────────────────────────────
-// Market Ticker Strip
+// 1. Market Ticker Strip
 // ────────────────────────────────────────────────────────────
 
 interface MarketQuote {
@@ -158,14 +182,8 @@ function MarketTicker() {
     <div className="bg-card/80 border-b border-border overflow-hidden backdrop-blur-sm">
       <div className="flex items-center h-8">
         <div className="flex-shrink-0 flex items-center gap-1.5 px-4 border-r border-border z-10">
-          <div className={cn(
-            "w-1.5 h-1.5 rounded-full",
-            isOpen ? "bg-[var(--trade-bullish)] animate-pulse" : "bg-muted-foreground"
-          )} />
-          <span className={cn(
-            "text-[11px] font-medium font-mono",
-            isOpen ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
-          )}>{status}</span>
+          <div className={cn("w-1.5 h-1.5 rounded-full", isOpen ? componentStyles.status.online : "bg-muted-foreground")} />
+          <span className={cn("text-[11px] font-medium font-mono", isOpen ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>{status}</span>
         </div>
         <div className="flex-1 overflow-hidden">
           <div className="flex animate-marquee">
@@ -174,18 +192,15 @@ function MarketTicker() {
               const price = safeNumber(quote?.regularMarketPrice);
               const change = safeNumber(quote?.regularMarketChangePercent);
               return (
-                <Link key={`${idx.symbol}-${i}`} href={`/stock/${idx.symbol}`}>
+                <Link key={`${idx.symbol}-${i}`} href={`/terminal/${idx.symbol}`}>
                   <div className="flex items-center gap-2 px-4 whitespace-nowrap cursor-pointer hover:bg-muted/50 transition-colors">
-                    <span className="text-[11px] font-medium text-muted-foreground">{idx.symbol}</span>
+                    <span className={cn(componentStyles.text.chromeLabel, "text-[11px]")}>{idx.symbol}</span>
                     {price > 0 && (
-                      <span className="text-[11px] font-mono text-foreground/70">
+                      <span className={cn(componentStyles.text.dataValue, "text-[11px] text-foreground/70")}>
                         {idx.symbol === "VIX" ? safeToFixed(price, 1) : idx.symbol.includes("-USD") ? `$${safeToFixed(price, 0)}` : `$${safeToFixed(price, 2)}`}
                       </span>
                     )}
-                    <span className={cn(
-                      "text-[11px] font-mono font-medium",
-                      change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                    )}>
+                    <span className={cn(componentStyles.text.change, "text-[11px]", change >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                       {change >= 0 ? "+" : ""}{safeToFixed(change, 2)}%
                     </span>
                   </div>
@@ -200,16 +215,17 @@ function MarketTicker() {
 }
 
 // ────────────────────────────────────────────────────────────
-// Welcome Header
+// 2. Welcome Header + Global Timestamp
 // ────────────────────────────────────────────────────────────
 
 function WelcomeHeader() {
   const { user } = useAuth();
   const { status, isOpen } = useMarketStatus();
+  const etTime = useETTimestamp();
 
   const getGreeting = () => {
-    const etTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const hour = etTime.getHours();
+    const et = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const hour = et.getHours();
     if (hour < 12) return "Good morning";
     if (hour < 17) return "Good afternoon";
     return "Good evening";
@@ -220,9 +236,8 @@ function WelcomeHeader() {
 
   const quickLinks = [
     { label: "Trade Desk", href: "/trade-desk", icon: Brain, accent: true },
-    { label: "Markets", href: "/market", icon: BarChart3 },
-    { label: "Charts", href: "/chart-analysis", icon: LineChart },
     { label: "Scanner", href: "/market-scanner", icon: Search },
+    { label: "Terminal", href: "/terminal/SPY", icon: Activity },
   ];
 
   return (
@@ -238,30 +253,23 @@ function WelcomeHeader() {
             {getGreeting()}, {firstName}
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
-            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
             <span className="text-border">·</span>
-            <span className={cn(
-              "inline-flex items-center gap-1",
-              isOpen ? "text-[var(--trade-bullish)]" : "text-muted-foreground"
-            )}>
-              <span className={cn(
-                "w-1 h-1 rounded-full",
-                isOpen ? "bg-[var(--trade-bullish)] animate-pulse" : "bg-muted-foreground/50"
-              )} />
+            <span className={cn("inline-flex items-center gap-1", isOpen ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>
+              <span className={cn("w-1 h-1 rounded-full", isOpen ? "bg-[var(--trade-bullish)] animate-pulse" : "bg-muted-foreground/50")} />
               {status}
             </span>
           </p>
+        </div>
+        {/* Global data timestamp */}
+        <div className="text-[10px] font-mono text-muted-foreground/60 tabular-nums">
+          Data as of {etTime}
         </div>
       </div>
 
       <div className="flex gap-1.5">
         {quickLinks.map((link, i) => (
-          <motion.div
-            key={link.label}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 + i * 0.03 }}
-          >
+          <motion.div key={link.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.03 }}>
             <Link href={link.href}>
               <button className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-all cursor-pointer",
@@ -281,11 +289,15 @@ function WelcomeHeader() {
 }
 
 // ────────────────────────────────────────────────────────────
-// Morning Briefing (AI-generated market outlook)
+// 3. Market Intelligence — merged Briefing + Regime + Outlook
 // ────────────────────────────────────────────────────────────
 
-function MorningBriefing() {
-  const { data, isLoading } = useQuery<{
+function MarketIntelligence() {
+  const metricsInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+
+  // Briefing
+  const { data: briefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<{
     marketOutlook?: string;
     keyLevels?: { spy?: number; qqq?: number; vix?: number };
     topWatchlist?: Array<{ symbol: string; reason?: string }>;
@@ -298,420 +310,499 @@ function MorningBriefing() {
     retry: 1,
   });
 
-  if (isLoading) {
-    return (
-      <Card className="bg-card/50 border-border/50 relative overflow-hidden">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2">
-            <Sun className="w-3.5 h-3.5 text-muted-foreground/30" />
-            <span className="text-xs text-muted-foreground/40">Loading briefing...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data || !data.tradingPlan) {
-    return (
-      <Card className="bg-card/50 border-border/50 relative overflow-hidden">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2">
-            <Sun className="w-3.5 h-3.5 text-muted-foreground/30" />
-            <h3 className="font-medium text-muted-foreground/60 text-xs">Morning Briefing</h3>
-            <span className="text-[9px] text-muted-foreground/30 font-mono ml-auto">next at 8:30 AM ET</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground/40 mt-1.5">Morning briefing unavailable. Check back soon.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const outlookBadge = (outlook?: string) => {
-    if (!outlook) return { dotColor: 'bg-muted-foreground', color: 'bg-muted text-muted-foreground', label: 'Neutral' };
-    const lower = outlook.toLowerCase();
-    if (lower.includes('bullish') || lower.includes('positive'))
-      return { dotColor: 'bg-[var(--trade-bullish)]', color: 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border border-[var(--trade-bullish)]/20', label: 'Bullish' };
-    if (lower.includes('bearish') || lower.includes('negative'))
-      return { dotColor: 'bg-[var(--trade-bearish)]', color: 'bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)] border border-[var(--trade-bearish)]/20', label: 'Bearish' };
-    return { dotColor: 'bg-[var(--trade-neutral)]', color: 'bg-[var(--trade-neutral)]/10 text-[var(--trade-neutral)] border border-[var(--trade-neutral)]/20', label: 'Cautious' };
-  };
-
-  const badge = outlookBadge(data.marketOutlook);
-
-  return (
-    <Card className="bg-card border-border relative overflow-hidden group transition-all">
-      <CardContent className="p-3 relative">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Sun className="w-3.5 h-3.5 text-muted-foreground" />
-            <div>
-              <h3 className="font-semibold text-foreground text-xs">Morning Briefing</h3>
-              {data.timestamp && (
-                <span className="text-[9px] text-muted-foreground font-mono">{getRelativeTime(data.timestamp)}</span>
-              )}
-            </div>
-          </div>
-          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1", badge.color)}>
-            <span className={cn("w-1 h-1 rounded-full inline-block", badge.dotColor)} />
-            {badge.label}
-          </span>
-        </div>
-
-        {data.keyLevels && (data.keyLevels.spy || data.keyLevels.qqq || data.keyLevels.vix) && (
-          <div className="data-strip mb-2">
-            {data.keyLevels.spy ? (
-              <div className="data-strip-item">
-                <span className="data-strip-label">SPY</span>
-                <span className="data-strip-value">${safeToFixed(data.keyLevels.spy, 0)}</span>
-              </div>
-            ) : null}
-            {data.keyLevels.qqq ? (
-              <div className="data-strip-item">
-                <span className="data-strip-label">QQQ</span>
-                <span className="data-strip-value">${safeToFixed(data.keyLevels.qqq, 0)}</span>
-              </div>
-            ) : null}
-            {data.keyLevels.vix ? (
-              <div className="data-strip-item">
-                <span className="data-strip-label">VIX</span>
-                <span className="data-strip-value">{safeToFixed(data.keyLevels.vix, 1)}</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3 mb-2">
-          {data.tradingPlan}
-        </p>
-
-        {data.topWatchlist && data.topWatchlist.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-[10px] text-muted-foreground font-medium">WATCH:</span>
-            {data.topWatchlist.slice(0, 5).map((item) => (
-              <Link key={item.symbol} href={`/stock/${item.symbol}`}>
-                <Badge variant="outline" className="cursor-pointer text-[10px] font-mono hover:bg-[var(--brand-teal)]/10 hover:border-[var(--brand-teal)]/30 hover:text-[var(--brand-teal)] border-border text-muted-foreground transition-colors">
-                  {item.symbol}
-                </Badge>
-              </Link>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Market Regime + Futures Bias (right column top)
-// ────────────────────────────────────────────────────────────
-
-function MarketRegimeCard() {
-  const metricsInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
-  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
-
-  const { data: regime } = useQuery<{
+  // Regime
+  const { data: regime, isError: regimeError, refetch: refetchRegime } = useQuery<{
     regime?: string;
     confidence?: number;
     description?: string;
-    indicators?: Record<string, any>;
   }>({
     queryKey: ["/api/market-regime"],
     refetchInterval: metricsInterval,
   });
 
-  const { data: futures } = useQuery<{
-    symbols?: Array<{
-      symbol: string;
-      name?: string;
-      price?: number;
-      change?: number;
-      changePercent?: number;
-    }>;
-  }>({
-    queryKey: ["/api/futures"],
-    refetchInterval: priceInterval,
-  });
-
+  // Market context (VIX, P/C, A/D)
   const { data: context } = useQuery<{
     vix?: number;
     putCallRatio?: number;
     advanceDecline?: number;
-    marketBreadth?: string;
   }>({
     queryKey: ["/api/market-context"],
     refetchInterval: metricsInterval,
   });
 
-  const regimeLabel = regime?.regime || null;
-  const regimeColor = regimeLabel?.toLowerCase().includes("bull") ? "var(--trade-bullish)"
-    : regimeLabel?.toLowerCase().includes("bear") ? "var(--trade-bearish)"
-    : "var(--trade-neutral)";
+  // Futures
+  const { data: futures } = useQuery<{
+    symbols?: Array<{ symbol: string; name?: string; price?: number; changePercent?: number }>;
+  }>({
+    queryKey: ["/api/futures"],
+    refetchInterval: priceInterval,
+  });
 
+  // Outlook (swing setups + high impact alerts)
+  const { data: outlook } = useQuery<{
+    futuresBias: "bullish" | "bearish" | "neutral";
+    isWeekend: boolean;
+    summary: string;
+    highImpactAlert: { name: string; date: string; time: string } | null;
+    swingSetups: Array<{ symbol: string; direction: string; score: number; pattern: string }>;
+    weeklyFocus: string[];
+  }>({
+    queryKey: ["/api/market-outlook"],
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+
+  const outlookBadge = (text?: string) => {
+    if (!text) return { color: componentStyles.badge.default, label: "Neutral" };
+    const lower = text.toLowerCase();
+    if (lower.includes("bullish") || lower.includes("positive"))
+      return { color: componentStyles.badge.success, label: "Bullish" };
+    if (lower.includes("bearish") || lower.includes("negative"))
+      return { color: componentStyles.badge.error, label: "Bearish" };
+    return { color: componentStyles.badge.warning, label: "Cautious" };
+  };
+
+  const badge = outlookBadge(briefing?.marketOutlook);
+  const regimeLabel = regime?.regime || null;
+  const regimeColor = regimeLabel?.toLowerCase().includes("bull") ? "text-[var(--trade-bullish)]"
+    : regimeLabel?.toLowerCase().includes("bear") ? "text-[var(--trade-bearish)]"
+    : "text-[var(--trade-neutral)]";
   const topFutures = (futures?.symbols || []).slice(0, 4);
+  const topSwings = outlook?.swingSetups?.slice(0, 3) ?? [];
 
   return (
-    <Card className="bg-card border-border h-full">
-      <CardContent className="p-3 space-y-3">
-        {/* Market Regime */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Gauge className="w-4 h-4 text-[var(--brand-cyan)]" />
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Market Regime</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {regimeLabel ? (
-              <span className="text-lg font-bold" style={{ color: regimeColor || undefined }}>
-                {regimeLabel}
-              </span>
-            ) : (
-              <span className="text-sm text-muted-foreground/40 font-mono">—</span>
-            )}
-            {regime?.confidence && (
-              <span className="text-xs text-muted-foreground font-mono tabular-nums">{regime.confidence}%</span>
-            )}
-          </div>
-          {regime?.description ? (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{regime.description}</p>
-          ) : !regimeLabel && (
-            <p className="text-[10px] text-muted-foreground/40 mt-1 font-mono">Regime detection runs every 2 min</p>
-          )}
-        </div>
-
-        {/* Key Metrics */}
-        {context && (
-          <div className="grid grid-cols-3 gap-2">
-            {context.vix != null && (
-              <div className="p-2 rounded-lg bg-muted/50 border border-border/50">
-                <div className="text-[10px] text-muted-foreground font-medium">VIX</div>
-                <div className={cn("text-sm font-mono font-bold", context.vix > 25 ? "text-[var(--trade-bearish)]" : context.vix > 18 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]")}>
-                  {safeToFixed(context.vix, 1)}
-                </div>
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-[var(--card-gap)]">
+      {/* LEFT — Briefing + Outlook merged */}
+      <div className="lg:col-span-3">
+        <Card className={componentStyles.card.default}>
+          <CardContent className="p-4 space-y-3">
+            {/* Briefing header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
+                <h3 className="font-semibold text-foreground text-sm">
+                  {outlook?.isWeekend ? "Weekend Briefing" : "Morning Briefing"}
+                </h3>
+                {briefing?.timestamp && (
+                  <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60")}>
+                    {getRelativeTime(briefing.timestamp)}
+                  </span>
+                )}
               </div>
-            )}
-            {context.putCallRatio != null && (
-              <div className="p-2 rounded-lg bg-muted/50 border border-border/50">
-                <div className="text-[10px] text-muted-foreground font-medium">P/C Ratio</div>
-                <div className="text-sm font-mono font-bold text-foreground">{safeToFixed(context.putCallRatio, 2)}</div>
-              </div>
-            )}
-            {context.advanceDecline != null && (
-              <div className="p-2 rounded-lg bg-muted/50 border border-border/50">
-                <div className="text-[10px] text-muted-foreground font-medium">A/D</div>
-                <div className={cn("text-sm font-mono font-bold", context.advanceDecline >= 1 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
-                  {safeToFixed(context.advanceDecline, 2)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Futures */}
-        {topFutures.length > 0 && (
-          <div>
-            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Futures Bias</div>
-            <div className="space-y-1.5">
-              {topFutures.map(f => (
-                <div key={f.symbol} className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium">{f.name || f.symbol}</span>
-                  <div className="flex items-center gap-2">
-                    {f.price && <span className="font-mono text-foreground">{safeToFixed(f.price, 2)}</span>}
-                    <span className={cn(
-                      "font-mono font-medium",
-                      safeNumber(f.changePercent) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                    )}>
-                      {safeNumber(f.changePercent) >= 0 ? "+" : ""}{safeToFixed(f.changePercent, 2)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
+              <span className={badge.color}>{badge.label}</span>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+            {briefingError ? (
+              <CardError message="Briefing unavailable" onRetry={() => refetchBriefing()} />
+            ) : briefingLoading ? (
+              <p className="text-[10px] text-muted-foreground/40">Loading briefing...</p>
+            ) : (
+              <>
+                {/* Key Levels strip */}
+                {briefing?.keyLevels && (briefing.keyLevels.spy || briefing.keyLevels.qqq || briefing.keyLevels.vix) && (
+                  <div className="flex items-center gap-4 text-xs">
+                    {briefing.keyLevels.spy && (
+                      <div><span className={componentStyles.text.chromeLabel}>SPY</span> <span className={componentStyles.text.dataValue}>${safeToFixed(briefing.keyLevels.spy, 0)}</span></div>
+                    )}
+                    {briefing.keyLevels.qqq && (
+                      <div><span className={componentStyles.text.chromeLabel}>QQQ</span> <span className={componentStyles.text.dataValue}>${safeToFixed(briefing.keyLevels.qqq, 0)}</span></div>
+                    )}
+                    {briefing.keyLevels.vix && (
+                      <div><span className={componentStyles.text.chromeLabel}>VIX</span> <span className={componentStyles.text.dataValue}>{safeToFixed(briefing.keyLevels.vix, 1)}</span></div>
+                    )}
+                  </div>
+                )}
+
+                {/* Trading plan */}
+                {briefing?.tradingPlan && (
+                  <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">{briefing.tradingPlan}</p>
+                )}
+
+                {/* Catalysts (previously unused) */}
+                {briefing?.catalysts && briefing.catalysts.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className={componentStyles.text.chromeLabel}>CATALYSTS:</span>
+                    {briefing.catalysts.slice(0, 3).map((cat, i) => (
+                      <span key={i} className={componentStyles.badge.warning}>{cat}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* High impact alert from outlook */}
+                {outlook?.highImpactAlert && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--trade-neutral)]/30 bg-[var(--trade-neutral)]/5">
+                    <AlertCircle className="w-3.5 h-3.5 text-[var(--trade-neutral)] shrink-0" />
+                    <span className="text-[10px] font-semibold text-[var(--trade-neutral)]">{outlook.highImpactAlert.name}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto font-mono">{outlook.highImpactAlert.date} {outlook.highImpactAlert.time}</span>
+                  </div>
+                )}
+
+                {/* Swing setups (from outlook, previously in separate panel) */}
+                {topSwings.length > 0 && (
+                  <div>
+                    <div className={cn(componentStyles.text.chromeLabel, "mb-1.5")}>TOP SWING SETUPS</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                      {topSwings.map((s, i) => (
+                        <Link key={i} href={`/terminal/${s.symbol}`}>
+                          <div className={cn(componentStyles.card.inset, "flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-foreground/[0.04] transition-colors")}>
+                            <span className={cn(componentStyles.text.ticker, "text-xs text-[var(--brand-teal)]")}>{s.symbol}</span>
+                            {s.direction === "bearish"
+                              ? <ArrowDownRight className="w-3 h-3 text-[var(--trade-bearish)]" />
+                              : <ArrowUpRight className="w-3 h-3 text-[var(--trade-bullish)]" />}
+                            <span className="text-[10px] text-muted-foreground truncate flex-1">{s.pattern}</span>
+                            <span className={cn(componentStyles.text.dataValue, "text-[10px] text-foreground/60")}>{s.score}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Watchlist + Weekly focus merged */}
+                {(briefing?.topWatchlist?.length || outlook?.weeklyFocus?.length) ? (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className={componentStyles.text.chromeLabel}>WATCH:</span>
+                    {briefing?.topWatchlist?.slice(0, 5).map((item) => (
+                      <Link key={item.symbol} href={`/terminal/${item.symbol}`}>
+                        <Badge variant="outline" className="cursor-pointer text-[10px] font-mono hover:bg-[var(--brand-teal)]/10 hover:border-[var(--brand-teal)]/30 hover:text-[var(--brand-teal)] border-border text-muted-foreground transition-colors">
+                          {item.symbol}
+                        </Badge>
+                      </Link>
+                    ))}
+                    {outlook?.weeklyFocus?.filter(sym => !briefing?.topWatchlist?.some(w => w.symbol === sym)).slice(0, 3).map((sym) => (
+                      <Link key={sym} href={`/terminal/${sym}`}>
+                        <Badge variant="outline" className="text-[10px] font-mono text-[var(--brand-teal)]/60 border-[var(--brand-teal)]/20 bg-[var(--brand-teal)]/5 cursor-pointer hover:bg-[var(--brand-teal)]/10">
+                          {sym}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* RIGHT — Regime + Metrics + Futures */}
+      <div className="lg:col-span-2">
+        <Card className={cn(componentStyles.card.default, "h-full")}>
+          <CardContent className="p-4 space-y-3">
+            {regimeError ? (
+              <CardError message="Regime unavailable" onRetry={() => refetchRegime()} />
+            ) : (
+              <>
+                {/* Regime */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Gauge className="w-4 h-4 text-[var(--brand-cyan)]" />
+                    <span className={componentStyles.text.statLabel}>Market Regime</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {regimeLabel ? (
+                      <span className={cn("text-lg font-bold", regimeColor)}>{regimeLabel}</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40 font-mono">—</span>
+                    )}
+                    {regime?.confidence && (
+                      <span className={cn(componentStyles.text.dataValue, "text-xs text-muted-foreground")}>{regime.confidence}%</span>
+                    )}
+                  </div>
+                  {regime?.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{regime.description}</p>
+                  )}
+                </div>
+
+                {/* Key Metrics */}
+                {context && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {context.vix != null && (
+                      <div className={cn(componentStyles.card.inset, "p-2")}>
+                        <div className={componentStyles.text.chromeLabel}>VIX</div>
+                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold",
+                          context.vix > 25 ? "text-[var(--trade-bearish)]" : context.vix > 18 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
+                        )}>
+                          {safeToFixed(context.vix, 1)}
+                        </div>
+                      </div>
+                    )}
+                    {context.putCallRatio != null && (
+                      <div className={cn(componentStyles.card.inset, "p-2")}>
+                        <div className={componentStyles.text.chromeLabel}>P/C Ratio</div>
+                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold")}>{safeToFixed(context.putCallRatio, 2)}</div>
+                      </div>
+                    )}
+                    {context.advanceDecline != null && (
+                      <div className={cn(componentStyles.card.inset, "p-2")}>
+                        <div className={componentStyles.text.chromeLabel}>A/D</div>
+                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold",
+                          context.advanceDecline >= 1 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                        )}>
+                          {safeToFixed(context.advanceDecline, 2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Futures */}
+                {topFutures.length > 0 && (
+                  <div>
+                    <div className={cn(componentStyles.text.chromeLabel, "mb-2")}>FUTURES BIAS</div>
+                    <div className="space-y-1.5">
+                      {topFutures.map(f => (
+                        <div key={f.symbol} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground font-medium">{f.name || f.symbol}</span>
+                          <div className="flex items-center gap-2">
+                            {f.price && <span className={cn(componentStyles.text.dataValue, "text-xs")}>{safeToFixed(f.price, 2)}</span>}
+                            <span className={cn(componentStyles.text.change,
+                              safeNumber(f.changePercent) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                            )}>
+                              {safeNumber(f.changePercent) >= 0 ? "+" : ""}{safeToFixed(f.changePercent, 2)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Best Setups — AI trade ideas with confidence scores
+// 4. Top Signals — merged Convictions + Best Setups
 // ────────────────────────────────────────────────────────────
 
-function BestSetups() {
-  const { data } = useQuery<{ setups: Array<{
-    symbol: string;
-    direction: string;
-    confidenceScore: number;
-    source: string;
-    timestamp?: string;
-    entryPrice?: number;
-    targetPrice?: number;
-    stopLoss?: number;
-  }> }>({
-    queryKey: ["/api/trade-ideas/best-setups?limit=6"],
+interface ConvictionPick {
+  ideaId: string;
+  symbol: string;
+  direction: "long" | "short";
+  convictionScore: number;
+  convictionBand: "S" | "A" | "B" | "C";
+  layerCount: number;
+  riskRewardRatio: number;
+  thesis: string;
+}
+
+function TopSignals() {
+  const convictionInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
+
+  const { data: convData, isLoading: convLoading, isError: convError, refetch: refetchConv } = useQuery<{ picks: ConvictionPick[] }>({
+    queryKey: ["/api/convictions", { minScore: 15, limit: 6, lookbackHours: 72 }],
+    queryFn: async () => {
+      const res = await fetch("/api/convictions?minScore=15&limit=6&lookbackHours=72", { credentials: "include" });
+      if (!res.ok) throw new Error("convictions fetch failed");
+      return res.json();
+    },
+    staleTime: 20_000,
+    refetchInterval: convictionInterval,
+  });
+
+  const { data: setupData, isError: setupError, refetch: refetchSetups } = useQuery<{
+    setups: Array<{
+      symbol: string; direction: string; confidenceScore: number; source: string;
+      timestamp?: string; entryPrice?: number; targetPrice?: number; stopLoss?: number;
+    }>;
+  }>({
+    queryKey: ["/api/trade-ideas/best-setups?limit=6&watchlistOnly=true"],
     refetchInterval: 60000,
   });
 
-  const ideas = data?.setups?.slice(0, 6) || [];
-
-  return (
-    <Card className={cn("bg-card border-border", ideas.length === 0 && "bg-card/50 border-border/50")}>
-      <CardContent className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Brain className="w-3.5 h-3.5 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground text-xs">Best Setups</h3>
-          </div>
-          <Link href="/trade-desk">
-            <Button variant="ghost" size="sm" className="text-xs text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] h-7 px-2">
-              View all <ChevronRight className="h-3 w-3 ml-0.5" />
-            </Button>
-          </Link>
-        </div>
-
-        <div className="space-y-1.5">
-          {ideas.length > 0 ? ideas.map((idea, i) => {
-            const isLong = idea.direction === "bullish" || idea.direction === "LONG" || idea.direction === "long";
-            const asset = getAssetClass(idea.symbol);
-            const confColor = idea.confidenceScore >= 75 ? "text-[var(--trade-bullish)]"
-              : idea.confidenceScore >= 60 ? "text-[var(--trade-neutral)]"
-              : "text-muted-foreground";
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <Link href={`/stock/${idea.symbol}`}>
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 hover:bg-muted/60 border border-transparent hover:border-border/50 transition-all cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs font-mono",
-                        isLong ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
-                      )}>
-                        {isLong ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground text-sm font-mono">{idea.symbol}</span>
-                          <span className={cn(
-                            "text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase",
-                            isLong ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
-                          )}>
-                            {isLong ? "LONG" : "SHORT"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-muted-foreground">{idea.source}</span>
-                          {idea.timestamp && (
-                            <span className="text-[10px] text-muted-foreground/60">{getRelativeTime(idea.timestamp)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={cn("text-sm font-mono font-bold", confColor)}>
-                        {idea.confidenceScore}%
-                      </div>
-                      <div className="w-12 h-1 rounded-full bg-muted mt-1 overflow-hidden">
-                        <div
-                          className={cn("h-full rounded-full transition-all", confColor.replace("text-", "bg-"))}
-                          style={{ width: `${idea.confidenceScore}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          }) : (
-            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No scored setups right now. Scanners run throughout the trading day.</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Hot Convergence Symbols — multi-engine agreement
-// ────────────────────────────────────────────────────────────
-
-function ConvergenceHotList() {
-  const { data } = useQuery<{
-    symbols?: Array<{
-      symbol: string;
-      convergenceScore?: number;
-      direction?: string;
-      enginesAgreed?: number;
-      totalEngines?: number;
-    }>;
+  const { data: convergenceData } = useQuery<{
+    symbols?: Array<{ symbol: string; convergenceScore?: number; direction?: string; enginesAgreed?: number; totalEngines?: number }>;
   }>({
     queryKey: ["/api/convergence/hot-symbols"],
     refetchInterval: 120000,
   });
 
-  const hotSymbols = (data?.symbols || []).slice(0, 5);
+  const picks = convData?.picks ?? [];
+  const setups = setupData?.setups?.slice(0, 5) ?? [];
+  const hotSymbols = convergenceData?.symbols?.slice(0, 3) ?? [];
+
+  const bandColor = (band: "S" | "A" | "B" | "C") =>
+    band === "S" ? componentStyles.grade.S
+    : band === "A" ? componentStyles.grade.A
+    : band === "B" ? componentStyles.grade.B
+    : componentStyles.grade.C;
 
   return (
-    <Card className={cn("bg-card border-border", hotSymbols.length === 0 && "bg-card/50 border-border/50")}>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Target className="w-3.5 h-3.5 text-muted-foreground" />
-          <h3 className="font-semibold text-foreground text-xs">Convergence</h3>
-          <span className="text-[9px] text-muted-foreground/50 ml-auto">Multi-engine</span>
+    <div className="space-y-3">
+      {/* Convictions Grid */}
+      {convError ? (
+        <CardError message="Convictions unavailable" onRetry={() => refetchConv()} />
+      ) : convLoading ? (
+        <p className="text-[10px] text-muted-foreground/40 text-center py-4">Loading convictions...</p>
+      ) : picks.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {picks.map((p) => (
+            <Link key={p.ideaId} href={`/terminal/${p.symbol}`}>
+              <div className={cn(componentStyles.card.interactive, "p-2.5")}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={cn(componentStyles.text.ticker, "text-sm")}>{p.symbol}</span>
+                    {p.direction === "long"
+                      ? <ArrowUpRight className="w-3 h-3 text-[var(--trade-bullish)]" />
+                      : <ArrowDownRight className="w-3 h-3 text-[var(--trade-bearish)]" />}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className={cn("px-1.5 py-0 rounded text-[9px] font-mono font-bold", bandColor(p.convictionBand))}>
+                      {p.convictionBand}
+                    </span>
+                    <span className={cn(componentStyles.text.dataValue, "text-sm font-bold")}>{p.convictionScore}</span>
+                  </div>
+                </div>
+                <div className={cn(componentStyles.text.chromeLabel, "flex items-center gap-2 mb-1")}>
+                  <span>{p.layerCount} layers</span>
+                  <span>·</span>
+                  <span>R:R {p.riskRewardRatio.toFixed(1)}×</span>
+                </div>
+                {p.thesis && (
+                  <div className="text-[10px] text-muted-foreground/80 leading-tight line-clamp-2">{p.thesis}</div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="py-4 text-center text-xs text-muted-foreground">
+          No high-conviction picks in the last 72h.
+        </div>
+      )}
+
+      {/* Best Setups list (compact) + Convergence badges */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--card-gap)]">
+        {/* Setups */}
+        <div className="lg:col-span-2">
+          <Card className={componentStyles.card.default}>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-3.5 h-3.5 text-muted-foreground" />
+                  <h3 className="font-semibold text-foreground text-xs">Best Setups</h3>
+                </div>
+                <Link href="/trade-desk">
+                  <Button variant="ghost" size="sm" className="text-xs text-[var(--brand-teal)] hover:text-[var(--brand-cyan)] h-7 px-2">
+                    View all <ChevronRight className="h-3 w-3 ml-0.5" />
+                  </Button>
+                </Link>
+              </div>
+              {setupError ? (
+                <CardError message="Setups unavailable" onRetry={() => refetchSetups()} />
+              ) : setups.length > 0 ? (
+                <div className="space-y-1">
+                  {setups.map((idea, i) => {
+                    const isLong = idea.direction === "bullish" || idea.direction === "LONG" || idea.direction === "long";
+                    const confColor = idea.confidenceScore >= 75 ? "text-[var(--trade-bullish)]"
+                      : idea.confidenceScore >= 60 ? "text-[var(--trade-neutral)]" : "text-muted-foreground";
+                    return (
+                      <Link key={i} href={`/terminal/${idea.symbol}`}>
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn("w-7 h-7 rounded-md flex items-center justify-center",
+                              isLong ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
+                            )}>
+                              {isLong ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn(componentStyles.text.ticker, "text-sm")}>{idea.symbol}</span>
+                                <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase",
+                                  isLong ? componentStyles.badge.bullish : componentStyles.badge.bearish
+                                )}>{isLong ? "LONG" : "SHORT"}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-muted-foreground">{idea.source}</span>
+                                {idea.timestamp && <span className="text-[10px] text-muted-foreground/60">{getRelativeTime(idea.timestamp)}</span>}
+                                {/* Show entry/target when available */}
+                                {idea.entryPrice && idea.targetPrice && (
+                                  <span className="text-[10px] font-mono text-muted-foreground/50">
+                                    ${safeToFixed(idea.entryPrice, 2)} → ${safeToFixed(idea.targetPrice, 2)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={cn(componentStyles.text.dataValue, "text-sm font-bold", confColor)}>{idea.confidenceScore}%</div>
+                            <div className="w-12 h-1 rounded-full bg-muted mt-1 overflow-hidden">
+                              <div className={cn("h-full rounded-full", confColor.replace("text-", "bg-"))} style={{ width: `${idea.confidenceScore}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground/40 text-center py-4">No scored setups right now.</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {hotSymbols.length > 0 ? (
-          <div className="space-y-2">
-            {hotSymbols.map((sym, i) => {
-              const isBullish = sym.direction?.toLowerCase().includes("bull") || sym.direction?.toLowerCase().includes("long");
-              return (
-                <Link key={i} href={`/stock/${sym.symbol}`}>
-                  <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2.5">
-                      <span className="font-mono font-semibold text-sm text-foreground">{sym.symbol}</span>
-                      {sym.direction && (
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase",
-                          isBullish ? "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)]" : "bg-[var(--trade-bearish)]/10 text-[var(--trade-bearish)]"
-                        )}>
-                          {isBullish ? "BULL" : "BEAR"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {sym.enginesAgreed && sym.totalEngines && (
-                        <span className="text-[10px] text-muted-foreground font-mono">{sym.enginesAgreed}/{sym.totalEngines}</span>
-                      )}
-                      {sym.convergenceScore && (
-                        <span className={cn(
-                          "text-xs font-mono font-bold",
-                          sym.convergenceScore >= 80 ? "text-[var(--trade-bullish)]" : sym.convergenceScore >= 60 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
-                        )}>
-                          {sym.convergenceScore}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No multi-engine convergence signals right now</p>
-        )}
-      </CardContent>
-    </Card>
+        {/* Convergence (compact sidebar) */}
+        <div>
+          <Card className={cn(componentStyles.card.default, "h-full")}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="w-3.5 h-3.5 text-[var(--trade-neutral)]" />
+                <h3 className="font-semibold text-foreground text-xs">Convergence</h3>
+              </div>
+              {hotSymbols.length > 0 ? (
+                <div className="space-y-1.5">
+                  {hotSymbols.map((sym, i) => {
+                    const isBullish = sym.direction?.toLowerCase().includes("bull") || sym.direction?.toLowerCase().includes("long");
+                    return (
+                      <Link key={i} href={`/terminal/${sym.symbol}`}>
+                        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(componentStyles.text.ticker, "text-sm")}>{sym.symbol}</span>
+                            {sym.direction && (
+                              <span className={cn(isBullish ? componentStyles.badge.bullish : componentStyles.badge.bearish)}>
+                                {isBullish ? "BULL" : "BEAR"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {sym.enginesAgreed && sym.totalEngines && (
+                              <span className="text-[10px] text-muted-foreground font-mono">{sym.enginesAgreed}/{sym.totalEngines}</span>
+                            )}
+                            {sym.convergenceScore && (
+                              <span className={cn(componentStyles.text.dataValue, "text-xs font-bold",
+                                sym.convergenceScore >= 80 ? "text-[var(--trade-bullish)]" : sym.convergenceScore >= 60 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
+                              )}>
+                                {sym.convergenceScore}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground/40 text-center py-4">No convergence signals</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Breaking News
+// 5. Market Pulse — News (with sentiment) + Earnings + Movers
 // ────────────────────────────────────────────────────────────
 
-function BreakingNews() {
-  const { data, isLoading } = useQuery<{
+function NewsFeed() {
+  const { data, isLoading, isError, refetch } = useQuery<{
     news: Array<{
       title: string;
       summary?: string;
@@ -728,75 +819,86 @@ function BreakingNews() {
 
   const news = data?.news?.slice(0, 5) || [];
 
+  const sentimentBadge = (sentiment?: string) => {
+    if (!sentiment) return null;
+    const lower = sentiment.toLowerCase();
+    if (lower.includes("bullish") || lower.includes("positive"))
+      return { cls: componentStyles.badge.bullish, label: "Bullish" };
+    if (lower.includes("bearish") || lower.includes("negative"))
+      return { cls: componentStyles.badge.bearish, label: "Bearish" };
+    if (lower.includes("neutral"))
+      return { cls: componentStyles.badge.default, label: "Neutral" };
+    return null;
+  };
+
   return (
-    <Card className={cn("bg-card border-border", news.length === 0 && !isLoading && "bg-card/50 border-border/50")}>
+    <Card className={componentStyles.card.default}>
       <CardContent className="p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Newspaper className="w-3.5 h-3.5 text-muted-foreground" />
             <h3 className="font-semibold text-foreground text-xs">News Feed</h3>
           </div>
-          <span className="text-[9px] text-muted-foreground/50 font-mono">Live</span>
+          <span className={componentStyles.badge.live}>LIVE</span>
         </div>
-        <div className="space-y-1.5">
-          {isLoading ? (
-            <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading news...</p>
-          ) : news.length > 0 ? (
-            news.map((article, i) => (
-              <a
-                key={i}
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-2.5 rounded-lg hover:bg-muted/50 transition-colors group/item"
-              >
-                <p className="text-sm font-medium text-foreground line-clamp-2 group-hover/item:text-[var(--brand-teal)] transition-colors leading-snug">
-                  {article.title}
-                </p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="text-[10px] text-muted-foreground">{article.source}</span>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                    <Clock className="w-2.5 h-2.5" />
-                    {getRelativeTime(article.publishedAt)}
-                  </span>
-                  {article.tickers && article.tickers.length > 0 && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      <div className="flex gap-1">
-                        {article.tickers.slice(0, 2).map((ticker) => (
-                          <span key={ticker} className="text-[10px] font-mono font-medium text-[var(--brand-teal)] bg-[var(--brand-teal)]/10 px-1.5 py-0.5 rounded">
-                            ${ticker}
-                          </span>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </a>
-            ))
-          ) : (
-            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No breaking news right now</p>
-          )}
-        </div>
+        {isError ? (
+          <CardError message="News feed unavailable" onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading news...</p>
+        ) : news.length > 0 ? (
+          <div className="space-y-1.5">
+            {news.map((article, i) => {
+              const sb = sentimentBadge(article.sentiment);
+              return (
+                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
+                  className="block p-2.5 rounded-lg hover:bg-muted/50 transition-colors group/item">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 group-hover/item:text-[var(--brand-teal)] transition-colors leading-snug">
+                        {article.title}
+                      </p>
+                      {/* Summary — previously unused */}
+                      {article.summary && (
+                        <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1 leading-snug">{article.summary}</p>
+                      )}
+                    </div>
+                    {sb && <span className={cn(sb.cls, "shrink-0 mt-0.5")}>{sb.label}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[10px] text-muted-foreground">{article.source}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      {getRelativeTime(article.publishedAt)}
+                    </span>
+                    {article.tickers && article.tickers.length > 0 && (
+                      <>
+                        <span className="text-muted-foreground/40">·</span>
+                        <div className="flex gap-1">
+                          {article.tickers.slice(0, 3).map((ticker) => (
+                            <span key={ticker} className={componentStyles.badge.cyan}>${ticker}</span>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No breaking news right now</p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// Earnings Calendar
-// ────────────────────────────────────────────────────────────
-
 function EarningsCalendar() {
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, isError, refetch } = useQuery<{
     earnings: Array<{
-      symbol: string;
-      company?: string;
-      reportDate: string;
-      fiscalQuarter?: string;
-      estimatedEps?: number;
-      time?: string;
+      symbol: string; company?: string; reportDate: string;
+      fiscalQuarter?: string; estimatedEps?: number; time?: string;
     }>;
   }>({
     queryKey: ["/api/earnings/upcoming?days=14"],
@@ -810,50 +912,47 @@ function EarningsCalendar() {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   };
 
   const getTimeLabel = (time?: string) => {
-    if (time === 'bmo' || time === 'BMO') return { label: 'Pre', color: 'text-[var(--trade-neutral)] bg-[var(--trade-neutral)]/10' };
-    if (time === 'amc' || time === 'AMC') return { label: 'Post', color: 'text-purple-400 bg-purple-500/10' };
-    return { label: 'TBD', color: 'text-muted-foreground bg-muted' };
+    if (time === "bmo" || time === "BMO") return { label: "Pre", cls: componentStyles.badge.warning };
+    if (time === "amc" || time === "AMC") return { label: "Post", cls: componentStyles.badge.default };
+    return { label: "TBD", cls: componentStyles.badge.default };
   };
 
   return (
-    <Card className={cn("bg-card border-border", earnings.length === 0 && !isLoading && "bg-card/50 border-border/50")}>
+    <Card className={componentStyles.card.default}>
       <CardContent className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground text-xs">Earnings</h3>
-          </div>
-          <Link href="/market">
-            <Button variant="ghost" size="sm" className="text-xs text-[var(--brand-teal)] h-7 px-2">
-              Full calendar <ChevronRight className="h-3 w-3 ml-0.5" />
-            </Button>
-          </Link>
+        <div className="flex items-center gap-2 mb-2">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="font-semibold text-foreground text-xs">Earnings</h3>
         </div>
-        <div className="space-y-1.5">
-          {isLoading ? (
-            <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading earnings...</p>
-          ) : earnings.length > 0 ? (
-            earnings.map((earning, i) => {
+        {isError ? (
+          <CardError message="Earnings unavailable" onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading earnings...</p>
+        ) : earnings.length > 0 ? (
+          <div className="space-y-1.5">
+            {earnings.map((earning, i) => {
               const timeInfo = getTimeLabel(earning.time);
               return (
-                <Link key={i} href={`/stock/${earning.symbol}`}>
+                <Link key={i} href={`/terminal/${earning.symbol}`}>
                   <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2.5">
-                      <span className="font-mono font-semibold text-sm text-foreground w-12">{earning.symbol}</span>
-                      <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium", timeInfo.color)}>
-                        {timeInfo.label}
-                      </span>
+                      <span className={cn(componentStyles.text.ticker, "text-sm w-12")}>{earning.symbol}</span>
+                      <span className={timeInfo.cls}>{timeInfo.label}</span>
+                      {/* Company name — previously unused */}
+                      {earning.company && (
+                        <span className="text-[10px] text-muted-foreground/50 truncate max-w-[100px]">{earning.company}</span>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-xs font-medium text-foreground">{formatDate(earning.reportDate)}</div>
-                      {earning.estimatedEps && (
-                        <div className="text-[10px] text-muted-foreground font-mono">
+                      {earning.estimatedEps != null && (
+                        <div className={cn(componentStyles.text.dataValue, "text-[10px] text-muted-foreground")}>
                           Est ${safeToFixed(earning.estimatedEps, 2)}
                         </div>
                       )}
@@ -861,22 +960,18 @@ function EarningsCalendar() {
                   </div>
                 </Link>
               );
-            })
-          ) : (
-            <p className="text-[10px] text-muted-foreground/40 text-center py-4">No notable earnings this week</p>
-          )}
-        </div>
+            })}
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No notable earnings this week</p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// Top Movers
-// ────────────────────────────────────────────────────────────
-
 function TopMovers() {
-  const { data } = useQuery<{
+  const { data, isError, refetch } = useQuery<{
     topGainers: Array<{ symbol: string; changePercent: number; percentChange?: number; price?: number }>;
     topLosers: Array<{ symbol: string; changePercent: number; percentChange?: number; price?: number }>;
   }>({
@@ -889,27 +984,35 @@ function TopMovers() {
   const isEmpty = gainers.length === 0 && losers.length === 0;
 
   return (
-    <Card className={cn("bg-card border-border", isEmpty && "bg-card/50 border-border/50")}>
+    <Card className={componentStyles.card.default}>
       <CardContent className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <Activity className="w-3.5 h-3.5 text-muted-foreground" />
-          <h3 className="font-semibold text-foreground text-xs">Market Movers</h3>
+          <h3 className="font-semibold text-foreground text-xs">Movers</h3>
         </div>
-        {isEmpty ? (
+        {isError ? (
+          <CardError message="Movers unavailable" onRetry={() => refetch()} />
+        ) : isEmpty ? (
           <p className="text-[10px] text-muted-foreground/40 text-center py-3">Market closed — movers update at open</p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <TrendingUp className="h-3 w-3 text-[var(--trade-bullish)]" />
-                <span className="text-[10px] font-semibold text-[var(--trade-bullish)] uppercase">Gainers</span>
+                <span className={cn(componentStyles.text.chromeLabel, "text-[var(--trade-bullish)]")}>Gainers</span>
               </div>
               <div className="space-y-0.5">
                 {gainers.map((s) => (
-                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                  <Link key={s.symbol} href={`/terminal/${s.symbol}`}>
                     <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bullish)]/5 transition-colors cursor-pointer">
-                      <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
-                      <span className="text-xs font-mono font-bold text-[var(--trade-bullish)]">+{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
+                      <span className={cn(componentStyles.text.ticker, "text-xs")}>{s.symbol}</span>
+                      <div className="flex items-center gap-2">
+                        {/* Price — previously unused */}
+                        {s.price && <span className={cn(componentStyles.text.dataValue, "text-[10px] text-muted-foreground")}>${safeToFixed(s.price, 2)}</span>}
+                        <span className={cn(componentStyles.text.change, "font-bold text-[var(--trade-bullish)]")}>
+                          +{safeToFixed(s.changePercent ?? s.percentChange, 1)}%
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -918,14 +1021,19 @@ function TopMovers() {
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <TrendingDown className="h-3 w-3 text-[var(--trade-bearish)]" />
-                <span className="text-[10px] font-semibold text-[var(--trade-bearish)] uppercase">Losers</span>
+                <span className={cn(componentStyles.text.chromeLabel, "text-[var(--trade-bearish)]")}>Losers</span>
               </div>
               <div className="space-y-0.5">
                 {losers.map((s) => (
-                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                  <Link key={s.symbol} href={`/terminal/${s.symbol}`}>
                     <div className="flex items-center justify-between p-1.5 rounded hover:bg-[var(--trade-bearish)]/5 transition-colors cursor-pointer">
-                      <span className="text-xs font-mono font-semibold text-foreground">{s.symbol}</span>
-                      <span className="text-xs font-mono font-bold text-[var(--trade-bearish)]">{safeToFixed(s.changePercent ?? s.percentChange, 1)}%</span>
+                      <span className={cn(componentStyles.text.ticker, "text-xs")}>{s.symbol}</span>
+                      <div className="flex items-center gap-2">
+                        {s.price && <span className={cn(componentStyles.text.dataValue, "text-[10px] text-muted-foreground")}>${safeToFixed(s.price, 2)}</span>}
+                        <span className={cn(componentStyles.text.change, "font-bold text-[var(--trade-bearish)]")}>
+                          {safeToFixed(s.changePercent ?? s.percentChange, 1)}%
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -939,54 +1047,46 @@ function TopMovers() {
 }
 
 // ────────────────────────────────────────────────────────────
-// Engine Health + Performance Stats (bottom bar)
+// 6. Platform Health (bottom bar)
 // ────────────────────────────────────────────────────────────
 
 function EngineHealthBar() {
-  const { data: health } = useQuery<{
-    overall?: string;
-    score?: number;
-    engines?: Array<{ name: string; status: string; accuracy?: number }>;
-  }>({
+  const { data: health } = useQuery<{ overall?: string; score?: number }>({
     queryKey: ["/api/engine-health"],
     refetchInterval: 300000,
   });
 
   const { data: perf } = useQuery<{
-    totalTrades?: number;
-    winRate?: number;
-    avgReturn?: number;
-    profitFactor?: number;
-    sharpeRatio?: number;
+    totalTrades?: number; winRate?: number; avgReturn?: number;
+    profitFactor?: number; sharpeRatio?: number;
   }>({
     queryKey: ["/api/performance/stats"],
     refetchInterval: 300000,
   });
 
   const stats = [
-    { label: "Hit Rate", value: perf?.winRate ? `${safeToFixed(perf.winRate, 1)}%` : "—", color: perf?.winRate && perf.winRate >= 50 ? "text-[var(--trade-bullish)]" : "text-foreground" },
+    { label: "Hit Rate", value: perf?.winRate ? `${safeToFixed(perf.winRate, 1)}%` : "—", color: perf?.winRate && perf.winRate >= 50 ? "text-[var(--trade-bullish)]" : undefined },
     { label: "Trades", value: perf?.totalTrades?.toLocaleString() || "—" },
-    { label: "Profit Factor", value: perf?.profitFactor ? safeToFixed(perf.profitFactor, 2) : "—", color: perf?.profitFactor && perf.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : "text-foreground" },
-    { label: "Avg Return", value: perf?.avgReturn ? `${safeToFixed(perf.avgReturn, 1)}%` : "—", color: perf?.avgReturn && perf.avgReturn > 0 ? "text-[var(--trade-bullish)]" : perf?.avgReturn && perf.avgReturn < 0 ? "text-[var(--trade-bearish)]" : "text-foreground" },
-    { label: "Engine Health", value: health?.score ? `${health.score}%` : health?.overall || "—", color: "text-[var(--brand-cyan)]" },
+    { label: "Profit Factor", value: perf?.profitFactor ? safeToFixed(perf.profitFactor, 2) : "—", color: perf?.profitFactor && perf.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : undefined },
+    { label: "Avg Return", value: perf?.avgReturn ? `${safeToFixed(perf.avgReturn, 1)}%` : "—", color: perf?.avgReturn && perf.avgReturn > 0 ? "text-[var(--trade-bullish)]" : perf?.avgReturn && perf.avgReturn < 0 ? "text-[var(--trade-bearish)]" : undefined },
+    { label: "Sharpe", value: perf?.sharpeRatio ? safeToFixed(perf.sharpeRatio, 2) : "—", color: perf?.sharpeRatio && perf.sharpeRatio >= 1 ? "text-[var(--trade-bullish)]" : undefined },
+    { label: "Engine", value: health?.score ? `${health.score}%` : health?.overall || "—", color: "text-[var(--brand-cyan)]" },
   ];
 
-  const allEmpty = stats.every(s => s.value === "—");
-
-  if (allEmpty) {
+  if (stats.every(s => s.value === "—")) {
     return (
-      <div className="p-2 rounded-lg bg-card/50 border border-border/50 text-center">
+      <div className={cn(componentStyles.card.inset, "p-2 text-center")}>
         <p className="text-[10px] text-muted-foreground/40">Performance stats available during market hours</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
       {stats.map((stat) => (
-        <div key={stat.label} className="p-2 rounded-lg bg-card border border-border text-center">
-          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">{stat.label}</div>
-          <div className={cn("text-base font-mono font-bold tabular-nums", stat.color || "text-foreground")}>{stat.value}</div>
+        <div key={stat.label} className={cn(componentStyles.card.inset, "p-2 text-center")}>
+          <div className={componentStyles.text.chromeLabel}>{stat.label}</div>
+          <div className={cn(componentStyles.text.dataValue, "text-base font-bold", stat.color || "text-foreground")}>{stat.value}</div>
         </div>
       ))}
     </div>
@@ -994,398 +1094,47 @@ function EngineHealthBar() {
 }
 
 // ────────────────────────────────────────────────────────────
-// Top Convictions widget — surfaces the highest-confluence picks
-// from /api/convictions so the user sees them on first load.
-// ────────────────────────────────────────────────────────────
-
-interface MiniConvictionPick {
-  ideaId: string;
-  symbol: string;
-  direction: "long" | "short";
-  convictionScore: number;
-  convictionBand: "S" | "A" | "B" | "C";
-  layerCount: number;
-  riskRewardRatio: number;
-  thesis: string;
-  layers: Array<{ label: string; points: number }>;
-}
-
-function TopConvictions() {
-  const convictionInterval = useMarketPoll(POLL.SCANNER.open, POLL.SCANNER.closed);
-  const { data, isLoading } = useQuery<{ picks: MiniConvictionPick[]; totalCandidatesScanned: number }>({
-    queryKey: ["/api/convictions", { minScore: 15, limit: 6, lookbackHours: 72 }],
-    queryFn: async () => {
-      const res = await fetch("/api/convictions?minScore=15&limit=6&lookbackHours=72", {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("convictions fetch failed");
-      return res.json();
-    },
-    staleTime: 20_000,
-    refetchInterval: convictionInterval,
-  });
-
-  const picks = data?.picks ?? [];
-  const bandColor = (band: "S" | "A" | "B" | "C") =>
-    band === "S"
-      ? "text-amber-300 border-amber-400/40 bg-amber-500/10"
-      : band === "A"
-      ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
-      : band === "B"
-      ? "text-cyan-300 border-cyan-400/20 bg-cyan-500/10"
-      : "text-muted-foreground border-foreground/10 bg-foreground/[0.03]";
-
-  return (
-    <Card className="bg-card border-border overflow-hidden">
-      <CardContent className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-sm font-bold text-foreground">Top Convictions</span>
-            <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
-              layered confluence
-            </span>
-          </div>
-          <Link href="/trade-desk?preset=todays-best">
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1">
-              View all
-              <ChevronRight className="w-3 h-3" />
-            </Button>
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-4">Loading convictions...</p>
-        ) : picks.length === 0 ? (
-          <div className="py-6 text-center text-xs text-muted-foreground">
-            No high-conviction picks in the last 72h. Check back after the next scanner pass.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {picks.map((p) => (
-              <Link key={p.ideaId} href={`/t/${p.symbol}/chart`}>
-                <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] hover:border-foreground/20 hover:bg-foreground/[0.04] p-2.5 cursor-pointer transition-all">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-mono font-bold text-sm text-foreground">
-                        {p.symbol}
-                      </span>
-                      {p.direction === "long" ? (
-                        <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-                      ) : (
-                        <ArrowDownRight className="w-3 h-3 text-red-400" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span
-                        className={cn(
-                          "px-1.5 py-0 rounded border text-[9px] font-mono font-bold",
-                          bandColor(p.convictionBand),
-                        )}
-                      >
-                        {p.convictionBand}
-                      </span>
-                      <span className={cn("text-sm font-mono font-bold", bandColor(p.convictionBand).split(" ")[0])}>
-                        {p.convictionScore}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[9px] font-mono text-muted-foreground mb-1">
-                    <span>{p.layerCount} layers</span>
-                    <span>·</span>
-                    <span>R:R {p.riskRewardRatio.toFixed(1)}×</span>
-                  </div>
-                  {p.thesis && (
-                    <div className="text-[10px] text-muted-foreground/80 leading-tight line-clamp-2">
-                      {p.thesis}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Next Day Outlook Panel — condensed outlook for the home page
-// ────────────────────────────────────────────────────────────
-
-interface OutlookPanelData {
-  futuresBias: "bullish" | "bearish" | "neutral";
-  isWeekend: boolean;
-  summary: string;
-  marketContext: { vixLevel: number | null; regime: string; riskSentiment: string } | null;
-  highImpactAlert: { name: string; date: string; time: string } | null;
-  crypto: Array<{ symbol: string; price: number; changePct: number }>;
-  swingSetups: Array<{
-    symbol: string; direction: string; score: number; pattern: string;
-    currentPrice: number; targetPrice: number; riskReward: number;
-  }>;
-  topConvictions: Array<{
-    symbol: string; direction: string; convictionScore: number;
-    convictionBand: string; thesis: string;
-  }>;
-  weeklyFocus: string[];
-  fridayRecap: {
-    gainers: Array<{ symbol: string; changePct: number }>;
-    losers: Array<{ symbol: string; changePct: number }>;
-    carryOverIdeas: Array<{ symbol: string; direction: string }>;
-  } | null;
-}
-
-function NextDayOutlookPanel() {
-  const { data, isLoading } = useQuery<OutlookPanelData>({
-    queryKey: ["/api/market-outlook"],
-    staleTime: 60_000,
-    refetchInterval: 60_000,
-  });
-
-  if (isLoading) return (
-    <Card className="bg-card/50 border-border/50">
-      <CardContent className="p-3">
-        <span className="text-[10px] text-muted-foreground/40">Loading outlook...</span>
-      </CardContent>
-    </Card>
-  );
-  if (!data) return null;
-
-  const biasColor = data.futuresBias === "bullish" ? "text-[var(--trade-bullish)]" : data.futuresBias === "bearish" ? "text-[var(--trade-bearish)]" : "text-muted-foreground";
-  const setups = data.swingSetups?.slice(0, 3) ?? [];
-  const convictions = data.topConvictions?.slice(0, 3) ?? [];
-  const focus = data.weeklyFocus ?? [];
-
-  return (
-    <Card className="bg-card border-border overflow-hidden">
-      <CardContent className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Sun className="w-3.5 h-3.5 text-[var(--brand-teal)]" />
-            <span className="text-sm font-bold text-foreground">
-              {data.isWeekend ? "Weekend Outlook" : "Next Day Outlook"}
-            </span>
-            {data.futuresBias !== "neutral" && (
-              <Badge variant="outline" className={cn("text-[9px] font-mono px-1.5 py-0", biasColor,
-                data.futuresBias === "bullish" ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10"
-              )}>
-                {data.futuresBias === "bullish" ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
-                {data.futuresBias.toUpperCase()}
-              </Badge>
-            )}
-          </div>
-          <Link href="/outlook">
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1">
-              Full Outlook <ChevronRight className="w-3 h-3" />
-            </Button>
-          </Link>
-        </div>
-
-        {/* Summary */}
-        {data.summary && (
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{data.summary}</p>
-        )}
-
-        {/* High Impact Alert */}
-        {data.highImpactAlert && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-500/30 bg-amber-500/5 mb-3">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="text-[10px] font-semibold text-amber-400">{data.highImpactAlert.name}</span>
-            <span className="text-[10px] text-muted-foreground ml-auto font-mono">{data.highImpactAlert.date} {data.highImpactAlert.time}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Swing Setups */}
-          {setups.length > 0 && (
-            <div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Top Swing Setups</div>
-              <div className="space-y-1">
-                {setups.map((s, i) => (
-                  <Link key={i} href={`/t/${s.symbol}/chart`}>
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02] hover:bg-foreground/[0.04] cursor-pointer transition-colors">
-                      <span className="text-xs font-mono font-semibold text-[var(--brand-teal)] w-12">{s.symbol}</span>
-                      {s.direction === "bearish" ? <ArrowDownRight className="w-3 h-3 text-red-400" /> : <ArrowUpRight className="w-3 h-3 text-emerald-400" />}
-                      <span className="text-[10px] text-muted-foreground truncate flex-1">{s.pattern}</span>
-                      <span className="text-[10px] font-mono text-foreground/60">{s.score}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Conviction Picks */}
-          {convictions.length > 0 && (
-            <div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Top Convictions</div>
-              <div className="space-y-1">
-                {convictions.map((c, i) => (
-                  <Link key={i} href={`/t/${c.symbol}/chart`}>
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02] hover:bg-foreground/[0.04] cursor-pointer transition-colors">
-                      <span className={cn("text-[9px] font-bold px-1 py-0 rounded font-mono",
-                        c.convictionBand === "S" ? "text-amber-300 bg-amber-500/15" :
-                        c.convictionBand === "A" ? "text-emerald-300 bg-emerald-500/15" :
-                        "text-muted-foreground bg-muted/30"
-                      )}>{c.convictionBand}</span>
-                      <span className="text-xs font-mono font-semibold text-[var(--brand-teal)] w-12">{c.symbol}</span>
-                      {c.direction === "short" ? <ArrowDownRight className="w-3 h-3 text-red-400" /> : <ArrowUpRight className="w-3 h-3 text-emerald-400" />}
-                      <span className="text-[10px] text-muted-foreground truncate flex-1">{c.thesis}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VIX + Crypto + Weekly Focus */}
-          <div className="space-y-3">
-            {/* Live crypto — 24/7, shows weekend moves */}
-            {data.isWeekend && data.crypto?.length > 0 && (
-              <div>
-                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Crypto (Live)</div>
-                <div className="space-y-1">
-                  {data.crypto.map((c) => (
-                    <div key={c.symbol} className="flex items-center justify-between px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02]">
-                      <span className="text-xs font-mono font-semibold text-foreground/80">{c.symbol}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground">${c.price > 1000 ? Math.round(c.price).toLocaleString() : c.price.toFixed(2)}</span>
-                      <span className={cn("text-[10px] font-mono font-semibold",
-                        c.changePct >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                      )}>{c.changePct >= 0 ? "+" : ""}{c.changePct.toFixed(2)}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Friday movers snapshot on weekends */}
-            {data.isWeekend && data.fridayRecap && (
-              <div>
-                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Friday's Top Movers</div>
-                <div className="space-y-0.5">
-                  {data.fridayRecap.gainers?.slice(0, 3).map((g) => (
-                    <div key={g.symbol} className="flex items-center justify-between px-2 py-1 rounded">
-                      <span className="text-[10px] font-mono text-foreground/70">{g.symbol}</span>
-                      <span className="text-[10px] font-mono text-[var(--trade-bullish)]">+{Math.abs(g.changePct).toFixed(1)}%</span>
-                    </div>
-                  ))}
-                  {data.fridayRecap.losers?.slice(0, 3).map((l) => (
-                    <div key={l.symbol} className="flex items-center justify-between px-2 py-1 rounded">
-                      <span className="text-[10px] font-mono text-foreground/70">{l.symbol}</span>
-                      <span className="text-[10px] font-mono text-[var(--trade-bearish)]">{l.changePct.toFixed(1)}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {data.marketContext?.vixLevel != null && (
-              <div>
-                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">VIX Context</div>
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded border border-border/50 bg-foreground/[0.02]">
-                  <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className={cn("text-sm font-mono font-bold",
-                    data.marketContext.vixLevel > 25 ? "text-red-400" : data.marketContext.vixLevel > 18 ? "text-amber-400" : "text-[var(--trade-bullish)]"
-                  )}>{data.marketContext.vixLevel.toFixed(1)}</span>
-                  <span className="text-[10px] text-muted-foreground">{data.marketContext.regime}</span>
-                </div>
-              </div>
-            )}
-            {focus.length > 0 && (
-              <div>
-                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Weekly Focus</div>
-                <div className="flex flex-wrap gap-1">
-                  {focus.slice(0, 8).map((sym) => (
-                    <Link key={sym} href={`/t/${sym}/chart`}>
-                      <Badge variant="outline" className="text-[9px] font-mono text-[var(--brand-teal)] border-[var(--brand-teal)]/30 bg-[var(--brand-teal)]/5 cursor-pointer hover:bg-[var(--brand-teal)]/10">
-                        {sym}
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Main Dashboard Page
+// Main Dashboard
 // ────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background page-atmosphere">
-
-      {/* Market Ticker */}
+      {/* 1. Market Ticker */}
       <MarketTicker />
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-5 py-4 relative z-10">
-        {/* Welcome Header */}
+        {/* 2. Welcome + Global Timestamp */}
         <WelcomeHeader />
 
-        {/* Row 0: Top Convictions — highest-confluence picks first */}
+        {/* 3. Market Intelligence — briefing + regime + outlook merged */}
         <SectionReveal className="mb-[var(--section-gap-sm)]">
-          <SectionHeader label="Today's Convictions" action="View All" actionHref="/trade-desk?preset=todays-best" />
-          <TopConvictions />
+          <SectionHeader label="Market Intelligence" action="Full Outlook" actionHref="/outlook" />
+          <MarketIntelligence />
         </SectionReveal>
 
-        {/* Row 1: Morning Briefing + Market Regime */}
-        <SectionReveal className="mb-[var(--section-gap-sm)]">
-          <SectionHeader label="Market Intelligence" />
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-[var(--card-gap)]">
-            <div className="lg:col-span-3">
-              <MorningBriefing />
-            </div>
-            <div className="lg:col-span-2">
-              <MarketRegimeCard />
-            </div>
-          </div>
-        </SectionReveal>
-
-        {/* Row 1.5: Next Day Outlook — swing setups, convictions, VIX */}
+        {/* 4. Top Signals — convictions + setups + convergence merged */}
         <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.02}>
-          <SectionHeader label="Next Day Outlook" action="Full Outlook" actionHref="/outlook" />
-          <NextDayOutlookPanel />
+          <SectionHeader label="Top Signals" action="Trade Desk" actionHref="/trade-desk" />
+          <TopSignals />
         </SectionReveal>
 
-        {/* Row 2: Cross-Asset Overview */}
+        {/* 5. Market Pulse — news + earnings + movers */}
         <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
-          <CrossAssetOverview />
-        </SectionReveal>
-
-        {/* Row 3: Best Setups + Convergence */}
-        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
-          <SectionHeader label="Trade Signals" action="Trade Desk" actionHref="/trade-desk" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--card-gap)]">
-            <BestSetups />
-            <ConvergenceHotList />
-          </div>
-        </SectionReveal>
-
-        {/* Row 4: News + Earnings + Movers */}
-        <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
-          <SectionHeader label="Calendar & News" />
+          <SectionHeader label="Market Pulse" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--card-gap)]">
-            <BreakingNews />
+            <NewsFeed />
             <EarningsCalendar />
             <TopMovers />
           </div>
         </SectionReveal>
 
-        {/* Row 5: Engine Health + Performance */}
+        {/* 6. Platform Health */}
         <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
           <SectionHeader label="Platform Health" action="Performance" actionHref="/performance" />
           <EngineHealthBar />
         </SectionReveal>
 
-        {/* Footer */}
         <footer className="text-center py-4 mt-1 border-t border-border">
           <p className="text-[10px] text-muted-foreground/60">
             Educational research platform. Not financial advice.
