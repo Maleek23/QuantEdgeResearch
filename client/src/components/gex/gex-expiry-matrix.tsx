@@ -11,6 +11,47 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { StrikeExpiryCell, GEXSnapshot } from '../../../../shared/gex-types';
 
+/** Parse "APR 14"-style label into a Date (assumes current year) */
+function parseExpiryLabel(label: string): Date | null {
+  const months: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+  };
+  const parts = label.trim().split(/\s+/);
+  if (parts.length < 2) return null;
+  const month = months[parts[0].toUpperCase()];
+  const day = parseInt(parts[1], 10);
+  if (month === undefined || isNaN(day)) return null;
+  return new Date(new Date().getFullYear(), month, day);
+}
+
+/** Group expiry dates into Mon-Fri trading weeks */
+function groupByWeek(expiryInfo: { label: string; dte: number }[]): { key: string; weekLabel: string; expLabels: string[] }[] {
+  if (expiryInfo.length === 0) return [];
+  const groups = new Map<string, string[]>();
+  const keyToMonday = new Map<string, Date>();
+
+  for (const exp of expiryInfo) {
+    const d = parseExpiryLabel(exp.label);
+    if (!d) continue;
+    const day = d.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
+    const key = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+    if (!groups.has(key)) { groups.set(key, []); keyToMonday.set(key, monday); }
+    groups.get(key)!.push(exp.label);
+  }
+
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, labels]) => {
+      const mon = keyToMonday.get(key)!;
+      const fri = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 4);
+      return { key, weekLabel: `${fmt(mon)} – ${fmt(fri)}`, expLabels: labels };
+    });
+}
+
 export interface GEXExpiryMatrixProps {
   matrix: StrikeExpiryCell[];
   snapshot: GEXSnapshot;
@@ -58,8 +99,7 @@ export function GEXExpiryMatrix({
 }: GEXExpiryMatrixProps) {
   const [internalMode, setInternalMode] = useState<MatrixMode>('gex');
   const [internalExpanded, setInternalExpanded] = useState(false);
-  const [internalExpiryFilter, setInternalExpiryFilter] = useState<'all' | 'weekly' | 'monthly' | 'quarterly' | 'custom'>('all');
-  const [selectedExpiries, setSelectedExpiries] = useState<Set<string>>(new Set());
+  const [internalWeek, setInternalWeek] = useState<string>('all');
   const spotRowRef = useRef<HTMLTableRowElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -117,54 +157,60 @@ export function GEXExpiryMatrix({
         dteMap.set(cell.expiryLabel, cell.dte);
       }
     }
-    for (const [label, dte] of dteMap.entries()) {
+    dteMap.forEach((dte, label) => {
       info.push({ label, dte });
-    }
+    });
     return info.sort((a, b) => a.dte - b.dte);
   }, [matrix]);
 
-  // Filter expiries — parent-controlled or internal
+  // Week groups for internal filter
+  const weekGroups = useMemo(() => groupByWeek(expiryInfo), [expiryInfo]);
+
+  // Filter expiries — parent-controlled or internal week filter
   const filteredExpiries = useMemo(() => {
     if (visibleExpiries && visibleExpiries.length > 0) {
       return expiries.filter(e => visibleExpiries.includes(e));
     }
-    // Internal filtering
-    if (internalExpiryFilter === 'all') return expiries;
-    if (internalExpiryFilter === 'weekly') return expiryInfo.filter(e => e.dte <= 7).map(e => e.label);
-    if (internalExpiryFilter === 'monthly') return expiryInfo.filter(e => e.dte <= 35).map(e => e.label);
-    if (internalExpiryFilter === 'quarterly') return expiryInfo.filter(e => e.dte <= 100).map(e => e.label);
-    return Array.from(selectedExpiries);
-  }, [visibleExpiries, expiries, internalExpiryFilter, expiryInfo, selectedExpiries]);
+    // Internal week-based filtering
+    if (internalWeek === 'all') return expiries;
+    const week = weekGroups.find(w => w.key === internalWeek);
+    return week ? expiries.filter(e => week.expLabels.includes(e)) : expiries;
+  }, [visibleExpiries, expiries, internalWeek, weekGroups]);
 
-  // Only show internal filter when parent isn't providing its own controls
   const hasInternalFilter = !hideControls;
-  const toggleExpiry = (label: string) => {
-    setInternalExpiryFilter('custom');
-    setSelectedExpiries(prev => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  };
 
   // Find the index of the strike closest to spot
   const { spotPrice, gammaFlipPrice, maxGammaStrike } = snapshot;
   const spotIdx = allStrikes.reduce((best, s, i) =>
     Math.abs(s - spotPrice) < Math.abs(allStrikes[best] - spotPrice) ? i : best, 0);
 
-  // Collapsed view: show STRIKES_AROUND above and below spot
-  const startIdx = Math.max(0, spotIdx - STRIKES_AROUND);
-  const endIdx = Math.min(allStrikes.length, spotIdx + STRIKES_AROUND + 1);
-  const strikes = expanded ? allStrikes : allStrikes.slice(startIdx, endIdx);
-  const hiddenAbove = expanded ? 0 : startIdx;
-  const hiddenBelow = expanded ? 0 : allStrikes.length - endIdx;
-  const totalHidden = hiddenAbove + hiddenBelow;
-
   // Get the active value for a cell based on mode
   const getCellValue = (cell: StrikeExpiryCell): number => {
     return mode === 'gex' ? cell.netGEX : (cell.netVEX ?? 0);
   };
+
+  // Collapsed view: show STRIKES_AROUND above and below spot
+  const startIdx = Math.max(0, spotIdx - STRIKES_AROUND);
+  const endIdx = Math.min(allStrikes.length, spotIdx + STRIKES_AROUND + 1);
+  const rawStrikes = expanded ? allStrikes : allStrikes.slice(startIdx, endIdx);
+
+  // Filter out strikes with no data in any visible expiry (removes gap rows)
+  const strikes = useMemo(() => {
+    return rawStrikes.filter(strike => {
+      // Always keep spot/flip/maxGamma rows
+      if (Math.abs(strike - spotPrice) / spotPrice < 0.003) return true;
+      if (strike === gammaFlipPrice || strike === maxGammaStrike) return true;
+      // Keep if any visible expiry has data
+      return filteredExpiries.some(exp => {
+        const cell = lookup.get(`${strike}|${exp}`);
+        return cell && Math.abs(getCellValue(cell)) >= 0.0001;
+      });
+    });
+  }, [rawStrikes, filteredExpiries, lookup, spotPrice, gammaFlipPrice, maxGammaStrike, getCellValue]);
+
+  const hiddenAbove = expanded ? 0 : startIdx;
+  const hiddenBelow = expanded ? 0 : allStrikes.length - endIdx;
+  const totalHidden = hiddenAbove + hiddenBelow;
 
   // Find max for intensity scaling (across ALL strikes, not just visible)
   let maxVal = 0.001;
@@ -228,49 +274,20 @@ export function GEXExpiryMatrix({
         </div>
       )}
 
-      {/* Expiry date filter — shown when not parent-controlled */}
+      {/* Week-based expiry filter — shown when not parent-controlled */}
       {hasInternalFilter && expiryInfo.length > 1 && (
-        <div className="flex items-center gap-1 flex-wrap">
-          {(['all', 'weekly', 'monthly', 'quarterly'] as const).map(preset => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => { setInternalExpiryFilter(preset); setSelectedExpiries(new Set()); }}
-              className={cn(
-                'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
-                internalExpiryFilter === preset
-                  ? 'bg-foreground/10 text-foreground'
-                  : 'text-muted-foreground/50 hover:text-muted-foreground'
-              )}
-            >
-              {preset}
-            </button>
+        <select
+          value={internalWeek}
+          onChange={e => setInternalWeek(e.target.value)}
+          className="bg-[var(--surface-base)] border border-border/30 rounded px-2 py-1 text-[9px] font-mono font-bold uppercase text-foreground outline-none cursor-pointer w-fit"
+        >
+          <option value="all">All Dates ({expiries.length})</option>
+          {weekGroups.map((wk, i) => (
+            <option key={wk.key} value={wk.key}>
+              {i === 0 ? 'This Week' : i === 1 ? 'Next Week' : 'Wk of'} · {wk.weekLabel} ({wk.expLabels.length})
+            </option>
           ))}
-          <div className="w-px h-3 bg-border/30 mx-0.5" />
-          {expiryInfo.map(exp => {
-            const isActive = internalExpiryFilter === 'all'
-              || (internalExpiryFilter === 'weekly' && exp.dte <= 7)
-              || (internalExpiryFilter === 'monthly' && exp.dte <= 35)
-              || (internalExpiryFilter === 'quarterly' && exp.dte <= 100)
-              || (internalExpiryFilter === 'custom' && selectedExpiries.has(exp.label));
-            return (
-              <button
-                key={exp.label}
-                type="button"
-                onClick={() => toggleExpiry(exp.label)}
-                className={cn(
-                  'px-1.5 py-0.5 text-[8px] font-mono rounded whitespace-nowrap transition-colors',
-                  isActive
-                    ? 'bg-[var(--gex-positive)]/10 text-[var(--gex-positive)]'
-                    : 'text-muted-foreground/30 hover:text-muted-foreground/50'
-                )}
-              >
-                {exp.label}
-                <span className="text-muted-foreground/30 ml-0.5">{exp.dte}d</span>
-              </button>
-            );
-          })}
-        </div>
+        </select>
       )}
 
       <div ref={scrollContainerRef} className={cn('overflow-auto', !hideControls && 'max-h-[calc(100vh-220px)]')}>
@@ -333,9 +350,7 @@ export function GEXExpiryMatrix({
                     const val = cell ? getCellValue(cell) : undefined;
                     if (val === undefined || Math.abs(val) < 0.0001) {
                       return (
-                        <td key={exp} className="py-1.5 px-3 text-center text-muted-foreground/30" style={{ minWidth: '100px' }}>
-                          —
-                        </td>
+                        <td key={exp} className="py-1.5 px-3 text-center" style={{ minWidth: '100px' }} />
                       );
                     }
                     const intensity = Math.abs(val) / maxVal;

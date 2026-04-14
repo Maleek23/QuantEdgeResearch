@@ -39,7 +39,7 @@ function formatExposure(val: number, mode: 'gex' | 'vex'): string {
 type TerminalView = 'profile' | 'matrix' | 'levels';
 type ExposureMode = 'gex' | 'vex';
 
-const QUICK_TICKERS = ['SPY', 'TSLA', 'QQQ', 'SPXW', 'NVDA', 'AAPL'];
+const DEFAULT_TICKERS = ['SPY', 'TSLA', 'QQQ', 'SPXW', 'NVDA', 'AAPL'];
 
 const VIEW_OPTIONS: { value: TerminalView; label: string }[] = [
   { value: 'profile', label: 'Profile' },
@@ -114,6 +114,31 @@ export default function TerminalPage() {
   const [selectedWeek, setSelectedWeek] = useState<string>('all');
   const [customInput, setCustomInput] = useState('');
 
+  // ─── Watchlist query — populate ticker tabs ───────────────
+  const { data: watchlistData } = useQuery<{ symbol: string }[]>({
+    queryKey: ['/api/watchlist'],
+    queryFn: async () => {
+      const res = await fetch('/api/watchlist', { credentials: 'include' });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 120_000,
+  });
+
+  const tickers = useMemo(() => {
+    if (!watchlistData || watchlistData.length === 0) return DEFAULT_TICKERS;
+    const wlSymbols = watchlistData
+      .map(w => (w.symbol || '').toUpperCase())
+      .filter(s => s.length > 0 && s.length <= 5);
+    // Deduplicate, keep defaults at front for options-heavy tickers
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const s of [...DEFAULT_TICKERS, ...wlSymbols]) {
+      if (!seen.has(s)) { seen.add(s); result.push(s); }
+    }
+    return result;
+  }, [watchlistData]);
+
   // ─── Data query ───────────────────────────────────────────
   const { data, isFetching, isError, refetch } = useQuery<GEXTerminalData>({
     queryKey: ['/api/gex-vex/terminal', symbol, '15m'],
@@ -163,12 +188,12 @@ export default function TerminalPage() {
   };
 
   // Ticker nav
-  const currentIdx = QUICK_TICKERS.indexOf(symbol);
+  const currentIdx = tickers.indexOf(symbol);
   const handlePrev = () => {
-    if (currentIdx > 0) handleSymbolChange(QUICK_TICKERS[currentIdx - 1]);
+    if (currentIdx > 0) handleSymbolChange(tickers[currentIdx - 1]);
   };
   const handleNext = () => {
-    if (currentIdx >= 0 && currentIdx < QUICK_TICKERS.length - 1) handleSymbolChange(QUICK_TICKERS[currentIdx + 1]);
+    if (currentIdx >= 0 && currentIdx < tickers.length - 1) handleSymbolChange(tickers[currentIdx + 1]);
   };
 
   // Projection & exposure mode
@@ -185,7 +210,7 @@ export default function TerminalPage() {
 
         {/* Row 1: Ticker tabs */}
         <div className="flex items-center gap-1 px-4 py-1.5 border-b border-border/15 overflow-x-auto">
-          {QUICK_TICKERS.map(t => (
+          {tickers.map(t => (
             <button
               key={t}
               type="button"
