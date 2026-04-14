@@ -136,7 +136,8 @@ export function GEXExpiryMatrix({
     return Array.from(selectedExpiries);
   }, [visibleExpiries, expiries, internalExpiryFilter, expiryInfo, selectedExpiries]);
 
-  const hasInternalFilter = !visibleExpiries || visibleExpiries.length === 0;
+  // Only show internal filter when parent isn't providing its own controls
+  const hasInternalFilter = !hideControls;
   const toggleExpiry = (label: string) => {
     setInternalExpiryFilter('custom');
     setSelectedExpiries(prev => {
@@ -280,7 +281,7 @@ export function GEXExpiryMatrix({
                 STRIKE
               </th>
               {filteredExpiries.map(exp => (
-                <th key={exp} className="text-center py-2 px-2 text-[9px] uppercase tracking-widest text-muted-foreground font-medium whitespace-nowrap min-w-[72px]">
+                <th key={exp} className="text-center py-2 px-3 text-[9px] uppercase tracking-widest text-muted-foreground font-medium whitespace-nowrap" style={{ minWidth: '100px' }}>
                   {exp}
                 </th>
               ))}
@@ -332,7 +333,7 @@ export function GEXExpiryMatrix({
                     const val = cell ? getCellValue(cell) : undefined;
                     if (val === undefined || Math.abs(val) < 0.0001) {
                       return (
-                        <td key={exp} className="py-1.5 px-2 text-center text-muted-foreground/30">
+                        <td key={exp} className="py-1.5 px-3 text-center text-muted-foreground/30" style={{ minWidth: '100px' }}>
                           —
                         </td>
                       );
@@ -352,7 +353,7 @@ export function GEXExpiryMatrix({
                       <td
                         key={exp}
                         className={cn(
-                          'py-1.5 px-2 text-center tabular-nums font-medium whitespace-nowrap',
+                          'py-1.5 px-3 text-center tabular-nums font-medium whitespace-nowrap',
                           isPositive ? 'text-[var(--gex-positive)]' : 'text-purple-400',
                           isMaxCell && 'ring-1 ring-inset ring-amber-400/60',
                         )}
