@@ -216,7 +216,7 @@ export function TradingEngineWidget() {
                 {data.actionable} Setups
               </Badge>
             )}
-            <Link href="/trading-engine">
+            <Link href="/trade-desk">
               <Button variant="ghost" size="sm" className="h-7 text-xs" data-testid="link-trading-engine">
                 <Activity className="h-3 w-3 mr-1" />
                 Full Analysis

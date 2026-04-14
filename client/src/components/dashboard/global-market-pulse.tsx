@@ -252,7 +252,7 @@ export function GlobalMarketPulse() {
             )}
           >
             <Activity className={cn("w-3 h-3 mr-1", isConnected && "animate-pulse")} />
-            {isConnected ? "Live" : "Cached"}
+            {isConnected ? "Connected" : "Cached"}
           </Badge>
         </CardTitle>
         <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
@@ -324,9 +324,9 @@ export function GlobalMarketPulse() {
               Market Overview <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
-          <Link href="/ct-tracker">
+          <Link href="/home">
             <Button variant="ghost" size="sm" className="text-[var(--trade-neutral)]" data-testid="link-crypto-tracker">
-              Crypto Tracker <ChevronRight className="w-4 h-4 ml-1" />
+              Crypto <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>
