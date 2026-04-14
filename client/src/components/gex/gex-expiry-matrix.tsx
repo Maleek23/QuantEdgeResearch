@@ -58,12 +58,17 @@ export function GEXExpiryMatrix({
 }: GEXExpiryMatrixProps) {
   const [internalMode, setInternalMode] = useState<MatrixMode>('gex');
   const [internalExpanded, setInternalExpanded] = useState(false);
+  const [internalExpiryFilter, setInternalExpiryFilter] = useState<'all' | 'weekly' | 'monthly' | 'quarterly' | 'custom'>('all');
+  const [selectedExpiries, setSelectedExpiries] = useState<Set<string>>(new Set());
   const spotRowRef = useRef<HTMLTableRowElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const mode = externalMode ?? internalMode;
   const expanded = externalExpanded ?? internalExpanded;
-  const setExpanded = (v: boolean) => setInternalExpanded(v);
+  // When externally controlled, local setter is a no-op (parent handles state)
+  const setExpanded = externalExpanded !== undefined
+    ? (_v: boolean) => {} // parent controls expansion via externalExpanded prop
+    : (v: boolean) => setInternalExpanded(v);
   const STRIKES_AROUND = strikesAround ?? DEFAULT_STRIKES_AROUND;
 
   // Auto-scroll to spot row on mount & when collapsed view resets
@@ -103,10 +108,44 @@ export function GEXExpiryMatrix({
     );
   }
 
-  // Filter expiries if specified
-  const filteredExpiries = visibleExpiries && visibleExpiries.length > 0
-    ? expiries.filter(e => visibleExpiries.includes(e))
-    : expiries;
+  // Build expiry info with DTE for filtering
+  const expiryInfo = useMemo(() => {
+    const info: { label: string; dte: number }[] = [];
+    const dteMap = new Map<string, number>();
+    for (const cell of matrix) {
+      if (!dteMap.has(cell.expiryLabel) || cell.dte < dteMap.get(cell.expiryLabel)!) {
+        dteMap.set(cell.expiryLabel, cell.dte);
+      }
+    }
+    for (const [label, dte] of dteMap.entries()) {
+      info.push({ label, dte });
+    }
+    return info.sort((a, b) => a.dte - b.dte);
+  }, [matrix]);
+
+  // Filter expiries — parent-controlled or internal
+  const filteredExpiries = useMemo(() => {
+    if (visibleExpiries && visibleExpiries.length > 0) {
+      return expiries.filter(e => visibleExpiries.includes(e));
+    }
+    // Internal filtering
+    if (internalExpiryFilter === 'all') return expiries;
+    if (internalExpiryFilter === 'weekly') return expiryInfo.filter(e => e.dte <= 7).map(e => e.label);
+    if (internalExpiryFilter === 'monthly') return expiryInfo.filter(e => e.dte <= 35).map(e => e.label);
+    if (internalExpiryFilter === 'quarterly') return expiryInfo.filter(e => e.dte <= 100).map(e => e.label);
+    return Array.from(selectedExpiries);
+  }, [visibleExpiries, expiries, internalExpiryFilter, expiryInfo, selectedExpiries]);
+
+  const hasInternalFilter = !visibleExpiries || visibleExpiries.length === 0;
+  const toggleExpiry = (label: string) => {
+    setInternalExpiryFilter('custom');
+    setSelectedExpiries(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   // Find the index of the strike closest to spot
   const { spotPrice, gammaFlipPrice, maxGammaStrike } = snapshot;
@@ -188,15 +227,60 @@ export function GEXExpiryMatrix({
         </div>
       )}
 
-      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-220px)]">
-        <table className="w-full text-[10px] font-mono border-collapse">
+      {/* Expiry date filter — shown when not parent-controlled */}
+      {hasInternalFilter && expiryInfo.length > 1 && (
+        <div className="flex items-center gap-1 flex-wrap">
+          {(['all', 'weekly', 'monthly', 'quarterly'] as const).map(preset => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => { setInternalExpiryFilter(preset); setSelectedExpiries(new Set()); }}
+              className={cn(
+                'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                internalExpiryFilter === preset
+                  ? 'bg-foreground/10 text-foreground'
+                  : 'text-muted-foreground/50 hover:text-muted-foreground'
+              )}
+            >
+              {preset}
+            </button>
+          ))}
+          <div className="w-px h-3 bg-border/30 mx-0.5" />
+          {expiryInfo.map(exp => {
+            const isActive = internalExpiryFilter === 'all'
+              || (internalExpiryFilter === 'weekly' && exp.dte <= 7)
+              || (internalExpiryFilter === 'monthly' && exp.dte <= 35)
+              || (internalExpiryFilter === 'quarterly' && exp.dte <= 100)
+              || (internalExpiryFilter === 'custom' && selectedExpiries.has(exp.label));
+            return (
+              <button
+                key={exp.label}
+                type="button"
+                onClick={() => toggleExpiry(exp.label)}
+                className={cn(
+                  'px-1.5 py-0.5 text-[8px] font-mono rounded whitespace-nowrap transition-colors',
+                  isActive
+                    ? 'bg-[var(--gex-positive)]/10 text-[var(--gex-positive)]'
+                    : 'text-muted-foreground/30 hover:text-muted-foreground/50'
+                )}
+              >
+                {exp.label}
+                <span className="text-muted-foreground/30 ml-0.5">{exp.dte}d</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div ref={scrollContainerRef} className={cn('overflow-auto', !hideControls && 'max-h-[calc(100vh-220px)]')}>
+        <table className="text-[10px] font-mono border-collapse min-w-max">
           <thead className="sticky top-0 z-20 bg-[var(--surface-raised)]">
             <tr className="border-b border-border/40">
               <th className="text-left py-2 px-2 text-[9px] uppercase tracking-widest text-muted-foreground font-medium sticky left-0 bg-[var(--surface-raised)] z-30">
                 STRIKE
               </th>
               {filteredExpiries.map(exp => (
-                <th key={exp} className="text-center py-2 px-2 text-[9px] uppercase tracking-widest text-muted-foreground font-medium whitespace-nowrap">
+                <th key={exp} className="text-center py-2 px-2 text-[9px] uppercase tracking-widest text-muted-foreground font-medium whitespace-nowrap min-w-[72px]">
                   {exp}
                 </th>
               ))}

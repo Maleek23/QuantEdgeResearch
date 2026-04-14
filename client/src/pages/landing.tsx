@@ -434,7 +434,7 @@ export default function Landing() {
               transition={{ duration: 0.7, delay: 0.3 }}
               className="hidden lg:block"
             >
-              <ProductShot src="/screenshots/trade-desk.png" alt="QuantEdge Trade Desk" />
+              <ProductShot src="/screenshots/gex-terminal.png" alt="QuantEdge GEX Terminal" />
             </motion.div>
           </div>
 
