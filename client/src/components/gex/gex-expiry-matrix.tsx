@@ -75,11 +75,12 @@ const DEFAULT_STRIKES_AROUND = 15;
 function formatCellValue(v: number): string {
   const abs = Math.abs(v);
   const sign = v < 0 ? '-' : '';
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}B`;
   if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}M`;
   if (abs >= 1) return `${sign}$${abs.toFixed(1)}K`;
   if (abs >= 0.1) return `${sign}$${(abs * 1000).toFixed(0)}`;
   if (abs >= 0.001) return `${sign}$${(abs * 1000).toFixed(1)}`;
-  return '—';
+  return '';
 }
 
 // Convert raw values to display value in thousands ($K)
@@ -290,7 +291,7 @@ export function GEXExpiryMatrix({
         </select>
       )}
 
-      <div ref={scrollContainerRef} className={cn('overflow-auto', !hideControls && 'max-h-[calc(100vh-220px)]')}>
+      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-180px)]">
         <table className="text-[10px] font-mono border-collapse min-w-max">
           <thead className="sticky top-0 z-20 bg-[var(--surface-raised)]">
             <tr className="border-b border-border/40">

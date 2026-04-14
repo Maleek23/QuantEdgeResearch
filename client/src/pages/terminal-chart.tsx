@@ -17,7 +17,7 @@ import { GEXHeatmapGrid } from '@/components/gex/gex-heatmap-grid';
 import { GEXLevelBadge } from '@/components/gex/gex-level-badge';
 import { cn } from '@/lib/utils';
 import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import type { GEXTerminalData, StrikeExpiryCell } from '../../../shared/gex-types';
 
 
@@ -108,11 +108,12 @@ export default function TerminalPage() {
   const [, navigate] = useLocation();
   const symbol = (params?.symbol || 'SPY').toUpperCase();
 
-  const [view, setView] = useState<TerminalView>('profile');
+  const [view, setView] = useState<TerminalView>('matrix');
   const [exposureMode, setExposureMode] = useState<ExposureMode>('gex');
   const [matrixExpanded, setMatrixExpanded] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<string>('all');
-  const [customInput, setCustomInput] = useState('');
+  const [tickerSearch, setTickerSearch] = useState('');
+  const [showTickerList, setShowTickerList] = useState(false);
 
   // ─── Watchlist query — populate ticker tabs ───────────────
   const { data: watchlistData } = useQuery<{ symbol: string }[]>({
@@ -172,29 +173,28 @@ export default function TerminalPage() {
     return week?.expLabels ?? undefined;
   }, [selectedWeek, weekGroups]);
 
+  const filteredTickers = useMemo(() => {
+    if (!tickerSearch.trim()) return tickers;
+    const q = tickerSearch.toUpperCase();
+    return tickers.filter(t => t.includes(q));
+  }, [tickers, tickerSearch]);
+
   // ─── Handlers ─────────────────────────────────────────────
   const handleSymbolChange = (next: string) => {
     navigate(`/terminal/${next.toUpperCase()}`);
     setSelectedWeek('all');
     setMatrixExpanded(false);
+    setTickerSearch('');
+    setShowTickerList(false);
   };
 
-  const handleCustomSubmit = (e: React.FormEvent) => {
+  const handleTickerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customInput.trim()) {
-      handleSymbolChange(customInput.trim().toUpperCase());
-      setCustomInput('');
+    if (tickerSearch.trim()) {
+      handleSymbolChange(tickerSearch.trim().toUpperCase());
     }
   };
 
-  // Ticker nav
-  const currentIdx = tickers.indexOf(symbol);
-  const handlePrev = () => {
-    if (currentIdx > 0) handleSymbolChange(tickers[currentIdx - 1]);
-  };
-  const handleNext = () => {
-    if (currentIdx >= 0 && currentIdx < tickers.length - 1) handleSymbolChange(tickers[currentIdx + 1]);
-  };
 
   // Projection & exposure mode
   const proj = data?.projection;
@@ -203,41 +203,53 @@ export default function TerminalPage() {
 
   // ─── Render ───────────────────────────────────────────────
   return (
-    <div className="h-[calc(100vh-56px)] bg-[var(--surface-base)] flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 bg-[var(--surface-base)] flex flex-col overflow-hidden">
 
       {/* ═══ SKYLIT-STYLE DASHBOARD TOOLBAR ═══ */}
       <div className="flex-shrink-0 border-b border-border/30 bg-[var(--surface-raised)]">
 
-        {/* Row 1: Ticker tabs */}
-        <div className="flex items-center gap-1 px-4 py-1.5 border-b border-border/15 overflow-x-auto">
-          {tickers.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => handleSymbolChange(t)}
-              className={cn(
-                'px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap',
-                t === symbol
-                  ? 'bg-foreground/10 text-foreground ring-1 ring-foreground/20'
-                  : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/10'
-              )}
-            >
-              {t}
-            </button>
-          ))}
-          <form onSubmit={handleCustomSubmit} className="ml-1">
-            <input
-              type="text"
-              value={customInput}
-              onChange={e => setCustomInput(e.target.value)}
-              placeholder="+"
-              className="w-10 px-1.5 py-1 text-[10px] font-mono font-bold uppercase text-center bg-transparent border border-border/30 rounded text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-[var(--gex-positive)]/50 focus:w-16 transition-all"
-            />
-          </form>
-        </div>
-
-        {/* Row 2: All controls in one line */}
+        {/* Single toolbar row: search + controls */}
         <div className="flex items-center gap-2 px-4 py-1.5 overflow-x-auto">
+
+          {/* Ticker search */}
+          <div className="relative">
+            <form onSubmit={handleTickerSubmit} className="flex items-center">
+              <input
+                type="text"
+                value={tickerSearch || symbol}
+                onChange={e => { setTickerSearch(e.target.value); setShowTickerList(true); }}
+                onFocus={e => { e.target.select(); setShowTickerList(true); }}
+                onBlur={() => setTimeout(() => { setShowTickerList(false); setTickerSearch(''); }, 200)}
+                className="w-20 px-2 py-0.5 text-[10px] font-mono font-bold uppercase text-center bg-[var(--surface-base)] border border-border/30 rounded text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--gex-positive)]/50 focus:w-36 transition-all"
+              />
+            </form>
+            {showTickerList && filteredTickers.length > 0 && (
+              <div
+                className="absolute top-full left-0 mt-1 z-50 bg-[var(--surface-raised)] border border-border/30 rounded shadow-xl max-h-64 overflow-y-auto w-48"
+                onMouseDown={e => e.preventDefault()}
+              >
+                {filteredTickers.slice(0, 20).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => handleSymbolChange(t)}
+                    className={cn(
+                      'w-full text-left px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-muted/20 transition-colors',
+                      t === symbol ? 'text-[var(--gex-positive)] bg-[var(--gex-positive)]/10' : 'text-foreground'
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {data?.snapshot.spotPrice !== undefined && (
+            <span className="text-[10px] font-mono text-foreground tabular-nums">${data.snapshot.spotPrice.toFixed(2)}</span>
+          )}
+
+          <div className="w-px h-4 bg-border/20" />
 
           {/* GEX / VEX toggle */}
           <div className="flex gap-0.5 p-0.5 rounded bg-[var(--surface-base)] border border-border/30">
@@ -266,23 +278,6 @@ export default function TerminalPage() {
               VEX
             </button>
           </div>
-
-          {/* Nav + symbol info */}
-          <button type="button" onClick={handlePrev} className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground">
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-          <div className="flex items-center gap-1.5 text-[10px] font-mono">
-            <span className="font-bold text-foreground">{symbol}</span>
-            {data?.snapshot.spotPrice !== undefined && (
-              <>
-                <span className="text-muted-foreground/40">•</span>
-                <span className="text-foreground tabular-nums">${data.snapshot.spotPrice.toFixed(2)}</span>
-              </>
-            )}
-          </div>
-          <button type="button" onClick={handleNext} className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground">
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
 
           <div className="w-px h-4 bg-border/20" />
 
