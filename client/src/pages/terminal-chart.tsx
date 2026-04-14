@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import type { GEXTerminalData, StrikeExpiryCell } from '../../../shared/gex-types';
-import type { ExpiryPreset } from '@/components/gex/gex-config-bar';
+
 
 // ─── Helpers ────────────────────────────────────────────────
 /** Smart exposure formatter: GEX is in $B, VEX is in $M — scale accordingly */
@@ -47,12 +47,47 @@ const VIEW_OPTIONS: { value: TerminalView; label: string }[] = [
   { value: 'levels', label: 'Levels' },
 ];
 
-const EXPIRY_PRESETS: { value: ExpiryPreset; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'weekly', label: '0-7d' },
-  { value: 'monthly', label: '0-35d' },
-  { value: 'quarterly', label: 'Qtr' },
-];
+/** Parse "APR 14"-style label into a Date (assumes current year) */
+function parseExpiryLabel(label: string): Date | null {
+  const months: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+  };
+  const parts = label.trim().split(/\s+/);
+  if (parts.length < 2) return null;
+  const month = months[parts[0].toUpperCase()];
+  const day = parseInt(parts[1], 10);
+  if (month === undefined || isNaN(day)) return null;
+  return new Date(new Date().getFullYear(), month, day);
+}
+
+/** Group expiry dates into Mon-Fri trading weeks */
+function groupByWeek(expiries: { label: string; dte: number }[]): { key: string; weekLabel: string; expLabels: string[] }[] {
+  if (expiries.length === 0) return [];
+
+  const groups = new Map<string, string[]>();
+  const keyToMonday = new Map<string, Date>();
+
+  for (const exp of expiries) {
+    const d = parseExpiryLabel(exp.label);
+    if (!d) continue;
+    const day = d.getDay(); // 0=Sun..6=Sat
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
+    const key = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+    if (!groups.has(key)) { groups.set(key, []); keyToMonday.set(key, monday); }
+    groups.get(key)!.push(exp.label);
+  }
+
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, labels]) => {
+      const mon = keyToMonday.get(key)!;
+      const fri = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 4);
+      return { key, weekLabel: `${fmt(mon)} – ${fmt(fri)}`, expLabels: labels };
+    });
+}
 
 function getExpiries(matrix: StrikeExpiryCell[]): { label: string; dte: number }[] {
   const map = new Map<string, number>();
@@ -76,8 +111,7 @@ export default function TerminalPage() {
   const [view, setView] = useState<TerminalView>('profile');
   const [exposureMode, setExposureMode] = useState<ExposureMode>('gex');
   const [matrixExpanded, setMatrixExpanded] = useState(false);
-  const [expiryFilter, setExpiryFilter] = useState<ExpiryPreset>('all');
-  const [selectedExpiries, setSelectedExpiries] = useState<Set<string>>(new Set());
+  const [selectedWeek, setSelectedWeek] = useState<string>('all');
   const [customInput, setCustomInput] = useState('');
 
   // ─── Data query ───────────────────────────────────────────
@@ -105,31 +139,19 @@ export default function TerminalPage() {
     return getExpiries(data.strikeExpiryMatrix);
   }, [data?.strikeExpiryMatrix]);
 
+  const weekGroups = useMemo(() => groupByWeek(expiries), [expiries]);
+
   const visibleExpiries = useMemo(() => {
-    if (expiryFilter === 'all') return undefined;
-    if (expiryFilter === 'weekly') return expiries.filter(e => e.dte <= 7).map(e => e.label);
-    if (expiryFilter === 'monthly') return expiries.filter(e => e.dte <= 35).map(e => e.label);
-    if (expiryFilter === 'quarterly') return expiries.filter(e => e.dte <= 100).map(e => e.label);
-    if (expiryFilter === 'leaps') return expiries.filter(e => e.dte > 100).map(e => e.label);
-    return Array.from(selectedExpiries);
-  }, [expiryFilter, expiries, selectedExpiries]);
+    if (selectedWeek === 'all') return undefined;
+    const week = weekGroups.find(w => w.key === selectedWeek);
+    return week?.expLabels ?? undefined;
+  }, [selectedWeek, weekGroups]);
 
   // ─── Handlers ─────────────────────────────────────────────
   const handleSymbolChange = (next: string) => {
     navigate(`/terminal/${next.toUpperCase()}`);
-    setExpiryFilter('all');
-    setSelectedExpiries(new Set());
+    setSelectedWeek('all');
     setMatrixExpanded(false);
-  };
-
-  const toggleExpiry = (label: string) => {
-    setExpiryFilter('custom');
-    setSelectedExpiries(prev => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
   };
 
   const handleCustomSubmit = (e: React.FormEvent) => {
@@ -260,28 +282,20 @@ export default function TerminalPage() {
 
           <div className="w-px h-4 bg-border/20" />
 
-          {/* Expiry filter presets */}
+          {/* Week-based expiry filter */}
           {expiries.length > 1 && (
-            <div className="flex items-center gap-0.5">
-              {EXPIRY_PRESETS.map(p => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => { setExpiryFilter(p.value); setSelectedExpiries(new Set()); }}
-                  className={cn(
-                    'px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
-                    expiryFilter === p.value
-                      ? 'bg-foreground/10 text-foreground'
-                      : 'text-muted-foreground/40 hover:text-muted-foreground'
-                  )}
-                >
-                  {p.label}
-                </button>
+            <select
+              value={selectedWeek}
+              onChange={e => setSelectedWeek(e.target.value)}
+              className="bg-[var(--surface-base)] border border-border/30 rounded px-2 py-0.5 text-[9px] font-mono font-bold uppercase text-foreground outline-none cursor-pointer"
+            >
+              <option value="all">All Dates ({expiries.length})</option>
+              {weekGroups.map((wk, i) => (
+                <option key={wk.key} value={wk.key}>
+                  {i === 0 ? 'This Week' : i === 1 ? 'Next Week' : 'Wk of'} · {wk.weekLabel} ({wk.expLabels.length})
+                </option>
               ))}
-              <span className="text-[8px] text-muted-foreground/40 font-mono ml-1">
-                {visibleExpiries ? visibleExpiries.length : expiries.length} exp
-              </span>
-            </div>
+            </select>
           )}
 
           {/* Spacer */}
