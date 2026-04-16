@@ -3,13 +3,20 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=2048' tsx server/index.ts",
     "build": "vite build && esbuild server/web.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/web.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "desktop": "NODE_ENV=development electron .",
+    "desktop:dev": "npm run build && NODE_ENV=production electron .",
+    "desktop:build": "npm run build && electron-builder",
+    "desktop:build:mac": "npm run build && electron-builder --mac",
+    "desktop:build:win": "npm run build && electron-builder --win",
+    "desktop:build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -142,6 +149,8 @@
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",

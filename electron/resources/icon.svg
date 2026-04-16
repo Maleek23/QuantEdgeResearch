@@ -1,0 +1,16 @@
+<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="qe-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="qe-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  
+  <rect x="0" y="0" width="48" height="48" rx="8" fill="url(#qe-bg)"/>
+  
+  <text x="24" y="32" text-anchor="middle" font-size="22" font-weight="700" font-family="system-ui, -apple-system, sans-serif" fill="url(#qe-accent)">QE</text>
+</svg>
