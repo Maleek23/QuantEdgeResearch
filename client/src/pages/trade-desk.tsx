@@ -3,14 +3,7 @@
  * Clean architecture with dedicated sections for different trading views
  */
 
-import { useState, useMemo, useEffect, useRef, Suspense, lazy } from "react";
-
-// Lazy-loaded extracted views
-const OvernightView = lazy(() => import("@/components/trade-desk/overnight-view"));
-const SurgesView = lazy(() => import("@/components/trade-desk/surges-view"));
-const ConvergenceView = lazy(() => import("@/components/trade-desk/convergence-view"));
-const MoversView = lazy(() => import("@/components/trade-desk/movers-view"));
-const HotSymbolsView = lazy(() => import("@/components/trade-desk/hot-symbols-view"));
+import { useState, useMemo, useEffect, useRef } from "react";
 import html2canvas from "html2canvas";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
@@ -21,8 +14,50 @@ import { useToast } from "@/hooks/use-toast";
 import { SiDiscord } from "react-icons/si";
 import { Badge } from "@/components/ui/badge";
 import { componentStyles } from "@/lib/design-tokens";
+
+// ============================================
+// SESSION DETECTION — "FRIDAY SESSION" / "FRESH SCAN" / "WEEKEND"
+// ============================================
+type TradingSession = 'pre-market' | 'market-hours' | 'after-hours' | 'weekend' | 'closed';
+
+function detectSession(): { session: TradingSession; label: string; color: string } {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+
+  if (day === 0 || day === 6) return { session: 'weekend', label: 'WEEKEND', color: componentStyles.badge.default };
+  if (mins >= 240 && mins < 570) return { session: 'pre-market', label: 'PRE-MARKET', color: componentStyles.badge.warning };
+  if (mins >= 570 && mins < 960) return { session: 'market-hours', label: 'MARKET OPEN', color: componentStyles.badge.success };
+  if (mins >= 960 && mins < 1200) return { session: 'after-hours', label: 'AFTER HOURS', color: componentStyles.badge.warning };
+  return { session: 'closed', label: 'CLOSED', color: componentStyles.badge.default };
+}
+
+/** Get a session badge for a trade idea's timestamp */
+function getIdeaSessionBadge(timestamp: string | undefined): { label: string; cls: string } | null {
+  if (!timestamp) return null;
+  const ideaDate = new Date(timestamp);
+  const ideaET = new Date(ideaDate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const ideaDay = ideaET.getDay();
+  const nowDay = nowET.getDay();
+
+  // Same calendar day = fresh
+  if (ideaET.toDateString() === nowET.toDateString()) return null;
+
+  // If idea is from Friday and we're on weekend/Monday
+  if (ideaDay === 5 && (nowDay === 0 || nowDay === 6 || nowDay === 1)) {
+    return { label: 'FRIDAY', cls: componentStyles.badge.warning };
+  }
+
+  // If idea is from a previous day
+  const daysDiff = Math.floor((nowET.getTime() - ideaET.getTime()) / (24 * 60 * 60 * 1000));
+  if (daysDiff >= 1) {
+    return { label: `${daysDiff}D OLD`, cls: componentStyles.badge.default };
+  }
+
+  return null;
+}
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -79,8 +114,6 @@ import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
-import { FlowLevelsPanel } from "@/components/flow-levels-panel";
-import { StrategyLab } from "@/components/strategy-lab";
 import { TradeIdeasPanel } from "@/components/trade-desk/trade-ideas-panel";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 
@@ -129,10 +162,18 @@ function MarketPulseHeader() {
 
   return (
     <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50 overflow-x-auto no-scrollbar">
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
-        <span className="text-[10px] font-medium text-[var(--trade-bullish)]">LIVE</span>
-      </div>
+      {(() => {
+        const { label, session } = detectSession();
+        const isOpen = session === 'market-hours';
+        const color = isOpen ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground';
+        const dotColor = isOpen ? 'bg-[var(--trade-bullish)]' : 'bg-muted-foreground';
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+            <span className={`text-[10px] font-medium ${color}`}>{label}</span>
+          </div>
+        );
+      })()}
       {tickers.map((t) => (
         <div key={t.symbol} className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] text-muted-foreground/70 font-mono">{t.symbol}</span>
@@ -200,7 +241,7 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
             : 0;
 
           return (
-            <Link key={idea.id || `${idea.symbol}-${idea.timestamp}`} href={`/stock/${idea.symbol}`}>
+            <Link key={idea.id || `${idea.symbol}-${idea.timestamp}`} href={`/terminal/${idea.symbol}`}>
               <Card className={cn(
                 "relative overflow-hidden cursor-pointer transition-all duration-300",
                 "bg-gradient-to-br from-amber-500/5 via-card/80 to-card/90",
@@ -300,17 +341,22 @@ function TopConvictionSection({ ideas }: { ideas: TradeIdea[] }) {
                     </div>
                   )}
                   
-                  {/* Generated timestamp with relative time */}
+                  {/* Generated timestamp with session badge */}
                   <div className={cn(
                     "mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-[9px] text-muted-foreground",
                     idea.timestamp && isStale(idea.timestamp) && "opacity-60"
                   )}>
-                    <span className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <Clock className="w-3 h-3" />
-                      {idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}
-                    </span>
+                      <span>{idea.timestamp ? getRelativeTime(idea.timestamp) : '—'}</span>
+                      {/* Session badge — shows FRIDAY / 2D OLD if not today's scan */}
+                      {(() => {
+                        const sb = getIdeaSessionBadge(idea.timestamp);
+                        return sb ? <span className={sb.cls}>{sb.label}</span> : null;
+                      })()}
+                    </div>
                     <span className="text-[var(--trade-bullish)]/70 font-medium">
-                      {(idea as any).source === 'tradingview' ? '📺 TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
+                      {(idea as any).source === 'tradingview' ? 'TV Signal' : (idea.dataSourceUsed || idea.source || 'scanner').replace(/_/g, ' ')}
                     </span>
                   </div>
                 </div>
@@ -359,7 +405,14 @@ function FlowSignalsSection() {
               GEX + FLOW
             </Badge>
           </h2>
-          <p className="text-xs text-muted-foreground">Institutional flow aligned with gamma exposure</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-2">
+            Institutional flow aligned with gamma exposure
+            {data?.timestamp && (
+              <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50")}>
+                · {getRelativeTime(data.timestamp)}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -496,12 +549,15 @@ function StatsOverview({ ideas, dateFilter = 'today' }: StatsOverviewProps) {
 // BEST SETUPS CARD (Quick View)
 // ============================================
 function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
-  // Always filter to today's ideas only with cache-busting
+  // On weekends show last week's ideas (Friday's), on weekdays show today only
+  const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const isWknd = etNow.getDay() === 0 || etNow.getDay() === 6 || (etNow.getDay() === 1 && etNow.getHours() < 4);
+  const dateParam = isWknd ? 'week' : 'today';
   const todayKey = new Date().toISOString().split('T')[0];
   const { data, isLoading } = useQuery({
-    queryKey: ['/api/trade-ideas/best-setups', 'daily', 'today', todayKey],
+    queryKey: ['/api/trade-ideas/best-setups', 'daily', dateParam, todayKey],
     queryFn: async () => {
-      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=5&date=today&_t=${Date.now()}`);
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=5&date=${dateParam}&watchlistOnly=true&_t=${Date.now()}`);
       if (!res.ok) return { setups: [] };
       return res.json();
     },
@@ -543,7 +599,7 @@ function BestSetupsCard({ onViewAll }: { onViewAll?: () => void }) {
             const numeric = displayedScore(setup);
             const style = getGradeStyle(grade);
             return (
-              <Link key={setup.id || setup.symbol} href={`/stock/${setup.symbol}`}>
+              <Link key={setup.id || setup.symbol} href={`/terminal/${setup.symbol}`}>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-foreground">{setup.symbol}</span>
@@ -605,7 +661,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
           <span className="text-sm font-semibold text-foreground">Market Movers</span>
           <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-[var(--trade-bullish)] transition-colors" />
         </div>
-        <Badge variant="outline" className="text-xs text-[var(--trade-bullish)] border-emerald-400/30">Live</Badge>
+        <Badge variant="outline" className="text-xs text-cyan-400 border-cyan-400/30">Movers</Badge>
       </div>
       <div className="space-y-2">
         {isLoading ? (
@@ -618,7 +674,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
           <div className="text-center py-4 text-muted-foreground text-sm">No movers</div>
         ) : (
           gainers.map((stock: any) => (
-            <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+            <Link key={stock.symbol} href={`/terminal/${stock.symbol}`}>
               <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer">
                 <span className="font-mono font-bold text-foreground">{stock.symbol}</span>
                 <div className="flex items-center gap-2">
@@ -690,7 +746,7 @@ function TomorrowSurgersSubPage() {
     const topSignals = signals.slice(0, 4);
 
     return (
-      <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
+      <Link key={`${pred.symbol}-${idx}`} href={`/terminal/${pred.symbol}`}>
         <Card className={cn(
           "relative overflow-hidden cursor-pointer transition-all duration-300",
           `bg-gradient-to-br ${style.bg}`,
@@ -997,12 +1053,14 @@ function TomorrowSurgersSubPage() {
 // BEST SETUPS SUB-PAGE (Full AI Stock Picker View)
 // ============================================
 function BestSetupsSubPage() {
-  // Always filter to today's ideas only with cache-busting
+  const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const isWknd = etNow.getDay() === 0 || etNow.getDay() === 6 || (etNow.getDay() === 1 && etNow.getHours() < 4);
+  const dateParam = isWknd ? 'week' : 'today';
   const todayKey = new Date().toISOString().split('T')[0];
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['/api/trade-ideas/best-setups', 'subpage', 'today', todayKey],
+    queryKey: ['/api/trade-ideas/best-setups', 'subpage', dateParam, todayKey],
     queryFn: async () => {
-      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=50&date=today&_t=${Date.now()}`);
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=50&date=${dateParam}&watchlistOnly=true&_t=${Date.now()}`);
       if (!res.ok) return { setups: [] };
       return res.json();
     },
@@ -1030,7 +1088,7 @@ function BestSetupsSubPage() {
     const isOption = setup.assetType === 'option' || setup.optionType;
 
     return (
-      <Link key={setup.id || `${setup.symbol}-${setup.timestamp}`} href={`/stock/${setup.symbol}`}>
+      <Link key={setup.id || `${setup.symbol}-${setup.timestamp}`} href={`/terminal/${setup.symbol}`}>
         <Card className={cn(
           "relative overflow-hidden cursor-pointer transition-all duration-300",
           "bg-card/60 border-border/50",
@@ -1247,7 +1305,7 @@ function MarketMoversSubPage() {
   const losers = data?.topLosers || [];
 
   const renderMoverCard = (stock: any, isGainer: boolean) => (
-    <Link key={stock.symbol} href={`/stock/${stock.symbol}`}>
+    <Link key={stock.symbol} href={`/terminal/${stock.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         isGainer ? "bg-[var(--trade-bullish)]/10 border-[var(--trade-bullish)]/30 hover:border-emerald-400/50" : "bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 hover:border-red-400/50",
@@ -1332,9 +1390,19 @@ function MarketMoversSubPage() {
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Market Movers
-              <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/40 text-[10px]">
-                LIVE
-              </Badge>
+              {(() => {
+                const { session } = detectSession();
+                const isOpen = session === 'market-hours';
+                return isOpen ? (
+                  <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/40 text-[10px]">
+                    INTRADAY
+                  </Badge>
+                ) : (
+                  <Badge className="bg-muted/20 text-muted-foreground border-border text-[10px]">
+                    LAST CLOSE
+                  </Badge>
+                );
+              })()}
             </h2>
             <p className="text-xs text-muted-foreground">Today's biggest gainers and losers</p>
           </div>
@@ -1427,7 +1495,7 @@ function SurgeDetectionSubPage() {
   const isLoading = activeSubTab === 'now' ? breakoutLoading : activeSubTab === 'early' ? preLoading : overnightLoading;
 
   const renderSurgeCard = (stock: any, type: string) => (
-    <Link key={`${stock.symbol}-${type}`} href={`/stock/${stock.symbol}`}>
+    <Link key={`${stock.symbol}-${type}`} href={`/terminal/${stock.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         stock.tier === 'SURGE' ? "bg-rose-500/10 border-rose-500/30 hover:border-rose-400/50" :
@@ -1498,7 +1566,7 @@ function SurgeDetectionSubPage() {
   );
 
   const renderTomorrowCard = (pred: any) => (
-    <Link key={pred.symbol} href={`/stock/${pred.symbol}`}>
+    <Link key={pred.symbol} href={`/terminal/${pred.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         pred.prediction?.tier === 'HIGH_CONVICTION' ? "bg-violet-500/10 border-violet-500/30 hover:border-violet-400/50" :
@@ -1688,7 +1756,7 @@ function ConvergenceSubPage() {
   const highCount = data?.high || 0;
 
   const renderOpportunityCard = (opp: any) => (
-    <Link key={opp.symbol} href={`/stock/${opp.symbol}`}>
+    <Link key={opp.symbol} href={`/terminal/${opp.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/10 border-[var(--trade-bearish)]/30 hover:border-red-400/50" :
@@ -1859,7 +1927,7 @@ function HotAttentionSubPage() {
   const watchingSymbols = symbols.filter((s: any) => !s.isConverging);
 
   const renderHotCard = (item: any) => (
-    <Link key={item.symbol} href={`/stock/${item.symbol}`}>
+    <Link key={item.symbol} href={`/terminal/${item.symbol}`}>
       <Card className={cn(
         "cursor-pointer transition-all duration-300 hover:-translate-y-1",
         item.isConverging ? "bg-orange-500/10 border-orange-500/30 hover:border-orange-400/50" : "bg-muted-foreground/10 border-muted-foreground/30 hover:border-muted-foreground/50"
@@ -2109,7 +2177,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
       }
 
       return tomorrowPlays.slice(0, 5).map((pred: any, idx: number) => (
-        <Link key={`${pred.symbol}-${idx}`} href={`/stock/${pred.symbol}`}>
+        <Link key={`${pred.symbol}-${idx}`} href={`/terminal/${pred.symbol}`}>
           <div className="flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer border-l-2 border-violet-500/50">
             <div className="flex items-center gap-2">
               <span className={cn(
@@ -2154,7 +2222,7 @@ function SurgeDetectionCard({ onViewTomorrow }: { onViewTomorrow?: () => void })
     }
 
     return displayData.slice(0, 5).map((stock: any, idx: number) => (
-      <Link key={`${stock.symbol}-${idx}`} href={`/stock/${stock.symbol}`}>
+      <Link key={`${stock.symbol}-${idx}`} href={`/terminal/${stock.symbol}`}>
         <div className={cn(
           "flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-border transition-colors cursor-pointer",
           stock.hasCatalyst && "ring-1 ring-purple-500/30 bg-purple-500/5"
@@ -2377,7 +2445,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
               <div className="flex items-center justify-center gap-2 mt-2">
                 <span className="text-[10px] text-muted-foreground/70">Hot:</span>
                 {hotSymbols.map((s: any) => (
-                  <Link key={s.symbol} href={`/stock/${s.symbol}`}>
+                  <Link key={s.symbol} href={`/terminal/${s.symbol}`}>
                     <span className="text-[10px] font-mono text-[var(--trade-bullish)] hover:underline cursor-pointer">
                       {s.symbol}
                     </span>
@@ -2388,7 +2456,7 @@ function ConvergenceSignalsCard({ onViewAll }: { onViewAll?: () => void }) {
           </div>
         ) : (
           opportunities.slice(0, 5).map((opp: any, idx: number) => (
-            <Link key={`${opp.symbol}-${idx}`} href={`/stock/${opp.symbol}`}>
+            <Link key={`${opp.symbol}-${idx}`} href={`/terminal/${opp.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
                 opp.urgency === 'critical' ? "bg-[var(--trade-bearish)]/10 hover:bg-[var(--trade-bearish)]/20 border border-[var(--trade-bearish)]/30" :
@@ -2477,7 +2545,7 @@ function HotSymbolsCompact() {
   return (
     <div className="space-y-1">
       {symbols.map((sym: any, i: number) => (
-        <Link key={i} href={`/stock/${sym.symbol}`}>
+        <Link key={i} href={`/terminal/${sym.symbol}`}>
           <div className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-[10px] text-muted-foreground/60 font-mono w-3">{i + 1}</span>
@@ -2540,7 +2608,7 @@ function HotSymbolsCard({ onViewAll }: { onViewAll?: () => void }) {
           <div className="text-center py-4 text-muted-foreground text-sm">Scanning for unusual activity...</div>
         ) : (
           symbols.slice(0, 6).map((item: any, idx: number) => (
-            <Link key={item.symbol} href={`/stock/${item.symbol}`}>
+            <Link key={item.symbol} href={`/terminal/${item.symbol}`}>
               <div className={cn(
                 "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
                 item.isConverging ? "bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30" : "bg-muted hover:bg-border"
@@ -2730,7 +2798,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
 
   // Navigate to full analysis page
   const handleNavigate = () => {
-    setLocation(`/stock/${idea.symbol}`);
+    setLocation(`/terminal/${idea.symbol}`);
   };
 
   // Download card as image
@@ -3003,7 +3071,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
                 <Sparkles className="w-3 h-3 mr-1" /> Quick View
               </Button>
             )}
-            <Link href={`/stock/${idea.symbol}`} className="flex-1">
+            <Link href={`/terminal/${idea.symbol}`} className="flex-1">
               <Button size="sm" variant="outline" className="w-full h-8 border-cyan-500/40 text-[var(--trade-bullish)] hover:bg-[var(--trade-bullish)]/10 text-xs">
                 <Eye className="w-3 h-3 mr-1" /> Full Analysis
               </Button>
@@ -3134,7 +3202,7 @@ function TradeIdeaRow({ idea }: { idea: TradeIdea }) {
   const isOption = idea.assetType === 'option' || idea.optionType;
 
   return (
-    <Link href={`/stock/${idea.symbol}`}>
+    <Link href={`/terminal/${idea.symbol}`}>
       <div className="flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-muted/30 hover:bg-gray-50 dark:bg-[var(--surface-raised)] border border-border/30 hover:border-border/50 transition-all cursor-pointer group">
         <div className="flex items-center gap-3 min-w-[140px]">
           <div className="flex flex-col">
@@ -3485,7 +3553,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
             <SelectValue placeholder="Sort By" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="confidence">Confidence</SelectItem>
+            <SelectItem value="confidence">Signal Strength</SelectItem>
             <SelectItem value="recent">Most Recent</SelectItem>
             <SelectItem value="symbol">Symbol A-Z</SelectItem>
           </SelectContent>
@@ -3534,117 +3602,12 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
 }
 
 // ============================================
-// WEEKLY SWING LOOKOUTS
-// ============================================
-interface SwingLookout {
-  symbol: string;
-  direction: string;
-  convictionScore: number;
-  convictionBand: string;
-  entryPrice: number;
-  targetPrice: number;
-  stopLoss: number;
-  thesis: string;
-  holdingPeriod: string;
-  source: string;
-  layers: string[];
-  ageHours: number;
-}
-
-function WeeklySwingLookouts() {
-  const scannerInterval = useMarketPoll(POLL.HEAVY.open, POLL.HEAVY.closed);
-  const { data, isLoading } = useQuery<{ lookouts: SwingLookout[]; totalCandidates: number; generatedAt: string }>({
-    queryKey: ['/api/discovery/weekly-swing-lookouts'],
-    refetchInterval: scannerInterval,
-    staleTime: 5 * 60_000,
-  });
-
-  const lookouts = data?.lookouts || [];
-
-  return (
-    <Card className="border-border/30 bg-card/50">
-      <div className="p-4 border-b border-border/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[var(--brand-teal)]" />
-            <h3 className="text-sm font-semibold">Next Week Swing Lookouts</h3>
-            <Badge variant="outline" className="text-[8px] px-1.5 py-0 h-4 font-mono bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] border-[var(--brand-teal)]/30">
-              {lookouts.length} setups
-            </Badge>
-          </div>
-          {data?.generatedAt && (
-            <span className="text-[9px] font-mono text-muted-foreground">
-              Updated {new Date(data.generatedAt).toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1">
-          Swing candidates building conviction — 7-day lookback, sorted by confluence score
-        </p>
-      </div>
-      <div className="divide-y divide-border/10">
-        {isLoading && (
-          <div className="p-6 text-center text-xs text-muted-foreground">Scanning for swing setups...</div>
-        )}
-        {!isLoading && lookouts.length === 0 && (
-          <div className="p-6 text-center text-xs text-muted-foreground">No swing lookouts found — check back during market hours</div>
-        )}
-        {lookouts.map((l) => {
-          const isLong = l.direction?.toLowerCase() === 'long';
-          const rr = l.stopLoss && l.entryPrice && l.targetPrice
-            ? Math.abs(l.targetPrice - l.entryPrice) / Math.abs(l.entryPrice - l.stopLoss)
-            : 0;
-          return (
-            <Link key={l.symbol} href={`/t/${l.symbol}/chart`}>
-              <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/30 cursor-pointer transition-colors">
-                <div className="w-14">
-                  <span className="text-xs font-bold">{l.symbol}</span>
-                  <div className={`text-[9px] font-mono ${isLong ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-                    {isLong ? '▲ LONG' : '▼ SHORT'}
-                  </div>
-                </div>
-                <Badge variant="outline" className={`text-[8px] px-1 py-0 h-4 font-mono ${
-                  l.convictionBand === 'S' || l.convictionBand?.startsWith('A') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                  l.convictionBand?.startsWith('B') ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' :
-                  'bg-muted/20 text-muted-foreground border-border/30'
-                }`}>
-                  {l.convictionBand || '—'}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-muted-foreground truncate">{l.thesis || l.layers?.join(' · ') || '—'}</p>
-                </div>
-                <div className="text-right shrink-0 space-y-0.5">
-                  <div className="text-[10px] font-mono">${l.entryPrice?.toFixed(2)}</div>
-                  <div className="text-[9px] font-mono text-muted-foreground">
-                    T: ${l.targetPrice?.toFixed(2)} · S: ${l.stopLoss?.toFixed(2)}
-                    {rr > 0 && ` · ${rr.toFixed(1)}R`}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-// ============================================
 // MAIN TRADE DESK COMPONENT
 // ============================================
 export default function TradeDeskRedesigned() {
   const { toast } = useToast();
   const [location] = useLocation();
 
-  // Detect sub-page from path
-  const getInitialTab = () => {
-    if (location.includes("/flow") || location.includes("/levels") || location.includes("/gex")) return "flow";
-    if (location.includes("/strategy") || location.includes("/options")) return "strategy";
-    if (location.includes("/best-setups") || location.includes("/movers") || location.includes("/breakouts")) return "ideas";
-    return "ideas"; // Default to Today's Plays tab
-  };
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
   const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist' | 'tv'>('all');
   // Trade idea detail modal state
@@ -3656,13 +3619,14 @@ export default function TradeDeskRedesigned() {
 
   // Idea generation mutation - triggers the scoring engine
   const generateIdeas = useMutation({
-    mutationFn: async (engine: 'ai' | 'quant' | 'hybrid' | 'flow' | 'all') => {
+    mutationFn: async (engine: 'ai' | 'quant' | 'hybrid' | 'flow' | 'gex' | 'all') => {
       setGeneratingEngine(engine);
       const endpoints: Record<string, string> = {
         ai: '/api/ai/generate-ideas',
         quant: '/api/quant/generate-ideas',
         hybrid: '/api/hybrid/generate-ideas',
         flow: '/api/flow/generate-ideas',
+        gex: '/api/gex-scanner/run',
         all: '/api/ideas/generate-now',
       };
       const res = await fetch(endpoints[engine], {
@@ -3703,7 +3667,9 @@ export default function TradeDeskRedesigned() {
   const isWeekend = (() => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const day = et.getDay();
-    return day === 0 || day === 6;
+    const hour = et.getHours();
+    // Sat, Sun, or Monday before 4am ET (no new ideas until pre-market)
+    return day === 0 || day === 6 || (day === 1 && hour < 4);
   })();
   const [serverDateFilter, setServerDateFilter] = useState<'today' | 'week' | 'all'>(isWeekend ? 'week' : 'today');
 
@@ -3724,7 +3690,7 @@ export default function TradeDeskRedesigned() {
       // forcing the server to recompute on every poll. The query key already
       // segments by date filter, so React Query handles client-side caching.
       const dateParam = serverDateFilter !== 'all' ? `&date=${serverDateFilter}` : '';
-      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=500&status=all${dateParam}`);
+      const res = await fetch(`/api/trade-ideas/best-setups?period=daily&limit=500&status=all&watchlistOnly=true${dateParam}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.setups || [];
@@ -3949,12 +3915,25 @@ export default function TradeDeskRedesigned() {
       <MarketPulseHeader />
 
       <div className="max-w-[1600px] mx-auto px-3 sm:px-5 py-3 space-y-3">
-        {/* Page Header — Bloomberg compact */}
+        {/* Page Header — Bloomberg compact + session badge + global timestamp */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-base font-semibold text-foreground tracking-tight">Trade Desk</h1>
+            {/* Session badge */}
+            {(() => {
+              const { label, color } = detectSession();
+              return <span className={color}>{label}</span>;
+            })()}
+            {/* Date filter indicator */}
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50")}>
+              {serverDateFilter === 'today' ? 'TODAY' : serverDateFilter === 'week' ? 'PAST WEEK' : 'ALL TIME'}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Global data timestamp */}
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50 tabular-nums")}>
+              {new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true })} ET
+            </span>
             {/* Generate Ideas Dropdown */}
             <Select
               onValueChange={(value) => generateIdeas.mutate(value as any)}
@@ -4002,6 +3981,12 @@ export default function TradeDeskRedesigned() {
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                     <span>Options Flow</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gex" className="hover:bg-cyan-600/20">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>GEX Scanner</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -4053,35 +4038,12 @@ export default function TradeDeskRedesigned() {
           {/* Left: Tabs + Ideas */}
           <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
-        {/* Sub-Navigation — horizontal strip surfacing all sections */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-transparent border-b border-border/40 w-full justify-start gap-0 h-auto p-0 rounded-none overflow-x-auto no-scrollbar">
-            {[
-              { value: 'ideas', label: 'AI Picks', icon: Layers },
-              { value: 'overnight', label: 'Overnight', icon: TrendingUp },
-              { value: 'surges', label: 'Surges', icon: Zap },
-              { value: 'convergence', label: 'Convergence', icon: Target },
-              { value: 'movers', label: 'Movers', icon: BarChart3 },
-              { value: 'flow', label: 'Flow', icon: Activity },
-              { value: 'strategy', label: 'Strategy', icon: Target },
-            ].map(tab => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="relative rounded-none border-b-2 border-transparent px-2.5 pb-1.5 pt-0.5 text-[10px] font-mono font-medium text-muted-foreground transition-all whitespace-nowrap data-[state=active]:border-[var(--brand-teal)] data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground/80"
-              >
-                <tab.icon className="w-2.5 h-2.5 mr-0.5 opacity-50 inline" />
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {/* TODAY'S PLAYS TAB */}
-          <TabsContent value="ideas" className="space-y-3 mt-3">
+        {/* Plays content — no tabs needed, Flow & Strategy live in Quant Seeker */}
+        <div className="space-y-3 mt-3">
             {/* PRE-MARKET GAPPERS — overnight movers from weekly + approved universe */}
             <PreMarketGappersCard />
 
-            {/* TRADE IDEAS — new Convictions-style panel with filters, presets, view modes, drawer */}
+            {/* TRADE IDEAS — Convictions-style panel with filters, presets, view modes, drawer */}
             <TradeIdeasPanel />
 
             {/* Empty state with generate button */}
@@ -4100,54 +4062,7 @@ export default function TradeDeskRedesigned() {
                 </div>
               </div>
             )}
-          </TabsContent>
-
-          {/* OVERNIGHT — pre-market surge predictions */}
-          <TabsContent value="overnight" className="mt-3">
-            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading overnight predictions...</div>}>
-              <OvernightView />
-            </Suspense>
-          </TabsContent>
-
-          {/* SURGES — breakout detection */}
-          <TabsContent value="surges" className="mt-3">
-            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading surge detection...</div>}>
-              <SurgesView />
-            </Suspense>
-          </TabsContent>
-
-          {/* CONVERGENCE — multi-signal agreement */}
-          <TabsContent value="convergence" className="mt-3">
-            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading convergence signals...</div>}>
-              <ConvergenceView />
-            </Suspense>
-          </TabsContent>
-
-          {/* MOVERS — market gainers/losers */}
-          <TabsContent value="movers" className="mt-3">
-            <Suspense fallback={<div className="text-muted-foreground text-sm p-4">Loading market movers...</div>}>
-              <MoversView />
-            </Suspense>
-          </TabsContent>
-
-          {/* FLOW & LEVELS - GEX, Dark Pool, Whale Flow */}
-          <TabsContent value="flow" className="mt-3">
-            <FlowLevelsPanel />
-          </TabsContent>
-
-          {/* STRATEGY LAB - Weekly Lookouts + Options Builder */}
-          <TabsContent value="strategy" className="space-y-4 mt-3">
-            <WeeklySwingLookouts />
-            <StrategyLab />
-            <div className="flex justify-end">
-              <Link href="/strategy-playbooks">
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground gap-1">
-                  Browse Strategy Playbooks <ChevronRight className="w-3 h-3" />
-                </Button>
-              </Link>
-            </div>
-          </TabsContent>
-        </Tabs>
+        </div>
           </div>{/* End left column */}
 
           {/* Right: Insights Side Panel (collapsible) */}
@@ -4275,7 +4190,7 @@ export default function TradeDeskRedesigned() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {Array.from(watchlistSymbols).slice(0, 12).map(sym => (
-                    <Link key={sym} href={`/stock/${sym}`}>
+                    <Link key={sym} href={`/terminal/${sym}`}>
                       <span className="inline-block text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors">
                         {sym}
                       </span>

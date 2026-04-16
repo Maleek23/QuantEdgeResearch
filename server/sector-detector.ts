@@ -10,22 +10,22 @@ const SECTOR_MAPPINGS: Record<string, SectorFocus> = {
   'QTUM': 'quantum_computing',
   'FORM': 'quantum_computing',
   
-  'NNE': 'nuclear_fusion',
-  'OKLO': 'nuclear_fusion',
-  'SMR': 'nuclear_fusion',
-  'LEU': 'nuclear_fusion',
-  'CCJ': 'nuclear_fusion',
-  'UEC': 'nuclear_fusion',
-  'UUUU': 'nuclear_fusion',
-  'DNN': 'nuclear_fusion',
-  'NXE': 'nuclear_fusion',
-  'BWXT': 'nuclear_fusion',
-  'CEG': 'nuclear_fusion',
-  'VST': 'nuclear_fusion',
-  'URG': 'nuclear_fusion',
-  'UROY': 'nuclear_fusion',
-  'LTBR': 'nuclear_fusion',
-  'URA': 'nuclear_fusion',
+  'NNE': 'nuclear',
+  'OKLO': 'nuclear',
+  'SMR': 'nuclear',
+  'LEU': 'nuclear',
+  'CCJ': 'nuclear',
+  'UEC': 'nuclear',
+  'UUUU': 'nuclear',
+  'DNN': 'nuclear',
+  'NXE': 'nuclear',
+  'BWXT': 'nuclear',
+  'CEG': 'nuclear',
+  'VST': 'nuclear',
+  'URG': 'nuclear',
+  'UROY': 'nuclear',
+  'LTBR': 'nuclear',
+  'URA': 'nuclear',
   
   'NVAX': 'healthcare',
   'MRNA': 'healthcare',
@@ -99,6 +99,22 @@ const SECTOR_MAPPINGS: Record<string, SectorFocus> = {
   'WULF': 'crypto',
   'IREN': 'crypto',
   
+  'BROS': 'consumer',
+  'SBUX': 'consumer',
+  'MCD': 'consumer',
+  'CMG': 'consumer',
+  'YUM': 'consumer',
+  'DPZ': 'consumer',
+  'QSR': 'consumer',
+
+  'DKNG': 'gaming',
+  'PENN': 'gaming',
+  'MGM': 'gaming',
+  'CZR': 'gaming',
+  'TTWO': 'gaming',
+  'EA': 'gaming',
+  'RBLX': 'gaming',
+
   'UPST': 'fintech',
   'AFRM': 'fintech',
   'SOFI': 'fintech',
@@ -193,8 +209,8 @@ export function getEducationalDisclaimer(riskProfile: RiskProfile, sectorFocus?:
     return `⚠️ ELEVATED RISK SCENARIO: This represents an aggressive opportunity with higher-than-average volatility. ${baseDisclaimer} Consider position sizing carefully.`;
   }
   
-  if (sectorFocus === 'quantum_computing' || sectorFocus === 'nuclear_fusion') {
-    return `🔬 EMERGING TECHNOLOGY: ${sectorFocus === 'quantum_computing' ? 'Quantum computing' : 'Nuclear fusion'} is an early-stage sector with binary outcomes. ${baseDisclaimer}`;
+  if (sectorFocus === 'quantum_computing' || sectorFocus === 'nuclear') {
+    return `🔬 EMERGING TECHNOLOGY: ${sectorFocus === 'quantum_computing' ? 'Quantum computing' : 'Nuclear energy'} is an early-stage sector with binary outcomes. ${baseDisclaimer}`;
   }
   
   return baseDisclaimer;

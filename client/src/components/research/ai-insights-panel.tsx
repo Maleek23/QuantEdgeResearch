@@ -95,7 +95,7 @@ export function AIInsightsPanel({
                   <Badge variant="outline" className={cn("font-bold", config.textColor, `border-${config.color}-500/30`)}>
                     {config.label}
                   </Badge>
-                  <p className="text-xs text-muted-foreground mt-1">Confidence: {confidence}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Signal Strength: {confidence}pts</p>
                 </div>
               </div>
 
@@ -124,7 +124,7 @@ export function AIInsightsPanel({
                       strokeLinecap="round"
                     />
                   </svg>
-                  <p className="text-center -mt-14 text-sm font-bold text-foreground/90">{confidence}%</p>
+                  <p className="text-center -mt-14 text-sm font-bold text-foreground/90">{confidence}pts</p>
                 </div>
               </div>
             </div>

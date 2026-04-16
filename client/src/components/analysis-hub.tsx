@@ -109,8 +109,8 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
     },
     {
       id: 'backtest',
-      title: 'Strategy Backtest',
-      description: 'Test trading strategies with historical data',
+      title: 'Pattern Scanner',
+      description: 'Analyze technical patterns, candlestick formations, and indicator signals',
       icon: FileText,
       href: `/backtest?symbol=${symbol}`,
       color: 'text-[var(--trade-bullish)]',

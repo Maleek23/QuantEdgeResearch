@@ -1,25 +1,17 @@
 /**
- * GEX Hub — market-wide gamma + vanna command center.
- *
- * Two views stacked on the same page:
- *   1. HUB PANELS — top GEX longs/shorts, top VEX movers, sector pulse,
- *      regime distribution. Compact, scannable, clickable.
- *   2. CONFLUENCE LIST — full per-ticker ranked rows (the original scanner).
- *
- * Drives off /api/gex-vex/hub which returns { hub, scan } in one shot.
+ * GEX Hub — market-wide gamma + vanna overview.
+ * Data-first layout: toolbar → hub panels → confluence list.
  */
 
 import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useMarketPoll, POLL } from '@/hooks/use-market-poll';
-import { Link, useLocation } from 'wouter';
-import { QEPageShell } from '@/components/ui/qe-page-shell';
+import { useLocation } from 'wouter';
 import { ConfluenceRow } from '@/components/gex/confluence-row';
 import { GEXHubPanels } from '@/components/gex/gex-hub-panels';
 import { TickerSelector } from '@/components/shared/ticker-selector';
-import { componentStyles } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2, RefreshCw } from 'lucide-react';
 
 const GEXDashboard = lazy(() => import('@/pages/gex-dashboard'));
 import type {
@@ -70,7 +62,7 @@ export default function GEXScannerPage() {
   const [dashboardOpen, setDashboardOpen] = useState(false);
 
   const jumpToTerminal = (sym: string) => {
-    if (sym) setLocation(`/t/${sym.toUpperCase()}/gex`);
+    if (sym) setLocation(`/terminal/${sym.toUpperCase()}`);
   };
 
   const data = hubResponse?.scan;
@@ -82,169 +74,159 @@ export default function GEXScannerPage() {
     return true;
   });
 
-  const marketRegimeLabel: Record<string, { label: string; color: string }> = {
+  const regimeMap: Record<string, { label: string; color: string }> = {
     risk_on: { label: 'RISK ON', color: 'text-[var(--trade-bullish)] border-[var(--trade-bullish)]/50' },
     risk_off: { label: 'RISK OFF', color: 'text-[var(--trade-bearish)] border-[var(--trade-bearish)]/50' },
     choppy: { label: 'CHOPPY', color: 'text-muted-foreground border-border' },
     trending: { label: 'TRENDING', color: 'text-[var(--gex-positive)] border-[var(--gex-positive)]/50' },
   };
-  const regime = data ? marketRegimeLabel[data.marketRegime] : marketRegimeLabel.choppy;
+  const regime = data ? regimeMap[data.marketRegime] : regimeMap.choppy;
 
   return (
-    <QEPageShell width="wide" padding="md" grid="subtle">
-      {/* HEADER */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-0.5">
-              01 // GEX HUB · MARKET-WIDE GAMMA COMMAND
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              <span className="text-[var(--gex-positive)]">GEX</span> Hub
-            </h1>
-            <p className="text-xs text-muted-foreground mt-1 font-mono">
-              Top dealer gamma · top vanna movers · sector pulse · regime distribution — every 5 min
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* DYNAMIC JUMP-TO-TERMINAL */}
-            <TickerSelector
-              value=""
-              onChange={jumpToTerminal}
-              variant="button"
-              placeholder="Jump to terminal…"
-              data-testid="scanner-jump-selector"
-            />
-            <div className={cn('px-3 py-1.5 rounded-md border text-[10px] font-mono font-bold uppercase tracking-widest', regime.color)}>
-              MKT · {regime.label}
-            </div>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className={componentStyles.gex.modeButton}
-              data-testid="refresh-scan"
-            >
-              {isFetching ? 'SCANNING…' : 'REFRESH'}
-            </button>
-          </div>
+    <div className="space-y-3 px-4 py-3">
+
+      {/* ─── TOOLBAR ─── compact control row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Regime + stats */}
+        <div className={cn('px-2 py-0.5 rounded border text-[9px] font-mono font-bold uppercase tracking-widest', regime.color)}>
+          {regime.label}
         </div>
 
-        {/* STATS STRIP */}
         {data && (
-          <div className="grid grid-cols-4 gap-3 mt-4">
-            <StatCard label="SCANNED" value={data.tickersScanned} />
-            <StatCard label="WITH DATA" value={data.tickersWithData} />
-            <StatCard label="TOP PICK" value={data.topPick || '—'} highlight />
-            <StatCard label="ERRORS" value={data.errors?.length || 0} />
-          </div>
+          <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
+            {data.tickersWithData}/{data.tickersScanned} tickers
+            {data.topPick && <> · top <span className="text-[var(--gex-positive)] font-bold">{data.topPick}</span></>}
+          </span>
         )}
+
+        <div className="w-px h-4 bg-border/20" />
+
+        {/* Tier filter */}
+        <div className="flex items-center gap-1">
+          {(['all', 'elite', 'strong', 'watch'] as FilterTier[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setFilterTier(t)}
+              className={cn(
+                'px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                filterTier === t
+                  ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
+                  : 'text-muted-foreground/50 hover:text-muted-foreground',
+              )}
+            >
+              {t === 'all' ? 'All' : t === 'elite' ? '75+' : t === 'strong' ? '60+' : '40+'}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-4 bg-border/20" />
+
+        {/* Bias filter */}
+        <div className="flex items-center gap-1">
+          {(['all', 'long', 'short'] as FilterBias[]).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setFilterBias(b)}
+              className={cn(
+                'px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
+                filterBias === b
+                  ? b === 'long' ? 'bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)]'
+                    : b === 'short' ? 'bg-[var(--trade-bearish)]/15 text-[var(--trade-bearish)]'
+                    : 'bg-foreground/10 text-foreground'
+                  : 'text-muted-foreground/50 hover:text-muted-foreground',
+              )}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Count */}
+        <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
+          {filtered.length} / {rows.length}
+        </span>
+
+        {/* Jump to terminal */}
+        <TickerSelector
+          value=""
+          onChange={jumpToTerminal}
+          variant="button"
+          placeholder="Terminal..."
+          data-testid="scanner-jump-selector"
+        />
+
+        {/* Refresh */}
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+        >
+          <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin text-[var(--gex-positive)]')} />
+        </button>
       </div>
 
-      {/* HUB PANELS — top GEX/VEX + sectors + regime */}
+      {/* ─── HUB PANELS ─── top GEX/VEX + sectors + regime */}
       {hub && <GEXHubPanels hub={hub} />}
 
-      {/* CONFLUENCE LIST SECTION HEADER */}
-      <div className="flex items-center justify-between mb-3 pt-2">
-        <div>
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            02 // FULL CONFLUENCE LIST
-          </div>
-          <div className="text-sm font-mono font-bold text-foreground">
-            All watchlist tickers ranked by gamma + vanna confluence
-          </div>
-        </div>
-      </div>
-
-      {/* FILTERS */}
-      <div className="flex items-center gap-4 mb-4 px-3 py-2 rounded-lg bg-[var(--surface-raised)] border border-border">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          FILTER:
-        </div>
-        <FilterGroup
-          label="Tier"
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'elite', label: 'Elite 75+' },
-            { value: 'strong', label: 'Strong 60+' },
-            { value: 'watch', label: 'Watch 40+' },
-          ]}
-          value={filterTier}
-          onChange={(v) => setFilterTier(v as FilterTier)}
-        />
-        <FilterGroup
-          label="Bias"
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'long', label: 'Long' },
-            { value: 'short', label: 'Short' },
-          ]}
-          value={filterBias}
-          onChange={(v) => setFilterBias(v as FilterBias)}
-        />
-        <div className="ml-auto text-[10px] font-mono text-muted-foreground">
-          {filtered.length} / {rows.length} shown
-        </div>
-      </div>
-
-      {/* LEGEND */}
-      <div className="flex items-center gap-4 mb-4 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+      {/* ─── SCORE LEGEND ─── inline, compact */}
+      <div className="flex items-center gap-3 text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50 pt-1">
         <span>SCORE =</span>
-        <LegendBar color="var(--gex-positive)" label="Flip" />
-        <LegendBar color="var(--gex-negative)" label="Walls" />
-        <LegendBar color="var(--gex-flip)" label="Vex" />
-        <LegendBar color="var(--brand-cyan)" label="Liq" />
-        <LegendBar color="var(--brand-teal)" label="Regime" />
+        <LegendDot color="var(--gex-positive)" label="Flip" />
+        <LegendDot color="var(--gex-negative)" label="Walls" />
+        <LegendDot color="var(--gex-flip)" label="Vex" />
+        <LegendDot color="var(--brand-cyan)" label="Liq" />
+        <LegendDot color="var(--brand-teal)" label="Regime" />
       </div>
 
-      {/* LOADING / ERROR / ROWS */}
+      {/* ─── CONFLUENCE LIST ─── */}
       {isLoading && (
-        <div className="p-12 text-center text-xs font-mono text-muted-foreground">
-          SCANNING WATCHLIST…
+        <div className="py-12 text-center text-[10px] font-mono text-muted-foreground animate-pulse">
+          SCANNING WATCHLIST...
         </div>
       )}
       {error && (
-        <div className="p-6 text-center text-xs font-mono text-[var(--trade-bearish)] border border-[var(--trade-bearish)]/30 rounded-lg">
+        <div className="p-4 text-center text-[10px] font-mono text-[var(--trade-bearish)] border border-[var(--trade-bearish)]/30 rounded-lg">
           SCAN FAILED — {(error as Error).message}
         </div>
       )}
       {!isLoading && !error && filtered.length === 0 && (
-        <div className="p-12 text-center text-xs font-mono text-muted-foreground">
+        <div className="py-12 text-center text-[10px] font-mono text-muted-foreground">
           No tickers match filters
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {filtered.map((row, i) => (
           <ConfluenceRow key={row.symbol} row={row} rank={i + 1} />
         ))}
       </div>
 
-      {/* GEX ANALYSIS — collapsible per-symbol deep dive */}
-      <div className="mt-6">
+      {/* ─── GEX ANALYSIS (collapsible) ─── */}
+      <div className="pt-2">
         <button
           type="button"
           onClick={() => setDashboardOpen(!dashboardOpen)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-[var(--surface-raised)] border border-border hover:border-[var(--gex-positive)]/30 transition-colors"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--surface-raised)] border border-border/30 hover:border-border/60 transition-colors"
         >
-          <div className="flex items-center gap-3">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-              03 // GEX ANALYSIS
-            </div>
-            <span className="text-sm font-mono font-bold text-foreground">
-              Heatmap · Key Levels · Signals
-            </span>
-          </div>
+          <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+            GEX ANALYSIS · Heatmap · Key Levels
+          </span>
           <ChevronDown className={cn(
-            "w-4 h-4 text-muted-foreground transition-transform duration-200",
+            "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
             dashboardOpen && "rotate-180"
           )} />
         </button>
         {dashboardOpen && (
-          <div className="mt-3 rounded-lg border border-border overflow-hidden">
+          <div className="mt-2 rounded-lg border border-border/30 overflow-hidden">
             <Suspense fallback={
               <div className="flex items-center justify-center h-48">
-                <Loader2 className="w-5 h-5 animate-spin text-[var(--gex-positive)]" />
+                <Loader2 className="w-4 h-4 animate-spin text-[var(--gex-positive)]" />
               </div>
             }>
               <GEXDashboard />
@@ -253,13 +235,13 @@ export default function GEXScannerPage() {
         )}
       </div>
 
-      {/* ERRORS */}
+      {/* ─── ERRORS (collapsed) ─── */}
       {data?.errors && data.errors.length > 0 && (
-        <details className="mt-6">
-          <summary className="text-[10px] font-mono text-muted-foreground cursor-pointer hover:text-foreground">
-            {data.errors.length} ERRORS (click to expand)
+        <details className="pt-2">
+          <summary className="text-[9px] font-mono text-muted-foreground/50 cursor-pointer hover:text-muted-foreground">
+            {data.errors.length} errors
           </summary>
-          <div className="mt-2 p-3 rounded-md bg-[var(--surface-raised)] border border-border text-[10px] font-mono">
+          <div className="mt-1 p-2 rounded bg-[var(--surface-raised)] border border-border/30 text-[9px] font-mono space-y-0.5">
             {data.errors.map((e) => (
               <div key={e.symbol} className="text-muted-foreground">
                 <span className="text-[var(--trade-bearish)]">{e.symbol}</span>: {e.error}
@@ -268,55 +250,14 @@ export default function GEXScannerPage() {
           </div>
         </details>
       )}
-    </QEPageShell>
-  );
-}
-
-function StatCard({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
-  return (
-    <div className="rounded-lg bg-[var(--surface-raised)] border border-border px-3 py-2">
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={cn('text-lg font-mono font-bold tabular-nums mt-0.5', highlight ? 'text-[var(--gex-positive)]' : 'text-foreground')}>
-        {value}
-      </div>
     </div>
   );
 }
 
-function FilterGroup({ label, options, value, onChange }: {
-  label: string;
-  options: Array<{ value: string; label: string }>;
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function LegendDot({ color, label }: { color: string; label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="text-[9px] font-mono uppercase text-muted-foreground">{label}</div>
-      <div className="flex gap-1">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            className={cn(
-              'px-2 py-0.5 rounded text-[10px] font-mono font-semibold border transition-colors',
-              value === o.value
-                ? 'bg-[var(--gex-positive)]/15 border-[var(--gex-positive)]/50 text-[var(--gex-positive)]'
-                : 'border-border text-muted-foreground hover:border-[var(--gex-positive)]/30 hover:text-foreground',
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LegendBar({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1">
-      <div className="w-3 h-2 rounded-sm" style={{ backgroundColor: color, opacity: 0.7 }} />
+    <div className="flex items-center gap-0.5">
+      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color, opacity: 0.7 }} />
       <span>{label}</span>
     </div>
   );

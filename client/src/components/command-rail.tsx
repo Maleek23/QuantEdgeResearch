@@ -21,9 +21,9 @@ interface NavItem {
 
 // TRADING - Core trading tools
 const tradingNav: NavItem[] = [
-  { icon: Crosshair, label: "Trading Engine", href: "/trading-engine", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
   { icon: Sparkles, label: "Trade Desk", href: "/trade-desk", color: "text-[var(--trade-bullish)]", glow: "rgba(52,211,153,0.3)" },
-  { icon: TrendingUp, label: "Markets", href: "/market", color: "text-blue-400", glow: "rgba(96,165,250,0.3)" },
+  { icon: Crosshair, label: "Performance", href: "/performance", color: "text-cyan-400", glow: "rgba(34,211,238,0.4)" },
+  { icon: TrendingUp, label: "Scanner", href: "/market-scanner", color: "text-blue-400", glow: "rgba(96,165,250,0.3)" },
   { icon: Bot, label: "Automations", href: "/automations", color: "text-pink-400", glow: "rgba(244,114,182,0.3)" },
 ];
 
@@ -37,9 +37,9 @@ const analysisNav: NavItem[] = [
 
 // RESEARCH - Research & insights
 const researchNav: NavItem[] = [
-  { icon: TrendingUp, label: "Discover", href: "/discover", color: "text-purple-400", glow: "rgba(192,132,252,0.3)" },
-  { icon: History, label: "Historical AI", href: "/historical-intelligence", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
-  { icon: LineChart, label: "Backtest", href: "/backtest", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: TrendingUp, label: "Trade Desk", href: "/trade-desk", color: "text-purple-400", glow: "rgba(192,132,252,0.3)" },
+  { icon: History, label: "Performance", href: "/performance", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
+  { icon: LineChart, label: "Backtest", href: "/performance", color: "text-muted-foreground", glow: "rgba(148,163,184,0.3)" },
 ];
 
 // ACCOUNT - User account & settings

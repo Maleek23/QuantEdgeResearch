@@ -13,40 +13,40 @@ import profileImage from "@assets/malikpic_1760579415191.jpg";
 
 const engines = [
   {
-    name: "Technical Engine",
+    name: "Technical Layer",
     icon: LineChart,
     color: "from-blue-500 to-blue-600",
     description: "Multi-timeframe pattern recognition across 50+ indicators including RSI, MACD, Bollinger Bands, and proprietary momentum signals."
   },
   {
-    name: "Fundamental Engine",
+    name: "Fundamental Layer",
     icon: BarChart3,
     color: "from-emerald-500 to-emerald-600",
     description: "Real-time financial analysis covering earnings, revenue growth, P/E ratios, debt levels, and sector comparisons."
   },
   {
-    name: "Sentiment Engine",
+    name: "Sentiment Layer",
     icon: Brain,
     color: "from-purple-500 to-purple-600",
     description: "NLP-powered analysis of news, social media, and analyst reports to gauge market sentiment and crowd psychology."
   },
   {
-    name: "Options Flow Engine",
+    name: "Options Flow Layer",
     icon: Eye,
     color: "from-amber-500 to-amber-600",
     description: "Track unusual options activity, smart money positioning, and institutional hedging patterns in real-time."
   },
   {
-    name: "Dark Pool Engine",
+    name: "Dark Pool Layer",
     icon: Shield,
     color: "from-red-500 to-red-600",
     description: "Monitor off-exchange trading activity and large block transactions to identify institutional accumulation or distribution."
   },
   {
-    name: "Convergence Engine",
+    name: "Convergence Layer",
     icon: Target,
     color: "from-cyan-500 to-cyan-600",
-    description: "Our proprietary algorithm that synthesizes all engines into a unified signal strength score with confidence levels."
+    description: "Our proprietary algorithm that synthesizes all layers into a unified signal strength score with graded bands."
   }
 ];
 
@@ -74,7 +74,7 @@ const values = [
 ];
 
 const stats = [
-  { value: "6", label: "Analysis Engines", suffix: "" },
+  { value: "6", label: "Analysis Layers", suffix: "" },
   { value: "300", label: "Data Sources", suffix: "+" },
   { value: "8000", label: "Stocks Covered", suffix: "+" },
   { value: "24/7", label: "Market Monitoring", suffix: "" },
@@ -137,7 +137,7 @@ export default function About() {
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We built QuantEdge Labs because we were tired of scattered data, conflicting signals,
-            and analysis paralysis. Our platform synthesizes 6 independent analysis engines into
+            and analysis paralysis. Our platform synthesizes 6 independent analysis layers into
             clear, actionable insights.
           </p>
         </section>
@@ -174,20 +174,20 @@ export default function About() {
               </p>
               <p className="text-muted-foreground leading-relaxed mt-4">
                 Our convergence-based approach means you only see opportunities where multiple independent
-                engines agree. When technicals align with fundamentals, sentiment confirms the direction,
+                layers agree. When technicals align with fundamentals, sentiment confirms the direction,
                 and smart money is positioning accordingly—that's when you get a high-conviction signal.
               </p>
             </CardContent>
           </Card>
         </section>
 
-        {/* The 6 Engines */}
+        {/* The 6 Analysis Layers */}
         <section className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-2xl font-semibold">The 6 Analysis Engines</h2>
+            <h2 className="text-2xl font-semibold">The 6 Analysis Layers</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {engines.map((engine, i) => (

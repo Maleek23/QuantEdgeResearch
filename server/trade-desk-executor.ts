@@ -456,7 +456,7 @@ async function executeSignal(signal: TradeDeskSignal): Promise<boolean> {
         currentPrice: signal.entryPrice,
         avgCost: signal.entryPrice,
         quantity,
-        message: `🟢 OPENED: ${quantity}x ${signal.symbol} ${signal.optionType?.toUpperCase()} $${signal.strikePrice} @ $${signal.entryPrice}\nConfidence: ${signal.confidenceScore}% | Signals: ${signal.qualitySignals.length}`,
+        message: `🟢 OPENED: ${quantity}x ${signal.symbol} ${signal.optionType?.toUpperCase()} $${signal.strikePrice} @ $${signal.entryPrice}\nSignal Strength: ${signal.confidenceScore}pts | Signals: ${signal.qualitySignals.length}`,
       });
 
       dailyTradeCount++;

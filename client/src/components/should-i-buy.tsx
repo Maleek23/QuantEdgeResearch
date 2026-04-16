@@ -8,7 +8,7 @@
  * - Entry/exit suggestions
  * - Risk assessment
  *
- * Uses the existing 6-engine analysis system.
+ * Uses the existing 6-layer analysis system.
  *
  * Used in: Stock Detail page, Trade Desk
  */
@@ -266,12 +266,12 @@ export function ShouldIBuy({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Confidence Score */}
+        {/* Signal Strength Score */}
         <div className="bg-muted/50 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Conviction Score</span>
+            <span className="text-sm text-muted-foreground">Signal Strength</span>
             <span className="text-lg font-bold text-white">
-              {safeToFixed(data.overallConfidence, 0)}%
+              {safeToFixed(data.overallConfidence, 0)}pts
             </span>
           </div>
           <Progress
@@ -383,7 +383,7 @@ export function ShouldIBuy({
           onClick={handleViewFullAnalysis}
         >
           <Zap className="h-4 w-4 mr-2" />
-          View Full 6-Engine Analysis
+          View Full 6-Layer Analysis
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </CardContent>

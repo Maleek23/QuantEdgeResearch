@@ -30,7 +30,7 @@ export function LiveNewsFeed() {
           <Newspaper className="h-4 w-4 text-primary" />
           Breaking News
         </CardTitle>
-        <Link href="/discover">
+        <Link href="/trade-desk">
           <span className="text-xs text-primary hover:underline cursor-pointer" data-testid="link-news-all">View All</span>
         </Link>
       </CardHeader>

@@ -19,11 +19,11 @@
  */
 
 import { Link } from 'wouter';
-import { ExternalLink, Eye } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ExternalLink, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import { cn, safeToFixed } from '@/lib/utils';
 import { TickerSelector } from '@/components/shared/ticker-selector';
 import { formatGEX } from '../../../../shared/gex-types';
-import type { GEXSnapshot } from '../../../../shared/gex-types';
+import type { GEXSnapshot, GEXTerminalData } from '../../../../shared/gex-types';
 
 interface TickerTopStripProps {
   symbol: string;
@@ -31,6 +31,7 @@ interface TickerTopStripProps {
   snapshot: GEXSnapshot | null;
   isLoading?: boolean;
   changePct?: number;
+  futuresProxy?: GEXTerminalData['futuresProxy'];
 }
 
 export function TickerTopStrip({
@@ -39,6 +40,7 @@ export function TickerTopStrip({
   snapshot,
   isLoading = false,
   changePct = 0,
+  futuresProxy,
 }: TickerTopStripProps) {
   return (
     <div
@@ -122,6 +124,32 @@ export function TickerTopStrip({
           </Link>
         </div>
       </div>
+
+      {/* FUTURES PROXY BANNER — shown when market is closed */}
+      {futuresProxy && (
+        <div className="flex items-center gap-3 px-4 py-1.5 border-t border-border/40 bg-amber-500/[0.04]">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-amber-400/80 shrink-0">
+            {futuresProxy.label}
+          </span>
+          <span className="text-[11px] font-mono font-bold text-foreground tabular-nums">
+            {futuresProxy.futuresPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <span className={cn(
+            'text-[11px] font-mono font-bold tabular-nums flex items-center gap-0.5',
+            futuresProxy.impliedGapPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'
+          )}>
+            {futuresProxy.impliedGapPct >= 0 ? (
+              <TrendingUp className="w-3 h-3" />
+            ) : (
+              <TrendingDown className="w-3 h-3" />
+            )}
+            {futuresProxy.impliedGapPct >= 0 ? '+' : ''}{safeToFixed(futuresProxy.impliedGapPct, 2)}%
+          </span>
+          <span className="text-[9px] font-mono text-muted-foreground/60 ml-auto">
+            vs {symbol} close · MARKET CLOSED
+          </span>
+        </div>
+      )}
 
       {/* ROW 2 — key dealer levels (always visible across all tabs) */}
       <div className="flex items-center gap-5 px-4 py-2 border-t border-border/40 bg-[var(--surface-base)]/40 text-[10px] font-mono">

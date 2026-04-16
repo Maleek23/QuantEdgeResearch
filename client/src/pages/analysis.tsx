@@ -97,8 +97,8 @@ function getAnalysisLinks(symbol: string, assetClass: string): AnalysisLink[] {
     },
     {
       id: 'backtest',
-      title: 'Strategy Backtest',
-      description: 'Test trading strategies with historical data and performance metrics',
+      title: 'Pattern Scanner',
+      description: 'Analyze technical patterns, candlestick formations, and indicator signals',
       icon: FileText,
       href: `/backtest?symbol=${symbol}`,
       color: 'text-[var(--trade-bullish)]',
@@ -212,7 +212,7 @@ export default function AnalysisPage() {
       <div className="max-w-[1600px] mx-auto p-3 sm:p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/trading-engine">
+            <Link href="/trade-desk">
               <Button variant="ghost" size="icon" className="h-10 w-10">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -234,7 +234,7 @@ export default function AnalysisPage() {
               </div>
             </div>
           </div>
-          <Link href="/trading-engine">
+          <Link href="/trade-desk">
             <Button variant="outline">
               Back to Command Center
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -302,7 +302,7 @@ export default function AnalysisPage() {
                       Quick Chart
                     </Button>
                   </Link>
-                  <Link href="/trading-engine">
+                  <Link href="/trade-desk">
                     <Button size="sm">
                       <Target className="h-4 w-4 mr-2" />
                       Full Analysis

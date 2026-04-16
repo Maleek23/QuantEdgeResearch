@@ -179,41 +179,41 @@ export default function Features() {
         </div>
       </section>
 
-      {/* Six Engines Section */}
+      {/* Six Analysis Layers Section */}
       <section className="py-12 lg:py-16 relative z-10" id="engines" data-testid="section-engines">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
-              Core Analysis Engines
+              Core Analysis Layers
             </p>
-            <h2 className="text-2xl font-bold text-foreground">Six Trading Engines Working Together</h2>
+            <h2 className="text-2xl font-bold text-foreground">Six Analysis Layers Working Together</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Each engine specializes in a different aspect of market analysis.
-              When multiple engines converge, you get higher-conviction trade ideas.
+              Each layer specializes in a different aspect of market analysis.
+              When multiple layers converge, you get higher-conviction trade ideas.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Confluence Engine */}
+            {/* Confluence Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-pink-500/20 hover:border-pink-500/40 transition-all" data-testid="card-confluence-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-pink-500/10 flex items-center justify-center">
                   <TrendingUp className="h-6 w-6 text-pink-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Confluence Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Confluence Layer</h3>
                   <p className="text-xs text-muted-foreground">Quantitative Scoring</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                14-layer deterministic scoring using regime detection, confidence calibration, and historical pattern analysis.
+                14-layer deterministic scoring using regime detection, signal strength calibration, and historical pattern analysis.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Market regime detection
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Confidence calibration
+                  <Check className="h-4 w-4 text-cyan-400" /> Signal strength calibration
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Rule-based weight optimization
@@ -224,14 +224,14 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* Catalyst Engine */}
+            {/* Catalyst Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-purple-500/20 hover:border-purple-500/40 transition-all" data-testid="card-catalyst-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Catalyst Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Catalyst Layer</h3>
                   <p className="text-xs text-muted-foreground">Event-Driven Analysis</p>
                 </div>
               </div>
@@ -254,14 +254,14 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* Quant Engine */}
+            {/* Quant Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-blue-500/20 hover:border-blue-500/40 transition-all" data-testid="card-quant-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Calculator className="h-6 w-6 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Quant Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Quant Layer</h3>
                   <p className="text-xs text-muted-foreground">Statistical Signals</p>
                 </div>
               </div>
@@ -284,14 +284,14 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* Flow Engine */}
+            {/* Flow Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid="card-flow-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                   <Activity className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Flow Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Flow Layer</h3>
                   <p className="text-xs text-muted-foreground">Smart Money Tracking</p>
                 </div>
               </div>
@@ -314,14 +314,14 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* Sentiment Engine */}
+            {/* Sentiment Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-amber-500/20 hover:border-amber-500/40 transition-all" data-testid="card-sentiment-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <Target className="h-6 w-6 text-[var(--trade-neutral)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Sentiment Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Sentiment Layer</h3>
                   <p className="text-xs text-muted-foreground">Market Psychology</p>
                 </div>
               </div>
@@ -344,14 +344,14 @@ export default function Features() {
               </ul>
             </div>
 
-            {/* Technical Engine */}
+            {/* Technical Layer */}
             <div className="bg-card backdrop-blur rounded-xl p-6 border border-green-500/20 hover:border-green-500/40 transition-all" data-testid="card-technical-engine">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-12 w-12 rounded-lg bg-[var(--trade-bullish)]/10 flex items-center justify-center">
                   <CandlestickChart className="h-6 w-6 text-[var(--trade-bullish)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-foreground">Technical Engine</h3>
+                  <h3 className="font-semibold text-lg text-foreground">Technical Layer</h3>
                   <p className="text-xs text-muted-foreground">Pattern Recognition</p>
                 </div>
               </div>
@@ -755,7 +755,7 @@ export default function Features() {
               </div>
               <h3 className="font-semibold mb-2">Chart Database</h3>
               <p className="text-sm text-muted-foreground">
-                Historical trade pattern library for educational study and backtesting.
+                Historical trade pattern library for educational study and pattern analysis.
               </p>
             </div>
 
@@ -1004,8 +1004,6 @@ export default function Features() {
               <span>CoinGecko</span>
               <span className="text-muted-foreground/30">|</span>
               <span>Alpha Vantage</span>
-              <span className="text-muted-foreground/30">|</span>
-              <span>Databento</span>
             </div>
           </div>
         </div>

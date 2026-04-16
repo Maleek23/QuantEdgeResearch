@@ -41,6 +41,7 @@ import {
   TrendingUpIcon,
   Users,
   Compass,
+  Flag,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -241,6 +242,39 @@ interface DayTradeOpportunity {
   confidence: number;
   signals: string[];
   timeframe: string;
+  createdAt: string;
+}
+
+interface BullFlagSetup {
+  symbol: string;
+  currentPrice: number;
+  score: number;
+  grade: string;
+  direction: 'long';
+  ema20: number;
+  ema50: number;
+  sma200: number;
+  trendBias: 'bullish' | 'neutral';
+  priorLegPercent: number;
+  pullbackPercent: number;
+  pullbackFromHigh: number;
+  flagDays: number;
+  flagTightness: number;
+  rsi14: number;
+  macdHistogram: number;
+  macdAboveZero: boolean;
+  volumeRatio: number;
+  flagVolumeDecline: boolean;
+  avgVolume: number;
+  entryPrice: number;
+  targetPrice: number;
+  targetPercent: number;
+  stopLoss: number;
+  stopLossPercent: number;
+  holdDays: number;
+  pattern: string;
+  reason: string;
+  signals: string[];
   createdAt: string;
 }
 
@@ -797,6 +831,8 @@ export default function MarketScanner() {
       setActiveTab('swing');
     } else if (tabParam === 'daytrade') {
       setActiveTab('daytrade');
+    } else if (tabParam === 'bull-flag') {
+      setActiveTab('bull-flag');
     }
   }, [searchString]);
 
@@ -848,6 +884,17 @@ export default function MarketScanner() {
     },
     refetchInterval: scannerInterval,
     enabled: activeTab === 'daytrade',
+  });
+
+  const bullFlagQuery = useQuery<BullFlagSetup[]>({
+    queryKey: ['/api/bull-flag-scanner'],
+    queryFn: async () => {
+      const res = await fetch('/api/bull-flag-scanner?limit=20');
+      if (!res.ok) throw new Error('Failed to fetch bull flag setups');
+      return res.json();
+    },
+    refetchInterval: heavyInterval,
+    enabled: activeTab === 'bull-flag',
   });
 
   // Surge Scanner - Real-time breakout detection
@@ -1018,15 +1065,9 @@ export default function MarketScanner() {
     <div className="min-h-screen p-3 sm:p-4 bg-background">
       <div className="max-w-[1600px] mx-auto space-y-3">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-base font-bold text-foreground flex items-center gap-2" data-testid="page-title">
-              <BarChart3 className="w-4 h-4 text-[var(--trade-bullish)]" />
-              Market Scanner
-            </h1>
-            <p className="text-[10px] text-muted-foreground">
-              500+ stocks across multiple timeframes
-            </p>
-          </div>
+          <h1 className="text-base font-semibold text-foreground tracking-tight" data-testid="page-title">
+            Scanner
+          </h1>
           
           <div className="flex items-center gap-3 flex-wrap">
             <Select value={category} onValueChange={setCategory}>
@@ -1058,56 +1099,47 @@ export default function MarketScanner() {
           </div>
         </div>
 
-        {/* SURGE SCANNER - Real-time Breakout Detection */}
-        <Card className="border-red-500/50 bg-gradient-to-r from-red-500/10 to-orange-500/10">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-500/20 rounded-lg">
-                  <Zap className="w-6 h-6 text-[var(--trade-bearish)]" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl text-[var(--trade-bearish)] flex items-center gap-2" data-testid="surge-scanner-title">
-                    Surge Scanner
-                    {surgeQuery.data && surgeQuery.data.highPriority > 0 && (
-                      <Badge className="bg-[var(--trade-bearish)] text-foreground animate-pulse" data-testid="badge-surge-hot-count">{surgeQuery.data.highPriority} HOT</Badge>
-                    )}
-                  </CardTitle>
-                  <CardDescription>Real-time breakout detection across 800+ symbols</CardDescription>
-                </div>
+        {/* SURGE SCANNER */}
+        <div className="rounded-lg bg-[var(--surface-raised)] border border-[var(--trade-bearish)]/20 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--trade-bearish)]/10 bg-[var(--surface-base)]/40">
+            <div className="flex items-center gap-2">
+              <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--trade-bearish)]" data-testid="surge-scanner-title">
+                SURGE SCANNER
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => surgeQuery.refetch()}
-                  disabled={surgeQuery.isFetching}
-                  data-testid="refresh-surges-button"
-                >
-                  {surgeQuery.isFetching ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => feedSurgesToTradeDeskMutation.mutate()}
-                  disabled={feedSurgesToTradeDeskMutation.isPending || !surgeQuery.data?.highPriority}
-                  data-testid="feed-surges-button"
-                >
-                  {feedSurgesToTradeDeskMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-2" />
-                  )}
-                  Feed to Trade Desk
-                </Button>
-              </div>
+              {surgeQuery.data && surgeQuery.data.highPriority > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-[var(--trade-bearish)]/20 text-[var(--trade-bearish)] rounded animate-pulse" data-testid="badge-surge-hot-count">{surgeQuery.data.highPriority} HOT</span>
+              )}
             </div>
-          </CardHeader>
-          <CardContent>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => surgeQuery.refetch()}
+                disabled={surgeQuery.isFetching}
+                className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                data-testid="refresh-surges-button"
+              >
+                {surgeQuery.isFetching ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => feedSurgesToTradeDeskMutation.mutate()}
+                disabled={feedSurgesToTradeDeskMutation.isPending || !surgeQuery.data?.highPriority}
+                className="px-2 py-1 text-[9px] font-mono font-bold uppercase text-[var(--trade-bearish)] hover:bg-[var(--trade-bearish)]/10 rounded transition-colors disabled:opacity-30"
+                data-testid="feed-surges-button"
+              >
+                {feedSurgesToTradeDeskMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <>Feed to Desk</>
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="p-3">
             {surgeQuery.isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -1163,18 +1195,16 @@ export default function MarketScanner() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground" data-testid="surge-empty-state">
-                <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p data-testid="text-surge-empty-message">No surge signals detected. Market may be quiet.</p>
-                <p className="text-xs mt-1">Scanner checks 800+ symbols every minute</p>
+              <div className="py-6 text-center text-[10px] font-mono text-muted-foreground" data-testid="surge-empty-state">
+                <span data-testid="text-surge-empty-message">No surge signals detected</span>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Main Tab Navigation: Movers vs Day Trade vs Swing vs Social vs Earnings vs Breakouts */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 lg:w-auto lg:inline-flex mb-4 gap-1">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="movers" data-testid="tab-movers">
               <TrendingUp className="w-4 h-4 mr-2" />
               Movers
@@ -1202,6 +1232,10 @@ export default function MarketScanner() {
             <TabsTrigger value="swing" data-testid="tab-swing">
               <Repeat className="w-4 h-4 mr-2" />
               Swing
+            </TabsTrigger>
+            <TabsTrigger value="bull-flag" data-testid="tab-bull-flag">
+              <Flag className="w-4 h-4 mr-2" />
+              Bull Flag
             </TabsTrigger>
           </TabsList>
 
@@ -1244,30 +1278,21 @@ export default function MarketScanner() {
                   </TabsTrigger>
                 </TabsList>
 
-          <Card className="mt-6 border-emerald-500/30 bg-emerald-500/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]" data-testid="smart-watchlist-title">
-                    <Star className="w-5 h-5" />
-                    Smart Watchlist - {timeframeLabels[timeframe]} Picks
-                  </CardTitle>
-                  <CardDescription>
-                    Top 15 curated stocks with trade ideas based on {timeframeLabels[timeframe].toLowerCase()} analysis
-                  </CardDescription>
+          <div className="mt-4 rounded-lg bg-[var(--surface-raised)] border border-[var(--trade-bullish)]/15 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--trade-bullish)]/10 bg-[var(--surface-base)]/40">
+              <div className="flex items-center gap-2">
+                <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--trade-bullish)]" data-testid="smart-watchlist-title">
+                  WATCHLIST · {timeframeLabels[timeframe]}
                 </div>
                 {watchlistQuery.data && (
-                <Badge variant="outline" className="text-[var(--trade-bullish)] border-emerald-500/30">
-                  {watchlistQuery.data.count} picks
-                </Badge>
-              )}
+                  <span className="text-[9px] font-mono text-muted-foreground tabular-nums">{watchlistQuery.data.count} picks</span>
+                )}
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-3">
               {watchlistQuery.isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-[var(--trade-bullish)]" />
-                  <span className="ml-3 text-muted-foreground">Analyzing stocks...</span>
+                <div className="py-6 text-center text-[10px] font-mono text-muted-foreground animate-pulse">
+                  ANALYZING...
                 </div>
               ) : watchlistQuery.error ? (
                 <div className="flex items-center justify-center py-12 text-[var(--trade-bearish)]">
@@ -1285,21 +1310,17 @@ export default function MarketScanner() {
                   ))}
                 </Accordion>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {["day", "week", "month", "ytd", "year"].map((tf) => (
             <TabsContent key={tf} value={tf} className="mt-6">
               <div className="grid lg:grid-cols-2 gap-6">
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-[var(--trade-bullish)]">
-                      <TrendingUp className="w-5 h-5" />
-                      Top Gainers
-                    </CardTitle>
-                    <CardDescription>
-                      {timeframeLabels[tf]} top performers in {categoryLabels[category]}
-                    </CardDescription>
+                  <CardHeader className="px-3 py-2">
+                    <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--trade-bullish)]">
+                      GAINERS · {timeframeLabels[tf]}
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between px-4 py-2 text-xs text-muted-foreground border-b border-border/50 bg-muted/30">
@@ -1335,14 +1356,10 @@ export default function MarketScanner() {
                 </Card>
 
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-[var(--trade-bearish)]">
-                      <TrendingDown className="w-5 h-5" />
-                      Top Losers
-                    </CardTitle>
-                    <CardDescription>
-                      {timeframeLabels[tf]} worst performers in {categoryLabels[category]}
-                    </CardDescription>
+                  <CardHeader className="px-3 py-2">
+                    <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--trade-bearish)]">
+                      LOSERS · {timeframeLabels[tf]}
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between px-4 py-2 text-xs text-muted-foreground border-b border-border/50 bg-muted/30">
@@ -1386,23 +1403,10 @@ export default function MarketScanner() {
           {/* Social/WSB Trends Tab Content */}
           <TabsContent value="social" className="mt-0">
             <div className="space-y-6">
-              <Card className="bg-orange-950/20 border-orange-600/30">
-                <CardContent className="py-3">
-                  <p className="text-orange-200 text-sm flex items-center gap-2">
-                    <Flame className="w-4 h-4" />
-                    <span>
-                      <strong>Live Social Sentiment:</strong> Real-time data from Reddit/WSB communities.
-                      Shows trending tickers, sentiment scores, and mention counts from Tradestie & ApeWisdom APIs.
-                    </span>
-                  </p>
-                </CardContent>
-              </Card>
-
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-orange-400" />
-                  WSB Trending Stocks
-                </h2>
+                <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-orange-400">
+                  WSB TRENDING
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -2061,7 +2065,7 @@ export default function MarketScanner() {
                             </Badge>
                           </div>
                           <Badge variant="secondary" className="font-mono">
-                            {opp.confidence}%
+                            {opp.confidence}pts
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2298,6 +2302,231 @@ export default function MarketScanner() {
                     <div className="space-y-1">
                       <div className="font-medium text-primary">Hold Time</div>
                       <div className="text-muted-foreground">3-10 trading days</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Bull Flag Pullback Tab — "Femi's Scanner" */}
+          <TabsContent value="bull-flag" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-teal-950/20 border-teal-600/30">
+                <CardContent className="py-3">
+                  <p className="text-teal-200 text-sm flex items-center gap-2">
+                    <Flag className="w-4 h-4" />
+                    <span>
+                      <strong>Bull Flag Pullback Scanner</strong> — Finds stocks with strong prior uptrends
+                      that are pulling back into a flag pattern. Based on the NFLX / AAOI / OKLO pattern DNA.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              {bullFlagQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : bullFlagQuery.data && bullFlagQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {bullFlagQuery.data.map((setup) => (
+                    <Card
+                      key={setup.symbol}
+                      className="hover-elevate transition-all"
+                      data-testid={`card-bull-flag-${setup.symbol}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Link href={`/terminal/${setup.symbol}`}>
+                            <CardTitle className="text-xl font-bold hover:text-[var(--brand-teal)] cursor-pointer transition-colors">
+                              {setup.symbol}
+                            </CardTitle>
+                          </Link>
+                          <Badge variant={
+                            setup.grade === 'S' ? 'default' :
+                            setup.grade === 'A' ? 'default' :
+                            setup.grade === 'B' ? 'secondary' : 'outline'
+                          } className={
+                            setup.grade === 'S' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                            setup.grade === 'A' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' :
+                            setup.grade === 'B' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
+                            'bg-zinc-500/20 text-zinc-400 border-zinc-500/40'
+                          }>
+                            {setup.grade} ({setup.score})
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Flag className="w-3 h-3 text-[var(--brand-teal)]" />
+                          <span>Bull flag pullback</span>
+                          <span className="text-xs">•</span>
+                          <span className={setup.trendBias === 'bullish' ? 'text-emerald-400' : 'text-muted-foreground'}>
+                            {setup.trendBias}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Entry / Target / Stop */}
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground text-xs block">Entry</span>
+                            <span className="font-mono font-medium">${safeToFixed(setup.entryPrice, 2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--trade-bullish)] text-xs block flex items-center gap-1">
+                              <Target className="w-3 h-3" /> Target
+                            </span>
+                            <span className="font-mono text-[var(--trade-bullish)]">
+                              ${safeToFixed(setup.targetPrice, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--trade-bearish)] text-xs block flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Stop
+                            </span>
+                            <span className="font-mono text-[var(--trade-bearish)]">
+                              ${safeToFixed(setup.stopLoss, 2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Flag metrics */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Prior leg:</span>
+                            <span className="text-emerald-400 font-mono">+{safeToFixed(setup.priorLegPercent, 0)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Pullback:</span>
+                            <span className="text-orange-400 font-mono">-{safeToFixed(setup.pullbackPercent, 1)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">RSI(14):</span>
+                            <span className={cn(
+                              "font-mono",
+                              setup.rsi14 >= 40 && setup.rsi14 <= 60 ? "text-[var(--brand-teal)]" :
+                              setup.rsi14 < 40 ? "text-orange-400" : "text-muted-foreground"
+                            )}>
+                              {safeToFixed(setup.rsi14, 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Flag days:</span>
+                            <span className="font-mono">{setup.flagDays}d</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">MACD:</span>
+                            <span className={cn("font-mono", setup.macdAboveZero ? "text-emerald-400" : "text-red-400")}>
+                              {setup.macdAboveZero ? 'above 0' : 'below 0'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Vol decline:</span>
+                            <span className={cn("font-mono", setup.flagVolumeDecline ? "text-emerald-400" : "text-muted-foreground")}>
+                              {setup.flagVolumeDecline ? 'yes' : 'no'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* EMA stacking indicator */}
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full font-mono",
+                            setup.ema20 > setup.ema50
+                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                              : "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30"
+                          )}>
+                            EMA 20{setup.ema20 > setup.ema50 ? ' > ' : ' < '}50
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            Vol {safeToFixed(setup.volumeRatio, 1)}x avg
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            {setup.holdDays}d hold
+                          </span>
+                        </div>
+
+                        {/* Signals */}
+                        <div className="space-y-1">
+                          {setup.signals.slice(0, 4).map((signal, i) => (
+                            <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                              <span className="text-[var(--brand-teal)] mt-0.5 shrink-0">+</span>
+                              <span>{signal}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Flag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Bull Flag Setups Found</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No stocks currently match the bull flag pullback criteria.
+                      This scanner looks for strong uptrends pulling back into consolidation patterns.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Scanner Criteria Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Flag className="w-5 h-5 text-[var(--brand-teal)]" />
+                    Pattern DNA — What We're Looking For
+                  </CardTitle>
+                  <CardDescription>
+                    Reverse-engineered from NFLX, AAOI, and OKLO bull flag setups
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Prior Uptrend</div>
+                      <div className="text-muted-foreground">10%+ move before the pullback</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">EMA Stacking</div>
+                      <div className="text-muted-foreground">20 EMA &gt; 50 EMA (trend intact)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">RSI Sweet Spot</div>
+                      <div className="text-muted-foreground">RSI 40–60 (momentum resetting)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Volume Profile</div>
+                      <div className="text-muted-foreground">Declining volume during flag</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Pullback Depth</div>
+                      <div className="text-muted-foreground">5–20% from recent high</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">MACD Confirmation</div>
+                      <div className="text-muted-foreground">Above zero or histogram turning up</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Moving Averages</div>
+                      <div className="text-muted-foreground">Price above 50 SMA & 200 SMA</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Bollinger Squeeze</div>
+                      <div className="text-muted-foreground">Tight consolidation range</div>
                     </div>
                   </div>
                 </CardContent>

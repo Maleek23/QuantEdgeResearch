@@ -224,7 +224,7 @@ export default function ResearchSignalCard({
           
           <div className="flex items-center gap-4 mb-3">
             <div>
-              <span className="text-xs text-muted-foreground block">Confidence</span>
+              <span className="text-xs text-muted-foreground block">Signal Strength</span>
               <PersonalizedConfidence raw={rawConfidence} personal={personalConfidence} symbol={symbol} />
             </div>
             <div>

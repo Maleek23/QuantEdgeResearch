@@ -392,7 +392,7 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
   
   return (
     <div className="relative w-32 h-24 mx-auto" data-testid="gauge-confidence">
-      <svg viewBox="0 0 100 60" className="w-full h-16" role="img" aria-label={`Confidence gauge at ${value}%`}>
+      <svg viewBox="0 0 100 60" className="w-full h-16" role="img" aria-label={`Signal strength gauge at ${value}pts`}>
         <path
           d="M 10 50 A 40 40 0 0 1 90 50"
           fill="none"
@@ -427,7 +427,7 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
         <span className={cn(
           "text-xl font-bold font-mono tabular-nums",
           sentiment === "bullish" ? "text-[var(--trade-bullish)]" : sentiment === "bearish" ? "text-[var(--trade-bearish)]" : "text-[var(--trade-neutral)]"
-        )} data-testid="text-confidence-value">{value}%</span>
+        )} data-testid="text-confidence-value">{value}pts</span>
       </div>
     </div>
   );
@@ -850,8 +850,8 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
             </div>
             
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Confidence</span>
-              <span className="font-mono tabular-nums" data-testid="text-day-confidence">{dayTrade.confidence}%</span>
+              <span className="text-muted-foreground">Signal Strength</span>
+              <span className="font-mono tabular-nums" data-testid="text-day-confidence">{dayTrade.confidence}pts</span>
             </div>
             
             <div className="space-y-1">
@@ -908,8 +908,8 @@ function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
             </div>
             
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Confidence</span>
-              <span className="font-mono tabular-nums" data-testid="text-swing-confidence">{swingTrade.confidence}%</span>
+              <span className="text-muted-foreground">Signal Strength</span>
+              <span className="font-mono tabular-nums" data-testid="text-swing-confidence">{swingTrade.confidence}pts</span>
             </div>
             
             <div className="space-y-1">
@@ -3483,7 +3483,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                             Distance <span className="text-foreground/80">{safeToFixed(pattern.distanceToBreakout, 1, '—')}%</span>
                           </span>
                           <span className="text-muted-foreground">
-                            Conf <span className="text-foreground/80">{Math.round(confidence)}%</span>
+                            Str <span className="text-foreground/80">{Math.round(confidence)}pts</span>
                           </span>
                           {pattern.technicalContext?.rsi && (
                             <span className="text-muted-foreground">
@@ -3566,11 +3566,11 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                     </div>
                   </div>
 
-                  {/* Confidence */}
+                  {/* Signal Strength */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground font-mono">Confidence</span>
+                    <span className="text-xs text-muted-foreground font-mono">Signal Strength</span>
                     <Progress value={aiResult.confidence} className="flex-1 h-2" />
-                    <span className="text-xs font-mono text-foreground/80">{aiResult.confidence}%</span>
+                    <span className="text-xs font-mono text-foreground/80">{aiResult.confidence}pts</span>
                   </div>
                 </div>
               ) : (
@@ -3634,9 +3634,9 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                     </div>
                     <p className="text-xs text-muted-foreground">{mathPatterns.hurst.tradingImplication}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-muted-foreground">Confidence</span>
+                      <span className="text-xs text-muted-foreground">Signal Strength</span>
                       <Progress value={mathPatterns.hurst.confidence} className="flex-1 h-1.5" />
-                      <span className="text-xs font-mono text-muted-foreground">{Math.round(mathPatterns.hurst.confidence)}%</span>
+                      <span className="text-xs font-mono text-muted-foreground">{Math.round(mathPatterns.hurst.confidence)}pts</span>
                     </div>
                   </div>
                   )}
@@ -3770,7 +3770,7 @@ function UnifiedPatternAnalysisTab({ initialSymbol }: { initialSymbol?: string }
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-sm">Trading Recommendation</span>
                       <span className="text-xs font-mono text-muted-foreground">
-                        Confidence: {mathPatterns.confidenceScore}%
+                        Signal Strength: {mathPatterns.confidenceScore}pts
                       </span>
                     </div>
                     <p className="text-xs text-foreground/80 leading-relaxed">
@@ -4027,13 +4027,13 @@ export default function ChartAnalysis() {
         setAiSuggestion({
           assetType: "option",
           optionType: "call",
-          rationale: `Based on the ${data.confidence}% bullish signal and detected patterns, a call option could amplify gains with defined risk.`
+          rationale: `Based on the ${data.confidence}pts bullish signal and detected patterns, a call option could amplify gains with defined risk.`
         });
       } else if (data.sentiment === "bearish") {
         setAiSuggestion({
           assetType: "option",
           optionType: "put",
-          rationale: `Given the ${data.confidence}% bearish outlook and resistance levels, a put option provides leveraged downside exposure.`
+          rationale: `Given the ${data.confidence}pts bearish outlook and resistance levels, a put option provides leveraged downside exposure.`
         });
       } else {
         setAiSuggestion({
@@ -4225,7 +4225,7 @@ export default function ChartAnalysis() {
       warnings.push(`Risk of ${safeToFixed(calculateRiskPercent(), 1)}% exceeds recommended 5% max per trade`);
     }
     if (analysisResult.confidence < 60) {
-      warnings.push(`Confidence of ${analysisResult.confidence}% is below recommended 60% threshold`);
+      warnings.push(`Signal strength of ${analysisResult.confidence}pts is below recommended 60pt threshold`);
     }
     return warnings;
   })() : [];
@@ -4374,7 +4374,7 @@ export default function ChartAnalysis() {
                     </Badge>
                   </CardTitle>
                   <CardDescription className="flex items-center gap-2">
-                    Confluence Score: {sixEngineAnalysis.overallDirection.toUpperCase()} ({sixEngineAnalysis.overallConfidence}%)
+                    Confluence Score: {sixEngineAnalysis.overallDirection.toUpperCase()} ({sixEngineAnalysis.overallConfidence}pts)
                     <span className="text-xs text-muted-foreground">
                       • {new Date(sixEngineAnalysis.analysisTimestamp).toLocaleTimeString()}
                     </span>
@@ -4448,7 +4448,7 @@ export default function ChartAnalysis() {
                   }`}>
                     {engine.signal.toUpperCase()}
                   </div>
-                  <div className="text-xs text-muted-foreground">{engine.confidence}%</div>
+                  <div className="text-xs text-muted-foreground">{engine.confidence}pts</div>
                 </div>
               ))}
             </div>
@@ -4490,8 +4490,8 @@ export default function ChartAnalysis() {
           </TabsTrigger>
           <TabsTrigger value="backtest" className="gap-2" data-testid="tab-pattern-backtest">
             <History className="h-4 w-4" />
-            <span className="hidden sm:inline">Backtest</span>
-            <span className="sm:hidden">Backtest</span>
+            <span className="hidden sm:inline">Pattern Scanner</span>
+            <span className="sm:hidden">Patterns</span>
           </TabsTrigger>
         </TabsList>
 
@@ -5006,7 +5006,7 @@ export default function ChartAnalysis() {
                                 <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
                               </div>
                               <div className="text-right">
-                                <span className="text-lg font-bold font-mono tabular-nums">{signal.strength}%</span>
+                                <span className="text-lg font-bold font-mono tabular-nums">{signal.strength}pts</span>
                                 <Progress value={signal.strength} className="w-16 h-1.5 mt-1" />
                               </div>
                             </div>

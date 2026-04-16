@@ -77,21 +77,12 @@ export async function parseCTMention(text: string, sourceId: string, timestamp?:
 }
 
 /**
- * Fetch latest posts from source (Mock implementation)
+ * Fetch latest posts from source
+ * No real social media API integrated — returns without generating fake posts
  */
-export async function fetchAndStoreMentions(sourceId: string): Promise<void> {
-  const mockPosts = [
-    "Just loaded up more $SOL. Looking for the next leg up to $200! 🚀",
-    "Market looking weak, might be time to $BTC short. Bearish divergence on the 4H. 📉",
-    "Absolute moon mission for $PEPE. Don't fade the meme coins. 📈",
-    "Accumulating $ETH/USDT here. Long term conviction is high. Bullish.",
-    "$LINK is the infrastructure of the future. Buy and hold.",
-    "Major dump incoming for $XRP. Be careful out there. rekt incoming.",
-    "Aping into $AR. AI compute narrative is too strong to ignore. 🚀",
-  ];
-
-  const randomPost = mockPosts[Math.floor(Math.random() * mockPosts.length)];
-  await parseCTMention(randomPost, sourceId);
+export async function fetchAndStoreMentions(_sourceId: string): Promise<void> {
+  // No-op: no real social media feed connected
+  return;
 }
 
 /**
@@ -146,37 +137,12 @@ export async function trackCallPerformance(mentionId: any): Promise<void> {
 }
 
 /**
- * Generate realistic CT posts with ticker mentions (Mock Data Mode)
+ * Generate CT data — disabled, no real social media feed connected.
+ * Previously generated fabricated posts. Now returns immediately.
  */
-export async function generateMockCTData(hours: number = 24): Promise<void> {
-  const sources = await storage.getCTSources();
-  if (sources.length === 0) {
-    await addCTSource("CryptoWhale", "twitter", "twitter.com/cryptowhale", 500000);
-    await addCTSource("MacroGuru", "twitter", "twitter.com/macroguru", 250000);
-    await addCTSource("AlphaSeeker", "rss", "https://cryptopotato.com/feed/", 100000);
-  }
-
-  const allSources = await storage.getCTSources();
-  const iterations = hours * 2; // Roughly 2 posts per hour
-
-  for (let i = 0; i < iterations; i++) {
-    const source = allSources[Math.floor(Math.random() * allSources.length)];
-    const backDate = new Date(Date.now() - Math.random() * hours * 60 * 60 * 1000).toISOString();
-    
-    // Simulate activity
-    const mockPosts = [
-      `I'm really bullish on $BTC right now. 🚀`,
-      `$ETH looks like it's ready to pump. 📈`,
-      `Thinking of going short on $SOL. Bearish.`,
-      `$DOT/USD is testing key support. Might buy here.`,
-      `Just sold my $DOGE bags. Rekt. 📉`,
-      `$UNI moon mission soon? 🚀`,
-      `$AAVE long at these levels looks good.`,
-    ];
-    
-    const text = mockPosts[Math.floor(Math.random() * mockPosts.length)];
-    await parseCTMention(text, source.id, backDate);
-  }
+export async function generateMockCTData(_hours: number = 24): Promise<void> {
+  // No-op: mock data generation disabled
+  return;
 }
 
 // Export all functions

@@ -34,8 +34,8 @@ import {
   TradeIdeaCardData,
   ConvictionLayer,
   LAYER_STYLES,
+  GEXContractSuggestion,
 } from "./trade-idea-card";
-import { getTier } from "../../../../shared/approved-tickers";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -67,6 +67,19 @@ function fmtPrice(n: number | null | undefined): string {
   if (n >= 1000) return `$${n.toFixed(0)}`;
   if (n >= 10) return `$${n.toFixed(2)}`;
   return `$${n.toFixed(3)}`;
+}
+
+/** Map generic hold period to human-readable DTE label */
+function humanHoldLabel(hp: string): string {
+  const h = (hp || "").toLowerCase();
+  if (h === "0dte" || h.includes("0dte")) return "0DTE";
+  if (h === "1dte" || h.includes("1dte")) return "1DTE";
+  if (h.includes("scalp")) return "0DTE";
+  if (h.includes("intraday") || h === "day") return "1–2 days";
+  if (h === "swing") return "1–2 weeks";
+  if (h.includes("position")) return "4–8 weeks";
+  if (h.includes("long") || h.includes("leap")) return "3+ months";
+  return hp.toUpperCase();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -124,7 +137,6 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
-  const tier = getTier(idea.symbol);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -138,21 +150,10 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
             <span className="text-2xl font-mono font-bold text-foreground">
               {idea.symbol}
             </span>
-            {tier && (
-              <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded border bg-cyan-500/15 text-cyan-300 border-cyan-500/30">
-                {tier}
-              </span>
-            )}
-            <div className={cn("flex items-center gap-1", dirColor)}>
-              <DirIcon className="w-4 h-4" />
-              <span className="text-xs font-mono uppercase font-bold">
-                {idea.direction}
-              </span>
-            </div>
             {band && (
               <span
                 className={cn(
-                  "ml-auto px-2 py-1 rounded border text-[10px] font-mono font-bold",
+                  "px-2 py-1 rounded border text-xs font-mono font-bold",
                   band === "S"
                     ? "text-amber-300 border-amber-400/40 bg-amber-500/10"
                     : band === "A"
@@ -162,7 +163,18 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
                         : "text-muted-foreground border-foreground/10",
                 )}
               >
-                {band} · {score}
+                {band}
+              </span>
+            )}
+            <div className={cn("flex items-center gap-1", dirColor)}>
+              <DirIcon className="w-4 h-4" />
+              <span className="text-xs font-mono uppercase font-bold">
+                {idea.direction}
+              </span>
+            </div>
+            {score != null && (
+              <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+                {score}pts
               </span>
             )}
           </SheetTitle>
@@ -202,7 +214,7 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
         {/* Footer actions */}
         <div className="sticky bottom-0 left-0 right-0 px-5 py-3 border-t border-foreground/10 bg-background flex items-center gap-2">
           <Link
-            href={`/t/${idea.symbol}/chart`}
+            href={`/terminal/${idea.symbol}`}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors text-[11px] font-mono uppercase tracking-wider"
           >
             <TrendingUp className="w-3.5 h-3.5" />
@@ -232,13 +244,13 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
 function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
   return (
     <div className="space-y-4">
-      {/* Live price strip */}
+      {/* Current price strip */}
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between px-3 py-2 rounded-md bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Live
+              Current
             </span>
             <span className="font-mono font-bold text-base text-foreground tabular-nums">
               {fmtPrice(idea.livePrice)}
@@ -271,7 +283,7 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
           <div>
             <div className="text-[9px] uppercase text-muted-foreground">Hold</div>
             <div className="text-foreground font-bold text-sm uppercase">
-              {idea.holdingPeriod}
+              {humanHoldLabel(idea.holdingPeriod)}
             </div>
           </div>
         )}
@@ -283,12 +295,6 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
             </div>
           </div>
         )}
-        <div className="ml-auto">
-          <div className="text-[9px] uppercase text-muted-foreground">Confidence</div>
-          <div className="text-foreground font-bold text-sm">
-            {Math.round(idea.confidenceScore ?? 0)}%
-          </div>
-        </div>
       </div>
 
       {/* Option play */}
@@ -310,6 +316,9 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
           </div>
         </div>
       )}
+
+      {/* GEX-suggested contract (when no explicit option play exists) */}
+      <GEXContractSuggestion idea={idea} />
 
       {/* Catalyst / thesis */}
       {(idea.catalyst || idea.thesis) && (

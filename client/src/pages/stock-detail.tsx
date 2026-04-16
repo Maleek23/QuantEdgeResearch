@@ -613,7 +613,7 @@ export default function StockDetailPage() {
             </div>
             <div>
               <div className="text-[10px] text-muted-foreground uppercase tracking-wide">AI Grade</div>
-              <div className="text-sm font-bold text-foreground dark:text-foreground">{analysisData?.overall?.confidence || 0}%</div>
+              <div className="text-sm font-bold text-foreground dark:text-foreground">{analysisData?.overall?.confidence || 0}pts</div>
             </div>
           </div>
           <div className="p-3 rounded-xl bg-card border border-border">
@@ -730,7 +730,7 @@ export default function StockDetailPage() {
                           { name: 'Tech', grade: analysisData?.components?.technical?.grade, color: 'cyan' },
                           { name: 'Fund', grade: analysisData?.components?.fundamental?.grade, color: 'emerald' },
                           { name: 'Quant', grade: analysisData?.components?.quantitative?.grade, color: 'amber' },
-                          { name: 'ML', grade: analysisData?.components?.ml?.grade, color: 'violet' },
+                          { name: 'GEX', grade: analysisData?.components?.ml?.grade, color: 'violet' },
                           { name: 'Flow', grade: analysisData?.components?.orderFlow?.grade, color: 'rose' },
                           { name: 'Sent', grade: analysisData?.components?.sentiment?.grade, color: 'purple' },
                         ].map((engine) => {
@@ -750,21 +750,21 @@ export default function StockDetailPage() {
                           );
                         })}
                       </div>
-                      <p className="text-[10px] text-muted-foreground text-center mt-2">Click engine labels on radar below for detailed breakdown</p>
+                      <p className="text-[10px] text-muted-foreground text-center mt-2">Click layer labels on radar below for detailed breakdown</p>
                     </div>
                   </div>
                 </Card>
 
                 {/* Visual Analysis Section - Radar Chart + Bulls vs Bears */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Pentagon Radar Chart - 6 Engine Visualization */}
+                  {/* Pentagon Radar Chart - 6 Layer Visualization */}
                   <Card className="relative overflow-hidden bg-card border-border border-l-2 border-l-[var(--brand-teal)] p-5">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl" />
                     <div className="flex items-center gap-2 mb-4">
                       <div className="p-1.5 rounded-lg bg-teal-500/20">
                         <PieChart className="w-4 h-4 text-teal-400" />
                       </div>
-                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Engine Performance Radar</h3>
+                      <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Analysis Layer Radar</h3>
                     </div>
 
                     {/* SVG Radar Chart */}
@@ -808,7 +808,7 @@ export default function StockDetailPage() {
                             { score: analysisData?.components?.technical?.score || 0, label: 'Technical' },
                             { score: analysisData?.components?.fundamental?.score || 0, label: 'Fundamental' },
                             { score: analysisData?.components?.quantitative?.score || 0, label: 'Quant' },
-                            { score: analysisData?.components?.ml?.score || 0, label: 'ML' },
+                            { score: analysisData?.components?.ml?.score || 0, label: 'GEX' },
                             { score: analysisData?.components?.orderFlow?.score || 0, label: 'Flow' },
                             { score: analysisData?.components?.sentiment?.score || 0, label: 'Sentiment' },
                           ].map((item, i) => {
@@ -857,7 +857,7 @@ export default function StockDetailPage() {
                         { name: 'Technical', key: 'technical', score: analysisData?.components?.technical?.score || 42, pos: 'top', color: 'cyan' },
                         { name: 'Fundamental', key: 'fundamental', score: analysisData?.components?.fundamental?.score || 48, pos: 'top-right', color: 'emerald' },
                         { name: 'Quant', key: 'quant', score: analysisData?.components?.quant?.score || 62, pos: 'bottom-right', color: 'amber' },
-                        { name: 'ML', key: 'ml', score: analysisData?.components?.ml?.score || 38, pos: 'bottom', color: 'violet' },
+                        { name: 'GEX', key: 'ml', score: analysisData?.components?.ml?.score || 38, pos: 'bottom', color: 'violet' },
                         { name: 'Flow', key: 'flow', score: analysisData?.components?.flow?.score || 72, pos: 'bottom-left', color: 'rose' },
                         { name: 'Sentiment', key: 'sentiment', score: analysisData?.components?.sentiment?.score || 58, pos: 'top-left', color: 'purple' },
                       ].map((item, i) => {
@@ -1184,7 +1184,7 @@ export default function StockDetailPage() {
                           </Badge>
                           <span className="text-sm text-muted-foreground">{bestTradeIdea.strategy || 'Swing Trade'}</span>
                           {bestTradeIdea.confidenceScore && (
-                            <span className="text-xs text-muted-foreground">{bestTradeIdea.confidenceScore}% confidence</span>
+                            <span className="text-xs text-muted-foreground">{bestTradeIdea.confidenceScore}pts signal strength</span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -1339,13 +1339,13 @@ export default function StockDetailPage() {
                       </div>
                     </div>
 
-                    {/* Live Indicator & Stats Bar */}
+                    {/* Price Stats Bar */}
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                       <div className="flex items-center gap-4">
-                        {/* Live Indicator */}
+                        {/* Price Source */}
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-[var(--trade-bullish)] rounded-full" />
-                          <span className="text-xs text-[var(--trade-bullish)] font-medium">Live</span>
+                          <div className="w-2 h-2 bg-cyan-400 rounded-full" />
+                          <span className="text-xs text-cyan-400 font-medium">Quote</span>
                         </div>
 
                         {/* Quick Stats */}
@@ -1535,7 +1535,7 @@ export default function StockDetailPage() {
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-[var(--trade-neutral)]" />
                       <h3 className="text-sm font-semibold text-foreground dark:text-foreground">Whale Flow Activity</h3>
-                      <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30 text-xs">Live</Badge>
+                      <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30 text-xs">Flow</Badge>
                     </div>
                     <Link href="/trade-desk">
                       <Button variant="ghost" size="sm" className="text-teal-400 hover:text-teal-300">
@@ -1561,7 +1561,7 @@ export default function StockDetailPage() {
                             flow.confidenceScore >= 80 ? "text-[var(--trade-bullish)] border-emerald-500/40" :
                             flow.confidenceScore >= 70 ? "text-teal-400 border-teal-500/40" : "text-muted-foreground border-border"
                           )}>
-                            {flow.confidenceScore}%
+                            {flow.confidenceScore}pts
                           </Badge>
                         </div>
                       </div>
@@ -1681,7 +1681,7 @@ export default function StockDetailPage() {
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30">
                         <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                        <span className="text-xs text-blue-400 font-medium">Live</span>
+                        <span className="text-xs text-blue-400 font-medium">Feed</span>
                       </div>
                       <Badge className="bg-gray-200 dark:bg-muted/50 text-foreground/80 border-border">
                         {newsData?.length || 0} Articles
@@ -2302,7 +2302,7 @@ export default function StockDetailPage() {
                                 <div className="text-lg font-bold text-teal-400">{safeToFixed(institutionData?.breakdown?.institutionsPercent, 0, '65')}%</div>
                               </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-3 text-center">Based on QuantEdge 6-engine analysis</p>
+                            <p className="text-[10px] text-muted-foreground mt-3 text-center">Based on QuantEdge 6-layer analysis</p>
                           </div>
                         </div>
                       )}

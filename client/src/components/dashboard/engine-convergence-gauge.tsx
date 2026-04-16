@@ -67,13 +67,13 @@ export function EngineConvergenceGauge({
                   top: y - 8,
                   boxShadow: `0 0 10px ${engine.direction === "bullish" ? "rgba(74, 222, 128, 0.4)" : engine.direction === "bearish" ? "rgba(248, 113, 113, 0.4)" : "rgba(251, 191, 36, 0.4)"}`,
                 }}
-                title={`${engine.name}: ${engine.direction} (${engine.confidence}%)`}
+                title={`${engine.name}: ${engine.direction} (${engine.confidence}pts)`}
               />
             );
           })}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-lg font-bold font-mono tabular-nums">
-              {overallConvergence}%
+              {overallConvergence}pts
             </span>
           </div>
         </div>
@@ -131,7 +131,7 @@ export function EngineConvergenceGauge({
                     : "text-[var(--trade-neutral)]"
               )}
             >
-              {engine.confidence}%
+              {engine.confidence}pts
             </span>
           </div>
         ))}

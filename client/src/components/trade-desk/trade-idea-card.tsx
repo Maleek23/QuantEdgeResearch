@@ -17,11 +17,13 @@ import {
   Target,
   Activity,
   ExternalLink,
+  Crosshair,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { displayedScore, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
-import { getTier } from "../../../../shared/approved-tickers";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -87,6 +89,7 @@ export interface TradeIdeaCardData {
 
   // Meta
   generatedAt?: string;
+  timestamp?: string;
   sector?: string;
 }
 
@@ -233,6 +236,19 @@ function fmtPrice(n: number | null | undefined): string {
   return `$${n.toFixed(3)}`;
 }
 
+function humanHold(hp: string | undefined | null): string {
+  const h = (hp || "").toLowerCase();
+  if (h === "0dte" || h.includes("0dte")) return "0DTE";
+  if (h === "1dte" || h.includes("1dte")) return "1DTE";
+  if (h.includes("scalp")) return "0DTE";
+  if (h.includes("intraday") || h === "day") return "1–2 days";
+  if (h === "swing") return "1–2 weeks";
+  if (h.includes("position")) return "4–8 weeks";
+  if (h.includes("long") || h.includes("leap")) return "3+ months";
+  if (!hp) return "";
+  return hp.toUpperCase();
+}
+
 function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
   if (idea.convictionBand) return idea.convictionBand;
   // fall back to probabilityBand
@@ -243,21 +259,44 @@ function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
   return "C";
 }
 
-function tierBadgeColor(tier: ReturnType<typeof getTier>): string {
-  switch (tier) {
-    case "MEGA":
-      return "bg-violet-500/15 text-violet-300 border-violet-500/30";
-    case "S":
-      return "bg-amber-500/15 text-amber-300 border-amber-500/30";
-    case "A":
-      return "bg-cyan-500/15 text-cyan-300 border-cyan-500/30";
-    case "INDEX":
-      return "bg-purple-500/15 text-purple-300 border-purple-500/30";
-    case "SECONDARY":
-      return "bg-zinc-500/15 text-zinc-300 border-zinc-500/30";
-    default:
-      return "bg-zinc-700/30 text-zinc-400 border-zinc-700/50";
-  }
+/**
+ * Compute live R:R from current price vs. the original trade plan.
+ * Returns null when live price is unavailable or matches entry.
+ */
+function computeLiveRR(idea: TradeIdeaCardData): {
+  liveRR: number;
+  degraded: boolean;   // live R:R < 50% of original
+  color: string;       // tailwind text color class
+  label: string;       // formatted "1.2x"
+} | null {
+  const lp = idea.livePrice;
+  if (lp == null || !Number.isFinite(lp)) return null;
+  // Skip if live price essentially equals entry (within 0.1%)
+  if (Math.abs(lp - idea.entryPrice) / idea.entryPrice < 0.001) return null;
+
+  const isLong = idea.direction === "long";
+  const upside = isLong ? idea.targetPrice - lp : lp - idea.targetPrice;
+  const downside = isLong ? lp - idea.stopLoss : idea.stopLoss - lp;
+
+  // If stop already breached, R:R is meaningless — flag as 0
+  const liveRR = downside > 0 ? upside / downside : 0;
+  const clampedRR = Math.max(0, liveRR);
+
+  const degraded =
+    idea.riskRewardRatio > 0 && clampedRR < idea.riskRewardRatio * 0.5;
+
+  let color: string;
+  if (clampedRR <= 0)       color = "text-red-400";
+  else if (clampedRR < 1.0) color = "text-red-400";
+  else if (clampedRR >= 1.5) color = "text-emerald-400";
+  else                       color = "text-muted-foreground";
+
+  return {
+    liveRR: clampedRR,
+    degraded,
+    color,
+    label: `${clampedRR.toFixed(1)}×`,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -321,7 +360,23 @@ function FreshnessPill({ idea }: { idea: TradeIdeaCardData }) {
   const age = idea.ageHours;
   const drift = idea.driftPct;
   const flags = idea.freshnessFlags ?? [];
-  if (age == null && drift == null && flags.length === 0) return null;
+  const ts = idea.generatedAt || idea.timestamp;
+
+  // Detect if idea is from a previous session (e.g., Friday's scan on weekend)
+  const sessionLabel = (() => {
+    if (!ts) return null;
+    const ideaET = new Date(new Date(ts).toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    if (ideaET.toDateString() === nowET.toDateString()) return null;
+    const ideaDay = ideaET.getDay();
+    const nowDay = nowET.getDay();
+    if (ideaDay === 5 && (nowDay === 0 || nowDay === 6 || nowDay === 1)) return 'FRI';
+    const daysDiff = Math.floor((nowET.getTime() - ideaET.getTime()) / (24 * 60 * 60 * 1000));
+    if (daysDiff >= 1) return `${daysDiff}D`;
+    return null;
+  })();
+
+  if (age == null && drift == null && flags.length === 0 && !sessionLabel) return null;
 
   const isLong = idea.direction === "long";
   // "Against" the trade direction
@@ -359,6 +414,8 @@ function FreshnessPill({ idea }: { idea: TradeIdeaCardData }) {
           : "Server-side freshness check"
       }
     >
+      {sessionLabel && <span className="text-amber-300">{sessionLabel}</span>}
+      {sessionLabel && (ageLabel || driftLabel) && <span className="opacity-50">·</span>}
       {ageLabel && <span>{ageLabel}</span>}
       {ageLabel && driftLabel && <span className="opacity-50">·</span>}
       {driftLabel && <span>{driftLabel}</span>}
@@ -381,6 +438,134 @@ function LayerChip({ layer }: { layer: ConvictionLayer }) {
       {style.icon} {sign}
       {layer.points}
     </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// GEX-Suggested Contract — auto-picks strike + expiry from GEX levels
+// ─────────────────────────────────────────────────────────────
+
+export function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
+  // Only suggest for stock ideas that don't already have an options play
+  if (idea.optionType && idea.strikePrice) return null;
+
+  const { data } = useQuery<{
+    callWall?: number;
+    putWall?: number;
+    maxGammaStrike?: number;
+    gammaFlipPrice?: number;
+    spotPrice?: number;
+    regime?: string;
+    levels?: Array<{ strike: number; role: string; netGEX: number }>;
+    strikeExpiryMatrix?: Array<{ strike: number; expiryLabel: string; dte: number; netGEX: number }>;
+  }>({
+    queryKey: [`/api/gex-vex/terminal/${idea.symbol}`, 'contract-hint'],
+    queryFn: async () => {
+      const res = await fetch(`/api/gex-vex/terminal/${idea.symbol}`, { credentials: 'include' });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    staleTime: 5 * 60_000, // 5 min cache — GEX doesn't change fast
+    retry: 0,
+  });
+
+  if (!data?.spotPrice || !data?.callWall) return null;
+
+  const isLong = idea.direction === 'long';
+  const optionType = isLong ? 'CALL' : 'PUT';
+
+  // Strike selection logic based on GEX levels:
+  // Long: pick slightly ITM or ATM strike near positive gamma support
+  // Short: pick slightly ITM or ATM strike near negative gamma / put wall
+  let suggestedStrike: number;
+  const spot = data.spotPrice;
+
+  if (isLong) {
+    // For calls: go ATM or 1-2 strikes ITM for swing (delta ~0.55-0.65)
+    // Use max gamma strike if it's near/below spot (support level)
+    const anchor = data.maxGammaStrike && data.maxGammaStrike <= spot * 1.02
+      ? data.maxGammaStrike
+      : spot;
+    // Round down to nearest $5 increment for cleaner strikes
+    const increment = spot > 200 ? 10 : spot > 50 ? 5 : spot > 10 ? 2.5 : 1;
+    suggestedStrike = Math.floor(anchor / increment) * increment;
+  } else {
+    // For puts: go ATM or 1-2 strikes ITM
+    const anchor = data.maxGammaStrike && data.maxGammaStrike >= spot * 0.98
+      ? data.maxGammaStrike
+      : spot;
+    const increment = spot > 200 ? 10 : spot > 50 ? 5 : spot > 10 ? 2.5 : 1;
+    suggestedStrike = Math.ceil(anchor / increment) * increment;
+  }
+
+  // Expiry selection: 3-6 weeks out for swing trades, ~2 months for position
+  const holdType = (idea.holdingPeriod || '').toLowerCase();
+  let targetDTE: number;
+  if (holdType.includes('day') || holdType.includes('scalp')) targetDTE = 14;
+  else if (holdType.includes('swing')) targetDTE = 30;
+  else if (holdType.includes('position') || holdType.includes('long') || holdType.includes('leap')) targetDTE = 120;
+  else targetDTE = 30;
+
+  // Extract unique expiries from the matrix, sorted by DTE
+  const matrixCells = data.strikeExpiryMatrix || [];
+  const expiryMap = new Map<string, number>();
+  for (const cell of matrixCells) {
+    if (cell.expiryLabel && !expiryMap.has(cell.expiryLabel)) {
+      expiryMap.set(cell.expiryLabel, cell.dte);
+    }
+  }
+  const sortedExpiries = [...expiryMap.entries()].sort((a, b) => a[1] - b[1]);
+
+  let suggestedExpiry = '';
+  if (sortedExpiries.length > 0) {
+    // Pick the expiry closest to our targetDTE
+    let bestMatch = sortedExpiries[0];
+    let bestDiff = Math.abs(sortedExpiries[0][1] - targetDTE);
+    for (const [label, dte] of sortedExpiries) {
+      const diff = Math.abs(dte - targetDTE);
+      if (diff < bestDiff) { bestDiff = diff; bestMatch = [label, dte]; }
+    }
+    suggestedExpiry = `${bestMatch[0]} (${bestMatch[1]}d)`;
+  } else {
+    // Fallback: compute a date ~targetDTE days out, round to nearest Friday
+    const target = new Date();
+    target.setDate(target.getDate() + targetDTE);
+    // Round to Friday
+    const dayOfWeek = target.getDay();
+    const daysToFriday = (5 - dayOfWeek + 7) % 7;
+    target.setDate(target.getDate() + daysToFriday);
+    suggestedExpiry = target.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  }
+
+  // GEX context label
+  const gexContext = isLong
+    ? data.callWall ? `Call wall $${data.callWall}` : ''
+    : data.putWall ? `Put wall $${data.putWall}` : '';
+
+  return (
+    <div className="mb-3 px-2.5 py-2 rounded-md bg-cyan-500/8 border border-cyan-500/20">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Crosshair className="w-3 h-3 text-cyan-400" />
+        <span className="text-[9px] font-mono uppercase tracking-wider text-cyan-300/70">
+          GEX-Suggested Contract
+        </span>
+      </div>
+      <div className="flex items-center gap-3 text-[11px] font-mono">
+        <span className="font-bold text-cyan-300">{idea.symbol}</span>
+        <span className="font-bold text-foreground">${suggestedStrike}</span>
+        <span className={cn("font-bold uppercase", isLong ? "text-emerald-400" : "text-red-400")}>
+          {optionType}
+        </span>
+        <span className="text-muted-foreground">·</span>
+        <span className="text-foreground">{suggestedExpiry}</span>
+        {gexContext && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-[9px] text-muted-foreground/70">{gexContext}</span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -419,7 +604,6 @@ function FullVariant({
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
   const dirColor = isLong ? "text-emerald-400" : "text-red-400";
-  const tier = getTier(idea.symbol);
   // H9: single source of truth for the displayed score.
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
@@ -445,16 +629,6 @@ function FullVariant({
           <span className="text-xl font-bold font-mono text-foreground">
             {idea.symbol}
           </span>
-          {tier && (
-            <span
-              className={cn(
-                "px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase rounded border",
-                tierBadgeColor(tier),
-              )}
-            >
-              {tier}
-            </span>
-          )}
           <div className={cn("flex items-center gap-0.5", dirColor)}>
             <DirIcon className="w-4 h-4" />
             <span className="text-[10px] font-mono uppercase font-bold">
@@ -468,50 +642,61 @@ function FullVariant({
           )}
           <FreshnessPill idea={idea} />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div
+          className="text-right flex-shrink-0"
+          title={`Conviction score ${score} (${grade})`}
+        >
           <div
             className={cn(
-              "px-2 py-1 rounded border text-[10px] font-mono font-bold",
-              band.color,
-              band.border,
+              "px-2.5 py-1 text-lg font-bold font-mono leading-none rounded border tabular-nums",
+              gradeColorClass(grade),
             )}
           >
-            {band.label}
+            {grade}
           </div>
-          <div
-            className="text-right"
-            title={`Conviction score ${score} (${grade})`}
-          >
-            <div
-              className={cn(
-                "px-2 py-0.5 text-2xl font-bold font-mono leading-none rounded border tabular-nums",
-                gradeColorClass(grade),
-              )}
-            >
-              {grade}
-            </div>
-            <div className="text-[8px] font-mono uppercase text-muted-foreground mt-0.5">
-              grade · {score}
-            </div>
+          <div className="text-[8px] font-mono text-muted-foreground/60 mt-1 tabular-nums">
+            {score}pts
           </div>
         </div>
       </div>
 
       {/* Trade plan strip */}
-      <div className="grid grid-cols-4 gap-2 mb-3 pb-3 border-b border-foreground/[0.06]">
-        <PriceCell label="Entry" value={fmtPrice(idea.entryPrice)} tone="neutral" />
-        <PriceCell label="Target" value={fmtPrice(idea.targetPrice)} tone="positive" />
-        <PriceCell label="Stop" value={fmtPrice(idea.stopLoss)} tone="negative" />
-        <PriceCell label="R:R" value={`${idea.riskRewardRatio.toFixed(1)}×`} tone="cyan" />
-      </div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return (
+          <div className="grid grid-cols-4 gap-2 mb-3 pb-3 border-b border-foreground/[0.06]">
+            <PriceCell label="Entry" value={fmtPrice(idea.entryPrice)} tone="neutral" />
+            <PriceCell label="Target" value={fmtPrice(idea.targetPrice)} tone="positive" />
+            <PriceCell label="Stop" value={fmtPrice(idea.stopLoss)} tone="negative" />
+            {live ? (
+              <div>
+                <div className="text-[8px] font-mono uppercase text-muted-foreground flex items-center gap-1">
+                  Live R:R
+                  {live.degraded && (
+                    <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                  )}
+                </div>
+                <div className={cn("text-sm font-mono font-semibold tabular-nums", live.color)}>
+                  {live.label}
+                </div>
+                <div className="text-[8px] font-mono text-muted-foreground/50 tabular-nums line-through">
+                  {idea.riskRewardRatio.toFixed(1)}×
+                </div>
+              </div>
+            ) : (
+              <PriceCell label="R:R" value={`${idea.riskRewardRatio.toFixed(1)}×`} tone="cyan" />
+            )}
+          </div>
+        );
+      })()}
 
-      {/* Live price strip */}
+      {/* Current price strip */}
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
             <Activity className="w-3 h-3 text-cyan-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Live
+              Current
             </span>
             <span className="font-mono font-bold text-sm text-foreground tabular-nums">
               {fmtPrice(idea.livePrice)}
@@ -538,6 +723,9 @@ function FullVariant({
         </div>
       )}
 
+      {/* GEX-suggested contract */}
+      <GEXContractSuggestion idea={idea} />
+
       {/* Thesis / catalyst */}
       {(idea.thesis || idea.catalyst) && (
         <div className="mb-3 text-[11px] text-muted-foreground/90 italic leading-snug line-clamp-2">
@@ -563,14 +751,14 @@ function FullVariant({
       )}
 
       {/* Meta footer */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-foreground/[0.06] text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between mt-3 pt-2 border-t border-foreground/[0.06] text-[10px] text-muted-foreground font-mono">
         <div className="flex items-center gap-2">
           {idea.holdingPeriod && (
-            <span className="uppercase tracking-wider">{idea.holdingPeriod}</span>
+            <span className="uppercase tracking-wider">{humanHold(idea.holdingPeriod)}</span>
           )}
           {idea.source && (
             <>
-              <span className="opacity-50">·</span>
+              <span className="opacity-40">·</span>
               <span className="uppercase tracking-wider truncate max-w-[100px]">
                 {idea.source.replace(/_/g, " ")}
               </span>
@@ -578,9 +766,9 @@ function FullVariant({
           )}
         </div>
         <Link
-          href={`/t/${idea.symbol}/chart`}
+          href={`/terminal/${idea.symbol}`}
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-foreground/10 text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
         >
           Chart <ExternalLink className="w-2.5 h-2.5" />
         </Link>
@@ -636,43 +824,49 @@ function CompactVariant({
           <DirIcon className={cn("w-3.5 h-3.5", dirColor)} />
           <FreshnessPill idea={idea} />
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span
-            className={cn(
-              "px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold",
-              band.color,
-              band.border,
-            )}
-          >
-            {band.label}
-          </span>
-          <span
-            className={cn(
-              "px-1.5 py-0.5 rounded border text-xs font-bold font-mono leading-none",
-              gradeColorClass(grade),
-            )}
-            title={`Conviction score ${score} (${grade})`}
-          >
-            {grade}
-          </span>
-        </div>
+        <span
+          className={cn(
+            "px-1.5 py-0.5 rounded border text-xs font-bold font-mono leading-none flex-shrink-0",
+            gradeColorClass(grade),
+          )}
+          title={`Conviction score ${score} (${grade})`}
+        >
+          {grade}
+        </span>
       </div>
 
       {/* Mini trade plan */}
-      <div className="grid grid-cols-3 gap-1.5 mb-2 text-[10px] font-mono">
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">Entry</div>
-          <div className="text-foreground font-semibold">{fmtPrice(idea.entryPrice)}</div>
-        </div>
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">Tgt</div>
-          <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
-        </div>
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">R:R</div>
-          <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
-        </div>
-      </div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return (
+          <div className="grid grid-cols-3 gap-1.5 mb-2 text-[10px] font-mono">
+            <div>
+              <div className="text-[8px] uppercase text-muted-foreground">Entry</div>
+              <div className="text-foreground font-semibold">{fmtPrice(idea.entryPrice)}</div>
+            </div>
+            <div>
+              <div className="text-[8px] uppercase text-muted-foreground">Tgt</div>
+              <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
+            </div>
+            {live ? (
+              <div>
+                <div className="text-[8px] uppercase text-muted-foreground flex items-center gap-0.5">
+                  Live R:R
+                  {live.degraded && <AlertTriangle className="w-2 h-2 text-amber-400" />}
+                </div>
+                <div className={cn("font-semibold", live.color)}>
+                  {live.label}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-[8px] uppercase text-muted-foreground">R:R</div>
+                <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Layer chips row */}
       {idea.layers && idea.layers.length > 0 && (
@@ -756,14 +950,27 @@ function RowVariant({
       <div className="text-red-400 tabular-nums text-right">
         {fmtPrice(idea.stopLoss)}
       </div>
-      <div className="text-cyan-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return live ? (
+          <div
+            className={cn("text-right flex items-center justify-end gap-0.5", live.color)}
+            title={`Original R:R ${idea.riskRewardRatio.toFixed(1)}× → Live ${live.label}`}
+          >
+            {live.degraded && <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />}
+            {live.label}
+          </div>
+        ) : (
+          <div className="text-cyan-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
+        );
+      })()}
       <div className="text-muted-foreground truncate">
         {idea.optionType
           ? `${idea.optionType.toUpperCase()} $${idea.strikePrice} ${idea.expiryDate ?? ""}`
           : (idea.thesis || idea.catalyst || "—")}
       </div>
       <div className="text-muted-foreground text-right text-[9px] uppercase">
-        {idea.holdingPeriod ?? "—"}
+        {humanHold(idea.holdingPeriod) || "—"}
       </div>
     </div>
   );

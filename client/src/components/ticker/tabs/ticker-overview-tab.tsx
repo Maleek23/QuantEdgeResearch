@@ -56,7 +56,7 @@ export function TickerOverviewTab({ data, symbol }: TickerOverviewTabProps) {
   return (
     <div className="space-y-4">
       {/* Regime + Spot */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="rounded-lg border border-border bg-[var(--surface-raised)] p-4">
           <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-1">REGIME</div>
           <div className={cn('text-lg font-mono font-bold', regime.color)}>{regime.label}</div>
@@ -106,7 +106,7 @@ export function TickerOverviewTab({ data, symbol }: TickerOverviewTabProps) {
       {/* Key Structural Levels */}
       <div>
         <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-2">KEY LEVELS</div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {levels.map((l) => {
             const Icon = l.icon;
             const dist = l.value && snap.spotPrice

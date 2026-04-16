@@ -1507,6 +1507,52 @@ button:not([disabled]):active,
                 inset 0 1px 0 0 hsl(var(--foreground) / 0.05);
   }
 
+  /* ============================================================
+     3D DEPTH SYSTEM — Skylit-inspired dimensional UI
+     Subtle gradients, inner highlights, and shadow layers
+     that make buttons and nav feel tactile, not flat.
+     ============================================================ */
+
+  /* Sidebar nav buttons — subtle inner light + bottom shadow */
+  [data-sidebar="menu-button"] {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.1);
+  }
+  [data-sidebar="menu-button"]:hover {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 4px rgba(0,0,0,0.15);
+  }
+  [data-sidebar="menu-button"][data-active="true"] {
+    background-image: linear-gradient(180deg, rgba(20,184,166,0.08) 0%, rgba(20,184,166,0.02) 100%);
+    box-shadow: inset 0 1px 0 rgba(20,184,166,0.15), 0 2px 8px rgba(20,184,166,0.1);
+  }
+
+  /* Pill buttons / filter toggles — raised 3D feel */
+  .dark button[class*="tracking-widest"][class*="rounded"] {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 60%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .dark button[class*="tracking-widest"][class*="rounded"]:hover {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  /* Badges — glass depth */
+  .dark [data-slot="badge"],
+  .dark span[class*="badge"] {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.15);
+  }
+
+  /* Cards and raised surfaces — layered shadow depth */
+  .dark [class*="surface-raised"] {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  /* Section labels — subtle text shadow for depth */
+  .dark [data-sidebar="group-label"] {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
   /* Gradient Depth Borders */
   .gradient-border-card {
     position: relative;

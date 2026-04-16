@@ -16,12 +16,14 @@ import { logger } from './logger';
 import { getTradierOptionsChain } from './tradier-api';
 import { getYahooOptionsChain, getYahooExpirations } from './yahoo-options-fallback';
 import { getSchwabOptionsChain, getSchwabExpirations, isSchwabConfigured } from './schwab-options-adapter';
+import { getCBOEExpirations, getCBOEOptionsChain } from './cboe-options-fallback';
 import { getCrossValidatedQuote } from './data-quality';
 import {
   computeExposures,
   optionToInput,
   type OptionInput,
   type ExposureSnapshot,
+  type StrikeExpiryCell,
 } from './options-exposures';
 
 // ─── Legacy-compat types ───────────────────────────────────
@@ -65,7 +67,7 @@ export interface GammaExposureResult {
   zeroGammaProjection?: number | null;
   regime?: ExposureSnapshot['regime'];
   vexRegime?: ExposureSnapshot['vexRegime'];
-  dataSource?: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+  dataSource?: 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
   dataQuality?: {
     grade: 'A' | 'B' | 'C' | 'D' | 'F';
     score: number;
@@ -74,11 +76,12 @@ export interface GammaExposureResult {
     isStale: boolean;
     hasDisagreement: boolean;
   };
+  strikeExpiryMatrix?: StrikeExpiryCell[];
 }
 
 // ─── Options Fetch Cascade ─────────────────────────────────
 
-type OptionsSource = 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+type OptionsSource = 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
 type OptionsFetchResult = {
   options: any[];
   source: OptionsSource;
@@ -120,6 +123,23 @@ async function fetchOptionsChain(
     logger.warn(`[GEX] Yahoo chain failed for ${symbol}: ${e.message}`);
   }
 
+  // 4. CBOE delayed (free, no key, 15-min delay — last resort)
+  try {
+    const cboe = await getCBOEOptionsChain(symbol);
+    if (cboe && cboe.options.length > 0) {
+      // CBOE returns all expirations at once; filter to requested if specified
+      let filtered = cboe.options;
+      if (expiration) {
+        filtered = cboe.options.filter((o: any) => o.expiration_date === expiration);
+      }
+      if (filtered.length > 0) {
+        return { options: filtered, source: 'cboe' as any };
+      }
+    }
+  } catch (e: any) {
+    logger.warn(`[GEX] CBOE chain failed for ${symbol}: ${e.message}`);
+  }
+
   return { options: [], source: 'none' };
 }
 
@@ -149,10 +169,20 @@ async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
 
   // Yahoo
   try {
-    return await getYahooExpirations(symbol);
-  } catch {
-    return [];
-  }
+    const yahooExps = await getYahooExpirations(symbol);
+    if (yahooExps.length > 0) return yahooExps;
+  } catch { /* fall through */ }
+
+  // CBOE delayed (last resort — free, no key, 15-min delay)
+  try {
+    const cboeExps = await getCBOEExpirations(symbol);
+    if (cboeExps.length > 0) {
+      logger.info(`[GEX-AGG] Using CBOE delayed expirations for ${symbol}`);
+      return cboeExps;
+    }
+  } catch { /* fall through */ }
+
+  return [];
 }
 
 // ─── Snapshot → Legacy result adapter ──────────────────────
@@ -200,6 +230,7 @@ function snapshotToLegacy(
     zeroGammaProjection: snap.zeroGammaProjection,
     regime: snap.regime,
     vexRegime: snap.vexRegime,
+    strikeExpiryMatrix: snap.strikeExpiryMatrix,
     dataSource: source === 'none' ? undefined : source,
     dataQuality: {
       grade: cq.qualityGrade,
@@ -277,7 +308,7 @@ export async function calculateAggregateGammaExposure(
       return null;
     }
 
-    const nearExps = allExps.slice(0, 4);
+    const nearExps = allExps.slice(0, 12);
 
     // 3. Fetch each expiration in parallel with cascade
     const chainResults = await Promise.all(

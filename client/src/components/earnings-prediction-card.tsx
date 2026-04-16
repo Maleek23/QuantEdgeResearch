@@ -384,8 +384,8 @@ export function EarningsPredictionCard({
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Confidence</p>
-              <p className="text-lg font-bold text-foreground">{data.confidence}%</p>
+              <p className="text-xs text-muted-foreground">Signal Strength</p>
+              <p className="text-lg font-bold text-foreground">{data.confidence}pts</p>
             </div>
           </div>
         </CardContent>
@@ -417,7 +417,7 @@ export function EarningsPredictionCard({
 
           {/* Summary Tab */}
           <TabsContent value="summary" className="space-y-4">
-            {/* Confidence & Prediction */}
+            {/* Signal Strength & Prediction */}
             <div className={cn("rounded-lg p-4 border", colors.bg, colors.border)}>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -425,8 +425,8 @@ export function EarningsPredictionCard({
                   <p className={cn("text-2xl font-bold", colors.text)}>{label}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Confidence</p>
-                  <p className="text-2xl font-bold text-foreground">{data.confidence}%</p>
+                  <p className="text-xs text-muted-foreground">Signal Strength</p>
+                  <p className="text-2xl font-bold text-foreground">{data.confidence}pts</p>
                 </div>
               </div>
               <Progress value={data.confidence} className="h-2 mb-3" />

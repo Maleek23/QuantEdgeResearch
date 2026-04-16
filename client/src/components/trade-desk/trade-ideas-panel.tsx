@@ -165,7 +165,7 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
       // still considers active. Filtering for "today only" happens client-
       // side via the freshness layer + age penalties.
       const res = await fetch(
-        "/api/trade-ideas/best-setups?period=weekly&limit=500&status=open",
+        "/api/trade-ideas/best-setups?period=weekly&limit=500&status=open&watchlistOnly=true",
         { credentials: "include" },
       );
       if (!res.ok) throw new Error(`${res.status}`);

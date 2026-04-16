@@ -45,6 +45,7 @@ import {
   Bot,
   Sparkles,
   Download,
+  Upload,
   Bell,
   ChevronDown,
   BarChart3,
@@ -208,7 +209,7 @@ function ThisWeekTab() {
               <WifiOff className="w-3 h-3 text-muted-foreground" />
             )}
             <span className={cn("text-[10px] font-mono", connected ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>
-              {connected ? "LIVE" : "OFFLINE"}
+              {connected ? "CONNECTED" : "OFFLINE"}
             </span>
           </div>
         </div>
@@ -464,6 +465,30 @@ export default function UnifiedWatchlist() {
     },
   });
 
+  // Bulk import state + mutation
+  const [bulkInput, setBulkInput] = useState("");
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const bulkImportMutation = useMutation({
+    mutationFn: async (symbols: string[]) => {
+      const res = await apiRequest('POST', '/api/watchlist/batch-add', { symbols });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      const added = data.results?.length || 0;
+      const errors = data.errors?.length || 0;
+      toast({
+        title: `Imported ${added} symbols`,
+        description: errors > 0 ? `${errors} failed — check symbols and retry` : 'All symbols added successfully',
+      });
+      setBulkInput("");
+      setShowBulkImport(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Bulk import failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Calculate derived data
   const filteredItems = useMemo(() => {
     let items = [...watchlistItems];
@@ -542,8 +567,9 @@ export default function UnifiedWatchlist() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
+          className="flex flex-col"
         >
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-base font-semibold text-foreground/90 flex items-center gap-2">
               <Star className="h-4 w-4 text-[var(--trade-bullish)]" />
@@ -610,7 +636,52 @@ export default function UnifiedWatchlist() {
               <Plus className="w-4 h-4 mr-2" />
               Add Symbol
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-[var(--brand-teal)]/30 text-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/10"
+              onClick={() => setShowBulkImport(!showBulkImport)}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Import
+            </Button>
           </div>
+          </div>
+
+          {/* Bulk Import Panel — paste symbols from TradingView or elsewhere */}
+          {showBulkImport && (
+            <div className="mt-3 p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--brand-teal)]/30">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                PASTE SYMBOLS FROM TRADINGVIEW OR ANY SOURCE
+              </div>
+              <textarea
+                className="w-full h-20 px-3 py-2 text-sm font-mono bg-background border border-border rounded-md resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--brand-teal)]"
+                placeholder="AAPL, TSLA, NVDA, MSFT&#10;or one per line..."
+                value={bulkInput}
+                onChange={(e) => setBulkInput(e.target.value)}
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {bulkInput.trim() ? `${bulkInput.split(/[,\s\n]+/).filter(s => s.trim()).length} symbols detected` : 'Comma or newline separated'}
+                </span>
+                <Button
+                  size="sm"
+                  className="bg-[var(--brand-teal)] hover:bg-[var(--brand-teal)]/80"
+                  disabled={!bulkInput.trim() || bulkImportMutation.isPending}
+                  onClick={() => {
+                    const symbols = bulkInput.split(/[,\s\n]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+                    if (symbols.length === 0) {
+                      toast({ title: "No symbols found", variant: "destructive" });
+                      return;
+                    }
+                    bulkImportMutation.mutate(symbols);
+                  }}
+                >
+                  {bulkImportMutation.isPending ? 'Importing...' : `Import ${bulkInput.split(/[,\s\n]+/).filter(s => s.trim()).length} Symbols`}
+                </Button>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Watchlist Selector + Search */}

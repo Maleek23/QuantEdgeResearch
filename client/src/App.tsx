@@ -35,6 +35,7 @@ const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
+const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
 const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
 // REMOVED — Market page consolidated, redirect to /home
@@ -95,6 +96,11 @@ const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
 const GeopoliticalMatrix = lazyWithRetry(() => import("@/pages/geopolitical-matrix"), "geopolitical-matrix");
 const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
+// Terminal — full-screen Skylit-style dedicated pages
+const TerminalChart = lazyWithRetry(() => import("@/pages/terminal-chart"), "terminal-chart");
+// MERGED: Heatmap view now lives inside unified terminal-chart.tsx
+// const TerminalHeatmap = lazyWithRetry(() => import("@/pages/terminal-heatmap"), "terminal-heatmap");
+const TerminalTrinity = lazyWithRetry(() => import("@/pages/terminal-trinity"), "terminal-trinity");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -149,9 +155,10 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, go to Home (main dashboard)
+  // If logged in, restore last visited page (or default to /home)
   if (user) {
-    return <Redirect to="/home" />;
+    const lastPage = localStorage.getItem('qe-last-page') || '/home';
+    return <Redirect to={lastPage} />;
   }
 
   // Otherwise show landing page
@@ -204,6 +211,7 @@ function Router() {
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/trade-journal" component={withBetaProtection(TradeJournalPage)} />
       <Route path="/paper-trading"><Redirect to="/home" /></Route>
       <Route path="/wallet-tracker"><Redirect to="/home" /></Route>
       <Route path="/ct-tracker"><Redirect to="/home" /></Route>
@@ -226,7 +234,7 @@ function Router() {
        * external links and shared URLs land on the unified destination.
        */}
       <Route path="/stock/:symbol">
-        {(params) => <Redirect to={`/t/${params.symbol}/overview`} />}
+        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
       </Route>
       <Route path="/stock-legacy/:symbol" component={StockDetailPage} />
       {/* MERGED: Discover → Trade Desk */}
@@ -380,6 +388,17 @@ function Router() {
        * redirect into this single home so links don't rot.
        * ═══════════════════════════════════════════════════════════════
        */}
+      {/* ═══════════════════════════════════════════════════════════════
+       * TERMINAL — full-screen Skylit-style dedicated pages
+       * Each tool gets its own page, not crammed into tabs.
+       * ═══════════════════════════════════════════════════════════════ */}
+      {/* Terminal heatmap merged into unified terminal — redirect for bookmarks */}
+      <Route path="/terminal/heatmap"><Redirect to="/terminal/SPY" /></Route>
+      <Route path="/terminal/trinity" component={withBetaProtection(TerminalTrinity)} />
+      <Route path="/terminal/:symbol" component={withBetaProtection(TerminalChart)} />
+      <Route path="/terminal"><Redirect to="/terminal/SPY" /></Route>
+
+      {/* TICKER — per-ticker analytics with tabs */}
       <Route path="/t/:symbol/:tab" component={withBetaProtection(TickerPage)} />
       <Route path="/t/:symbol" component={withBetaProtection(TickerPage)} />
       <Route path="/t"><Redirect to="/t/SPY/chart" /></Route>
@@ -389,15 +408,15 @@ function Router() {
           underlying chart workspace, so we keep /command alive as an
           alias for now and gradually move all internal links to /t/. */}
       <Route path="/command/:symbol">
-        {(params) => <Redirect to={`/t/${params.symbol}/chart`} />}
+        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
       </Route>
-      <Route path="/command"><Redirect to="/t/SPY/chart" /></Route>
+      <Route path="/command"><Redirect to="/terminal/SPY" /></Route>
       <Route path="/command-legacy" component={withBetaProtection(CommandCenterLegacy)} />
       {/* Legacy chart routes → redirect into the new ticker page */}
       <Route path="/projector"><Redirect to="/t/SPY/projection" /></Route>
       <Route path="/spx"><Redirect to="/t/SPX/chart" /></Route>
       <Route path="/gex/:symbol">
-        {(params) => <Redirect to={`/t/${params.symbol}/gex`} />}
+        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
       </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
       <Route path="/flow" component={withBetaProtection(FlowEdge)} />
@@ -499,6 +518,16 @@ function App() {
   useEffect(() => {
     preloadCriticalRoutes();
   }, []);
+
+  // Track last visited page for session persistence across reloads
+  useEffect(() => {
+    const path = location.split('?')[0];
+    // Only save authenticated app pages (not landing/login/public)
+    const skipPaths = ['/', '/landing', '/login', '/signup', '/invite', '/join-beta'];
+    if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
+      localStorage.setItem('qe-last-page', location);
+    }
+  }, [location]);
 
   const style = {
     "--sidebar-width": "14rem",

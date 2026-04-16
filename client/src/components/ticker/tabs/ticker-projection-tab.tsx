@@ -3,9 +3,11 @@
  * Uses page-level GEXTerminalData (zero-gamma magnet, walls, projection arc).
  */
 
+import { useQuery } from '@tanstack/react-query';
 import { cn, safeToFixed } from '@/lib/utils';
 import { Target, TrendingUp, TrendingDown, AlertCircle, ArrowRight } from 'lucide-react';
-import type { GEXTerminalData } from '../../../../../shared/gex-types';
+import type { GEXTerminalData, WeeklyPathProjection } from '../../../../../shared/gex-types';
+import { WeeklyPathChart } from '../weekly-path-chart';
 
 interface TickerProjectionTabProps {
   data: GEXTerminalData;
@@ -13,6 +15,18 @@ interface TickerProjectionTabProps {
 }
 
 export function TickerProjectionTab({ data, symbol }: TickerProjectionTabProps) {
+  const weeklyPath = useQuery<WeeklyPathProjection>({
+    queryKey: ['/api/weekly-path', symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/weekly-path/${symbol}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`Weekly path failed (${res.status})`);
+      return res.json();
+    },
+    enabled: !!symbol,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
   const snap = data.snapshot;
   const spot = snap.spotPrice;
   const projection = snap.zeroGammaProjection;
@@ -71,6 +85,18 @@ export function TickerProjectionTab({ data, symbol }: TickerProjectionTabProps) 
 
   return (
     <div className="space-y-4">
+      {/* Weekly Path Projection Chart */}
+      {weeklyPath.data && (
+        <WeeklyPathChart projection={weeklyPath.data} />
+      )}
+      {weeklyPath.isLoading && (
+        <div className="rounded-lg border border-border bg-[#0a0e17] p-12 text-center">
+          <div className="text-[10px] font-mono text-cyan-400/60 animate-pulse uppercase tracking-widest">
+            COMPUTING WEEKLY PATH…
+          </div>
+        </div>
+      )}
+
       {/* Price Map */}
       <div className="rounded-lg border border-border bg-[var(--surface-raised)] p-4">
         <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-3">PRICE LEVEL MAP</div>
@@ -108,23 +134,23 @@ export function TickerProjectionTab({ data, symbol }: TickerProjectionTabProps) 
       {/* Scenario Fan */}
       <div>
         <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-2">SCENARIO ANALYSIS</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {scenarios.map((s) => (
-            <div key={s.label} className={cn('rounded-lg border p-4', s.bgColor)}>
+            <div key={s.label} className={cn('rounded-lg border p-4 overflow-hidden', s.bgColor)}>
               <div className={cn('text-[10px] font-mono font-bold uppercase mb-1', s.color)}>{s.label}</div>
               <p className="text-[10px] text-muted-foreground mb-2">{s.desc}</p>
 
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[9px] font-mono text-muted-foreground">SPOT</span>
-                <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                <span className="text-sm font-mono font-bold text-foreground">${safeToFixed(s.target, 2)}</span>
-                <span className={cn('text-[10px] font-mono font-bold', s.color)}>
+              <div className="flex items-center gap-2 mb-2 flex-wrap min-w-0">
+                <span className="text-[9px] font-mono text-muted-foreground shrink-0">SPOT</span>
+                <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-sm font-mono font-bold text-foreground tabular-nums">${safeToFixed(s.target, 2)}</span>
+                <span className={cn('text-[10px] font-mono font-bold tabular-nums', s.color)}>
                   ({s.pct >= 0 ? '+' : ''}{safeToFixed(s.pct, 1)}%)
                 </span>
               </div>
 
               <div className="text-[9px] text-muted-foreground space-y-0.5">
-                <div><span className="text-muted-foreground/60">IF:</span> {s.condition}</div>
+                <div className="line-clamp-2"><span className="text-muted-foreground/60">IF:</span> {s.condition}</div>
                 <div><span className="text-muted-foreground/60">PROB:</span> {s.probability}</div>
               </div>
             </div>
@@ -135,7 +161,7 @@ export function TickerProjectionTab({ data, symbol }: TickerProjectionTabProps) 
       {/* Regime Context */}
       <div className="rounded-lg border border-border bg-[var(--surface-raised)] p-4">
         <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-2">REGIME CONTEXT</div>
-        <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
           <div>
             <span className="text-muted-foreground">Gamma Regime: </span>
             <span className={cn('font-bold',

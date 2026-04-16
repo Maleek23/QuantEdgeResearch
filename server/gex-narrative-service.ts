@@ -53,7 +53,7 @@ function buildUserPrompt(snap: GEXSnapshot): string {
 
 - Spot: $${snap.spotPrice.toFixed(2)}
 - Total GEX: ${snap.totalGEX.toFixed(2)}B (dealers ${gexDir} gamma)
-- Total VEX: ${snap.totalVEX.toFixed(2)}B (vol ${vexDir})
+- Total VEX: ${snap.totalVEX.toFixed(1)}M (vol ${vexDir})
 - Regime: ${snap.regime}
 - Put/Call GEX ratio: ${snap.putCallRatio.toFixed(2)}
 - Gamma flip: ${snap.gammaFlipPrice ? '$' + snap.gammaFlipPrice : 'none'}
@@ -120,15 +120,15 @@ export function fallbackNarrative(snap: GEXSnapshot): string {
   }
 
   // VEX line if meaningful
-  if (Math.abs(snap.totalVEX) > 0.15) {
+  if (Math.abs(snap.totalVEX) > 150) {
     const sameSign = Math.sign(snap.totalGEX) === Math.sign(snap.totalVEX);
     if (sameSign) {
       parts.push(
-        `Vanna is ${snap.totalVEX > 0 ? 'tailwind' : 'headwind'} (${snap.totalVEX.toFixed(2)}B) — aligned with gamma, reinforcing the move.`,
+        `Vanna is ${snap.totalVEX > 0 ? 'tailwind' : 'headwind'} ($${(snap.totalVEX / 1000).toFixed(1)}B) — aligned with gamma, reinforcing the move.`,
       );
     } else {
       parts.push(
-        `Vanna (${snap.totalVEX.toFixed(2)}B) diverges from gamma — regime shift risk elevated.`,
+        `Vanna ($${(snap.totalVEX / 1000).toFixed(1)}B) diverges from gamma — regime shift risk elevated.`,
       );
     }
   }

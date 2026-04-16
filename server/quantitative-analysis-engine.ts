@@ -231,21 +231,32 @@ export function analyzeLogReturns(logReturns: number[]): LogReturnAnalysis {
 
   const compoundingError = arithmeticMean - geometricMean;
 
-  // Sharpe using log returns (risk-free ≈ 0.02% per trade)
-  const riskFree = 0.02;
-  const sharpeLogReturn = stdDevLogReturn > 0
-    ? (meanLogReturn - riskFree) / stdDevLogReturn
+  // Annualized Sharpe using log returns
+  // Risk-free: 4.5% annual, prorated per trade. Without per-trade duration data here,
+  // we assume 1 trading day per trade as a conservative default.
+  // Log returns from this engine are already in percent (logReturn * 100), so we
+  // convert risk-free to the same scale.
+  const AVG_HOLDING_DAYS = 1; // conservative default — no duration data in this context
+  const riskFreePerTrade = (4.5 * AVG_HOLDING_DAYS) / 252; // in percent, matching logReturn scale
+  const excessLogReturns = logReturns.map(r => r - riskFreePerTrade);
+  const meanExcess = excessLogReturns.reduce((sum, r) => sum + r, 0) / n;
+  const excessStdDev = n > 1
+    ? Math.sqrt(excessLogReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / (n - 1))
+    : 0;
+  const annualizationFactor = Math.sqrt(252 / Math.max(AVG_HOLDING_DAYS, 0.1));
+  const sharpeLogReturn = excessStdDev > 0
+    ? (meanExcess / excessStdDev) * annualizationFactor
     : 0;
 
-  // Sortino (only downside deviation)
-  const downsideReturns = logReturns.filter(r => r < 0);
-  const downsideVariance = downsideReturns.length > 0
-    ? downsideReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downsideReturns.length
+  // Sortino (only downside deviation of excess returns)
+  const downsideExcess = excessLogReturns.filter(r => r < 0);
+  const downsideVariance = downsideExcess.length > 0
+    ? downsideExcess.reduce((sum, r) => sum + Math.pow(r, 2), 0) / downsideExcess.length
     : 0;
   const downsideDev = Math.sqrt(downsideVariance);
   const sortinoLogReturn = downsideDev > 0
-    ? (meanLogReturn - riskFree) / downsideDev
-    : meanLogReturn > 0 ? Infinity : 0;
+    ? (meanExcess / downsideDev) * annualizationFactor
+    : meanExcess > 0 ? Infinity : 0;
 
   // Value at Risk (5th percentile)
   const sorted = [...logReturns].sort((a, b) => a - b);

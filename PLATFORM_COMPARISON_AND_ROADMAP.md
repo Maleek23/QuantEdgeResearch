@@ -30,7 +30,7 @@ This document compares QuantEdge Labs with Intellectia.ai to identify gaps, over
 | **AI Earnings Prediction** | ✅ Beat/Miss/Neutral | ⚠️ Earnings Calendar only | Need to add predictions |
 | **Backtesting Playground** | ✅ NLP-driven | ⚠️ Manual backtesting | Need user-facing UI |
 | **Price Prediction** | ✅ | ✅ ML Price Direction | We have this |
-| **Technical Analysis** | ✅ | ✅ 6-Engine System | We have MORE |
+| **Technical Analysis** | ✅ | ✅ 6-Layer System | We have MORE |
 
 ### Market Data & Monitoring
 
@@ -118,7 +118,7 @@ This document compares QuantEdge Labs with Intellectia.ai to identify gaps, over
 | **Performance Analytics** | Win rate calibration, PnL tracking |
 | **Catalyst Intelligence** | SEC filings + government contracts |
 | **Prop Firm Mode** | Simulates prop firm rules |
-| **6-Engine Analysis** | ML + AI + Quant + Flow + Sentiment + Technical |
+| **6-Layer Analysis** | Technical + Flow + Sentiment + Quant + Convergence + GEX |
 | **Discord Integration** | Automated quality-filtered alerts |
 
 ---

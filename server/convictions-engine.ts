@@ -540,15 +540,19 @@ function scoreAnalystLayer(
   snap: AnalystSnapshot | null,
   direction: "long" | "short",
   entryPrice: number,
+  livePrice?: number,
 ): ConvictionLayer | null {
   if (!snap) return null;
   if ((snap.numberOfAnalysts ?? 0) < 3) return null;
   if (snap.recommendationMean === null && snap.targetMeanPrice === null) return null;
 
   const meanRec = snap.recommendationMean ?? 3;
+  // Use live price for upside calc — entry price can be far from current
+  // spot after a big move, inflating/deflating the upside unrealistically.
+  const refPrice = (livePrice && livePrice > 0) ? livePrice : entryPrice;
   const upsidePct =
-    snap.targetMeanPrice && entryPrice > 0
-      ? ((snap.targetMeanPrice - entryPrice) / entryPrice) * 100
+    snap.targetMeanPrice && refPrice > 0
+      ? ((snap.targetMeanPrice - refPrice) / refPrice) * 100
       : null;
 
   const reasons: string[] = [];
@@ -716,11 +720,32 @@ async function scoreSectorLayer(symbol: string, sector: Sector, direction: "long
  */
 function maxAgeHoursForIdea(idea: any): number {
   const hp: string = (idea.holdingPeriod || idea.tradeType || "").toLowerCase();
-  if (hp.includes("day") || hp.includes("intraday") || hp.includes("scalp")) return 6;
-  if (hp.includes("swing")) return 36;
-  if (hp.includes("position") || hp.includes("long")) return 96;
-  // Unknown — use the swing default rather than the loose old 72h
-  return 24;
+
+  // Base caps (market-hours only logic)
+  let cap: number;
+  if (hp.includes("day") || hp.includes("intraday") || hp.includes("scalp")) cap = 6;
+  else if (hp.includes("swing")) cap = 36;
+  else if (hp.includes("position") || hp.includes("long")) cap = 96;
+  else cap = 24; // unknown → swing default
+
+  // Weekend extension: market is closed Sat+Sun (~48h). If we're currently in
+  // a weekend window, extend the cap so Friday's ideas survive until Monday
+  // pre-market. Without this, day ideas (6h cap) die Saturday morning and
+  // swing ideas (36h cap) die Sunday afternoon — leaving Trade Desk empty.
+  const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = nowET.getDay(); // 0=Sun, 6=Sat
+  const hour = nowET.getHours();
+  const isWeekend = day === 0 || day === 6;
+  // Also cover Friday after-hours (after 8pm ET) and Monday pre-market (before 4am ET)
+  const isFridayEvening = day === 5 && hour >= 20;
+  const isMondayEarlyAM = day === 1 && hour < 4;
+
+  if (isWeekend || isFridayEvening || isMondayEarlyAM) {
+    // Add ~52h buffer (Fri 8pm → Mon 4am ≈ 56h, with margin)
+    cap += 52;
+  }
+
+  return cap;
 }
 
 /**
@@ -769,6 +794,10 @@ function scorePreMarketLayer(
   snap: PreMarketSnapshot | undefined,
 ): ConvictionLayer | null {
   if (!snap) return null;
+  // When the market is closed (weekends / holidays) the "gap" is just
+  // last session's return, not an actual pre-market signal.  Skip it —
+  // the freshness layer already penalizes staleness.
+  if (snap.phase === "closed") return null;
   const gap = snap.gapPct;
   if (!Number.isFinite(gap) || Math.abs(gap) < 1) return null;
 
@@ -1683,9 +1712,16 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       if (sectorLayer) {
         p.layers.push(sectorLayer);
       }
-      const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice);
-      if (analystLayer) {
-        p.layers.push(analystLayer);
+      // Analyst 12-month targets only matter for position / leap holds.
+      // For day / swing trades they're noise — skip entirely.
+      const hp = (p.holdingPeriod || p.tradeType || "").toLowerCase();
+      const isLongHold = hp.includes("position") || hp.includes("long") || hp.includes("leap");
+      if (isLongHold) {
+        const liveQ = liveQuotes.get(p.symbol);
+        const analystLayer = scoreAnalystLayer(analystSnap, p.direction, p.entryPrice, liveQ?.price);
+        if (analystLayer) {
+          p.layers.push(analystLayer);
+        }
       }
       p.layerCount = p.layers.length;
     }),

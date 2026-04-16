@@ -29,7 +29,7 @@
 ### New Capabilities:
 ```typescript
 // New query types to support:
-- "What's the sentiment on AAPL?"     → Pull from 6-engine analysis
+- "What's the sentiment on AAPL?"     → Pull from 6-layer analysis
 - "Show me breakout stocks today"     → Query breakout scanner
 - "Analyze NVDA for me"               → Full multi-engine summary
 - "What's trending on WSB?"           → Pull from social scanner

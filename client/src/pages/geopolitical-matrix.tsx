@@ -195,7 +195,7 @@ export default function GeopoliticalMatrix() {
                     <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
                       <div className="h-full rounded-full bg-cyan-500/60" style={{ width: `${scenario.confidence}%` }} />
                     </div>
-                    <span className="text-[9px] text-muted-foreground">{scenario.confidence}%</span>
+                    <span className="text-[9px] text-muted-foreground">{scenario.confidence}pts</span>
                   </div>
                 </CardContent>
               </Card>

@@ -115,6 +115,7 @@ export default function TickerPage() {
         onSymbolChange={handleSymbolChange}
         snapshot={data?.snapshot ?? null}
         isLoading={isFetching}
+        futuresProxy={data?.futuresProxy}
       />
 
       {/* TAB NAV */}
@@ -134,7 +135,7 @@ export default function TickerPage() {
 
       {/* MAIN GRID — tab content + persistent right rail */}
       {data && (
-        <div className="grid grid-cols-[1fr_280px] gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
           <div className="min-w-0">
             <TabContent
               tab={tab}

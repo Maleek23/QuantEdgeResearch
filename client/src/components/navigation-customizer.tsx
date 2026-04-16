@@ -62,14 +62,14 @@ const iconMap: Record<string, any> = {
 };
 
 const defaultNavItems: NavigationItemType[] = [
-  { id: "command-center", title: "Command Center", icon: "Activity", href: "/trading-engine", badge: "LIVE" },
+  { id: "command-center", title: "Command Center", icon: "Activity", href: "/trading-engine" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
   { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
   { id: "performance", title: "Performance", icon: "Target", href: "/performance" },
   { id: "chart-analysis", title: "Chart Analysis", icon: "Upload", href: "/chart-analysis" },
   { id: "options", title: "Options", icon: "BarChart2", href: "/options-analyzer" },
-  { id: "trends", title: "Trends", icon: "TrendingUp", href: "/bullish-trends" },
-  { id: "historical", title: "Historical", icon: "Brain", href: "/historical-intelligence" },
+  { id: "trends", title: "Trends", icon: "TrendingUp", href: "/market-scanner" },
+  { id: "historical", title: "Historical", icon: "Brain", href: "/performance" },
   { id: "academy", title: "Academy", icon: "BookOpen", href: "/academy" },
   { id: "blog", title: "Blog", icon: "BookOpen", href: "/blog" },
   { id: "settings", title: "Settings", icon: "Settings", href: "/settings" },

@@ -436,7 +436,7 @@ function OutlookPanel({ prediction, spot }: { prediction: UnifiedPrediction | nu
           </div>
           <div>
             <div className={cn("text-xl font-black tracking-tight", dir.color)}>{prediction.direction}</div>
-            <div className="text-xs text-slate-400 font-mono">{prediction.confidence}% confidence</div>
+            <div className="text-xs text-slate-400 font-mono">{prediction.confidence}pts signal strength</div>
           </div>
           <div className="ml-auto text-right">
             <div className="text-2xl font-black font-mono text-slate-100">${spot.toFixed(2)}</div>
@@ -956,7 +956,7 @@ export default function Command() {
               ? 'text-emerald-400/70 border-emerald-500/20'
               : 'text-amber-400/70 border-amber-500/20'
           )}>
-            {prediction.dataFreshness.priceSource === 'CHART_CANDLE' ? 'LIVE' : prediction.dataFreshness.priceSource}
+            {prediction.dataFreshness.priceSource === 'CHART_CANDLE' ? 'CHART' : prediction.dataFreshness.priceSource}
           </Badge>
         )}
         <button

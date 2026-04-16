@@ -599,6 +599,37 @@ function isMarketCurrentlyOpen(): boolean {
   });
   log('🎯 GEX Idea Scanner scheduled (every 15 min during market hours)');
 
+  // Bull Flag Pullback Scanner — "Femi's Scanner"
+  // Runs every 30 min during market hours, auto-ingests B+ grade setups
+  // to Trade Desk alongside swing/breakout/GEX ideas.
+  cron.default.schedule('5,35 * * * *', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { ingestBullFlagIdeas } = await import('./bull-flag-scanner');
+      const ingested = await ingestBullFlagIdeas();
+      if (ingested > 0) {
+        logger.info(`🚩 [BULL-FLAG-CRON] Auto-ingested ${ingested} bull flag setups to Trade Desk`);
+      }
+    } catch (error: any) {
+      logger.error('🚩 [BULL-FLAG-CRON] Failed:', error);
+    }
+  });
+  log('🚩 Bull Flag Scanner scheduled (every 30 min during market hours)');
+
+  // GEX History Archiver — saves hourly GEX snapshots for historical browsing.
+  // This is what enables "scroll through GEX profiles across dates."
+  cron.default.schedule('0 * * * *', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { archiveGexSnapshots } = await import('./gex-history-archiver');
+      const result = await archiveGexSnapshots();
+      logger.info(`📸 [GEX-ARCHIVE] Hourly snapshot: ${result.archived} symbols archived`);
+    } catch (error: any) {
+      logger.error('📸 [GEX-ARCHIVE] Failed:', error);
+    }
+  });
+  log('📸 GEX History Archiver scheduled (hourly during market hours)');
+
   // Projection accuracy validation (hourly during market hours)
   cron.default.schedule('30 * * * 1-5', async () => {
     try {

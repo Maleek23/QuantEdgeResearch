@@ -15,9 +15,9 @@ const mockActivities: ActivityItem[] = [
   { id: "1", type: "win", symbol: "NVDA", action: "Options signal closed", time: "2m ago", profit: "+127%" },
   { id: "2", type: "signal", symbol: "TSLA", action: "Flow engine detected sweep", time: "5m ago" },
   { id: "3", type: "win", symbol: "SPY", action: "Quant signal closed", time: "8m ago", profit: "+43%" },
-  { id: "4", type: "signal", symbol: "AAPL", action: "ML prediction generated", time: "12m ago" },
+  { id: "4", type: "signal", symbol: "AAPL", action: "Sentiment analysis generated", time: "12m ago" },
   { id: "5", type: "win", symbol: "AMD", action: "Swing trade closed", time: "15m ago", profit: "+89%" },
-  { id: "6", type: "signal", symbol: "MSTR", action: "6-engine convergence", time: "18m ago" },
+  { id: "6", type: "signal", symbol: "MSTR", action: "6-layer convergence", time: "18m ago" },
   { id: "7", type: "win", symbol: "PLTR", action: "Day trade closed", time: "22m ago", profit: "+52%" },
   { id: "8", type: "signal", symbol: "COIN", action: "Technical breakout detected", time: "25m ago" },
 ];

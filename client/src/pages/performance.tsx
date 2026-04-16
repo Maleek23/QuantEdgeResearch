@@ -18,7 +18,7 @@ import { ValidationResultsDialog } from "@/components/validation-results-dialog"
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import { RiskDisclosure } from "@/components/risk-disclosure";
-import { PageHeader } from "@/components/page-header";
+
 import { UserPerformanceSummary } from "@/components/user-performance-summary";
 
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
@@ -497,6 +497,8 @@ export default function PerformancePage() {
   const { user } = useAuth();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [dateRange, setDateRange] = useState("all");
+  const [engineFilter, setEngineFilter] = useState<string>("all");
+  const [assetFilter, setAssetFilter] = useState<string>("all");
   const [isValidating, setIsValidating] = useState(false);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [validationResults, setValidationResults] = useState<any[]>([]);
@@ -513,8 +515,10 @@ export default function PerformancePage() {
     }
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
+    if (engineFilter !== 'all') params.append('source', engineFilter);
+    if (assetFilter !== 'all') params.append('assetType', assetFilter);
     return params.toString() ? `?${params.toString()}` : '';
-  }, [dateRange]);
+  }, [dateRange, engineFilter, assetFilter]);
 
   const perfInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
@@ -569,15 +573,11 @@ export default function PerformancePage() {
     <div className="max-w-5xl mx-auto p-3 sm:p-5 space-y-4">
       {/* Header — compact */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <PageHeader
-          label="Analytics"
-          title="Performance"
-          description="Track our AI engine reliability"
-          icon={Target}
-          iconColor="text-[var(--trade-bullish)]"
-          iconGradient="from-green-500/20 to-emerald-500/20"
-        />
-        <div className="flex items-center gap-1.5">
+        <div>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">Performance</h1>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Date range */}
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-24 h-7 text-xs" data-testid="select-date-range">
               <Calendar className="w-3 h-3 mr-1" />
@@ -591,6 +591,35 @@ export default function PerformancePage() {
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Engine filter */}
+          <Select value={engineFilter} onValueChange={setEngineFilter}>
+            <SelectTrigger className="w-28 h-7 text-xs">
+              <Brain className="w-3 h-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Engines</SelectItem>
+              <SelectItem value="quant">Quant</SelectItem>
+              <SelectItem value="flow">Flow</SelectItem>
+              <SelectItem value="ai">AI</SelectItem>
+              <SelectItem value="lotto">Lotto</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Asset type filter */}
+          <Select value={assetFilter} onValueChange={setAssetFilter}>
+            <SelectTrigger className="w-24 h-7 text-xs">
+              <Activity className="w-3 h-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assets</SelectItem>
+              <SelectItem value="equities">Equities</SelectItem>
+              <SelectItem value="options">Options</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport} data-testid="button-export">
             <Download className="w-3 h-3" />
           </Button>
@@ -601,21 +630,17 @@ export default function PerformancePage() {
       <UserPerformanceSummary />
 
       {/* Advanced Analytics Toggle */}
-      <div className="flex items-center justify-between p-3 rounded-md bg-muted/15 border border-dashed border-border/40">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-xs font-medium">Advanced Analytics</p>
-            <p className="text-[10px] text-muted-foreground">Charts, calibration, audit tools</p>
-          </div>
+      <div className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/10 border border-border/30">
+        <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+          ADVANCED ANALYTICS
         </div>
-        <Button
-          variant={showAdvanced ? "secondary" : "outline"}
-          size="sm"
+        <button
+          type="button"
+          className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => setShowAdvanced(!showAdvanced)}
         >
-          {showAdvanced ? "Hide" : "Show"} Details
-        </Button>
+          {showAdvanced ? "HIDE" : "SHOW"}
+        </button>
       </div>
 
       {/* Advanced Analytics - Collapsible */}
@@ -631,7 +656,7 @@ export default function PerformancePage() {
                   <BarChart3 className="h-3 w-3" />Deep
                 </TabsTrigger>
                 <TabsTrigger value="backtest" className="text-[10px] gap-1 font-mono" data-testid="tab-backtest">
-                  <Target className="h-3 w-3" />Backtest
+                  <Target className="h-3 w-3" />Patterns
                 </TabsTrigger>
                 <TabsTrigger value="historical" className="text-[10px] gap-1 font-mono" data-testid="tab-historical">
                   <History className="h-3 w-3" />History

@@ -70,8 +70,8 @@ export interface DrawdownAnalysis {
   }>;
 }
 
-// Risk-free rate assumption (T-bill rate)
-const RISK_FREE_RATE = 0.05; // 5% annual
+// Risk-free rate assumption (T-bill proxy)
+const RISK_FREE_RATE = 0.045; // 4.5% annual
 
 /**
  * Calculate comprehensive portfolio metrics
@@ -90,26 +90,26 @@ export async function calculatePortfolioMetrics(
       .select({
         id: tradeIdeas.id,
         symbol: tradeIdeas.symbol,
-        confidence: tradeIdeas.confidence,
+        confidence: tradeIdeas.confidenceScore,
         direction: tradeIdeas.direction,
         entryPrice: tradeIdeas.entryPrice,
         targetPrice: tradeIdeas.targetPrice,
         stopLoss: tradeIdeas.stopLoss,
-        createdAt: tradeIdeas.createdAt,
+        createdAt: tradeIdeas.timestamp,
         outcome: tradeIdeas.outcomeStatus,
         exitPrice: tradeIdeas.exitPrice,
       })
       .from(tradeIdeas)
       .where(
         and(
-          gte(tradeIdeas.createdAt, cutoffDate),
+          gte(tradeIdeas.timestamp, cutoffDate.toISOString()),
           or(
             eq(tradeIdeas.outcomeStatus, 'hit_target'),
             eq(tradeIdeas.outcomeStatus, 'hit_stop')
           )
         )
       )
-      .orderBy(tradeIdeas.createdAt);
+      .orderBy(tradeIdeas.timestamp);
 
     if (completedTrades.length < 10) {
       logger.warn(`[PORTFOLIO] Insufficient data: ${completedTrades.length} trades`);
@@ -147,13 +147,6 @@ export async function calculatePortfolioMetrics(
     const variance = returns.reduce((sum, r) => sum + Math.pow(r - averageReturn, 2), 0) / returns.length;
     const standardDeviation = Math.sqrt(variance);
 
-    // Downside deviation (for Sortino)
-    const negativeReturns = returns.filter(r => r < 0);
-    const downsideVariance = negativeReturns.length > 0
-      ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeReturns.length
-      : 0;
-    const downsideDeviation = Math.sqrt(downsideVariance);
-
     // Win/loss metrics
     const wins = returns.filter(r => r > 0);
     const losses = returns.filter(r => r < 0);
@@ -175,16 +168,30 @@ export async function calculatePortfolioMetrics(
     const expectancy = (winRate / 100 * avgWin) - (lossRate / 100 * avgLoss);
 
     // Risk-adjusted metrics
-    // Sharpe Ratio: (AnnualReturn - RiskFreeRate) / AnnualizedVolatility
-    const annualizedVol = standardDeviation * Math.sqrt(252 * tradesPerDay);
-    const sharpeRatio = annualizedVol > 0
-      ? (annualizedReturn - RISK_FREE_RATE * 100) / annualizedVol
+    // Sharpe Ratio: annualized, per-trade excess returns approach
+    // excess_i = return_i - (riskFreeAnnual * avgHoldingDays_i / 252)
+    // sharpe = (mean(excess) / std(excess)) * sqrt(252 / avgHoldingDays)
+    // Since we don't have per-trade holding days here, we estimate from tradesPerDay:
+    // avgHoldingDays ≈ 1 / tradesPerDay (how many trading days between trades)
+    const avgHoldingDays = tradesPerDay > 0 ? 1 / tradesPerDay : 1;
+    const riskFreePerTrade = RISK_FREE_RATE * (avgHoldingDays / 252);
+    const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade); // convert % to decimal
+    const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+    const excessVariance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
+    const excessStdDev = Math.sqrt(excessVariance);
+    const annualizationFactor = Math.sqrt(252 / Math.max(avgHoldingDays, 0.1));
+    const sharpeRatio = excessStdDev > 0
+      ? (meanExcess / excessStdDev) * annualizationFactor
       : 0;
 
-    // Sortino Ratio: (Return - RiskFreeRate) / DownsideDeviation
-    const annualizedDownsideVol = downsideDeviation * Math.sqrt(252 * tradesPerDay);
-    const sortinoRatio = annualizedDownsideVol > 0
-      ? (annualizedReturn - RISK_FREE_RATE * 100) / annualizedDownsideVol
+    // Sortino Ratio: same approach but using only downside deviation of excess returns
+    const negativeExcess = excessReturns.filter(r => r < 0);
+    const downsideExcessVariance = negativeExcess.length > 0
+      ? negativeExcess.reduce((sum, r) => sum + Math.pow(r, 2), 0) / negativeExcess.length
+      : 0;
+    const downsideExcessStdDev = Math.sqrt(downsideExcessVariance);
+    const sortinoRatio = downsideExcessStdDev > 0
+      ? (meanExcess / downsideExcessStdDev) * annualizationFactor
       : 0;
 
     // Maximum Drawdown

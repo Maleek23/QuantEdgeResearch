@@ -255,15 +255,7 @@ export async function runResearchGradeEvaluation(
     // Distribution analysis
     const distribution = calculateDistribution(returns);
 
-    // Risk metrics
-    const sharpeRatio = calculateSharpe(returns);
-    const sortinoRatio = calculateSortino(returns);
-    const { maxDrawdown, maxDrawdownDuration, equityCurve } = calculateDrawdown(returns);
-    const totalReturn = returns.reduce((a, b) => a + b, 0);
-    const calmarRatio = maxDrawdown > 0 ? totalReturn / maxDrawdown : 0;
-    const recoveryFactor = maxDrawdown > 0 ? totalReturn / maxDrawdown : totalReturn;
-
-    // Time analysis
+    // Time analysis (computed before Sharpe so avg holding period is available)
     const holdTimes = filteredTrades
       .filter(t => t.createdAt && t.exitDate)
       .map(t => {
@@ -275,7 +267,15 @@ export async function runResearchGradeEvaluation(
 
     const avgHoldTimeDays = holdTimes.length > 0
       ? holdTimes.reduce((a, b) => a + b, 0) / holdTimes.length
-      : 0;
+      : 1; // default 1 day if no duration data
+
+    // Risk metrics (pass avg holding period for proper annualization)
+    const sharpeRatio = calculateSharpe(returns, avgHoldTimeDays);
+    const sortinoRatio = calculateSortino(returns, avgHoldTimeDays);
+    const { maxDrawdown, maxDrawdownDuration, equityCurve } = calculateDrawdown(returns);
+    const totalReturn = returns.reduce((a, b) => a + b, 0);
+    const calmarRatio = maxDrawdown > 0 ? totalReturn / maxDrawdown : 0;
+    const recoveryFactor = maxDrawdown > 0 ? totalReturn / maxDrawdown : totalReturn;
 
     const tradingDays = lookbackDays * 0.7; // ~70% are trading days
     const annualizedReturn = tradingDays > 0
@@ -475,35 +475,59 @@ function calculateDistribution(returns: number[]): DistributionAnalysis {
   };
 }
 
-function calculateSharpe(returns: number[], riskFreeRate: number = 0.02): number {
+/**
+ * Annualized Sharpe Ratio from per-trade percent returns
+ *
+ * excess_i = (return_i / 100) - (riskFreeAnnual * avgHoldingDays / 252)
+ * sharpe = (mean(excess) / std(excess)) * sqrt(252 / avgHoldingDays)
+ *
+ * @param returns         per-trade percent gains (e.g. [2.5, -1.3, ...])
+ * @param avgHoldingDays  average holding period in calendar days (default 1)
+ */
+function calculateSharpe(returns: number[], avgHoldingDays: number = 1): number {
   if (returns.length < 2) return 0;
 
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+  const ANNUAL_RISK_FREE = 0.045; // 4.5% T-bill proxy
+  const holdingTradingDays = Math.max(avgHoldingDays * (252 / 365), 0.1);
+  const riskFreePerTrade = (ANNUAL_RISK_FREE * holdingTradingDays) / 252;
+
+  const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade);
+  const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+  const variance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
   const stdDev = Math.sqrt(variance);
 
   if (stdDev === 0) return 0;
 
-  return (mean - riskFreeRate) / stdDev;
+  const annualizationFactor = Math.sqrt(252 / holdingTradingDays);
+  return (meanExcess / stdDev) * annualizationFactor;
 }
 
-function calculateSortino(returns: number[], riskFreeRate: number = 0.02): number {
+/**
+ * Annualized Sortino Ratio (downside-deviation variant of Sharpe)
+ */
+function calculateSortino(returns: number[], avgHoldingDays: number = 1): number {
   if (returns.length < 2) return 0;
 
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const ANNUAL_RISK_FREE = 0.045;
+  const holdingTradingDays = Math.max(avgHoldingDays * (252 / 365), 0.1);
+  const riskFreePerTrade = (ANNUAL_RISK_FREE * holdingTradingDays) / 252;
 
-  // Downside deviation: only consider negative returns
-  const downsideReturns = returns.filter(r => r < riskFreeRate);
-  if (downsideReturns.length === 0) return mean > 0 ? Infinity : 0;
+  const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade);
+  const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
 
-  const downsideVariance = downsideReturns.reduce(
-    (sum, r) => sum + Math.pow(r - riskFreeRate, 2), 0
-  ) / downsideReturns.length;
+  // Downside deviation: only consider negative excess returns
+  const downsideExcess = excessReturns.filter(r => r < 0);
+  if (downsideExcess.length === 0) return meanExcess > 0 ? Infinity : 0;
+
+  const downsideVariance = downsideExcess.reduce(
+    (sum, r) => sum + Math.pow(r, 2), 0
+  ) / downsideExcess.length;
   const downsideDev = Math.sqrt(downsideVariance);
 
   if (downsideDev === 0) return 0;
 
-  return (mean - riskFreeRate) / downsideDev;
+  const annualizationFactor = Math.sqrt(252 / holdingTradingDays);
+  return (meanExcess / downsideDev) * annualizationFactor;
 }
 
 function calculateDrawdown(returns: number[]): {

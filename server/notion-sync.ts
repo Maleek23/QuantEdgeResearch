@@ -256,7 +256,6 @@ The platform implements intelligent fallback between providers:
 - Yahoo Finance: Stock quotes, discovery, historical data
 - Alpha Vantage: Breaking news, earnings calendar, fallback for stocks
 - Tradier API: Options chains, delta targeting, live pricing
-- Databento API: Futures data (NQ, GC CME contracts)
 
 ### Data Caching Strategy
 - Critical trading data: 30s refetch + 15s staleTime

@@ -116,7 +116,7 @@ export type ResearchHorizon = 'intraday' | 'short_swing' | 'multi_week' | 'thema
 export type RiskProfile = 'conservative' | 'moderate' | 'aggressive' | 'speculative';
 
 // Sector Focus - Thematic sector categorization
-export type SectorFocus = 'quantum_computing' | 'nuclear_fusion' | 'healthcare' | 'ai_ml' | 'space' | 'clean_energy' | 'crypto' | 'fintech' | 'other';
+export type SectorFocus = 'quantum_computing' | 'nuclear' | 'healthcare' | 'ai_ml' | 'space' | 'clean_energy' | 'crypto' | 'fintech' | 'consumer' | 'gaming' | 'other';
 
 // 🎯 Convergence Analysis - Deep analysis breakdown for trade ideas
 export interface ConvergenceSignal {
@@ -271,7 +271,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // Research Categorization - For educational framing and filtering
   researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
   riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative
-  sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear_fusion, healthcare, ai_ml, etc.
+  sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear, healthcare, ai_ml, consumer, gaming, etc.
 
   // 🎯 DEEP ANALYSIS - Full signal breakdown for transparency (Trade Desk integration)
   // Stores the complete reasoning behind why this trade was generated
@@ -3444,3 +3444,116 @@ export const insertIvSnapshotSchema = createInsertSchema(ivSnapshots).omit({
 });
 export type InsertIvSnapshot = z.infer<typeof insertIvSnapshotSchema>;
 export type IvSnapshot = typeof ivSnapshots.$inferSelect;
+
+// ==========================================
+// TRADE JOURNAL — Personal trade imports from brokers
+// ==========================================
+
+export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv';
+
+export const journalTrades = pgTable("journal_trades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+
+  // ── Trade identity ──
+  symbol: text("symbol").notNull(),
+  assetType: text("asset_type").notNull().$type<'stock' | 'option' | 'future' | 'crypto'>(),
+  direction: text("direction").notNull().$type<'long' | 'short'>(),
+
+  // ── Option fields ──
+  optionType: text("option_type").$type<'call' | 'put'>(),
+  strikePrice: real("strike_price"),
+  expiryDate: text("expiry_date"),
+
+  // ── Position sizing ──
+  quantity: doublePrecision("quantity").notNull().default(1),
+  entryPrice: real("entry_price").notNull(),
+  exitPrice: real("exit_price"),
+  fees: real("fees").default(0),
+
+  // ── Timing ──
+  entryTime: text("entry_time").notNull(),
+  exitTime: text("exit_time"),
+  holdingMinutes: integer("holding_minutes"),
+
+  // ── P&L ──
+  realizedPnL: real("realized_pnl"),
+  realizedPnLPercent: real("realized_pnl_percent"),
+  grossPnL: real("gross_pnl"),
+
+  // ── Outcome ──
+  status: text("status").$type<'open' | 'closed' | 'partial'>().notNull().default('closed'),
+  outcome: text("outcome").$type<'win' | 'loss' | 'breakeven' | 'open'>().default('open'),
+
+  // ── Journal / self-reflection ──
+  notes: text("notes"),
+  emotion: text("emotion").$type<'confident' | 'fearful' | 'greedy' | 'fomo' | 'revenge' | 'disciplined' | 'neutral'>(),
+  setupType: text("setup_type"),      // user-defined tag (e.g. "GEX flip", "breakout", "earnings")
+  mistakeTag: text("mistake_tag"),    // "chased", "oversized", "no stop", "held too long", etc.
+  rating: integer("rating"),          // 1-5 self-grade on execution quality
+  screenshot: text("screenshot"),     // URL to chart screenshot
+
+  // ── Import metadata ──
+  broker: text("broker").$type<JournalBroker>().notNull().default('manual'),
+  brokerOrderId: text("broker_order_id"),     // original order ID from broker
+  importBatchId: text("import_batch_id"),     // groups trades from same CSV upload
+  rawCsvRow: jsonb("raw_csv_row"),            // original row for debugging
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_journal_trades_user").on(table.userId),
+  index("idx_journal_trades_user_symbol").on(table.userId, table.symbol),
+  index("idx_journal_trades_user_time").on(table.userId, table.entryTime),
+  index("idx_journal_trades_import").on(table.importBatchId),
+]);
+
+export const insertJournalTradeSchema = createInsertSchema(journalTrades).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertJournalTrade = z.infer<typeof insertJournalTradeSchema>;
+export type JournalTrade = typeof journalTrades.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════
+// GEX SNAPSHOT HISTORY — Historical gamma exposure archive
+// ═══════════════════════════════════════════════════════════
+// Saves hourly GEX snapshots during market hours so users can
+// browse "what did TSLA's GEX look like on March 10?" — the
+// feature that was completely missing from the platform.
+
+export const gexSnapshots = pgTable("gex_snapshots", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+
+  // Core GEX levels
+  spotPrice: doublePrecision("spot_price").notNull(),
+  flipPoint: doublePrecision("flip_point"),
+  callWall: doublePrecision("call_wall"),
+  putWall: doublePrecision("put_wall"),
+  flipDistancePct: doublePrecision("flip_distance_pct"),
+
+  // Regime
+  regime: varchar("regime", { length: 30 }),  // positive_gamma | negative_gamma | neutral | transitioning
+  vexRegime: varchar("vex_regime", { length: 30 }), // vol_tailwind | vol_headwind | vol_neutral
+  netGexSign: varchar("net_gex_sign", { length: 10 }), // positive | negative | neutral
+
+  // Extended data
+  totalGex: doublePrecision("total_gex"),  // raw net gamma number
+  maxGammaStrike: doublePrecision("max_gamma_strike"),
+  topLevels: jsonb("top_levels"),  // top 15 levels by |gex| — [{strike, gex, gammaPct, role}]
+  heatmapData: jsonb("heatmap_data"), // condensed heatmap [{strike, intensity, gex, side}]
+  strikeExpiryMatrix: jsonb("strike_expiry_matrix"), // DTE × strike matrix for full replay
+
+  // Metadata
+  snapshotAt: timestamp("snapshot_at").notNull(), // when the GEX was computed
+  marketSession: varchar("market_session", { length: 20 }), // 'premarket' | 'regular' | 'afterhours' | 'closed'
+  dataGrade: varchar("data_grade", { length: 5 }), // A-F quality grade
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_gex_snapshots_symbol_time").on(table.symbol, table.snapshotAt),
+  index("idx_gex_snapshots_symbol").on(table.symbol),
+  index("idx_gex_snapshots_time").on(table.snapshotAt),
+]);
+
+export const insertGexSnapshotSchema = createInsertSchema(gexSnapshots).omit({ id: true, createdAt: true });
+export type InsertGexSnapshot = z.infer<typeof insertGexSnapshotSchema>;
+export type GexSnapshotRecord = typeof gexSnapshots.$inferSelect;

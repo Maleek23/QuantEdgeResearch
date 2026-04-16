@@ -81,7 +81,7 @@ export function AIConsensusSummary({
               {consensus}
             </span>
             <span className="text-sm font-mono tabular-nums text-foreground/80">
-              {overallConfidence}% conf
+              {overallConfidence}pts
             </span>
           </div>
         </div>
@@ -120,7 +120,7 @@ export function AIConsensusSummary({
                     : "text-[var(--trade-neutral)]"
               )}
             >
-              {provider.confidence}%
+              {provider.confidence}pts
             </span>
           </div>
         ))}

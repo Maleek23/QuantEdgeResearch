@@ -135,9 +135,8 @@ function generateMockHistoricalPrices(currentPrice: number, days: number): numbe
   const priceStep = (currentPrice - startPrice) / days;
   
   for (let i = 0; i < days; i++) {
-    // Add some random noise (+/- 1%)
-    const noise = (Math.random() * 2 - 1) * 0.01 * currentPrice;
-    const price = startPrice + (priceStep * i) + noise;
+    // Deterministic linear interpolation — no random noise on mock prices
+    const price = startPrice + (priceStep * i);
     prices.push(price);
   }
   
@@ -164,7 +163,7 @@ function analyzeFuturesData(
 
   // Estimate volume (mock data until Databento integrated)
   const avgVolume = 100000; // Typical daily volume for NQ/GC
-  const volumeRatio = 1.0 + (Math.random() * 2); // 1.0x - 3.0x volume
+  const volumeRatio = 1.0; // Neutral ratio — no fake volume data until real feed available
   
   // Calculate CRITICAL 200-day MA (trend filter)
   const sma200 = calculateSMA(historicalPrices, 200);
@@ -531,7 +530,7 @@ export async function generateFuturesIdeas(forceGenerate: boolean = false): Prom
         // Model governance
         engineVersion: FUTURES_ENGINE_VERSION,
         generationTimestamp: new Date().toISOString(),
-        dataSourceUsed: 'databento_mock', // Will be 'databento' when API integrated
+        dataSourceUsed: 'yahoo_finance',
         
         // Explainability
         rsiValue: signal.rsiValue,

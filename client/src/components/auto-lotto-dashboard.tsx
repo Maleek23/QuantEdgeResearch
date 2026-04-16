@@ -724,12 +724,12 @@ export function AutoLottoDashboard() {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Hub</h2>
-                <Badge 
-                  variant="outline" 
-                  className="font-bold uppercase tracking-wider bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40 animate-pulse"
+                <Badge
+                  variant="outline"
+                  className="font-bold uppercase tracking-wider bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/40"
                   data-testid="badge-bot-status"
                 >
-                  LIVE
+                  ACTIVE
                 </Badge>
                 <Badge 
                   variant="outline" 
@@ -985,8 +985,8 @@ export function AutoLottoDashboard() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <Wallet className="h-4 w-4 text-[var(--trade-neutral)]" />
                   Bot Open Positions
-                  <Badge variant="outline" className="text-xs font-mono border-[var(--trade-neutral)]/40 text-[var(--trade-neutral)] animate-pulse">
-                    {allPositions.filter(p => p.status === 'open').length} LIVE
+                  <Badge variant="outline" className="text-xs font-mono border-[var(--trade-neutral)]/40 text-[var(--trade-neutral)]">
+                    {allPositions.filter(p => p.status === 'open').length} OPEN
                   </Badge>
                 </CardTitle>
                 <CardDescription className="text-xs">

@@ -16,7 +16,7 @@ export function SocialProofSection() {
       verified: true
     },
     {
-      quote: "The 6-engine system caught me a 140% runner I would've missed. Worth every penny.",
+      quote: "The 6-layer system caught me a 140% runner I would've missed. Worth every penny.",
       author: "Sarah K.",
       role: "Options Trader",
       verified: true

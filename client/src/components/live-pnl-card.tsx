@@ -104,10 +104,15 @@ export function LivePnLCard() {
             <Activity className="h-4 w-4 text-cyan-400" />
             Live Unrealized P&L
           </CardTitle>
-          {isConnected && (
+          {isConnected ? (
             <Badge variant="outline" className="text-xs gap-1 border-green-500/50 text-[var(--trade-bullish)]">
               <Radio className="h-3 w-3 animate-pulse" />
-              LIVE
+              CONNECTED
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs gap-1 border-border text-muted-foreground">
+              <Radio className="h-3 w-3" />
+              CACHED
             </Badge>
           )}
         </div>

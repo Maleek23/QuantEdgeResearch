@@ -49,7 +49,7 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
               </div>
             </div>
             <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-[10px]">
-              LIVE
+              5 ENGINES
             </Badge>
           </div>
 

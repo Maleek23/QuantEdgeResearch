@@ -33,8 +33,8 @@ export function ConfluenceRow({ row, rank }: ConfluenceRowProps) {
 
   return (
     <Link
-      href={`/command/${row.symbol}`}
-      className="group grid grid-cols-[40px_1fr_120px_1fr_1fr_120px_80px] items-center gap-3 px-4 py-3 rounded-lg bg-[var(--surface-raised)] border border-border hover:border-[var(--gex-positive)]/40 hover:bg-[var(--gex-positive)]/5 transition-all cursor-pointer"
+      href={`/terminal/${row.symbol}`}
+      className="group grid grid-cols-[40px_1fr_120px_1fr_1fr_120px_80px] items-center gap-3 px-4 py-3 rounded-lg bg-[var(--surface-raised)] border border-border hover:border-[var(--gex-positive)]/40 hover:bg-[var(--gex-positive)]/5 transition-all cursor-pointer overflow-hidden"
       data-testid={`confluence-row-${row.symbol}`}
     >
         {/* Rank */}
@@ -43,16 +43,16 @@ export function ConfluenceRow({ row, rank }: ConfluenceRowProps) {
         </div>
 
         {/* Ticker + tier + price */}
-        <div className="flex items-center gap-2">
-          <div className={cn(componentStyles.text.ticker, 'text-base text-foreground group-hover:text-[var(--gex-positive)]')}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn(componentStyles.text.ticker, 'text-base text-foreground group-hover:text-[var(--gex-positive)] shrink-0')}>
             {row.symbol}
           </div>
           {row.tier && (
-            <div className={cn('px-1.5 py-0 rounded-sm border text-[9px] font-mono font-bold', tierBadge)}>
+            <div className={cn('px-1.5 py-0 rounded-sm border text-[9px] font-mono font-bold shrink-0', tierBadge)}>
               {row.tier}
             </div>
           )}
-          <div className="flex flex-col">
+          <div className="flex flex-col shrink-0">
             <div className="text-[11px] font-mono font-semibold tabular-nums text-foreground">
               ${row.spotPrice.toFixed(2)}
             </div>
@@ -137,9 +137,9 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
 
 function LevelInline({ label, value, color, star }: { label: string; value: number | null; color?: string; star?: boolean }) {
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-muted-foreground text-[9px]">{label}</span>
-      <span className="tabular-nums font-semibold" style={{ color: color || 'var(--foreground)' }}>
+    <div className="flex items-center gap-1 min-w-0">
+      <span className="text-muted-foreground text-[9px] shrink-0">{label}</span>
+      <span className="tabular-nums font-semibold truncate" style={{ color: color || 'var(--foreground)' }}>
         {star && <span className="text-[var(--gex-star)] mr-0.5">★</span>}
         {value ? `$${value.toFixed(0)}` : '—'}
       </span>

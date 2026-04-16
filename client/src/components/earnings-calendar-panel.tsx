@@ -36,7 +36,7 @@ export function EarningsCalendarPanel() {
           <Calendar className="h-4 w-4 text-primary" />
           Earnings Calendar
         </CardTitle>
-        <Link href="/discover">
+        <Link href="/trade-desk">
           <span className="text-xs text-primary hover:underline cursor-pointer">View All</span>
         </Link>
       </CardHeader>

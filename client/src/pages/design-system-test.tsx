@@ -179,8 +179,8 @@ export default function DesignSystemTest() {
           icon={<Crosshair className="w-4 h-4" />}
         />
         <QEStatCard
-          label="Engine Confidence"
-          value="86%"
+          label="Signal Strength"
+          value="86pts"
           change="High Conviction"
           changeType="positive"
           icon={<Brain className="w-4 h-4" />}
@@ -208,19 +208,19 @@ export default function DesignSystemTest() {
         </QEPanel>
 
         <QEPanel>
-          <QEPanelHeader title="Confidence Bars" />
+          <QEPanelHeader title="Signal Strength Bars" />
           <QEPanelContent>
             <div className="space-y-3">
               <div>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">High (92%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">High (92pts)</div>
                 <QEConfidenceBar value={92} showLabel size="md" />
               </div>
               <div>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Medium (67%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Medium (67pts)</div>
                 <QEConfidenceBar value={67} showLabel size="md" />
               </div>
               <div>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Low (34%)</div>
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Low (34pts)</div>
                 <QEConfidenceBar value={34} showLabel size="md" />
               </div>
             </div>
@@ -249,7 +249,7 @@ export default function DesignSystemTest() {
         <QEPanel glow="cyan">
           <QEPanelHeader
             title="SPX 0DTE Scanner"
-            marker="SCAN // LIVE"
+            marker="SCAN // ACTIVE"
             badge="12 SIGNALS"
             badgeColor="live"
             icon={<Zap className="w-4 h-4 text-[#00d4ff]" />}

@@ -1,9 +1,11 @@
 /**
  * GEXSnapshotHeader — terminal-style header strip with symbol, spot, regime, key levels.
+ * Includes honest data-freshness indicator (replaces blind "LIVE" badge).
  */
 
 import { cn } from '@/lib/utils';
 import { componentStyles } from '@/lib/design-tokens';
+import { FreshnessBadge } from '@/components/ui/freshness-badge';
 import { formatGEX } from '../../../../shared/gex-types';
 import type { GEXSnapshot } from '../../../../shared/gex-types';
 
@@ -25,6 +27,9 @@ export function GEXSnapshotHeader({ snapshot, changePct = 0 }: GEXSnapshotHeader
 
   const changeColor = changePct > 0 ? 'text-[var(--trade-bullish)]' : changePct < 0 ? 'text-[var(--trade-bearish)]' : 'text-muted-foreground';
 
+  // Data freshness — calculatedAt is ms epoch
+  const dataTimestamp = snapshot.calculatedAt ? new Date(snapshot.calculatedAt) : null;
+
   return (
     <div
       className="flex items-center justify-between gap-4 px-4 py-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--gex-positive)]/15"
@@ -36,8 +41,11 @@ export function GEXSnapshotHeader({ snapshot, changePct = 0 }: GEXSnapshotHeader
           <div className={cn(componentStyles.text.ticker, 'text-2xl text-[var(--gex-positive)]')}>
             {snapshot.symbol}
           </div>
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-            GEX TERMINAL · LIVE
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+              GEX TERMINAL
+            </span>
+            <FreshnessBadge updatedAt={dataTimestamp} variant="badge" />
           </div>
         </div>
         <div className="border-l border-[var(--gex-positive)]/20 pl-4">
@@ -55,13 +63,27 @@ export function GEXSnapshotHeader({ snapshot, changePct = 0 }: GEXSnapshotHeader
         {snapshot.regime.replace('_', ' ')}
       </div>
 
-      {/* Right: key stats */}
+      {/* Right: key stats + timestamp */}
       <div className="flex items-center gap-5 text-[10px] font-mono">
         <Stat label="NET GEX" value={formatGEX(snapshot.totalGEX)} highlight={snapshot.totalGEX >= 0 ? 'pos' : 'neg'} />
         <Stat label="FLIP" value={snapshot.gammaFlipPrice ? `$${snapshot.gammaFlipPrice.toFixed(0)}` : '—'} />
         <Stat label="CALL WALL" value={snapshot.callWall ? `$${snapshot.callWall.toFixed(0)}` : '—'} highlight="pos" />
         <Stat label="PUT WALL" value={snapshot.putWall ? `$${snapshot.putWall.toFixed(0)}` : '—'} highlight="neg" />
         <Stat label="MAX γ" value={`$${snapshot.maxGammaStrike.toFixed(0)}`} highlight="pos" star />
+        {dataTimestamp && (
+          <div className="text-center border-l border-border/20 pl-4">
+            <div className="text-[8px] uppercase tracking-widest text-muted-foreground/60">AS OF</div>
+            <div className="text-[9px] text-muted-foreground tabular-nums">
+              {dataTimestamp.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

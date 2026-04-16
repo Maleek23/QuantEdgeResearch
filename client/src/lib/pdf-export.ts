@@ -53,7 +53,7 @@ export async function generateDailyTradeAnalysisPDF(ideas: any[]) {
     const details = [
       ['Entry Price', `$${idea.entryPrice}`, 'Target Price', `$${idea.targetPrice}`],
       ['Stop Loss', `$${idea.stopLoss}`, 'R:R Ratio', safeToFixed(idea.riskRewardRatio, 2, 'N/A')],
-      ['Confidence', `${idea.confidenceScore}%`, 'Source', idea.source?.toUpperCase() || 'QUANT'],
+      ['Signal Strength', `${idea.confidenceScore}pts`, 'Source', idea.source?.toUpperCase() || 'QUANT'],
     ];
 
     doc.autoTable({

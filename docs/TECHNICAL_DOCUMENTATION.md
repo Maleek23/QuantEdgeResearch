@@ -32,7 +32,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ### Core Features
 
-- **6-Engine Convergence System** (ML, AI, Quant, Flow, Sentiment, Technical)
+- **6-Layer Convergence System** (Technical, Flow, Sentiment, Quant, Convergence, GEX)
 - AI-powered trade ideas (GPT-4, Claude Sonnet 4, Gemini 2.5)
 - Quantitative engine with proven 75-91% backtested strategies
 - Chart pattern recognition with support/resistance detection
@@ -43,7 +43,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ### Critical Requirements
 
-1. **6-Engine Convergence**: Trade ideas only surface when 4+ engines agree
+1. **6-Layer Convergence**: Trade ideas only surface when 4+ layers agree
 2. **Chart Pattern Pre-Validation**: All trade ideas must pass chart pattern validation before being suggested
 3. **Dynamic Exit Times**: Exit times fluctuate ±10-30% based on volatility/IV/market conditions
 4. **Minimum Loss Threshold**: 3% minimum loss threshold to filter noise from tight stops
@@ -130,18 +130,18 @@ export const PRICING = {
 
 ## 3. Quantitative Engine Architecture
 
-### The 6-Engine Convergence System
+### The 6-Layer Convergence System
 
-QuantEdge uses **6 independent engines** that must converge before surfacing a trade idea:
+QuantEdge uses **6 independent analysis layers** that must converge before surfacing a trade idea:
 
-| Engine | ID | Description | Data Sources |
-|--------|-----|-------------|--------------|
-| **Machine Learning** | ML | Pattern recognition, regime detection, confidence calibration | Historical prices, signals |
-| **LLM Analysis** | AI | Claude + GPT-4 + Gemini consensus on fundamentals | SEC filings, earnings, news |
-| **Quantitative** | QNT | Statistical signals (RSI, VWAP, volume spikes) | Price/volume data |
-| **Order Flow** | FLW | Dark pools, institutional activity, unusual options | Polygon, Unusual Whales |
-| **Sentiment** | SNT | News, social media, fear/greed | Reddit, Twitter, news APIs |
+| Layer | ID | Description | Data Sources |
+|-------|-----|-------------|--------------|
 | **Technical** | TCH | Chart patterns, support/resistance, trend lines | OHLCV data |
+| **Order Flow** | FLW | Dark pools, institutional activity, unusual options | Polygon, Unusual Whales |
+| **Sentiment** | SNT | News, social media, fear/greed (LLM-powered) | Reddit, Twitter, news APIs |
+| **Quantitative** | QNT | Statistical signals (RSI, VWAP, volume spikes) | Price/volume data |
+| **Convergence** | CNV | Multi-factor scoring, regime detection, confidence calibration | All layer outputs |
+| **GEX** | GEX | Gamma exposure, dealer positioning, key strike levels | Options chain data |
 
 ### Engine Version & Governance
 
@@ -149,7 +149,7 @@ QuantEdge uses **6 independent engines** that must converge before surfacing a t
 // server/quant-ideas-generator.ts
 export const QUANT_ENGINE_VERSION = "v3.7.1";
 export const ENGINE_CHANGELOG = {
-  "v3.7.1": "LANDING PAGE REDESIGN: 6-engine visualization, competitor insights integration",
+  "v3.7.1": "LANDING PAGE REDESIGN: 6-layer visualization, competitor insights integration",
   "v3.7.0": "STRICT CHART VALIDATION: Rejects ideas without chart data",
   "v3.6.0": "CHART ANALYSIS UPGRADE: Pre-validates all trade ideas with chart pattern recognition",
   "v3.5.0": "TRIPLE-FILTER UPGRADE: 50-day MA filter + ADX≤25 + Signal consensus",
@@ -408,8 +408,8 @@ The landing page was completely redesigned based on competitor analysis (Kavout,
    - 4 pain points: "Drowning in Data", "Always Late", "FOMO & Panic", "David vs Goliath"
    - Positions QuantEdge as "Your AI Agent Team"
 
-3. **6-Engine Visualization**
-   - Visual cards for each engine (ML, AI, QNT, FLW, SNT, TCH)
+3. **6-Layer Visualization**
+   - Visual cards for each layer (TCH, FLW, SNT, QNT, CNV, GEX)
    - Convergence diagram showing signal generation
 
 4. **Recent Winners**
@@ -476,7 +476,6 @@ The landing page connects to live APIs:
 | Tradier | Options chains, Greeks | api.tradier.com |
 | Alpha Vantage | News, sentiment | alphavantage.co |
 | Polygon.io | Real-time data, options flow | api.polygon.io |
-| Databento | CME futures (planned) | databento.com |
 
 ---
 
@@ -536,7 +535,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
 ### v3.7.1 (January 2026) - Current
 
 - **Landing Page Redesign**: Complete overhaul based on competitor analysis
-- 6-engine visualization with convergence diagram
+- 6-layer visualization with convergence diagram
 - Problem-solution framing section
 - Recent winners showcase with real trade data
 - Testimonials carousel with metrics

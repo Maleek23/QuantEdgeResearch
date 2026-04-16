@@ -106,6 +106,11 @@ import type {
   NavigationLayoutType,
   WhaleFlow,
   InsertWhaleFlow,
+  JournalTrade,
+  InsertJournalTrade,
+  JournalBroker,
+  GexSnapshotRecord,
+  InsertGexSnapshot,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
@@ -158,6 +163,8 @@ import {
   symbolNotes,
   userNavigationLayouts,
   whaleFlows,
+  journalTrades,
+  gexSnapshots,
 } from "@shared/schema";
 
 // ========================================
@@ -675,6 +682,23 @@ export interface IStorage {
   getUserNavigationLayout(userId: string): Promise<UserNavigationLayout | null>;
   saveUserNavigationLayout(userId: string, layout: NavigationLayoutType): Promise<UserNavigationLayout>;
   deleteUserNavigationLayout(userId: string): Promise<boolean>;
+
+  // Personal Trade Journal
+  createJournalTrade(trade: InsertJournalTrade): Promise<JournalTrade>;
+  createJournalTrades(trades: InsertJournalTrade[]): Promise<JournalTrade[]>;
+  getJournalTrades(userId: string, filters?: { symbol?: string; broker?: JournalBroker; status?: string; startDate?: string; endDate?: string; limit?: number }): Promise<JournalTrade[]>;
+  getJournalTradeById(id: string): Promise<JournalTrade | undefined>;
+  updateJournalTrade(id: string, updates: Partial<JournalTrade>): Promise<JournalTrade | undefined>;
+  deleteJournalTrade(id: string): Promise<boolean>;
+  deleteJournalTradesByBatch(importBatchId: string): Promise<number>;
+  getJournalTradeCount(userId: string): Promise<number>;
+
+  // GEX Snapshot History
+  createGexSnapshot(snapshot: InsertGexSnapshot): Promise<GexSnapshotRecord>;
+  getGexSnapshots(symbol: string, limit?: number): Promise<GexSnapshotRecord[]>;
+  getGexSnapshotsByDateRange(symbol: string, startDate: Date, endDate: Date): Promise<GexSnapshotRecord[]>;
+  getGexAvailableDates(symbol: string): Promise<string[]>;
+  getGexAvailableSymbols(): Promise<string[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2347,6 +2371,49 @@ export class MemStorage implements IStorage {
   async deleteUserNavigationLayout(_userId: string): Promise<boolean> {
     return false;
   }
+
+  // Journal Trades (stubs for MemStorage)
+  async createJournalTrade(_trade: InsertJournalTrade): Promise<JournalTrade> {
+    throw new Error("Journal trades not supported in MemStorage");
+  }
+  async createJournalTrades(_trades: InsertJournalTrade[]): Promise<JournalTrade[]> {
+    throw new Error("Journal trades not supported in MemStorage");
+  }
+  async getJournalTrades(_userId: string): Promise<JournalTrade[]> {
+    return [];
+  }
+  async getJournalTradeById(_id: string): Promise<JournalTrade | undefined> {
+    return undefined;
+  }
+  async updateJournalTrade(_id: string, _updates: Partial<JournalTrade>): Promise<JournalTrade | undefined> {
+    return undefined;
+  }
+  async deleteJournalTrade(_id: string): Promise<boolean> {
+    return false;
+  }
+  async deleteJournalTradesByBatch(_importBatchId: string): Promise<number> {
+    return 0;
+  }
+  async getJournalTradeCount(_userId: string): Promise<number> {
+    return 0;
+  }
+
+  // GEX Snapshot History — in-memory stubs
+  async createGexSnapshot(_s: InsertGexSnapshot): Promise<GexSnapshotRecord> {
+    return { id: 0, ..._s, createdAt: new Date() } as any;
+  }
+  async getGexSnapshots(_symbol: string, _limit?: number): Promise<GexSnapshotRecord[]> {
+    return [];
+  }
+  async getGexSnapshotsByDateRange(_symbol: string, _start: Date, _end: Date): Promise<GexSnapshotRecord[]> {
+    return [];
+  }
+  async getGexAvailableDates(_symbol: string): Promise<string[]> {
+    return [];
+  }
+  async getGexAvailableSymbols(): Promise<string[]> {
+    return [];
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -2903,9 +2970,9 @@ export class DatabaseStorage implements IStorage {
     // PROFESSIONAL RISK METRICS (Phase 1)
     // ========================================
     
-    // 1. SHARPE RATIO: Risk-adjusted return
-    // Formula: (Avg Return - Risk Free Rate) / StdDev of Returns
-    // For day trading, risk-free rate ~0, so Sharpe = Avg Return / StdDev
+    // 1. SHARPE RATIO: Annualized, risk-free adjusted, duration-aware
+    // Formula: (mean(excess) / std(excess)) * sqrt(252 / avg_holding_days)
+    // Risk-free: 4.5% annual (T-bill proxy), prorated per avg trade duration
     const calculateStdDev = (arr: number[]): number => {
       if (arr.length < 2) return 0;
       const avg = calculateAvg(arr);
@@ -2913,14 +2980,35 @@ export class DatabaseStorage implements IStorage {
       const variance = calculateAvg(squareDiffs);
       return Math.sqrt(variance);
     };
-    
-    const decidedGains = [...wonIdeas, ...lostIdeas]
+
+    const decidedTrades = [...wonIdeas, ...lostIdeas];
+    const decidedGains = decidedTrades
       .filter(i => i.percentGain !== null)
       .map(i => i.percentGain!);
-    
-    const avgReturn = calculateAvg(decidedGains);
-    const stdDevReturn = calculateStdDev(decidedGains);
-    const sharpeRatio = stdDevReturn > 0 ? avgReturn / stdDevReturn : 0;
+
+    // Estimate avg holding period from actualHoldingTimeMinutes or timestamp/exitDate
+    const holdingDaysList: number[] = [];
+    decidedTrades.forEach(t => {
+      if (t.actualHoldingTimeMinutes) {
+        holdingDaysList.push(t.actualHoldingTimeMinutes / (60 * 6.5)); // 6.5hr trading day
+      } else if (t.timestamp && t.exitDate) {
+        const diffMs = new Date(t.exitDate).getTime() - new Date(t.timestamp).getTime();
+        holdingDaysList.push(Math.max(0.1, diffMs / (1000 * 60 * 60 * 6.5)));
+      }
+    });
+    const avgHoldingDays = holdingDaysList.length > 0
+      ? holdingDaysList.reduce((a, b) => a + b, 0) / holdingDaysList.length
+      : 1; // default 1 trading day if no duration data
+
+    const ANNUAL_RISK_FREE = 0.045;
+    const riskFreePerTrade = (ANNUAL_RISK_FREE * avgHoldingDays) / 252;
+    // Convert percent gains to decimal, subtract prorated risk-free cost
+    const excessReturns = decidedGains.map(g => (g / 100) - riskFreePerTrade);
+    const meanExcess = excessReturns.length > 0
+      ? excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length : 0;
+    const excessStdDev = calculateStdDev(excessReturns);
+    const annualizationFactor = Math.sqrt(252 / Math.max(avgHoldingDays, 0.1));
+    const sharpeRatio = excessStdDev > 0 ? (meanExcess / excessStdDev) * annualizationFactor : 0;
     
     // 2. MAX DRAWDOWN: Worst peak-to-trough decline
     // Simulate equity curve from trade sequence
@@ -4921,6 +5009,134 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(userNavigationLayouts)
       .where(eq(userNavigationLayouts.userId, userId));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ========== PERSONAL TRADE JOURNAL ==========
+
+  async createJournalTrade(trade: InsertJournalTrade): Promise<JournalTrade> {
+    const [created] = await db.insert(journalTrades).values(trade as any).returning();
+    return created;
+  }
+
+  async createJournalTrades(trades: InsertJournalTrade[]): Promise<JournalTrade[]> {
+    if (trades.length === 0) return [];
+    const created = await db.insert(journalTrades).values(trades as any[]).returning();
+    return created;
+  }
+
+  async getJournalTrades(
+    userId: string,
+    filters?: { symbol?: string; broker?: JournalBroker; status?: string; startDate?: string; endDate?: string; limit?: number }
+  ): Promise<JournalTrade[]> {
+    const conditions = [eq(journalTrades.userId, userId)];
+
+    if (filters?.symbol) {
+      conditions.push(eq(journalTrades.symbol, filters.symbol));
+    }
+    if (filters?.broker) {
+      conditions.push(eq(journalTrades.broker, filters.broker));
+    }
+    if (filters?.status) {
+      conditions.push(eq(journalTrades.status, filters.status as any));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(journalTrades.entryTime, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(journalTrades.entryTime, filters.endDate));
+    }
+
+    const query = db.select().from(journalTrades)
+      .where(and(...conditions))
+      .orderBy(desc(journalTrades.entryTime));
+
+    if (filters?.limit) {
+      return await query.limit(filters.limit);
+    }
+    return await query;
+  }
+
+  async getJournalTradeById(id: string): Promise<JournalTrade | undefined> {
+    const [trade] = await db.select().from(journalTrades).where(eq(journalTrades.id, id));
+    return trade || undefined;
+  }
+
+  async updateJournalTrade(id: string, updates: Partial<JournalTrade>): Promise<JournalTrade | undefined> {
+    const [updated] = await db.update(journalTrades)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(journalTrades.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteJournalTrade(id: string): Promise<boolean> {
+    const result = await db.delete(journalTrades).where(eq(journalTrades.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteJournalTradesByBatch(importBatchId: string): Promise<number> {
+    const result = await db.delete(journalTrades)
+      .where(eq(journalTrades.importBatchId, importBatchId));
+    return result.rowCount ?? 0;
+  }
+
+  async getJournalTradeCount(userId: string): Promise<number> {
+    const result = await db.select({ count: drizzleSql<number>`count(*)::int` })
+      .from(journalTrades)
+      .where(eq(journalTrades.userId, userId));
+    return result[0]?.count ?? 0;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // GEX Snapshot History
+  // ═══════════════════════════════════════════════════════
+
+  async createGexSnapshot(snap: InsertGexSnapshot): Promise<GexSnapshotRecord> {
+    const [row] = await db.insert(gexSnapshots).values(snap).returning();
+    return row;
+  }
+
+  async getGexSnapshots(symbol: string, limit = 500): Promise<GexSnapshotRecord[]> {
+    return db.select()
+      .from(gexSnapshots)
+      .where(eq(gexSnapshots.symbol, symbol.toUpperCase()))
+      .orderBy(desc(gexSnapshots.snapshotAt))
+      .limit(limit);
+  }
+
+  async getGexSnapshotsByDateRange(symbol: string, startDate: Date, endDate: Date): Promise<GexSnapshotRecord[]> {
+    return db.select()
+      .from(gexSnapshots)
+      .where(
+        and(
+          eq(gexSnapshots.symbol, symbol.toUpperCase()),
+          gte(gexSnapshots.snapshotAt, startDate),
+          lte(gexSnapshots.snapshotAt, endDate),
+        )
+      )
+      .orderBy(desc(gexSnapshots.snapshotAt));
+  }
+
+  async getGexAvailableDates(symbol: string): Promise<string[]> {
+    const rows = await db.select({
+      date: drizzleSql<string>`DATE(snapshot_at)::text`,
+    })
+      .from(gexSnapshots)
+      .where(eq(gexSnapshots.symbol, symbol.toUpperCase()))
+      .groupBy(drizzleSql`DATE(snapshot_at)`)
+      .orderBy(drizzleSql`DATE(snapshot_at) DESC`)
+      .limit(365);
+    return rows.map(r => r.date);
+  }
+
+  async getGexAvailableSymbols(): Promise<string[]> {
+    const rows = await db.select({
+      symbol: gexSnapshots.symbol,
+    })
+      .from(gexSnapshots)
+      .groupBy(gexSnapshots.symbol)
+      .orderBy(gexSnapshots.symbol);
+    return rows.map(r => r.symbol);
   }
 }
 

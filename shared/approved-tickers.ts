@@ -44,6 +44,22 @@ export const SECONDARY = [
   'SATL',
   // Defensive / health (LLY is on user's tier-work list)
   'LLY',
+
+  // ── Expanded coverage (Apr 2026) ──────────────────────────
+  // Cybersecurity
+  'CRWD', 'PANW', 'ZS', 'FTNT',
+  // Enterprise SaaS (gap fills)
+  'CRM', 'ADBE', 'NOW', 'WDAY', 'HUBS', 'IBM',
+  // AI Infrastructure
+  'CRDO', 'VRT', 'ANET',
+  // Chips expansion
+  'INTC', 'QCOM', 'ON',
+  // Index ETFs expansion
+  'IGV', 'XBI', 'ARKK',
+  // Defense / Aerospace
+  'KTOS', 'LMT',
+  // Nuclear / Energy renaissance
+  'CEG', 'VST',
 ] as const;
 
 // SMALL ACCOUNT TIER — cheap, high-vol, catalyst-driven names where
@@ -73,6 +89,20 @@ export const SMALL_ACCOUNT_TIER = [
   'HOOD', 'OPEN', 'CHWY', 'PTON',
   // Meme / high-vol catalyst names
   'BB', 'GME', 'AMC',
+
+  // ── Emerging gems (Apr 2026) ──────────────────────────────
+  // Uranium / nuclear fuel (supply squeeze + SMR demand)
+  'LEU', 'CCJ', 'UEC',
+  // AI data center infrastructure (power + cooling + connectivity)
+  'APLD', 'ALAB',
+  // Drones / robotics (defense contracts, delivery, autonomy)
+  'RCAT', 'SERV',
+  // Satellite / connectivity (Apple partnership, Starlink competitor)
+  'GSAT',
+  // AI drug discovery / biotech catalyst
+  'RXRX',
+  // Quantum pure-plays (DARPA contracts, Google partnership buzz)
+  'QUBT', 'ARQQ',
 ] as const;
 
 // All approved tickers combined
@@ -111,13 +141,14 @@ export function isSkipTicker(symbol: string): boolean {
 /**
  * Get tier for a ticker
  */
-export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDARY' | null {
+export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDARY' | 'SMALL' | null {
   const s = symbol.toUpperCase();
   if ((MEGA_CAP_TIER as readonly string[]).includes(s)) return 'MEGA';
   if ((S_TIER as readonly string[]).includes(s)) return 'S';
   if ((A_TIER as readonly string[]).includes(s)) return 'A';
   if ((INDEX_TICKERS as readonly string[]).includes(s)) return 'INDEX';
   if ((SECONDARY as readonly string[]).includes(s)) return 'SECONDARY';
+  if ((SMALL_ACCOUNT_TIER as readonly string[]).includes(s)) return 'SMALL';
   return null;
 }
 
@@ -131,11 +162,18 @@ export type Sector =
   | 'chips'
   | 'fintech'
   | 'software'
+  | 'cybersecurity'
+  | 'ai_infra'
   | 'space'
+  | 'defense'
   | 'energy'
   | 'crypto'
   | 'index'
   | 'mega_tech'
+  | 'quantum'
+  | 'robotics'
+  | 'biotech'
+  | 'ev_mobility'
   | 'other';
 
 export const SECTOR_MAP: Record<string, Sector> = {
@@ -184,16 +222,44 @@ export const SECTOR_MAP: Record<string, Sector> = {
   ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
   SATL: 'space', LLY: 'other',
 
+  // Cybersecurity
+  CRWD: 'cybersecurity', PANW: 'cybersecurity', ZS: 'cybersecurity', FTNT: 'cybersecurity',
+  // Enterprise SaaS (gap fills)
+  CRM: 'software', ADBE: 'software', NOW: 'software', WDAY: 'software', HUBS: 'software', IBM: 'software',
+  // AI Infrastructure
+  CRDO: 'ai_infra', VRT: 'ai_infra', ANET: 'ai_infra',
+  // Chips expansion
+  INTC: 'chips', QCOM: 'chips', ON: 'chips',
+  // Index ETFs expansion
+  IGV: 'index', XBI: 'index', ARKK: 'index',
+  // Defense / Aerospace
+  KTOS: 'defense', LMT: 'defense',
+  // Nuclear / Energy renaissance
+  CEG: 'energy', VST: 'energy',
+
   // SMALL ACCOUNT TIER — cheap volatile names
-  SOUN: 'software', IONQ: 'software', RGTI: 'software',
-  BBAI: 'software', QBTS: 'software',
+  SOUN: 'ai_infra', IONQ: 'quantum', RGTI: 'quantum',
+  BBAI: 'ai_infra', QBTS: 'quantum',
   RIOT: 'crypto', WULF: 'crypto', BTBT: 'crypto', IREN: 'crypto',
-  NIO: 'other', RIVN: 'other', LCID: 'other',
-  JOBY: 'space', ACHR: 'space',
+  NIO: 'ev_mobility', RIVN: 'ev_mobility', LCID: 'ev_mobility',
+  JOBY: 'ev_mobility', ACHR: 'ev_mobility',
   SMR: 'energy', NNE: 'energy', BWXT: 'energy',
   HOOD: 'fintech', OPEN: 'fintech',
   CHWY: 'other', PTON: 'other',
   BB: 'other', GME: 'other', AMC: 'other',
+
+  // Emerging gems — uranium / nuclear fuel
+  LEU: 'energy', CCJ: 'energy', UEC: 'energy',
+  // AI data center infra
+  APLD: 'ai_infra', ALAB: 'ai_infra',
+  // Drones / robotics
+  RCAT: 'robotics', SERV: 'robotics',
+  // Satellite / connectivity
+  GSAT: 'space',
+  // Biotech catalyst
+  RXRX: 'biotech',
+  // Quantum pure-plays
+  QUBT: 'quantum', ARQQ: 'quantum',
 
   // Crypto
   BTC: 'crypto', ETH: 'crypto', SOL: 'crypto', DOGE: 'crypto',
@@ -208,11 +274,18 @@ export const SECTOR_LABELS: Record<Sector, string> = {
   optics: 'Optics / Photonics',
   chips: 'Memory / Chips',
   fintech: 'Fintech',
-  software: 'Software',
-  space: 'Space / Nuclear',
-  energy: 'Energy',
+  software: 'Software / SaaS',
+  cybersecurity: 'Cybersecurity',
+  ai_infra: 'AI Infrastructure',
+  space: 'Space / Aero',
+  defense: 'Defense',
+  energy: 'Energy / Nuclear',
   crypto: 'Crypto',
   index: 'Index ETFs',
   mega_tech: 'Mega-Cap Tech',
+  quantum: 'Quantum Computing',
+  robotics: 'Robotics / Drones',
+  biotech: 'Biotech',
+  ev_mobility: 'EV / Mobility',
   other: 'Other',
 };

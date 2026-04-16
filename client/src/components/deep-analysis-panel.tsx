@@ -93,7 +93,7 @@ function SignalCard({ signal }: { signal: ConvergenceSignal }) {
             "text-[10px] font-bold",
             isBullish ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
           )}>
-            {signal.confidence}%
+            {signal.confidence}pts
           </span>
         </div>
       </div>

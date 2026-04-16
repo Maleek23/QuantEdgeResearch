@@ -721,7 +721,7 @@ export default function SettingsPage() {
               </div>
               
               <div className="space-y-2">
-                <Label>Confidence Threshold: {botThresholds.confidenceThreshold}%</Label>
+                <Label>Signal Strength Threshold: {botThresholds.confidenceThreshold}pts</Label>
                 <Slider
                   min={50}
                   max={95}

@@ -32,6 +32,8 @@ import { logger } from "./logger";
 import { storage } from "./storage";
 import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
 import { APPROVED_TICKERS, getSector } from "@shared/approved-tickers";
+import { enrichOptionIdea } from "./options-enricher";
+import type { AITradeIdea } from "./ai-service";
 
 export type GexSetup = "flip_cross" | "wall_fade" | "squeeze_break";
 
@@ -227,35 +229,98 @@ async function isDuplicateRecent(
 async function persistCandidate(c: GexIdeaCandidate): Promise<boolean> {
   if (await isDuplicateRecent(c.symbol, c.setup, c.direction)) return false;
   const sector = getSector(c.symbol);
-  const tradeIdea = {
+  const holdingPeriod = c.setup === "flip_cross" ? ("day" as const) : ("swing" as const);
+
+  // ── Try to enrich with real option contract (strike + expiry + premium) ──
+  const aiShape: AITradeIdea = {
     symbol: c.symbol,
-    sector: sector ?? null,
-    assetType: "stock" as const,
+    assetType: "option",
     direction: c.direction,
     entryPrice: c.entry,
     targetPrice: c.target,
     stopLoss: c.stop,
-    riskRewardRatio: c.riskRewardRatio,
     catalyst: `GEX ${c.setup.replace("_", " ")} setup`,
     analysis: c.thesis,
-    source: "gex_scanner",
-    dataSourceUsed: `GEX_${c.setup}`,
     sessionContext: "regular",
-    timestamp: new Date().toISOString(),
-    outcomeStatus: "open" as const,
-    confidenceScore: c.confidence,
-    holdingPeriod: c.setup === "flip_cross" ? ("day" as const) : ("swing" as const),
-    qualitySignals: [
-      `gamma_regime:${c.regime}`,
-      `flip:${c.flipPoint?.toFixed(2)}`,
-      c.callWall ? `call_wall:${c.callWall.toFixed(2)}` : "",
-      c.putWall ? `put_wall:${c.putWall.toFixed(2)}` : "",
-    ].filter(Boolean),
   };
+
+  let tradeIdea: Record<string, any>;
+  try {
+    const enriched = await enrichOptionIdea(aiShape);
+    if (enriched) {
+      tradeIdea = {
+        symbol: c.symbol,
+        sector: sector ?? null,
+        assetType: "option" as const,
+        direction: c.direction,
+        entryPrice: enriched.entryPrice,
+        targetPrice: enriched.targetPrice,
+        stopLoss: enriched.stopLoss,
+        riskRewardRatio: enriched.riskRewardRatio,
+        optionType: enriched.optionType,
+        strikePrice: enriched.strikePrice,
+        expiryDate: enriched.expiryDate,
+        catalyst: `GEX ${c.setup.replace("_", " ")} — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
+        analysis: enriched.analysis,
+        source: "gex_scanner",
+        dataSourceUsed: `GEX_${c.setup}`,
+        sessionContext: "regular",
+        timestamp: new Date().toISOString(),
+        outcomeStatus: "open" as const,
+        confidenceScore: c.confidence,
+        holdingPeriod,
+        qualitySignals: [
+          `gamma_regime:${c.regime}`,
+          `flip:${c.flipPoint?.toFixed(2)}`,
+          c.callWall ? `call_wall:${c.callWall.toFixed(2)}` : "",
+          c.putWall ? `put_wall:${c.putWall.toFixed(2)}` : "",
+          `strike:${enriched.strikePrice}`,
+          `expiry:${enriched.expiryDate}`,
+          `premium:${enriched.entryPrice.toFixed(2)}`,
+        ].filter(Boolean),
+      };
+      logger.info(
+        `[GEX-SCANNER] 🎯 Enriched ${c.symbol} → ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate} @ $${enriched.entryPrice.toFixed(2)}`,
+      );
+    } else {
+      throw new Error("enrichment returned null");
+    }
+  } catch {
+    // Fallback: persist as stock-level idea when options chain unavailable
+    tradeIdea = {
+      symbol: c.symbol,
+      sector: sector ?? null,
+      assetType: "stock" as const,
+      direction: c.direction,
+      entryPrice: c.entry,
+      targetPrice: c.target,
+      stopLoss: c.stop,
+      riskRewardRatio: c.riskRewardRatio,
+      catalyst: `GEX ${c.setup.replace("_", " ")} setup`,
+      analysis: c.thesis,
+      source: "gex_scanner",
+      dataSourceUsed: `GEX_${c.setup}`,
+      sessionContext: "regular",
+      timestamp: new Date().toISOString(),
+      outcomeStatus: "open" as const,
+      confidenceScore: c.confidence,
+      holdingPeriod,
+      qualitySignals: [
+        `gamma_regime:${c.regime}`,
+        `flip:${c.flipPoint?.toFixed(2)}`,
+        c.callWall ? `call_wall:${c.callWall.toFixed(2)}` : "",
+        c.putWall ? `put_wall:${c.putWall.toFixed(2)}` : "",
+      ].filter(Boolean),
+    };
+  }
+
   try {
     await storage.createTradeIdea(tradeIdea as any);
+    const label = tradeIdea.assetType === "option"
+      ? `${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} exp ${tradeIdea.expiryDate}`
+      : `stock ${c.direction}`;
     logger.info(
-      `[GEX-SCANNER] ✅ Persisted ${c.symbol} ${c.direction} ${c.setup} R:R ${c.riskRewardRatio}`,
+      `[GEX-SCANNER] ✅ Persisted ${c.symbol} ${label} ${c.setup} R:R ${tradeIdea.riskRewardRatio}`,
     );
     return true;
   } catch (err) {
@@ -269,6 +334,58 @@ export interface GexScanResult {
   candidates: number;
   persisted: number;
   setups: GexIdeaCandidate[];
+}
+
+/**
+ * Run a single pass of the GEX idea scanner over the approved universe.
+ * Reuses gex-snapshot-service so it shares the 5-min cache with the
+ * convictions engine — no duplicate Tradier traffic.
+ */
+/**
+ * On-demand single-ticker GEX idea scan.
+ * Called when a user views a ticker on Trade Desk or GEX Terminal.
+ * Reuses the 5-min GEX cache so there's no extra Tradier traffic
+ * if the symbol was already fetched recently.
+ *
+ * Returns the candidate (or null) and whether it was persisted.
+ */
+export async function scanTickerForGexIdea(symbol: string): Promise<{
+  candidate: GexIdeaCandidate | null;
+  persisted: boolean;
+  cached: boolean;
+}> {
+  const { getGexSnapshot } = await import("./gex-snapshot-service");
+  const snap = await getGexSnapshot(symbol.toUpperCase());
+  if (!snap) return { candidate: null, persisted: false, cached: false };
+
+  const candidate = buildCandidate(snap);
+  if (!candidate) return { candidate: null, persisted: false, cached: false };
+
+  const persisted = await persistCandidate(candidate);
+  return { candidate, persisted, cached: !persisted };
+}
+
+/**
+ * On-demand multi-ticker GEX scan. Up to 15 symbols at once.
+ * Useful for scanning a watchlist or sector on demand.
+ */
+export async function scanBatchForGexIdeas(symbols: string[]): Promise<GexScanResult> {
+  const batch = symbols.slice(0, 15).map(s => s.toUpperCase());
+  logger.info(`[GEX-SCANNER] on-demand batch scan: ${batch.join(', ')}`);
+
+  const snaps = await getGexSnapshotBatch(batch);
+  const candidates: GexIdeaCandidate[] = [];
+  Array.from(snaps.values()).forEach((snap) => {
+    const c = buildCandidate(snap);
+    if (c) candidates.push(c);
+  });
+
+  let persisted = 0;
+  for (const c of candidates) {
+    if (await persistCandidate(c)) persisted++;
+  }
+
+  return { scanned: snaps.size, candidates: candidates.length, persisted, setups: candidates };
 }
 
 /**

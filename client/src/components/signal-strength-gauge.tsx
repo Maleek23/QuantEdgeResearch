@@ -112,10 +112,10 @@ export function SignalStrengthGauge() {
         </span>
       </div>
 
-      {/* Live indicator */}
+      {/* Signal indicator */}
       <div className="mt-2 flex items-center gap-1.5">
-        <div className={`h-2 w-2 rounded-full ${zone.bg} ${zone.text} animate-pulse`} />
-        <span className="text-xs text-muted-foreground">Live Signal</span>
+        <div className={`h-2 w-2 rounded-full ${zone.bg} ${zone.text}`} />
+        <span className="text-xs text-muted-foreground">Signal Strength</span>
       </div>
     </div>
   );

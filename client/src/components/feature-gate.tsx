@@ -324,7 +324,7 @@ function JoinBetaModal({
   // Beta features to highlight
   const betaFeatures = [
     "AI-powered stock analysis",
-    "6-engine convergence signals",
+    "6-layer convergence signals",
     "Real-time trade ideas",
     "Options flow & dark pool data",
     "Paper trading simulator",

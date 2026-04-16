@@ -840,9 +840,12 @@ class TechnicalScorer {
     const avgReturn = this.calculateMean(returns);
     const stdDevReturn = this.calculateStdDev(returns, avgReturn);
 
-    // Sharpe ratio (assuming 0% risk-free rate for simplicity)
-    // Annualized: multiply by sqrt(252/lookAheadDays)
-    const sharpeRatio = stdDevReturn !== 0 ? (avgReturn / stdDevReturn) * Math.sqrt(252 / lookAheadDays) : 0;
+    // Annualized Sharpe with risk-free subtraction
+    // Risk-free: 4.5% annual (T-bill proxy), prorated for lookAheadDays holding period
+    // Returns are in percent, so risk-free is also in percent
+    const riskFreePerTrade = 4.5 * (lookAheadDays / 252);
+    const excessReturn = avgReturn - riskFreePerTrade;
+    const sharpeRatio = stdDevReturn !== 0 ? (excessReturn / stdDevReturn) * Math.sqrt(252 / lookAheadDays) : 0;
 
     return {
       winRate: Math.round(winRate * 1000) / 1000,

@@ -49,7 +49,7 @@ export function useTradeDeskData(filters: TradeDeskFilters) {
     queryKey: ['/api/trade-ideas/best-setups', dateRange],
     queryFn: async () => {
       const res = await fetch(
-        `/api/trade-ideas/best-setups?period=daily&limit=500&status=all&date=${dateRange}&_t=${Date.now()}`
+        `/api/trade-ideas/best-setups?period=daily&limit=500&status=all&watchlistOnly=true&date=${dateRange}&_t=${Date.now()}`
       );
       if (!res.ok) return [];
       const data = await res.json();
