@@ -198,7 +198,7 @@ export function SmartMoneyFlowTracker() {
             <CardTitle className="text-lg">Smart Money Flow</CardTitle>
             {flowStatus?.isActive && (
               <Badge variant="outline" className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30 text-xs">
-                LIVE
+                ACTIVE
               </Badge>
             )}
           </div>

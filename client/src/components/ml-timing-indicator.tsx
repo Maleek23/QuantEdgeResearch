@@ -98,7 +98,7 @@ export function MLTimingIndicator({
 
   return (
     <div className="space-y-3">
-      {/* Momentum & Confidence Score */}
+      {/* Momentum & Signal Strength */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className={cn("h-4 w-4", getMomentumColor(momentumScore))} />

@@ -67,7 +67,7 @@ export function TickerChartTab({
         height={520}
       />
 
-      <CommandBottomPanels snapshot={data.snapshot} heatmap={data.heatmap} />
+      <CommandBottomPanels snapshot={data.snapshot} heatmap={data.heatmap} strikeExpiryMatrix={data.strikeExpiryMatrix} />
 
       {data.projection && <CommandProjectionCard projection={data.projection} />}
     </div>

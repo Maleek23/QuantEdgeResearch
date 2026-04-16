@@ -127,7 +127,7 @@ function EngineCard({ engine, compact }: { engine: EngineScore; compact?: boolea
           <div className="flex items-center justify-between">
             <span className="font-bold">{engine.name} Engine</span>
             <Badge variant="outline" className={cn("text-xs", signalColors[engine.signal])}>
-              {engine.confidence}% conf
+              {engine.confidence}pts
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
@@ -210,9 +210,9 @@ function CompositeScore({ engines }: { engines: EngineScore[] }) {
           </div>
         </div>
         <div className="text-center">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Confidence</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Signal Strength</div>
           <div className="text-lg font-bold font-mono text-cyan-400">
-            {avgConfidence}%
+            {avgConfidence}pts
           </div>
         </div>
         <div className="text-center">
@@ -249,22 +249,22 @@ export function SixEnginePanel({
 
   const engines: EngineScore[] = [
     {
-      name: 'ML',
+      name: 'Convergence',
       score: mlData?.prediction?.confidence ? Math.round(mlData.prediction.confidence * 100) : mlScore,
       signal: getSignal(mlData?.prediction?.confidence ? mlData.prediction.confidence * 100 : mlScore),
       confidence: 85,
       icon: <Brain className="h-5 w-5 text-purple-400" />,
       color: 'bg-purple-500/15 border-purple-500/25',
-      factors: ['Price prediction model', 'Pattern recognition', 'Regime detection', 'Adaptive sizing']
+      factors: ['Regime detection', 'Confidence calibration', 'Multi-factor scoring', 'Adaptive sizing']
     },
     {
-      name: 'AI',
+      name: 'GEX',
       score: aiScore,
       signal: getSignal(aiScore),
       confidence: 80,
       icon: <Cpu className="h-5 w-5 text-cyan-400" />,
       color: 'bg-cyan-500/15 border-cyan-500/25',
-      factors: ['Claude analysis', 'Fundamental drivers', 'Risk assessment', 'Market context']
+      factors: ['Gamma exposure', 'Dealer positioning', 'Key strike levels', 'Options chain']
     },
     {
       name: 'Quant',

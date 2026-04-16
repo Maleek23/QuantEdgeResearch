@@ -638,7 +638,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </Tooltip>
               )}
 
-              {/* 6-Engine Consensus - Multi-factor intelligence score */}
+              {/* 6-Layer Consensus - Multi-factor intelligence score */}
               {typeof idea.confidenceScore === 'number' && idea.confidenceScore >= 50 && (
                 <EngineConsensusBadge 
                   score={Math.min(100, Math.max(0, Math.round(idea.confidenceScore)))} 
@@ -786,23 +786,27 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 className={cn(
                   "text-[10px] h-5 font-semibold",
                   idea.sectorFocus === 'quantum_computing' ? "bg-violet-500/10 text-violet-400 border-violet-500/30" :
-                  idea.sectorFocus === 'nuclear_fusion' ? "bg-orange-500/10 text-orange-400 border-orange-500/30" :
+                  idea.sectorFocus === 'nuclear' ? "bg-orange-500/10 text-orange-400 border-orange-500/30" :
                   idea.sectorFocus === 'healthcare' ? "bg-rose-500/10 text-rose-400 border-rose-500/30" :
                   idea.sectorFocus === 'ai_ml' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
                   idea.sectorFocus === 'space' ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" :
                   idea.sectorFocus === 'clean_energy' ? "bg-emerald-500/10 text-[var(--trade-bullish)] border-emerald-500/30" :
                   idea.sectorFocus === 'crypto' ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" :
                   idea.sectorFocus === 'fintech' ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
+                  idea.sectorFocus === 'consumer' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
+                  idea.sectorFocus === 'gaming' ? "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30" :
                   "bg-muted/30 text-muted-foreground border-muted"
                 )}
               >
                 {idea.sectorFocus === 'quantum_computing' ? 'QUANTUM' :
-                 idea.sectorFocus === 'nuclear_fusion' ? 'NUCLEAR' :
+                 idea.sectorFocus === 'nuclear' ? 'NUCLEAR' :
                  idea.sectorFocus === 'healthcare' ? 'HEALTH' :
                  idea.sectorFocus === 'ai_ml' ? 'AI/ML' :
                  idea.sectorFocus === 'space' ? 'SPACE' :
                  idea.sectorFocus === 'clean_energy' ? 'ENERGY' :
                  idea.sectorFocus === 'crypto' ? 'CRYPTO' :
+                 idea.sectorFocus === 'consumer' ? 'CONSUMER' :
+                 idea.sectorFocus === 'gaming' ? 'GAMING' :
                  'FINTECH'}
               </Badge>
             )}

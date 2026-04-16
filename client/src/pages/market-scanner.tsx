@@ -41,6 +41,7 @@ import {
   TrendingUpIcon,
   Users,
   Compass,
+  Flag,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -241,6 +242,39 @@ interface DayTradeOpportunity {
   confidence: number;
   signals: string[];
   timeframe: string;
+  createdAt: string;
+}
+
+interface BullFlagSetup {
+  symbol: string;
+  currentPrice: number;
+  score: number;
+  grade: string;
+  direction: 'long';
+  ema20: number;
+  ema50: number;
+  sma200: number;
+  trendBias: 'bullish' | 'neutral';
+  priorLegPercent: number;
+  pullbackPercent: number;
+  pullbackFromHigh: number;
+  flagDays: number;
+  flagTightness: number;
+  rsi14: number;
+  macdHistogram: number;
+  macdAboveZero: boolean;
+  volumeRatio: number;
+  flagVolumeDecline: boolean;
+  avgVolume: number;
+  entryPrice: number;
+  targetPrice: number;
+  targetPercent: number;
+  stopLoss: number;
+  stopLossPercent: number;
+  holdDays: number;
+  pattern: string;
+  reason: string;
+  signals: string[];
   createdAt: string;
 }
 
@@ -797,6 +831,8 @@ export default function MarketScanner() {
       setActiveTab('swing');
     } else if (tabParam === 'daytrade') {
       setActiveTab('daytrade');
+    } else if (tabParam === 'bull-flag') {
+      setActiveTab('bull-flag');
     }
   }, [searchString]);
 
@@ -848,6 +884,17 @@ export default function MarketScanner() {
     },
     refetchInterval: scannerInterval,
     enabled: activeTab === 'daytrade',
+  });
+
+  const bullFlagQuery = useQuery<BullFlagSetup[]>({
+    queryKey: ['/api/bull-flag-scanner'],
+    queryFn: async () => {
+      const res = await fetch('/api/bull-flag-scanner?limit=20');
+      if (!res.ok) throw new Error('Failed to fetch bull flag setups');
+      return res.json();
+    },
+    refetchInterval: heavyInterval,
+    enabled: activeTab === 'bull-flag',
   });
 
   // Surge Scanner - Real-time breakout detection
@@ -1157,7 +1204,7 @@ export default function MarketScanner() {
 
         {/* Main Tab Navigation: Movers vs Day Trade vs Swing vs Social vs Earnings vs Breakouts */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 lg:w-auto lg:inline-flex mb-4 gap-1">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="movers" data-testid="tab-movers">
               <TrendingUp className="w-4 h-4 mr-2" />
               Movers
@@ -1185,6 +1232,10 @@ export default function MarketScanner() {
             <TabsTrigger value="swing" data-testid="tab-swing">
               <Repeat className="w-4 h-4 mr-2" />
               Swing
+            </TabsTrigger>
+            <TabsTrigger value="bull-flag" data-testid="tab-bull-flag">
+              <Flag className="w-4 h-4 mr-2" />
+              Bull Flag
             </TabsTrigger>
           </TabsList>
 
@@ -2251,6 +2302,231 @@ export default function MarketScanner() {
                     <div className="space-y-1">
                       <div className="font-medium text-primary">Hold Time</div>
                       <div className="text-muted-foreground">3-10 trading days</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Bull Flag Pullback Tab — "Femi's Scanner" */}
+          <TabsContent value="bull-flag" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-teal-950/20 border-teal-600/30">
+                <CardContent className="py-3">
+                  <p className="text-teal-200 text-sm flex items-center gap-2">
+                    <Flag className="w-4 h-4" />
+                    <span>
+                      <strong>Bull Flag Pullback Scanner</strong> — Finds stocks with strong prior uptrends
+                      that are pulling back into a flag pattern. Based on the NFLX / AAOI / OKLO pattern DNA.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              {bullFlagQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : bullFlagQuery.data && bullFlagQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {bullFlagQuery.data.map((setup) => (
+                    <Card
+                      key={setup.symbol}
+                      className="hover-elevate transition-all"
+                      data-testid={`card-bull-flag-${setup.symbol}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Link href={`/terminal/${setup.symbol}`}>
+                            <CardTitle className="text-xl font-bold hover:text-[var(--brand-teal)] cursor-pointer transition-colors">
+                              {setup.symbol}
+                            </CardTitle>
+                          </Link>
+                          <Badge variant={
+                            setup.grade === 'S' ? 'default' :
+                            setup.grade === 'A' ? 'default' :
+                            setup.grade === 'B' ? 'secondary' : 'outline'
+                          } className={
+                            setup.grade === 'S' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' :
+                            setup.grade === 'A' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' :
+                            setup.grade === 'B' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' :
+                            'bg-zinc-500/20 text-zinc-400 border-zinc-500/40'
+                          }>
+                            {setup.grade} ({setup.score})
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Flag className="w-3 h-3 text-[var(--brand-teal)]" />
+                          <span>Bull flag pullback</span>
+                          <span className="text-xs">•</span>
+                          <span className={setup.trendBias === 'bullish' ? 'text-emerald-400' : 'text-muted-foreground'}>
+                            {setup.trendBias}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Entry / Target / Stop */}
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground text-xs block">Entry</span>
+                            <span className="font-mono font-medium">${safeToFixed(setup.entryPrice, 2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--trade-bullish)] text-xs block flex items-center gap-1">
+                              <Target className="w-3 h-3" /> Target
+                            </span>
+                            <span className="font-mono text-[var(--trade-bullish)]">
+                              ${safeToFixed(setup.targetPrice, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--trade-bearish)] text-xs block flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Stop
+                            </span>
+                            <span className="font-mono text-[var(--trade-bearish)]">
+                              ${safeToFixed(setup.stopLoss, 2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Flag metrics */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Prior leg:</span>
+                            <span className="text-emerald-400 font-mono">+{safeToFixed(setup.priorLegPercent, 0)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Pullback:</span>
+                            <span className="text-orange-400 font-mono">-{safeToFixed(setup.pullbackPercent, 1)}%</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">RSI(14):</span>
+                            <span className={cn(
+                              "font-mono",
+                              setup.rsi14 >= 40 && setup.rsi14 <= 60 ? "text-[var(--brand-teal)]" :
+                              setup.rsi14 < 40 ? "text-orange-400" : "text-muted-foreground"
+                            )}>
+                              {safeToFixed(setup.rsi14, 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Flag days:</span>
+                            <span className="font-mono">{setup.flagDays}d</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">MACD:</span>
+                            <span className={cn("font-mono", setup.macdAboveZero ? "text-emerald-400" : "text-red-400")}>
+                              {setup.macdAboveZero ? 'above 0' : 'below 0'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Vol decline:</span>
+                            <span className={cn("font-mono", setup.flagVolumeDecline ? "text-emerald-400" : "text-muted-foreground")}>
+                              {setup.flagVolumeDecline ? 'yes' : 'no'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* EMA stacking indicator */}
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full font-mono",
+                            setup.ema20 > setup.ema50
+                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                              : "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30"
+                          )}>
+                            EMA 20{setup.ema20 > setup.ema50 ? ' > ' : ' < '}50
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            Vol {safeToFixed(setup.volumeRatio, 1)}x avg
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            {setup.holdDays}d hold
+                          </span>
+                        </div>
+
+                        {/* Signals */}
+                        <div className="space-y-1">
+                          {setup.signals.slice(0, 4).map((signal, i) => (
+                            <div key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                              <span className="text-[var(--brand-teal)] mt-0.5 shrink-0">+</span>
+                              <span>{signal}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Flag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Bull Flag Setups Found</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No stocks currently match the bull flag pullback criteria.
+                      This scanner looks for strong uptrends pulling back into consolidation patterns.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Scanner Criteria Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Flag className="w-5 h-5 text-[var(--brand-teal)]" />
+                    Pattern DNA — What We're Looking For
+                  </CardTitle>
+                  <CardDescription>
+                    Reverse-engineered from NFLX, AAOI, and OKLO bull flag setups
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Prior Uptrend</div>
+                      <div className="text-muted-foreground">10%+ move before the pullback</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">EMA Stacking</div>
+                      <div className="text-muted-foreground">20 EMA &gt; 50 EMA (trend intact)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">RSI Sweet Spot</div>
+                      <div className="text-muted-foreground">RSI 40–60 (momentum resetting)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Volume Profile</div>
+                      <div className="text-muted-foreground">Declining volume during flag</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Pullback Depth</div>
+                      <div className="text-muted-foreground">5–20% from recent high</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">MACD Confirmation</div>
+                      <div className="text-muted-foreground">Above zero or histogram turning up</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Moving Averages</div>
+                      <div className="text-muted-foreground">Price above 50 SMA & 200 SMA</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-[var(--brand-teal)]">Bollinger Squeeze</div>
+                      <div className="text-muted-foreground">Tight consolidation range</div>
                     </div>
                   </div>
                 </CardContent>

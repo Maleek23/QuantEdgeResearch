@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, safeToFixed, safeNumber } from "@/lib/utils";
+import { getMarketStatus } from "@/lib/market-hours";
 import { TrendingUp, TrendingDown, Activity, Target, Award, BarChart3 } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
@@ -95,10 +96,20 @@ export function LivePortfolioSummary() {
             <Activity className="w-5 h-5 text-cyan-400" />
             Live Portfolio
           </CardTitle>
-          <Badge variant="outline" className="text-xs border-green-500/30 text-[var(--trade-bullish)]">
-            <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1.5" />
-            LIVE
-          </Badge>
+          {(() => {
+            const market = getMarketStatus();
+            return market.isOpen ? (
+              <Badge variant="outline" className="text-xs border-green-500/30 text-[var(--trade-bullish)]">
+                <div className="w-2 h-2 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1.5" />
+                MARKET OPEN
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs border-border text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-muted-foreground mr-1.5" />
+                CLOSED
+              </Badge>
+            );
+          })()}
         </div>
       </CardHeader>
       <CardContent>

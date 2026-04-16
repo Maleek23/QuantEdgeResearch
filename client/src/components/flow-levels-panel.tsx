@@ -478,7 +478,7 @@ export function FlowLevelsPanel() {
             <Flame className="w-5 h-5 text-orange-400" />
             <h3 className="font-semibold text-white">Whale Flow</h3>
             <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/40 text-[8px]">
-              LIVE
+              FLOW
             </Badge>
           </div>
           <WhaleFlowFeed />

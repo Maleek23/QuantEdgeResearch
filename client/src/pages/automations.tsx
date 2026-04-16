@@ -250,7 +250,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
 
                 <div className="space-y-1.5 p-2 rounded bg-card/40 border border-border/30">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground">Exit Confidence</span>
+                    <span className="text-muted-foreground">Exit Signal Strength</span>
                     <span className="font-mono font-bold text-[var(--trade-bullish)]">{pos.exitProbability}%</span>
                   </div>
                   <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
@@ -746,7 +746,7 @@ export default function AutomationsPage() {
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--trade-bullish)]/10 border border-green-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
-                <span className="text-xs font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">LIVE</span>
+                <span className="text-xs font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">ACTIVE</span>
               </div>
             </div>
           </div>
@@ -763,7 +763,7 @@ export default function AutomationsPage() {
               >
                 <Activity className="w-4 h-4 mr-2" />
                 Trading Bots
-                <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600 animate-pulse">LIVE</Badge>
+                <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600">BOTS</Badge>
               </TabsTrigger>
               <TabsTrigger 
                 value="scanner" 
@@ -824,8 +824,8 @@ export default function AutomationsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
-                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">ACTIVE</span>
                   </div>
                 </div>
               </CardHeader>
@@ -863,8 +863,8 @@ export default function AutomationsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
-                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">ACTIVE</span>
                   </div>
                 </div>
               </CardHeader>
@@ -902,8 +902,8 @@ export default function AutomationsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
-                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">ACTIVE</span>
                   </div>
                 </div>
               </CardHeader>
@@ -941,8 +941,8 @@ export default function AutomationsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--trade-bullish)]/20 border border-green-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
-                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">LIVE</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
+                    <span className="text-[10px] font-bold text-[var(--trade-bullish)]">ACTIVE</span>
                   </div>
                 </div>
               </CardHeader>

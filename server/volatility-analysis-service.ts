@@ -250,7 +250,7 @@ function estimateIVHistory(prices: number[], currentIV: number): number[] {
     
     // IV typically trades at a premium to RV (volatility risk premium)
     // Scale to approximate IV levels
-    const estimatedIV = rv * (1.1 + Math.random() * 0.3); // 10-40% premium
+    const estimatedIV = rv * 1.2; // Fixed 20% vol risk premium when real IV unavailable
     history.push(estimatedIV);
   }
 

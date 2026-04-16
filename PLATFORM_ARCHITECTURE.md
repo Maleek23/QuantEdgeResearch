@@ -450,7 +450,7 @@
 
 | Location | AI Service | Purpose |
 |----------|------------|---------|
-| Stock Detail Page | `universal-analysis-engine.ts` | 6-engine grading |
+| Stock Detail Page | `universal-analysis-engine.ts` | 6-layer grading |
 | Trade Desk | `universal-idea-generator.ts` | Trade idea confidence |
 | Research Hub | `ai-service.ts` | Deep research reports |
 | Chart Analysis | `chart-analysis.ts` | Pattern recognition |
@@ -509,7 +509,7 @@
 │                                                                                  │
 │  PRIORITY 2: AI Transparency (Next)                                             │
 │  ├── Add "Why this grade?" explanation to stock detail                          │
-│  ├── Show which of 6 engines contributed most                                   │
+│  ├── Show which of 6 layers contributed most                                    │
 │  └── Display historical accuracy of each engine                                 │
 │                                                                                  │
 │  PRIORITY 3: AI-Powered Discovery                                               │

@@ -439,8 +439,10 @@ export function computeExposures(
     maxGammaStrike, maxVannaStrike,
     callWall, putWall, zeroGammaProjection,
     strikes,
+    // Include all strikes with any OI — let the frontend decide visibility.
+    // Previous filter (netGEX > 0.0001) excluded far-OTM strikes, making
+    // "ALL STRIKES" show the same data as collapsed view.
     strikeExpiryMatrix: Array.from(expiryMap.values())
-      .filter(c => Math.abs(c.netGEX) > 0.0001)
       .sort((a, b) => b.strike - a.strike || a.dte - b.dte),
     expirationsUsed,
     strikesScanned: strikes.length,

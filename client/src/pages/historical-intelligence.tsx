@@ -243,17 +243,17 @@ function ConfidenceCalibration({ stats }: { stats: HistoricalStats }) {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Brain className="h-5 w-5 text-purple-400" />
-          Confidence Calibration
+          Signal Strength Calibration
         </CardTitle>
         <CardDescription>
-          Are our confidence scores accurate? Negative = overconfident
+          Are our signal strength scores accurate? Negative = overconfident
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Confidence Band</TableHead>
+              <TableHead>Signal Strength Band</TableHead>
               <TableHead className="text-right">Ideas</TableHead>
               <TableHead className="text-right">Expected</TableHead>
               <TableHead className="text-right">Actual</TableHead>

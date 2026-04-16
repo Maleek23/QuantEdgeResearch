@@ -38,7 +38,7 @@ export function GEXPeerRail({ peers, currentSymbol }: GEXPeerRailProps) {
         {peers.map((p) => (
           <Link
             key={p.symbol}
-            href={`/command/${p.symbol}`}
+            href={`/terminal/${p.symbol}`}
             className={cn(
               'flex items-center justify-between px-3 py-2 hover:bg-[var(--gex-positive)]/5 transition-colors',
               p.symbol === currentSymbol && 'bg-[var(--gex-positive)]/10',

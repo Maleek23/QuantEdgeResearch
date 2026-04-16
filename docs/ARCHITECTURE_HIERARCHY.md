@@ -278,13 +278,13 @@ DATA SOURCES
 ├── polygon-api.ts         → Historical data
 └── news-service.ts        → News aggregation
 
-ANALYSIS ENGINES (6 Engines)
-├── ML Engine              → pattern-predictor, multi-factor-analysis, confidence-calibration
-├── AI Engine              → ai-service, multi-llm-service, multi-llm-validation
-├── Quant Engine           → quantitative-engine, breakout-scanner, bullish-trend-scanner
-├── Flow Engine            → flow-scanner, whale-tracker, institutional-flow
-├── Sentiment Engine       → sentiment-analyzer, social-scanner
-└── Technical Engine       → technical-scanner, chart-pattern-detector
+ANALYSIS LAYERS (6 Layers)
+├── Technical Layer        → technical-scanner, chart-pattern-detector
+├── Flow Layer             → flow-scanner, whale-tracker, institutional-flow
+├── Sentiment Layer        → sentiment-analyzer, social-scanner, multi-llm-service
+├── Quant Layer            → quantitative-engine, breakout-scanner, bullish-trend-scanner
+├── Convergence Layer      → multi-factor-analysis, confidence-calibration, regime-detection
+└── GEX Layer              → gamma-exposure, dealer-positioning, strike-levels
 
 TRADING SYSTEMS
 ├── trading-engine.ts

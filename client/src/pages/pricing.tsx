@@ -83,7 +83,7 @@ const plans: PricingPlan[] = [
       { name: "Futures trading (NQ, ES, GC)", included: true, comingSoon: true },
       { name: "REST API access", included: true, comingSoon: true },
       { name: "White-label PDF reports", included: true, comingSoon: true },
-      { name: "Backtesting module", included: true, comingSoon: true },
+      { name: "Pattern Scanner module", included: true, comingSoon: true },
       { name: "Custom webhooks (Slack, Telegram)", included: true, comingSoon: true },
       { name: "Portfolio correlation analytics", included: true, comingSoon: true },
       { name: "Priority idea generation", included: true, comingSoon: true },

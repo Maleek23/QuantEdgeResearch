@@ -9,7 +9,7 @@
  * All QUANT SEEKER ticker clicks route here: /terminal/:symbol
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
@@ -18,7 +18,7 @@ import { GEXLevelBadge } from '@/components/gex/gex-level-badge';
 import { cn } from '@/lib/utils';
 import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
 import { RefreshCw } from 'lucide-react';
-import type { GEXTerminalData, StrikeExpiryCell } from '../../../shared/gex-types';
+import type { GEXTerminalData } from '../../../shared/gex-types';
 
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -35,6 +35,30 @@ function formatExposure(val: number, mode: 'gex' | 'vex'): string {
   return `${sign}$${abs.toFixed(1)}M`;
 }
 
+/** TradingView-style tick flash — returns 'up'|'down'|null on value change */
+function usePriceFlash(value: number | undefined): 'up' | 'down' | null {
+  const prevRef = useRef<number | undefined>();
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+
+  useEffect(() => {
+    if (value !== undefined && prevRef.current !== undefined && value !== prevRef.current) {
+      setFlash(value > prevRef.current ? 'up' : 'down');
+      const t = setTimeout(() => setFlash(null), 700);
+      prevRef.current = value;
+      return () => clearTimeout(t);
+    }
+    prevRef.current = value;
+  }, [value]);
+
+  return flash;
+}
+
+function flashStyle(dir: 'up' | 'down' | null): React.CSSProperties {
+  if (dir === 'up') return { backgroundColor: 'rgba(34, 197, 94, 0.3)', transition: 'none', borderRadius: '2px' };
+  if (dir === 'down') return { backgroundColor: 'rgba(239, 68, 68, 0.3)', transition: 'none', borderRadius: '2px' };
+  return { backgroundColor: 'transparent', transition: 'background-color 0.6s ease-out', borderRadius: '2px' };
+}
+
 // ─── Constants ──────────────────────────────────────────────
 type TerminalView = 'profile' | 'matrix' | 'levels';
 type ExposureMode = 'gex' | 'vex';
@@ -47,60 +71,6 @@ const VIEW_OPTIONS: { value: TerminalView; label: string }[] = [
   { value: 'levels', label: 'Levels' },
 ];
 
-/** Parse "APR 14"-style label into a Date (assumes current year) */
-function parseExpiryLabel(label: string): Date | null {
-  const months: Record<string, number> = {
-    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
-  };
-  const parts = label.trim().split(/\s+/);
-  if (parts.length < 2) return null;
-  const month = months[parts[0].toUpperCase()];
-  const day = parseInt(parts[1], 10);
-  if (month === undefined || isNaN(day)) return null;
-  return new Date(new Date().getFullYear(), month, day);
-}
-
-/** Group expiry dates into Mon-Fri trading weeks */
-function groupByWeek(expiries: { label: string; dte: number }[]): { key: string; weekLabel: string; expLabels: string[] }[] {
-  if (expiries.length === 0) return [];
-
-  const groups = new Map<string, string[]>();
-  const keyToMonday = new Map<string, Date>();
-
-  for (const exp of expiries) {
-    const d = parseExpiryLabel(exp.label);
-    if (!d) continue;
-    const day = d.getDay(); // 0=Sun..6=Sat
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
-    const key = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
-    if (!groups.has(key)) { groups.set(key, []); keyToMonday.set(key, monday); }
-    groups.get(key)!.push(exp.label);
-  }
-
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return Array.from(groups.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, labels]) => {
-      const mon = keyToMonday.get(key)!;
-      const fri = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 4);
-      return { key, weekLabel: `${fmt(mon)} – ${fmt(fri)}`, expLabels: labels };
-    });
-}
-
-function getExpiries(matrix: StrikeExpiryCell[]): { label: string; dte: number }[] {
-  const map = new Map<string, number>();
-  for (const cell of matrix) {
-    if (!map.has(cell.expiryLabel) || cell.dte < map.get(cell.expiryLabel)!) {
-      map.set(cell.expiryLabel, cell.dte);
-    }
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => a[1] - b[1])
-    .map(([label, dte]) => ({ label, dte }));
-}
-
 // ─── Main Component ──────────────────────────────────────────
 
 export default function TerminalPage() {
@@ -111,7 +81,6 @@ export default function TerminalPage() {
   const [view, setView] = useState<TerminalView>('matrix');
   const [exposureMode, setExposureMode] = useState<ExposureMode>('gex');
   const [matrixExpanded, setMatrixExpanded] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState<string>('all');
   const [tickerSearch, setTickerSearch] = useState('');
   const [showTickerList, setShowTickerList] = useState(false);
 
@@ -160,19 +129,6 @@ export default function TerminalPage() {
   });
 
   // ─── Derived state ────────────────────────────────────────
-  const expiries = useMemo(() => {
-    if (!data?.strikeExpiryMatrix) return [];
-    return getExpiries(data.strikeExpiryMatrix);
-  }, [data?.strikeExpiryMatrix]);
-
-  const weekGroups = useMemo(() => groupByWeek(expiries), [expiries]);
-
-  const visibleExpiries = useMemo(() => {
-    if (selectedWeek === 'all') return undefined;
-    const week = weekGroups.find(w => w.key === selectedWeek);
-    return week?.expLabels ?? undefined;
-  }, [selectedWeek, weekGroups]);
-
   const filteredTickers = useMemo(() => {
     if (!tickerSearch.trim()) return tickers;
     const q = tickerSearch.toUpperCase();
@@ -182,7 +138,6 @@ export default function TerminalPage() {
   // ─── Handlers ─────────────────────────────────────────────
   const handleSymbolChange = (next: string) => {
     navigate(`/terminal/${next.toUpperCase()}`);
-    setSelectedWeek('all');
     setMatrixExpanded(false);
     setTickerSearch('');
     setShowTickerList(false);
@@ -201,9 +156,13 @@ export default function TerminalPage() {
   const projMovePct = proj ? ((proj.endPrice - proj.startPrice) / proj.startPrice) * 100 : 0;
   const netExposure = exposureMode === 'gex' ? data?.snapshot.totalGEX : data?.snapshot.totalVEX;
 
+  // Flash animations on value change (TradingView-style tick)
+  const spotFlash = usePriceFlash(data?.snapshot.spotPrice);
+  const gexFlash = usePriceFlash(netExposure);
+
   // ─── Render ───────────────────────────────────────────────
   return (
-    <div className="flex-1 min-h-0 bg-[var(--surface-base)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-80px)] bg-[var(--surface-base)] flex flex-col overflow-hidden">
 
       {/* ═══ SKYLIT-STYLE DASHBOARD TOOLBAR ═══ */}
       <div className="flex-shrink-0 border-b border-border/30 bg-[var(--surface-raised)]">
@@ -246,7 +205,15 @@ export default function TerminalPage() {
           </div>
 
           {data?.snapshot.spotPrice !== undefined && (
-            <span className="text-[10px] font-mono text-foreground tabular-nums">${data.snapshot.spotPrice.toFixed(2)}</span>
+            <span
+              className={cn(
+                'text-[10px] font-mono tabular-nums px-1 py-0.5',
+                spotFlash === 'up' ? 'text-[var(--trade-bullish)]' : spotFlash === 'down' ? 'text-[var(--trade-bearish)]' : 'text-foreground'
+              )}
+              style={flashStyle(spotFlash)}
+            >
+              ${data.snapshot.spotPrice.toFixed(2)}
+            </span>
           )}
 
           <div className="w-px h-4 bg-border/20" />
@@ -300,24 +267,6 @@ export default function TerminalPage() {
             ))}
           </div>
 
-          <div className="w-px h-4 bg-border/20" />
-
-          {/* Week-based expiry filter */}
-          {expiries.length > 1 && (
-            <select
-              value={selectedWeek}
-              onChange={e => setSelectedWeek(e.target.value)}
-              className="bg-[var(--surface-base)] border border-border/30 rounded px-2 py-0.5 text-[9px] font-mono font-bold uppercase text-foreground outline-none cursor-pointer"
-            >
-              <option value="all">All Dates ({expiries.length})</option>
-              {weekGroups.map((wk, i) => (
-                <option key={wk.key} value={wk.key}>
-                  {i === 0 ? 'This Week' : i === 1 ? 'Next Week' : 'Wk of'} · {wk.weekLabel} ({wk.expLabels.length})
-                </option>
-              ))}
-            </select>
-          )}
-
           {/* Spacer */}
           <div className="flex-1" />
 
@@ -366,7 +315,13 @@ export default function TerminalPage() {
             </span>
 
             <span className="text-muted-foreground/40 whitespace-nowrap">NET {exposureMode.toUpperCase()}</span>
-            <span className="font-bold text-foreground tabular-nums whitespace-nowrap">
+            <span
+              className={cn(
+                'font-bold tabular-nums whitespace-nowrap px-1 py-0.5',
+                gexFlash === 'up' ? 'text-[var(--trade-bullish)]' : gexFlash === 'down' ? 'text-[var(--trade-bearish)]' : 'text-foreground'
+              )}
+              style={flashStyle(gexFlash)}
+            >
               {typeof netExposure === 'number' && !isNaN(netExposure) ? formatExposure(netExposure, exposureMode) : '—'}
             </span>
 
@@ -492,12 +447,11 @@ export default function TerminalPage() {
 
       {/* ═══ MATRIX VIEW — Strike × Expiry heatmap ═══ */}
       {data && view === 'matrix' && (
-        <div className="flex-1 overflow-auto px-4 py-3">
+        <div className="flex-1 min-h-0 px-4 py-3 flex flex-col">
           {data.strikeExpiryMatrix && data.strikeExpiryMatrix.length > 0 ? (
             <GEXExpiryMatrix
               matrix={data.strikeExpiryMatrix}
               snapshot={data.snapshot}
-              visibleExpiries={visibleExpiries}
               hideControls
               externalMode={exposureMode}
               externalExpanded={matrixExpanded}

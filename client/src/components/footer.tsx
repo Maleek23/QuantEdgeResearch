@@ -10,6 +10,7 @@ import {
   Radio,
 } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { getMarketStatus } from "@/lib/market-hours";
 
 function useMarketStatus() {
   const getStatus = () => {
@@ -138,10 +139,17 @@ function DataFeedIndicator() {
   
   return (
     <div className="flex items-center gap-2" data-testid="data-feed">
-      <div className="flex items-center gap-1">
-        <Radio className="h-3 w-3 text-[var(--trade-bullish)]" />
-        <span className="text-[10px] text-[var(--trade-bullish)] font-mono">LIVE</span>
-      </div>
+      {(() => {
+        const market = getMarketStatus();
+        const color = market.isOpen ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground';
+        const label = market.isOpen ? 'OPEN' : 'CLOSED';
+        return (
+          <div className="flex items-center gap-1">
+            <Radio className={`h-3 w-3 ${color}`} />
+            <span className={`text-[10px] font-mono ${color}`}>{label}</span>
+          </div>
+        );
+      })()}
       <div className="flex gap-0.5 items-end">
         {barHeights.map((height, i) => (
           <div

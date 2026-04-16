@@ -95,11 +95,11 @@ export function ConfidenceMeter({
     <div className={cn("space-y-1.5", className)}>
       {showLabel && (
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Confidence</span>
+          <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Signal Strength</span>
           <div className="flex items-center gap-1.5">
             <Icon className={cn("w-3 h-3", style.color)} />
             <span className={cn("text-sm font-mono font-bold tabular-nums", style.color)}>
-              {clamped}%
+              {clamped}pts
             </span>
           </div>
         </div>

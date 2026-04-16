@@ -3772,7 +3772,7 @@ export async function runAutonomousBotScan(): Promise<void> {
           const ohlc = await fetchOHLCData(ticker, 'stock', 30);
           
           if (ohlc && ohlc.closes.length >= 10) {
-            const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+            const volumes: number[] = []; // No fake volume data — ML service handles missing volumes
             
             // Get ML prediction with real data
             const mlPrediction = await predictPriceDirection(ticker, ohlc.closes, volumes, '1d');
@@ -5193,7 +5193,7 @@ export async function runPropFirmBotScan(): Promise<void> {
     }
     
     // Simple trend detection based on price levels
-    const direction: 'long' | 'short' = Math.random() > 0.5 ? 'long' : 'short'; // Simplified for now
+    const direction: 'long' | 'short' = 'long'; // Default long — no real signal available; placeholder until prop-firm signal integration
     signals.push(`DIRECTION_${direction.toUpperCase()}`);
     score += 10;
     
@@ -5250,7 +5250,7 @@ export async function runPropFirmBotScan(): Promise<void> {
       source: 'bot' as any,
       status: 'published',
       riskProfile: 'conservative',
-      dataSourceUsed: 'databento',
+      dataSourceUsed: 'yahoo_finance',
       outcomeStatus: 'open',
     };
     

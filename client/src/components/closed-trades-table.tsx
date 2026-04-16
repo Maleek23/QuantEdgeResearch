@@ -259,7 +259,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                             {selectedTrade.probabilityBand || 'C'}
                           </Badge>
                           <div className="text-xs text-muted-foreground">
-                            Assigned by scanner ({selectedTrade.confidenceScore ? `${Math.round(selectedTrade.confidenceScore)}% confidence` : 'default'})
+                            Assigned by scanner ({selectedTrade.confidenceScore ? `${Math.round(selectedTrade.confidenceScore)}pts signal strength` : 'default'})
                           </div>
                         </div>
                       </div>

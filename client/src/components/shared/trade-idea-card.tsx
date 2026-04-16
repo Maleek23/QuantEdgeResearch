@@ -182,13 +182,13 @@ export function TradeIdeaCard({
         </div>
       </div>
 
-      {/* === LIVE PRICE STRIP === */}
+      {/* === CURRENT PRICE STRIP === */}
       {idea.livePrice != null && (
         <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded bg-[var(--surface-base)] border border-border/50">
           <div className="flex items-center gap-2">
             <Activity className="w-3 h-3 text-cyan-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Live
+              Current
             </span>
             <span className="font-mono font-bold text-sm text-foreground tabular-nums">
               {fmtPrice(livePrice)}

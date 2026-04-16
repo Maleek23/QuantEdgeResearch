@@ -35,6 +35,7 @@ const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
+const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
 const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
 // REMOVED — Market page consolidated, redirect to /home
@@ -210,6 +211,7 @@ function Router() {
       <Route path="/invite" component={InviteWelcome} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/trade-journal" component={withBetaProtection(TradeJournalPage)} />
       <Route path="/paper-trading"><Redirect to="/home" /></Route>
       <Route path="/wallet-tracker"><Redirect to="/home" /></Route>
       <Route path="/ct-tracker"><Redirect to="/home" /></Route>

@@ -6,7 +6,7 @@
  * 2. BETA (hasBetaAccess=true) - Full unlimited access
  *
  * Free trial features: AI summary, sentiment, technical snapshot
- * Beta-only features: Full 6-engine analysis, trade ideas, dark pool, options flow, smart money
+ * Beta-only features: Full 6-layer analysis, trade ideas, dark pool, options flow, smart money
  */
 
 import { useAuth } from "./useAuth";
@@ -183,8 +183,8 @@ export const FEATURES: Record<string, FeatureConfig> = {
   },
   "six-engine-analysis": {
     id: "six-engine-analysis",
-    name: "6-Engine Analysis",
-    description: "Full convergence analysis from all engines",
+    name: "6-Layer Analysis",
+    description: "Full convergence analysis from all layers",
     requiresAuth: true,
     accessType: "beta_only",
     category: "trading",

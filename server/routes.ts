@@ -484,12 +484,16 @@ export function getBandInfo(confidenceScore: number): { band: string; detailedBa
 // Beta access middleware - verifies user has beta access for protected API routes
 async function requireBetaAccess(req: Request, res: Response, next: NextFunction) {
   try {
+    // DEV BYPASS — skip auth in local development
+    if (process.env.NODE_ENV !== 'production' && !process.env.REPL_ID) {
+      return next();
+    }
     let userId = (req.session as any)?.userId;
     if (!userId && req.user) {
       const replitUser = req.user as any;
       userId = replitUser.claims?.sub;
     }
-    
+
     if (!userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
@@ -10071,6 +10075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avgLoss: number;
         winGains: number[];
         lossGains: number[];
+        holdingDays: number[]; // per-trade holding periods in trading days
       }>();
       
       const engineDisplayNames: Record<string, string> = {
@@ -10107,6 +10112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             avgLoss: 0,
             winGains: [],
             lossGains: [],
+            holdingDays: [],
           });
         }
         
@@ -10115,7 +10121,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const clampedGain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
         stats.gains.push(clampedGain);
         stats.totalGain += clampedGain;
-        
+
+        // Collect holding duration for time-weighted Sharpe calculation
+        if (idea.actualHoldingTimeMinutes) {
+          stats.holdingDays.push(idea.actualHoldingTimeMinutes / (60 * 6.5)); // 6.5hr trading day
+        } else if (idea.timestamp && idea.exitDate) {
+          const diffMs = new Date(idea.exitDate).getTime() - new Date(idea.timestamp).getTime();
+          stats.holdingDays.push(Math.max(0.1, diffMs / (1000 * 60 * 60 * 6.5)));
+        }
+
         if (idea.outcomeStatus === 'hit_target') {
           stats.wins++;
           stats.winGains.push(clampedGain);
@@ -10148,16 +10162,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Expectancy = (WinRate * AvgWin) - (LossRate * AvgLoss)
         const expectancy = Math.round(((winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss) * 100) / 100;
         
-        // Raw Sharpe Ratio (Information Ratio) using log returns
-        // Not annualized to avoid assumptions about trade frequency
-        // This measures risk-adjusted return per trade
-        // Minimum sample size: 30 trades for statistical significance
+        // Annualized Sharpe Ratio with risk-free rate and duration-aware annualization
+        // Formula: ((mean_excess) / std_excess) * sqrt(252 / avg_holding_days)
+        // Risk-free: 4.5% annual (T-bill proxy), prorated per trade's holding period
         const MIN_SHARPE_SAMPLE = 30;
-        const EPSILON = 0.0001; // Guard against near-zero stdDev
-        const sharpeRatio = (stats.totalTrades >= MIN_SHARPE_SAMPLE && logReturnStdDev > EPSILON)
-          ? Math.round((meanLogReturn / logReturnStdDev) * 100) / 100 
+        const EPSILON = 0.0001;
+        const ANNUAL_RISK_FREE = 0.045;
+        const avgHoldingDays = stats.holdingDays.length > 0
+          ? stats.holdingDays.reduce((a, b) => a + b, 0) / stats.holdingDays.length
+          : 1; // default 1 trading day if no duration data available
+        const riskFreePerTrade = (ANNUAL_RISK_FREE * avgHoldingDays) / 252;
+        const excessLogReturns = logReturns.map(r => r - riskFreePerTrade);
+        const meanExcessReturn = excessLogReturns.length > 0
+          ? excessLogReturns.reduce((a, b) => a + b, 0) / excessLogReturns.length : 0;
+        const excessStdDev = calculateStdDev(excessLogReturns);
+        const annualizationFactor = Math.sqrt(252 / Math.max(avgHoldingDays, 0.1));
+        const sharpeRatio = (stats.totalTrades >= MIN_SHARPE_SAMPLE && excessStdDev > EPSILON)
+          ? Math.round(((meanExcessReturn / excessStdDev) * annualizationFactor) * 100) / 100
           : 0;
-        const sharpeReliable = stats.totalTrades >= MIN_SHARPE_SAMPLE && logReturnStdDev > EPSILON;
+        const sharpeReliable = stats.totalTrades >= MIN_SHARPE_SAMPLE && excessStdDev > EPSILON;
         
         return {
           engine: stats.engine,
@@ -10183,15 +10206,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       engines.sort((a, b) => b.winRate - a.winRate);
       
       // Calculate overall portfolio metrics using log returns
+      // Annualized Sharpe with risk-free subtraction and duration-aware scaling
       const allLogReturns = resolvedIdeas.map(i => {
         const clampedGain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, i.percentGain || 0));
         return Math.log(1 + clampedGain / 100);
       });
-      const overallMeanLogReturn = allLogReturns.length > 0 ? allLogReturns.reduce((a, b) => a + b, 0) / allLogReturns.length : 0;
-      const overallLogStdDev = calculateStdDev(allLogReturns);
-      // Raw Sharpe Ratio (not annualized) - measures risk-adjusted return per trade
-      const overallSharpe = overallLogStdDev > 0 
-        ? Math.round((overallMeanLogReturn / overallLogStdDev) * 100) / 100 
+      const overallHoldingDays: number[] = [];
+      resolvedIdeas.forEach(i => {
+        if (i.actualHoldingTimeMinutes) {
+          overallHoldingDays.push(i.actualHoldingTimeMinutes / (60 * 6.5));
+        } else if (i.timestamp && i.exitDate) {
+          const diffMs = new Date(i.exitDate).getTime() - new Date(i.timestamp).getTime();
+          overallHoldingDays.push(Math.max(0.1, diffMs / (1000 * 60 * 60 * 6.5)));
+        }
+      });
+      const overallAvgHoldingDays = overallHoldingDays.length > 0
+        ? overallHoldingDays.reduce((a, b) => a + b, 0) / overallHoldingDays.length
+        : 1;
+      const overallRfPerTrade = (0.045 * overallAvgHoldingDays) / 252;
+      const overallExcessReturns = allLogReturns.map(r => r - overallRfPerTrade);
+      const overallMeanExcess = overallExcessReturns.length > 0
+        ? overallExcessReturns.reduce((a, b) => a + b, 0) / overallExcessReturns.length : 0;
+      const overallExcessStdDev = calculateStdDev(overallExcessReturns);
+      const overallAnnFactor = Math.sqrt(252 / Math.max(overallAvgHoldingDays, 0.1));
+      const overallSharpe = overallExcessStdDev > 0
+        ? Math.round(((overallMeanExcess / overallExcessStdDev) * overallAnnFactor) * 100) / 100
         : 0;
       
       // Calculate drawdown using multiplicative equity curve: Π(1 + r_i)
@@ -15707,6 +15746,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ Bull Flag Pullback Scanner ("Femi's Scanner") ============
+  app.get("/api/bull-flag-scanner", async (req, res) => {
+    try {
+      const { getTopBullFlagSetups } = await import("./bull-flag-scanner");
+      const limit = parseInt(req.query.limit as string) || 15;
+      const setups = await getTopBullFlagSetups(limit);
+
+      logger.info(`[BULL-FLAG-API] Found ${setups.length} bull flag pullback setups`);
+      res.json(setups);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bull-flag-scanner' });
+      res.status(500).json({ error: "Failed to fetch bull flag setups" });
+    }
+  });
+
   // ============ Swing Trade Scanner Routes ============
   // Get swing trade opportunities
   app.get("/api/swing-scanner", async (req, res) => {
@@ -16493,24 +16547,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiKey
       );
 
-      // Fallback to synthetic if API fails (for development/testing)
+      // No synthetic data — return empty when real data unavailable
       if (historicalPrices.length === 0) {
-        console.log(`⚠️  Using fallback synthetic prices for ${marketData.symbol}`);
-        const generateFallback = (currentPrice: number, changePercent: number, periods: number = 60): number[] => {
-          const prices: number[] = [];
-          const dailyChange = changePercent / 100;
-          const volatility = Math.abs(dailyChange) * 2;
-          
-          for (let i = periods; i >= 0; i--) {
-            const daysAgo = i;
-            const trend = (dailyChange / periods) * (periods - daysAgo);
-            const noise = (Math.random() - 0.5) * volatility * currentPrice;
-            const price = currentPrice * (1 - trend) + noise;
-            prices.push(Math.max(price, currentPrice * 0.5));
-          }
-          return prices;
-        };
-        historicalPrices = generateFallback(marketData.currentPrice, marketData.changePercent, 60);
+        console.log(`⚠️  No historical prices available for ${marketData.symbol} — skipping technical analysis`);
+        return res.json({
+          symbol: marketData.symbol,
+          error: 'insufficient_data',
+          message: 'Real historical price data unavailable for technical analysis',
+          technicalSignals: [],
+          indicators: {},
+        });
       } else {
         console.log(`✅ Using ${historicalPrices.length} real historical prices for ${marketData.symbol}`);
       }
@@ -22395,58 +22441,14 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
-  // POST /api/ct/generate-mock - Generate mock data for testing (admin only)
-  app.post("/api/ct/generate-mock", isAuthenticated, requireAdminJWT, async (req: any, res: Response) => {
-    try {
-      const { count = 10 } = req.body;
-      
-      // Generate mock CT sources
-      const mockSources = [
-        { platform: 'twitter' as const, handle: '@cryptowhale', displayName: 'Crypto Whale', category: 'whale' },
-        { platform: 'twitter' as const, handle: '@defi_insider', displayName: 'DeFi Insider', category: 'analyst' },
-        { platform: 'twitter' as const, handle: '@altcoin_daily', displayName: 'Altcoin Daily', category: 'news' },
-      ];
-      
-      const createdSources = [];
-      for (const source of mockSources) {
-        const created = await storage.createCTSource(source);
-        createdSources.push(created);
-      }
-      
-      // Generate mock mentions
-      const mockTickers = ['$BTC', '$ETH', '$SOL', '$AVAX', '$MATIC', '$ARB', '$DOGE', '$SHIB'];
-      const sentiments: Array<'bullish' | 'bearish' | 'neutral'> = ['bullish', 'bearish', 'neutral'];
-      
-      const createdMentions = [];
-      for (let i = 0; i < count; i++) {
-        const source = createdSources[Math.floor(Math.random() * createdSources.length)];
-        const ticker = mockTickers[Math.floor(Math.random() * mockTickers.length)];
-        const sentiment = sentiments[Math.floor(Math.random() * sentiments.length)];
-        
-        const mention = await storage.createCTMention({
-          sourceId: source.id,
-          postText: `Mock ${sentiment} call on ${ticker}. This is a test mention.`,
-          tickers: [ticker],
-          sentiment,
-          sentimentScore: sentiment === 'bullish' ? 0.7 : sentiment === 'bearish' ? -0.7 : 0,
-          isCall: Math.random() > 0.5,
-          postedAt: new Date().toISOString(),
-          fetchedAt: new Date().toISOString(),
-        });
-        createdMentions.push(mention);
-      }
-      
-      res.json({
-        success: true,
-        created: {
-          sources: createdSources.length,
-          mentions: createdMentions.length,
-        },
-      });
-    } catch (error: any) {
-      logger.error("Error generating mock CT data", { error });
-      res.status(500).json({ error: "Failed to generate mock data" });
-    }
+  // POST /api/ct/generate-mock - Disabled: no synthetic data generation
+  // No synthetic data — mock CT data generation removed to prevent fabricated social signals
+  app.post("/api/ct/generate-mock", isAuthenticated, requireAdminJWT, async (_req: any, res: Response) => {
+    res.json({
+      success: false,
+      message: 'Mock data generation disabled — use real CT source ingestion instead',
+      created: { sources: 0, mentions: 0 },
+    });
   });
 
   // ==========================================
@@ -24384,30 +24386,8 @@ Use this checklist before entering any trade:
         logger.warn("[FLOW] Could not fetch quote for avg volume");
       }
 
-      // Generate simulated recent trades based on current market conditions
+      // No synthetic data — real trade tape requires a real-time feed
       const recentTrades: Array<{ price: number; size: number; side: 'buy' | 'sell'; timestamp: string }> = [];
-      try {
-        const quote = await yahooFinance.quote(symbol.toUpperCase());
-        const lastPrice = quote?.regularMarketPrice || 100;
-        const avgSize = Math.round(avgDailyVolume / 390); // Avg per minute
-        
-        // Generate mock trade tape based on price movement
-        const priceChange = quote?.regularMarketChangePercent || 0;
-        const bullishBias = priceChange > 0 ? 0.6 : priceChange < 0 ? 0.4 : 0.5;
-        
-        for (let i = 0; i < 20; i++) {
-          const isBuy = Math.random() < bullishBias;
-          const sizeMultiplier = Math.random() > 0.9 ? 10 : Math.random() > 0.7 ? 3 : 1;
-          recentTrades.push({
-            price: lastPrice * (1 + (Math.random() - 0.5) * 0.002),
-            size: Math.round(avgSize * sizeMultiplier * (0.5 + Math.random())),
-            side: isBuy ? 'buy' : 'sell',
-            timestamp: new Date(Date.now() - i * 3000).toISOString(),
-          });
-        }
-      } catch (e) {
-        logger.warn("[FLOW] Could not generate trade tape");
-      }
 
       const flowAnalysis = await OrderBookIntelligence.analyzeInstitutionalFlow(
         symbol.toUpperCase(),
@@ -25964,9 +25944,9 @@ Use this checklist before entering any trade:
         return res.status(400).json({ error: "Insufficient historical data for prediction" });
       }
       
-      // Generate synthetic volumes from price movement (since OHLC doesn't include volume)
-      const volumes = ohlc.closes.map((_, i) => 1000000 + Math.random() * 500000);
-      
+      // No synthetic data — pass null volumes since OHLC source lacks volume data
+      const volumes: number[] = [];
+
       const prediction = await predictPriceDirection(symbol.toUpperCase(), ohlc.closes, volumes, timeframe);
       res.json(prediction);
     } catch (error: any) {
@@ -26037,9 +26017,9 @@ Use this checklist before entering any trade:
         return res.status(400).json({ error: "Insufficient market data" });
       }
       
-      // Generate synthetic volumes
-      const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
-      
+      // No synthetic data — pass empty volumes since OHLC source lacks volume data
+      const volumes: number[] = [];
+
       const regime = await detectMarketRegime(ohlc.closes, volumes);
       res.json(regime);
     } catch (error: any) {
@@ -26104,7 +26084,8 @@ Use this checklist before entering any trade:
         return res.status(400).json({ error: "Insufficient data for ML signal" });
       }
       
-      const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+      // No synthetic data — pass empty volumes since OHLC source lacks volume data
+      const volumes: number[] = [];
       const candles = ohlc.closes.map((close, i) => ({
         high: ohlc.highs[i],
         low: ohlc.lows[i],
@@ -26112,7 +26093,7 @@ Use this checklist before entering any trade:
         close: close
       }));
       const headlines = news.map(n => n.title);
-      
+
       const signal = await generateMLSignal(symbol.toUpperCase(), ohlc.closes, volumes, candles, headlines, accountBalance);
       res.json(signal);
     } catch (error: any) {
@@ -26248,11 +26229,12 @@ Use this checklist before entering any trade:
           const ohlc = await fetchOHLCData(symbol, 'stock', 30);
           if (!ohlc || ohlc.closes.length < 10) continue;
           
-          const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+          // No synthetic data — pass empty volumes since OHLC source lacks volume data
+          const volumes: number[] = [];
           const candles = ohlc.closes.map((close, i) => ({
             high: ohlc.highs[i], low: ohlc.lows[i], open: ohlc.opens[i], close: close
           }));
-          
+
           const signal = await generateMLSignal(symbol, ohlc.closes, volumes, candles, []);
           signals.push({
             symbol,
@@ -27057,6 +27039,113 @@ Use this checklist before entering any trade:
     }
   });
 
+  // GET /api/options-analyzer/oi-summary/:symbol — Multi-expiry OI summary for OI Map view
+  app.get("/api/options-analyzer/oi-summary/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
+      const maxExpiries = Math.min(parseInt(req.query.limit as string) || 8, 12);
+
+      const { TRADIER_API_KEY } = process.env;
+      if (!TRADIER_API_KEY) {
+        return res.status(500).json({ error: "Tradier API not configured" });
+      }
+
+      // 1. Get expirations
+      const baseUrl = 'https://api.tradier.com/v1';
+      const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${upperSymbol}`, {
+        headers: { 'Authorization': `Bearer ${TRADIER_API_KEY}`, 'Accept': 'application/json' }
+      });
+      if (!expResponse.ok) return res.status(404).json({ error: `No options found for ${upperSymbol}` });
+
+      const expData = await expResponse.json();
+      const allExpirations: string[] = expData.expirations?.date || [];
+      if (allExpirations.length === 0) return res.status(404).json({ error: 'No expirations found' });
+
+      const selectedExps = allExpirations.slice(0, maxExpiries);
+
+      // 2. Get stock price + fetch chains in parallel
+      const { getTradierQuote, getTradierOptionsChain } = await import("./tradier-api");
+      const [quote, ...chainResults] = await Promise.all([
+        getTradierQuote(upperSymbol),
+        ...selectedExps.map(async (exp) => {
+          try {
+            const chain = await getTradierOptionsChain(upperSymbol, exp);
+            return { expiration: exp, chain: chain || [] };
+          } catch { return { expiration: exp, chain: [] as any[] }; }
+        })
+      ]);
+
+      const spotPrice = (quote as any)?.last || (quote as any)?.close || 0;
+
+      // 3. Build per-expiry summaries
+      const now = new Date();
+      const expirationSummaries = (chainResults as Array<{ expiration: string; chain: any[] }>).map(({ expiration, chain }) => {
+        const expDate = new Date(expiration + 'T16:00:00-05:00');
+        const dte = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        let callOI = 0, putOI = 0, callVol = 0, putVol = 0, maxOIStrike = 0, maxOI = 0;
+        for (const opt of chain) {
+          const oi = opt.open_interest || 0;
+          const vol = opt.volume || 0;
+          if (opt.option_type === 'call') { callOI += oi; callVol += vol; }
+          else { putOI += oi; putVol += vol; }
+          if (oi > maxOI) { maxOI = oi; maxOIStrike = opt.strike; }
+        }
+
+        return {
+          expiration, dte,
+          callOI, putOI, callVol, putVol,
+          pcRatio: callOI > 0 ? +(putOI / callOI).toFixed(2) : 0,
+          totalOI: callOI + putOI,
+          totalVol: callVol + putVol,
+          maxOIStrike, maxOI,
+        };
+      }).filter(e => e.totalOI > 0);
+
+      // 4. Build per-strike aggregate across all expirations
+      const strikeAgg: Record<number, { callOI: number; putOI: number; callVol: number; putVol: number; ivSum: number; ivN: number }> = {};
+      for (const { chain } of (chainResults as Array<{ expiration: string; chain: any[] }>)) {
+        for (const opt of chain) {
+          const s = opt.strike;
+          if (!strikeAgg[s]) strikeAgg[s] = { callOI: 0, putOI: 0, callVol: 0, putVol: 0, ivSum: 0, ivN: 0 };
+          const a = strikeAgg[s];
+          const oi = opt.open_interest || 0;
+          const vol = opt.volume || 0;
+          const iv = opt.greeks?.mid_iv || opt.greeks?.ask_iv || 0;
+          if (opt.option_type === 'call') { a.callOI += oi; a.callVol += vol; }
+          else { a.putOI += oi; a.putVol += vol; }
+          if (iv > 0) { a.ivSum += iv; a.ivN++; }
+        }
+      }
+
+      const topStrikes = Object.entries(strikeAgg)
+        .map(([strike, a]) => ({
+          strike: +strike,
+          callOI: a.callOI, putOI: a.putOI,
+          totalOI: a.callOI + a.putOI,
+          callVol: a.callVol, putVol: a.putVol,
+          avgIV: a.ivN > 0 ? +(a.ivSum / a.ivN * 100).toFixed(1) : null,
+        }))
+        .sort((a, b) => b.totalOI - a.totalOI)
+        .slice(0, 30)
+        .sort((a, b) => a.strike - b.strike);
+
+      res.json({
+        symbol: upperSymbol,
+        spotPrice,
+        expirations: expirationSummaries,
+        strikes: topStrikes,
+        totalCallOI: expirationSummaries.reduce((s, e) => s + e.callOI, 0),
+        totalPutOI: expirationSummaries.reduce((s, e) => s + e.putOI, 0),
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error("Error building OI summary", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to build OI summary" });
+    }
+  });
+
   // POST /api/options-analyzer/deep-analysis - Run deep analysis on a specific option
   app.post("/api/options-analyzer/deep-analysis", async (req, res) => {
     try {
@@ -27433,9 +27522,13 @@ Use this checklist before entering any trade:
   /** GEX HUB — market-wide aggregation: top GEX/VEX, sector splits, regimes */
   app.get("/api/gex-vex/hub", requireBetaAccess, async (_req, res) => {
     try {
-      const { scanWatchlistConfluence, buildGEXHub } = await import('./gex-vex-scanner');
+      const { scanWatchlistConfluence, buildGEXHub, persistTopPlaysAsIdeas } = await import('./gex-vex-scanner');
+      const { runIndexScalpScanner } = await import('./index-scalp-engine');
       const scan = await scanWatchlistConfluence({ useCache: true });
-      const hub = buildGEXHub(scan);
+      const hub = await buildGEXHub(scan);
+      // Fire-and-forget: persist best plays + index scalps for Trade Desk
+      persistTopPlaysAsIdeas(hub.topPlays).catch(() => {});
+      runIndexScalpScanner().catch(() => {});
       res.json({ hub, scan });
     } catch (error: any) {
       logger.error("GEX hub error", { error: error?.message });
@@ -27464,6 +27557,216 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("[GEX-SCANNER] manual run failed", { error: error?.message });
       res.status(500).json({ error: "GEX scanner failed", message: error?.message });
+    }
+  });
+
+  /**
+   * GEX IDEA SCANNER — on-demand single ticker
+   * ===========================================
+   * Scans one ticker for GEX setups (flip cross / wall fade / squeeze break)
+   * in real-time. Uses the 5-min GEX cache — no extra API traffic if the
+   * snapshot was recently fetched. Returns the candidate and whether it was
+   * persisted as a new trade idea.
+   *
+   * This is the fix for "gex running 15 mins isn't gonna show us shit" —
+   * users can now trigger instant GEX analysis on any ticker they're viewing.
+   */
+  app.post("/api/gex-scanner/scan-ticker", async (req, res) => {
+    try {
+      const { symbol } = req.body as { symbol?: string };
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: "Missing symbol" });
+      }
+      const { scanTickerForGexIdea } = await import('./gex-idea-scanner');
+      const result = await scanTickerForGexIdea(symbol);
+      res.json({
+        success: true,
+        symbol: symbol.toUpperCase(),
+        ...result,
+      });
+    } catch (error: any) {
+      logger.error("[GEX-SCANNER] single-ticker scan failed", { error: error?.message });
+      res.status(500).json({ error: "GEX scan failed", message: error?.message });
+    }
+  });
+
+  /**
+   * GEX IDEA SCANNER — on-demand batch (up to 15 tickers)
+   * ======================================================
+   * Scans multiple tickers at once for GEX setups.
+   * Useful for scanning a watchlist or sector on demand.
+   */
+  app.post("/api/gex-scanner/scan-batch", async (req, res) => {
+    try {
+      const { symbols } = req.body as { symbols?: string[] };
+      if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: "Missing symbols array" });
+      }
+      const { scanBatchForGexIdeas } = await import('./gex-idea-scanner');
+      const result = await scanBatchForGexIdeas(symbols);
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      logger.error("[GEX-SCANNER] batch scan failed", { error: error?.message });
+      res.status(500).json({ error: "GEX batch scan failed", message: error?.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // TRADE JOURNAL — Personal trade imports + analytics
+  // ═══════════════════════════════════════════════════════════
+
+  /** Upload broker CSV → parse → store personal trades */
+  app.post("/api/journal/import-csv", requireBetaAccess, async (req, res) => {
+    try {
+      const { csv, broker } = req.body as { csv: string; broker?: string };
+      if (!csv || typeof csv !== 'string') {
+        return res.status(400).json({ error: "Missing csv field (string)" });
+      }
+      const { parseBrokerCSV } = await import('./broker-csv-parser');
+      const result = parseBrokerCSV(csv, broker as any);
+
+      // Persist parsed trades
+      const userId = (req as any).user?.id || 'default';
+      const batchId = `import_${Date.now()}`;
+      let saved = 0;
+      for (const t of result.trades) {
+        try {
+          await storage.createJournalTrade({
+            userId,
+            symbol: t.symbol,
+            assetType: t.assetType,
+            direction: t.direction,
+            optionType: t.optionType || null,
+            strikePrice: t.strikePrice || null,
+            expiryDate: t.expiryDate || null,
+            quantity: t.quantity,
+            entryPrice: t.entryPrice,
+            exitPrice: t.exitPrice || null,
+            fees: t.fees,
+            entryTime: t.entryTime,
+            exitTime: t.exitTime || null,
+            holdingMinutes: t.exitTime
+              ? Math.round((new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime()) / 60000)
+              : null,
+            realizedPnL: t.realizedPnL || null,
+            realizedPnLPercent: t.realizedPnL && t.entryPrice > 0
+              ? +((t.realizedPnL / (t.entryPrice * t.quantity * (t.assetType === 'option' ? 100 : 1))) * 100).toFixed(2)
+              : null,
+            grossPnL: t.realizedPnL != null ? +(t.realizedPnL + t.fees).toFixed(2) : null,
+            status: t.status,
+            outcome: t.realizedPnL != null
+              ? (t.realizedPnL > 0 ? 'win' : t.realizedPnL < 0 ? 'loss' : 'breakeven')
+              : 'open',
+            broker: t.broker,
+            brokerOrderId: t.brokerOrderId || null,
+            importBatchId: batchId,
+            rawCsvRow: t.rawCsvRow,
+          } as any);
+          saved++;
+        } catch (err: any) {
+          result.errors.push(`Save failed for ${t.symbol}: ${err.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        broker: result.broker,
+        totalRows: result.totalRows,
+        parsed: result.parsedRows,
+        saved,
+        errors: result.errors,
+        batchId,
+      });
+    } catch (error: any) {
+      logger.error("[JOURNAL] CSV import failed", { error: error?.message });
+      res.status(500).json({ error: "CSV import failed", message: error?.message });
+    }
+  });
+
+  /** Add a single trade manually */
+  app.post("/api/journal/trade", requireBetaAccess, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id || 'default';
+      const trade = { ...req.body, userId, broker: 'manual' };
+      const saved = await storage.createJournalTrade(trade);
+      res.json({ success: true, trade: saved });
+    } catch (error: any) {
+      logger.error("[JOURNAL] manual trade add failed", { error: error?.message });
+      res.status(500).json({ error: "Failed to add trade", message: error?.message });
+    }
+  });
+
+  /** Get all personal trades */
+  app.get("/api/journal/trades", requireBetaAccess, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id || 'default';
+      const trades = await storage.getJournalTrades(userId);
+      res.json({ trades, count: trades.length });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch trades", message: error?.message });
+    }
+  });
+
+  /** Full analytics on personal trades */
+  app.get("/api/journal/analytics", requireBetaAccess, async (req, res) => {
+    try {
+      const { getJournalAnalytics } = await import('./trade-journal-analytics');
+      const userId = (req as any).user?.id || 'default';
+      const analytics = await getJournalAnalytics(userId);
+      res.json(analytics);
+    } catch (error: any) {
+      logger.error("[JOURNAL] analytics failed", { error: error?.message });
+      res.status(500).json({ error: "Journal analytics failed", message: error?.message });
+    }
+  });
+
+  /** Delete a trade or import batch */
+  app.delete("/api/journal/trade/:id", requireBetaAccess, async (req, res) => {
+    try {
+      await storage.deleteJournalTrade(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: "Delete failed", message: error?.message });
+    }
+  });
+
+  /** Delete ALL journal trades for the logged-in user (reset) */
+  app.delete("/api/journal/trades/all", requireBetaAccess, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id || 'default';
+      const trades = await storage.getJournalTrades(userId);
+      let deleted = 0;
+      for (const t of trades) {
+        await storage.deleteJournalTrade(t.id);
+        deleted++;
+      }
+      res.json({ success: true, deleted });
+    } catch (error: any) {
+      res.status(500).json({ error: "Bulk delete failed", message: error?.message });
+    }
+  });
+
+  /**
+   * INDEX SCALP SCANNER — manual trigger
+   * =====================================
+   * Scans SPY + QQQ GEX levels and generates 0DTE SPX/SPY/QQQ
+   * scalp ideas targeting the $1.50–$10.00 premium sweet spot.
+   * Includes power hour detection for aggressive plays.
+   */
+  app.post("/api/index-scalps/run", async (_req, res) => {
+    try {
+      const { runIndexScalpScanner } = await import('./index-scalp-engine');
+      const result = await runIndexScalpScanner();
+      res.json({
+        success: true,
+        session: result.session,
+        scanned: result.scanned,
+        ideas: result.ideas,
+        persisted: result.persisted,
+      });
+    } catch (error: any) {
+      logger.error("[INDEX-SCALP] manual run failed", { error: error?.message });
+      res.status(500).json({ error: "Index scalp scanner failed", message: error?.message });
     }
   });
 
@@ -27612,6 +27915,135 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ═══════════════════════════════════════════════════════════
+  // GEX HISTORY — Browse historical gamma exposure by date
+  // ═══════════════════════════════════════════════════════════
+
+  // ── Growing Gamma Detection ──────────────────────────────────────────
+  // Detects which tickers have increasing gamma concentration = something about to move
+  // MUST be declared before parameterized :symbol routes to avoid route shadowing
+
+  app.get("/api/gex-history/gamma-growth", async (_req, res) => {
+    try {
+      const { scanGammaGrowth } = await import('./gex-history-archiver');
+      const results = await scanGammaGrowth();
+      res.json({
+        success: true,
+        count: results.length,
+        surging: results.filter(r => r.signal === 'surging'),
+        growing: results.filter(r => r.signal === 'growing'),
+        stable: results.filter(r => r.signal === 'stable'),
+        fading: results.filter(r => r.signal === 'fading'),
+        scannedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error("[GAMMA-GROWTH] scan error", { error: error?.message });
+      res.status(500).json({ error: "Gamma growth scan failed", message: error?.message });
+    }
+  });
+
+  app.get("/api/gex-history/gamma-growth/:symbol", async (req, res) => {
+    try {
+      const { detectGammaGrowth } = await import('./gex-history-archiver');
+      const result = await detectGammaGrowth(req.params.symbol.toUpperCase());
+      if (!result) {
+        return res.json({ success: false, message: "No data available for this ticker" });
+      }
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      logger.error("[GAMMA-GROWTH] single ticker error", { error: error?.message });
+      res.status(500).json({ error: "Gamma growth check failed", message: error?.message });
+    }
+  });
+
+  /** List available dates for a symbol's GEX history */
+  app.get("/api/gex-history/:symbol/dates", requireBetaAccess, async (req: any, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const dates = await storage.getGexAvailableDates(symbol);
+      res.json({ symbol, dates, count: dates.length });
+    } catch (error: any) {
+      logger.error("[GEX-HISTORY] dates error", { error: error?.message });
+      res.status(500).json({ error: "Failed to fetch GEX history dates" });
+    }
+  });
+
+  /** Get GEX snapshots for a specific date (all hourly snapshots that day) */
+  app.get("/api/gex-history/:symbol/:date", requireBetaAccess, async (req: any, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const dateStr = req.params.date; // YYYY-MM-DD
+      const startDate = new Date(`${dateStr}T00:00:00Z`);
+      const endDate = new Date(`${dateStr}T23:59:59Z`);
+
+      const snapshots = await storage.getGexSnapshotsByDateRange(symbol, startDate, endDate);
+
+      if (snapshots.length === 0) {
+        return res.json({
+          symbol,
+          date: dateStr,
+          snapshots: [],
+          message: "No GEX snapshots for this date. Historical archiving starts from today — check back tomorrow.",
+        });
+      }
+
+      res.json({
+        symbol,
+        date: dateStr,
+        snapshots: snapshots.map(s => ({
+          id: s.id,
+          spotPrice: s.spotPrice,
+          flipPoint: s.flipPoint,
+          callWall: s.callWall,
+          putWall: s.putWall,
+          flipDistancePct: s.flipDistancePct,
+          regime: s.regime,
+          vexRegime: s.vexRegime,
+          netGexSign: s.netGexSign,
+          totalGex: s.totalGex,
+          maxGammaStrike: s.maxGammaStrike,
+          topLevels: s.topLevels,
+          heatmapData: s.heatmapData,
+          strikeExpiryMatrix: s.strikeExpiryMatrix,
+          snapshotAt: s.snapshotAt,
+          marketSession: s.marketSession,
+          dataGrade: s.dataGrade,
+        })),
+        count: snapshots.length,
+      });
+    } catch (error: any) {
+      logger.error("[GEX-HISTORY] date fetch error", { error: error?.message });
+      res.status(500).json({ error: "Failed to fetch GEX history" });
+    }
+  });
+
+  /** List all symbols with GEX history available */
+  app.get("/api/gex-history/symbols", requireBetaAccess, async (_req: any, res) => {
+    try {
+      const symbols = await storage.getGexAvailableSymbols();
+      res.json({ symbols, count: symbols.length });
+    } catch (error: any) {
+      logger.error("[GEX-HISTORY] symbols error", { error: error?.message });
+      res.status(500).json({ error: "Failed to fetch GEX history symbols" });
+    }
+  });
+
+  /** Manually trigger GEX archive (for testing) */
+  app.post("/api/gex-history/archive-now", async (_req, res) => {
+    try {
+      const { archiveGexSnapshots } = await import('./gex-history-archiver');
+      const result = await archiveGexSnapshots();
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      logger.error("[GEX-HISTORY] manual archive error", { error: error?.message });
+      res.status(500).json({ error: "Archive failed", message: error?.message });
+    }
+  });
+
+  // GEX terminal cache — serves last successful computation when market is closed
+  const gexTerminalCache = new Map<string, { data: any; cachedAt: number }>();
+  const GEX_CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
   /** Per-ticker terminal payload: snapshot + candles + orbs + heatmap + projection + peers */
   app.get("/api/gex-vex/terminal/:symbol", requireBetaAccess, async (req: any, res) => {
     try {
@@ -27625,11 +28057,19 @@ Use this checklist before entering any trade:
 
       // 1. Get GEX snapshot (spot already cross-validated in gamma-exposure)
       const gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) return res.status(503).json({
-        error: `Options data unavailable for ${symbol}`,
-        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
-        symbol,
-      });
+      if (!gex) {
+        // Serve cached data if available (weekends, after-hours)
+        const cached = gexTerminalCache.get(symbol);
+        if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
+          logger.info(`[GEX-TERMINAL] Serving cached data for ${symbol} (age: ${((Date.now() - cached.cachedAt) / 60000).toFixed(0)}m)`);
+          return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
+        }
+        return res.status(503).json({
+          error: `Options data unavailable for ${symbol}`,
+          reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+          symbol,
+        });
+      }
 
       // 2. Build unified snapshot with real VEX + dataQuality
       const baseSnapshot = toSnapshot(gex);
@@ -27781,7 +28221,7 @@ Use this checklist before entering any trade:
         }
       }
 
-      res.json({
+      const payload = {
         symbol,
         snapshot,
         candles,
@@ -27801,12 +28241,20 @@ Use this checklist before entering any trade:
           marketStatus: cq.marketStatus,
         },
         ...(futuresProxy ? { futuresProxy } : {}),
-      });
+      };
+
+      // Cache successful computation for after-hours/weekend access
+      gexTerminalCache.set(symbol, { data: payload, cachedAt: Date.now() });
+
+      res.json(payload);
     } catch (error: any) {
       logger.error("GEX/VEX terminal error", { error: error?.message, symbol: req.params.symbol });
       res.status(500).json({ error: "GEX/VEX terminal failed", message: error?.message });
     }
   });
+
+  // GEX narrative cache — serves last successful narrative when market is closed
+  const gexNarrativeCache = new Map<string, { data: any; cachedAt: number }>();
 
   /** AI-generated GEX/VEX narrative (Groq-first, cached) */
   app.get("/api/gex-vex/narrative/:symbol", requireBetaAccess, async (req: any, res) => {
@@ -27817,11 +28265,18 @@ Use this checklist before entering any trade:
       const { generateGEXNarrative, fallbackNarrative } = await import('./gex-narrative-service');
 
       const gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) return res.status(503).json({
-        error: `Options data unavailable for ${symbol}`,
-        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
-        symbol,
-      });
+      if (!gex) {
+        const cached = gexNarrativeCache.get(symbol);
+        if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
+          logger.info(`[GEX-NARRATIVE] Serving cached narrative for ${symbol}`);
+          return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
+        }
+        return res.status(503).json({
+          error: `Options data unavailable for ${symbol}`,
+          reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+          symbol,
+        });
+      }
 
       const snap = toSnapshot(gex);
 
@@ -27833,7 +28288,7 @@ Use this checklist before entering any trade:
         new Promise<string>((resolve) => setTimeout(() => resolve(immediate), 3000)),
       ]);
 
-      res.json({
+      const narrativePayload = {
         symbol,
         narrative: ai,
         fallback: immediate,
@@ -27841,7 +28296,9 @@ Use this checklist before entering any trade:
         regime: snap.regime,
         totalGEX: snap.totalGEX,
         totalVEX: snap.totalVEX,
-      });
+      };
+      gexNarrativeCache.set(symbol, { data: narrativePayload, cachedAt: Date.now() });
+      res.json(narrativePayload);
     } catch (error: any) {
       logger.error("GEX narrative error", { error: error?.message, symbol: req.params.symbol });
       res.status(500).json({ error: "GEX narrative failed", message: error?.message });
@@ -28281,8 +28738,16 @@ Use this checklist before entering any trade:
       
       const { analyzeIV } = await import("./options-quant");
       
-      // Use provided historical IVs or generate synthetic data
-      const ivHistory = historicalIVs || Array.from({ length: 252 }, () => currentIV * (0.7 + Math.random() * 0.6));
+      // No synthetic data — return empty when real IV history unavailable
+      if (!historicalIVs || historicalIVs.length === 0) {
+        return res.json({
+          currentIV,
+          ivRank: null,
+          ivPercentile: null,
+          message: 'Historical IV data required for rank/percentile calculation',
+        });
+      }
+      const ivHistory = historicalIVs;
       
       const analysis = analyzeIV(currentIV, ivHistory);
       

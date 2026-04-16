@@ -434,7 +434,7 @@ export function UniversalSearchHero({
                                   )}
                                   {result.category === 'ideas' && (
                                     <Badge variant="outline" className="text-xs">
-                                      {(result as any).confidence}%
+                                      {(result as any).confidence}pts
                                     </Badge>
                                   )}
                                 </div>

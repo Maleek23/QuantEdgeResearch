@@ -372,7 +372,7 @@ export function GlobalSearch({
                     {aiResponse.type.replace('_', ' ')}
                   </span>
                   <Badge variant="outline" className="text-[10px] ml-auto">
-                    {aiResponse.confidence}% confidence
+                    {aiResponse.confidence}pts signal strength
                   </Badge>
                 </div>
 

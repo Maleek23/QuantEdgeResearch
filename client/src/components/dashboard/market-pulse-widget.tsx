@@ -251,7 +251,7 @@ export function MarketPulseWidget() {
             transition={{ duration: 1.5, repeat: Infinity }}
           />
           <Badge className="ml-auto bg-gray-800/50 text-muted-foreground">
-            Live
+            Pulse
           </Badge>
         </CardTitle>
       </CardHeader>

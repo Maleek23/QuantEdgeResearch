@@ -55,7 +55,9 @@ export const componentStyles = {
     bearish: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--trade-bearish)]/10 border border-[var(--trade-bearish)]/25 text-[var(--trade-bearish)]',
     gold: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--brand-gold)]/10 border border-[var(--brand-gold)]/25 text-[var(--brand-gold)]',
     ai: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-violet-500/10 border border-violet-500/25 text-violet-400',
-    live: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-lime-400/10 border border-lime-400/25 text-lime-400',
+    live: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[var(--trade-bullish)]/10 border border-[var(--trade-bullish)]/25 text-[var(--trade-bullish)]',
+    delayed: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-amber-500/10 border border-amber-500/25 text-amber-400',
+    closed: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-muted/10 border border-border text-muted-foreground',
   },
 
   // Input styles

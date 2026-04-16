@@ -253,9 +253,99 @@ export async function getYahooExpirations(symbol: string): Promise<string[]> {
   }
 }
 
-// ─── Raw Yahoo Finance API fallback ──────────────────────────
+// ─── Raw Yahoo Finance API fallback (crumb-authenticated) ───
+
+let _crumb: string | null = null;
+let _cookie: string | null = null;
+let _crumbFetchedAt = 0;
+const CRUMB_TTL = 30 * 60_000; // 30 min
+
+async function fetchYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+  // Return cached if fresh
+  if (_crumb && _cookie && Date.now() - _crumbFetchedAt < CRUMB_TTL) {
+    return { crumb: _crumb, cookie: _cookie };
+  }
+  try {
+    // Step 1: Get session cookie from consent page
+    const initRes = await fetch('https://fc.yahoo.com', {
+      redirect: 'manual',
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+    });
+    const setCookies = initRes.headers.getSetCookie?.() || [];
+    const cookieStr = setCookies.map(c => c.split(';')[0]).join('; ');
+
+    // Step 2: Fetch crumb using session cookie
+    const crumbRes = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Cookie': cookieStr,
+      },
+    });
+    if (!crumbRes.ok) {
+      logger.warn(`[YAHOO-OPT] Crumb fetch failed: ${crumbRes.status}`);
+      return null;
+    }
+    const crumb = await crumbRes.text();
+    if (!crumb || crumb.includes('<') || crumb.length > 50) {
+      logger.warn(`[YAHOO-OPT] Invalid crumb response`);
+      return null;
+    }
+
+    _crumb = crumb;
+    _cookie = cookieStr;
+    _crumbFetchedAt = Date.now();
+    logger.info(`[YAHOO-OPT] Crumb acquired successfully`);
+    return { crumb, cookie: cookieStr };
+  } catch (e: any) {
+    logger.warn(`[YAHOO-OPT] Crumb acquisition error: ${e.message}`);
+    return null;
+  }
+}
 
 async function fetchYahooOptionsRaw(symbol: string, expiration?: string): Promise<any> {
+  // Try crumb-authenticated v7 first
+  const auth = await fetchYahooCrumb();
+  if (auth) {
+    try {
+      let url = `https://query2.finance.yahoo.com/v7/finance/options/${symbol}?crumb=${encodeURIComponent(auth.crumb)}`;
+      if (expiration) {
+        const epochSeconds = Math.floor(new Date(expiration + 'T16:00:00').getTime() / 1000);
+        url += `&date=${epochSeconds}`;
+      }
+
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Cookie': auth.cookie,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const result = data?.optionChain?.result?.[0];
+        if (result) {
+          logger.info(`[YAHOO-OPT] Crumb-auth raw fetch OK for ${symbol}`);
+          return {
+            expirationDates: result.expirationDates || [],
+            calls: result.options?.[0]?.calls || [],
+            puts: result.options?.[0]?.puts || [],
+            options: result.options,
+          };
+        }
+      } else {
+        logger.warn(`[YAHOO-OPT] Crumb-auth API ${res.status} for ${symbol}`);
+        // Invalidate crumb on 401 so next call re-fetches
+        if (res.status === 401 || res.status === 403) {
+          _crumb = null;
+          _cookie = null;
+        }
+      }
+    } catch (e: any) {
+      logger.warn(`[YAHOO-OPT] Crumb-auth error for ${symbol}: ${e.message}`);
+    }
+  }
+
+  // Fallback: try unauthenticated v7 (may still work in some regions)
   try {
     let url = `https://query1.finance.yahoo.com/v7/finance/options/${symbol}`;
     if (expiration) {

@@ -6,7 +6,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -15,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Home,
-  Brain,
   Star,
   Trophy,
   GraduationCap,
@@ -25,6 +23,11 @@ import {
   Activity,
   Bot,
   Flame,
+  BarChart3,
+  Grid3X3,
+  Columns3,
+  Calculator,
+  Flag,
 } from "lucide-react";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,78 +41,132 @@ interface NavItem {
   shortcut?: string;
 }
 
+interface NavSection {
+  id: string;
+  label: string;
+  icon: any;
+  items: NavItem[];
+}
+
 // ────────────────────────────────────────────────────────────────────
-// IA: three-tier sidebar
-//
-//   DISCOVERY  → how you find tickers worth attention
-//   DESTINATION → /t/:symbol owns the per-ticker analytics (no sidebar
-//                  entry — you get there from search or scanners)
-//   ACTION     → where you stage / execute / journal trades
-//
-// Removed (folded into other surfaces):
-//   • Command / GEX Scanner / Flow → merged into Scanner with filter
-//     chips. The deep chart now lives at /t/:symbol/chart.
-//   • Academy / Blog → moved to footer (learning isn't a daily action).
+// Branded sections with tree-line architecture.
+// Each section has an icon + name, sub-items connect via tree lines.
 // ────────────────────────────────────────────────────────────────────
 
-const mainItems: NavItem[] = [
-  { id: "home", title: "Home", icon: Home, href: "/home", shortcut: "G H" },
-  { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI", shortcut: "G T" },
-  { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner", shortcut: "G S" },
-  { id: "flow", title: "GEX & Flow", icon: Activity, href: "/flow", shortcut: "G F" },
-  { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist", shortcut: "G W" },
-  { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
-  { id: "performance", title: "Performance", icon: Trophy, href: "/performance", shortcut: "G P" },
+const sections: NavSection[] = [
+  {
+    id: "home",
+    label: "HOME",
+    icon: Home,
+    items: [
+      { id: "dashboard", title: "Dashboard", icon: Home, href: "/home", shortcut: "G H" },
+    ],
+  },
+  {
+    id: "alphalab",
+    label: "ALPHA LAB",
+    icon: Flame,
+    items: [
+      { id: "trade-desk", title: "Trade Desk", icon: Flame, href: "/trade-desk", badge: "AI" },
+      { id: "scanner", title: "Scanner", icon: Search, href: "/market-scanner", shortcut: "G S" },
+      { id: "bull-flag", title: "Bull Flag", icon: Flag, href: "/market-scanner?tab=bull-flag", badge: "NEW" },
+      { id: "options-analyzer", title: "Options Analyzer", icon: Calculator, href: "/options-analyzer" },
+      { id: "watchlist", title: "Watchlist", icon: Star, href: "/watchlist", shortcut: "G W" },
+      { id: "olalgo", title: "OlAlgo Bot", icon: Bot, href: "/olalgo", badge: "BOT" },
+    ],
+  },
+  {
+    id: "quantseeker",
+    label: "QUANT SEEKER",
+    icon: Activity,
+    items: [
+      { id: "gex-hub", title: "GEX Hub", icon: Activity, href: "/flow", shortcut: "G F" },
+      { id: "terminal", title: "Terminal", icon: BarChart3, href: "/terminal/SPY", shortcut: "G T" },
+      { id: "exp-index", title: "Index Mode", icon: Columns3, href: "/terminal/trinity" },
+      { id: "flow-feed", title: "Options Flow", icon: Activity, href: "/flow?tab=flow" },
+    ],
+  },
+  {
+    id: "proof",
+    label: "PROOF",
+    icon: Trophy,
+    items: [
+      { id: "performance", title: "Performance", icon: Trophy, href: "/performance", shortcut: "G P" },
+      { id: "trade-journal", title: "Trade Journal", icon: BookOpen, href: "/trade-journal", shortcut: "G J" },
+    ],
+  },
+  {
+    id: "academy",
+    label: "ACADEMY",
+    icon: GraduationCap,
+    items: [
+      { id: "academy-learn", title: "Learn", icon: GraduationCap, href: "/academy" },
+      { id: "blog", title: "Blog", icon: BookOpen, href: "/blog" },
+    ],
+  },
 ];
 
-const learnItems: NavItem[] = [
-  { id: "academy", title: "Academy", icon: GraduationCap, href: "/academy" },
-  { id: "blog", title: "Blog", icon: BookOpen, href: "/blog" },
-];
-
-function NavGroup({ items, label }: { items: NavItem[]; label?: string }) {
+function TreeNavSection({ section }: { section: NavSection }) {
   const [location] = useLocation();
+  const SectionIcon = section.icon;
 
   return (
-    <SidebarGroup>
-      {label && (
-        <SidebarGroupLabel className="text-[9px] font-mono font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/30 px-3 mb-1">
-          {label}
-        </SidebarGroupLabel>
-      )}
+    <SidebarGroup className="py-1">
+      {/* Section header with icon */}
+      <div className="flex items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:justify-center">
+        <SectionIcon className="w-3.5 h-3.5 text-sidebar-foreground/25 shrink-0" />
+        <span className="text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35 group-data-[collapsible=icon]:hidden">
+          {section.label}
+        </span>
+      </div>
+
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {section.items.map((item, idx) => {
             const isActive = location === item.href ||
               (item.href !== "/home" && location.startsWith(item.href));
+            const isLast = idx === section.items.length - 1;
 
             return (
-              <SidebarMenuItem key={item.id}>
+              <SidebarMenuItem key={item.id} className="relative">
+                {/* Tree line connector — vertical + horizontal */}
+                <div className="absolute left-[18px] top-0 bottom-0 group-data-[collapsible=icon]:hidden pointer-events-none" aria-hidden>
+                  {/* Vertical line */}
+                  {!isLast && (
+                    <div className="absolute left-0 top-0 bottom-0 w-px bg-sidebar-foreground/20" />
+                  )}
+                  {/* Vertical line (only to midpoint for last item) */}
+                  {isLast && (
+                    <div className="absolute left-0 top-0 h-1/2 w-px bg-sidebar-foreground/20" />
+                  )}
+                  {/* Horizontal branch */}
+                  <div className="absolute left-0 top-1/2 w-3 h-px bg-sidebar-foreground/20" />
+                </div>
+
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
                   isActive={isActive}
                   className={cn(
-                    "gap-2.5 px-2.5 py-2 rounded-md transition-all text-sm relative",
+                    "gap-2 pl-8 pr-2.5 py-1.5 rounded-md transition-all text-[13px] relative group-data-[collapsible=icon]:pl-2.5",
                     isActive
-                      ? "bg-[var(--brand-teal)]/8 text-[var(--brand-teal)] font-medium border-l-2 border-l-[var(--brand-teal)] rounded-l-none"
-                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 border-l-2 border-l-transparent"
+                      ? "bg-[var(--brand-teal)]/8 text-[var(--brand-teal)] font-medium"
+                      : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/40"
                   )}
                   data-testid={`nav-${item.id}`}
                 >
                   <Link href={item.href}>
-                    <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "drop-shadow-[0_0_4px_var(--brand-teal)]")} />
                     <span className="truncate">{item.title}</span>
                     {item.badge && (
                       <Badge
                         variant="outline"
-                        className="text-[8px] px-1 py-0 h-3.5 font-mono bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] border-[var(--brand-teal)]/30 ml-auto"
+                        className="text-[7px] px-1 py-0 h-3.5 font-mono bg-[var(--brand-teal)]/10 text-[var(--brand-teal)] border-[var(--brand-teal)]/30 ml-auto"
                       >
                         {item.badge}
                       </Badge>
                     )}
                     {!item.badge && item.shortcut && (
-                      <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/20 group-data-[collapsible=icon]:hidden">
+                      <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/15 group-data-[collapsible=icon]:hidden">
                         {item.shortcut}
                       </span>
                     )}
@@ -147,9 +204,10 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-1.5 py-2 space-y-1">
-        <NavGroup items={mainItems} />
-        <NavGroup items={learnItems} label="Learn" />
+      <SidebarContent className="px-1.5 py-1 space-y-0">
+        {sections.map(section => (
+          <TreeNavSection key={section.id} section={section} />
+        ))}
       </SidebarContent>
 
       {/* Footer — settings + user */}

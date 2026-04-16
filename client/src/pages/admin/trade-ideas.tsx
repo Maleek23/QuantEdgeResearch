@@ -303,7 +303,7 @@ function AdminTradeIdeasContent() {
                   <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="text-muted-foreground">Symbol</TableHead>
                     <TableHead className="text-muted-foreground">Direction</TableHead>
-                    <TableHead className="text-muted-foreground">Confidence</TableHead>
+                    <TableHead className="text-muted-foreground">Signal Strength</TableHead>
                     <TableHead className="text-muted-foreground">Source</TableHead>
                     <TableHead className="text-muted-foreground">Status</TableHead>
                     <TableHead className="text-muted-foreground">Created</TableHead>
@@ -364,7 +364,7 @@ function AdminTradeIdeasContent() {
                               />
                             </div>
                             <span className="text-sm text-foreground font-mono">
-                              {idea.confidenceScore}%
+                              {idea.confidenceScore}pts
                             </span>
                           </div>
                         </TableCell>
@@ -440,7 +440,7 @@ function AdminTradeIdeasContent() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                {ideaToDelete.confidenceScore}% confidence • {ideaToDelete.source}
+                {ideaToDelete.confidenceScore}pts signal strength • {ideaToDelete.source}
               </p>
             </div>
           )}

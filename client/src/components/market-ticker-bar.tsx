@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { cn, safeNumber, safeToFixed } from "@/lib/utils";
+import { getMarketStatus } from "@/lib/market-hours";
 import { Link } from "wouter";
 
 interface MarketQuote {
@@ -58,10 +59,17 @@ export function MarketTickerBar() {
   return (
     <div className="w-full bg-card/50 border-b border-border py-2 px-4 overflow-hidden">
       <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Activity className="h-4 w-4" />
-          <span className="text-xs font-medium whitespace-nowrap">LIVE MARKETS</span>
-        </div>
+        {(() => {
+          const market = getMarketStatus();
+          const color = market.isOpen ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground';
+          const label = market.isOpen ? 'MARKETS OPEN' : 'MARKETS CLOSED';
+          return (
+            <div className={cn("flex items-center gap-1.5", color)}>
+              <Activity className="h-4 w-4" />
+              <span className="text-xs font-medium whitespace-nowrap">{label}</span>
+            </div>
+          );
+        })()}
         {tickers.map((ticker) => (
           <Link key={ticker.symbol} href={`/chart-analysis?symbol=${ticker.symbol}`}>
             <div 

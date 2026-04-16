@@ -79,12 +79,21 @@ export function calculateExpectedReturn(trades: TradeReturn[]): ExpectedReturnMe
   // Expected Return Formula: E[R] = avgWin × P(win) - |avgLoss| × P(loss)
   const expectedReturn = (avgWin * winRate) - (Math.abs(avgLoss) * lossRate);
 
-  // Sharpe Ratio: (mean return - risk-free rate) / std dev
+  // Sharpe Ratio: annualized, with risk-free rate subtraction
+  // Formula: (mean_excess_return / std_excess_return) * sqrt(252 / avg_holding_days)
+  // Risk-free rate: 4.5% annual (T-bill proxy)
+  // Limitation: no per-trade duration data available here, so we assume 1 trading day
+  // per trade. Callers with duration data should use a duration-aware calculator.
+  const ANNUAL_RISK_FREE = 0.045;
+  const AVG_HOLDING_DAYS = 1; // conservative default — no duration data in TradeReturn
+  const riskFreePerTrade = ANNUAL_RISK_FREE * (AVG_HOLDING_DAYS / 252);
   const returns = trades.map(t => t.logReturn);
-  const meanReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / returns.length;
-  const stdDev = Math.sqrt(variance);
-  const sharpeRatio = stdDev > 0 ? (meanReturn / stdDev) : 0;
+  const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade); // log returns are *100
+  const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+  const excessVariance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
+  const excessStdDev = Math.sqrt(excessVariance);
+  const annualizationFactor = Math.sqrt(252 / AVG_HOLDING_DAYS);
+  const sharpeRatio = excessStdDev > 0 ? (meanExcess / excessStdDev) * annualizationFactor : 0;
 
   // Max Drawdown: largest peak-to-trough decline
   let maxDrawdown = 0;

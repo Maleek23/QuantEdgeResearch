@@ -108,7 +108,7 @@ function DimensionCard({ dimension, compact }: { dimension: AnalysisDimension; c
           <div className="space-y-2">
             <div className="font-semibold">{dimension.name}</div>
             <div className="text-xs text-muted-foreground">
-              Confidence: {dimension.confidence}%
+              Signal Strength: {dimension.confidence}pts
             </div>
             <div className="text-xs space-y-1">
               {dimension.factors.map((f, i) => (

@@ -197,8 +197,8 @@ function FlowTicker({ flows }: { flows: WhaleFlow[] }) {
     <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 overflow-hidden">
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-          <Activity className="w-3 h-3 animate-pulse text-cyan-400" />
-          <span>LIVE</span>
+          <Activity className="w-3 h-3 text-cyan-400" />
+          <span>FLOW</span>
         </div>
         <div className="h-4 w-px bg-gray-700" />
 

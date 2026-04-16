@@ -377,7 +377,7 @@ export function MarketMonitorSection() {
             )}
           >
             <Activity className={cn("w-3 h-3 mr-1", isConnected && "animate-pulse")} />
-            {isConnected ? "Live" : "Cached"}
+            {isConnected ? "Connected" : "Cached"}
           </Badge>
         </div>
         <Link href="/market-scanner">

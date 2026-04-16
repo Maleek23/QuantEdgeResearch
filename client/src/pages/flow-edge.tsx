@@ -125,6 +125,30 @@ interface ConvergenceSignal {
 // ═══════════════════════════════════════════════════════════════
 
 type FilterPreset = 'all' | 'large' | '0dte' | 'sweeps' | 'lotto' | 'institutional';
+type TimeRange = '1d' | '3d' | '7d' | '14d' | '30d';
+type SentimentFilter = 'all' | 'bullish' | 'bearish';
+type SortField = 'time' | 'premium' | 'volume' | 'unusual';
+
+const TIME_RANGES: { value: TimeRange; label: string }[] = [
+  { value: '1d', label: '1D' },
+  { value: '3d', label: '3D' },
+  { value: '7d', label: '7D' },
+  { value: '14d', label: '14D' },
+  { value: '30d', label: '30D' },
+];
+
+const SENTIMENT_OPTIONS: { value: SentimentFilter; label: string; color: string }[] = [
+  { value: 'all', label: 'All', color: '' },
+  { value: 'bullish', label: 'Bullish', color: 'var(--trade-bullish)' },
+  { value: 'bearish', label: 'Bearish', color: 'var(--trade-bearish)' },
+];
+
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'time', label: 'Time' },
+  { value: 'premium', label: 'Premium' },
+  { value: 'volume', label: 'Volume' },
+  { value: 'unusual', label: 'Unusual' },
+];
 
 const FILTER_PRESETS: { key: FilterPreset; label: string; params: Record<string, any> }[] = [
   { key: 'all', label: 'All Flow', params: {} },
@@ -288,17 +312,17 @@ function StatsPanel({ stats }: { stats: FlowStats }) {
     <div className="space-y-4">
       {/* Header Stats */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50">
-          <div className="text-lg font-bold text-foreground">{stats.totalTrades.toLocaleString()}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Total Trades</div>
+        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50 overflow-hidden">
+          <div className="text-lg font-bold text-foreground tabular-nums truncate">{stats.totalTrades.toLocaleString()}</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Trades</div>
         </div>
-        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50">
-          <div className="text-lg font-bold text-cyan-400">{formatPremium(stats.totalValue)}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Total Value</div>
+        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50 overflow-hidden">
+          <div className="text-lg font-bold text-cyan-400 tabular-nums truncate">{formatPremium(stats.totalValue)}</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Value</div>
         </div>
-        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50">
-          <div className="text-lg font-bold text-[var(--trade-neutral)]">{stats.peakHour}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider">Peak Hour</div>
+        <div className="bg-muted/50 rounded-lg p-3 text-center border border-border/50 overflow-hidden">
+          <div className="text-lg font-bold text-[var(--trade-neutral)] truncate">{stats.peakHour}</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Peak Hour</div>
         </div>
       </div>
 
@@ -322,14 +346,14 @@ function StatsPanel({ stats }: { stats: FlowStats }) {
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">MOST ACTIVE TICKERS</div>
           <div className="space-y-1.5">
             {stats.mostActiveTickers.slice(0, 5).map((t, i) => (
-              <div key={t.symbol} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground/70 font-mono w-4">{i + 1}</span>
-                  <span className="font-semibold text-foreground">{t.symbol}</span>
+              <div key={t.symbol} className="flex items-center justify-between text-xs min-w-0 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-muted-foreground/70 font-mono w-4 shrink-0">{i + 1}</span>
+                  <span className="font-semibold text-foreground truncate">{t.symbol}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-muted-foreground">{t.count}</span>
-                  <span className="text-muted-foreground font-mono w-16 text-right">{formatPremium(t.totalPremium)}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-muted-foreground tabular-nums">{t.count}</span>
+                  <span className="text-muted-foreground font-mono w-16 text-right tabular-nums">{formatPremium(t.totalPremium)}</span>
                 </div>
               </div>
             ))}
@@ -343,9 +367,9 @@ function StatsPanel({ stats }: { stats: FlowStats }) {
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">TOP TRADES BY VALUE</div>
           <div className="space-y-1.5">
             {stats.topTradesByValue.map((t) => (
-              <div key={t.id} className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-foreground">{t.symbol}</span>
-                <span className="text-[var(--trade-neutral)] font-mono">{formatPremium(t.totalPremium)}</span>
+              <div key={t.id} className="flex items-center justify-between text-xs min-w-0 gap-2">
+                <span className="font-semibold text-foreground truncate">{t.symbol}</span>
+                <span className="text-[var(--trade-neutral)] font-mono tabular-nums shrink-0">{formatPremium(t.totalPremium)}</span>
               </div>
             ))}
           </div>
@@ -440,11 +464,11 @@ function ConvergencePanel({ signal }: { signal: ConvergenceSignal | null }) {
 
         <Separator className="bg-muted/50" />
 
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{signal.reasoning}</p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-4">{signal.reasoning}</p>
 
-        <div className="bg-card/50 rounded p-2 border border-border/30">
+        <div className="bg-card/50 rounded p-2 border border-border/30 overflow-hidden">
           <div className="text-[10px] text-cyan-400 uppercase tracking-wider mb-1">Strategy</div>
-          <p className="text-[11px] text-foreground/80 leading-relaxed">{signal.strategy}</p>
+          <p className="text-[11px] text-foreground/80 leading-relaxed line-clamp-3">{signal.strategy}</p>
         </div>
 
         <Link href={`/gex?symbol=${signal.symbol}`}>
@@ -475,6 +499,9 @@ export default function FlowEdge() {
   const [symbol, setSymbol] = useState(initialSymbol);
   const [searchInput, setSearchInput] = useState(initialSymbol);
   const [activeFilter, setActiveFilter] = useState<FilterPreset>('all');
+  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>('all');
+  const [sortField, setSortField] = useState<SortField>('time');
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -486,12 +513,15 @@ export default function FlowEdge() {
 
   // Build query params
   const filterParams = FILTER_PRESETS.find(f => f.key === activeFilter)?.params || {};
+  const daysMap: Record<TimeRange, number> = { '1d': 1, '3d': 3, '7d': 7, '14d': 14, '30d': 30 };
   const queryParams = {
     ...filterParams,
     ...(symbol ? { symbol: symbol.toUpperCase() } : {}),
+    ...(sentimentFilter !== 'all' ? { sentiment: sentimentFilter } : {}),
+    ...(sortField !== 'time' ? { sortBy: sortField } : {}),
     limit: pageSize,
     offset: page * pageSize,
-    days: 7,
+    days: daysMap[timeRange],
   };
 
   const { data, isLoading, refetch } = useOptionsFlow(queryParams);
@@ -531,18 +561,30 @@ export default function FlowEdge() {
     <div className="min-h-screen bg-background page-atmosphere text-foreground">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 space-y-3">
 
-        {/* Header + Tab Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
-              <Activity className="w-3.5 h-3.5 text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight flex items-center gap-1.5">
-                GEX & Flow
-              </h1>
-              <p className="text-[10px] text-muted-foreground">Gamma exposure · options flow · smart money</p>
-            </div>
+        {/* Tab bar + search */}
+        <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+          <div className="flex items-center gap-1">
+            {FLOW_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <Button
+                  key={tab.key}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => switchTab(tab.key)}
+                  className={cn(
+                    "h-7 text-xs px-3 gap-1.5 rounded-md",
+                    isActive
+                      ? "bg-cyan-500/15 text-cyan-400 font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </Button>
+              );
+            })}
           </div>
 
           {/* Search (visible on flow tab) */}
@@ -573,31 +615,6 @@ export default function FlowEdge() {
           )}
         </div>
 
-        {/* Main Tab Bar */}
-        <div className="flex items-center gap-1 border-b border-border pb-2">
-          {FLOW_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
-            return (
-              <Button
-                key={tab.key}
-                size="sm"
-                variant="ghost"
-                onClick={() => switchTab(tab.key)}
-                className={cn(
-                  "h-7 text-xs px-3 gap-1.5 rounded-md",
-                  isActive
-                    ? "bg-cyan-500/15 text-cyan-400 font-medium"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {tab.label}
-              </Button>
-            );
-          })}
-        </div>
-
         {/* GEX Hub Tab — confluence scanner + sector pulse + collapsible heatmap */}
         {activeTab === 'hub' && (
           <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
@@ -615,29 +632,109 @@ export default function FlowEdge() {
         {/* Options Flow Tab (original content) */}
         {activeTab === 'flow' && <>
 
-        {/* Filter Tabs — tighter */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-          {FILTER_PRESETS.map((f) => (
-            <Button
-              key={f.key}
-              size="sm"
-              variant={activeFilter === f.key ? 'default' : 'outline'}
-              onClick={() => { setActiveFilter(f.key); setPage(0); }}
-              className={cn(
-                "h-6 text-[10px] font-mono whitespace-nowrap px-2",
-                activeFilter === f.key
-                  ? 'bg-cyan-600 hover:bg-cyan-700 text-foreground border-transparent'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-border'
-              )}
-            >
-              {f.label}
-            </Button>
-          ))}
-          {symbol && (
-            <Badge className="ml-1 text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono px-1.5">
-              {symbol}
-            </Badge>
-          )}
+        {/* Filter Controls — preset + time + sentiment + sort */}
+        <div className="space-y-2">
+          {/* Row 1: Filter presets */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+            {FILTER_PRESETS.map((f) => (
+              <Button
+                key={f.key}
+                size="sm"
+                variant={activeFilter === f.key ? 'default' : 'outline'}
+                onClick={() => { setActiveFilter(f.key); setPage(0); }}
+                className={cn(
+                  "h-6 text-[10px] font-mono whitespace-nowrap px-2",
+                  activeFilter === f.key
+                    ? 'bg-cyan-600 hover:bg-cyan-700 text-foreground border-transparent'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-border'
+                )}
+              >
+                {f.label}
+              </Button>
+            ))}
+            {symbol && (
+              <Badge className="ml-1 text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-mono px-1.5">
+                {symbol}
+              </Badge>
+            )}
+          </div>
+
+          {/* Row 2: Time range + Sentiment + Sort */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Time range */}
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50">Range</span>
+              <div className="flex gap-0.5 p-0.5 rounded-md bg-muted/30 border border-border/40">
+                {TIME_RANGES.map(tr => (
+                  <button
+                    key={tr.value}
+                    type="button"
+                    onClick={() => { setTimeRange(tr.value); setPage(0); }}
+                    className={cn(
+                      'px-1.5 py-0.5 text-[9px] font-mono font-bold rounded-sm transition-colors',
+                      timeRange === tr.value
+                        ? 'bg-cyan-500/15 text-cyan-400'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {tr.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="w-px h-4 bg-border/30" />
+
+            {/* Sentiment */}
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50">Bias</span>
+              <div className="flex gap-0.5 p-0.5 rounded-md bg-muted/30 border border-border/40">
+                {SENTIMENT_OPTIONS.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => { setSentimentFilter(s.value); setPage(0); }}
+                    className={cn(
+                      'px-1.5 py-0.5 text-[9px] font-mono font-bold rounded-sm transition-colors',
+                      sentimentFilter === s.value
+                        ? s.color ? `text-[${s.color}]` : 'bg-cyan-500/15 text-cyan-400'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    style={sentimentFilter === s.value && s.color ? {
+                      backgroundColor: `color-mix(in srgb, ${s.color} 15%, transparent)`,
+                      color: s.color,
+                    } : undefined}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="w-px h-4 bg-border/30" />
+
+            {/* Sort */}
+            <div className="flex items-center gap-1">
+              <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50">Sort</span>
+              <div className="flex gap-0.5 p-0.5 rounded-md bg-muted/30 border border-border/40">
+                {SORT_OPTIONS.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => { setSortField(s.value); setPage(0); }}
+                    className={cn(
+                      'px-1.5 py-0.5 text-[9px] font-mono font-bold rounded-sm transition-colors',
+                      sortField === s.value
+                        ? 'bg-cyan-500/15 text-cyan-400'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Main Grid */}

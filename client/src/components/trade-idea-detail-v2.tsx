@@ -5,6 +5,7 @@
  * scale-out plan, and strategy context.
  */
 
+import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Link } from "wouter";
 import {
   ArrowUpRight, ArrowDownRight, X, ExternalLink,
   CheckCircle2, AlertTriangle, MinusCircle, Zap, Clock, Target,
-  TrendingUp, Shield, BarChart3,
+  TrendingUp, Shield, BarChart3, Activity, Loader2,
 } from "lucide-react";
 import { cn, safeToFixed, formatRelativeTime } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
@@ -67,6 +68,42 @@ function parseScores(idea: TradeIdea): { tvScore: number | null; qeScore: number
 }
 
 export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
+  const [gexScanning, setGexScanning] = useState(false);
+  const [gexResult, setGexResult] = useState<{
+    candidate: {
+      setup: string;
+      direction: string;
+      entry: number;
+      target: number;
+      stop: number;
+      riskRewardRatio: number;
+      confidence: number;
+      thesis: string;
+      regime: string;
+      flipPoint: number | null;
+      callWall: number | null;
+      putWall: number | null;
+    } | null;
+    persisted: boolean;
+  } | null>(null);
+
+  const scanGex = async (symbol: string) => {
+    setGexScanning(true);
+    setGexResult(null);
+    try {
+      const res = await fetch('/api/gex-scanner/scan-ticker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGexResult(data);
+      }
+    } catch { /* silently fail */ }
+    setGexScanning(false);
+  };
+
   if (!idea) return null;
 
   const isLong = idea.direction === 'long' || idea.direction === 'LONG';
@@ -217,16 +254,16 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
             </div>
           )}
 
-          {/* No scores for non-TV ideas — show confidence only */}
+          {/* No scores for non-TV ideas — show signal strength only */}
           {!tvScore && !qeScore && (
             <div>
-              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Confidence</h3>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Signal Strength</h3>
               <div className="flex items-center gap-3">
                 <div className={cn(
                   "text-2xl font-bold font-mono",
                   confidence >= 80 ? "text-[var(--trade-bullish)]" : confidence >= 65 ? "text-[var(--trade-neutral)]" : "text-muted-foreground"
                 )}>
-                  {Math.round(confidence)}%
+                  {Math.round(confidence)}pts
                 </div>
                 <span className="text-xs text-muted-foreground">from calibration engine (historical WR + R:R + signals)</span>
               </div>
@@ -302,20 +339,103 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
             </div>
           </div>
 
+          {/* ON-DEMAND GEX SCAN RESULT */}
+          {gexResult && gexResult.candidate && (
+            <div>
+              <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">
+                GEX Setup Found
+              </h3>
+              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge className="text-[10px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                    {gexResult.candidate.setup.replace('_', ' ').toUpperCase()}
+                  </Badge>
+                  <Badge className={cn(
+                    "text-[10px] border",
+                    gexResult.candidate.direction === 'long'
+                      ? "bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30"
+                      : "bg-red-500/15 text-[var(--trade-bearish)] border-red-500/30"
+                  )}>
+                    {gexResult.candidate.direction.toUpperCase()}
+                  </Badge>
+                  <Badge className="text-[10px] bg-white/5 text-muted-foreground border border-border/50">
+                    {gexResult.candidate.regime?.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <p className="text-xs text-foreground/70 leading-relaxed">{gexResult.candidate.thesis}</p>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div className="text-center">
+                    <span className="text-muted-foreground block text-[9px]">Entry</span>
+                    <span className="font-mono font-medium">${gexResult.candidate.entry.toFixed(2)}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[var(--trade-bullish)] block text-[9px]">Target</span>
+                    <span className="font-mono text-[var(--trade-bullish)]">${gexResult.candidate.target.toFixed(2)}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[var(--trade-bearish)] block text-[9px]">Stop</span>
+                    <span className="font-mono text-[var(--trade-bearish)]">${gexResult.candidate.stop.toFixed(2)}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-cyan-400 block text-[9px]">R:R</span>
+                    <span className="font-mono text-cyan-400">{gexResult.candidate.riskRewardRatio}:1</span>
+                  </div>
+                </div>
+                {/* GEX Levels */}
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                  {gexResult.candidate.flipPoint && (
+                    <span>Flip: <span className="font-mono text-foreground/70">${gexResult.candidate.flipPoint.toFixed(2)}</span></span>
+                  )}
+                  {gexResult.candidate.callWall && (
+                    <span>Call Wall: <span className="font-mono text-emerald-400">${gexResult.candidate.callWall.toFixed(2)}</span></span>
+                  )}
+                  {gexResult.candidate.putWall && (
+                    <span>Put Wall: <span className="font-mono text-red-400">${gexResult.candidate.putWall.toFixed(2)}</span></span>
+                  )}
+                </div>
+                {gexResult.persisted && (
+                  <div className="text-[10px] text-[var(--trade-bullish)] flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Saved as trade idea
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {gexResult && !gexResult.candidate && (
+            <div className="text-xs text-muted-foreground/60 flex items-center gap-2 py-2">
+              <Activity className="w-3 h-3" />
+              No active GEX setup for {idea.symbol} right now (no flip cross, wall pin, or squeeze break)
+            </div>
+          )}
+
           {/* ACTIONS */}
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center gap-2 pt-2 flex-wrap">
             <Link href={`/stock/${idea.symbol}`}>
               <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <ExternalLink className="w-3 h-3 mr-1.5" />
                 Full Analysis
               </Button>
             </Link>
-            <Link href={`/gex?symbol=${idea.symbol}`}>
+            <Link href={`/flow?tab=hub&symbol=${idea.symbol}`}>
               <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <BarChart3 className="w-3 h-3 mr-1.5" />
                 GEX Profile
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50"
+              onClick={() => scanGex(idea.symbol)}
+              disabled={gexScanning}
+            >
+              {gexScanning ? (
+                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+              ) : (
+                <Activity className="w-3 h-3 mr-1.5" />
+              )}
+              {gexScanning ? 'Scanning...' : 'Scan GEX'}
+            </Button>
           </div>
         </div>
       </DialogContent>

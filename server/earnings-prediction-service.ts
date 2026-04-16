@@ -94,6 +94,7 @@ export interface EarningsPrediction {
   // Metadata
   analysisTimestamp: string;
   dataQuality: "high" | "medium" | "low";
+  synthetic?: boolean; // true when surprise history is fabricated/unavailable
 }
 
 // ===================
@@ -188,34 +189,12 @@ function generateTacticalStrategies(
 }
 
 /**
- * Simulate historical earnings surprises (would be replaced with real data)
+ * Stub: Returns empty earnings history.
+ * In production, this would fetch real earnings history from FMP, Alpha Vantage, or similar.
  */
-function simulateHistoricalSurprises(symbol: string): EarningsSurprise[] {
-  // In production, this would fetch real earnings history from FMP, Alpha Vantage, or similar
-  const quarters = ["2025-Q3", "2025-Q2", "2025-Q1", "2024-Q4", "2024-Q3", "2024-Q2"];
-
-  // Simulate realistic patterns
-  const baseEPS = 1.5 + Math.random() * 2;
-  const surprises: EarningsSurprise[] = [];
-
-  quarters.forEach((quarter, i) => {
-    const expected = baseEPS * (1 + i * 0.05);
-    const surpriseRange = Math.random() > 0.6 ? 5 + Math.random() * 10 : -5 - Math.random() * 5;
-    const actual = expected * (1 + surpriseRange / 100);
-    const priceReaction = surpriseRange > 0
-      ? 2 + Math.random() * 6
-      : -2 - Math.random() * 8;
-
-    surprises.push({
-      date: quarter,
-      expectedEPS: parseFloat(expected.toFixed(2)),
-      actualEPS: parseFloat(actual.toFixed(2)),
-      surprise: parseFloat(surpriseRange.toFixed(1)),
-      priceReaction: parseFloat(priceReaction.toFixed(1)),
-    });
-  });
-
-  return surprises;
+function simulateHistoricalSurprises(_symbol: string): EarningsSurprise[] {
+  // No real data source available — return empty instead of fabricating EPS data
+  return [];
 }
 
 // ===================
@@ -246,17 +225,17 @@ export async function generateEarningsPrediction(
     let lows: number[] = [];
 
     try {
-      const history = await getTradierHistoryOHLC(symbol, "daily", 60);
-      if (history && history.length > 0) {
-        closes = history.map((d: any) => d.close);
-        highs = history.map((d: any) => d.high);
-        lows = history.map((d: any) => d.low);
+      const history = await getTradierHistoryOHLC(symbol, 60);
+      if (history && history.closes.length > 0) {
+        closes = history.closes;
+        highs = history.highs;
+        lows = history.lows;
       }
     } catch (e) {
       // Fallback to market-api
-      const fallback = await fetchHistoricalPrices(symbol, 60);
-      if (fallback.prices) {
-        closes = fallback.prices;
+      const fallback = await fetchHistoricalPrices(symbol, 'stock', 60);
+      if (Array.isArray(fallback)) {
+        closes = fallback;
       }
     }
 
@@ -285,12 +264,13 @@ export async function generateEarningsPrediction(
       else if (bearPoints > bullPoints + 1) technicalSignal = "bearish";
     }
 
-    // Generate historical surprises (simulated - would be real data in production)
+    // Historical surprises — empty until real data source (FMP/Alpha Vantage) integrated
     const surpriseHistory = simulateHistoricalSurprises(symbol);
     const beatsCount = surpriseHistory.filter((s) => s.surprise > 0).length;
-    const beatRate = (beatsCount / surpriseHistory.length) * 100;
-    const averageSurprise =
-      surpriseHistory.reduce((sum, s) => sum + s.surprise, 0) / surpriseHistory.length;
+    const beatRate = surpriseHistory.length > 0 ? (beatsCount / surpriseHistory.length) * 100 : 50; // default 50% when no history
+    const averageSurprise = surpriseHistory.length > 0
+      ? surpriseHistory.reduce((sum, s) => sum + s.surprise, 0) / surpriseHistory.length
+      : 0;
 
     // Calculate historical volatility for implied move
     let historicalVolatility = 30; // default
@@ -311,18 +291,18 @@ export async function generateEarningsPrediction(
 
     if (beatRate >= 80 && technicalSignal === "bullish") {
       prediction = "strong_beat";
-      confidence = 75 + Math.random() * 10;
+      confidence = 78; // Fixed confidence — no random noise
     } else if (beatRate >= 65 || technicalSignal === "bullish") {
       prediction = "beat";
-      confidence = 60 + Math.random() * 15;
+      confidence = 65;
     } else if (beatRate < 40 && technicalSignal === "bearish") {
       prediction = "strong_miss";
-      confidence = 65 + Math.random() * 10;
+      confidence = 68;
     } else if (beatRate < 50 || technicalSignal === "bearish") {
       prediction = "miss";
-      confidence = 55 + Math.random() * 15;
+      confidence = 60;
     } else {
-      confidence = 50 + Math.random() * 15;
+      confidence = 55;
     }
 
     // Calculate implied move
@@ -455,6 +435,7 @@ export async function generateEarningsPrediction(
       impliedMove: parseFloat(impliedMove.toFixed(1)),
       analysisTimestamp: new Date().toISOString(),
       dataQuality: closes.length >= 50 ? "high" : closes.length >= 20 ? "medium" : "low",
+      synthetic: surpriseHistory.length === 0, // No real earnings history available
     };
 
     logger.info(

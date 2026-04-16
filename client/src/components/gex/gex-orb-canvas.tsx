@@ -405,7 +405,7 @@ export function GEXOrbCanvas({
       ctx.shadowBlur = 4;
       ctx.fillStyle = hexAlpha(color, 0.9);
       const pctTxt = orb.gammaPct > 0 ? `${(orb.gammaPct * 100).toFixed(0)}%` : '';
-      const label = pctTxt ? `${Math.round(orb.strike)} · ${pctTxt}` : `${Math.round(orb.strike)}`;
+      const label = pctTxt ? `${Math.round(orb.strike)} — ${pctTxt}` : `${Math.round(orb.strike)}`;
       // 64px inward from the right edge — leaves room for the native
       // lightweight-charts price axis (~56px wide) without collision.
       ctx.fillText(label, w - 68, y);

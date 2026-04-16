@@ -34,7 +34,33 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UniversalSearchHero } from "@/components/universal-search-hero";
 import { useAuth } from "@/hooks/useAuth";
+import { getMarketStatus } from "@/lib/market-hours";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+
+/** Tiny market-status badge for the nav header — replaces hardcoded "LIVE" */
+function MarketStatusBadge() {
+  const status = getMarketStatus();
+  if (status.isOpen) {
+    return (
+      <Badge
+        variant="outline"
+        className="hidden sm:flex border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] text-[9px] px-1.5 py-0 h-5 font-mono"
+      >
+        <div className="w-1 h-1 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1" />
+        MARKET OPEN
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="hidden sm:flex border-border/30 bg-muted/10 text-muted-foreground text-[9px] px-1.5 py-0 h-5 font-mono"
+    >
+      <div className="w-1 h-1 rounded-full bg-muted-foreground mr-1" />
+      CLOSED
+    </Badge>
+  );
+}
 
 interface NavTab {
   label: string;
@@ -283,14 +309,8 @@ export function GlassHeader() {
                 <UniversalSearchHero variant="default" placeholder="Search..." />
               </div>
 
-              {/* Live Badge */}
-              <Badge
-                variant="outline"
-                className="hidden sm:flex border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] text-[9px] px-1.5 py-0 h-5 font-mono"
-              >
-                <div className="w-1 h-1 rounded-full bg-[var(--trade-bullish)] animate-pulse mr-1" />
-                LIVE
-              </Badge>
+              {/* Market Status Badge */}
+              <MarketStatusBadge />
 
               {/* Quick Links */}
               <Link href="/performance">

@@ -66,7 +66,7 @@ export function WaitlistPromptModal({
     {
       icon: Sparkles,
       title: "Apply for Beta",
-      description: "Get unlimited access to trade ideas, 6-engine analysis & more",
+      description: "Get unlimited access to trade ideas, 6-layer analysis & more",
       color: "text-purple-400",
       bgColor: "bg-purple-500/10",
     },

@@ -137,7 +137,7 @@ function aggregateGex(data: GEXHeatmapData): Map<number, number> {
 
 function getMaxAbs(agg: Map<number, number>): number {
   let max = 0;
-  for (const v of agg.values()) { if (Math.abs(v) > max) max = Math.abs(v); }
+  Array.from(agg.values()).forEach(v => { if (Math.abs(v) > max) max = Math.abs(v); });
   return max;
 }
 
@@ -149,7 +149,7 @@ function computeKeyLevels(data: GEXHeatmapData): GEXKeyLevels {
   const { spotPrice, strikes, expirations, flipPoint, maxGammaStrike } = data;
   const agg = aggregateGex(data);
 
-  const ranked = [...agg.entries()]
+  const ranked = Array.from(agg.entries())
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .filter(([s]) => s !== maxGammaStrike)
     .slice(0, 3)
@@ -160,7 +160,7 @@ function computeKeyLevels(data: GEXHeatmapData): GEXKeyLevels {
   const nearSpotGex = strikes
     .filter(s => Math.abs(s - spotPrice) / spotPrice < 0.02)
     .reduce((sum, s) => sum + Math.abs(agg.get(s) || 0), 0);
-  const totalGex = [...agg.values()].reduce((sum, v) => sum + Math.abs(v), 0);
+  const totalGex = Array.from(agg.values()).reduce((sum, v) => sum + Math.abs(v), 0);
   const concentration = totalGex > 0 ? nearSpotGex / totalGex : 0;
   const gexRating = Math.min(5, Math.max(1, Math.round(concentration * 10 + 1)));
 
@@ -362,11 +362,11 @@ function HeatmapPanel({ data }: { data: GEXHeatmapData }) {
                       isMaxGamma ? "bg-card text-white" :
                       "bg-card text-foreground/80"
                     )}>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1 truncate">
                         {isSpot && <Star className="w-3 h-3 text-[var(--trade-neutral)] flex-shrink-0" />}
                         {isFlip && !isSpot && <Zap className="w-3 h-3 text-violet-400 flex-shrink-0" />}
                         {isMaxGamma && !isSpot && !isFlip && <Crosshair className="w-3 h-3 text-[var(--trade-bullish)] flex-shrink-0" />}
-                        ${strike}
+                        <span className="tabular-nums">${strike}</span>
                       </div>
                     </td>
                     {expirations.map(exp => {
@@ -406,14 +406,14 @@ function KeyLevelsPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKey
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-3 space-y-3">
-        <div className="flex items-center gap-4">
-          <div>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="min-w-0">
             <div className="text-[9px] text-muted-foreground uppercase">Anchor</div>
-            <div className="text-2xl font-mono font-black text-[var(--trade-bullish)]">${levels.anchor}</div>
+            <div className="text-2xl font-mono font-black text-[var(--trade-bullish)] tabular-nums truncate">${levels.anchor}</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-[9px] text-muted-foreground uppercase">Flip</div>
-            <div className="text-2xl font-mono font-black text-violet-400">
+            <div className="text-2xl font-mono font-black text-violet-400 tabular-nums truncate">
               {levels.flip ? `$${levels.flip}` : 'N/A'}
             </div>
           </div>
@@ -464,12 +464,12 @@ function AIAnalysisPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKe
   const { spotPrice } = data;
   const agg = aggregateGex(data);
 
-  const supportWalls = [...agg.entries()]
+  const supportWalls = Array.from(agg.entries())
     .filter(([s, v]) => v > 0 && s <= spotPrice)
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .slice(0, 2).map(([s]) => s);
 
-  const resistWalls = [...agg.entries()]
+  const resistWalls = Array.from(agg.entries())
     .filter(([s, v]) => v < 0 && s >= spotPrice)
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .slice(0, 2).map(([s]) => s);
@@ -493,7 +493,7 @@ function AIAnalysisPanel({ data, levels }: { data: GEXHeatmapData; levels: GEXKe
       <CardContent className="px-4 pb-3 space-y-3">
         <div>
           <div className="text-xs font-bold text-foreground/80 mb-1">Outlook</div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">{outlook}</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-4">{outlook}</p>
         </div>
 
         <Separator className="bg-muted/50" />
@@ -561,7 +561,7 @@ function GammaWallsPanel({ data }: { data: GEXHeatmapData }) {
   const maxAbs = getMaxAbs(agg);
   const { maxGammaStrike, flipPoint, spotPrice } = data;
 
-  const walls = [...agg.entries()]
+  const walls = Array.from(agg.entries())
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
     .slice(0, 6);
 
@@ -597,7 +597,7 @@ function GammaWallsPanel({ data }: { data: GEXHeatmapData }) {
                     )}
                     style={{ width: `${Math.max(pct * 100, 4)}%` }}
                   />
-                  <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-white/80">
+                  <span className="absolute inset-0 flex items-center px-2 text-[10px] font-mono text-white/80 truncate">
                     {formatGexValue(gex)}
                   </span>
                 </div>
@@ -715,7 +715,7 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
                 )}
               </div>
 
-              <p className="text-[10px] text-muted-foreground leading-relaxed">{sig.reasoning}</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">{sig.reasoning}</p>
             </CardContent>
           </Card>
         ))}

@@ -629,7 +629,7 @@ async function getMLConfidenceEnhancement(
       return { boost: 0, signal: null };
     }
     
-    const volumes = priceData.map(() => 1000000 + Math.random() * 500000);
+    const volumes: number[] = []; // No fake volume data — ML service handles missing volumes
     const mlPrediction = await predictPriceDirection(symbol, priceData, volumes, '1d');
     
     const mlDirection = mlPrediction.direction;

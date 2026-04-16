@@ -209,7 +209,7 @@ function ThisWeekTab() {
               <WifiOff className="w-3 h-3 text-muted-foreground" />
             )}
             <span className={cn("text-[10px] font-mono", connected ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>
-              {connected ? "LIVE" : "OFFLINE"}
+              {connected ? "CONNECTED" : "OFFLINE"}
             </span>
           </div>
         </div>

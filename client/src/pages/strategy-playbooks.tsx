@@ -48,7 +48,7 @@ const strategies = [
   {
     id: "best-setups",
     title: "AI Stock Picker",
-    description: "AI-selected daily top stocks with highest conviction based on 6-engine analysis",
+    description: "AI-selected daily top stocks with highest conviction based on 6-layer analysis",
     icon: TrendingUp,
     iconColor: "text-[var(--trade-bullish)]",
     performance: { winRate: 68.5, annualizedReturn: 156, sharpeRatio: 1.82 },

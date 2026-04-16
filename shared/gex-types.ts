@@ -95,7 +95,7 @@ export interface ConfluenceBreakdown {
 /** Scanner output row — one per watchlist ticker */
 export interface ConfluenceRow {
   symbol: string;
-  tier: 'S' | 'A' | 'INDEX' | 'SECONDARY' | null;
+  tier: 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDARY' | 'SMALL' | null;
   spotPrice: number;
   change: number;
   changePct: number;
@@ -173,7 +173,7 @@ export interface RegimeDistribution {
 /** Compact row used by hub leaderboards */
 export interface HubLeaderRow {
   symbol: string;
-  tier: 'S' | 'A' | 'INDEX' | 'SECONDARY' | null;
+  tier: 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDARY' | 'SMALL' | null;
   spotPrice: number;
   changePct: number;
   totalGEX: number;
@@ -208,6 +208,60 @@ export interface GEXHubData {
   /** Single-line market-wide summary */
   marketNetGEX: number;
   marketNetVEX: number;
+
+  /** Top actionable plays ranked by dealer positioning quality */
+  topPlays: TopPlay[];
+
+  /** Current market session */
+  session?: 'pre_market' | 'open' | 'after_hours' | 'overnight';
+
+  /** Futures proxy snapshots for off-hours context */
+  futures?: Array<{
+    symbol: string;
+    name: string;
+    price: number;
+    change: number;
+    changePct: number;
+    fetchedAt: number;
+  }>;
+}
+
+// ─────────────────────────────────────────────────────────────
+// TOP PLAYS — actionable setups ranked by dealer positioning
+// ─────────────────────────────────────────────────────────────
+
+/** VEX signal classification */
+export type VEXSignal = 'positive_rare' | 'negative_explosive' | 'negative_strong' | 'mild';
+
+/** A single actionable play derived from GEX/VEX positioning */
+export interface TopPlay {
+  symbol: string;
+  sector: string;
+  spotPrice: number;
+
+  // Positioning
+  gammaFlip: number | null;
+  flipDistancePct: number;       // % distance from spot to flip (negative = above flip)
+  isAboveFlip: boolean;
+  callWall: number | null;
+  putWall: number | null;
+
+  // Exposures
+  totalGEX: number;
+  totalVEX: number;
+  vexSignal: VEXSignal;
+  regime: ConfluenceRow['regime'];
+  isNegativeGamma: boolean;
+
+  // Play quality
+  playScore: number;             // 0-100, higher = better setup
+  conviction: 'high' | 'medium' | 'low';
+  bias: 'long' | 'short' | 'neutral';
+  target: number | null;
+  stop: number | null;
+
+  // Plain English
+  insight: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -248,6 +302,15 @@ export interface HeatmapCell {
   side: 'call' | 'put' | 'neutral';
 }
 
+/** Strike × Expiration cell for the Skylit-style heatmap matrix */
+export interface StrikeExpiryCell {
+  strike: number;
+  expiryLabel: string;  // e.g. "APR 14"
+  dte: number;
+  netGEX: number;       // in billions
+  netVEX: number;       // in billions
+}
+
 /** Projection arc — curve from spot to magnet target */
 export interface ProjectionArc {
   startPrice: number;
@@ -266,6 +329,8 @@ export interface GEXTerminalData {
   candles: GEXCandle[];
   orbs: GEXOrb[];
   heatmap: HeatmapCell[];
+  /** Strike × Expiration matrix for Skylit-style heatmap grid */
+  strikeExpiryMatrix?: StrikeExpiryCell[];
   projection: ProjectionArc | null;
   /** Adjacent tickers for right-rail context (same sector / watchlist peers) */
   peers: Array<{
@@ -285,6 +350,16 @@ export interface GEXTerminalData {
     isStale: boolean;
     hasDisagreement: boolean;
     marketStatus: 'live' | 'closed' | 'premarket' | 'afterhours';
+  };
+  /** Futures proxy data — shown when equity market is closed */
+  futuresProxy?: {
+    futuresSymbol: string;
+    futuresPrice: number;
+    equityClose: number;
+    impliedGap: number;
+    impliedGapPct: number;
+    label: string;
+    fetchedAt: number;
   };
 }
 
@@ -329,10 +404,70 @@ export function gexToIntensity(gex: number, maxAbs: number): number {
   return Math.min(1, Math.log1p(normalized * 9) / Math.log(10));
 }
 
+// ─────────────────────────────────────────────────────────────
+// WEEKLY PATH PROJECTION TYPES
+// ─────────────────────────────────────────────────────────────
+
+export interface WeeklyPathLevel {
+  price: number;
+  label: string;
+  type: 'pivot' | 'wall' | 'threshold' | 'trigger' | 'target';
+  side: 'bull' | 'bear' | 'neutral';
+}
+
+export interface WeeklyPathPoint {
+  dayOffset: number;
+  intraday: number;
+  price: number;
+  confidence: number;
+}
+
+export interface WeeklyPhase {
+  label: string;
+  description: string;
+  startDay: number;
+  endDay: number;
+  type: 'flush' | 'squeeze' | 'drift' | 'breakout';
+  vannaRegime: 'negative' | 'positive' | 'neutral';
+  volBias: 'expanding' | 'compressing' | 'stable';
+}
+
+export interface WeeklyEntryZone {
+  label: string;
+  type: 'long_call' | 'long_put';
+  priceMin: number;
+  priceMax: number;
+  dayStart: number;
+  dayEnd: number;
+  reasoning: string;
+}
+
+export interface WeeklyPathProjection {
+  symbol: string;
+  spotPrice: number;
+  weekStart: string;
+  weekEnd: string;
+  generatedAt: number;
+  levels: WeeklyPathLevel[];
+  path: WeeklyPathPoint[];
+  phases: WeeklyPhase[];
+  entryZones: WeeklyEntryZone[];
+  regime: string;
+  vexRegime: string;
+  netGEX: number;
+  netVEX: number;
+  confidence: number;
+}
+
 /** Format GEX in billions with sign */
 export function formatGEX(gex: number): string {
   const sign = gex >= 0 ? '+' : '−';
-  return `${sign}$${Math.abs(gex).toFixed(2)}B`;
+  const abs = Math.abs(gex);
+  if (abs >= 1) return `${sign}$${abs.toFixed(2)}B`;
+  if (abs >= 0.001) return `${sign}$${(abs * 1000).toFixed(1)}M`;
+  if (abs >= 0.000001) return `${sign}$${(abs * 1_000_000).toFixed(0)}K`;
+  if (abs === 0) return '$0';
+  return `${sign}$${(abs * 1_000_000).toFixed(1)}K`;
 }
 
 /** Format a percentage of total gamma */

@@ -75,9 +75,8 @@ function generateMockPrice(rootSymbol: string): number {
   const basePrice = MOCK_PRICES[rootSymbol] || 100;
   const fluctuation = PRICE_FLUCTUATIONS[rootSymbol] || 1;
 
-  // Add random fluctuation: +/- fluctuation range
-  const randomFluctuation = (Math.random() * 2 - 1) * fluctuation;
-  const price = basePrice + randomFluctuation;
+  // No random fluctuation — return static base price until real feed available
+  const price = basePrice;
 
   // Tick sizes by product type
   const tickSizes: Record<string, number> = {

@@ -18,6 +18,7 @@ import {
   Activity,
   ExternalLink,
   Crosshair,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -235,6 +236,19 @@ function fmtPrice(n: number | null | undefined): string {
   return `$${n.toFixed(3)}`;
 }
 
+function humanHold(hp: string | undefined | null): string {
+  const h = (hp || "").toLowerCase();
+  if (h === "0dte" || h.includes("0dte")) return "0DTE";
+  if (h === "1dte" || h.includes("1dte")) return "1DTE";
+  if (h.includes("scalp")) return "0DTE";
+  if (h.includes("intraday") || h === "day") return "1–2 days";
+  if (h === "swing") return "1–2 weeks";
+  if (h.includes("position")) return "4–8 weeks";
+  if (h.includes("long") || h.includes("leap")) return "3+ months";
+  if (!hp) return "";
+  return hp.toUpperCase();
+}
+
 function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
   if (idea.convictionBand) return idea.convictionBand;
   // fall back to probabilityBand
@@ -243,6 +257,46 @@ function bandFromIdea(idea: TradeIdeaCardData): "S" | "A" | "B" | "C" {
   if (pb.startsWith("B")) return "B";
   if (pb.startsWith("C")) return "C";
   return "C";
+}
+
+/**
+ * Compute live R:R from current price vs. the original trade plan.
+ * Returns null when live price is unavailable or matches entry.
+ */
+function computeLiveRR(idea: TradeIdeaCardData): {
+  liveRR: number;
+  degraded: boolean;   // live R:R < 50% of original
+  color: string;       // tailwind text color class
+  label: string;       // formatted "1.2x"
+} | null {
+  const lp = idea.livePrice;
+  if (lp == null || !Number.isFinite(lp)) return null;
+  // Skip if live price essentially equals entry (within 0.1%)
+  if (Math.abs(lp - idea.entryPrice) / idea.entryPrice < 0.001) return null;
+
+  const isLong = idea.direction === "long";
+  const upside = isLong ? idea.targetPrice - lp : lp - idea.targetPrice;
+  const downside = isLong ? lp - idea.stopLoss : idea.stopLoss - lp;
+
+  // If stop already breached, R:R is meaningless — flag as 0
+  const liveRR = downside > 0 ? upside / downside : 0;
+  const clampedRR = Math.max(0, liveRR);
+
+  const degraded =
+    idea.riskRewardRatio > 0 && clampedRR < idea.riskRewardRatio * 0.5;
+
+  let color: string;
+  if (clampedRR <= 0)       color = "text-red-400";
+  else if (clampedRR < 1.0) color = "text-red-400";
+  else if (clampedRR >= 1.5) color = "text-emerald-400";
+  else                       color = "text-muted-foreground";
+
+  return {
+    liveRR: clampedRR,
+    degraded,
+    color,
+    label: `${clampedRR.toFixed(1)}×`,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -588,50 +642,61 @@ function FullVariant({
           )}
           <FreshnessPill idea={idea} />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div
+          className="text-right flex-shrink-0"
+          title={`Conviction score ${score} (${grade})`}
+        >
           <div
             className={cn(
-              "px-2 py-1 rounded border text-[10px] font-mono font-bold",
-              band.color,
-              band.border,
+              "px-2.5 py-1 text-lg font-bold font-mono leading-none rounded border tabular-nums",
+              gradeColorClass(grade),
             )}
           >
-            {band.label}
+            {grade}
           </div>
-          <div
-            className="text-right"
-            title={`Conviction score ${score} (${grade})`}
-          >
-            <div
-              className={cn(
-                "px-2 py-0.5 text-2xl font-bold font-mono leading-none rounded border tabular-nums",
-                gradeColorClass(grade),
-              )}
-            >
-              {grade}
-            </div>
-            <div className="text-[8px] font-mono uppercase text-muted-foreground mt-0.5">
-              grade · {score}
-            </div>
+          <div className="text-[8px] font-mono text-muted-foreground/60 mt-1 tabular-nums">
+            {score}pts
           </div>
         </div>
       </div>
 
       {/* Trade plan strip */}
-      <div className="grid grid-cols-4 gap-2 mb-3 pb-3 border-b border-foreground/[0.06]">
-        <PriceCell label="Entry" value={fmtPrice(idea.entryPrice)} tone="neutral" />
-        <PriceCell label="Target" value={fmtPrice(idea.targetPrice)} tone="positive" />
-        <PriceCell label="Stop" value={fmtPrice(idea.stopLoss)} tone="negative" />
-        <PriceCell label="R:R" value={`${idea.riskRewardRatio.toFixed(1)}×`} tone="cyan" />
-      </div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return (
+          <div className="grid grid-cols-4 gap-2 mb-3 pb-3 border-b border-foreground/[0.06]">
+            <PriceCell label="Entry" value={fmtPrice(idea.entryPrice)} tone="neutral" />
+            <PriceCell label="Target" value={fmtPrice(idea.targetPrice)} tone="positive" />
+            <PriceCell label="Stop" value={fmtPrice(idea.stopLoss)} tone="negative" />
+            {live ? (
+              <div>
+                <div className="text-[8px] font-mono uppercase text-muted-foreground flex items-center gap-1">
+                  Live R:R
+                  {live.degraded && (
+                    <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                  )}
+                </div>
+                <div className={cn("text-sm font-mono font-semibold tabular-nums", live.color)}>
+                  {live.label}
+                </div>
+                <div className="text-[8px] font-mono text-muted-foreground/50 tabular-nums line-through">
+                  {idea.riskRewardRatio.toFixed(1)}×
+                </div>
+              </div>
+            ) : (
+              <PriceCell label="R:R" value={`${idea.riskRewardRatio.toFixed(1)}×`} tone="cyan" />
+            )}
+          </div>
+        );
+      })()}
 
-      {/* Live price strip */}
+      {/* Current price strip */}
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
             <Activity className="w-3 h-3 text-cyan-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Live
+              Current
             </span>
             <span className="font-mono font-bold text-sm text-foreground tabular-nums">
               {fmtPrice(idea.livePrice)}
@@ -686,14 +751,14 @@ function FullVariant({
       )}
 
       {/* Meta footer */}
-      <div className="flex items-center justify-between mt-3 pt-2 border-t border-foreground/[0.06] text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between mt-3 pt-2 border-t border-foreground/[0.06] text-[10px] text-muted-foreground font-mono">
         <div className="flex items-center gap-2">
           {idea.holdingPeriod && (
-            <span className="uppercase tracking-wider">{idea.holdingPeriod}</span>
+            <span className="uppercase tracking-wider">{humanHold(idea.holdingPeriod)}</span>
           )}
           {idea.source && (
             <>
-              <span className="opacity-50">·</span>
+              <span className="opacity-40">·</span>
               <span className="uppercase tracking-wider truncate max-w-[100px]">
                 {idea.source.replace(/_/g, " ")}
               </span>
@@ -703,7 +768,7 @@ function FullVariant({
         <Link
           href={`/terminal/${idea.symbol}`}
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-foreground/10 text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
         >
           Chart <ExternalLink className="w-2.5 h-2.5" />
         </Link>
@@ -759,43 +824,49 @@ function CompactVariant({
           <DirIcon className={cn("w-3.5 h-3.5", dirColor)} />
           <FreshnessPill idea={idea} />
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span
-            className={cn(
-              "px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold",
-              band.color,
-              band.border,
-            )}
-          >
-            {band.label}
-          </span>
-          <span
-            className={cn(
-              "px-1.5 py-0.5 rounded border text-xs font-bold font-mono leading-none",
-              gradeColorClass(grade),
-            )}
-            title={`Conviction score ${score} (${grade})`}
-          >
-            {grade}
-          </span>
-        </div>
+        <span
+          className={cn(
+            "px-1.5 py-0.5 rounded border text-xs font-bold font-mono leading-none flex-shrink-0",
+            gradeColorClass(grade),
+          )}
+          title={`Conviction score ${score} (${grade})`}
+        >
+          {grade}
+        </span>
       </div>
 
       {/* Mini trade plan */}
-      <div className="grid grid-cols-3 gap-1.5 mb-2 text-[10px] font-mono">
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">Entry</div>
-          <div className="text-foreground font-semibold">{fmtPrice(idea.entryPrice)}</div>
-        </div>
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">Tgt</div>
-          <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
-        </div>
-        <div>
-          <div className="text-[8px] uppercase text-muted-foreground">R:R</div>
-          <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
-        </div>
-      </div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return (
+          <div className="grid grid-cols-3 gap-1.5 mb-2 text-[10px] font-mono">
+            <div>
+              <div className="text-[8px] uppercase text-muted-foreground">Entry</div>
+              <div className="text-foreground font-semibold">{fmtPrice(idea.entryPrice)}</div>
+            </div>
+            <div>
+              <div className="text-[8px] uppercase text-muted-foreground">Tgt</div>
+              <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
+            </div>
+            {live ? (
+              <div>
+                <div className="text-[8px] uppercase text-muted-foreground flex items-center gap-0.5">
+                  Live R:R
+                  {live.degraded && <AlertTriangle className="w-2 h-2 text-amber-400" />}
+                </div>
+                <div className={cn("font-semibold", live.color)}>
+                  {live.label}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-[8px] uppercase text-muted-foreground">R:R</div>
+                <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Layer chips row */}
       {idea.layers && idea.layers.length > 0 && (
@@ -879,14 +950,27 @@ function RowVariant({
       <div className="text-red-400 tabular-nums text-right">
         {fmtPrice(idea.stopLoss)}
       </div>
-      <div className="text-cyan-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
+      {(() => {
+        const live = computeLiveRR(idea);
+        return live ? (
+          <div
+            className={cn("text-right flex items-center justify-end gap-0.5", live.color)}
+            title={`Original R:R ${idea.riskRewardRatio.toFixed(1)}× → Live ${live.label}`}
+          >
+            {live.degraded && <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />}
+            {live.label}
+          </div>
+        ) : (
+          <div className="text-cyan-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
+        );
+      })()}
       <div className="text-muted-foreground truncate">
         {idea.optionType
           ? `${idea.optionType.toUpperCase()} $${idea.strikePrice} ${idea.expiryDate ?? ""}`
           : (idea.thesis || idea.catalyst || "—")}
       </div>
       <div className="text-muted-foreground text-right text-[9px] uppercase">
-        {idea.holdingPeriod ?? "—"}
+        {humanHold(idea.holdingPeriod) || "—"}
       </div>
     </div>
   );

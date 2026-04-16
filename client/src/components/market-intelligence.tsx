@@ -314,8 +314,8 @@ export function LatestNewsPreview({ variant = "default" }: { variant?: "default"
             <h3 className={cn("font-semibold", isLanding ? "text-foreground" : "text-foreground dark:text-foreground")}>Breaking News</h3>
           </div>
           <Badge variant="outline" className="text-[10px] border-red-500/30 text-[var(--trade-bearish)]">
-            <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bearish)] animate-pulse mr-1.5" />
-            Live
+            <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bearish)] mr-1.5" />
+            Breaking
           </Badge>
         </div>
         <div className="space-y-2">
@@ -475,7 +475,7 @@ export function LatestIdeasPreview({ variant = "default", limit = 4 }: { variant
                     idea.confidenceScore >= 75 ? "border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]" :
                     idea.confidenceScore >= 60 ? "border-amber-500/30 text-[var(--trade-neutral)]" : "border-gray-300 dark:border-border text-muted-foreground dark:text-muted-foreground"
                   )}>
-                    {idea.confidenceScore}%
+                    {idea.confidenceScore}pts
                   </Badge>
                 </div>
               </Link>

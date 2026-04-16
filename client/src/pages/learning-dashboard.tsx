@@ -221,7 +221,7 @@ export default function LearningDashboard() {
                                 {insight.category}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
-                                {safeToFixed(insight.confidence * 100, 0)}% confidence
+                                {safeToFixed(insight.confidence * 100, 0)}pts signal strength
                               </span>
                             </div>
                             <p className="text-white font-medium mb-2">

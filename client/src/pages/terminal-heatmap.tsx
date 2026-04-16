@@ -41,7 +41,7 @@ export default function TerminalHeatmapPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-[var(--surface-base)] flex flex-col">
+    <div className="h-[calc(100dvh-80px)] bg-[var(--surface-base)] flex flex-col overflow-hidden">
       {/* Unified toolbar */}
       <HeatseekerToolbar
         symbol={symbol}
@@ -68,7 +68,7 @@ export default function TerminalHeatmapPage() {
       />
 
       {/* Matrix — uses built-in week dropdown filter */}
-      <div className="flex-1 overflow-auto px-4 py-3">
+      <div className="flex-1 min-h-0 px-4 py-3 flex flex-col">
         {isError ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center space-y-3">

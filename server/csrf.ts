@@ -71,6 +71,11 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
   if (req.path.startsWith('/api/portfolio/')) {
     return next();
   }
+
+  // Exempt GEX scanner + history archive routes (internal scanner system)
+  if (req.path.startsWith('/api/gex-scanner/') || req.path.startsWith('/api/gex-history/')) {
+    return next();
+  }
   
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string;

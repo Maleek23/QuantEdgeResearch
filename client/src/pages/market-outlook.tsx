@@ -705,7 +705,7 @@ function GeopoliticalPanel({ geo }: { geo: NonNullable<OutlookData["geopolitical
             )}>
               {s.likelihood}
             </Badge>
-            <span className="text-[8px] font-mono text-muted-foreground/40">{s.confidence}%</span>
+            <span className="text-[8px] font-mono text-muted-foreground/40">{s.confidence}pts</span>
           </div>
 
           <p className="text-[10px] text-muted-foreground/70 leading-relaxed">{s.description}</p>
@@ -897,12 +897,21 @@ export default function MarketOutlook() {
             </div>
           </div>
 
-          {/* Live badge */}
+          {/* Freshness badge */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Wifi className="w-3 h-3 text-[var(--trade-bullish)]" />
-              <span className="text-[10px] font-mono text-[var(--trade-bullish)]">LIVE</span>
-            </div>
+            {(() => {
+              const ageMs = Date.now() - new Date(data.generatedAt).getTime();
+              const mins = Math.floor(ageMs / 60000);
+              const isStale = mins > 5;
+              const color = data.isWeekend ? 'text-muted-foreground' : isStale ? 'text-amber-400' : 'text-[var(--trade-bullish)]';
+              const label = data.isWeekend ? 'WEEKEND' : isStale ? `${mins}m ago` : mins < 1 ? 'now' : `${mins}m ago`;
+              return (
+                <div className="flex items-center gap-1">
+                  <Wifi className={`w-3 h-3 ${color}`} />
+                  <span className={`text-[10px] font-mono ${color}`}>{label}</span>
+                </div>
+              );
+            })()}
             {data.futuresBias !== "neutral" && (
               <Badge className={cn(
                 "text-[10px] font-mono",
@@ -967,7 +976,7 @@ export default function MarketOutlook() {
                 <Activity className="w-4 h-4 text-[var(--brand-teal)]" />
                 <h3 className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Futures</h3>
                 <span className="text-[9px] font-mono text-muted-foreground/50 ml-auto">
-                  {data.isWeekend ? "Weekend session" : "Live"}
+                  {data.isWeekend ? "Weekend session" : "Futures"}
                 </span>
               </div>
               <FuturesGrid futures={data.futures} />

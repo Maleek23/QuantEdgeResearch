@@ -41,7 +41,7 @@ function CustomTooltip({ active, payload }: any) {
     
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold text-sm">Confidence Range: {data.confidenceRange}%</p>
+        <p className="font-semibold text-sm">Signal Strength Range: {data.confidenceRange}pts</p>
         <div className="mt-2 space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-blue-500">Predicted:</span>
@@ -162,8 +162,8 @@ export default function CalibrationCurve() {
           <div className="text-sm text-blue-600 dark:text-blue-400">
             <p className="font-medium">Why This Matters</p>
             <p className="text-xs mt-1 text-blue-500/80">
-              A well-calibrated system means confidence scores match actual outcomes. 
-              If we say 80% confidence, trades should win ~80% of the time.
+              A well-calibrated system means signal strength scores predict actual outcomes.
+              Higher signal strength should correlate with higher win rates.
               Current avg error: <span className="font-mono font-semibold">{summary.avgCalibrationError}%</span>
             </p>
           </div>

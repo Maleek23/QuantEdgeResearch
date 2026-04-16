@@ -47,8 +47,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
+  Zap,
+  Star,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 
 // ────────────────────────────────────────────────────────────
 // Shared Utilities
@@ -285,6 +288,119 @@ function WelcomeHeader() {
         ))}
       </div>
     </motion.div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// 2.5. Session Action — What you need RIGHT NOW based on time of day
+// ────────────────────────────────────────────────────────────
+
+type SessionPhase = "pre-market" | "market-open" | "after-hours" | "weekend" | "closed";
+
+function getSessionPhase(): SessionPhase {
+  const et = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = et.getDay();
+  const mins = et.getHours() * 60 + et.getMinutes();
+  if (day === 0 || day === 6) return "weekend";
+  if (mins >= 240 && mins < 570) return "pre-market";
+  if (mins >= 570 && mins < 960) return "market-open";
+  if (mins >= 960 && mins < 1200) return "after-hours";
+  return "closed";
+}
+
+const SESSION_CONFIG: Record<SessionPhase, { label: string; icon: typeof Zap; hint: string; color: string }> = {
+  "pre-market": { label: "PRE-MARKET PREP", icon: Zap, hint: "Overnight gaps, futures bias, and what to watch at the open", color: "text-amber-400" },
+  "market-open": { label: "MARKET OPEN", icon: Activity, hint: "Intraday movers, regime shifts, and active signals", color: "text-[var(--trade-bullish)]" },
+  "after-hours": { label: "AFTER HOURS", icon: Clock, hint: "Post-close movers, earnings reactions, and overnight setups", color: "text-violet-400" },
+  weekend: { label: "WEEKEND REVIEW", icon: Calendar, hint: "Friday's movers, weekly recap, and next week's watchlist", color: "text-muted-foreground" },
+  closed: { label: "OVERNIGHT", icon: Star, hint: "Markets closed — reviewing last session", color: "text-muted-foreground" },
+};
+
+function SessionAction() {
+  const phase = getSessionPhase();
+  const config = SESSION_CONFIG[phase];
+  const Icon = config.icon;
+
+  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
+
+  // Futures data for pre-market/overnight context
+  const { data: futures } = useQuery<{
+    symbols?: Array<{ symbol: string; name?: string; price?: number; changePercent?: number }>;
+  }>({
+    queryKey: ["/api/futures", "session-action"],
+    refetchInterval: priceInterval,
+  });
+
+  // Outlook for high-impact events
+  const { data: outlook } = useQuery<{
+    highImpactAlert: { name: string; date: string; time: string } | null;
+    futuresBias: string;
+    summary: string;
+  }>({
+    queryKey: ["/api/market-outlook", "session-action"],
+    staleTime: 60_000,
+  });
+
+  const topFutures = (futures?.symbols || []).slice(0, 4);
+  const bias = outlook?.futuresBias;
+
+  return (
+    <div className="mb-4">
+      {/* Session badge + futures strip */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Icon className={cn("w-3.5 h-3.5", config.color)} />
+          <span className={cn("text-[10px] font-mono font-bold uppercase tracking-wider", config.color)}>
+            {config.label}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50">{config.hint}</span>
+        </div>
+        {bias && (
+          <span className={cn(
+            "text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border",
+            bias === "bullish" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+            bias === "bearish" ? "text-red-400 border-red-500/30 bg-red-500/10" :
+            "text-muted-foreground border-border bg-muted/30"
+          )}>
+            Futures {bias}
+          </span>
+        )}
+      </div>
+
+      {/* Futures mini-strip (always visible — gives overnight context) */}
+      {topFutures.length > 0 && (
+        <div className="flex items-center gap-4 mb-2 px-3 py-2 rounded-lg bg-card border border-border/50">
+          {topFutures.map((f) => {
+            const pct = f.changePercent ?? 0;
+            const isUp = pct >= 0;
+            return (
+              <div key={f.symbol} className="flex items-center gap-1.5">
+                <span className="text-[10px] font-mono text-muted-foreground/70">{f.symbol}</span>
+                <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
+                  {f.price ? `$${f.price.toLocaleString()}` : "—"}
+                </span>
+                <span className={cn("text-[10px] font-mono font-bold tabular-nums", isUp ? "text-emerald-400" : "text-red-400")}>
+                  {isUp ? "+" : ""}{pct.toFixed(2)}%
+                </span>
+              </div>
+            );
+          })}
+
+          {/* High-impact event inline */}
+          {outlook?.highImpactAlert && (
+            <div className="ml-auto flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3 text-[var(--trade-neutral)]" />
+              <span className="text-[10px] font-mono text-[var(--trade-neutral)]">
+                {outlook.highImpactAlert.name} · {outlook.highImpactAlert.time}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pre-market gappers card — expanded during pre-market, collapsed otherwise */}
+      <PreMarketGappersCard defaultExpanded={phase === "pre-market" || phase === "after-hours"} />
+    </div>
   );
 }
 
@@ -729,7 +845,7 @@ function TopSignals() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={cn(componentStyles.text.dataValue, "text-sm font-bold", confColor)}>{idea.confidenceScore}%</div>
+                            <div className={cn(componentStyles.text.dataValue, "text-sm font-bold", confColor)}>{idea.confidenceScore}pts</div>
                             <div className="w-12 h-1 rounded-full bg-muted mt-1 overflow-hidden">
                               <div className={cn("h-full rounded-full", confColor.replace("text-", "bg-"))} style={{ width: `${idea.confidenceScore}%` }} />
                             </div>
@@ -839,7 +955,7 @@ function NewsFeed() {
             <Newspaper className="w-3.5 h-3.5 text-muted-foreground" />
             <h3 className="font-semibold text-foreground text-xs">News Feed</h3>
           </div>
-          <span className={componentStyles.badge.live}>LIVE</span>
+          <span className={componentStyles.badge.cyan}>NEWS</span>
         </div>
         {isError ? (
           <CardError message="News feed unavailable" onRetry={() => refetch()} />
@@ -1106,6 +1222,9 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-3 sm:px-5 py-4 relative z-10">
         {/* 2. Welcome + Global Timestamp */}
         <WelcomeHeader />
+
+        {/* 2.5. Session Action — Pre-market gappers + overnight movers (hero placement) */}
+        <SessionAction />
 
         {/* 3. Market Intelligence — briefing + regime + outlook merged */}
         <SectionReveal className="mb-[var(--section-gap-sm)]">

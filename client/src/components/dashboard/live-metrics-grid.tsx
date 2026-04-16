@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { safeToFixed } from '@/lib/utils';
+import { getMarketStatus } from '@/lib/market-hours';
 import {
   TrendingUp,
   TrendingDown,
@@ -122,16 +123,22 @@ function MetricCard({
           <div style={{ color }}>{icon}</div>
         </div>
 
-        {isLive && (
-          <div className="flex items-center gap-1.5">
-            <motion.div
-              className="w-2 h-2 rounded-full bg-[var(--trade-bullish)]"
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            />
-            <span className="text-xs text-[var(--trade-bullish)] font-medium">LIVE</span>
-          </div>
-        )}
+        {isLive && (() => {
+          const market = getMarketStatus();
+          const dotColor = market.isOpen ? 'bg-[var(--trade-bullish)]' : 'bg-muted-foreground';
+          const textColor = market.isOpen ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground';
+          const label = market.isOpen ? 'LIVE' : 'CLOSED';
+          return (
+            <div className="flex items-center gap-1.5">
+              <motion.div
+                className={`w-2 h-2 rounded-full ${dotColor}`}
+                animate={market.isOpen ? { opacity: [1, 0.3, 1] } : {}}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              <span className={`text-xs font-medium ${textColor}`}>{label}</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Title */}
@@ -266,8 +273,8 @@ export function LiveMetricsGrid() {
       sparklineData: sparklines.trades,
     },
     {
-      title: 'Engine Confidence',
-      value: `${safeToFixed(metrics.aiConfidence, 0)}%`,
+      title: 'Signal Strength',
+      value: `${safeToFixed(metrics.aiConfidence, 0)}pts`,
       change: 5,
       changeLabel: 'trend',
       icon: <Brain className="w-5 h-5" />,

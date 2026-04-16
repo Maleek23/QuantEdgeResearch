@@ -56,7 +56,7 @@ export function AnalysisEngineLoader({ symbol, engines, overallProgress }: Analy
               Analyzing {symbol}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Running institutional-grade analysis engines
+              Running institutional-grade analysis layers
             </p>
           </motion.div>
         </div>

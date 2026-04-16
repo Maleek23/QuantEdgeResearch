@@ -144,7 +144,7 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
         
         {notification.confidence && (
           <div className="text-xs text-muted-foreground mt-1">
-            Confidence: {safeToFixed(notification.confidence, 0)}%
+            Signal Strength: {safeToFixed(notification.confidence, 0)}pts
           </div>
         )}
         

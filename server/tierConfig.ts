@@ -404,7 +404,7 @@ export const TIER_FEATURES = {
       "Futures Bot & Prop Firm Bot",
       "REST API access",
       "Custom webhooks",
-      "Backtesting modules",
+      "Pattern Scanner modules",
       "Priority idea generation",
       "White-label reports",
     ],

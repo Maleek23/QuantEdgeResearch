@@ -52,7 +52,7 @@ export function TickerVolTab({ symbol }: TickerVolTabProps) {
   return (
     <div className="space-y-4">
       {/* IV Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="IV RANK" value={`${safeToFixed(ivRank, 0)}%`} color={rankColor} sub={rankLabel} />
         <MetricCard label="IV PERCENTILE" value={`${safeToFixed(ivPct, 0)}%`} color={rankColor} />
         <MetricCard label="CURRENT IV" value={`${safeToFixed(currentIV * 100, 1)}%`} />

@@ -447,7 +447,7 @@ export function AdminMLPerformance() {
       <div>
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Zap className="h-5 w-5" />
-          Confidence Calibration
+          Signal Strength Calibration
         </h3>
         {calibrationLoading ? (
           <Skeleton className="h-64 w-full" />

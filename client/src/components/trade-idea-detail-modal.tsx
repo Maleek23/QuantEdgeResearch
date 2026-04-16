@@ -656,10 +656,10 @@ export function TradeIdeaDetailModal({
                     )}
                     {idea.confidenceScore > 0 && (
                       <div className="p-3 rounded-lg bg-muted/30">
-                        <div className="text-xs text-muted-foreground mb-1">Confidence Score</div>
+                        <div className="text-xs text-muted-foreground mb-1">Signal Strength</div>
                         <div className="text-lg font-bold font-mono tabular-nums">{safeToFixed(idea.confidenceScore, 0)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {idea.confidenceScore >= 90 ? 'Very high confidence' : idea.confidenceScore >= 85 ? 'High confidence' : 'Moderate confidence'}
+                          {idea.confidenceScore >= 90 ? 'Very strong signal' : idea.confidenceScore >= 85 ? 'Strong signal' : 'Moderate signal'}
                         </div>
                       </div>
                     )}

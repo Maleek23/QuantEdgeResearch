@@ -176,7 +176,7 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
             {idea.source}
           </Badge>
           {idea.confidenceScore && (
-            <Badge variant="secondary">{idea.confidenceScore}% confidence</Badge>
+            <Badge variant="secondary">{idea.confidenceScore}pts signal strength</Badge>
           )}
           {idea.holdingPeriod && (
             <Badge variant="outline">{idea.holdingPeriod === 'day' ? 'Day Trade' : idea.holdingPeriod === 'swing' ? 'Swing' : 'Position'}</Badge>
@@ -238,14 +238,14 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
             <Scale className="h-5 w-5 text-[var(--trade-neutral)]" />
           </div>
           <div className="flex-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Confidence Analysis</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Signal Strength Analysis</p>
             <CardTitle className="text-lg">Scoring Breakdown</CardTitle>
           </div>
           <div className="text-right">
             <div className={cn("text-3xl font-bold font-mono", getGradeColor(score))}>
               {grade}
             </div>
-            <div className="text-xs text-muted-foreground">{score}%</div>
+            <div className="text-xs text-muted-foreground">{score}pts</div>
           </div>
         </div>
       </CardHeader>
@@ -253,7 +253,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
         {/* Score Bar */}
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-muted-foreground">Confidence Score</span>
+            <span className="text-muted-foreground">Signal Strength</span>
             <span className={cn("font-semibold", getGradeColor(score))}>{score}/100</span>
           </div>
           <div className="h-2 bg-muted/30 rounded-full overflow-hidden">

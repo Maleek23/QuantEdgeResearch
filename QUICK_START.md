@@ -117,7 +117,7 @@ You should now see:
 ### Test Features
 
 **1. View Command Center**
-- Should see 6 engine status cards
+- Should see 6 analysis layer status cards
 - Interactive performance chart
 - Quick action buttons
 

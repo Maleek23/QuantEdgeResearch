@@ -127,7 +127,7 @@ export function WSBTrendingCard({
             Trending on WSB
           </CardTitle>
           <Badge variant="outline" className="text-xs text-muted-foreground">
-            Live
+            Trending
           </Badge>
         </div>
       </CardHeader>

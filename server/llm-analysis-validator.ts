@@ -665,7 +665,7 @@ function generateAISummary(
   const riskReward = analysis.tradeIdea.riskReward;
   const holdingPeriod = analysis.holdingPeriod.period;
 
-  return `${symbol} shows ${directionText} with ${confidence}% technical confidence. ${consensusText} supports the ${direction} thesis. ` +
+  return `${symbol} shows ${directionText} with ${confidence}pts signal strength. ${consensusText} supports the ${direction} thesis. ` +
          `Risk/reward of ${riskReward} suggests a ${holdingPeriod} trade setup with entry at $${analysis.tradeIdea.entry}.`;
 }
 

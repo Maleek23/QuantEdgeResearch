@@ -5,7 +5,7 @@
  * Tapping a preset replaces all filters with the preset's values.
  */
 
-import { Sparkles, Zap, Calendar, DollarSign, Sun } from "lucide-react";
+import { Sparkles, Zap, Calendar, Sun, ArrowRightLeft, Moon, Telescope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TradeFilters, DEFAULT_FILTERS } from "./trade-filters-bar";
 
@@ -14,7 +14,15 @@ export interface TradePreset {
   label: string;
   icon: React.ElementType;
   description: string;
+  /** When set, preset only appears if the condition returns true */
+  showWhen?: () => boolean;
   filters: TradeFilters;
+}
+
+function isWeekendET(): boolean {
+  const et = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const day = et.getDay();
+  return day === 0 || day === 6;
 }
 
 export const TRADE_PRESETS: TradePreset[] = [
@@ -22,12 +30,61 @@ export const TRADE_PRESETS: TradePreset[] = [
     id: "todays-best",
     label: "Today's Best",
     icon: Sparkles,
-    description: "S+A bands, R:R 2.5+, watchlist",
+    description: "S+A bands, R:R 2+",
     filters: {
       ...DEFAULT_FILTERS,
       band: "A+",
       rr: "2+",
       hold: "all",
+    },
+  },
+  {
+    id: "next-day-swing",
+    label: "Next Day Swing",
+    icon: ArrowRightLeft,
+    description: "Swing setups for next session, B+ bands",
+    filters: {
+      ...DEFAULT_FILTERS,
+      band: "B+",
+      hold: "swing",
+      rr: "1.5+",
+    },
+  },
+  {
+    id: "weekend-swings",
+    label: "Weekend Swings",
+    icon: Moon,
+    description: "Swing setups to hold over the weekend",
+    showWhen: isWeekendET,
+    filters: {
+      ...DEFAULT_FILTERS,
+      band: "B+",
+      hold: "swing",
+      rr: "2+",
+    },
+  },
+  {
+    id: "leaps",
+    label: "Leaps",
+    icon: Telescope,
+    description: "Position & long-term holds, 4+ weeks",
+    filters: {
+      ...DEFAULT_FILTERS,
+      band: "B+",
+      hold: "position",
+      rr: "2+",
+    },
+  },
+  {
+    id: "day-trades",
+    label: "Day Trades",
+    icon: Sun,
+    description: "Intraday setups, R:R 1.5+",
+    filters: {
+      ...DEFAULT_FILTERS,
+      hold: "day",
+      rr: "1.5+",
+      band: "B+",
     },
   },
   {
@@ -54,30 +111,6 @@ export const TRADE_PRESETS: TradePreset[] = [
       rr: "2+",
     },
   },
-  {
-    id: "income",
-    label: "Income",
-    icon: DollarSign,
-    description: "Options only, theta plays",
-    filters: {
-      ...DEFAULT_FILTERS,
-      asset: "option",
-      band: "B+",
-      hold: "swing",
-    },
-  },
-  {
-    id: "day-trades",
-    label: "Day Trades",
-    icon: Sun,
-    description: "Intraday setups, R:R 1.5+",
-    filters: {
-      ...DEFAULT_FILTERS,
-      hold: "day",
-      rr: "1.5+",
-      band: "B+",
-    },
-  },
 ];
 
 interface Props {
@@ -92,7 +125,7 @@ export function TradePresets({ activePresetId, onSelect, className }: Props) {
       <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 whitespace-nowrap">
         Presets
       </span>
-      {TRADE_PRESETS.map((preset) => {
+      {TRADE_PRESETS.filter((p) => !p.showWhen || p.showWhen()).map((preset) => {
         const Icon = preset.icon;
         const isActive = activePresetId === preset.id;
         return (

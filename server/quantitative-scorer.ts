@@ -170,7 +170,8 @@ class QuantitativeScorer {
   }
 
   /**
-   * Calculate Sharpe Ratio (risk-adjusted return)
+   * Calculate annualized Sharpe Ratio from daily price series
+   * Uses excess returns (daily return - daily risk-free rate) for proper risk adjustment
    */
   private calculateSharpeRatio(historical: any[]): number {
     const prices = historical.map(h => h.close);
@@ -180,19 +181,16 @@ class QuantitativeScorer {
       returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
     }
 
-    const meanReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-    const stdDev = Math.sqrt(
-      returns.map(r => Math.pow(r - meanReturn, 2)).reduce((a, b) => a + b, 0) / returns.length
+    // 4.5% annual risk-free rate (T-bill proxy), prorated to daily
+    const dailyRiskFree = 0.045 / 252;
+    const excessReturns = returns.map(r => r - dailyRiskFree);
+    const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+    const excessStdDev = Math.sqrt(
+      excessReturns.map(r => Math.pow(r - meanExcess, 2)).reduce((a, b) => a + b, 0) / excessReturns.length
     );
 
-    // Risk-free rate assumption: 4% annually = 0.04/252 daily
-    const riskFreeRate = 0.04 / 252;
-
-    // Annualize
-    const annualizedReturn = meanReturn * 252;
-    const annualizedStdDev = stdDev * Math.sqrt(252);
-
-    return annualizedStdDev > 0 ? (annualizedReturn - 0.04) / annualizedStdDev : 0;
+    // Annualize: multiply ratio by sqrt(252)
+    return excessStdDev > 0 ? (meanExcess / excessStdDev) * Math.sqrt(252) : 0;
   }
 
   /**

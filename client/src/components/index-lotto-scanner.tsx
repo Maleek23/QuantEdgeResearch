@@ -266,7 +266,7 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-foreground">{play.symbol}</span>
               <Badge variant="outline" className={cn("text-xs", confidenceColor)}>
-                {play.confidence} confidence
+                {play.confidence} signal
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
@@ -373,7 +373,7 @@ function ORBBreakoutCard({ breakout }: { breakout: ORBBreakout }) {
           </div>
           <div className="text-right">
             <Badge variant="outline" className={cn("text-xs", confidenceColor)}>
-              {breakout.confidence}%
+              {breakout.confidence}pts
             </Badge>
           </div>
         </div>
@@ -588,7 +588,7 @@ export function IndexLottoScanner({ className }: { className?: string }) {
           </CardTitle>
           <Badge variant="outline" className="text-xs text-muted-foreground">
             <Clock className="h-3 w-3 mr-1" />
-            Live
+            Scanner
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">

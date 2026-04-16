@@ -162,10 +162,18 @@ function MarketPulseHeader() {
 
   return (
     <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50 overflow-x-auto no-scrollbar">
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
-        <span className="text-[10px] font-medium text-[var(--trade-bullish)]">LIVE</span>
-      </div>
+      {(() => {
+        const { label, session } = detectSession();
+        const isOpen = session === 'market-hours';
+        const color = isOpen ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground';
+        const dotColor = isOpen ? 'bg-[var(--trade-bullish)]' : 'bg-muted-foreground';
+        return (
+          <div className="flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+            <span className={`text-[10px] font-medium ${color}`}>{label}</span>
+          </div>
+        );
+      })()}
       {tickers.map((t) => (
         <div key={t.symbol} className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] text-muted-foreground/70 font-mono">{t.symbol}</span>
@@ -653,7 +661,7 @@ function MarketMoversCard({ onViewAll }: { onViewAll?: () => void }) {
           <span className="text-sm font-semibold text-foreground">Market Movers</span>
           <ChevronRight className="w-3 h-3 text-muted-foreground group-hover:text-[var(--trade-bullish)] transition-colors" />
         </div>
-        <Badge variant="outline" className="text-xs text-[var(--trade-bullish)] border-emerald-400/30">Live</Badge>
+        <Badge variant="outline" className="text-xs text-cyan-400 border-cyan-400/30">Movers</Badge>
       </div>
       <div className="space-y-2">
         {isLoading ? (
@@ -1382,9 +1390,19 @@ function MarketMoversSubPage() {
           <div>
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               Market Movers
-              <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/40 text-[10px]">
-                LIVE
-              </Badge>
+              {(() => {
+                const { session } = detectSession();
+                const isOpen = session === 'market-hours';
+                return isOpen ? (
+                  <Badge className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-[var(--trade-bullish)]/40 text-[10px]">
+                    INTRADAY
+                  </Badge>
+                ) : (
+                  <Badge className="bg-muted/20 text-muted-foreground border-border text-[10px]">
+                    LAST CLOSE
+                  </Badge>
+                );
+              })()}
             </h2>
             <p className="text-xs text-muted-foreground">Today's biggest gainers and losers</p>
           </div>
@@ -3535,7 +3553,7 @@ function TradeIdeasList({ ideas, title, onViewDetails, serverDateFilter = 'today
             <SelectValue placeholder="Sort By" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="confidence">Confidence</SelectItem>
+            <SelectItem value="confidence">Signal Strength</SelectItem>
             <SelectItem value="recent">Most Recent</SelectItem>
             <SelectItem value="symbol">Symbol A-Z</SelectItem>
           </SelectContent>
@@ -3601,13 +3619,14 @@ export default function TradeDeskRedesigned() {
 
   // Idea generation mutation - triggers the scoring engine
   const generateIdeas = useMutation({
-    mutationFn: async (engine: 'ai' | 'quant' | 'hybrid' | 'flow' | 'all') => {
+    mutationFn: async (engine: 'ai' | 'quant' | 'hybrid' | 'flow' | 'gex' | 'all') => {
       setGeneratingEngine(engine);
       const endpoints: Record<string, string> = {
         ai: '/api/ai/generate-ideas',
         quant: '/api/quant/generate-ideas',
         hybrid: '/api/hybrid/generate-ideas',
         flow: '/api/flow/generate-ideas',
+        gex: '/api/gex-scanner/run',
         all: '/api/ideas/generate-now',
       };
       const res = await fetch(endpoints[engine], {
@@ -3962,6 +3981,12 @@ export default function TradeDeskRedesigned() {
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />
                     <span>Options Flow</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gex" className="hover:bg-cyan-600/20">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>GEX Scanner</span>
                   </div>
                 </SelectItem>
               </SelectContent>

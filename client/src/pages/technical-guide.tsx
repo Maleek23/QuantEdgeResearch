@@ -93,17 +93,17 @@ export default function TechnicalGuide() {
       addPage();
       addSection("2. SIGNAL GRADING SYSTEM");
       
-      addText("Quant Edge Labs uses academic-style grading (A+ to F) based on confidence scores:", 12);
+      addText("Quant Edge Labs uses academic-style grading (A+ to F) based on signal strength scores:", 12);
       y += 3;
-      addText("A+ (95%+) - Exceptional: Multiple strong signals aligned, high probability");
-      addText("A (93-94%) - Excellent: Strong technical setup with volume confirmation");
-      addText("A- (90-92%) - Very Strong: Clear directional bias with good risk/reward");
-      addText("B+ (87-89%) - Strong: Solid setup, may need patience for entry");
-      addText("B (83-86%) - Good: Tradeable setup with moderate conviction");
-      addText("B- (80-82%) - Above Average: Acceptable but requires tight risk management");
-      addText("C+ (77-79%) - Average+: Speculative, smaller position size recommended");
-      addText("C (73-76%) - Average: Higher risk, use only with strong catalyst");
-      addText("D/F (<70%) - Below Average/Failing: Not recommended for trading");
+      addText("A+ (95+pts) - Exceptional: Multiple strong signals aligned, high probability");
+      addText("A (93-94pts) - Excellent: Strong technical setup with volume confirmation");
+      addText("A- (90-92pts) - Very Strong: Clear directional bias with good risk/reward");
+      addText("B+ (87-89pts) - Strong: Solid setup, may need patience for entry");
+      addText("B (83-86pts) - Good: Tradeable setup with moderate conviction");
+      addText("B- (80-82pts) - Above Average: Acceptable but requires tight risk management");
+      addText("C+ (77-79pts) - Average+: Speculative, smaller position size recommended");
+      addText("C (73-76pts) - Average: Higher risk, use only with strong catalyst");
+      addText("D/F (<70pts) - Below Average/Failing: Not recommended for trading");
 
       addSection("3. RISK/REWARD RATIOS");
       
@@ -346,19 +346,19 @@ export default function TechnicalGuide() {
             <AccordionContent>
               <div className="pt-2 space-y-3">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Quant Edge Labs uses academic-style grading based on confidence scores (0-100):
+                  Quant Edge Labs uses academic-style grading based on signal strength scores (0-100):
                 </p>
                 <div className="grid gap-2">
                   {[
-                    { grade: "A+", range: "95%+", desc: "Exceptional - Multiple strong signals aligned", color: "text-[var(--trade-bullish)]" },
-                    { grade: "A", range: "93-94%", desc: "Excellent - Strong technical setup with volume", color: "text-[var(--trade-bullish)]" },
-                    { grade: "A-", range: "90-92%", desc: "Very Strong - Clear directional bias", color: "text-[var(--trade-bullish)]" },
-                    { grade: "B+", range: "87-89%", desc: "Strong - Solid setup, patience for entry", color: "text-blue-500" },
-                    { grade: "B", range: "83-86%", desc: "Good - Tradeable with moderate conviction", color: "text-blue-400" },
-                    { grade: "B-", range: "80-82%", desc: "Above Average - Tight risk management", color: "text-blue-300" },
-                    { grade: "C+", range: "77-79%", desc: "Average+ - Speculative, small size", color: "text-yellow-500" },
-                    { grade: "C", range: "73-76%", desc: "Average - Higher risk, needs catalyst", color: "text-yellow-400" },
-                    { grade: "D/F", range: "<70%", desc: "Below Average - Not recommended", color: "text-[var(--trade-bearish)]" },
+                    { grade: "A+", range: "95+pts", desc: "Exceptional - Multiple strong signals aligned", color: "text-[var(--trade-bullish)]" },
+                    { grade: "A", range: "93-94pts", desc: "Excellent - Strong technical setup with volume", color: "text-[var(--trade-bullish)]" },
+                    { grade: "A-", range: "90-92pts", desc: "Very Strong - Clear directional bias", color: "text-[var(--trade-bullish)]" },
+                    { grade: "B+", range: "87-89pts", desc: "Strong - Solid setup, patience for entry", color: "text-blue-500" },
+                    { grade: "B", range: "83-86pts", desc: "Good - Tradeable with moderate conviction", color: "text-blue-400" },
+                    { grade: "B-", range: "80-82pts", desc: "Above Average - Tight risk management", color: "text-blue-300" },
+                    { grade: "C+", range: "77-79pts", desc: "Average+ - Speculative, small size", color: "text-yellow-500" },
+                    { grade: "C", range: "73-76pts", desc: "Average - Higher risk, needs catalyst", color: "text-yellow-400" },
+                    { grade: "D/F", range: "<70pts", desc: "Below Average - Not recommended", color: "text-[var(--trade-bearish)]" },
                   ].map((item) => (
                     <div key={item.grade} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
                       <Badge className={`${item.color} bg-transparent border-current w-12 justify-center`}>

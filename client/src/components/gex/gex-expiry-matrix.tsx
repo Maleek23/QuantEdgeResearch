@@ -112,10 +112,14 @@ export function GEXExpiryMatrix({
     : (v: boolean) => setInternalExpanded(v);
   const STRIKES_AROUND = strikesAround ?? DEFAULT_STRIKES_AROUND;
 
-  // Auto-scroll to spot row on mount & when collapsed view resets
+  // Auto-scroll to spot row within the matrix scroll container only (not the page)
   useEffect(() => {
-    if (spotRowRef.current) {
-      spotRowRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    const row = spotRowRef.current;
+    if (container && row) {
+      const rowTop = row.offsetTop;
+      const containerH = container.clientHeight;
+      container.scrollTop = Math.max(0, rowTop - containerH / 2);
     }
   }, [expanded, matrix.length]);
 
@@ -178,8 +182,6 @@ export function GEXExpiryMatrix({
     return week ? expiries.filter(e => week.expLabels.includes(e)) : expiries;
   }, [visibleExpiries, expiries, internalWeek, weekGroups]);
 
-  const hasInternalFilter = !hideControls;
-
   // Find the index of the strike closest to spot
   const { spotPrice, gammaFlipPrice, maxGammaStrike } = snapshot;
   const spotIdx = allStrikes.reduce((best, s, i) =>
@@ -227,7 +229,7 @@ export function GEXExpiryMatrix({
   });
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col h-full min-h-0">
       {/* Controls row: GEX/VEX toggle + expand/collapse — only if not hidden */}
       {!hideControls && (
         <div className="flex items-center justify-between">
@@ -275,24 +277,52 @@ export function GEXExpiryMatrix({
         </div>
       )}
 
-      {/* Week-based expiry filter — shown when not parent-controlled */}
-      {hasInternalFilter && expiryInfo.length > 1 && (
-        <select
-          value={internalWeek}
-          onChange={e => setInternalWeek(e.target.value)}
-          className="bg-[var(--surface-base)] border border-border/30 rounded px-2 py-1 text-[9px] font-mono font-bold uppercase text-foreground outline-none cursor-pointer w-fit"
-        >
-          <option value="all">All Dates ({expiries.length})</option>
-          {weekGroups.map((wk, i) => (
-            <option key={wk.key} value={wk.key}>
-              {i === 0 ? 'This Week' : i === 1 ? 'Next Week' : 'Wk of'} · {wk.weekLabel} ({wk.expLabels.length})
-            </option>
+      {/* Inline week filter pills — visible when matrix controls its own dates */}
+      {(!visibleExpiries || visibleExpiries.length === 0) && weekGroups.length > 1 && (
+        <div className="flex items-center gap-1 flex-shrink-0 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={() => setInternalWeek('all')}
+            className={cn(
+              'px-2 py-0.5 text-[8px] font-mono font-bold uppercase rounded border transition-colors whitespace-nowrap flex-shrink-0',
+              internalWeek === 'all'
+                ? 'border-[var(--gex-positive)]/30 text-[var(--gex-positive)] bg-[var(--gex-positive)]/10'
+                : 'border-transparent text-muted-foreground/40 hover:text-muted-foreground hover:border-border/20'
+            )}
+          >
+            ALL {expiries.length}
+          </button>
+          {weekGroups.map((wk) => (
+            <button
+              key={wk.key}
+              type="button"
+              onClick={() => setInternalWeek(internalWeek === wk.key ? 'all' : wk.key)}
+              className={cn(
+                'px-2 py-0.5 text-[8px] font-mono font-bold rounded border transition-colors whitespace-nowrap flex-shrink-0',
+                internalWeek === wk.key
+                  ? 'border-amber-400/30 text-amber-400 bg-amber-400/10'
+                  : 'border-transparent text-muted-foreground/40 hover:text-muted-foreground hover:border-border/20'
+              )}
+            >
+              {wk.weekLabel} ({wk.expLabels.length})
+            </button>
           ))}
-        </select>
+        </div>
       )}
 
-      <div ref={scrollContainerRef} className="overflow-auto max-h-[calc(100vh-180px)]">
-        <table className="text-[10px] font-mono border-collapse min-w-max">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 min-h-0 overflow-auto overscroll-contain"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          const step = 120;
+          if (e.key === 'ArrowLeft') { el.scrollLeft -= step; e.preventDefault(); }
+          if (e.key === 'ArrowRight') { el.scrollLeft += step; e.preventDefault(); }
+        }}
+      >
+        <table className="text-[10px] font-mono border-collapse min-w-max w-full">
           <thead className="sticky top-0 z-20 bg-[var(--surface-raised)]">
             <tr className="border-b border-border/40">
               <th className="text-left py-2 px-2 text-[9px] uppercase tracking-widest text-muted-foreground font-medium sticky left-0 bg-[var(--surface-raised)] z-30">

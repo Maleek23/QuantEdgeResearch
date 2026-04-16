@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getMarketStatus } from "@/lib/market-hours";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -205,12 +206,20 @@ export default function WeeklyWatchlistPage() {
           <div className="flex items-center gap-3 mb-2">
             <Calendar className="w-6 h-6 text-emerald-400" />
             <h1 className="text-3xl font-bold text-foreground">This Week</h1>
-            {isCurrentWeek && items.length > 0 && (
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/40">
-                <Activity className="w-3 h-3 mr-1" />
-                LIVE
-              </Badge>
-            )}
+            {isCurrentWeek && items.length > 0 && (() => {
+              const market = getMarketStatus();
+              return market.isOpen ? (
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/40">
+                  <Activity className="w-3 h-3 mr-1" />
+                  MARKET OPEN
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-muted/10 text-muted-foreground border-border">
+                  <Activity className="w-3 h-3 mr-1" />
+                  CLOSED
+                </Badge>
+              );
+            })()}
           </div>
           <p className="text-sm text-muted-foreground">
             Curated focus list — auto-seeded Monday from Top Convictions, edit any time. Live prices stream every 5 seconds.

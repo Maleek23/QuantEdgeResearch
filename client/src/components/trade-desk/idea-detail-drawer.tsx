@@ -244,13 +244,13 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
 function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
   return (
     <div className="space-y-4">
-      {/* Live price strip */}
+      {/* Current price strip */}
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between px-3 py-2 rounded-md bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Live
+              Current
             </span>
             <span className="font-mono font-bold text-base text-foreground tabular-nums">
               {fmtPrice(idea.livePrice)}

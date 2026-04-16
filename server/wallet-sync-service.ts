@@ -29,8 +29,9 @@ export async function addWallet(
   userId?: number
 ): Promise<{ id: number; address: string; chain: string }> {
   if (!userId) throw new Error("User ID required");
+  // Dead feature — no real wallet tracking implemented
   return {
-    id: Math.floor(Math.random() * 10000),
+    id: 0,
     address,
     chain,
   };
@@ -57,18 +58,8 @@ export async function checkTransactions(walletId: number): Promise<void> {
 
 // Get recent whale activity (>$100K)
 export async function getWhaleActivity(): Promise<any[]> {
-  // Return mock whale activity
-  return [
-    {
-      id: 1,
-      from: '0x1234...5678',
-      to: '0x8765...4321',
-      amount: 250000,
-      token: 'USDC',
-      timestamp: new Date(),
-      direction: 'out',
-    },
-  ];
+  // Dead feature — no real whale tracking data source
+  return [];
 }
 
 // Process alerts for a user
@@ -77,29 +68,12 @@ export async function processAlerts(userId: number): Promise<void> {
   console.log(`Processing alerts for user ${userId}...`);
 }
 
-// Generate mock holdings
-export function generateMockHoldings(chain: string): any[] {
-  const tokens = chain === 'ethereum' ? POPULAR_TOKENS_ETH : POPULAR_TOKENS_SOL;
-  return tokens.map((token) => ({
-    symbol: token.symbol,
-    name: token.name,
-    balance: Math.random() * 1000,
-    value: Math.random() * 100000,
-    price: Math.random() * 50000,
-  }));
+// Generate mock holdings — dead feature, returns empty
+export function generateMockHoldings(_chain: string): any[] {
+  return [];
 }
 
-// Generate mock transactions
+// Generate mock transactions — dead feature, returns empty
 export function generateMockTransactions(): any[] {
-  return [
-    {
-      hash: '0x' + Math.random().toString(16).slice(2),
-      from: '0x' + Math.random().toString(16).slice(2),
-      to: '0x' + Math.random().toString(16).slice(2),
-      token: 'USDC',
-      amount: Math.random() * 100000,
-      valueUsd: Math.random() * 500000,
-      type: Math.random() > 0.5 ? 'in' : 'out',
-    },
-  ];
+  return [];
 }

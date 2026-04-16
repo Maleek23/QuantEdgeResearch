@@ -40,6 +40,7 @@ const WATCHLIST_A_TIER = [
   'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN',
   'SOFI', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA',
   'LITE', 'FN', 'CIEN', 'AXTI', // Optics/photonics peers of AAOI
+  'ORCL', 'GOOGL', 'INTC', // Added: user watchlist mega-caps
 ];
 
 // Combined primary watchlist — AI MUST pick from these first

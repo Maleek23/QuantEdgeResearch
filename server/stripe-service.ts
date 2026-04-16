@@ -82,7 +82,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       'Futures trading (NQ, ES, GC)',
       'REST API access',
       'White-label PDF reports',
-      'Backtesting module',
+      'Pattern Scanner module',
       'Custom webhooks (Slack, Telegram)',
       'Portfolio correlation analytics',
       'Priority idea generation',

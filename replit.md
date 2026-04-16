@@ -115,7 +115,7 @@ Key features and architectural decisions include:
 ## Recent Cleanup (2026-01)
 - Removed unused files: `home.tsx`, `account.tsx`, `trade-ideas.tsx`
 - Fixed About page SidebarTrigger error
-- Updated landing content to 6-engine system (ML, AI, Quant, Flow, Sentiment, Technical)
+- Updated landing content to 6-layer analysis system (Technical, Flow, Sentiment, Quant, Convergence, GEX)
 - **Chart Analysis Auto-Trigger Fix**: Fixed global search → chart analysis navigation:
   - URL accepts both `?symbol=` and `?s=` parameters
   - Auto-triggers dual-engine analysis when symbol comes from URL

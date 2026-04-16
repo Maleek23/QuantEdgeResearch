@@ -324,7 +324,7 @@ export default function BacktestPage() {
             <div className="h-7 w-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
               <BarChart3 className="h-4 w-4 text-purple-400" />
             </div>
-            Pattern Backtest
+            Pattern Scanner
           </h1>
           <p className="text-[10px] text-muted-foreground mt-1">
             Analyze technical patterns and indicators for any symbol
@@ -606,7 +606,7 @@ export default function BacktestPage() {
           
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-lg">Backtest Summary</CardTitle>
+              <CardTitle className="text-lg">Pattern Summary</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -632,7 +632,7 @@ export default function BacktestPage() {
                   <TableRow>
                     <TableCell className="font-medium">Signal Score</TableCell>
                     <TableCell className="font-mono tabular-nums">
-                      {patternData.signalScore.score} ({patternData.signalScore.confidence}% confidence)
+                      {patternData.signalScore.score} ({patternData.signalScore.confidence}pts signal strength)
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -660,7 +660,7 @@ export default function BacktestPage() {
             <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Enter a Symbol to Analyze</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Search for any stock symbol to view technical patterns, indicators, and backtest results 
+              Search for any stock symbol to view technical patterns, indicators, and signal analysis
               with interactive charts powered by TradingView.
             </p>
           </CardContent>

@@ -407,20 +407,26 @@ function calculateMetrics(
     if (drawdown > maxDrawdown) maxDrawdown = drawdown;
   }
   
-  // Calculate Sharpe Ratio (simplified, annualized)
-  const returns = trades.map(t => t.pnlPercent);
-  const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
-  const stdDev = Math.sqrt(variance);
-  const sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
-  
-  // Calculate average holding period in days
+  // Calculate average holding period in calendar days (for display)
   const holdingPeriods = trades.map(t => {
     const entry = new Date(t.entryDate);
     const exit = new Date(t.exitDate);
     return (exit.getTime() - entry.getTime()) / (1000 * 60 * 60 * 24);
   });
   const avgHoldingPeriod = holdingPeriods.reduce((a, b) => a + b, 0) / holdingPeriods.length;
+
+  // Annualized Sharpe Ratio with risk-free subtraction & duration-aware scaling
+  // Convert calendar holding days to trading days (~252/365 ratio)
+  const avgHoldingTradingDays = Math.max(avgHoldingPeriod * (252 / 365), 0.1);
+  const ANNUAL_RISK_FREE = 0.045; // 4.5% T-bill proxy
+  const riskFreePerTrade = ANNUAL_RISK_FREE * (avgHoldingTradingDays / 252);
+  const returns = trades.map(t => t.pnlPercent);
+  const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade); // % to decimal, subtract rf
+  const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+  const excessVariance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
+  const excessStdDev = Math.sqrt(excessVariance);
+  const annualizationFactor = Math.sqrt(252 / avgHoldingTradingDays);
+  const sharpeRatio = excessStdDev > 0 ? (meanExcess / excessStdDev) * annualizationFactor : 0;
   
   return {
     totalTrades: trades.length,

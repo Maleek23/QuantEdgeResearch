@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Star, Sparkles, ChevronDown } from "lucide-react";
@@ -46,8 +47,8 @@ const PHASE_HINT: Record<GappersResponse["phase"], string> = {
   closed: "Most recent session change vs. prior close",
 };
 
-export default function PreMarketGappersCard() {
-  const [collapsed, setCollapsed] = useState(true);
+export default function PreMarketGappersCard({ defaultExpanded = false }: { defaultExpanded?: boolean }) {
+  const [collapsed, setCollapsed] = useState(!defaultExpanded);
   const { data, isLoading, isError } = useQuery<GappersResponse>({
     queryKey: ["/api/premarket/gappers"],
     refetchInterval: 60_000,
@@ -111,36 +112,37 @@ export default function PreMarketGappersCard() {
                 const isUp = g.direction === "up";
                 const Icon = isUp ? TrendingUp : TrendingDown;
                 return (
-                  <div
-                    key={g.symbol}
-                    className={cn(
-                      "flex items-center justify-between text-xs px-2 py-1.5 rounded border",
-                      g.isWeekly
-                        ? "bg-amber-500/5 border-amber-500/30"
-                        : "border-border/40 hover:bg-muted/30",
-                    )}
-                    data-testid={`gapper-${g.symbol}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {g.isWeekly && (
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                      )}
-                      <span className="font-mono font-semibold">{g.symbol}</span>
-                      <span className="text-muted-foreground/70 font-mono">
-                        ${g.price.toFixed(2)}
-                      </span>
-                    </div>
+                  <Link key={g.symbol} href={`/terminal/${g.symbol}`}>
                     <div
                       className={cn(
-                        "flex items-center gap-1 font-mono font-semibold tabular-nums",
-                        isUp ? "text-emerald-400" : "text-red-400",
+                        "flex items-center justify-between text-xs px-2 py-1.5 rounded border cursor-pointer transition-colors",
+                        g.isWeekly
+                          ? "bg-amber-500/5 border-amber-500/30 hover:bg-amber-500/10"
+                          : "border-border/40 hover:bg-muted/40",
                       )}
+                      data-testid={`gapper-${g.symbol}`}
                     >
-                      <Icon className="h-3 w-3" />
-                      {g.gapPct >= 0 ? "+" : ""}
-                      {g.gapPct.toFixed(2)}%
+                      <div className="flex items-center gap-2">
+                        {g.isWeekly && (
+                          <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                        )}
+                        <span className="font-mono font-semibold">{g.symbol}</span>
+                        <span className="text-muted-foreground/70 font-mono">
+                          ${g.price.toFixed(2)}
+                        </span>
+                      </div>
+                      <div
+                        className={cn(
+                          "flex items-center gap-1 font-mono font-semibold tabular-nums",
+                          isUp ? "text-emerald-400" : "text-red-400",
+                        )}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {g.gapPct >= 0 ? "+" : ""}
+                        {g.gapPct.toFixed(2)}%
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

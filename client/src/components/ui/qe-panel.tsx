@@ -134,7 +134,7 @@ export interface QEPanelHeaderProps extends React.HTMLAttributes<HTMLDivElement>
   /** Badge content (count, status text) */
   badge?: React.ReactNode;
   /** Badge color */
-  badgeColor?: "cyan" | "bullish" | "bearish" | "gold" | "ai" | "live";
+  badgeColor?: "cyan" | "bullish" | "bearish" | "gold" | "ai" | "live" | "delayed" | "closed";
   /** Right-aligned actions (buttons, toggles) */
   actions?: React.ReactNode;
   /** Icon to show before title */
@@ -150,6 +150,8 @@ const badgeColorClasses = {
   gold: componentStyles.badge.gold,
   ai: componentStyles.badge.ai,
   live: componentStyles.badge.live,
+  delayed: componentStyles.badge.delayed,
+  closed: componentStyles.badge.closed,
 };
 
 const QEPanelHeader = React.forwardRef<HTMLDivElement, QEPanelHeaderProps>(

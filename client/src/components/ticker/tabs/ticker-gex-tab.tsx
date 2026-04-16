@@ -12,10 +12,14 @@
  * Glitch reference shows.
  */
 
+import { useState } from 'react';
 import { GEXHeatmapGrid } from '@/components/gex/gex-heatmap-grid';
+import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
 import { GEXLevelBadge } from '@/components/gex/gex-level-badge';
+import { GexHistoryBrowser } from '@/components/gex/gex-history-browser';
 import { formatGEX, formatGammaPct } from '../../../../../shared/gex-types';
-import type { GEXTerminalData } from '../../../../../shared/gex-types';
+import type { GEXTerminalData, GEXLevel } from '../../../../../shared/gex-types';
+import { cn } from '@/lib/utils';
 
 interface TickerGexTabProps {
   data: GEXTerminalData;
@@ -23,6 +27,9 @@ interface TickerGexTabProps {
 
 export function TickerGexTab({ data }: TickerGexTabProps) {
   const { snapshot, heatmap } = data;
+  const hasMatrix = data.strikeExpiryMatrix && data.strikeExpiryMatrix.length > 0;
+  const [heatmapView, setHeatmapView] = useState<'bars' | 'table' | 'matrix'>(hasMatrix ? 'matrix' : 'bars');
+  const [showHistory, setShowHistory] = useState(false);
 
   // Top 16 levels by absolute gamma — enough to see the wall structure
   // without drowning the panel in long-tail noise.
@@ -43,19 +50,67 @@ export function TickerGexTab({ data }: TickerGexTabProps) {
               Strike-level dealer gamma exposure · {heatmap.length} cells
             </div>
           </div>
-          <div className="flex items-center gap-3 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            <span>SPOT ${snapshot.spotPrice.toFixed(2)}</span>
-            <span className="text-[var(--gex-positive)]">CALL ${snapshot.callWall ?? '—'}</span>
-            <span className="text-[var(--gex-negative)]">PUT ${snapshot.putWall ?? '—'}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+              <span>SPOT ${snapshot.spotPrice.toFixed(2)}</span>
+              <span className="text-[var(--gex-positive)]">CALL ${snapshot.callWall ?? '—'}</span>
+              <span className="text-[var(--gex-negative)]">PUT ${snapshot.putWall ?? '—'}</span>
+            </div>
+            <div className="flex rounded-md border border-border overflow-hidden ml-2">
+              <button
+                type="button"
+                onClick={() => setHeatmapView('bars')}
+                className={cn(
+                  'px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest transition-colors',
+                  heatmapView === 'bars'
+                    ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                BARS
+              </button>
+              <button
+                type="button"
+                onClick={() => setHeatmapView('table')}
+                className={cn(
+                  'px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest transition-colors border-l border-border',
+                  heatmapView === 'table'
+                    ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                TABLE
+              </button>
+              {hasMatrix && (
+                <button
+                  type="button"
+                  onClick={() => setHeatmapView('matrix')}
+                  className={cn(
+                    'px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest transition-colors border-l border-border',
+                    heatmapView === 'matrix'
+                      ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  MATRIX
+                </button>
+              )}
+            </div>
           </div>
         </div>
         <div className="p-4">
-          <GEXHeatmapGrid cells={heatmap} spotPrice={snapshot.spotPrice} />
+          {heatmapView === 'matrix' && hasMatrix ? (
+            <GEXExpiryMatrix matrix={data.strikeExpiryMatrix!} snapshot={snapshot} />
+          ) : heatmapView === 'bars' ? (
+            <GEXHeatmapGrid cells={heatmap} spotPrice={snapshot.spotPrice} />
+          ) : (
+            <GEXStrikeTable levels={snapshot.levels} spotPrice={snapshot.spotPrice} />
+          )}
         </div>
       </div>
 
       {/* TOP STRIKES + EXPOSURE BREAKDOWN side-by-side */}
-      <div className="grid grid-cols-[1fr_320px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         <div className="rounded-lg bg-[var(--surface-raised)] border border-[var(--gex-positive)]/15 overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--gex-positive)]/15 bg-[var(--surface-base)]/50">
             <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--gex-positive)]">
@@ -105,6 +160,133 @@ export function TickerGexTab({ data }: TickerGexTabProps) {
           </div>
         </div>
       </div>
+
+      {/* GEX History Toggle + Browser */}
+      <div className="rounded-lg bg-[var(--surface-raised)] border border-cyan-500/15 overflow-hidden">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-cyan-400">
+              GEX TIME MACHINE
+            </span>
+            <span className="text-[9px] font-mono text-muted-foreground">
+              Browse historical gamma profiles by date
+            </span>
+          </div>
+          <span className={cn(
+            'text-[9px] font-mono text-cyan-400 transition-transform',
+            showHistory && 'rotate-180'
+          )}>
+            ▼
+          </span>
+        </button>
+        {showHistory && (
+          <div className="border-t border-cyan-500/15 p-4">
+            <GexHistoryBrowser symbol={data.symbol} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GEXStrikeTable({ levels, spotPrice }: { levels: GEXLevel[]; spotPrice: number }) {
+  const sorted = [...levels].sort((a, b) => b.strike - a.strike);
+  const maxGex = Math.max(...levels.map(l => Math.abs(l.gex)), 0.001);
+
+  const roleBadge = (role: GEXLevel['role']) => {
+    const map: Record<string, { label: string; cls: string }> = {
+      call_wall: { label: 'CW', cls: 'text-[var(--gex-positive)] bg-[var(--gex-positive)]/10' },
+      put_wall: { label: 'PW', cls: 'text-[var(--gex-negative)] bg-[var(--gex-negative)]/10' },
+      max_gamma: { label: 'MX', cls: 'text-[var(--gex-star)] bg-[var(--gex-star)]/10' },
+      flip: { label: 'FL', cls: 'text-amber-400 bg-amber-400/10' },
+      support: { label: 'SP', cls: 'text-[var(--gex-positive)]/60 bg-[var(--gex-positive)]/5' },
+      resistance: { label: 'RS', cls: 'text-[var(--gex-negative)]/60 bg-[var(--gex-negative)]/5' },
+      neutral: { label: '—', cls: 'text-muted-foreground bg-muted/10' },
+    };
+    const c = map[role] || map.neutral;
+    return (
+      <span className={cn('px-1 py-0.5 rounded text-[8px] font-bold', c.cls)}>
+        {c.label}
+      </span>
+    );
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[10px] font-mono">
+        <thead>
+          <tr className="text-[9px] uppercase tracking-widest text-muted-foreground border-b border-border/40">
+            <th className="text-left py-1.5 px-1 font-medium">STRIKE</th>
+            <th className="text-center py-1.5 px-1 font-medium">ROLE</th>
+            <th className="text-right py-1.5 px-1 font-medium">CALL GEX</th>
+            <th className="text-right py-1.5 px-1 font-medium">PUT GEX</th>
+            <th className="text-right py-1.5 px-1 font-medium">NET GEX</th>
+            <th className="text-right py-1.5 px-1 font-medium">OI</th>
+            <th className="text-right py-1.5 px-1 font-medium">γ %</th>
+            <th className="text-right py-1.5 px-1 font-medium">DIST</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((lvl) => {
+            const isNear = Math.abs(lvl.strike - spotPrice) / spotPrice < 0.003;
+            const netPct = Math.abs(lvl.gex) / maxGex * 100;
+            return (
+              <tr
+                key={lvl.strike}
+                className={cn(
+                  'border-b border-border/20 hover:bg-muted/10 transition-colors',
+                  isNear && 'bg-[var(--projection-glow)]/5 ring-1 ring-inset ring-[var(--projection-glow)]/20'
+                )}
+              >
+                <td className="py-1.5 px-1 font-bold tabular-nums">
+                  ${lvl.strike.toFixed(0)}
+                </td>
+                <td className="py-1.5 px-1 text-center">
+                  {roleBadge(lvl.role)}
+                </td>
+                <td className="py-1.5 px-1 text-right tabular-nums text-[var(--gex-positive)]">
+                  {lvl.callGex > 0 ? `+${lvl.callGex.toFixed(2)}B` : '—'}
+                </td>
+                <td className="py-1.5 px-1 text-right tabular-nums text-[var(--gex-negative)]">
+                  {lvl.putGex < 0 ? `${lvl.putGex.toFixed(2)}B` : '—'}
+                </td>
+                <td className={cn(
+                  'py-1.5 px-1 text-right tabular-nums font-bold',
+                  lvl.gex >= 0 ? 'text-[var(--gex-positive)]' : 'text-[var(--gex-negative)]'
+                )}>
+                  <div className="flex items-center justify-end gap-1">
+                    <div className="w-12 h-2 bg-muted/20 rounded-sm overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-sm',
+                          lvl.gex >= 0 ? 'bg-[var(--gex-positive)]' : 'bg-[var(--gex-negative)]'
+                        )}
+                        style={{ width: `${netPct}%`, opacity: 0.5 }}
+                      />
+                    </div>
+                    {formatGEX(lvl.gex)}
+                  </div>
+                </td>
+                <td className="py-1.5 px-1 text-right tabular-nums text-muted-foreground">
+                  {lvl.openInterest.toLocaleString()}
+                </td>
+                <td className="py-1.5 px-1 text-right tabular-nums text-muted-foreground">
+                  {(lvl.gammaPct * 100).toFixed(1)}%
+                </td>
+                <td className={cn(
+                  'py-1.5 px-1 text-right tabular-nums',
+                  lvl.distancePct > 0 ? 'text-[var(--gex-positive)]' : lvl.distancePct < 0 ? 'text-[var(--gex-negative)]' : 'text-muted-foreground'
+                )}>
+                  {lvl.distancePct > 0 ? '+' : ''}{lvl.distancePct.toFixed(1)}%
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

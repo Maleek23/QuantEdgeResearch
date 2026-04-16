@@ -214,10 +214,22 @@ class SelfLearningService {
       .filter(t => t.percentGain !== null && t.percentGain !== undefined)
       .map(t => t.percentGain!);
 
-    // SHARPE RATIO: (Mean Return - Risk Free Rate) / StdDev
-    // Using 5% annual risk-free rate = ~0.02% per trade (assuming ~250 trades/year)
-    const riskFreePerTrade = 0.02;
-    const { sharpeRatio, stdDev } = this.calculateSharpeRatio(allReturns, riskFreePerTrade);
+    // SHARPE RATIO: annualized, risk-free adjusted, duration-aware
+    // Uses actualHoldingTimeMinutes when available for proper time-weighting
+    const holdingDaysPerTrade = trades
+      .map(t => {
+        if (t.actualHoldingTimeMinutes) return t.actualHoldingTimeMinutes / (60 * 6.5); // trading day = 6.5hrs
+        if (t.timestamp && t.exitDate) {
+          const diffMs = new Date(t.exitDate).getTime() - new Date(t.timestamp).getTime();
+          return Math.max(1, diffMs / (1000 * 60 * 60 * 6.5)); // trading day = 6.5hrs
+        }
+        return null;
+      })
+      .filter((d): d is number => d !== null);
+    const avgHoldingDays = holdingDaysPerTrade.length > 0
+      ? holdingDaysPerTrade.reduce((a, b) => a + b, 0) / holdingDaysPerTrade.length
+      : 1; // default 1 trading day if no duration data
+    const { sharpeRatio, stdDev } = this.calculateSharpeRatio(allReturns, avgHoldingDays);
 
     // PROFIT FACTOR: Gross Profit / Gross Loss (should be > 1.5 for good system)
     const grossProfit = winReturns.reduce((sum, r) => sum + r, 0);
@@ -266,27 +278,40 @@ class SelfLearningService {
   }
 
   /**
-   * Calculate Sharpe Ratio from returns array
-   * Sharpe = (Mean Return - Risk Free Rate) / Standard Deviation
+   * Calculate annualized Sharpe Ratio from per-trade percent returns
+   *
+   * Methodology:
+   *   excess_return_i = return_i - (riskFreeAnnual * avgHoldingDays / 252)
+   *   sharpe = (mean(excess) / std(excess)) * sqrt(252 / avgHoldingDays)
+   *
+   * @param returns   - per-trade percent returns (e.g. [2.5, -1.3, ...])
+   * @param avgHoldingDays - average holding period in trading days (used for
+   *                         both risk-free proration and annualization)
    */
-  private calculateSharpeRatio(returns: number[], riskFreeRate: number): { sharpeRatio: number; stdDev: number } {
+  private calculateSharpeRatio(returns: number[], avgHoldingDays: number): { sharpeRatio: number; stdDev: number } {
     if (returns.length < 2) {
       return { sharpeRatio: 0, stdDev: 0 };
     }
 
-    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-    const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+    // 4.5% annual risk-free rate (T-bill proxy), prorated per trade
+    const ANNUAL_RISK_FREE = 0.045;
+    const riskFreePerTrade = (ANNUAL_RISK_FREE * avgHoldingDays) / 252;
+
+    // Convert percent returns to decimal and subtract prorated risk-free rate
+    const excessReturns = returns.map(r => (r / 100) - riskFreePerTrade);
+    const meanExcess = excessReturns.reduce((sum, r) => sum + r, 0) / excessReturns.length;
+    const variance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
     const stdDev = Math.sqrt(variance);
 
     if (stdDev === 0) {
-      return { sharpeRatio: 0, stdDev: 0 };
+      return { sharpeRatio: 0, stdDev: stdDev * 100 }; // return stdDev in percent
     }
 
-    // Annualize: multiply by sqrt(252) assuming ~252 trading days
-    // But for per-trade Sharpe, we use the trade-level stdDev
-    const sharpeRatio = (mean - riskFreeRate) / stdDev;
+    // Annualize: scale from per-trade to annual using sqrt(252 / avgHoldingDays)
+    const annualizationFactor = Math.sqrt(252 / Math.max(avgHoldingDays, 0.1));
+    const sharpeRatio = (meanExcess / stdDev) * annualizationFactor;
 
-    return { sharpeRatio, stdDev };
+    return { sharpeRatio, stdDev: stdDev * 100 }; // return stdDev in percent for consistency
   }
 
   /**

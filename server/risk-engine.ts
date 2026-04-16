@@ -405,24 +405,35 @@ export function calculateKellyCriterion(
 // ============================================================================
 
 /**
- * Calculate Sharpe Ratio
- * (Return - Risk-Free Rate) / Standard Deviation
+ * Calculate annualized Sharpe Ratio
+ *
+ * Methodology:
+ *   excess_i = return_i - (riskFreeAnnual / 252)  [per-period risk-free cost]
+ *   sharpe = (mean(excess) / std(excess)) * sqrt(252)
+ *
+ * @param returns       - array of per-period decimal returns (e.g. daily P&L fractions)
+ * @param riskFreeRate  - per-period risk-free rate (default: 4.5% annual / 252)
+ *
+ * Note: this function assumes all returns share the same period length.
+ * For trade-level returns with variable holding periods, use the
+ * duration-aware calculators in self-learning-service or routes.ts.
  */
 export function calculateSharpeRatio(
   returns: number[],
-  riskFreeRate: number = 0.05 / 252 // Daily risk-free rate (~5% annual)
+  riskFreeRate: number = 0.045 / 252 // Daily risk-free rate (4.5% annual T-bill proxy)
 ): number {
   if (returns.length < 20) return 0;
-  
-  const avgReturn = mean(returns);
-  const stdDev = standardDeviation(returns);
-  
-  if (stdDev === 0) return 0;
-  
+
+  // Compute excess returns per period
+  const excessReturns = returns.map(r => r - riskFreeRate);
+  const meanExcess = mean(excessReturns);
+  const stdExcess = standardDeviation(excessReturns);
+
+  if (stdExcess === 0) return 0;
+
   // Annualize (assuming daily returns)
-  const excessReturn = avgReturn - riskFreeRate;
-  const annualizedSharpe = (excessReturn / stdDev) * Math.sqrt(252);
-  
+  const annualizedSharpe = (meanExcess / stdExcess) * Math.sqrt(252);
+
   return annualizedSharpe;
 }
 
@@ -432,7 +443,7 @@ export function calculateSharpeRatio(
  */
 export function calculateSortinoRatio(
   returns: number[],
-  riskFreeRate: number = 0.05 / 252
+  riskFreeRate: number = 0.045 / 252
 ): number {
   if (returns.length < 20) return 0;
   

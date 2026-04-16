@@ -66,8 +66,8 @@ const generateChartData = (isLong: boolean, entryPrice: number, targetPrice: num
 
 // Default engine signals if not provided
 const defaultEngineSignals: EngineSignal[] = [
-  { name: "ML", signal: "bullish" },
-  { name: "NLP", signal: "bullish" },
+  { name: "CNV", signal: "bullish" },
+  { name: "GEX", signal: "bullish" },
   { name: "QNT", signal: "bullish" },
   { name: "FLW", signal: "bullish" },
   { name: "SNT", signal: "neutral" },
@@ -193,10 +193,7 @@ export function TradeIdeaCard({
               {tier}
             </span>
           )}
-          <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] text-emerald-400 font-mono">LIVE</span>
-          </div>
+          {/* Freshness badge removed — no timestamp to validate "LIVE" */}
         </div>
       </div>
 
@@ -315,7 +312,7 @@ export function TradeIdeaCard({
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
             <Brain className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Confidence</span>
+            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">Signal Strength</span>
           </div>
           <span className={cn(
             "text-sm font-bold font-mono",
@@ -323,7 +320,7 @@ export function TradeIdeaCard({
             confidenceScore >= 70 ? "text-blue-400" :
             confidenceScore >= 55 ? "text-amber-400" : "text-slate-400"
           )}>
-            {confidenceScore}%
+            {confidenceScore}pts
           </span>
         </div>
         <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden">
@@ -539,7 +536,7 @@ export function TradeIdeaRow({
           confidenceScore >= 65 ? "bg-blue-500/10 text-blue-400" :
           "bg-amber-500/10 text-amber-400"
         )}>
-          {confidenceScore}%
+          {confidenceScore}pts
         </div>
       </div>
 

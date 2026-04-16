@@ -13,15 +13,19 @@
  */
 
 import { logger } from './logger';
+import { storage } from './storage';
 import { calculateAggregateGammaExposure } from './gamma-exposure';
 import { getTradierQuote } from './tradier-api';
 import { getChartLastPrice, safeQuote, getBestPrice } from './yahoo-finance-service';
+import { enrichOptionIdea } from './options-enricher';
+import type { AITradeIdea } from './ai-service';
 import {
   APPROVED_TICKERS,
   S_TIER,
   A_TIER,
   INDEX_TICKERS,
   SECONDARY,
+  SMALL_ACCOUNT_TIER,
   getTier,
   getSector,
   SECTOR_LABELS,
@@ -37,12 +41,100 @@ import {
   HubLeaderRow,
   SectorAggregate,
   RegimeDistribution,
+  TopPlay,
+  type VEXSignal,
   scoreToTier,
 } from '../shared/gex-types';
 
 // ─── Cache ──────────────────────────────────────────────────
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min (larger universe)
 let cachedResult: { data: ConfluenceScanResult; expiresAt: number } | null = null;
+
+// ─── Market Session Detection ──────────────────────────────
+export type MarketSession = 'pre_market' | 'open' | 'after_hours' | 'overnight';
+
+export function getMarketSession(): MarketSession {
+  const now = new Date();
+  // Convert to ET (UTC-4 EDT / UTC-5 EST) — approximate
+  const utcH = now.getUTCHours();
+  const utcM = now.getUTCMinutes();
+  const etH = (utcH - 4 + 24) % 24; // EDT approximation
+  const etMin = etH * 60 + utcM;
+
+  const isWeekend = now.getUTCDay() === 0 || now.getUTCDay() === 6;
+  if (isWeekend) return 'overnight';
+
+  if (etMin >= 570 && etMin < 960) return 'open';        // 9:30 AM - 4:00 PM ET
+  if (etMin >= 240 && etMin < 570) return 'pre_market';   // 4:00 AM - 9:30 AM ET
+  if (etMin >= 960 && etMin < 1200) return 'after_hours'; // 4:00 PM - 8:00 PM ET
+  return 'overnight';                                      // 8:00 PM - 4:00 AM ET
+}
+
+// ─── Futures Proxy — ES/NQ/YM for off-hours context ────────
+export interface FuturesSnapshot {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePct: number;
+  fetchedAt: number;
+}
+
+const FUTURES_SYMBOLS = [
+  { yahoo: 'ES=F', name: 'S&P 500 Futures', equity: 'SPY' },
+  { yahoo: 'NQ=F', name: 'Nasdaq Futures', equity: 'QQQ' },
+  { yahoo: 'YM=F', name: 'Dow Futures', equity: 'DIA' },
+  { yahoo: 'RTY=F', name: 'Russell 2000 Futures', equity: 'IWM' },
+  { yahoo: 'VX=F', name: 'VIX Futures', equity: 'VIX' },
+];
+
+let futuresCache: { data: FuturesSnapshot[]; expiresAt: number } | null = null;
+const FUTURES_CACHE_TTL = 2 * 60 * 1000; // 2 min — fresher than GEX
+
+export async function getFuturesSnapshot(): Promise<FuturesSnapshot[]> {
+  if (futuresCache && Date.now() < futuresCache.expiresAt) {
+    return futuresCache.data;
+  }
+
+  const results: FuturesSnapshot[] = [];
+
+  // Use Yahoo chart API directly — more reliable for futures symbols than yahoo-finance2 library
+  await Promise.all(FUTURES_SYMBOLS.map(async (f) => {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(f.yahoo)}?interval=1m&range=1d&includePrePost=true`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) return;
+
+      const price = meta.regularMarketPrice || 0;
+      const prev = meta.chartPreviousClose || meta.previousClose || price;
+      if (price <= 0) return;
+
+      const change = price - prev;
+      results.push({
+        symbol: f.yahoo,
+        name: f.name,
+        price,
+        change,
+        changePct: prev > 0 ? (change / prev) * 100 : 0,
+        fetchedAt: Date.now(),
+      });
+    } catch (e: any) {
+      logger.debug(`[FUTURES] Failed to fetch ${f.yahoo}: ${e.message}`);
+    }
+  }));
+
+  if (results.length > 0) {
+    futuresCache = { data: results, expiresAt: Date.now() + FUTURES_CACHE_TTL };
+  }
+  logger.info(`[FUTURES] Fetched ${results.length}/${FUTURES_SYMBOLS.length} futures quotes`);
+  return results;
+}
 
 // ─── Quote Helper ──────────────────────────────────────────
 async function getQuoteWithChange(symbol: string): Promise<{ price: number; change: number; changePct: number } | null> {
@@ -269,38 +361,60 @@ function deriveBias(snap: GEXSnapshot): {
   stop: number | null;
   rr: number | null;
 } {
-  const { spotPrice, callWall, putWall, totalGEX, regime, zeroGammaProjection } = snap;
+  const { spotPrice, callWall, putWall, regime, zeroGammaProjection, maxGammaStrike, totalVEX } = snap;
 
-  // Positive gamma regime → mean revert to max-gamma (pin)
-  // Negative gamma regime → trend toward nearest wall
   let bias: 'long' | 'short' | 'neutral' = 'neutral';
   let target: number | null = null;
   let stop: number | null = null;
 
-  if (regime === 'positive_gamma' && zeroGammaProjection) {
-    if (zeroGammaProjection > spotPrice) {
-      bias = 'long';
-      target = callWall || zeroGammaProjection;
-      stop = putWall || spotPrice * 0.98;
-    } else if (zeroGammaProjection < spotPrice) {
-      bias = 'short';
-      target = putWall || zeroGammaProjection;
-      stop = callWall || spotPrice * 1.02;
+  if (regime === 'positive_gamma') {
+    // Positive gamma → dealers DAMPEN moves → price PINS near max gamma / projection.
+    // Target is the magnet (max gamma or projection), NOT the distant wall.
+    const magnet = zeroGammaProjection || maxGammaStrike;
+    if (magnet && magnet > 0) {
+      const distPct = ((magnet - spotPrice) / spotPrice) * 100;
+      if (distPct > 0.15) {
+        bias = 'long';
+        target = magnet;
+        stop = putWall || spotPrice * 0.985;
+      } else if (distPct < -0.15) {
+        bias = 'short';
+        target = magnet;
+        stop = callWall || spotPrice * 1.015;
+      } else {
+        // Within 0.15% of magnet → pinned, neutral
+        bias = 'neutral';
+        target = magnet;
+      }
     }
   } else if (regime === 'negative_gamma') {
-    // Negative gamma → break toward nearest wall with momentum
+    // Negative gamma → dealers AMPLIFY moves → price trends toward nearest wall.
     if (callWall && putWall) {
       const distCall = Math.abs(callWall - spotPrice);
       const distPut = Math.abs(spotPrice - putWall);
       if (distCall < distPut) {
         bias = 'long';
         target = callWall;
-        stop = spotPrice * 0.985;
+        stop = spotPrice - (callWall - spotPrice) * 0.4; // tighter stop in neg gamma
       } else {
         bias = 'short';
         target = putWall;
-        stop = spotPrice * 1.015;
+        stop = spotPrice + (spotPrice - putWall) * 0.4;
       }
+    }
+  } else if (regime === 'transitioning') {
+    // Transitioning → approaching flip, momentum matters
+    // If positive VEX, lean long (vanna supports). If negative, lean toward nearest wall.
+    if (totalVEX > 0 && callWall) {
+      bias = 'long';
+      target = callWall;
+      stop = putWall || spotPrice * 0.98;
+    } else if (totalVEX < 0 && putWall && callWall) {
+      const distCall = Math.abs(callWall - spotPrice);
+      const distPut = Math.abs(spotPrice - putWall);
+      bias = distCall < distPut ? 'long' : 'short';
+      target = bias === 'long' ? callWall : putWall;
+      stop = bias === 'long' ? putWall : callWall;
     }
   }
 
@@ -332,11 +446,19 @@ export async function scanWatchlistConfluence(options?: {
       : [
           ...(INDEX_TICKERS as readonly string[]),
           ...(S_TIER as readonly string[]),
-          ...(A_TIER as readonly string[]).slice(0, 20), // Cap to keep scan fast
-          ...(SECONDARY as readonly string[]).slice(0, 5),
+          ...(A_TIER as readonly string[]),
+          ...(SECONDARY as readonly string[]),
+          ...(SMALL_ACCOUNT_TIER as readonly string[]),
         ];
+  // Deduplicate (some tickers may appear in multiple tiers)
+  const seen = new Set<string>();
+  const deduped = universe.filter((t) => {
+    if (seen.has(t)) return false;
+    seen.add(t);
+    return true;
+  });
 
-  logger.info(`[GEX-SCAN] Scanning ${universe.length} tickers...`);
+  logger.info(`[GEX-SCAN] Scanning ${deduped.length} tickers...`);
   const startedAt = Date.now();
 
   const rows: ConfluenceRow[] = [];
@@ -344,8 +466,8 @@ export async function scanWatchlistConfluence(options?: {
 
   // Process in batches of 5 to respect rate limits
   const BATCH_SIZE = 5;
-  for (let i = 0; i < universe.length; i += BATCH_SIZE) {
-    const batch = universe.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
+    const batch = deduped.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map(async (symbol) => {
         const [gex, quote] = await Promise.all([
@@ -426,7 +548,7 @@ export async function scanWatchlistConfluence(options?: {
   const result: ConfluenceScanResult = {
     rows: filtered,
     scannedAt: startedAt,
-    tickersScanned: universe.length,
+    tickersScanned: deduped.length,
     tickersWithData: rows.length,
     marketRegime,
     topPick: filtered[0]?.symbol ?? null,
@@ -474,7 +596,257 @@ function toLeaderRow(r: ConfluenceRow): HubLeaderRow {
   };
 }
 
-export function buildGEXHub(scan: ConfluenceScanResult): GEXHubData {
+// ─── Top Plays — rank actionable setups by dealer positioning ──
+
+function buildTopPlays(rows: ConfluenceRow[]): TopPlay[] {
+  return rows
+    .filter((r) => r.spotPrice > 0 && (r.totalGEX !== 0 || r.totalVEX !== 0))
+    .map((r) => {
+      const flipDist = r.gammaFlip && r.gammaFlip > 0
+        ? ((r.spotPrice - r.gammaFlip) / r.spotPrice) * 100
+        : null;
+      const isAboveFlip = flipDist !== null && flipDist >= 0;
+      const isNegativeGamma = r.regime === 'negative_gamma' || r.totalGEX < 0;
+      const absVex = Math.abs(r.totalVEX);
+
+      // ── Play score: VEX magnitude (40) + flip proximity (30) + regime (15) + wall setup (15) ──
+      let score = 0;
+
+      // VEX component (0-40): positive VEX is rare and very bullish
+      if (r.totalVEX > 0 && absVex > 50) score += 40;
+      else if (absVex > 1000) score += 35;
+      else if (absVex > 500) score += 30;
+      else if (absVex > 100) score += 22;
+      else if (absVex > 10) score += 12;
+      else score += 4;
+
+      // Flip proximity (0-30): above flip or right at it is best
+      if (isAboveFlip) score += 30;
+      else if (flipDist !== null && Math.abs(flipDist) < 0.5) score += 26;
+      else if (flipDist !== null && Math.abs(flipDist) < 1) score += 20;
+      else if (flipDist !== null && Math.abs(flipDist) < 2) score += 14;
+      else if (flipDist !== null && Math.abs(flipDist) < 3) score += 8;
+
+      // Regime (0-15): negative gamma = amplified moves
+      if (isNegativeGamma) score += 15;
+      else if (r.regime === 'positive_gamma') score += 12;
+      else if (r.regime === 'transitioning') score += 8;
+      else score += 4;
+
+      // Wall setup (0-15): tight bracket = coiled
+      if (r.callWall && r.putWall && r.spotPrice > 0) {
+        const bracket = ((r.callWall - r.putWall) / r.spotPrice) * 100;
+        if (bracket >= 2 && bracket <= 5) score += 15;
+        else if (bracket < 2) score += 12;
+        else if (bracket <= 10) score += 10;
+        else score += 5;
+      }
+
+      // VEX signal classification
+      let vexSignal: VEXSignal;
+      if (r.totalVEX > 0 && absVex > 50) vexSignal = 'positive_rare';
+      else if (absVex > 500 && isNegativeGamma) vexSignal = 'negative_explosive';
+      else if (absVex > 100) vexSignal = 'negative_strong';
+      else vexSignal = 'mild';
+
+      // ── Plain English insight (regime-aware) ──
+      const isPositiveGamma = r.regime === 'positive_gamma';
+      const isTransitioning = r.regime === 'transitioning';
+      const hasPositiveVEX = r.totalVEX > 0;
+      let insight: string;
+
+      if (vexSignal === 'positive_rare' && isPositiveGamma) {
+        // Positive VEX + positive gamma = vol compression drives dealer buying → strong pin support
+        insight = `Positive VEX (+${absVex.toFixed(0)}) in positive gamma — vol compression drives dealer buying. Strong pin support near $${(r.callWall || r.gammaFlip || r.spotPrice).toFixed(0)}.`;
+      } else if (vexSignal === 'positive_rare') {
+        // Positive VEX outside positive gamma = dealers buying alongside, rare
+        insight = `Positive VEX (+${absVex.toFixed(0)}) — dealers accumulating delta with you. Rare bullish signal${isTransitioning ? ' — watch for regime flip to confirm.' : '.'}`;
+      } else if (vexSignal === 'negative_explosive') {
+        // Negative gamma + high VEX = cascading dealer hedging both ways
+        insight = `Negative gamma + VEX −${absVex.toFixed(0)} = coiled spring. Dealers must chase price in both directions — break ${isAboveFlip ? 'continues' : 'triggers'} cascade.`;
+      } else if (isPositiveGamma && isAboveFlip) {
+        // Positive gamma above flip = dealers SELL rallies, DAMPEN moves → pin
+        const negVexNote = absVex > 100
+          ? ` Negative VEX (−${absVex.toFixed(0)}) = vol-compression headwind limits upside extension.`
+          : '';
+        insight = `Positive gamma above flip — dealers sell rallies, buy dips. Expect pin near max gamma.${ negVexNote}`;
+      } else if (isNegativeGamma && isAboveFlip) {
+        // Negative gamma above flip = dealers CHASE upside, amplify momentum
+        insight = `Negative gamma above flip — dealers chasing upside, amplifying momentum. VEX −${absVex.toFixed(0)} fuels acceleration.`;
+      } else if (isNegativeGamma && !isAboveFlip) {
+        // Negative gamma below flip = dealers chase downside
+        insight = `Negative gamma below flip — dealers amplifying downside. Watch for flush toward put wall.`;
+      } else if (flipDist !== null && Math.abs(flipDist) < 1.5) {
+        // Near the flip = potential regime change, high-conviction trigger zone
+        insight = `${Math.abs(flipDist).toFixed(1)}% from gamma flip — breakout in either direction triggers dealer hedging cascade.`;
+      } else if (isPositiveGamma) {
+        // Generic positive gamma
+        insight = `Positive gamma — dealers dampen moves, expect range-bound action near $${(r.callWall || r.spotPrice).toFixed(0)}.${hasPositiveVEX ? ' Positive VEX supports bid.' : ''}`;
+      } else {
+        insight = `Neutral regime. VEX ${r.totalVEX >= 0 ? '+' : ''}${r.totalVEX.toFixed(0)} — moderate dealer positioning, no strong directional pressure.`;
+      }
+
+      const conviction = score >= 70 ? 'high' as const : score >= 45 ? 'medium' as const : 'low' as const;
+
+      return {
+        symbol: r.symbol,
+        sector: r.sector,
+        spotPrice: r.spotPrice,
+        gammaFlip: r.gammaFlip,
+        flipDistancePct: flipDist ?? 0,
+        isAboveFlip,
+        callWall: r.callWall,
+        putWall: r.putWall,
+        totalGEX: r.totalGEX,
+        totalVEX: r.totalVEX,
+        vexSignal,
+        regime: r.regime,
+        isNegativeGamma,
+        playScore: Math.min(100, score),
+        conviction,
+        bias: r.bias,
+        target: r.target || (r.bias === 'short' ? r.putWall : r.callWall),
+        stop: r.stop || (r.bias === 'short' ? r.callWall : r.putWall),
+        insight,
+      } satisfies TopPlay;
+    })
+    .sort((a, b) => b.playScore - a.playScore)
+    .slice(0, 20);
+}
+
+// ─── Persist top GEX Hub plays as trade ideas (with option enrichment) ───
+
+const TOP_PLAY_DUPE_WINDOW_MS = 2 * 60 * 60 * 1000; // 2-hour dedup window
+
+async function isTopPlayDuplicate(symbol: string, bias: string): Promise<boolean> {
+  try {
+    const all = await storage.getAllTradeIdeas();
+    const cutoff = Date.now() - TOP_PLAY_DUPE_WINDOW_MS;
+    return all.some(
+      (i: any) =>
+        i.symbol === symbol &&
+        i.source === 'gex_scanner' &&
+        (i.dataSourceUsed || '').startsWith('GEX_top_play') &&
+        (i.direction || '').toLowerCase() === bias &&
+        new Date(i.timestamp).getTime() > cutoff,
+    );
+  } catch { return false; }
+}
+
+/**
+ * Persist top GEX Hub plays as enriched trade ideas.
+ * Called after buildGEXHub — takes the highest-conviction plays
+ * and writes them through the options enricher into trade_ideas.
+ */
+export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> {
+  // Only persist high/medium conviction plays (score >= 45)
+  const best = plays.filter(p => p.conviction !== 'low' && p.bias !== 'neutral').slice(0, 8);
+  if (best.length === 0) return 0;
+
+  let persisted = 0;
+  for (const play of best) {
+    if (await isTopPlayDuplicate(play.symbol, play.bias)) continue;
+
+    const direction = play.bias as 'long' | 'short';
+    const aiShape: AITradeIdea = {
+      symbol: play.symbol,
+      assetType: 'option',
+      direction,
+      entryPrice: play.spotPrice,
+      targetPrice: play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97),
+      stopLoss: play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02),
+      catalyst: `GEX Hub top play — ${play.vexSignal} VEX, ${play.regime} regime`,
+      analysis: play.insight,
+      sessionContext: 'regular',
+    };
+
+    let tradeIdea: Record<string, any>;
+    try {
+      const enriched = await enrichOptionIdea(aiShape);
+      if (enriched) {
+        tradeIdea = {
+          symbol: play.symbol,
+          sector: play.sector ?? null,
+          assetType: 'option',
+          direction,
+          entryPrice: enriched.entryPrice,
+          targetPrice: enriched.targetPrice,
+          stopLoss: enriched.stopLoss,
+          riskRewardRatio: enriched.riskRewardRatio,
+          optionType: enriched.optionType,
+          strikePrice: enriched.strikePrice,
+          expiryDate: enriched.expiryDate,
+          catalyst: `GEX top play — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
+          analysis: `${play.insight} | OPTIONS: ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} @ $${enriched.entryPrice.toFixed(2)} → target $${enriched.targetPrice.toFixed(2)}`,
+          source: 'gex_scanner',
+          dataSourceUsed: `GEX_top_play_${play.vexSignal}`,
+          sessionContext: 'regular',
+          timestamp: new Date().toISOString(),
+          outcomeStatus: 'open',
+          confidenceScore: Math.min(94, Math.round(play.playScore * 0.9 + 10)),
+          holdingPeriod: play.playScore >= 65 ? 'day' : 'swing',
+          qualitySignals: [
+            `gamma_regime:${play.regime}`,
+            `vex_signal:${play.vexSignal}`,
+            `play_score:${play.playScore}`,
+            play.gammaFlip ? `flip:${play.gammaFlip.toFixed(2)}` : '',
+            play.callWall ? `call_wall:${play.callWall.toFixed(2)}` : '',
+            play.putWall ? `put_wall:${play.putWall.toFixed(2)}` : '',
+            `strike:${enriched.strikePrice}`,
+            `expiry:${enriched.expiryDate}`,
+          ].filter(Boolean),
+        };
+        logger.info(`[GEX-HUB] 🎯 TopPlay → ${play.symbol} ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`);
+      } else {
+        throw new Error('enrichment null');
+      }
+    } catch {
+      // Fallback: stock-level idea
+      const stockRR = play.target && play.stop
+        ? Math.abs(((play.target || 0) - play.spotPrice) / (play.spotPrice - (play.stop || play.spotPrice)))
+        : 2.0;
+      tradeIdea = {
+        symbol: play.symbol,
+        sector: play.sector ?? null,
+        assetType: 'stock',
+        direction,
+        entryPrice: play.spotPrice,
+        targetPrice: play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97),
+        stopLoss: play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02),
+        riskRewardRatio: +stockRR.toFixed(2),
+        catalyst: `GEX Hub top play — ${play.vexSignal} VEX, ${play.regime} regime`,
+        analysis: play.insight,
+        source: 'gex_scanner',
+        dataSourceUsed: `GEX_top_play_${play.vexSignal}`,
+        sessionContext: 'regular',
+        timestamp: new Date().toISOString(),
+        outcomeStatus: 'open',
+        confidenceScore: Math.min(94, Math.round(play.playScore * 0.9 + 10)),
+        holdingPeriod: play.playScore >= 65 ? 'day' : 'swing',
+        qualitySignals: [
+          `gamma_regime:${play.regime}`,
+          `vex_signal:${play.vexSignal}`,
+          `play_score:${play.playScore}`,
+          play.gammaFlip ? `flip:${play.gammaFlip.toFixed(2)}` : '',
+          play.callWall ? `call_wall:${play.callWall.toFixed(2)}` : '',
+          play.putWall ? `put_wall:${play.putWall.toFixed(2)}` : '',
+        ].filter(Boolean),
+      };
+    }
+
+    try {
+      await storage.createTradeIdea(tradeIdea as any);
+      persisted++;
+    } catch (err) {
+      logger.warn(`[GEX-HUB] TopPlay persist failed ${play.symbol}: ${(err as Error).message}`);
+    }
+  }
+
+  if (persisted > 0) logger.info(`[GEX-HUB] ✅ Persisted ${persisted}/${best.length} top plays as trade ideas`);
+  return persisted;
+}
+
+export async function buildGEXHub(scan: ConfluenceScanResult): Promise<GEXHubData> {
   const rows = scan.rows;
 
   // ─── Top positive GEX (call wall heavy / pin candidates) ───
@@ -547,6 +919,21 @@ export function buildGEXHub(scan: ConfluenceScanResult): GEXHubData {
   const marketNetGEX = rows.reduce((sum, r) => sum + r.totalGEX, 0);
   const marketNetVEX = rows.reduce((sum, r) => sum + r.totalVEX, 0);
 
+  // ─── Top plays ─────────────────────────────────────────────
+  const topPlays = buildTopPlays(rows);
+
+  // ─── Session + futures context ─────────────────────────────
+  const session = getMarketSession();
+  let futures: GEXHubData['futures'] = undefined;
+  if (session !== 'open') {
+    try {
+      const snaps = await getFuturesSnapshot();
+      if (snaps.length > 0) futures = snaps;
+    } catch (e: any) {
+      logger.warn(`[GEX-HUB] Futures fetch failed: ${e.message}`);
+    }
+  }
+
   return {
     scannedAt: scan.scannedAt,
     marketRegime: scan.marketRegime,
@@ -558,5 +945,8 @@ export function buildGEXHub(scan: ConfluenceScanResult): GEXHubData {
     regimeDistribution,
     marketNetGEX,
     marketNetVEX,
+    topPlays,
+    session,
+    futures,
   };
 }

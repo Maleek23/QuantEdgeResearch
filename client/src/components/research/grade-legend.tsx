@@ -82,7 +82,7 @@ export function GradeLegend({ className }: GradeLegendProps) {
               How Grading Works
             </h3>
             <p className="text-sm text-muted-foreground">
-              Overall grade = weighted average of 7 analysis engines. Each component contributes based on its portfolio weight.
+              Overall grade = weighted average of 7 analysis layers. Each component contributes based on its portfolio weight.
             </p>
           </div>
         </div>

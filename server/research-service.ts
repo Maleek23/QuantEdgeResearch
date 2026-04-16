@@ -13,6 +13,7 @@ interface AnalysisResult {
   confidence: number;
   timestamp: string;
   summary: string;
+  synthetic?: boolean; // true when returning stub data (AI unavailable)
   sections: AnalysisSection[];
 }
 
@@ -223,67 +224,47 @@ function formatSections(parsed: any, analysisType: string): AnalysisSection[] {
   return sections;
 }
 
-function generateTechnicalMetrics(signal: string): { name: string; value: number | string; signal: string }[] {
-  const isBullish = signal === "BUY";
-  const isBearish = signal === "SELL";
-  
+function generateTechnicalMetrics(_signal: string): { name: string; value: number | string; signal: string }[] {
+  // No real data available — return null values instead of fabricated metrics
   return [
-    { 
-      name: "RSI(14)", 
-      value: isBullish ? 45 + Math.random() * 15 : isBearish ? 65 + Math.random() * 15 : 50 + Math.random() * 10,
-      signal: isBullish ? "bullish" : isBearish ? "bearish" : "neutral"
-    },
-    { 
-      name: "MACD", 
-      value: isBullish ? 0.5 + Math.random() * 1.5 : isBearish ? -0.5 - Math.random() * 1.5 : (Math.random() - 0.5) * 0.5,
-      signal: isBullish ? "bullish" : isBearish ? "bearish" : "neutral"
-    },
-    { 
-      name: "Volume Ratio", 
-      value: 1 + Math.random() * 0.8,
-      signal: "neutral"
-    },
+    { name: "RSI(14)", value: "N/A", signal: "unavailable" },
+    { name: "MACD", value: "N/A", signal: "unavailable" },
+    { name: "Volume Ratio", value: "N/A", signal: "unavailable" },
   ];
 }
 
-function generateLevels(symbol: string, signal: string): { entry: string; stop: string; target1: string; target2: string } {
-  // These would ideally come from real price data
-  const basePrice = 20 + Math.random() * 100;
-  const isBullish = signal === "BUY";
-  
+function generateLevels(_symbol: string, _signal: string): { entry: string; stop: string; target1: string; target2: string } {
+  // No real price data — return N/A instead of fabricated levels
   return {
-    entry: basePrice.toFixed(2),
-    stop: (basePrice * (isBullish ? 0.93 : 1.07)).toFixed(2),
-    target1: (basePrice * (isBullish ? 1.15 : 0.85)).toFixed(2),
-    target2: (basePrice * (isBullish ? 1.30 : 0.70)).toFixed(2),
+    entry: "N/A",
+    stop: "N/A",
+    target1: "N/A",
+    target2: "N/A",
   };
 }
 
 function generateQuantAnalysis(symbol: string, analysisType: string): AnalysisResult {
-  // Fallback quantitative analysis when AI is unavailable
-  const signals = ["BUY", "SELL", "HOLD", "WAIT"] as const;
-  const signal = signals[Math.floor(Math.random() * 3)]; // Bias toward BUY/SELL/HOLD
-  const confidence = 60 + Math.floor(Math.random() * 25);
-  
+  // Stub fallback when AI is unavailable — no fabricated signals
   return {
     symbol,
     type: analysisType,
-    signal,
-    confidence,
+    signal: "WAIT",
+    confidence: 0,
     timestamp: new Date().toISOString(),
-    summary: `${symbol} shows ${signal === "BUY" ? "bullish" : signal === "SELL" ? "bearish" : "neutral"} signals based on quantitative analysis. Our 6-engine system detected ${signal === "BUY" ? "positive momentum and accumulation patterns" : signal === "SELL" ? "distribution and weakening momentum" : "consolidation with mixed signals"}.`,
+    summary: `Analysis for ${symbol} is currently unavailable. AI service is offline and no cached analysis exists. Please try again later.`,
+    synthetic: true,
     sections: [
       {
         title: "Executive Summary",
-        content: `Based on multi-factor analysis, ${symbol} is rated ${signal} with ${confidence}% confidence. ${signal === "BUY" ? "The stock shows strong technical setup with bullish momentum divergence." : signal === "SELL" ? "Technical indicators suggest caution with bearish momentum." : "Mixed signals suggest waiting for clearer direction."}`,
+        content: `Real-time analysis for ${symbol} is temporarily unavailable. This is a placeholder response — no signals or recommendations should be acted upon.`,
       },
       {
         title: "Technical Analysis",
-        metrics: generateTechnicalMetrics(signal),
+        metrics: generateTechnicalMetrics("WAIT"),
       },
       {
         title: "Entry & Risk Management",
-        levels: generateLevels(symbol, signal),
+        levels: generateLevels(symbol, "WAIT"),
       },
     ],
   };
