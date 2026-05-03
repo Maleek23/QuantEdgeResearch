@@ -24057,6 +24057,72 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ===== Social publisher (Twitter/X dual-account with anti-spam guardrails) =====
+
+  app.get("/api/social/publisher/status", requireAdminJWT, async (_req, res) => {
+    try {
+      const { getPublisherStatus } = await import("./twitter-publisher");
+      res.json(getPublisherStatus());
+    } catch (error) {
+      logger.error("Error getting publisher status", { error });
+      res.status(500).json({ error: "Failed to get publisher status" });
+    }
+  });
+
+  // Preview a generated thread without posting. Used by an admin UI to review
+  // before approving the personal-account post.
+  app.get("/api/social/track-log/preview", requireAdminJWT, async (req, res) => {
+    try {
+      const { generateScoreboardThread } = await import("./track-log-generator");
+      const brand = req.query.brand === '1' || req.query.brand === 'true';
+      const ctaUrl = (req.query.cta as string) || undefined;
+      const result = await generateScoreboardThread({ brandTone: brand, ctaUrl });
+      res.json(result);
+    } catch (error) {
+      logger.error("Error generating track-log preview", { error });
+      res.status(500).json({ error: "Failed to generate preview" });
+    }
+  });
+
+  app.get("/api/social/thesis-open/preview", requireAdminJWT, async (req, res) => {
+    try {
+      const { generateThesisOpenTweet } = await import("./track-log-generator");
+      const file = (req.query.file as string) || '';
+      const ctaUrl = (req.query.cta as string) || undefined;
+      if (!file) return res.status(400).json({ error: "file query param required" });
+      const tweet = await generateThesisOpenTweet(file, ctaUrl);
+      if (!tweet) return res.status(404).json({ error: "thesis not found or unparseable" });
+      res.json({ tweet });
+    } catch (error) {
+      logger.error("Error generating thesis-open preview", { error });
+      res.status(500).json({ error: "Failed to generate preview" });
+    }
+  });
+
+  // Publish a single tweet or a thread. Personal account requires `approved: true`.
+  // Always honors caps + throttle + dedup; falls back to dry-run if creds missing.
+  app.post("/api/social/publish", requireAdminJWT, async (req, res) => {
+    try {
+      const { account, tweet, tweets, approved, bypassDedup } = req.body ?? {};
+      if (account !== 'leekandtrades' && account !== 'quantedge') {
+        return res.status(400).json({ error: "account must be 'leekandtrades' or 'quantedge'" });
+      }
+      const { publishTweet, publishThread } = await import("./twitter-publisher");
+      let result;
+      if (Array.isArray(tweets) && tweets.length > 0) {
+        result = await publishThread(account, tweets, { approved, bypassDedup });
+      } else if (typeof tweet === 'string' && tweet.length > 0) {
+        result = await publishTweet(account, tweet, { approved, bypassDedup });
+      } else {
+        return res.status(400).json({ error: "provide either `tweet` (string) or `tweets` (string[])" });
+      }
+      res.json(result);
+    } catch (error) {
+      logger.error("Error publishing", { error });
+      res.status(500).json({ error: "Failed to publish" });
+    }
+  });
+
   // Multi-LLM Validation Service endpoints
   app.get("/api/validation/status", async (_req, res) => {
     try {
